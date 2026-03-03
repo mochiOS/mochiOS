@@ -645,22 +645,25 @@ pub fn map_and_copy_segment_to(
         }
 
         // マップ（既にマップ済みの場合はアンマップして再マップ）
-        unsafe {
+        let map_result = unsafe {
             let mut alloc_lock = frame::FRAME_ALLOCATOR.lock();
             let alloc_ref = alloc_lock
                 .as_mut()
                 .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
-            match pt.map_to(page, frame, final_flags, alloc_ref) {
-                Ok(flush) => {
-                    flush.ignore();
-                }
-                Err(x86_64::structures::paging::mapper::MapToError::PageAlreadyMapped(_)) => {
-                    // カーネルのアイデンティティマップが残っている場合：アンマップして再マップ
-                    let (old_frame, flush) = pt
-                        .unmap(page)
-                        .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?;
-                    flush.ignore();
-                    let _ = frame::deallocate_frame(old_frame);
+            pt.map_to(page, frame, final_flags, alloc_ref)
+        };
+        match map_result {
+            Ok(flush) => {
+                flush.ignore();
+            }
+            Err(x86_64::structures::paging::mapper::MapToError::PageAlreadyMapped(_)) => {
+                // カーネルのアイデンティティマップが残っている場合：アンマップして再マップ
+                // Note: alloc_lock is already dropped here, so re-acquiring is safe (no deadlock).
+                unsafe {
+                    pt.unmap(page)
+                        .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?
+                        .1
+                        .ignore();
                     let mut alloc_lock2 = frame::FRAME_ALLOCATOR.lock();
                     let alloc_ref2 = alloc_lock2
                         .as_mut()
@@ -669,8 +672,8 @@ pub fn map_and_copy_segment_to(
                         .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?
                         .ignore();
                 }
-                Err(_) => return Err(Kernel::Memory(Memory::InvalidAddress)),
             }
+            Err(_) => return Err(Kernel::Memory(Memory::InvalidAddress)),
         }
 
         // ELFデータを物理フレームに直接書き込む（phys_off=0のためphys=virtで直接アクセス可能）

@@ -1,4 +1,7 @@
-use crate::{syscall::EINVAL, util};
+use crate::{
+    syscall::{EFAULT, EINVAL},
+    util,
+};
 
 /// コンソール書き込み (buf_ptr, len)
 pub fn write(buf_ptr: u64, len: u64) -> u64 {
@@ -10,7 +13,7 @@ pub fn write(buf_ptr: u64, len: u64) -> u64 {
         return 0;
     }
     if !crate::syscall::validate_user_ptr(buf_ptr, len as u64) {
-        return EINVAL;
+        return EFAULT;
     }
 
     let bytes = unsafe { core::slice::from_raw_parts(buf_ptr as *const u8, len) };

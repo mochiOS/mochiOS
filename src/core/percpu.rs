@@ -12,6 +12,7 @@ const MAX_CPUS: usize = 64;
 struct PerCpuState {
     kernel_cr3: AtomicU64,
     syscall_kernel_rsp: AtomicU64,
+    current_thread_id: AtomicU64,
 }
 
 impl PerCpuState {
@@ -19,6 +20,7 @@ impl PerCpuState {
         Self {
             kernel_cr3: AtomicU64::new(0),
             syscall_kernel_rsp: AtomicU64::new(0),
+            current_thread_id: AtomicU64::new(0),
         }
     }
 }
@@ -63,6 +65,7 @@ pub fn init_boot_cpu(syscall_kernel_rsp: u64) {
     state
         .syscall_kernel_rsp
         .store(syscall_kernel_rsp, Ordering::SeqCst);
+    state.current_thread_id.store(0, Ordering::SeqCst);
 }
 
 pub fn kernel_cr3() -> u64 {
@@ -79,4 +82,16 @@ pub fn syscall_kernel_rsp() -> u64 {
     state_for_current_cpu()
         .syscall_kernel_rsp
         .load(Ordering::SeqCst)
+}
+
+pub fn current_thread_raw_id() -> u64 {
+    state_for_current_cpu()
+        .current_thread_id
+        .load(Ordering::SeqCst)
+}
+
+pub fn set_current_thread_raw_id(id: u64) {
+    state_for_current_cpu()
+        .current_thread_id
+        .store(id, Ordering::SeqCst);
 }

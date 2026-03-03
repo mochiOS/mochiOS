@@ -52,6 +52,8 @@ pub struct Thread {
     syscall_user_rsp: u64,
     /// 直近の SYSCALL 入口で保存したユーザー RFLAGS
     syscall_user_rflags: u64,
+    /// futex wait timeout で起床したことを示すフラグ
+    futex_timed_out: bool,
 }
 
 // Simple kernel stack pool for creating kernel stacks for threads
@@ -120,7 +122,7 @@ impl Thread {
         context.rbp = stack_top;
 
         // エントリーポイントをripに設定
-        context.rip = entry_point as u64;
+        context.rip = entry_point as usize as u64;
 
         // RFLAGSの初期値（割り込み有効）
         context.rflags = 0x202; // IF (Interrupt Flag) = 1
@@ -152,6 +154,7 @@ impl Thread {
             syscall_user_rip: 0,
             syscall_user_rsp: 0,
             syscall_user_rflags: 0,
+            futex_timed_out: false,
         }
     }
 
@@ -251,6 +254,7 @@ impl Thread {
             syscall_user_rip: 0,
             syscall_user_rsp: 0,
             syscall_user_rflags: 0,
+            futex_timed_out: false,
         }
     }
 
@@ -351,6 +355,7 @@ impl Thread {
             syscall_user_rip: user_rip,
             syscall_user_rsp: user_rsp,
             syscall_user_rflags: user_rflags,
+            futex_timed_out: false,
         }
     }
 
@@ -388,6 +393,16 @@ impl Thread {
         self.syscall_user_rip = rip;
         self.syscall_user_rsp = rsp;
         self.syscall_user_rflags = rflags;
+    }
+
+    pub fn set_futex_timed_out(&mut self, timed_out: bool) {
+        self.futex_timed_out = timed_out;
+    }
+
+    pub fn take_futex_timed_out(&mut self) -> bool {
+        let timed_out = self.futex_timed_out;
+        self.futex_timed_out = false;
+        timed_out
     }
 
     /// スレッドIDを取得
@@ -503,6 +518,13 @@ impl ThreadQueue {
             .find_map(|slot| slot.as_mut().filter(|t| t.id() == id))
     }
 
+    /// スレッドIDが存在するスロットインデックスを返す
+    pub fn slot_index(&self, id: ThreadId) -> Option<usize> {
+        self.threads
+            .iter()
+            .position(|slot| slot.as_ref().is_some_and(|t| t.id() == id))
+    }
+
     /// スレッドを削除
     ///
     /// # Returns
@@ -614,11 +636,14 @@ impl ThreadQueue {
     }
 }
 
+impl Default for ThreadQueue {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// グローバルスレッドキュー
 pub(super) static THREAD_QUEUE: SpinLock<ThreadQueue> = SpinLock::new(ThreadQueue::new());
-
-/// 現在実行中のスレッドID
-pub(super) static CURRENT_THREAD: SpinLock<Option<ThreadId>> = SpinLock::new(None);
 
 /// スレッドキューにスレッドを追加
 pub fn add_thread(thread: Thread) -> Option<ThreadId> {
@@ -681,12 +706,32 @@ pub fn thread_id_exists(id_val: u64) -> bool {
     exists
 }
 
+/// 指定したスレッドIDのスロットインデックスを返す
+pub fn thread_slot_index(id: ThreadId) -> Option<usize> {
+    THREAD_QUEUE.lock().slot_index(id)
+}
+
+/// 指定したu64スレッドIDのスロットインデックスを返す
+pub fn thread_slot_index_by_u64(id_val: u64) -> Option<usize> {
+    thread_slot_index(ThreadId::from_u64(id_val))
+}
+
 /// 現在実行中のスレッドIDを取得
 pub fn current_thread_id() -> Option<ThreadId> {
-    *CURRENT_THREAD.lock()
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let raw = crate::percpu::current_thread_raw_id();
+        if raw == 0 {
+            None
+        } else {
+            Some(ThreadId::from_u64(raw))
+        }
+    })
 }
 
 /// 現在実行中のスレッドIDを設定
 pub fn set_current_thread(id: Option<ThreadId>) {
-    *CURRENT_THREAD.lock() = id;
+    let raw = id.map(|v| v.as_u64()).unwrap_or(0);
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        crate::percpu::set_current_thread_raw_id(raw);
+    });
 }

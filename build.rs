@@ -20,7 +20,7 @@ fn main() {
     for dir in &[&ramfs_dir, &fs_dir] {
         if !dir.is_dir() {
             fs::create_dir_all(dir)
-                .expect(&format!("Failed to create directory: {}", dir.display()));
+                .unwrap_or_else(|_| panic!("Failed to create directory: {}", dir.display()));
         }
     }
 

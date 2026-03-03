@@ -14,12 +14,19 @@ const FD_BASE: usize = 3; // 0,1,2 は stdio 用に予約
 /// ユーザ空間から開かれたファイルを保持するハンドル
 #[repr(C)]
 struct FileHandle {
+    owner_pid: u64,
     data: Box<[u8]>,
     pos: usize,
 }
 
 // ファイルディスクリプタテーブル: 0 == 未使用, それ以外は Box<FileHandle> の生ポインタ (u64)
 static FD_TABLE: SpinLock<[u64; MAX_FDS]> = SpinLock::new([0u64; MAX_FDS]);
+
+#[inline]
+fn current_process_id_raw() -> Option<u64> {
+    crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id().as_u64()))
+}
 
 // ユーザー文字列 (null 末尾) を安全にコピーして String にする
 fn read_cstring(ptr: u64) -> Result<String, u64> {
@@ -45,9 +52,7 @@ fn read_cstring(ptr: u64) -> Result<String, u64> {
         }
         Err(EINVAL)
     });
-    if let Err(e) = copied {
-        return Err(e);
-    }
+    copied?;
     match core::str::from_utf8(&buf[..len]) {
         Ok(s) => Ok(s.to_string()),
         Err(_) => Err(EINVAL),
@@ -58,6 +63,11 @@ fn read_cstring(ptr: u64) -> Result<String, u64> {
 /// - path はユーザー空間の null 終端文字列ポインタ
 /// - flags は無視
 pub fn open(path_ptr: u64, _flags: u64) -> u64 {
+    let owner_pid = match current_process_id_raw() {
+        Some(pid) => pid,
+        None => return EBADF,
+    };
+
     let path = match read_cstring(path_ptr) {
         Ok(s) => s,
         Err(e) => return e,
@@ -71,6 +81,7 @@ pub fn open(path_ptr: u64, _flags: u64) -> u64 {
 
     // ハンドルを確保して所有権を Box にして登録する
     let handle = Box::new(FileHandle {
+        owner_pid,
         data: data_vec.into_boxed_slice(),
         pos: 0,
     });
@@ -100,10 +111,18 @@ pub fn close(fd: u64) -> u64 {
     if idx >= MAX_FDS {
         return EBADF;
     }
+    let caller_pid = match current_process_id_raw() {
+        Some(pid) => pid,
+        None => return EBADF,
+    };
 
     let mut table = FD_TABLE.lock();
     let ptr = table[idx];
     if ptr == 0 {
+        return EBADF;
+    }
+    let owner_pid = unsafe { (*(ptr as *const FileHandle)).owner_pid };
+    if owner_pid != caller_pid {
         return EBADF;
     }
     table[idx] = 0;
@@ -125,6 +144,10 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
     if idx >= MAX_FDS {
         return EBADF;
     }
+    let caller_pid = match current_process_id_raw() {
+        Some(pid) => pid,
+        None => return EBADF,
+    };
 
     let mut table = FD_TABLE.lock();
     let ptr = table[idx];
@@ -133,6 +156,9 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
     }
 
     let fh = unsafe { &mut *(ptr as *mut FileHandle) };
+    if fh.owner_pid != caller_pid {
+        return EBADF;
+    }
     let len = fh.data.len() as i64;
     let new_pos = match whence {
         0 => offset,                 // SEEK_SET
@@ -163,12 +189,22 @@ pub fn fstat(fd: u64, stat_ptr: u64) -> u64 {
         // stdin/stdout/stderr
         true
     } else {
+        let caller_pid = match current_process_id_raw() {
+            Some(pid) => pid,
+            None => return EBADF,
+        };
         let idx = fd as usize;
         if idx >= MAX_FDS {
             false
         } else {
             let table = FD_TABLE.lock();
-            table[idx] != 0
+            let ptr = table[idx];
+            if ptr == 0 {
+                false
+            } else {
+                let owner_pid = unsafe { (*(ptr as *const FileHandle)).owner_pid };
+                owner_pid == caller_pid
+            }
         }
     };
     if !fd_valid {
@@ -286,6 +322,10 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     if idx >= MAX_FDS {
         return EBADF;
     }
+    let caller_pid = match current_process_id_raw() {
+        Some(pid) => pid,
+        None => return EBADF,
+    };
     // UAF修正: ロックを保持したままFileHandleにアクセスする
     // (ロック保持中はclose()がブロックされるため解放済みメモリアクセスを防ぐ)
     let mut table = FD_TABLE.lock();
@@ -295,6 +335,9 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     }
 
     let fh = unsafe { &mut *(ptr as *mut FileHandle) };
+    if fh.owner_pid != caller_pid {
+        return EBADF;
+    }
     let avail = fh.data.len().saturating_sub(fh.pos);
     if avail == 0 {
         return 0;

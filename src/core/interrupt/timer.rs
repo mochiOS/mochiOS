@@ -22,6 +22,7 @@ pub extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptSta
         .fetch_add(1, Ordering::Relaxed)
         .saturating_add(1);
     crate::syscall::time::wake_due_sleepers(ticks);
+    crate::syscall::process::wake_due_futex_waiters(ticks);
 
     // スケジューラのティックを実行
     let should_schedule = crate::task::scheduler_tick();

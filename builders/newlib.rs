@@ -139,11 +139,11 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
     let crt_obj = libc_dir.join("crt0.o");
 
     let status = Command::new("rustc")
-        .args(&["--emit", "obj"])
-        .args(&["--crate-type", "lib"])
-        .args(&["--edition", "2021"])
-        .args(&["--target", "x86_64-unknown-none"])
-        .args(&["-o", crt_obj.to_str().unwrap()])
+        .args(["--emit", "obj"])
+        .args(["--crate-type", "lib"])
+        .args(["--edition", "2021"])
+        .args(["--target", "x86_64-unknown-none"])
+        .args(["-o", crt_obj.to_str().unwrap()])
         .arg(&crt_src)
         .status()
         .expect("Failed to build crt0.o");
@@ -157,11 +157,11 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
     let glue_lib = libc_dir.join("libuserglue.a");
 
     let status = Command::new("rustc")
-        .args(&["--crate-type", "staticlib"])
-        .args(&["--edition", "2021"])
-        .args(&["--target", "x86_64-unknown-none"])
-        .args(&["-C", "panic=abort"])
-        .args(&["-o", glue_lib.to_str().unwrap()])
+        .args(["--crate-type", "staticlib"])
+        .args(["--edition", "2021"])
+        .args(["--target", "x86_64-unknown-none"])
+        .args(["-C", "panic=abort"])
+        .args(["-o", glue_lib.to_str().unwrap()])
         .arg(&lib_src)
         .status()
         .expect("Failed to build libuserglue.a");

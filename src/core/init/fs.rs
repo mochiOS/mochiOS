@@ -194,8 +194,8 @@ fn inode(image: &[u8], sb: Superblock, inode_num: u32) -> Option<Inode> {
 
     let mut blocks = [0u32; 15];
     let blocks_off = inode_off + 40;
-    for i in 0..15 {
-        blocks[i] = read_u32(image, blocks_off + i * 4)?;
+    for (i, block) in blocks.iter_mut().enumerate() {
+        *block = read_u32(image, blocks_off + i * 4)?;
     }
 
     Some(Inode { mode, size, blocks })
@@ -272,7 +272,7 @@ fn read_inode_data(image: &[u8], sb: Superblock, inode_num: u32) -> Option<Vec<u
         return Some(Vec::new());
     }
     let size = inode.size as usize;
-    let blocks_needed = (size + sb.block_size as usize - 1) / sb.block_size as usize;
+    let blocks_needed = size.div_ceil(sb.block_size as usize);
     let mut buf = Vec::with_capacity(size);
 
     crate::debug!(
@@ -287,7 +287,7 @@ fn read_inode_data(image: &[u8], sb: Superblock, inode_num: u32) -> Option<Vec<u
         if block_num == 0 {
             // スパースファイルのホール: ゼロで埋めて続行
             let to_fill = core::cmp::min(sb.block_size as usize, size - buf.len());
-            buf.extend(core::iter::repeat(0u8).take(to_fill));
+            buf.extend(core::iter::repeat_n(0u8, to_fill));
             if buf.len() >= size {
                 break;
             }
@@ -414,9 +414,7 @@ fn read_path(path: &str) -> Option<Vec<u8>> {
     let mut current = inode(EXT2_IMAGE, sb, 2)?; // root
 
     let mut parts = path.split('/').filter(|p| !p.is_empty()).peekable();
-    if parts.peek().is_none() {
-        return None;
-    }
+    parts.peek()?;
 
     while let Some(part) = parts.next() {
         // ディレクトリトラバーサル防止: ".." および "." を拒否する (C-7修正)

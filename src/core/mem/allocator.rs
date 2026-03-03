@@ -59,11 +59,10 @@ pub fn init_heap(
 fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
     crate::warn!("allocation error: {:?}", layout);
     // スケジューラが動作中でカレントスレッドがあれば、そのプロセスを終了して回復を試みる
-    if crate::task::scheduler::is_scheduler_enabled() {
-        if crate::task::current_thread_id().is_some() {
-            crate::warn!("OOM: terminating current process to recover");
-            crate::task::scheduler::exit_current_process(-1);
-        }
+    if crate::task::scheduler::is_scheduler_enabled() && crate::task::current_thread_id().is_some()
+    {
+        crate::warn!("OOM: terminating current process to recover");
+        crate::task::scheduler::exit_current_process(-1);
     }
     // 回復不能: 割り込みを無効化してシステムを停止
     #[cfg(target_arch = "x86_64")]

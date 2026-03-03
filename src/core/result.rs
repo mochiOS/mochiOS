@@ -131,11 +131,10 @@ impl Kernel {
     /// - `Memory::OutOfMemory`
     /// - `Device::HardwareFailure`
     pub fn is_fatal(&self) -> bool {
-        match self {
-            Kernel::Memory(Memory::OutOfMemory) => true,
-            Kernel::Device(Device::HardwareFailure) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Kernel::Memory(Memory::OutOfMemory) | Kernel::Device(Device::HardwareFailure)
+        )
     }
 
     /// このエラーがリトライ可能かどうか
@@ -144,11 +143,10 @@ impl Kernel {
     /// - `Device::Busy`
     /// - `Device::Timeout`
     pub fn is_retryable(&self) -> bool {
-        match self {
-            Kernel::Device(Device::Busy) => true,
-            Kernel::Device(Device::Timeout) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Kernel::Device(Device::Busy) | Kernel::Device(Device::Timeout)
+        )
     }
 }
 

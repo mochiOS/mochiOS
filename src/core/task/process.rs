@@ -262,7 +262,7 @@ impl ProcessTable {
         self.processes
             .iter()
             .filter_map(|slot| slot.as_ref())
-            .find(|p| p.name() == name || (p.name().len() > 0 && p.name() == name))
+            .find(|p| p.name() == name)
     }
 
     fn is_child_match(process: &Process, parent: ProcessId, target: Option<ProcessId>) -> bool {
@@ -312,12 +312,23 @@ impl ProcessTable {
     }
 }
 
+impl Default for ProcessTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// グローバルプロセステーブル
 static PROCESS_TABLE: SpinLock<ProcessTable> = SpinLock::new(ProcessTable::new());
 
 /// プロセステーブルにプロセスを追加
 pub fn add_process(process: Process) -> Option<ProcessId> {
     PROCESS_TABLE.lock().add(process)
+}
+
+/// プロセスを削除
+pub fn remove_process(id: ProcessId) -> Option<Process> {
+    PROCESS_TABLE.lock().remove(id)
 }
 
 /// プロセスIDでプロセス情報を取得（読み取り専用操作）

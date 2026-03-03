@@ -16,18 +16,6 @@ use core::sync::atomic::{AtomicU64, Ordering};
 /// コンテキストスイッチ時に更新される
 pub static SYSCALL_KERNEL_RSP: AtomicU64 = AtomicU64::new(0);
 
-/// SYSCALL 入口でユーザー RSP を一時退避する領域 (シングルCPU用)
-pub static SYSCALL_TEMP_USER_RSP: AtomicU64 = AtomicU64::new(0);
-
-/// SYSCALL 入口でユーザー FS ベースを一時退避する領域
-static SYSCALL_TEMP_USER_FSBASE: AtomicU64 = AtomicU64::new(0);
-
-/// SYSCALL 入口でユーザー RIP を保存する領域 (シングルCPU用)
-pub static SYSCALL_SAVED_USER_RIP: AtomicU64 = AtomicU64::new(0);
-
-/// SYSCALL 入口でユーザー RFLAGS を保存する領域 (シングルCPU用)
-pub static SYSCALL_SAVED_USER_RFLAGS: AtomicU64 = AtomicU64::new(0);
-
 /// SYSCALL 用カーネルスタック (初回スイッチまたはスレッド切り替え前に使用)
 #[repr(align(16))]
 pub struct SyscallStack([u8; 4096 * 8]);
@@ -163,15 +151,6 @@ pub fn kpti_leave_for_current_thread() {
     restore_page_table(restore);
 }
 
-/// 現在スレッドに SYSCALL 入口時点のユーザーコンテキストを記録する
-extern "sysv64" fn save_syscall_user_context(user_rip: u64, user_rsp: u64, user_rflags: u64) {
-    if let Some(tid) = crate::task::current_thread_id() {
-        crate::task::with_thread_mut(tid, |t| {
-            t.set_syscall_user_context(user_rip, user_rsp, user_rflags);
-        });
-    }
-}
-
 /// SYSCALL エントリポイント (naked function)
 ///
 /// 呼ばれた時点:
@@ -181,14 +160,15 @@ extern "sysv64" fn save_syscall_user_context(user_rip: u64, user_rsp: u64, user_
 ///   RAX = syscall 番号
 ///   RDI/RSI/RDX/R10/R8/R9 = 引数
 ///   割り込み: 禁止 (FMASK で IF クリア済み)
+///
+/// # Safety
+/// CPU が SYSCALL エントリ規約どおりのレジスタ状態でこの関数へ入ることを前提とする。
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn syscall_entry() {
     core::arch::naked_asm!(
         // ユーザー RSP を退避（r9 は syscall の6番目引数で未使用）
         "mov r9, rsp",
-        // 後方互換のためグローバルにも保存 (fork の旧フォールバック用)
-        "mov [{temp_rsp}], rsp",
         "swapgs",
 
         // ユーザー FS ベースを IA32_FS_BASE MSR から読み込んで一時退避
@@ -197,14 +177,11 @@ pub unsafe extern "C" fn syscall_entry() {
         "rdmsr",
         "shl rdx, 32",
         "or rdx, rax",
-        "mov [{temp_fsbase}], rdx",
 
         // カーネルスタックに切り替え
         "mov rsp, [{kernel_rsp}]",
-
-        // ユーザー RIP (rcx) と RFLAGS (r11) をグローバルに保存 (fork用)
-        "mov [{user_rip}], rcx",
-        "mov [{user_rflags}], r11",
+        // ユーザーFSベースを保存
+        "push rdx",
 
         // カーネルスタック上にコンテキストを保存
         // SYSRETQ に必要: RCX (user RIP), R11 (user RFLAGS), user RSP
@@ -240,9 +217,10 @@ pub unsafe extern "C" fn syscall_entry() {
         "push r8",
         // stack layout after 15 pushes:
         // [rsp+112]=user RIP, [rsp+104]=user RFLAGS, [rsp+96]=user RSP
-        "mov rdi, [rsp + 112]",
-        "mov rsi, [rsp + 96]",
-        "mov rdx, [rsp + 104]",
+        "mov rdi, rax",
+        "mov rsi, [rsp + 112]",
+        "mov rdx, [rsp + 96]",
+        "mov rcx, [rsp + 104]",
         "call {save_ctx_fn}",
         "pop r8",
         "pop r10",
@@ -278,24 +256,26 @@ pub unsafe extern "C" fn syscall_entry() {
         "pop rbx",
         "pop rbp",
 
+        // ユーザーコンテキスト復元 (SYSRETQ に必要: rcx=RIP, r11=RFLAGS, rsp=RSP)
+        "pop rdx",   // user RSP を一時 rdx に
+        "mov r9, rdx",
+        "pop r11",   // user RFLAGS
+        "pop rcx",   // user RIP
+        "pop rax",   // saved user FS base
+
         // ユーザー FS ベースを IA32_FS_BASE MSR に復元 (TLS)
-        // rax/rdx/ecx はここで自由に使える (user RSP/RIP はまだスタックに積んである)
-        "mov rax, [{temp_fsbase}]",
+        "mov r8, rax",
         "mov rdx, rax",
         "shr rdx, 32",
         "mov ecx, 0xC0000100",  // IA32_FS_BASE MSR
+        "mov rax, r8",
         "wrmsr",
-
-        // ユーザーコンテキスト復元 (SYSRETQ に必要: rcx=RIP, r11=RFLAGS, rsp=RSP)
-        "pop rdx",   // user RSP を一時 rdx に
-        "pop r11",   // user RFLAGS
-        "pop rcx",   // user RIP
 
         // CVE-2012-0217 緩和策: SYSRETQ 前にユーザー RSP の正規アドレスチェック
         // Intel CPU では SYSRETQ 実行時にRSPが非正規アドレス（bit 63:47 が不一致）だと
         // Ring 0 で #GP が発生し、攻撃者がRIPを制御できる (CVE-2012-0217)
         // ユーザー空間の正規アドレス: bit 63:47 = 0b000...0 (0x0000_7FFF_FFFF_FFFF 以下)
-        "mov rax, rdx",
+        "mov rax, r9",
         "sar rax, 47",          // 算術右シフト47bit: 正規なら全ビット0
         "test rax, rax",
         "jnz 2f",               // 非正規アドレス → プロセスを終了
@@ -306,7 +286,7 @@ pub unsafe extern "C" fn syscall_entry() {
         "mov es, ax",
 
         // ユーザー RSP に切り替えて SYSRETQ
-        "mov rsp, rdx",
+        "mov rsp, r9",
         "swapgs",
         "sysretq",
 
@@ -315,12 +295,8 @@ pub unsafe extern "C" fn syscall_entry() {
         "mov rsp, [{kernel_rsp}]",
         "call {kill_fn}",
 
-        temp_rsp   = sym SYSCALL_TEMP_USER_RSP,
-        temp_fsbase = sym SYSCALL_TEMP_USER_FSBASE,
         kernel_rsp = sym SYSCALL_KERNEL_RSP,
-        user_rip   = sym SYSCALL_SAVED_USER_RIP,
-        user_rflags = sym SYSCALL_SAVED_USER_RFLAGS,
-        save_ctx_fn = sym save_syscall_user_context,
+        save_ctx_fn = sym super::save_user_context_for_fork,
         dispatch   = sym super::syscall_dispatch_sysv,
         kill_fn    = sym kill_non_canonical_rsp,
     );

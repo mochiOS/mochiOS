@@ -9,6 +9,7 @@ const MAX_MSG_SIZE: usize = 256;
 #[derive(Debug, Clone, Copy)]
 pub struct Message {
     from: u64,
+    to: u64,
     len: usize,
     data: [u8; MAX_MSG_SIZE],
 }
@@ -17,6 +18,7 @@ impl Message {
     const fn empty() -> Self {
         Self {
             from: 0,
+            to: 0,
             len: 0,
             data: [0; MAX_MSG_SIZE],
         }
@@ -77,24 +79,28 @@ pub fn send(dest_thread_id: u64, buf_ptr: u64, len: u64) -> u64 {
     if len > MAX_MSG_SIZE {
         return EINVAL;
     }
+    if len > 0 && buf_ptr == 0 {
+        return EFAULT;
+    }
 
     let sender = match crate::task::current_thread_id() {
         Some(id) => id.as_u64(),
         None => return EINVAL,
     };
 
-    let idx = dest_thread_id.saturating_sub(1) as usize;
-    if idx >= MAX_THREADS {
+    let idx = match crate::task::thread_slot_index_by_u64(dest_thread_id) {
+        Some(i) => i,
+        None => return EINVAL,
+    };
+
+    if !crate::task::thread_id_exists(dest_thread_id) {
         return EINVAL;
     }
 
     // 送信先スレッドが実際に存在するか確認 (#14: ゴーストメッセージ注入防止)
     // NOTE: このチェックと後続の mailbox enqueue は別ロックであり原子的ではない。
     // したがって、チェック後に送信先が終了すると孤立メッセージが残る可能性はある。
-    // ただし ThreadId は単調増加で再利用しないため、他スレッドへの誤配送は起きない。
-    if !crate::task::thread_id_exists(dest_thread_id) {
-        return EINVAL;
-    }
+    // メッセージに `to` を保持し、受信側で宛先一致を確認することで誤配送を防ぐ。
 
     // データをユーザー空間からコピー
     let mut data = [0u8; MAX_MSG_SIZE];
@@ -111,6 +117,7 @@ pub fn send(dest_thread_id: u64, buf_ptr: u64, len: u64) -> u64 {
 
     let msg = Message {
         from: sender,
+        to: dest_thread_id,
         len,
         data,
     };
@@ -133,15 +140,18 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
         None => return EINVAL,
     };
 
-    let idx = receiver.saturating_sub(1) as usize;
-    if idx >= MAX_THREADS {
-        return EINVAL;
-    }
+    let idx = match crate::task::thread_slot_index_by_u64(receiver) {
+        Some(i) => i,
+        None => return EINVAL,
+    };
 
     let mut boxes = MAILBOXES.lock();
-    let msg = match boxes[idx].pop() {
-        Some(msg) => msg,
-        None => return EAGAIN,
+    let msg = loop {
+        match boxes[idx].pop() {
+            Some(msg) if msg.to == receiver => break msg,
+            Some(_) => continue, // 既に終了した別スレッド宛の古いメッセージを破棄
+            None => return EAGAIN,
+        }
     };
     drop(boxes); // ロック解除
 
@@ -158,5 +168,5 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
     }
 
     // 上位32bitに送信元ID、下位32bitに長さ
-    ((msg.from as u64) << 32) | (copy_len as u64)
+    (msg.from << 32) | (copy_len as u64)
 }

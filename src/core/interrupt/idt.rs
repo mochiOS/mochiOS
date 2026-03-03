@@ -237,13 +237,13 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFram
 
                 // Instruction bytes dump
                 let mut dump = [0u8; 16];
-                for i in 0..dump.len() {
+                for (i, byte) in dump.iter_mut().enumerate() {
                     let va = VirtAddr::new(rip + i as u64);
                     if let Some(pa) = pt.translate_addr(va) {
                         let kaddr = (pa.as_u64() + phys_off) as *const u8;
-                        dump[i] = core::ptr::read_volatile(kaddr);
+                        *byte = core::ptr::read_volatile(kaddr);
                     } else {
-                        dump[i] = 0xff;
+                        *byte = 0xff;
                     }
                 }
                 error!("Instruction bytes @ {:#x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
@@ -334,13 +334,13 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFram
                 );
 
                 let mut stack_words = [0u64; 8];
-                for i in 0..stack_words.len() {
+                for (i, word) in stack_words.iter_mut().enumerate() {
                     let va = VirtAddr::new(rsp_val + (i as u64) * 8);
                     if let Some(pa) = pt.translate_addr(va) {
                         let kaddr = (pa.as_u64() + phys_off) as *const u64;
-                        stack_words[i] = core::ptr::read_volatile(kaddr);
+                        *word = core::ptr::read_volatile(kaddr);
                     } else {
-                        stack_words[i] = 0xffffffffffffffffu64;
+                        *word = 0xffffffffffffffffu64;
                     }
                 }
                 error!("Stack @ RSP {:#x}: {:#018x} {:#018x} {:#018x} {:#018x} {:#018x} {:#018x} {:#018x} {:#018x}",
@@ -350,7 +350,7 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFram
                 );
 
                 for (i, &w) in stack_words.iter().enumerate() {
-                    if w >= 0x4000_0000 && w < 0x5000_0000 {
+                    if (0x4000_0000..0x5000_0000).contains(&w) {
                         let func_va = VirtAddr::new(w + 0x40);
                         if let Some(pa2) = pt.translate_addr(func_va) {
                             let kptr = (pa2.as_u64() + phys_off) as *const u64;
@@ -368,13 +368,13 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFram
 
                         // Dump first 16 bytes at the candidate heap address for inspection
                         let mut b = [0u8; 16];
-                        for j in 0..b.len() {
+                        for (j, byte) in b.iter_mut().enumerate() {
                             let bva = VirtAddr::new(w + j as u64);
                             if let Some(bpa) = pt.translate_addr(bva) {
                                 let bk = (bpa.as_u64() + phys_off) as *const u8;
-                                b[j] = core::ptr::read_volatile(bk);
+                                *byte = core::ptr::read_volatile(bk);
                             } else {
-                                b[j] = 0xff;
+                                *byte = 0xff;
                             }
                         }
                         error!("Bytes @ {:#x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",

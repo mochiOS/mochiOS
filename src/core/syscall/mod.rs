@@ -29,7 +29,20 @@ pub fn validate_user_ptr(ptr: u64, len: u64) -> bool {
         Some(e) => e,
         None => return false, // 整数オーバーフロー
     };
-    ptr < USER_SPACE_END && end <= USER_SPACE_END
+    if ptr >= USER_SPACE_END || end > USER_SPACE_END {
+        return false;
+    }
+
+    let user_pt = match crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+        .and_then(|pid| crate::task::with_process(pid, |p| p.page_table()))
+        .flatten()
+    {
+        Some(pt) => pt,
+        None => return false,
+    };
+
+    crate::mem::paging::is_user_range_mapped_in_table(user_pt, ptr, len)
 }
 
 /// ユーザーポインタを実際に参照する短い区間を、必要に応じてユーザーCR3で実行する。
@@ -59,9 +72,19 @@ pub fn with_user_memory_access<R>(f: impl FnOnce() -> R) -> R {
             return f();
         }
 
+        if crate::cpu::is_smap_enabled() {
+            unsafe {
+                asm!("stac", options(nostack, preserves_flags));
+            }
+        }
         crate::mem::paging::switch_page_table(user_pt);
         let out = f();
         crate::mem::paging::switch_page_table(kernel_cr3);
+        if crate::cpu::is_smap_enabled() {
+            unsafe {
+                asm!("clac", options(nostack, preserves_flags));
+            }
+        }
         out
     })
 }
@@ -127,7 +150,28 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
     }
 }
 
+/// fork/clone のみ、現在スレッドへユーザーコンテキストを保存する
+#[no_mangle]
+pub extern "sysv64" fn save_user_context_for_fork(
+    num: u64,
+    user_rip: u64,
+    user_rsp: u64,
+    user_rflags: u64,
+) {
+    if num != SyscallNumber::Clone as u64 && num != SyscallNumber::Fork as u64 {
+        return;
+    }
+    if let Some(tid) = crate::task::current_thread_id() {
+        crate::task::with_thread_mut(tid, |t| {
+            t.set_syscall_user_context(user_rip, user_rsp, user_rflags);
+        });
+    }
+}
+
 /// システムコール割り込みハンドラ (int 0x80) - アセンブリラッパー
+///
+/// # Safety
+/// CPU が int 0x80 入口規約どおりのスタック/レジスタ状態でこの関数へ入ることを前提とする。
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn syscall_interrupt_handler() {
@@ -148,6 +192,22 @@ pub unsafe extern "C" fn syscall_interrupt_handler() {
         "push r13",
         "push r14",
         "push r15",
+
+        // fork/clone のときだけ、ユーザーコンテキストを現在スレッドへ保存
+        // saved stack layout:
+        // [rsp+112]=num(rax), [rsp+120]=user RIP, [rsp+136]=user RFLAGS, [rsp+144]=user RSP
+        "mov rax, [rsp + 112]",
+        "cmp rax, 56",
+        "je 2f",
+        "cmp rax, 57",
+        "jne 3f",
+        "2:",
+        "mov rdi, rax",
+        "mov rsi, [rsp + 120]",
+        "mov rdx, [rsp + 144]",
+        "mov rcx, [rsp + 136]",
+        "call {save_ctx_fn}",
+        "3:",
 
         // カーネルデータセグメントをロード
         // （ds/esはスタックに保存しない。復元時にユーザーセグメントを再設定）
@@ -203,6 +263,7 @@ pub unsafe extern "C" fn syscall_interrupt_handler() {
         // 割り込みから戻る
         "iretq",
 
+        save_ctx_fn = sym save_user_context_for_fork,
         syscall_handler = sym syscall_handler_rust,
     );
 }

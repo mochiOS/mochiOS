@@ -166,7 +166,9 @@ pub fn parse_phdr(data: &[u8], offset: usize) -> Option<Elf64Phdr> {
 ///
 /// ## Returns
 /// セグメントのベクタ。各セグメントは (仮想アドレス, メモリサイズ, ファイルサイズ, オフセット, フラグ) のタプル。
-pub fn list_loadable_segments(data: &[u8]) -> Option<Vec<(u64, u64, u64, u64, u32)>> {
+pub type LoadableSegment = (u64, u64, u64, u64, u32);
+
+pub fn list_loadable_segments(data: &[u8]) -> Option<Vec<LoadableSegment>> {
     let eh = parse_elf_header(data)?;
     let mut res = Vec::new();
     let phoff = eh.e_phoff as usize;

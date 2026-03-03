@@ -100,10 +100,8 @@ pub fn exec_kernel(path_ptr: u64) -> u64 {
     let path = provided_path.as_deref().unwrap_or("/hello.bin");
 
     // ユーザー空間からはサービス（.serviceで終わる名前）を起動できない
-    if path.ends_with(".service") {
-        if !caller_can_launch_service() {
-            return crate::syscall::types::EPERM;
-        }
+    if path.ends_with(".service") && !caller_can_launch_service() {
+        return crate::syscall::types::EPERM;
     }
 
     exec_internal(path, None)
@@ -687,10 +685,8 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
     let aslr_seed = next_aslr_seed(path);
 
     // サービス起動はサービスマネージャー(Coreまたは登録PID)に限定
-    if path.ends_with(".service") {
-        if !caller_can_launch_service() {
-            return EPERM;
-        }
+    if path.ends_with(".service") && !caller_can_launch_service() {
+        return EPERM;
     }
 
     // initfs からファイルを読み込む
@@ -764,7 +760,7 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
                         }
                     };
                     let seg_src = &data[src_off..src_end];
-                    if let Err(_) = crate::mem::paging::map_and_copy_segment_to(
+                    if crate::mem::paging::map_and_copy_segment_to(
                         new_pt_phys,
                         ph.p_vaddr,
                         ph.p_filesz,
@@ -772,7 +768,9 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
                         seg_src,
                         (ph.p_flags & 0x2) != 0,
                         (ph.p_flags & 0x1) != 0,
-                    ) {
+                    )
+                    .is_err()
+                    {
                         return EINVAL;
                     }
                 }
@@ -826,7 +824,7 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         return crate::syscall::types::EINVAL;
     }
 
-    if let Err(_) = crate::mem::paging::map_and_copy_segment_to(
+    if crate::mem::paging::map_and_copy_segment_to(
         new_pt_phys,
         stack_base_vaddr,
         0,
@@ -834,11 +832,13 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         &[],
         true,
         false,
-    ) {
+    )
+    .is_err()
+    {
         return EINVAL;
     }
     let top_page_vaddr = stack_end_vaddr - 4096;
-    if let Err(_) = crate::mem::paging::map_and_copy_segment_to(
+    if crate::mem::paging::map_and_copy_segment_to(
         new_pt_phys,
         top_page_vaddr,
         4096,
@@ -846,7 +846,9 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         &page_data,
         true,
         false,
-    ) {
+    )
+    .is_err()
+    {
         return EINVAL;
     }
 
@@ -856,7 +858,7 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
     let heap_base = HEAP_BASE_MIN
         .saturating_add(aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, HEAP_ASLR_MAX_PAGES) * 4096);
     let heap_map_size: u64 = 4096 * 2;
-    if let Err(_) = crate::mem::paging::map_and_copy_segment_to(
+    if crate::mem::paging::map_and_copy_segment_to(
         new_pt_phys,
         heap_base,
         0,
@@ -864,7 +866,9 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         &[],
         true,
         false,
-    ) {
+    )
+    .is_err()
+    {
         return EINVAL;
     }
 

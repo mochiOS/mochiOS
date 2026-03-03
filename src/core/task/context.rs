@@ -20,6 +20,12 @@ pub struct Context {
     pub rflags: u64,
 }
 
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Context {
     pub const fn new() -> Self {
         Self {
@@ -54,6 +60,10 @@ static mut INITIAL_DUMMY_CONTEXT: Context = Context::new();
 /// offset 0x40: rsi
 /// offset 0x48: rip
 /// offset 0x50: rflags
+///
+/// # Safety
+/// `old_context`/`new_context` は有効な `Context` 領域を指し、呼び出し規約に従って
+/// コンテキスト切替可能な状態である必要がある。
 #[unsafe(naked)]
 #[no_mangle]
 pub unsafe extern "C" fn switch_context(old_context: *mut Context, new_context: *const Context) {
@@ -100,6 +110,9 @@ pub unsafe extern "C" fn switch_context(old_context: *mut Context, new_context: 
 }
 
 /// 別スレッドへ切替（通常呼び出し経路）
+///
+/// # Safety
+/// 呼び出し側は `next_id` が有効な実行可能スレッドであることを保証する必要がある。
 pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) {
     // コンテキストスイッチ中は割り込みを禁止する
     // ロック解放からコンテキストスイッチまでの間に割り込みが入ると不整合が起きる可能性があるため
@@ -162,6 +175,10 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
 
     drop(queue);
 
+    // 実際に切り替える直前に current thread を更新する。
+    // これにより「currentだけ先に更新される競合窓」を避ける。
+    crate::task::set_current_thread(Some(next_id));
+
     // TSSのRSP0とSYSCALL用カーネルスタックを更新
     crate::mem::tss::set_rsp0(next_kstack_top);
     crate::syscall::syscall_entry::update_kernel_rsp(next_kstack_top);
@@ -190,6 +207,9 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
 }
 
 /// カーネルから直接ユーザーモードに入るためのヘルパ（最初のユーザスレッド用）
+///
+/// # Safety
+/// `ctx` はユーザーモード復帰に必要な有効なレジスタ値/セグメント値を含んでいる必要がある。
 pub unsafe fn enter_user_from_kernel(ctx: &Context) -> ! {
     let user_cs = crate::mem::gdt::user_code_selector() as u64;
     let user_ds = crate::mem::gdt::user_data_selector() as u64;
@@ -217,7 +237,7 @@ pub unsafe fn enter_user_from_kernel(ctx: &Context) -> ! {
         r14 = in(reg) ctx.r14,
         r15 = in(reg) ctx.r15,
         rbp = in(reg) ctx.rbp,
-        ss = in(reg) user_ds as u64,
+        ss = in(reg) user_ds,
         user_rsp = in(reg) ctx.rsp,
         rflags = in(reg) ctx.rflags,
         cs = in(reg) user_cs,
@@ -227,6 +247,10 @@ pub unsafe fn enter_user_from_kernel(ctx: &Context) -> ! {
 }
 
 /// 割込み内からの切替。呼び出し側で割込み時のレジスタを `saved` に収めて渡す。
+///
+/// # Safety
+/// `saved` は現在スレッドの正しい保存コンテキストであり、`next_id` は有効な
+/// 実行可能スレッドである必要がある。
 pub unsafe fn switch_to_thread_from_isr(
     current_id: Option<ThreadId>,
     next_id: ThreadId,
@@ -265,6 +289,9 @@ pub unsafe fn switch_to_thread_from_isr(
     }
 
     drop(queue);
+
+    // ISR 経路でも、実際の遷移直前に current thread を更新する。
+    crate::task::set_current_thread(Some(next_id));
 
     // TSSのRSP0を更新
     crate::mem::tss::set_rsp0(next_kstack_top);
@@ -345,7 +372,7 @@ pub unsafe fn switch_to_thread_from_isr(
             r14 = in(reg) saved.r14,
             r15 = in(reg) saved.r15,
             rbp = in(reg) saved.rbp,
-            ss = in(reg) user_ds as u64,
+            ss = in(reg) user_ds,
             user_rsp = in(reg) saved.rsp,
             rflags = in(reg) saved.rflags,
             cs = in(reg) user_cs,

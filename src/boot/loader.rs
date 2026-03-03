@@ -66,7 +66,7 @@ static mut MEMORY_MAP: [MemoryRegion; 256] = [MemoryRegion {
 /// UEFIエントリーポイント
 #[entry]
 unsafe fn main(_image_handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
-    if let Err(_) = uefi::helpers::init(&mut system_table) {
+    if uefi::helpers::init(&mut system_table).is_err() {
         return Status::UNSUPPORTED;
     }
 
@@ -168,5 +168,6 @@ unsafe fn main(_image_handle: Handle, mut system_table: SystemTable<Boot>) -> St
         BOOT_INFO.kernel_heap_addr = &ALLOCATOR.kernel as *const _ as u64;
     }
 
-    kernel_entry(&*&raw const BOOT_INFO);
+    let boot_info_ref = &*core::ptr::addr_of!(BOOT_INFO);
+    kernel_entry(boot_info_ref);
 }

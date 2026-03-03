@@ -111,6 +111,9 @@ impl<T> SpinLock<T> {
     ///
     /// ## Returns
     /// - `&mut T`: 内部データへの可変参照
+    ///
+    /// # Safety
+    /// 呼び出し側は、現在このロックを保持しているか、他スレッドから同時アクセスされないことを保証する必要がある。
     pub unsafe fn force_unlock(&self) {
         self.locked.store(false, Ordering::Release);
     }

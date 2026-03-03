@@ -1,7 +1,8 @@
 //! プロセス管理関連のシステムコール
 
 use super::types::{EFAULT, EINVAL, ENOMEM, ENOSYS, SUCCESS};
-use core::sync::atomic::Ordering;
+use crate::interrupt::spinlock::SpinLock;
+use crate::task::ThreadId;
 
 /// ユーザー空間の上限アドレス (x86-64 canonical hole 下側)
 const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
@@ -14,6 +15,18 @@ const TICK_MS: u64 = 10;
 /// wait のフェイルセーフ上限 (30秒)
 const WAIT_TIMEOUT_TICKS: u64 = 30_000 / TICK_MS;
 use crate::task::{current_thread_id, exit_current_task};
+
+#[derive(Clone, Copy)]
+struct FutexWaitEntry {
+    tid: ThreadId,
+    uaddr: u64,
+    wake_tick: u64,
+}
+
+const MAX_FUTEX_WAITERS: usize = crate::task::ThreadQueue::MAX_THREADS;
+const NO_TIMEOUT_WAKE_TICK: u64 = u64::MAX;
+static FUTEX_WAIT_QUEUE: SpinLock<[Option<FutexWaitEntry>; MAX_FUTEX_WAITERS]> =
+    SpinLock::new([None; MAX_FUTEX_WAITERS]);
 
 #[inline]
 fn page_align_up(addr: u64) -> Option<u64> {
@@ -30,6 +43,78 @@ fn is_user_range(addr: u64, len: u64) -> bool {
         None => return false,
     };
     addr <= USER_SPACE_END && end <= USER_SPACE_END
+}
+
+fn register_futex_waiter(tid: ThreadId, uaddr: u64, wake_tick: u64) -> bool {
+    let mut queue = FUTEX_WAIT_QUEUE.lock();
+
+    for slot in queue.iter_mut() {
+        if slot.is_some_and(|entry| entry.tid == tid) {
+            // 1スレッドは同時に1つの futex wait のみ許可する
+            return false;
+        }
+    }
+
+    for slot in queue.iter_mut() {
+        if slot.is_none() {
+            *slot = Some(FutexWaitEntry {
+                tid,
+                uaddr,
+                wake_tick,
+            });
+            return true;
+        }
+    }
+
+    false
+}
+
+fn futex_waiter_exists(tid: ThreadId, uaddr: u64) -> bool {
+    let queue = FUTEX_WAIT_QUEUE.lock();
+    queue
+        .iter()
+        .flatten()
+        .any(|entry| entry.tid == tid && entry.uaddr == uaddr)
+}
+
+fn remove_futex_waiter_by_tid(tid: ThreadId) -> bool {
+    let mut queue = FUTEX_WAIT_QUEUE.lock();
+    for slot in queue.iter_mut() {
+        if slot.is_some_and(|entry| entry.tid == tid) {
+            *slot = None;
+            return true;
+        }
+    }
+    false
+}
+
+pub fn clear_futex_waiter(tid: ThreadId) {
+    let _ = remove_futex_waiter_by_tid(tid);
+}
+
+/// FUTEX_WAIT のタイムアウトに達したスレッドを起床させる（タイマー割り込みから呼ばれる）
+pub fn wake_due_futex_waiters(now_tick: u64) {
+    let mut wake_list = [None; MAX_FUTEX_WAITERS];
+    let mut wake_count = 0usize;
+
+    {
+        let mut queue = FUTEX_WAIT_QUEUE.lock();
+        for slot in queue.iter_mut() {
+            if let Some(entry) = *slot {
+                if entry.wake_tick != NO_TIMEOUT_WAKE_TICK && now_tick >= entry.wake_tick {
+                    *slot = None;
+                    debug_assert!(wake_count < wake_list.len());
+                    wake_list[wake_count] = Some(entry.tid);
+                    wake_count += 1;
+                }
+            }
+        }
+    }
+
+    for tid in wake_list.iter().take(wake_count).flatten() {
+        crate::task::with_thread_mut(*tid, |thread| thread.set_futex_timed_out(true));
+        crate::task::wake_thread(*tid);
+    }
 }
 
 /// Exitシステムコール
@@ -127,9 +212,11 @@ pub fn brk(addr: u64) -> u64 {
         };
 
         // 拡大時にページをプロセスのページテーブルにマップ（書き込み可能、実行不可）
-        // 現在の brk がページ境界でない場合に、既に存在するページを含めてマップするために
-        // floor(current_brk) を使用する。
-        let start_page = current_brk & !4095;
+        // 既存のヒープページを上書きしないよう、次ページ境界から拡張する。
+        let start_page = match page_align_up(current_brk) {
+            Some(v) => v,
+            None => return Err(EINVAL),
+        };
         let end_page = match page_align_up(addr) {
             Some(v) if is_user_range(v.saturating_sub(1), 1) => v,
             _ => return Err(EINVAL),
@@ -137,7 +224,7 @@ pub fn brk(addr: u64) -> u64 {
 
         if end_page > start_page {
             let size = end_page - start_page;
-            if let Err(_) = crate::mem::paging::map_and_copy_segment_to(
+            if crate::mem::paging::map_and_copy_segment_to(
                 pt_phys,
                 start_page,
                 0,
@@ -145,7 +232,9 @@ pub fn brk(addr: u64) -> u64 {
                 &[],
                 true,
                 false,
-            ) {
+            )
+            .is_err()
+            {
                 return Err(ENOSYS);
             }
         }
@@ -197,20 +286,13 @@ pub fn fork() -> u64 {
         Err(_) => return ENOMEM,
     };
 
-    let (mut user_rip, mut user_rsp, mut user_rflags, parent_fs) =
-        crate::task::with_thread(parent_tid, |t| {
-            let (rip, rsp, rflags) = t.syscall_user_context();
-            (rip, rsp, rflags, t.fs_base())
-        })
-        .unwrap_or((0, 0, 0, 0));
-    // フォールバック: int 0x80 経路など旧保存経路の値を利用
+    let (user_rip, user_rsp, user_rflags, parent_fs) = crate::task::with_thread(parent_tid, |t| {
+        let (rip, rsp, rflags) = t.syscall_user_context();
+        (rip, rsp, rflags, t.fs_base())
+    })
+    .unwrap_or((0, 0, 0, 0));
     if user_rip == 0 || user_rsp == 0 {
-        user_rip = crate::syscall::syscall_entry::SYSCALL_SAVED_USER_RIP.load(Ordering::SeqCst);
-        user_rsp = crate::syscall::syscall_entry::SYSCALL_TEMP_USER_RSP.load(Ordering::SeqCst);
-        user_rflags =
-            crate::syscall::syscall_entry::SYSCALL_SAVED_USER_RFLAGS.load(Ordering::SeqCst);
-    }
-    if user_rip == 0 || user_rsp == 0 {
+        let _ = crate::mem::paging::destroy_user_page_table(child_pt);
         return ENOSYS;
     }
 
@@ -221,13 +303,18 @@ pub fn fork() -> u64 {
     child_proc.set_heap_end(heap_end);
     let child_pid = child_proc.id();
     if crate::task::add_process(child_proc).is_none() {
+        let _ = crate::mem::paging::destroy_user_page_table(child_pt);
         return ENOMEM;
     }
 
     const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 4;
     let kstack = match crate::task::thread::allocate_kernel_stack(KERNEL_THREAD_STACK_SIZE) {
         Some(s) => s,
-        None => return ENOMEM,
+        None => {
+            let _ = crate::task::remove_process(child_pid);
+            let _ = crate::mem::paging::destroy_user_page_table(child_pt);
+            return ENOMEM;
+        }
     };
     let child_thread = crate::task::Thread::new_fork_child(
         child_pid,
@@ -239,6 +326,8 @@ pub fn fork() -> u64 {
         KERNEL_THREAD_STACK_SIZE,
     );
     if crate::task::add_thread(child_thread).is_none() {
+        let _ = crate::task::remove_process(child_pid);
+        let _ = crate::mem::paging::destroy_user_page_table(child_pt);
         return ENOMEM;
     }
 
@@ -415,7 +504,7 @@ pub fn mmap(addr: u64, length: u64, _prot: u64, flags: u64, _fd: u64) -> u64 {
             None => return Err(ENOMEM),
         };
 
-        if let Err(_) = crate::mem::paging::map_and_copy_segment_to(
+        if crate::mem::paging::map_and_copy_segment_to(
             pt_phys,
             map_start,
             0,
@@ -423,7 +512,9 @@ pub fn mmap(addr: u64, length: u64, _prot: u64, flags: u64, _fd: u64) -> u64 {
             &[],
             true,
             false,
-        ) {
+        )
+        .is_err()
+        {
             return Err(ENOMEM);
         }
 
@@ -483,10 +574,11 @@ pub fn munmap(addr: u64, length: u64) -> u64 {
     }
 }
 
-/// Futexシステムコール (最小実装)
+/// Futexシステムコール
 ///
-/// FUTEX_WAIT と FUTEX_WAKE のみサポート
-pub fn futex(uaddr: u64, op: u32, val: u64, _timeout: u64) -> u64 {
+/// FUTEX_WAIT / FUTEX_WAKE の待機キュー方式を実装する。
+/// timeout は「現在tickからの相対tick」として扱う（0は無期限）。
+pub fn futex(uaddr: u64, op: u32, val: u64, timeout: u64) -> u64 {
     use super::types::EAGAIN;
     const FUTEX_WAIT: u32 = 0;
     const FUTEX_WAKE: u32 = 1;
@@ -499,23 +591,126 @@ pub fn futex(uaddr: u64, op: u32, val: u64, _timeout: u64) -> u64 {
             if uaddr == 0 {
                 return EFAULT;
             }
+            let current_tid = match crate::task::current_thread_id() {
+                Some(tid) => tid,
+                None => return ENOSYS,
+            };
             // ユーザー空間アドレスの有効性を検証する
             if !super::validate_user_ptr(uaddr, 4) {
                 return EFAULT;
             }
-            let current_val = crate::syscall::with_user_memory_access(|| unsafe {
-                core::ptr::read_volatile(uaddr as *const u32)
+            let wake_tick = if timeout == 0 {
+                NO_TIMEOUT_WAKE_TICK
+            } else {
+                crate::syscall::time::get_ticks().saturating_add(timeout)
+            };
+
+            crate::task::with_thread_mut(current_tid, |thread| thread.set_futex_timed_out(false));
+
+            let queued = x86_64::instructions::interrupts::without_interrupts(|| {
+                let current_val = crate::syscall::with_user_memory_access(|| unsafe {
+                    core::ptr::read_volatile(uaddr as *const u32)
+                });
+                if current_val != val as u32 {
+                    return Err(EAGAIN);
+                }
+                if !register_futex_waiter(current_tid, uaddr, wake_tick) {
+                    return Err(EAGAIN);
+                }
+                crate::task::sleep_thread(current_tid);
+                Ok(())
             });
-            if current_val != val as u32 {
-                return EAGAIN;
+            if let Err(err) = queued {
+                return err;
             }
-            // 簡易実装: yield して再試行させる
-            crate::task::yield_now();
-            SUCCESS
+
+            enum WaitResult {
+                Continue,
+                Success,
+                TimedOut,
+            }
+
+            loop {
+                crate::task::yield_now();
+
+                let result = x86_64::instructions::interrupts::without_interrupts(|| {
+                    let timed_out = crate::task::with_thread_mut(current_tid, |thread| {
+                        thread.take_futex_timed_out()
+                    })
+                    .unwrap_or(false);
+                    if timed_out {
+                        return WaitResult::TimedOut;
+                    }
+
+                    if !futex_waiter_exists(current_tid, uaddr) {
+                        return WaitResult::Success;
+                    }
+
+                    if wake_tick != NO_TIMEOUT_WAKE_TICK
+                        && crate::syscall::time::get_ticks() >= wake_tick
+                    {
+                        if remove_futex_waiter_by_tid(current_tid) {
+                            crate::task::with_thread_mut(current_tid, |thread| {
+                                thread.set_futex_timed_out(false);
+                            });
+                            return WaitResult::TimedOut;
+                        }
+                        let timed_out = crate::task::with_thread_mut(current_tid, |thread| {
+                            thread.take_futex_timed_out()
+                        })
+                        .unwrap_or(false);
+                        return if timed_out {
+                            WaitResult::TimedOut
+                        } else {
+                            WaitResult::Success
+                        };
+                    }
+
+                    WaitResult::Continue
+                });
+
+                match result {
+                    WaitResult::Continue => {}
+                    WaitResult::Success => return SUCCESS,
+                    WaitResult::TimedOut => return ETIMEDOUT,
+                }
+            }
         }
         FUTEX_WAKE => {
-            // Wake は何もしなくても yield ベースで動く
-            SUCCESS
+            if uaddr == 0 {
+                return EFAULT;
+            }
+            if !super::validate_user_ptr(uaddr, 4) {
+                return EFAULT;
+            }
+            let max_wake = core::cmp::min(val as usize, MAX_FUTEX_WAITERS);
+            if max_wake == 0 {
+                return 0;
+            }
+
+            let mut wake_list = [None; MAX_FUTEX_WAITERS];
+            let mut wake_count = 0usize;
+            {
+                let mut queue = FUTEX_WAIT_QUEUE.lock();
+                for slot in queue.iter_mut() {
+                    if wake_count >= max_wake {
+                        break;
+                    }
+                    if let Some(entry) = *slot {
+                        if entry.uaddr == uaddr {
+                            *slot = None;
+                            wake_list[wake_count] = Some(entry.tid);
+                            wake_count += 1;
+                        }
+                    }
+                }
+            }
+
+            for tid in wake_list.iter().take(wake_count).flatten() {
+                crate::task::with_thread_mut(*tid, |thread| thread.set_futex_timed_out(false));
+                crate::task::wake_thread(*tid);
+            }
+            wake_count as u64
         }
         _ => ENOSYS,
     }

@@ -62,11 +62,8 @@ pub fn parse_service_index(index_path: &Path) -> Result<Vec<ServiceEntry>, Strin
             current_desc.clear();
             current_autostart = false;
             current_order = 999;
-        } else if line.starts_with("dir = ") {
-            current_dir = line["dir = ".len()..]
-                .trim_matches('"')
-                .trim_matches('\'')
-                .to_string();
+        } else if let Some(rest) = line.strip_prefix("dir = ") {
+            current_dir = rest.trim_matches('"').trim_matches('\'').to_string();
         } else if line.starts_with("fs = ") || line.starts_with("fs_type = ") {
             let prefix = if line.starts_with("fs = ") {
                 "fs = "
@@ -77,15 +74,12 @@ pub fn parse_service_index(index_path: &Path) -> Result<Vec<ServiceEntry>, Strin
                 .trim_matches('"')
                 .trim_matches('\'')
                 .to_string();
-        } else if line.starts_with("description = ") {
-            current_desc = line["description = ".len()..]
-                .trim_matches('"')
-                .trim_matches('\'')
-                .to_string();
-        } else if line.starts_with("autostart = ") {
-            current_autostart = line["autostart = ".len()..].trim().parse().unwrap_or(false);
-        } else if line.starts_with("order = ") {
-            current_order = line["order = ".len()..].trim().parse().unwrap_or(999);
+        } else if let Some(rest) = line.strip_prefix("description = ") {
+            current_desc = rest.trim_matches('"').trim_matches('\'').to_string();
+        } else if let Some(rest) = line.strip_prefix("autostart = ") {
+            current_autostart = rest.trim().parse().unwrap_or(false);
+        } else if let Some(rest) = line.strip_prefix("order = ") {
+            current_order = rest.trim().parse().unwrap_or(999);
         }
     }
 

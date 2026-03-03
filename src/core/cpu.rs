@@ -7,6 +7,7 @@ use core::arch::asm;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 static FSGSBASE_SUPPORTED: AtomicBool = AtomicBool::new(false);
+static SMAP_ENABLED: AtomicBool = AtomicBool::new(false);
 
 /// CPUの初期化（SSE/FPU/NXE/SMEP/SMAP有効化）
 pub fn init() {
@@ -75,7 +76,7 @@ unsafe fn enable_sse() {
     // CPUID leaf 7, EBX bit 0 でサポート確認
     if cpu_has_fsgsbase() {
         cr4 |= 1 << 16;
-        FSGSBASE_SUPPORTED.store(true, Ordering::Relaxed);
+        FSGSBASE_SUPPORTED.store(true, Ordering::Release);
         crate::info!("FSGSBASE enabled");
     } else {
         crate::info!("FSGSBASE not supported, using IA32_FS_BASE MSR");
@@ -90,19 +91,29 @@ unsafe fn enable_smep_smap() {
     let mut cr4: u64;
     asm!("mov {}, cr4", out(reg) cr4, options(nomem, nostack));
 
-    // ビット20 (SMEP) をセット - カーネルモードでのユーザーページ実行禁止 (L-1修正)
-    // ret2usr 等のカーネルモード特権昇格攻撃を防ぐ
-    cr4 |= 1 << 20;
+    if cpu_has_smep() {
+        // ビット20 (SMEP) をセット - カーネルモードでのユーザーページ実行禁止 (L-1修正)
+        // ret2usr 等のカーネルモード特権昇格攻撃を防ぐ
+        cr4 |= 1 << 20;
+        crate::info!("SMEP enabled");
+    } else {
+        crate::warn!("SMEP not supported; skipping");
+    }
 
-    // ビット21 (SMAP) をセット - カーネルモードでのユーザーページアクセス禁止 (L-1修正)
-    // カーネルが誤ってユーザー空間メモリを読み書きする脆弱性を防ぐ
-    cr4 |= 1 << 21;
+    if cpu_has_smap() {
+        // ビット21 (SMAP) をセット - カーネルモードでのユーザーページアクセス禁止 (L-1修正)
+        // カーネルが誤ってユーザー空間メモリを読み書きする脆弱性を防ぐ
+        cr4 |= 1 << 21;
+        SMAP_ENABLED.store(true, Ordering::Release);
+        crate::info!("SMAP enabled");
+    } else {
+        crate::warn!("SMAP not supported; skipping");
+    }
 
     asm!("mov cr4, {}", in(reg) cr4, options(nomem, nostack));
 }
 
-/// CPUID で FSGSBASE サポートを確認 (leaf 7, EBX bit 0)
-fn cpu_has_fsgsbase() -> bool {
+fn cpuid_leaf7_ebx() -> u32 {
     // rbx は LLVM が予約するため xchg で保存/復元する
     let ebx: u64;
     unsafe {
@@ -117,12 +128,30 @@ fn cpu_has_fsgsbase() -> bool {
             options(nomem, nostack)
         );
     }
-    (ebx as u32 & 1) != 0
+    ebx as u32
+}
+
+/// CPUID で FSGSBASE サポートを確認 (leaf 7, EBX bit 0)
+fn cpu_has_fsgsbase() -> bool {
+    (cpuid_leaf7_ebx() & (1 << 0)) != 0
+}
+
+/// CPUID で SMEP サポートを確認 (leaf 7, EBX bit 7)
+fn cpu_has_smep() -> bool {
+    (cpuid_leaf7_ebx() & (1 << 7)) != 0
+}
+
+/// CPUID で SMAP サポートを確認 (leaf 7, EBX bit 20)
+fn cpu_has_smap() -> bool {
+    (cpuid_leaf7_ebx() & (1 << 20)) != 0
 }
 
 /// FS ベースを書き込む (WRFSBASE または IA32_FS_BASE MSR)
+///
+/// # Safety
+/// 呼び出し側は `val` が現在スレッドの有効な TLS ベース値であることを保証する必要がある。
 pub unsafe fn write_fs_base(val: u64) {
-    if FSGSBASE_SUPPORTED.load(Ordering::Relaxed) {
+    if FSGSBASE_SUPPORTED.load(Ordering::Acquire) {
         asm!("wrfsbase {}", in(reg) val, options(nostack, preserves_flags));
     } else {
         // IA32_FS_BASE MSR = 0xC0000100
@@ -133,8 +162,11 @@ pub unsafe fn write_fs_base(val: u64) {
 }
 
 /// FS ベースを読み込む (RDFSBASE または IA32_FS_BASE MSR)
+///
+/// # Safety
+/// 呼び出し側は、現在の実行コンテキストで FS ベース読み出しが安全であることを保証する必要がある。
 pub unsafe fn read_fs_base() -> u64 {
-    if FSGSBASE_SUPPORTED.load(Ordering::Relaxed) {
+    if FSGSBASE_SUPPORTED.load(Ordering::Acquire) {
         let val: u64;
         asm!("rdfsbase {}", out(reg) val, options(nostack, preserves_flags));
         val
@@ -144,4 +176,8 @@ pub unsafe fn read_fs_base() -> u64 {
         asm!("rdmsr", in("ecx") 0xC000_0100u32, out("eax") lo, out("edx") hi, options(nomem, nostack));
         ((hi as u64) << 32) | (lo as u64)
     }
+}
+
+pub fn is_smap_enabled() -> bool {
+    SMAP_ENABLED.load(Ordering::Acquire)
 }

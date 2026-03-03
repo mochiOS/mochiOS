@@ -27,6 +27,12 @@ impl ProcessId {
     }
 }
 
+impl Default for ProcessId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// スレッドID
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ThreadId(u64);
@@ -45,6 +51,12 @@ impl ThreadId {
     /// 数値からThreadIdを生成
     pub const fn from_u64(id: u64) -> Self {
         Self(id)
+    }
+}
+
+impl Default for ThreadId {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

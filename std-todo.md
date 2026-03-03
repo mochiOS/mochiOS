@@ -4,6 +4,35 @@ SwiftCore 上で Rust の `std` を動かすために必要な作業と、現在
 
 ---
 
+## ✅ ステータス更新（2026-03-03）
+
+> 下記は **現在の `dev` 実装に対する反映状況**。  
+> 詳細な背景・作業内容は本書の各項目（1〜19）を参照。
+
+| # | 項目 | 状態 | 根拠（主要ファイル） |
+|---|---|---|---|
+| 1 | `src/libc` パス問題 | 完了 | `Cargo.toml` の `[patch.crates-io]` から `libc` パッチ自体が除去済み |
+| 2 | `libc-rs` クレート名 | 完了 | `src/libc-rs/Cargo.toml` は `name = "libc"` |
+| 3 | `swiftlib` 未依存問題 | 完了 | `src/libc-rs/src/lib.rs` で `swiftlib` 依存なし |
+| 4 | `#![no_main]` 誤用 | 完了 | `src/libc-rs/src/lib.rs` に `#![no_main]` なし |
+| 5 | `swiftlib::cfunc` 欠落 | 完了（不要化） | リポジトリ内に `swiftlib::cfunc` 利用箇所なし |
+| 6 | `memalign` 常時失敗 | 完了（改善） | `src/user/libc.rs::memalign` は `malloc` ベース実装に変更 |
+| 7 | POSIX/Linux 互換エラー | 完了 | `src/core/syscall/types.rs` は負のLinux errno互換値 |
+| 8 | ターゲットOS設定 | 完了 | `src/x86_64-swiftcore.json` は `"os": "linux"` |
+| 9 | Linux互換 syscall番号 | 完了 | `src/core/syscall/types.rs` / `src/user/sys.rs` が Linux x86_64 番号 |
+| 10 | `mmap`/`munmap` | 完了 | `src/core/syscall/process.rs` に実装あり |
+| 11 | `clone`（スレッド意味論） | 未完（部分） | `Clone` は現状 `fork()` 経路（本来の `clone(2)` 意味論は未実装） |
+| 12 | `futex` | 完了 | `src/core/syscall/process.rs::futex` 実装あり |
+| 13 | TLS 実装 | 未完（部分） | `arch_prctl` + FS保存/復元は実装済み、`PT_TLS` ロードは未実装 |
+| 14 | `errno` TLS化 | 未完（部分） | `src/user/posix_stubs.rs` は単一グローバル `ERRNO_VAL` |
+| 15 | `clock_gettime` | 完了 | `src/core/syscall/time.rs::clock_gettime` 実装あり |
+| 16 | `nanosleep` | 未完（部分） | `src/user/posix_stubs.rs::nanosleep` は yield代用 |
+| 17 | シグナル最低限 | 未完（部分） | `RtSigaction/RtSigprocmask` はカーネルでスタブ応答 |
+| 18 | `getcwd` | 完了（簡易） | `src/core/syscall/fs.rs::getcwd` 実装（`/` 固定） |
+| 19 | FS syscall実装 | 完了（簡易） | `open/read/close/fstat/lseek` 実装（initfs簡易モデル） |
+
+---
+
 ## 🐛 現在のバグ（今すぐ直すべき）
 
 ### 1. `src/libc` パスが存在しない

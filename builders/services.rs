@@ -141,13 +141,34 @@ pub fn build_service(
 
     // .cargo/config.toml にtargetが設定されているか確認
     let cargo_config = service_dir.join(".cargo/config.toml");
-    let has_config_target = std::fs::read_to_string(&cargo_config)
+    let cargo_config_text = std::fs::read_to_string(&cargo_config).ok();
+    let has_config_target = cargo_config_text
+        .as_deref()
         .map(|s| s.contains("[build]") && s.contains("target"))
         .unwrap_or(false);
+    let config_uses_json_target = cargo_config_text
+        .as_deref()
+        .map(|s| s.contains(".json"))
+        .unwrap_or(false);
+
+    let target_spec = if has_config_target {
+        None
+    } else {
+        find_target_spec(&service_dir)
+    };
+    let uses_json_target = config_uses_json_target
+        || target_spec
+            .as_deref()
+            .map(|t| t.ends_with(".json"))
+            .unwrap_or(false);
 
     // cargoでサービスをビルド
     let mut cmd = Command::new("cargo");
     cmd.args(["build"]);
+    if uses_json_target {
+        cmd.args(["-Z", "json-target-spec"]);
+        println!("  Enabling -Z json-target-spec");
+    }
 
     // 外側の cargo ビルドの環境変数をクリア (干渉を防ぐ)
     // ジョブサーバーとビルドシステムの変数をクリアして独立したビルドにする
@@ -168,7 +189,6 @@ pub fn build_service(
 
     if !has_config_target {
         // .cargo/config.toml にtargetがない場合のみ --target を渡す
-        let target_spec = find_target_spec(&service_dir);
         if let Some(target) = &target_spec {
             cmd.arg("--target").arg(target);
             println!("  Using target from JSON: {}", target);

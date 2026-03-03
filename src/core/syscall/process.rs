@@ -6,8 +6,12 @@ use super::types::{EFAULT, EINVAL, ENOMEM, ENOSYS, SUCCESS};
 const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
 /// Linux互換: 子プロセスが存在しない
 const ECHILD: u64 = (-10i64) as u64;
+/// Linux互換: 操作がタイムアウトした
+const ETIMEDOUT: u64 = (-110i64) as u64;
 /// PIT割り込み周期 (10ms)
 const TICK_MS: u64 = 10;
+/// wait のフェイルセーフ上限 (30秒)
+const WAIT_TIMEOUT_TICKS: u64 = 30_000 / TICK_MS;
 use crate::task::{current_thread_id, exit_current_task};
 
 #[inline]
@@ -242,6 +246,8 @@ pub fn wait(_pid: u64, status_ptr: u64, options: u64) -> u64 {
         return 0;
     }
 
+    let wait_deadline = crate::syscall::time::get_ticks().saturating_add(WAIT_TIMEOUT_TICKS);
+
     // 簡易ブロッキング: 子スレッドが消えるまで待機
     loop {
         for idx in 0..target_count {
@@ -262,6 +268,9 @@ pub fn wait(_pid: u64, status_ptr: u64, options: u64) -> u64 {
                 }
                 return child_pid;
             }
+        }
+        if crate::syscall::time::get_ticks() >= wait_deadline {
+            return ETIMEDOUT;
         }
         crate::task::yield_now();
     }

@@ -48,10 +48,17 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
 
         // カスタムターゲットファイルを探す
         let target_spec = find_target_spec(&path);
+        let uses_json_target = target_spec
+            .as_deref()
+            .map(|t| t.ends_with(".json"))
+            .unwrap_or(false);
 
         // cargoでアプリをビルド
         let mut cmd = Command::new("cargo");
         cmd.args(["build", "--release"]);
+        if uses_json_target {
+            cmd.args(["-Z", "json-target-spec"]);
+        }
 
         // カスタムターゲットが見つかった場合は指定
         if let Some(target) = &target_spec {

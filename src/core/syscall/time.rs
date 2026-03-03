@@ -1,6 +1,62 @@
 //! 時間関連システムコール
 
-use super::types::{EFAULT, EINVAL, SUCCESS};
+use super::types::{EAGAIN, EFAULT, EINVAL, SUCCESS};
+use crate::interrupt::spinlock::SpinLock;
+use crate::task::ThreadId;
+
+#[derive(Clone, Copy)]
+struct SleepEntry {
+    tid: ThreadId,
+    wake_tick: u64,
+}
+
+const MAX_SLEEPERS: usize = crate::task::ThreadQueue::MAX_THREADS;
+static SLEEP_QUEUE: SpinLock<[Option<SleepEntry>; MAX_SLEEPERS]> =
+    SpinLock::new([None; MAX_SLEEPERS]);
+
+fn register_sleep_entry(tid: ThreadId, wake_tick: u64) -> bool {
+    let mut queue = SLEEP_QUEUE.lock();
+
+    for slot in queue.iter_mut() {
+        if slot.is_some_and(|entry| entry.tid == tid) {
+            *slot = Some(SleepEntry { tid, wake_tick });
+            return true;
+        }
+    }
+
+    for slot in queue.iter_mut() {
+        if slot.is_none() {
+            *slot = Some(SleepEntry { tid, wake_tick });
+            return true;
+        }
+    }
+
+    false
+}
+
+pub fn wake_due_sleepers(now_tick: u64) {
+    let mut wake_list = [None; MAX_SLEEPERS];
+    let mut wake_count = 0usize;
+
+    {
+        let mut queue = SLEEP_QUEUE.lock();
+        for slot in queue.iter_mut() {
+            if let Some(entry) = *slot {
+                if now_tick >= entry.wake_tick {
+                    if wake_count < wake_list.len() {
+                        wake_list[wake_count] = Some(entry.tid);
+                        wake_count += 1;
+                    }
+                    *slot = None;
+                }
+            }
+        }
+    }
+
+    for tid in wake_list.iter().take(wake_count).flatten() {
+        crate::task::wake_thread(*tid);
+    }
+}
 
 /// GetTicksシステムコール
 ///
@@ -62,8 +118,28 @@ pub fn clock_gettime(clk_id: u64, ts_ptr: u64) -> u64 {
 /// # 戻り値
 /// 成功時は0
 pub fn sleep_until(ticks: u64) -> u64 {
+    if get_ticks() >= ticks {
+        return SUCCESS;
+    }
+
+    let current_tid = match crate::task::current_thread_id() {
+        Some(tid) => tid,
+        None => return EINVAL,
+    };
+
+    let queued = x86_64::instructions::interrupts::without_interrupts(|| {
+        if !register_sleep_entry(current_tid, ticks) {
+            return false;
+        }
+        crate::task::sleep_thread(current_tid);
+        true
+    });
+    if !queued {
+        return EAGAIN;
+    }
+
     while get_ticks() < ticks {
         crate::task::yield_now();
     }
-    0
+    SUCCESS
 }

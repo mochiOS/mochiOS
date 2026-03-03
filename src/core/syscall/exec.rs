@@ -8,6 +8,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 /// `.service` 実行を許可するサービスマネージャープロセスID
 /// 0 は未登録。
 static SERVICE_MANAGER_PID: AtomicU64 = AtomicU64::new(0);
+const EM_X86_64: u16 = 0x3E;
 
 fn caller_can_launch_service() -> bool {
     let caller = crate::task::current_thread_id()
@@ -100,7 +101,6 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
         crate::debug!("Created user page table at {:#x}", new_pt_phys);
 
         // ELFアーキテクチャ検証 (MED-07)
-        const EM_X86_64: u16 = 0x3E;
         if let Some(eh) = elf_loader::parse_elf_header(data) {
             if eh.e_machine != EM_X86_64 {
                 crate::warn!("ELF e_machine {:#x} is not x86-64, rejecting", eh.e_machine);
@@ -140,14 +140,13 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
                             return crate::syscall::types::EINVAL;
                         }
                         if memsz > 0 {
-                            let vend = match vaddr.checked_add(memsz) {
-                                Some(e) if e <= USER_SPACE_END => e,
+                            match vaddr.checked_add(memsz) {
+                                Some(e) if e <= USER_SPACE_END => {}
                                 _ => {
                                     crate::warn!("ELF segment vaddr+memsz overflows user space");
                                     return crate::syscall::types::EINVAL;
                                 }
-                            };
-                            let _ = vend;
+                            }
                         }
 
                         // ELFセグメントの境界チェック (CRIT-04)
@@ -522,11 +521,26 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
         let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
         proc.set_page_table(new_pt_phys);
         let pid = proc.id();
-        if crate::task::add_process(proc).is_none() {
+        let is_core_service =
+            process_name.ends_with("core.service") || path.ends_with("core.service");
+        if is_core_service
+            && SERVICE_MANAGER_PID
+                .compare_exchange(0, pid.as_u64(), Ordering::SeqCst, Ordering::SeqCst)
+                .is_err()
+        {
+            crate::warn!("core.service is already running, rejecting duplicate launch");
             return crate::syscall::types::EINVAL;
         }
-        if process_name.ends_with("core.service") || path.ends_with("core.service") {
-            SERVICE_MANAGER_PID.store(pid.as_u64(), Ordering::SeqCst);
+        if crate::task::add_process(proc).is_none() {
+            if is_core_service {
+                let _ = SERVICE_MANAGER_PID.compare_exchange(
+                    pid.as_u64(),
+                    0,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                );
+            }
+            return crate::syscall::types::EINVAL;
         }
 
         // allocate kernel stack for the new thread
@@ -640,11 +654,10 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
     };
 
     // PT_LOAD セグメントをマップ
-    const EM_X86_64_EXECVE: u16 = 0x3E;
     const USER_SPACE_END_EXECVE: u64 = 0x0000_7FFF_FFFF_FFFF;
     if let Some(eh) = crate::elf::loader::parse_elf_header(data) {
         // ELFアーキテクチャ検証 (MED-07)
-        if eh.e_machine != EM_X86_64_EXECVE {
+        if eh.e_machine != EM_X86_64 {
             crate::warn!("execve: ELF e_machine {:#x} is not x86-64", eh.e_machine);
             return EINVAL;
         }

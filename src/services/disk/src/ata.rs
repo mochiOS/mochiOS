@@ -316,7 +316,7 @@ impl AtaDrive {
             DriveType::Master => 0xE0,
             DriveType::Slave => 0xF0,
         };
-        let lba_top = (((lba >> 24) & 0x0F) | drive_sel) as u8;
+        let lba_top = (((lba >> 24) & 0x0F) as u8) | drive_sel;
 
         outb(self.ports.lba_low, lba_low);
         outb(self.ports.lba_mid, lba_mid);

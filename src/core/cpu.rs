@@ -8,7 +8,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 static FSGSBASE_SUPPORTED: AtomicBool = AtomicBool::new(false);
 
-/// CPUの初期化（SSE/FPU有効化、NXE有効化）
+/// CPUの初期化（SSE/FPU/NXE/SMEP/SMAP有効化）
 pub fn init() {
     crate::info!("Initializing CPU features...");
 
@@ -16,6 +16,7 @@ pub fn init() {
         enable_nxe();
         enable_fpu();
         enable_sse();
+        enable_smep_smap();
     }
 }
 
@@ -80,6 +81,15 @@ unsafe fn enable_sse() {
         crate::info!("FSGSBASE not supported, using IA32_FS_BASE MSR");
     }
 
+    // CR4レジスタに書き込み
+    asm!("mov cr4, {}", in(reg) cr4, options(nomem, nostack));
+}
+
+/// SMEP/SMAPを有効化
+unsafe fn enable_smep_smap() {
+    let mut cr4: u64;
+    asm!("mov {}, cr4", out(reg) cr4, options(nomem, nostack));
+
     // ビット20 (SMEP) をセット - カーネルモードでのユーザーページ実行禁止 (L-1修正)
     // ret2usr 等のカーネルモード特権昇格攻撃を防ぐ
     cr4 |= 1 << 20;
@@ -88,7 +98,6 @@ unsafe fn enable_sse() {
     // カーネルが誤ってユーザー空間メモリを読み書きする脆弱性を防ぐ
     cr4 |= 1 << 21;
 
-    // CR4レジスタに書き込み
     asm!("mov cr4, {}", in(reg) cr4, options(nomem, nostack));
 }
 

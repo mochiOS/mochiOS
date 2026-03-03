@@ -114,6 +114,13 @@ impl<T> SpinLock<T> {
     pub unsafe fn force_unlock(&self) {
         self.locked.store(false, Ordering::Release);
     }
+
+    /// 内部データへの不変ポインタを取得
+    ///
+    /// データ配置アドレスが必要な用途向け。排他制御は呼び出し側で担保すること。
+    pub fn as_ptr(&self) -> *const T {
+        self.data.get() as *const T
+    }
 }
 
 /// スピンロックガード

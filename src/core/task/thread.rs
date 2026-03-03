@@ -65,8 +65,7 @@ pub fn allocate_kernel_stack(size: usize) -> Option<u64> {
         return None;
     }
     // ガード領域を確保してから実スタックを返す（論理ガード）
-    let pool = KSTACK_POOL.lock();
-    let ptr = (pool.as_ptr() as usize + off + KSTACK_GUARD_BYTES) as u64;
+    let ptr = (KSTACK_POOL.as_ptr() as usize + off + KSTACK_GUARD_BYTES) as u64;
     Some(ptr)
 }
 

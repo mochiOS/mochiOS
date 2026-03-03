@@ -15,7 +15,10 @@ static TIMER_TICKS: AtomicU64 = AtomicU64::new(0);
 /// - `_stack_frame`: 割り込み発生時のスタックフレーム
 pub extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     // タイマーカウンタを増加
-    TIMER_TICKS.fetch_add(1, Ordering::Relaxed);
+    let ticks = TIMER_TICKS
+        .fetch_add(1, Ordering::Relaxed)
+        .saturating_add(1);
+    crate::syscall::time::wake_due_sleepers(ticks);
 
     // スケジューラのティックを実行
     let should_schedule = crate::task::scheduler_tick();

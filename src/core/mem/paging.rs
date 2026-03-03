@@ -24,17 +24,37 @@ pub static PHYS_OFFSET: Mutex<Option<u64>> = Mutex::new(None);
 /// カーネルの元のL4ページテーブルの物理アドレス（init時に設定）
 pub static KERNEL_L4_PHYS: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
 
+// COFF の .text$X セクション順序を使って、.text の先頭/末尾マーカーを置く。
+#[used]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text$A")]
+static __text_start: u8 = 0;
+#[used]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text$Z")]
+static __text_end: u8 = 0;
+
 fn protect_kernel_text_pages(page_table: &mut OffsetPageTable<'static>) {
-    // リンカ依存を避けるため、現在実行中コードページを最小限RO化する
-    let rip: u64;
-    unsafe {
-        core::arch::asm!("lea {}, [rip]", out(reg) rip);
+    let text_start = core::ptr::addr_of!(__text_start) as u64;
+    let text_end = core::ptr::addr_of!(__text_end) as u64;
+    if text_end <= text_start {
+        crate::warn!(
+            "Invalid .text range: start={:#x}, end={:#x}",
+            text_start,
+            text_end
+        );
+        return;
     }
-    let page = Page::<Size4KiB>::containing_address(VirtAddr::new(rip & !0xfffu64));
-    unsafe {
-        let _ = page_table
-            .update_flags(page, PageTableFlags::PRESENT)
-            .map(|flush| flush.flush());
+
+    let start_page = Page::<Size4KiB>::containing_address(VirtAddr::new(text_start));
+    let end_page = Page::<Size4KiB>::containing_address(VirtAddr::new(text_end - 1));
+
+    for page in Page::<Size4KiB>::range_inclusive(start_page, end_page) {
+        unsafe {
+            let _ = page_table
+                .update_flags(page, PageTableFlags::PRESENT)
+                .map(|flush| flush.flush());
+        }
     }
 }
 

@@ -89,6 +89,9 @@ pub fn send(dest_thread_id: u64, buf_ptr: u64, len: u64) -> u64 {
     }
 
     // 送信先スレッドが実際に存在するか確認 (#14: ゴーストメッセージ注入防止)
+    // NOTE: このチェックと後続の mailbox enqueue は別ロックであり原子的ではない。
+    // したがって、チェック後に送信先が終了すると孤立メッセージが残る可能性はある。
+    // ただし ThreadId は単調増加で再利用しないため、他スレッドへの誤配送は起きない。
     if !crate::task::thread_id_exists(dest_thread_id) {
         return EINVAL;
     }

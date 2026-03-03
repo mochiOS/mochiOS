@@ -3,6 +3,29 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::convert::TryInto;
+use core::sync::atomic::{AtomicU64, Ordering};
+
+/// `.service` 実行を許可するサービスマネージャープロセスID
+/// 0 は未登録。
+static SERVICE_MANAGER_PID: AtomicU64 = AtomicU64::new(0);
+
+fn caller_can_launch_service() -> bool {
+    let caller = crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()));
+    let Some(caller_pid) = caller else {
+        // カーネルコンテキストからの起動は許可
+        return true;
+    };
+
+    if crate::task::with_process(caller_pid, |p| p.privilege())
+        .is_some_and(|lvl| lvl == crate::task::PrivilegeLevel::Core)
+    {
+        return true;
+    }
+
+    let manager_pid = SERVICE_MANAGER_PID.load(Ordering::SeqCst);
+    manager_pid != 0 && caller_pid.as_u64() == manager_pid
+}
 
 /// カーネル内から実行可能ファイルを読み込み実行するシステムコール
 pub fn exec_kernel(path_ptr: u64) -> u64 {
@@ -31,16 +54,8 @@ pub fn exec_kernel(path_ptr: u64) -> u64 {
     let path = provided_path.unwrap_or("/hello.bin");
 
     // ユーザー空間からはサービス（.serviceで終わる名前）を起動できない
-    // ただし core.service はサービスマネージャーとして他のサービスを起動できる
     if path.ends_with(".service") {
-        let caller_is_core = crate::task::current_thread_id()
-            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-            .and_then(|pid| crate::task::with_process(pid, |p| {
-                let name = p.name();
-                name == "core.service" || name == "core"
-            }))
-            .unwrap_or(false);
-        if !caller_is_core {
+        if !caller_can_launch_service() {
             return crate::syscall::types::EPERM;
         }
     }
@@ -497,12 +512,21 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
         }
 
         // プロセスを作成してページテーブルをセット
-        let mut proc =
-            crate::task::Process::new(process_name, crate::task::PrivilegeLevel::User, None, 0);
+        let parent_pid = crate::task::current_thread_id()
+            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()));
+        let privilege = if path.ends_with(".service") {
+            crate::task::PrivilegeLevel::Service
+        } else {
+            crate::task::PrivilegeLevel::User
+        };
+        let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
         proc.set_page_table(new_pt_phys);
         let pid = proc.id();
         if crate::task::add_process(proc).is_none() {
             return crate::syscall::types::EINVAL;
+        }
+        if process_name.ends_with("core.service") || path.ends_with("core.service") {
+            SERVICE_MANAGER_PID.store(pid.as_u64(), Ordering::SeqCst);
         }
 
         // allocate kernel stack for the new thread
@@ -589,9 +613,11 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         Err(_) => return EINVAL,
     };
 
-    // ユーザー空間からはサービス（.serviceで終わる名前）を起動できない
+    // サービス起動はサービスマネージャー(Coreまたは登録PID)に限定
     if path.ends_with(".service") {
-        return EPERM;
+        if !caller_can_launch_service() {
+            return EPERM;
+        }
     }
 
     // initfs からファイルを読み込む
@@ -639,14 +665,19 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
                 if ph.p_type == crate::elf::loader::PT_LOAD {
                     // ELFセグメントのvaddrがユーザー空間内であることを検証 (CRIT-05)
                     if ph.p_vaddr >= USER_SPACE_END_EXECVE {
-                        crate::warn!("execve: ELF segment vaddr {:#x} is in kernel space", ph.p_vaddr);
+                        crate::warn!(
+                            "execve: ELF segment vaddr {:#x} is in kernel space",
+                            ph.p_vaddr
+                        );
                         return EINVAL;
                     }
                     if ph.p_memsz > 0 {
                         match ph.p_vaddr.checked_add(ph.p_memsz) {
                             Some(e) if e <= USER_SPACE_END_EXECVE => {}
                             _ => {
-                                crate::warn!("execve: ELF segment vaddr+memsz overflows user space");
+                                crate::warn!(
+                                    "execve: ELF segment vaddr+memsz overflows user space"
+                                );
                                 return EINVAL;
                             }
                         }

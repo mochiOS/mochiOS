@@ -765,6 +765,23 @@ const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 4;
 | ADD-BUG-02 | ビルド手順依存 | **既知** | `cargo check --workspace` が `src/lib/configure` 不在で失敗 | newlib configure前提。手順未実施時は失敗することを確認 |
 | ADD-BUG-03 | 防御的境界不足 | **修正済み** | `exec` の `__sinit` スタブ作成で将来変更時のサイズ検証が弱い | マップ前にサイズ上限チェックを追加 |
 
+### 追補で確認・修正した追加項目（再検証）
+
+| ID | 種別 | 状態 | 内容 | 対応 |
+|---|---|---|---|---|
+| ADD-SEC-07 | `fork()` 分離欠如 | **緩和済み** | 子プロセスが親と同一ページテーブルを共有していた | `fork()` を fail-closed (`ENOSYS`) に変更し、危険経路を停止 |
+| ADD-SEC-08 | `.service` 認可のなりすまし余地 | **修正済み** | プロセス名比較ベースの実行制御 | `core.service` 起動時に PID を登録し、Core または登録PIDのみ `.service` 実行可能に変更 |
+| ADD-SEC-09 | `mmap/brk/munmap` 範囲検証不足 | **修正済み** | ユーザー空間境界・加算オーバーフロー・未実装 `munmap` | checked 演算による境界検証、`munmap` 実装、ページ解放経路を追加 |
+| ADD-SEC-10 | 物理フレーム解放不能 | **修正済み** | フレームアロケータが割り当てのみ対応 | recycle スタックを導入し `deallocate_frame` を実装 |
+| ADD-SEC-11 | カーネル `.text` 書き込み可能 | **緩和済み** | 初期ページングでカーネルコードを RW マップ | リンカ依存を避けるため、起動時に現在実行中のカーネルコードページを RO 化する保守的緩和を追加 |
+| ADD-SEC-12 | カーネルスタックプール unsafe 共有 | **修正済み** | `static mut KSTACK_POOL` に raw pointer でアクセス | `SpinLock<[u8; ...]>` へ置換し論理ガード領域を追加 |
+
+### 追補で確認した検証結果（再検証）
+
+- `cargo fmt --all -- --check`: **成功**
+- `cargo check --quiet`: **失敗（既知前提）**
+  `builders/newlib.rs` が `src/lib/configure` の存在を前提としており、未配置環境ではビルド前に panic することを再確認。
+
 ### 追補レビューの要約（リファクタリング観点）
 
 - 既存レビュー本文の優先順位（Critical/High/Medium/Low）は維持。

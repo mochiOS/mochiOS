@@ -147,8 +147,31 @@ pub fn fstat(fd: u64, stat_ptr: u64) -> u64 {
     if stat_ptr == 0 {
         return EFAULT;
     }
-    // 最小限の実装: 成功を返す（ユーザーland が構造体の全フィールドを必要としない前提）
-    let _ = fd; // 将来的には st_mode, st_size を書き込む
+    // 互換性のため最小サイズ分をゼロ初期化する
+    const MIN_STAT_SIZE: u64 = 64;
+    if !crate::syscall::validate_user_ptr(stat_ptr, MIN_STAT_SIZE) {
+        return EFAULT;
+    }
+
+    let fd_valid = if fd < FD_BASE as u64 {
+        // stdin/stdout/stderr
+        true
+    } else {
+        let idx = fd as usize;
+        if idx >= MAX_FDS {
+            false
+        } else {
+            let table = FD_TABLE.lock();
+            table[idx] != 0
+        }
+    };
+    if !fd_valid {
+        return EBADF;
+    }
+
+    unsafe {
+        core::ptr::write_bytes(stat_ptr as *mut u8, 0, MIN_STAT_SIZE as usize);
+    }
     SUCCESS
 }
 

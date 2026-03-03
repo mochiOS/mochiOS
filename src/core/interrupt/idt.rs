@@ -53,7 +53,7 @@ pub fn init() {
 
         // ハードウェア割り込みハンドラ（32-47番）
         idt[32].set_handler_fn(super::timer::timer_interrupt_handler); // Timer IRQ0
-        idt[33].set_handler_fn(keyboard_interrupt_handler);             // Keyboard IRQ1 (C-2修正)
+        idt[33].set_handler_fn(keyboard_interrupt_handler); // Keyboard IRQ1 (C-2修正)
 
         // それ以外のハードウェア割り込みはとりあえずスタブ
         for i in 34..48 {

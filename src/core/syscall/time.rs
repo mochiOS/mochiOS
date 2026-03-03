@@ -34,10 +34,10 @@ pub fn clock_gettime(clk_id: u64, ts_ptr: u64) -> u64 {
         return EFAULT;
     }
 
-    // タイマーティックを使って時刻を計算 (1ティック = 1ms と仮定)
+    // タイマーティックを使って時刻を計算 (1ティック = 10ms)
     let ticks = get_ticks();
-    let sec = ticks / 1000;
-    let nsec = (ticks % 1000) * 1_000_000;
+    let sec = ticks / 100;
+    let nsec = (ticks % 100) * 10_000_000;
 
     match clk_id {
         CLOCK_REALTIME | CLOCK_MONOTONIC | CLOCK_PROCESS_CPUTIME_ID | CLOCK_THREAD_CPUTIME_ID => {
@@ -62,18 +62,8 @@ pub fn clock_gettime(clk_id: u64, ts_ptr: u64) -> u64 {
 /// # 戻り値
 /// 成功時は0
 pub fn sleep_until(ticks: u64) -> u64 {
-    // H-17修正: sleep_thread()でSleeping状態にした後にyield_now()を呼ぶと
-    // スケジューラが現スレッドを選択しなくなりwake_thread()が永遠に実行されない(永眠バグ)。
-    // 代わりに目標ティックに達するまでyield_now()を繰り返すビジーウェイトに変更。
-    let current_ticks = get_ticks();
-    if ticks > current_ticks {
-        let wait_ticks = ticks - current_ticks;
-        for _ in 0..wait_ticks.min(10000) {
-            crate::task::yield_now();
-            if get_ticks() >= ticks {
-                break;
-            }
-        }
+    while get_ticks() < ticks {
+        crate::task::yield_now();
     }
     0
 }

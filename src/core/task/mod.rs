@@ -24,6 +24,7 @@ pub use scheduler::{
 pub use thread::{
     add_thread, count_threads_by_state, current_thread_id, for_each_thread, peek_next_thread,
     remove_thread, set_current_thread, thread_count, thread_id_exists, thread_slot_index,
+    thread_slot_index_and_generation, thread_slot_index_and_generation_by_u64,
     thread_slot_index_by_u64, with_thread, with_thread_mut, Thread, ThreadQueue,
 };
 pub use usermode::{jump_to_usermode, jump_to_usermode_fork_child};

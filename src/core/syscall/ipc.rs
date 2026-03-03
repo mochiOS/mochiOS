@@ -10,6 +10,8 @@ const MAX_MSG_SIZE: usize = 256;
 pub struct Message {
     from: u64,
     to: u64,
+    to_slot: u16,
+    to_generation: u64,
     len: usize,
     data: [u8; MAX_MSG_SIZE],
 }
@@ -19,6 +21,8 @@ impl Message {
         Self {
             from: 0,
             to: 0,
+            to_slot: 0,
+            to_generation: 0,
             len: 0,
             data: [0; MAX_MSG_SIZE],
         }
@@ -88,19 +92,20 @@ pub fn send(dest_thread_id: u64, buf_ptr: u64, len: u64) -> u64 {
         None => return EINVAL,
     };
 
-    let idx = match crate::task::thread_slot_index_by_u64(dest_thread_id) {
-        Some(i) => i,
-        None => return EINVAL,
-    };
+    let (idx, dest_generation) =
+        match crate::task::thread_slot_index_and_generation_by_u64(dest_thread_id) {
+            Some(v) => v,
+            None => return EINVAL,
+        };
 
-    if !crate::task::thread_id_exists(dest_thread_id) {
+    if idx >= MAX_THREADS || idx > (u16::MAX as usize) {
         return EINVAL;
     }
 
-    // 送信先スレッドが実際に存在するか確認 (#14: ゴーストメッセージ注入防止)
-    // NOTE: このチェックと後続の mailbox enqueue は別ロックであり原子的ではない。
-    // したがって、チェック後に送信先が終了すると孤立メッセージが残る可能性はある。
-    // メッセージに `to` を保持し、受信側で宛先一致を確認することで誤配送を防ぐ。
+    // NOTE:
+    // - 宛先スロットに加えて世代番号をメッセージへ埋め込む。
+    // - これにより、送信先終了後に同一スロットへ別スレッドが再利用されても誤配送されない。
+    // - 送信時点と受信時点で世代不一致なら古いメッセージとして破棄される。
 
     // データをユーザー空間からコピー
     let mut data = [0u8; MAX_MSG_SIZE];
@@ -118,6 +123,8 @@ pub fn send(dest_thread_id: u64, buf_ptr: u64, len: u64) -> u64 {
     let msg = Message {
         from: sender,
         to: dest_thread_id,
+        to_slot: idx as u16,
+        to_generation: dest_generation,
         len,
         data,
     };
@@ -140,15 +147,26 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
         None => return EINVAL,
     };
 
-    let idx = match crate::task::thread_slot_index_by_u64(receiver) {
-        Some(i) => i,
-        None => return EINVAL,
-    };
+    let (idx, receiver_generation) =
+        match crate::task::thread_slot_index_and_generation_by_u64(receiver) {
+            Some(v) => v,
+            None => return EINVAL,
+        };
+
+    if idx >= MAX_THREADS || idx > (u16::MAX as usize) {
+        return EINVAL;
+    }
 
     let mut boxes = MAILBOXES.lock();
     let msg = loop {
         match boxes[idx].pop() {
-            Some(msg) if msg.to == receiver => break msg,
+            Some(msg)
+                if msg.to == receiver
+                    && msg.to_slot == idx as u16
+                    && msg.to_generation == receiver_generation =>
+            {
+                break msg
+            }
             Some(_) => continue, // 既に終了した別スレッド宛の古いメッセージを破棄
             None => return EAGAIN,
         }

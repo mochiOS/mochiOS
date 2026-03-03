@@ -10,19 +10,6 @@
 //!   R11 = ユーザーの RFLAGS (SYSCALL が自動保存)
 //!   RSP = まだユーザースタック
 
-use core::sync::atomic::{AtomicU64, Ordering};
-
-/// 現在のスレッドのカーネルスタックトップ (SYSCALL 時に切り替える)
-/// コンテキストスイッチ時に更新される
-pub static SYSCALL_KERNEL_RSP: AtomicU64 = AtomicU64::new(0);
-
-/// SYSCALL 用カーネルスタック (初回スイッチまたはスレッド切り替え前に使用)
-#[repr(align(16))]
-pub struct SyscallStack([u8; 4096 * 8]);
-
-/// SYSCALL 用カーネルスタックの実体
-pub static mut SYSCALL_KERNEL_STACK: SyscallStack = SyscallStack([0; 4096 * 8]);
-
 /// SYSCALL/SYSRET に必要な MSR を初期化する
 ///
 /// カーネル GDT 構成 (x86_64-unknown-uefi / MS ABI):
@@ -68,13 +55,11 @@ pub fn init_syscall() {
         write_msr(IA32_FMASK, fmask_val);
     }
 
-    // 初期カーネルスタックを設定
-    let kstack_top = unsafe {
-        let base = core::ptr::addr_of!(SYSCALL_KERNEL_STACK) as u64;
-        base + 4096 * 8
-    };
-
-    SYSCALL_KERNEL_RSP.store(kstack_top, Ordering::SeqCst);
+    // 初期カーネルスタックは現在のRSPを使用し、後続のコンテキストスイッチで更新する
+    let kstack_top: u64;
+    unsafe {
+        core::arch::asm!("mov {}, rsp", out(reg) kstack_top, options(nomem, nostack, preserves_flags));
+    }
     crate::percpu::init_boot_cpu(kstack_top);
 
     crate::info!("SYSCALL/SYSRET initialized: LSTAR={:#x}", lstar_val);
@@ -83,7 +68,6 @@ pub fn init_syscall() {
 /// SYSCALL カーネルスタックを更新する (コンテキストスイッチ時に呼ぶ)
 pub fn update_kernel_rsp(rsp: u64) {
     // SeqCst を使用してメモリ順序を保証する (MED-05)
-    SYSCALL_KERNEL_RSP.store(rsp, Ordering::SeqCst);
     crate::percpu::set_syscall_kernel_rsp(rsp);
 }
 
@@ -179,7 +163,7 @@ pub unsafe extern "C" fn syscall_entry() {
         "or rdx, rax",
 
         // カーネルスタックに切り替え
-        "mov rsp, [{kernel_rsp}]",
+        "mov rsp, qword ptr gs:[{sys_rsp_off}]",
         // ユーザーFSベースを保存
         "push rdx",
 
@@ -292,10 +276,10 @@ pub unsafe extern "C" fn syscall_entry() {
 
         // 非正規RSP検出: カーネルスタックに戻してプロセスを終了
         "2:",
-        "mov rsp, [{kernel_rsp}]",
+        "mov rsp, qword ptr gs:[{sys_rsp_off}]",
         "call {kill_fn}",
 
-        kernel_rsp = sym SYSCALL_KERNEL_RSP,
+        sys_rsp_off = const crate::percpu::GS_SYSCALL_KERNEL_RSP_OFFSET,
         save_ctx_fn = sym super::save_user_context_for_fork,
         dispatch   = sym super::syscall_dispatch_sysv,
         kill_fn    = sym kill_non_canonical_rsp,

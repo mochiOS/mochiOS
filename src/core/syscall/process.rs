@@ -12,8 +12,6 @@ const ECHILD: u64 = (-10i64) as u64;
 const ETIMEDOUT: u64 = (-110i64) as u64;
 /// PIT割り込み周期 (10ms)
 const TICK_MS: u64 = 10;
-/// wait のフェイルセーフ上限 (30秒)
-const WAIT_TIMEOUT_TICKS: u64 = 30_000 / TICK_MS;
 use crate::task::{current_thread_id, exit_current_task};
 
 #[derive(Clone, Copy)]
@@ -391,11 +389,6 @@ pub fn wait(_pid: u64, status_ptr: u64, options: u64) -> u64 {
     };
 
     // POSIX互換の待機: ゾンビを回収、存在しなければブロックまたはWNOHANGで0
-    let wait_deadline = if options & WNOHANG == 0 {
-        Some(crate::syscall::time::get_ticks().saturating_add(WAIT_TIMEOUT_TICKS))
-    } else {
-        None
-    };
     loop {
         if let Some((reaped_pid, exit_code)) =
             crate::task::reap_zombie_child_process(current_pid, target_pid)
@@ -415,10 +408,6 @@ pub fn wait(_pid: u64, status_ptr: u64, options: u64) -> u64 {
 
         if options & WNOHANG != 0 {
             return 0;
-        }
-
-        if wait_deadline.is_some_and(|deadline| crate::syscall::time::get_ticks() >= deadline) {
-            return ETIMEDOUT;
         }
 
         crate::task::yield_now();

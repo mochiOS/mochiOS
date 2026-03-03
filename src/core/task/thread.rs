@@ -1,4 +1,5 @@
 use crate::interrupt::spinlock::SpinLock;
+use x86_64::VirtAddr;
 
 use super::context::Context;
 use super::ids::{ProcessId, ThreadId, ThreadState};
@@ -58,11 +59,45 @@ pub struct Thread {
 
 // Simple kernel stack pool for creating kernel stacks for threads
 const KSTACK_POOL_SIZE: usize = 4096 * 64; // 256 KiB
-const KSTACK_GUARD_BYTES: usize = 4096;
-const KSTACK_GUARD_PATTERN: u8 = 0xA5;
-static KSTACK_POOL: SpinLock<[u8; KSTACK_POOL_SIZE]> = SpinLock::new([0; KSTACK_POOL_SIZE]);
+const KSTACK_PAGE_BYTES: usize = 4096;
+const KSTACK_GUARD_BYTES: usize = KSTACK_PAGE_BYTES;
+
+#[repr(align(4096))]
+struct KernelStackPool([u8; KSTACK_POOL_SIZE]);
+
+static KSTACK_POOL: SpinLock<KernelStackPool> =
+    SpinLock::new(KernelStackPool([0; KSTACK_POOL_SIZE]));
 static NEXT_KSTACK_OFFSET: core::sync::atomic::AtomicUsize =
     core::sync::atomic::AtomicUsize::new(0);
+
+fn unmap_guard_page(guard_addr: u64) -> bool {
+    use x86_64::structures::paging::mapper::Translate;
+    use x86_64::structures::paging::mapper::TranslateError;
+    use x86_64::structures::paging::{Mapper, Page, Size4KiB};
+
+    let page = Page::<Size4KiB>::containing_address(VirtAddr::new(guard_addr));
+    let mut page_table_lock = crate::mem::paging::PAGE_TABLE.lock();
+    let page_table = match page_table_lock.as_mut() {
+        Some(pt) => pt,
+        None => return false,
+    };
+
+    match page_table.translate_page(page) {
+        Ok(_) => {}
+        Err(TranslateError::PageNotMapped) => return true,
+        Err(_) => return false,
+    }
+
+    unsafe {
+        page_table
+            .unmap(page)
+            .map(|(_frame, flush)| {
+                flush.flush();
+                true
+            })
+            .unwrap_or(false)
+    }
+}
 
 /// カーネルスタックを内部プールから割り当てます。
 /// Returns base address (bottom) of stack.
@@ -70,24 +105,27 @@ pub fn allocate_kernel_stack(size: usize) -> Option<u64> {
     if size == 0 || size > KSTACK_POOL_SIZE.saturating_sub(KSTACK_GUARD_BYTES) {
         return None;
     }
-    // align size to 16
-    let size = (size + 0xF) & !0xF;
+    // 1ページの未マップガードを挟むため、ページ境界で割り当てる
+    let size = size
+        .checked_add(KSTACK_PAGE_BYTES - 1)?
+        .checked_div(KSTACK_PAGE_BYTES)?
+        .checked_mul(KSTACK_PAGE_BYTES)?;
     let alloc_size = size.checked_add(KSTACK_GUARD_BYTES)?;
     let off = NEXT_KSTACK_OFFSET.fetch_add(alloc_size, core::sync::atomic::Ordering::SeqCst);
     if off + alloc_size > KSTACK_POOL_SIZE {
         return None;
     }
-    // ガード領域を既知パターンで埋め、破壊検知できるようにする
-    let mut pool = KSTACK_POOL.lock();
-    unsafe {
-        core::ptr::write_bytes(
-            pool.as_mut_ptr().add(off),
-            KSTACK_GUARD_PATTERN,
-            KSTACK_GUARD_BYTES,
-        );
+
+    let pool_base = {
+        let pool = KSTACK_POOL.lock();
+        pool.0.as_ptr() as u64
+    };
+    let guard_addr = pool_base.checked_add(off as u64)?;
+    if !unmap_guard_page(guard_addr) {
+        return None;
     }
-    let ptr = (pool.as_ptr() as usize + off + KSTACK_GUARD_BYTES) as u64;
-    Some(ptr)
+
+    guard_addr.checked_add(KSTACK_GUARD_BYTES as u64)
 }
 
 impl Thread {
@@ -462,16 +500,7 @@ impl Thread {
             return false;
         }
         let guard_start = self.kernel_stack - KSTACK_GUARD_BYTES as u64;
-        let pool = KSTACK_POOL.lock();
-        let base = pool.as_ptr() as u64;
-        let end = base + KSTACK_POOL_SIZE as u64;
-        if guard_start < base || self.kernel_stack > end {
-            return false;
-        }
-        let off = (guard_start - base) as usize;
-        pool[off..off + KSTACK_GUARD_BYTES]
-            .iter()
-            .all(|&b| b == KSTACK_GUARD_PATTERN)
+        crate::mem::paging::translate_addr(VirtAddr::new(guard_start)).is_none()
     }
 }
 
@@ -494,6 +523,8 @@ impl core::fmt::Debug for Thread {
 pub struct ThreadQueue {
     /// スレッドの配列（最大容量）
     threads: [Option<Thread>; Self::MAX_THREADS],
+    /// スロット世代番号（スロット再利用時に増加）
+    slot_generations: [u64; Self::MAX_THREADS],
     /// 現在のスレッド数
     count: usize,
 }
@@ -507,6 +538,7 @@ impl ThreadQueue {
         const INIT: Option<Thread> = None;
         Self {
             threads: [INIT; Self::MAX_THREADS],
+            slot_generations: [0; Self::MAX_THREADS],
             count: 0,
         }
     }
@@ -523,9 +555,13 @@ impl ThreadQueue {
         let id = thread.id();
 
         // 空きスロットを探す
-        for slot in &mut self.threads {
+        for (idx, slot) in self.threads.iter_mut().enumerate() {
             if slot.is_none() {
                 *slot = Some(thread);
+                self.slot_generations[idx] = self.slot_generations[idx].wrapping_add(1);
+                if self.slot_generations[idx] == 0 {
+                    self.slot_generations[idx] = 1;
+                }
                 self.count += 1;
                 return Some(id);
             }
@@ -553,6 +589,15 @@ impl ThreadQueue {
         self.threads
             .iter()
             .position(|slot| slot.as_ref().is_some_and(|t| t.id() == id))
+    }
+
+    /// スレッドIDが存在するスロットと世代番号を返す
+    pub fn slot_index_and_generation(&self, id: ThreadId) -> Option<(usize, u64)> {
+        self.threads.iter().enumerate().find_map(|(idx, slot)| {
+            slot.as_ref()
+                .filter(|t| t.id() == id)
+                .map(|_| (idx, self.slot_generations[idx]))
+        })
     }
 
     /// スレッドを削除
@@ -744,6 +789,16 @@ pub fn thread_slot_index(id: ThreadId) -> Option<usize> {
 /// 指定したu64スレッドIDのスロットインデックスを返す
 pub fn thread_slot_index_by_u64(id_val: u64) -> Option<usize> {
     thread_slot_index(ThreadId::from_u64(id_val))
+}
+
+/// 指定したスレッドIDのスロットインデックスと世代番号を返す
+pub fn thread_slot_index_and_generation(id: ThreadId) -> Option<(usize, u64)> {
+    THREAD_QUEUE.lock().slot_index_and_generation(id)
+}
+
+/// 指定したu64スレッドIDのスロットインデックスと世代番号を返す
+pub fn thread_slot_index_and_generation_by_u64(id_val: u64) -> Option<(usize, u64)> {
+    thread_slot_index_and_generation(ThreadId::from_u64(id_val))
 }
 
 /// 現在実行中のスレッドIDを取得

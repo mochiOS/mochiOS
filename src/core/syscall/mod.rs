@@ -138,8 +138,8 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Mmap as u64 => process::mmap(arg0, arg1, arg2, arg3, arg4),
         x if x == SyscallNumber::Munmap as u64 => process::munmap(arg0, arg1),
         x if x == SyscallNumber::Brk as u64 => process::brk(arg0),
-        x if x == SyscallNumber::RtSigaction as u64 => SUCCESS, // スタブ
-        x if x == SyscallNumber::RtSigprocmask as u64 => SUCCESS, // スタブ
+        x if x == SyscallNumber::RtSigaction as u64 => ENOSYS,
+        x if x == SyscallNumber::RtSigprocmask as u64 => ENOSYS,
         x if x == SyscallNumber::GetPid as u64 => process::getpid(),
         x if x == SyscallNumber::Clone as u64 => process::fork(),
         x if x == SyscallNumber::Fork as u64 => process::fork(),
@@ -307,15 +307,15 @@ extern "C" fn syscall_handler_rust(
     arg4: u64,
 ) -> u64 {
     let current_tid = crate::task::current_thread_id();
+    let prev_cr3 = syscall_entry::switch_to_kernel_page_table();
     if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(true));
     }
-    let prev_cr3 = syscall_entry::switch_to_kernel_page_table();
     let ret = dispatch(num, arg0, arg1, arg2, arg3, arg4);
-    syscall_entry::restore_page_table(prev_cr3);
     if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(false));
     }
+    syscall_entry::restore_page_table(prev_cr3);
     ret
 }
 

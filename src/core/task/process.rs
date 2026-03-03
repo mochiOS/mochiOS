@@ -289,18 +289,21 @@ impl ProcessTable {
         &mut self,
         parent: ProcessId,
         target: Option<ProcessId>,
-    ) -> Option<(ProcessId, u64)> {
+    ) -> Option<(ProcessId, u64, Option<u64>)> {
         for slot in &mut self.processes {
-            if let Some(proc) = slot.as_ref() {
-                if Self::is_child_match(proc, parent, target)
-                    && proc.state() == ProcessState::Zombie
-                {
-                    let pid = proc.id();
-                    let exit_code = proc.exit_code().unwrap_or(0);
-                    *slot = None;
-                    self.count = self.count.saturating_sub(1);
-                    return Some((pid, exit_code));
-                }
+            let should_reap = slot.as_ref().is_some_and(|proc| {
+                Self::is_child_match(proc, parent, target) && proc.state() == ProcessState::Zombie
+            });
+            if !should_reap {
+                continue;
+            }
+
+            if let Some(proc) = slot.take() {
+                let pid = proc.id();
+                let exit_code = proc.exit_code().unwrap_or(0);
+                let page_table = proc.page_table();
+                self.count = self.count.saturating_sub(1);
+                return Some((pid, exit_code, page_table));
             }
         }
         None
@@ -384,7 +387,17 @@ pub fn reap_zombie_child_process(
     parent: ProcessId,
     target: Option<ProcessId>,
 ) -> Option<(ProcessId, u64)> {
-    PROCESS_TABLE.lock().reap_zombie_child(parent, target)
+    let (pid, exit_code, page_table) = PROCESS_TABLE.lock().reap_zombie_child(parent, target)?;
+    if let Some(table_phys) = page_table {
+        if let Err(e) = crate::mem::paging::destroy_user_page_table(table_phys) {
+            crate::warn!(
+                "Failed to destroy child page table while reaping pid={:?}: {:?}",
+                pid,
+                e
+            );
+        }
+    }
+    Some((pid, exit_code))
 }
 
 /// 現在のプロセス数を取得

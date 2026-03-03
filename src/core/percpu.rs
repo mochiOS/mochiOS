@@ -7,6 +7,8 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use x86_64::registers::control::Cr3;
 
 const MAX_CPUS: usize = 64;
+const IA32_KERNEL_GS_BASE: u32 = 0xC000_0102;
+pub const GS_SYSCALL_KERNEL_RSP_OFFSET: usize = 8;
 
 #[repr(C)]
 struct PerCpuState {
@@ -30,6 +32,19 @@ static CPU_STATES: [PerCpuState; MAX_CPUS] = [const { PerCpuState::new() }; MAX_
 #[inline]
 fn state_for_current_cpu() -> &'static PerCpuState {
     &CPU_STATES[current_cpu_id()]
+}
+
+#[inline]
+unsafe fn write_kernel_gs_base(base: u64) {
+    let lo = base as u32;
+    let hi = (base >> 32) as u32;
+    asm!(
+        "wrmsr",
+        in("ecx") IA32_KERNEL_GS_BASE,
+        in("eax") lo,
+        in("edx") hi,
+        options(nomem, nostack)
+    );
 }
 
 #[inline]
@@ -66,6 +81,14 @@ pub fn init_boot_cpu(syscall_kernel_rsp: u64) {
         .syscall_kernel_rsp
         .store(syscall_kernel_rsp, Ordering::SeqCst);
     state.current_thread_id.store(0, Ordering::SeqCst);
+    install_current_cpu_gs_base();
+}
+
+pub fn install_current_cpu_gs_base() {
+    let state = state_for_current_cpu() as *const PerCpuState as u64;
+    unsafe {
+        write_kernel_gs_base(state);
+    }
 }
 
 pub fn kernel_cr3() -> u64 {

@@ -238,7 +238,7 @@ Mailbox は thread slot 単位。宛先 thread id 検証を行い、受信時に
 ### 6.3 wait/reap
 
 `wait` は parent-child 関係を前提に zombie を回収し、`WNOHANG` を実装。  
-フェイルセーフとして 30秒 timeout が入る（POSIX完全互換ではない）。
+ブロッキング待機時は無期限で待機し、回収時に子プロセスの user page table を破棄して frame 解放へ接続する。
 
 ---
 
@@ -255,37 +255,31 @@ Mailbox は thread slot 単位。宛先 thread id 検証を行い、受信時に
 - ELF 境界チェック強化
 - user stack NX + guard
 - FD owner 分離
+- SYSCALL stack pointer の per-CPU GS 化（SMP時の cross-core stack 汚染対策）
+- zombie 回収時の child page table 自動破棄
+- `RtSigaction` / `RtSigprocmask` の `ENOSYS` 明示化
+- カーネルスタック guard の未マップ化（fault-before-corruption）
+- IPC 宛先スロット世代検証（再利用スロット誤配送対策）
+- `wait` の無期限待機化（`WNOHANG` 以外）
 
 ### 7.2 残余リスク / 既知ギャップ
 
-| ID | 重大度 | 内容 | 根拠 |
+| ID | 状態 | 修正内容 | 根拠 |
 |---|---|---|---|
-| R-01 | High (SMP時) / Low (現単一CPU想定) | `SYSCALL_KERNEL_RSP` がグローバルで、per-CPU state が syscall ASM で未活用。SMP有効時に cross-core stack 汚染リスク。 | `syscall/syscall_entry.rs`, `percpu.rs` |
-| R-02 | High (可用性) | zombie 回収時に page table / user frame 解放が自動連動せず、長時間運用でメモリリークにより OOM 化しうる。 | `task/process.rs::reap_zombie_child_process` と `paging::destroy_user_page_table` の非接続 |
-| R-03 | Medium | `RtSigaction`/`RtSigprocmask` が SUCCESS スタブ。アプリは「設定できた」と誤認し得る。 | `syscall/mod.rs::dispatch` |
-| R-04 | Medium | カーネルスタック guard は未マップ型ではなくパターン検知型。検知は可能だが事前遮断ではない。 | `task/thread.rs`, `task/context.rs` |
-| R-05 | Low | IPC送信先存在確認と enqueue が原子的でなく、孤立メッセージが残る可能性。 | `syscall/ipc.rs` 内コメント |
-| R-06 | Low | `wait` が 30秒 timeout を持つため POSIX の無期限待機と差異。 | `syscall/process.rs` |
+| R-01 | Closed | SYSCALL エントリのカーネルスタック取得を `gs:[offset]` に変更し、`IA32_KERNEL_GS_BASE` を per-CPU state に接続。 | `syscall/syscall_entry.rs`, `percpu.rs` |
+| R-02 | Closed | zombie 回収で child page table を `destroy_user_page_table` へ接続し、回収時に frame 解放。 | `task/process.rs`, `mem/paging.rs` |
+| R-03 | Closed | `RtSigaction`/`RtSigprocmask` を `SUCCESS` スタブから `ENOSYS` に変更。 | `syscall/mod.rs::dispatch` |
+| R-04 | Closed | カーネルスタック guard を未マップページ化し、コンテキスト切替時に guard 未マップを検証。 | `task/thread.rs`, `task/context.rs` |
+| R-05 | Closed | IPC メッセージへ宛先スロット世代を付与し、受信時一致検証で再利用スロット誤配送を遮断。 | `syscall/ipc.rs`, `task/thread.rs` |
+| R-06 | Closed | `wait` の 30秒 timeout を撤廃し、`WNOHANG` 以外は無期限待機へ変更。 | `syscall/process.rs` |
 
 ---
 
-## 8. 優先改善提案（実装順）
+## 8. 継続改善提案（運用品質）
 
-### P0（先行推奨）
-
-1. `wait/reap` で child の page table 破棄 (`destroy_user_page_table`) を接続  
-2. SYSCALL stack pointer を GS/per-CPU 経由へ完全移行（グローバル `SYSCALL_KERNEL_RSP` 脱却）  
-3. signal syscall を `ENOSYS` 明示または最小実装へ変更（偽SUCCESSを避ける）
-
-### P1
-
-4. カーネルスタックを未マップ guard page 化（検知型 -> fault-before-corruption）  
-5. IPC 宛先検証と enqueue の原子化（スロット世代番号など）
-
-### P2
-
-6. KPTI の共有範囲さらに最小化  
-7. 追加動的検証（fuzz, stress, long-run leak test）
+1. KPTI の共有マッピング範囲を実測に基づいてさらに縮小（機能維持を確認しながら段階適用）  
+2. syscall / IPC / wait-reap のストレス試験を継続運用に組み込む  
+3. SMP 構成での per-CPU GS 初期化と SYSCALL 経路の長時間回帰試験を追加
 
 ---
 

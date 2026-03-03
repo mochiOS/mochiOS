@@ -36,7 +36,8 @@ fn next_aslr_seed(tag: &str) -> u64 {
     let tid = crate::task::current_thread_id()
         .map(|t| t.as_u64())
         .unwrap_or(0);
-    aslr_mix64(hash ^ ctr ^ ticks.rotate_left(17) ^ tid.rotate_left(7))
+    let hw = crate::cpu::hw_random_u64().unwrap_or(0);
+    aslr_mix64(hash ^ ctr ^ ticks.rotate_left(17) ^ tid.rotate_left(7) ^ hw.rotate_left(29))
 }
 
 #[inline]
@@ -62,40 +63,33 @@ fn caller_can_launch_service() -> bool {
         return true;
     }
 
-    let manager_pid = SERVICE_MANAGER_PID.load(Ordering::SeqCst);
-    manager_pid != 0 && caller_pid.as_u64() == manager_pid
+    let manager_pid_raw = SERVICE_MANAGER_PID.load(Ordering::SeqCst);
+    if manager_pid_raw == 0 || caller_pid.as_u64() != manager_pid_raw {
+        return false;
+    }
+    let manager_pid = crate::task::ProcessId::from_u64(manager_pid_raw);
+    crate::task::with_process(manager_pid, |p| {
+        let state = p.state();
+        let alive = state != crate::task::ProcessState::Zombie
+            && state != crate::task::ProcessState::Terminated;
+        let privileged = matches!(
+            p.privilege(),
+            crate::task::PrivilegeLevel::Service | crate::task::PrivilegeLevel::Core
+        );
+        alive && privileged
+    })
+    .unwrap_or(false)
 }
 
 /// カーネル内から実行可能ファイルを読み込み実行するシステムコール
 pub fn exec_kernel(path_ptr: u64) -> u64 {
     let mut provided_path: Option<String> = None;
     if path_ptr != 0 {
-        // ユーザー空間アドレスの有効性を検証する
-        if !crate::syscall::validate_user_ptr(path_ptr, 256) {
-            return crate::syscall::types::EINVAL;
-        }
-        let mut path_len = 0usize;
-        let mut path_buf = [0u8; 256];
-        let parsed = crate::syscall::with_user_memory_access(|| unsafe {
-            let mut p = path_ptr as *const u8;
-            while *p != 0 {
-                if path_len >= path_buf.len() {
-                    return Err(crate::syscall::types::EINVAL);
-                }
-                path_buf[path_len] = *p;
-                path_len += 1;
-                p = p.add(1);
-            }
-            Ok(())
-        });
-        if let Err(e) = parsed {
-            return e;
-        }
-        let text = match core::str::from_utf8(&path_buf[..path_len]) {
+        let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
             Ok(s) => s,
             Err(_) => return crate::syscall::types::EINVAL,
         };
-        provided_path = Some(String::from(text));
+        provided_path = Some(path);
     }
     let path = provided_path.as_deref().unwrap_or("/hello.bin");
 
@@ -654,31 +648,8 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         return EINVAL;
     }
 
-    // ユーザー空間アドレスの有効性を検証する
-    if !crate::syscall::validate_user_ptr(path_ptr, 256) {
-        return EINVAL;
-    }
-
-    // ユーザー空間から null 終端パスを読み込む
-    let mut path_len = 0usize;
-    let mut path_buf = [0u8; 256];
-    let parsed = crate::syscall::with_user_memory_access(|| unsafe {
-        let mut p = path_ptr as *const u8;
-        while *p != 0 {
-            if path_len >= path_buf.len() {
-                return Err(EINVAL);
-            }
-            path_buf[path_len] = *p;
-            path_len += 1;
-            p = p.add(1);
-        }
-        Ok(())
-    });
-    if let Err(e) = parsed {
-        return e;
-    }
-    let path_owned = match core::str::from_utf8(&path_buf[..path_len]) {
-        Ok(s) => String::from(s),
+    let path_owned = match crate::syscall::read_user_cstring(path_ptr, 256) {
+        Ok(s) => s,
         Err(_) => return EINVAL,
     };
     let path = path_owned.as_str();

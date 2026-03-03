@@ -128,6 +128,17 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
 
     let old_ctx_ptr = if let Some(id) = current_id {
         if let Some(thread) = queue.get_mut(id) {
+            if !thread.is_kernel_stack_guard_intact() {
+                crate::error!(
+                    "Kernel stack guard corrupted: tid={:?}, kstack=[{:#x}..{:#x})",
+                    id,
+                    thread.kernel_stack_bottom(),
+                    thread.kernel_stack_top()
+                );
+                loop {
+                    x86_64::instructions::hlt();
+                }
+            }
             let ptr = thread.context_mut() as *mut Context;
             crate::debug!(
                 "  Current context ptr: {:p}, rsp={:#x}, rip={:#x}",
@@ -260,6 +271,17 @@ pub unsafe fn switch_to_thread_from_isr(
 
     let old_ctx_ptr = if let Some(id) = current_id {
         if let Some(thread) = queue.get_mut(id) {
+            if !thread.is_kernel_stack_guard_intact() {
+                crate::error!(
+                    "Kernel stack guard corrupted (ISR): tid={:?}, kstack=[{:#x}..{:#x})",
+                    id,
+                    thread.kernel_stack_bottom(),
+                    thread.kernel_stack_top()
+                );
+                loop {
+                    x86_64::instructions::hlt();
+                }
+            }
             thread.context_mut() as *mut Context
         } else {
             return;

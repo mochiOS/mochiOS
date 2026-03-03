@@ -131,6 +131,26 @@ fn cpuid_leaf7_ebx() -> u32 {
     ebx as u32
 }
 
+fn cpuid_leaf1_ecx() -> u32 {
+    // rbx は LLVM が予約するため xchg で保存/復元する
+    let tmp: u64;
+    let ecx: u32;
+    unsafe {
+        asm!(
+            "xchg {rbx_tmp}, rbx",
+            "cpuid",
+            "xchg {rbx_tmp}, rbx",
+            inout("eax") 1u32 => _,
+            inout("ecx") 0u32 => ecx,
+            rbx_tmp = inout(reg) 0u64 => tmp,
+            out("edx") _,
+            options(nomem, nostack)
+        );
+    }
+    let _ = tmp;
+    ecx
+}
+
 /// CPUID で FSGSBASE サポートを確認 (leaf 7, EBX bit 0)
 fn cpu_has_fsgsbase() -> bool {
     (cpuid_leaf7_ebx() & (1 << 0)) != 0
@@ -144,6 +164,35 @@ fn cpu_has_smep() -> bool {
 /// CPUID で SMAP サポートを確認 (leaf 7, EBX bit 20)
 fn cpu_has_smap() -> bool {
     (cpuid_leaf7_ebx() & (1 << 20)) != 0
+}
+
+/// CPUID で RDRAND サポートを確認 (leaf 1, ECX bit 30)
+fn cpu_has_rdrand() -> bool {
+    (cpuid_leaf1_ecx() & (1 << 30)) != 0
+}
+
+/// 可能なら CPU のハードウェア乱数 (RDRAND) を返す
+pub fn hw_random_u64() -> Option<u64> {
+    if !cpu_has_rdrand() {
+        return None;
+    }
+    for _ in 0..10 {
+        let value: u64;
+        let ok: u8;
+        unsafe {
+            asm!(
+                "rdrand {val}",
+                "setc {ok}",
+                val = out(reg) value,
+                ok = out(reg_byte) ok,
+                options(nomem, nostack)
+            );
+        }
+        if ok != 0 {
+            return Some(value);
+        }
+    }
+    None
 }
 
 /// FS ベースを書き込む (WRFSBASE または IA32_FS_BASE MSR)

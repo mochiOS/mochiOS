@@ -16,6 +16,7 @@ const PF_X: u32 = 0x1;
 const PF_W: u32 = 0x2;
 
 const ET_DYN: u16 = 3;
+const EM_X86_64: u16 = 0x3E;
 
 const DT_NULL: i64 = 0;
 const DT_RELA: i64 = 7;
@@ -80,7 +81,9 @@ fn aslr_mix64(mut x: u64) -> u64 {
 fn next_pie_load_bias() -> u64 {
     let ctr = PIE_ASLR_COUNTER.fetch_add(0x9e37_79b9_7f4a_7c15, Ordering::Relaxed);
     let ticks = crate::interrupt::timer::get_ticks();
-    let offset_pages = aslr_mix64(ctr ^ ticks.rotate_left(13)) % PIE_ASLR_WINDOW_PAGES;
+    let hw = crate::cpu::hw_random_u64().unwrap_or(0);
+    let offset_pages = aslr_mix64(ctr ^ ticks.rotate_left(13) ^ hw.rotate_left(11))
+        % PIE_ASLR_WINDOW_PAGES;
     PIE_LOAD_BIAS + offset_pages * 4096
 }
 
@@ -297,6 +300,9 @@ fn validate_header(header: Elf64Header) -> Result<()> {
         return Err(KernelError::InvalidParam);
     }
     if header.e_ident[4] != 2 || header.e_ident[5] != 1 {
+        return Err(KernelError::InvalidParam);
+    }
+    if header.e_machine != EM_X86_64 {
         return Err(KernelError::InvalidParam);
     }
     if header.e_phentsize as usize != core::mem::size_of::<Elf64Phdr>() {

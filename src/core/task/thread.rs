@@ -59,6 +59,7 @@ pub struct Thread {
 // Simple kernel stack pool for creating kernel stacks for threads
 const KSTACK_POOL_SIZE: usize = 4096 * 64; // 256 KiB
 const KSTACK_GUARD_BYTES: usize = 4096;
+const KSTACK_GUARD_PATTERN: u8 = 0xA5;
 static KSTACK_POOL: SpinLock<[u8; KSTACK_POOL_SIZE]> = SpinLock::new([0; KSTACK_POOL_SIZE]);
 static NEXT_KSTACK_OFFSET: core::sync::atomic::AtomicUsize =
     core::sync::atomic::AtomicUsize::new(0);
@@ -76,8 +77,16 @@ pub fn allocate_kernel_stack(size: usize) -> Option<u64> {
     if off + alloc_size > KSTACK_POOL_SIZE {
         return None;
     }
-    // ガード領域を確保してから実スタックを返す（論理ガード）
-    let ptr = (KSTACK_POOL.as_ptr() as usize + off + KSTACK_GUARD_BYTES) as u64;
+    // ガード領域を既知パターンで埋め、破壊検知できるようにする
+    let mut pool = KSTACK_POOL.lock();
+    unsafe {
+        core::ptr::write_bytes(
+            pool.as_mut_ptr().add(off),
+            KSTACK_GUARD_PATTERN,
+            KSTACK_GUARD_BYTES,
+        );
+    }
+    let ptr = (pool.as_ptr() as usize + off + KSTACK_GUARD_BYTES) as u64;
     Some(ptr)
 }
 
@@ -442,6 +451,27 @@ impl Thread {
 
     pub fn kernel_stack_top(&self) -> u64 {
         (self.kernel_stack + self.kernel_stack_size as u64) & !0xF
+    }
+
+    pub fn kernel_stack_bottom(&self) -> u64 {
+        self.kernel_stack
+    }
+
+    pub fn is_kernel_stack_guard_intact(&self) -> bool {
+        if self.kernel_stack < KSTACK_GUARD_BYTES as u64 {
+            return false;
+        }
+        let guard_start = self.kernel_stack - KSTACK_GUARD_BYTES as u64;
+        let pool = KSTACK_POOL.lock();
+        let base = pool.as_ptr() as u64;
+        let end = base + KSTACK_POOL_SIZE as u64;
+        if guard_start < base || self.kernel_stack > end {
+            return false;
+        }
+        let off = (guard_start - base) as usize;
+        pool[off..off + KSTACK_GUARD_BYTES]
+            .iter()
+            .all(|&b| b == KSTACK_GUARD_PATTERN)
     }
 }
 

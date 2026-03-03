@@ -13,6 +13,9 @@ pub mod time;
 
 mod types;
 
+use alloc::string::String;
+use alloc::vec::Vec;
+
 /// ユーザー空間ポインタの有効性を検証する
 ///
 /// ポインタが null でなく、ユーザー空間のアドレス範囲内にあること、
@@ -43,6 +46,32 @@ pub fn validate_user_ptr(ptr: u64, len: u64) -> bool {
     };
 
     crate::mem::paging::is_user_range_mapped_in_table(user_pt, ptr, len)
+}
+
+/// ユーザー空間の null 終端文字列を最大長付きで読み取り、カーネル所有の `String` を返す。
+pub fn read_user_cstring(ptr: u64, max_len: usize) -> Result<String, u64> {
+    if ptr == 0 || max_len == 0 {
+        return Err(EINVAL);
+    }
+    if !validate_user_ptr(ptr, 1) {
+        return Err(EFAULT);
+    }
+
+    let mut bytes = Vec::with_capacity(max_len);
+    with_user_memory_access(|| {
+        for i in 0..max_len {
+            let addr = ptr.saturating_add(i as u64);
+            if !validate_user_ptr(addr, 1) {
+                return Err(EFAULT);
+            }
+            let b = unsafe { core::ptr::read(addr as *const u8) };
+            if b == 0 {
+                return String::from_utf8(bytes).map_err(|_| EINVAL);
+            }
+            bytes.push(b);
+        }
+        Err(EINVAL)
+    })
 }
 
 /// ユーザーポインタを実際に参照する短い区間を、必要に応じてユーザーCR3で実行する。

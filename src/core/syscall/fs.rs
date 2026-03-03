@@ -6,7 +6,6 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use core::ptr;
 
 const MAX_FDS: usize = 64;
 const FD_BASE: usize = 3; // 0,1,2 は stdio 用に予約
@@ -30,33 +29,7 @@ fn current_process_id_raw() -> Option<u64> {
 
 // ユーザー文字列 (null 末尾) を安全にコピーして String にする
 fn read_cstring(ptr: u64) -> Result<String, u64> {
-    if ptr == 0 {
-        return Err(EINVAL);
-    }
-    // ユーザー空間アドレスの有効性を検証する (最大長分)
-    if !crate::syscall::validate_user_ptr(ptr, 1024) {
-        return Err(EFAULT);
-    }
-    let mut len = 0usize;
-    let mut buf = [0u8; 1024];
-    let copied = crate::syscall::with_user_memory_access(|| unsafe {
-        let mut p = ptr as *const u8;
-        while len < buf.len() {
-            let b = ptr::read(p);
-            if b == 0 {
-                return Ok(());
-            }
-            buf[len] = b;
-            len += 1;
-            p = p.add(1);
-        }
-        Err(EINVAL)
-    });
-    copied?;
-    match core::str::from_utf8(&buf[..len]) {
-        Ok(s) => Ok(s.to_string()),
-        Err(_) => Err(EINVAL),
-    }
+    crate::syscall::read_user_cstring(ptr, 1024)
 }
 
 /// Openシステムコール (initfs の読み取り専用をサポートする簡易実装)

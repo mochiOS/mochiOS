@@ -46,6 +46,12 @@ pub struct Thread {
     in_syscall: bool,
     /// KPTI 復帰用のユーザーCR3
     syscall_user_cr3: u64,
+    /// 直近の SYSCALL 入口で保存したユーザー RIP
+    syscall_user_rip: u64,
+    /// 直近の SYSCALL 入口で保存したユーザー RSP
+    syscall_user_rsp: u64,
+    /// 直近の SYSCALL 入口で保存したユーザー RFLAGS
+    syscall_user_rflags: u64,
 }
 
 // Simple kernel stack pool for creating kernel stacks for threads
@@ -143,6 +149,9 @@ impl Thread {
             fs_base: 0,
             in_syscall: false,
             syscall_user_cr3: 0,
+            syscall_user_rip: 0,
+            syscall_user_rsp: 0,
+            syscall_user_rflags: 0,
         }
     }
 
@@ -239,6 +248,9 @@ impl Thread {
             fs_base: 0,
             in_syscall: false,
             syscall_user_cr3: 0,
+            syscall_user_rip: 0,
+            syscall_user_rsp: 0,
+            syscall_user_rflags: 0,
         }
     }
 
@@ -336,6 +348,9 @@ impl Thread {
             fs_base,
             in_syscall: false,
             syscall_user_cr3: 0,
+            syscall_user_rip: user_rip,
+            syscall_user_rsp: user_rsp,
+            syscall_user_rflags: user_rflags,
         }
     }
 
@@ -359,6 +374,20 @@ impl Thread {
 
     pub fn set_syscall_user_cr3(&mut self, cr3: u64) {
         self.syscall_user_cr3 = cr3;
+    }
+
+    pub fn syscall_user_context(&self) -> (u64, u64, u64) {
+        (
+            self.syscall_user_rip,
+            self.syscall_user_rsp,
+            self.syscall_user_rflags,
+        )
+    }
+
+    pub fn set_syscall_user_context(&mut self, rip: u64, rsp: u64, rflags: u64) {
+        self.syscall_user_rip = rip;
+        self.syscall_user_rsp = rsp;
+        self.syscall_user_rflags = rflags;
     }
 
     /// スレッドIDを取得

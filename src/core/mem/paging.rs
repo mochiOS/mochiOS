@@ -852,6 +852,13 @@ pub fn unmap_range_in_table(table_phys: u64, addr: u64, length: u64) -> Result<(
 /// ## Safety
 /// - `table_phys`が有効なページテーブルの物理アドレスであることを呼び出し元が保証する必要がある
 pub fn switch_page_table(table_phys: u64) {
+    if table_phys == 0 || (table_phys & 0xfff) != 0 {
+        crate::warn!(
+            "Refusing to switch CR3 with invalid page table address: {:#x}",
+            table_phys
+        );
+        return;
+    }
     unsafe {
         let frame = PhysFrame::<Size4KiB>::containing_address(x86_64::PhysAddr::new(table_phys));
         Cr3::write(frame, Cr3Flags::empty());

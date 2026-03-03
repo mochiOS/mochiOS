@@ -163,6 +163,15 @@ pub fn kpti_leave_for_current_thread() {
     restore_page_table(restore);
 }
 
+/// 現在スレッドに SYSCALL 入口時点のユーザーコンテキストを記録する
+extern "sysv64" fn save_syscall_user_context(user_rip: u64, user_rsp: u64, user_rflags: u64) {
+    if let Some(tid) = crate::task::current_thread_id() {
+        crate::task::with_thread_mut(tid, |t| {
+            t.set_syscall_user_context(user_rip, user_rsp, user_rflags);
+        });
+    }
+}
+
 /// SYSCALL エントリポイント (naked function)
 ///
 /// 呼ばれた時点:
@@ -176,7 +185,9 @@ pub fn kpti_leave_for_current_thread() {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn syscall_entry() {
     core::arch::naked_asm!(
-        // ユーザー RSP を一時退避 (グローバル変数: シングルCPU前提)
+        // ユーザー RSP を退避（r9 は syscall の6番目引数で未使用）
+        "mov r9, rsp",
+        // 後方互換のためグローバルにも保存 (fork の旧フォールバック用)
         "mov [{temp_rsp}], rsp",
         "swapgs",
 
@@ -199,7 +210,7 @@ pub unsafe extern "C" fn syscall_entry() {
         // SYSRETQ に必要: RCX (user RIP), R11 (user RFLAGS), user RSP
         "push rcx",                         // user RIP
         "push r11",                         // user RFLAGS
-        "push [{temp_rsp}]",                // user RSP (直接 push できないので一旦 rax 経由)
+        "push r9",                          // user RSP
 
         // Callee-saved レジスタ保存
         "push rbp",
@@ -213,6 +224,33 @@ pub unsafe extern "C" fn syscall_entry() {
         "mov cx, 0x10",
         "mov ds, cx",
         "mov es, cx",
+
+        // fork/clone のときだけ現在スレッドへユーザーコンテキストを記録
+        "cmp rax, 56",
+        "je 3f",
+        "cmp rax, 57",
+        "jne 4f",
+        "3:",
+        // caller-saved を退避してから helper を呼ぶ
+        "push rax",
+        "push rdi",
+        "push rsi",
+        "push rdx",
+        "push r10",
+        "push r8",
+        // stack layout after 15 pushes:
+        // [rsp+112]=user RIP, [rsp+104]=user RFLAGS, [rsp+96]=user RSP
+        "mov rdi, [rsp + 112]",
+        "mov rsi, [rsp + 96]",
+        "mov rdx, [rsp + 104]",
+        "call {save_ctx_fn}",
+        "pop r8",
+        "pop r10",
+        "pop rdx",
+        "pop rsi",
+        "pop rdi",
+        "pop rax",
+        "4:",
 
         // 割り込みを再有効化 (カーネルスタックに切り替え済みなので安全)
         "sti",
@@ -282,6 +320,7 @@ pub unsafe extern "C" fn syscall_entry() {
         kernel_rsp = sym SYSCALL_KERNEL_RSP,
         user_rip   = sym SYSCALL_SAVED_USER_RIP,
         user_rflags = sym SYSCALL_SAVED_USER_RFLAGS,
+        save_ctx_fn = sym save_syscall_user_context,
         dispatch   = sym super::syscall_dispatch_sysv,
         kill_fn    = sym kill_non_canonical_rsp,
     );

@@ -197,11 +197,19 @@ pub fn fork() -> u64 {
         Err(_) => return ENOMEM,
     };
 
-    let user_rip = crate::syscall::syscall_entry::SYSCALL_SAVED_USER_RIP.load(Ordering::SeqCst);
-    let user_rsp = crate::syscall::syscall_entry::SYSCALL_TEMP_USER_RSP.load(Ordering::SeqCst);
-    let user_rflags =
-        crate::syscall::syscall_entry::SYSCALL_SAVED_USER_RFLAGS.load(Ordering::SeqCst);
-    let parent_fs = crate::task::with_thread(parent_tid, |t| t.fs_base()).unwrap_or(0);
+    let (mut user_rip, mut user_rsp, mut user_rflags, parent_fs) =
+        crate::task::with_thread(parent_tid, |t| {
+            let (rip, rsp, rflags) = t.syscall_user_context();
+            (rip, rsp, rflags, t.fs_base())
+        })
+        .unwrap_or((0, 0, 0, 0));
+    // フォールバック: int 0x80 経路など旧保存経路の値を利用
+    if user_rip == 0 || user_rsp == 0 {
+        user_rip = crate::syscall::syscall_entry::SYSCALL_SAVED_USER_RIP.load(Ordering::SeqCst);
+        user_rsp = crate::syscall::syscall_entry::SYSCALL_TEMP_USER_RSP.load(Ordering::SeqCst);
+        user_rflags =
+            crate::syscall::syscall_entry::SYSCALL_SAVED_USER_RFLAGS.load(Ordering::SeqCst);
+    }
     if user_rip == 0 || user_rsp == 0 {
         return ENOSYS;
     }
@@ -522,6 +530,9 @@ pub fn arch_prctl(code: u64, addr: u64) -> u64 {
 
     match code {
         ARCH_SET_FS => {
+            if addr > USER_SPACE_END {
+                return EINVAL;
+            }
             // FS ベースレジスタを設定 (WRFSBASE または IA32_FS_BASE MSR)
             unsafe {
                 crate::cpu::write_fs_base(addr);

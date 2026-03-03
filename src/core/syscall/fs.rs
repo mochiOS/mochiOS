@@ -34,15 +34,16 @@ fn read_cstring(ptr: u64) -> Result<String, u64> {
     let mut buf = [0u8; 1024];
     let copied = crate::syscall::with_user_memory_access(|| unsafe {
         let mut p = ptr as *const u8;
-        while ptr::read(p) != 0 {
-            if len >= buf.len() {
-                return Err(EINVAL);
+        while len < buf.len() {
+            let b = ptr::read(p);
+            if b == 0 {
+                return Ok(());
             }
-            buf[len] = ptr::read(p);
+            buf[len] = b;
             len += 1;
             p = p.add(1);
         }
-        Ok(())
+        Err(EINVAL)
     });
     if let Err(e) = copied {
         return Err(e);

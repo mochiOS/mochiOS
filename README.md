@@ -45,3 +45,6 @@ SwiftCoreはハイブリッドアーキテクチャを採用した、新しいOS
 
 ## How to contribute?
 ライセンスは[この](./LICENSE)ファイルを参照してください
+
+## Documentation
+セキュリティ/運用ドキュメントは [`docs/`](./docs/README.md) を参照してください。

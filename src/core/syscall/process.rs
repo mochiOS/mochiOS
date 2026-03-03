@@ -421,7 +421,7 @@ pub fn arch_prctl(code: u64, addr: u64) -> u64 {
             if !super::validate_user_ptr(addr, 8) {
                 return EFAULT;
             }
-            unsafe { core::ptr::write(addr as *mut u64, val) };
+            unsafe { core::ptr::write_unaligned(addr as *mut u64, val) };
             SUCCESS
         }
         _ => EINVAL,

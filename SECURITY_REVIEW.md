@@ -741,4 +741,36 @@ const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 4;
 
 ---
 
-*このレビューは2026年3月2日に実施されたアーキテクチャおよびコード静的解析に基づく。動的解析・ファジングテストは実施していないため、追加の脆弱性が存在する可能性がある。*
+## 追補レビュー（2026-03-03）
+
+本節は、2026-03-02版レビューに対する**追加スキャン結果**と、修正反映済み項目をまとめた追補である。  
+対象は主に `src/core/syscall/*` および隣接する `task/mem` 実装。
+
+### 追補で確認・修正したセキュリティ項目
+
+| ID | 種別 | 状態 | 内容 | 対応 |
+|---|---|---|---|---|
+| ADD-SEC-01 | User pointer 検証漏れ | **修正済み** | `syscall::console::write` で `from_raw_parts` 前の検証不足 | `validate_user_ptr` を追加し `EFAULT` を返すよう統一 |
+| ADD-SEC-02 | アライメント依存書き込み | **修正済み** | `clock_gettime` の `timespec` 書き込みが aligned write 前提 | `ptr::write_unaligned` に変更 |
+| ADD-SEC-03 | アライメント依存書き込み | **修正済み** | `arch_prctl(ARCH_GET_FS)` が aligned write 前提 | `ptr::write_unaligned` に変更 |
+| ADD-SEC-04 | User pointer 検証漏れ | **修正済み** | `syscall::task::get_thread_id_by_name` が未検証 `from_raw_parts` | `validate_user_ptr` を追加し `EFAULT` を返却 |
+| ADD-SEC-05 | ELF オフセット加算オーバーフロー | **修正済み** | `task::elf` 内の `phoff + i * phentsize` / `p_offset + filesz` が未チェック | `checked_add/checked_mul` へ変更し異常入力を拒否 |
+| ADD-SEC-06 | ELF 範囲計算オーバーフロー | **修正済み** | `vaddr_to_offset` で `p_vaddr + p_memsz` が未チェック | `checked_add` へ変更して不正ELFを拒否 |
+
+### 追補で確認した非セキュリティ不具合
+
+| ID | 種別 | 状態 | 内容 | 対応 |
+|---|---|---|---|---|
+| ADD-BUG-01 | 重複実装 | **修正済み** | `syscall::task::get_thread_privilege` が同一シグネチャで重複定義 | 片方を削除して単一定義に整理 |
+| ADD-BUG-02 | ビルド手順依存 | **既知** | `cargo check --workspace` が `src/lib/configure` 不在で失敗 | newlib configure前提。手順未実施時は失敗することを確認 |
+| ADD-BUG-03 | 防御的境界不足 | **修正済み** | `exec` の `__sinit` スタブ作成で将来変更時のサイズ検証が弱い | マップ前にサイズ上限チェックを追加 |
+
+### 追補レビューの要約（リファクタリング観点）
+
+- 既存レビュー本文の優先順位（Critical/High/Medium/Low）は維持。
+- 追補は「**新規検出/再検証した項目**」のみを表形式で分離し、更新点を追跡しやすくした。
+- SecurityとNon-Securityを分離し、修正有無を1行で判別できる構成にした。
+
+---
+
+*このレビューは2026年3月2日の静的解析結果に、2026年3月3日の追補スキャンを加えたもの。動的解析・ファジングは未実施のため、追加の脆弱性が存在する可能性がある。*

@@ -19,7 +19,7 @@ impl UserPageTableGuard {
     }
 
     fn disarm(&mut self) {
-        let _ = self.0.take();
+        self.0.take();
     }
 }
 
@@ -884,13 +884,14 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         Some(p) => p,
         None => return EINVAL,
     };
-    let mut old_pt_phys = None;
-    crate::task::with_process_mut(pid, |p| {
-        old_pt_phys = p.page_table();
+    let old_pt_phys = crate::task::with_process_mut(pid, |p| {
+        let prev = p.page_table();
         p.set_page_table(new_pt_phys);
         p.set_heap_start(heap_base);
         p.set_heap_end(heap_base + heap_map_size);
-    });
+        prev
+    })
+    .flatten();
     if let Some(old) = old_pt_phys {
         if old != new_pt_phys {
             let _ = crate::mem::paging::destroy_user_page_table(old);

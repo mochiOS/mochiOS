@@ -379,7 +379,7 @@ fn apply_relocations(data: &[u8], header: Elf64Header, load_bias: u64) -> Result
         None => return Ok(()),
     };
     let rela_ent = rela_ent.unwrap_or(core::mem::size_of::<Elf64Rela>());
-    if rela_ent < core::mem::size_of::<Elf64Rela>() || rela_ent == 0 || rela_size % rela_ent != 0 {
+    if rela_ent < core::mem::size_of::<Elf64Rela>() || rela_size % rela_ent != 0 {
         return Err(KernelError::InvalidParam);
     }
 
@@ -401,7 +401,7 @@ fn apply_relocations(data: &[u8], header: Elf64Header, load_bias: u64) -> Result
             {
                 return Err(KernelError::InvalidParam);
             }
-            let reloc_addr = load_bias.wrapping_add(rela.r_offset) as *mut u64;
+            let reloc_addr = reloc_vaddr as *mut u64;
             let value = load_bias.wrapping_add(rela.r_addend as u64);
             unsafe {
                 reloc_addr.write(value);

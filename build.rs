@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use builders::{
     build_apps, build_newlib, build_service, build_user_libs, copy_newlib_libs, create_ext2_image,
-    create_initfs_image, parse_service_index,
+    create_initfs_image, parse_service_index, setup_fs_layout,
 };
 
 #[allow(unused)]
@@ -23,6 +23,11 @@ fn main() {
                 .unwrap_or_else(|_| panic!("Failed to create directory: {}", dir.display()));
         }
     }
+
+    // fsの標準ディレクトリレイアウトを作成
+    let resources_src = manifest_dir.join("src/resources");
+    setup_fs_layout(&fs_dir, &resources_src)
+        .unwrap_or_else(|e| println!("cargo:warning=setup_fs_layout failed: {}", e));
 
     // newlibのビルド
     let newlib_src_dir = manifest_dir.join("src/lib");

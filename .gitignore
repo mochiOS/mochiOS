@@ -1,5 +1,6 @@
 # Binaries
 target/
+fs/
 *.bin
 *.elf
 *.service

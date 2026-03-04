@@ -255,14 +255,18 @@ pub unsafe extern "C" fn syscall_entry() {
         "mov rax, r8",
         "wrmsr",
 
-        // CVE-2012-0217 緩和策: SYSRETQ 前にユーザー RSP の正規アドレスチェック
-        // Intel CPU では SYSRETQ 実行時にRSPが非正規アドレス（bit 63:47 が不一致）だと
-        // Ring 0 で #GP が発生し、攻撃者がRIPを制御できる (CVE-2012-0217)
+        // CVE-2012-0217 緩和策: SYSRETQ 前にユーザー RIP/RSP の正規アドレスチェック
+        // Intel CPU では SYSRETQ 実行時にRCX/RSPが非正規アドレス（bit 63:47 が不一致）だと
+        // Ring 0 で #GP が発生し、攻撃者が制御フローを握る恐れがある (CVE-2012-0217)
         // ユーザー空間の正規アドレス: bit 63:47 = 0b000...0 (0x0000_7FFF_FFFF_FFFF 以下)
         "mov rax, r9",
         "sar rax, 47",          // 算術右シフト47bit: 正規なら全ビット0
         "test rax, rax",
         "jnz 2f",               // 非正規アドレス → プロセスを終了
+        "mov rax, rcx",
+        "sar rax, 47",
+        "test rax, rax",
+        "jnz 2f",
 
         // ユーザーデータセグメントを設定 (ax は自由なので使用)
         "mov ax, 0x1b",
@@ -274,7 +278,7 @@ pub unsafe extern "C" fn syscall_entry() {
         "swapgs",
         "sysretq",
 
-        // 非正規RSP検出: カーネルスタックに戻してプロセスを終了
+        // 非正規RIP/RSP検出: カーネルスタックに戻してプロセスを終了
         "2:",
         "mov rsp, qword ptr gs:[{sys_rsp_off}]",
         "call {kill_fn}",
@@ -286,9 +290,9 @@ pub unsafe extern "C" fn syscall_entry() {
     );
 }
 
-/// CVE-2012-0217 緩和策: 非正規RSPを持つプロセスを終了させる
+/// CVE-2012-0217 緩和策: 非正規RIP/RSPを持つプロセスを終了させる
 unsafe extern "C" fn kill_non_canonical_rsp() -> ! {
-    crate::warn!("CVE-2012-0217: non-canonical user RSP detected, killing process");
+    crate::warn!("CVE-2012-0217: non-canonical user RIP/RSP detected, killing process");
     crate::task::exit_current_task(u64::MAX)
 }
 

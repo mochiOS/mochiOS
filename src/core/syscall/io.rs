@@ -5,8 +5,8 @@ use crate::util::console;
 use crate::util::log::set_level;
 use crate::MemoryType::KernelStack;
 use crate::{debug, error, info, warn, Kernel};
+use alloc::vec::Vec;
 use core::fmt::Write;
-use core::slice;
 
 /// 標準出力のファイルディスクリプタ
 const STDOUT_FD: u64 = 1;
@@ -45,40 +45,33 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
         return EFAULT;
     }
 
-    // ユーザー空間アドレスの有効性を検証する
-    if !super::validate_user_ptr(buf_ptr, len) {
+    let mut buf = Vec::with_capacity(len as usize);
+    buf.resize(len as usize, 0);
+    if let Err(err) = crate::syscall::copy_from_user(buf_ptr, &mut buf) {
         debug!("write: invalid user ptr {:#x}", buf_ptr);
-        return EFAULT;
+        return err;
     }
+    debug!("write: copied {} bytes from user buffer", buf.len());
 
-    crate::syscall::with_user_memory_access(|| unsafe {
-        debug!("write: creating slice from {:#x}, len={}", buf_ptr, len);
-        let buf = slice::from_raw_parts(buf_ptr as *const u8, len as usize);
-        debug!(
-            "write: successfully created slice, first byte={:#x}",
-            buf[0]
-        );
-
-        // UTF-8として解釈を試みる
-        if let Ok(s) = core::str::from_utf8(buf) {
-            debug!("write: valid UTF-8: {:?}", s);
-            // シリアルポートとフレームバッファの両方に出力
+    // UTF-8として解釈を試みる
+    if let Ok(s) = core::str::from_utf8(&buf) {
+        debug!("write: valid UTF-8: {:?}", s);
+        // シリアルポートとフレームバッファの両方に出力
+        x86_64::instructions::interrupts::without_interrupts(|| {
+            let mut console = console::SERIAL.lock();
+            let _ = console.write_str(s);
+        });
+        crate::util::vga::print(format_args!("{}", s));
+    } else {
+        debug!("write: invalid UTF-8, writing bytes");
+        // UTF-8でない場合はバイト列として出力
+        for &byte in &buf {
             x86_64::instructions::interrupts::without_interrupts(|| {
                 let mut console = console::SERIAL.lock();
-                let _ = console.write_str(s);
+                console.send_byte(byte);
             });
-            crate::util::vga::print(format_args!("{}", s));
-        } else {
-            debug!("write: invalid UTF-8, writing bytes");
-            // UTF-8でない場合はバイト列として出力
-            for &byte in buf {
-                x86_64::instructions::interrupts::without_interrupts(|| {
-                    let mut console = console::SERIAL.lock();
-                    console.send_byte(byte);
-                });
-            }
         }
-    });
+    }
 
     debug!("write: returning {}", len);
     // 書き込んだバイト数を返す
@@ -135,29 +128,23 @@ pub fn log(msg: u64, len: u64, level: u64) -> u64 {
         return super::types::EINVAL;
     }
 
-    // ユーザー空間アドレスの有効性を検証する
-    if !super::validate_user_ptr(msg, len) {
-        return super::types::EFAULT;
+    let mut copied = Vec::with_capacity(len as usize);
+    copied.resize(len as usize, 0);
+    if let Err(err) = crate::syscall::copy_from_user(msg, &mut copied) {
+        return err;
     }
 
-    let mut result = SUCCESS;
-    crate::syscall::with_user_memory_access(|| unsafe {
-        let slice = slice::from_raw_parts(msg as *const u8, len as usize);
-        let msg = match core::str::from_utf8(slice) {
-            Ok(s) => s,
-            Err(_) => {
-                result = super::types::EINVAL;
-                return;
-            }
-        };
+    let msg = match core::str::from_utf8(&copied) {
+        Ok(s) => s,
+        Err(_) => return super::types::EINVAL,
+    };
 
-        match level {
-            0 => error!("{}", msg),
-            1 => warn!("{}", msg),
-            2 => info!("{}", msg),
-            3 => debug!("{}", msg),
-            _ => result = super::types::EINVAL,
-        }
-    });
-    result
+    match level {
+        0 => error!("{}", msg),
+        1 => warn!("{}", msg),
+        2 => info!("{}", msg),
+        3 => debug!("{}", msg),
+        _ => return super::types::EINVAL,
+    }
+    SUCCESS
 }

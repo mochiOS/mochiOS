@@ -485,6 +485,7 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
         let default_heap_base = HEAP_BASE_MIN
             .saturating_add(aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, HEAP_ASLR_MAX_PAGES) * 4096);
         let heap_map_size: u64 = 4096 * 2;
+        let mut heap_pre_mapped = false;
         if let Err(e) = crate::mem::paging::map_and_copy_segment_to(
             new_pt_phys,
             default_heap_base,
@@ -506,7 +507,9 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
                 default_heap_base,
                 process_name
             );
+            heap_pre_mapped = true;
         }
+        let mut heap_initial_end = default_heap_base + heap_map_size;
 
         // __sinitがあれば、スタブを作成して先に呼び出す
         if let Some(sinit) = sinit_addr {
@@ -552,6 +555,7 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
             } else {
                 // jump to stub first
                 entry = stub_addr;
+                heap_initial_end = heap_initial_end.saturating_add(4096);
             }
         }
 
@@ -565,6 +569,10 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
         };
         let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
         proc.set_page_table(new_pt_phys);
+        if heap_pre_mapped {
+            proc.set_heap_start(default_heap_base);
+            proc.set_heap_end(heap_initial_end);
+        }
         let pid = proc.id();
         let is_core_service =
             process_name.ends_with("core.service") || path.ends_with("core.service");

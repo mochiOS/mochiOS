@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use crate::{
     syscall::{EFAULT, EINVAL},
     util,
@@ -12,26 +13,17 @@ pub fn write(buf_ptr: u64, len: u64) -> u64 {
     if len == 0 {
         return 0;
     }
-    if !crate::syscall::validate_user_ptr(buf_ptr, len as u64) {
-        return EFAULT;
-    }
 
-    let mut ok = true;
-    crate::syscall::with_user_memory_access(|| unsafe {
-        let bytes = core::slice::from_raw_parts(buf_ptr as *const u8, len);
-        let text = match core::str::from_utf8(bytes) {
-            Ok(s) => s,
-            Err(_) => {
-                ok = false;
-                return;
-            }
-        };
-        util::console::print(format_args!("{}", text));
-        util::vga::print(format_args!("{}", text));
-    });
-    if ok {
-        len as u64
-    } else {
-        EINVAL
+    let mut copied = Vec::with_capacity(len);
+    copied.resize(len, 0);
+    if let Err(err) = crate::syscall::copy_from_user(buf_ptr, &mut copied) {
+        return err;
     }
+    let text = match core::str::from_utf8(&copied) {
+        Ok(s) => s,
+        Err(_) => return EINVAL,
+    };
+    util::console::print(format_args!("{}", text));
+    util::vga::print(format_args!("{}", text));
+    len as u64
 }

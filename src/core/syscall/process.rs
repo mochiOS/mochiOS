@@ -210,12 +210,21 @@ pub fn brk(addr: u64) -> u64 {
         };
 
         // 拡大時にページをプロセスのページテーブルにマップ（書き込み可能、実行不可）
-        // 既存のヒープページを上書きしないよう、次ページ境界から拡張する。
-        let start_page = match page_align_up(current_brk) {
+        // 既存のヒープページを上書きしないよう、未マップ開始位置から拡張する。
+        let start_addr =
+            if crate::mem::paging::is_user_range_mapped_in_table(pt_phys, current_brk, 1) {
+                current_brk.saturating_add(1)
+            } else {
+                current_brk
+            };
+        let start_page = match page_align_up(start_addr) {
             Some(v) => v,
             None => return Err(EINVAL),
         };
-        let end_page = match page_align_up(addr) {
+        // 一部のユーザーランタイムは brk 境界アドレスにメタデータを書き込むため、
+        // `addr` がページ境界ちょうどの場合でもそのページを含めて確保する。
+        let map_end = addr.saturating_add(1);
+        let end_page = match page_align_up(map_end) {
             Some(v) if is_user_range(v.saturating_sub(1), 1) => v,
             _ => return Err(EINVAL),
         };
@@ -764,16 +773,10 @@ pub fn find_process_by_name(name_ptr: u64, len: u64) -> u64 {
         return 0;
     }
 
-    // ユーザー空間アドレスの有効性を検証する
-    if !super::validate_user_ptr(name_ptr, len) {
+    let mut name_buf = [0u8; 64];
+    if crate::syscall::copy_from_user(name_ptr, &mut name_buf[..len as usize]).is_err() {
         return 0;
     }
-
-    let mut name_buf = [0u8; 64];
-    crate::syscall::with_user_memory_access(|| unsafe {
-        let src = core::slice::from_raw_parts(name_ptr as *const u8, len as usize);
-        name_buf[..len as usize].copy_from_slice(src);
-    });
     let name = match str::from_utf8(&name_buf[..len as usize]) {
         Ok(s) => s,
         Err(_) => return 0,

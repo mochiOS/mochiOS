@@ -257,7 +257,3 @@ dependencies = [
  "rustversion",
  "volatile",
 ]
-
-[[patch.unused]]
-name = "posix-types"
-version = "0.2.0"

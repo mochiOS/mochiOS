@@ -110,14 +110,9 @@ pub fn send(dest_thread_id: u64, buf_ptr: u64, len: u64) -> u64 {
     // データをユーザー空間からコピー
     let mut data = [0u8; MAX_MSG_SIZE];
     if len > 0 && buf_ptr != 0 {
-        // ユーザー空間アドレスの有効性を検証する
-        if !crate::syscall::validate_user_ptr(buf_ptr, len as u64) {
-            return EFAULT;
+        if let Err(err) = crate::syscall::copy_from_user(buf_ptr, &mut data[..len]) {
+            return err;
         }
-        crate::syscall::with_user_memory_access(|| unsafe {
-            let src_slice = core::slice::from_raw_parts(buf_ptr as *const u8, len);
-            data[..len].copy_from_slice(src_slice);
-        });
     }
 
     let msg = Message {

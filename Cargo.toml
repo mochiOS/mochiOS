@@ -33,6 +33,3 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
-
-[patch.crates-io]
-posix-types = { path = "src/posix" }

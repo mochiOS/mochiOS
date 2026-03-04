@@ -28,11 +28,18 @@ pub fn validate_user_ptr(ptr: u64, len: u64) -> bool {
     }
     // x86-64 ユーザー空間の上限アドレス (canonical hole 下側)
     const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
-    let end = match ptr.checked_add(len) {
-        Some(e) => e,
-        None => return false, // 整数オーバーフロー
+    if ptr > USER_SPACE_END {
+        return false;
+    }
+    let end_inclusive = if len == 0 {
+        ptr
+    } else {
+        match ptr.checked_add(len - 1) {
+            Some(e) => e,
+            None => return false, // 整数オーバーフロー
+        }
     };
-    if ptr >= USER_SPACE_END || end > USER_SPACE_END {
+    if end_inclusive > USER_SPACE_END {
         return false;
     }
 
@@ -58,20 +65,42 @@ pub fn read_user_cstring(ptr: u64, max_len: usize) -> Result<String, u64> {
     }
 
     let mut bytes = Vec::with_capacity(max_len);
-    with_user_memory_access(|| {
-        for i in 0..max_len {
-            let addr = ptr.saturating_add(i as u64);
+    let mut checked_page = u64::MAX;
+    for i in 0..max_len {
+        let addr = ptr.checked_add(i as u64).ok_or(EFAULT)?;
+        let page_base = addr & !0xfffu64;
+        if page_base != checked_page {
             if !validate_user_ptr(addr, 1) {
                 return Err(EFAULT);
             }
-            let b = unsafe { core::ptr::read(addr as *const u8) };
-            if b == 0 {
-                return String::from_utf8(bytes).map_err(|_| EINVAL);
-            }
-            bytes.push(b);
+            checked_page = page_base;
         }
-        Err(EINVAL)
-    })
+        let b = with_user_memory_access(|| unsafe { core::ptr::read(addr as *const u8) });
+        if b == 0 {
+            return String::from_utf8(bytes).map_err(|_| EINVAL);
+        }
+        bytes.push(b);
+    }
+    Err(EINVAL)
+}
+
+/// ユーザー空間からバイト列をコピーする（コピー先はカーネル空間）。
+pub fn copy_from_user(src_ptr: u64, dst: &mut [u8]) -> Result<(), u64> {
+    if dst.is_empty() {
+        return Ok(());
+    }
+    if src_ptr == 0 {
+        return Err(EFAULT);
+    }
+    if !validate_user_ptr(src_ptr, dst.len() as u64) {
+        return Err(EFAULT);
+    }
+
+    for (i, out) in dst.iter_mut().enumerate() {
+        let addr = src_ptr.checked_add(i as u64).ok_or(EFAULT)?;
+        *out = with_user_memory_access(|| unsafe { core::ptr::read(addr as *const u8) });
+    }
+    Ok(())
 }
 
 /// ユーザーポインタを実際に参照する短い区間を、必要に応じてユーザーCR3で実行する。

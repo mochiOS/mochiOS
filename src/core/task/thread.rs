@@ -496,8 +496,20 @@ impl Thread {
     }
 
     pub fn is_kernel_stack_guard_intact(&self) -> bool {
-        if self.kernel_stack < KSTACK_GUARD_BYTES as u64 {
-            return false;
+        let (pool_start, pool_end) = {
+            let pool = KSTACK_POOL.lock();
+            let start = pool.0.as_ptr() as u64;
+            (start, start + KSTACK_POOL_SIZE as u64)
+        };
+        let stack_end = match self.kernel_stack.checked_add(self.kernel_stack_size as u64) {
+            Some(v) => v,
+            None => return false,
+        };
+        let pooled_stack = self.kernel_stack >= pool_start + KSTACK_GUARD_BYTES as u64
+            && stack_end <= pool_end
+            && self.kernel_stack >= KSTACK_GUARD_BYTES as u64;
+        if !pooled_stack {
+            return true;
         }
         let guard_start = self.kernel_stack - KSTACK_GUARD_BYTES as u64;
         crate::mem::paging::translate_addr(VirtAddr::new(guard_start)).is_none()

@@ -26,19 +26,43 @@ pub static KERNEL_L4_PHYS: core::sync::atomic::AtomicU64 = core::sync::atomic::A
 /// x86-64 canonical ユーザー空間上限
 const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
 
-// COFF の .text$X セクション順序を使って、.text の先頭/末尾マーカーを置く。
+#[cfg(target_os = "uefi")]
 #[used]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text$A")]
-static __text_start: u8 = 0;
+static __swiftcore_text_start_marker: u8 = 0;
+#[cfg(target_os = "uefi")]
 #[used]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text$Z")]
-static __text_end: u8 = 0;
+static __swiftcore_text_end_marker: u8 = 0;
+
+#[cfg(not(target_os = "uefi"))]
+unsafe extern "C" {
+    static __text_start: u8;
+    static __text_end: u8;
+}
+
+#[cfg(target_os = "uefi")]
+fn kernel_text_range() -> (u64, u64) {
+    (
+        core::ptr::addr_of!(__swiftcore_text_start_marker) as u64,
+        core::ptr::addr_of!(__swiftcore_text_end_marker) as u64,
+    )
+}
+
+#[cfg(not(target_os = "uefi"))]
+fn kernel_text_range() -> (u64, u64) {
+    unsafe {
+        (
+            core::ptr::addr_of!(__text_start) as u64,
+            core::ptr::addr_of!(__text_end) as u64,
+        )
+    }
+}
 
 fn protect_kernel_text_pages(page_table: &mut OffsetPageTable<'static>) {
-    let text_start = core::ptr::addr_of!(__text_start) as u64;
-    let text_end = core::ptr::addr_of!(__text_end) as u64;
+    let (text_start, text_end) = kernel_text_range();
     if text_end <= text_start {
         crate::warn!(
             "Invalid .text range: start={:#x}, end={:#x}",

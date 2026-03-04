@@ -62,15 +62,10 @@ pub fn get_thread_id_by_name(name_ptr: u64, name_len: u64) -> u64 {
     if name_len == 0 || name_len > MAX_NAME_LEN {
         return crate::syscall::EINVAL;
     }
-    if !crate::syscall::validate_user_ptr(name_ptr, name_len as u64) {
+    let mut name_buf = [0u8; MAX_NAME_LEN];
+    if crate::syscall::copy_from_user(name_ptr, &mut name_buf[..name_len]).is_err() {
         return crate::syscall::EFAULT;
     }
-
-    let mut name_buf = [0u8; MAX_NAME_LEN];
-    crate::syscall::with_user_memory_access(|| unsafe {
-        let src = core::slice::from_raw_parts(name_ptr as *const u8, name_len);
-        name_buf[..name_len].copy_from_slice(src);
-    });
     let name = match core::str::from_utf8(&name_buf[..name_len]) {
         Ok(s) => s,
         Err(_) => return crate::syscall::EINVAL,

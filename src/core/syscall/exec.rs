@@ -632,7 +632,17 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
             Some(a) => a,
             None => {
                 crate::warn!("Failed to allocate kernel stack for thread");
-                return crate::syscall::types::EINVAL;
+                let _ = crate::task::remove_process(pid);
+                if is_core_service {
+                    let _ = SERVICE_MANAGER_PID.compare_exchange(
+                        pid.as_u64(),
+                        0,
+                        Ordering::SeqCst,
+                        Ordering::SeqCst,
+                    );
+                }
+                let _ = crate::mem::paging::destroy_user_page_table(new_pt_phys);
+                return crate::syscall::types::ENOMEM;
             }
         };
 
@@ -656,6 +666,16 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
 
         if crate::task::add_thread(thread).is_none() {
             crate::warn!("Failed to add thread");
+            let _ = crate::task::remove_process(pid);
+            if is_core_service {
+                let _ = SERVICE_MANAGER_PID.compare_exchange(
+                    pid.as_u64(),
+                    0,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                );
+            }
+            let _ = crate::mem::paging::destroy_user_page_table(new_pt_phys);
             return crate::syscall::types::EINVAL;
         }
 

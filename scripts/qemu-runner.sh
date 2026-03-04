@@ -36,12 +36,22 @@ TEMP_DIR=$(mktemp -d)
 # shellcheck disable=SC2064
 trap "rm -rf $TEMP_DIR" EXIT
 
-    TEMP_DIR=$(mktemp -d)
-    trap "rm -rf $TEMP_DIR" EXIT
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-    mkdir -p "$TEMP_DIR/esp/EFI/BOOT"
-    cp "$SRC" "$TEMP_DIR/esp/EFI/BOOT/BOOTX64.EFI"
-    DRIVE_ARG="fat:rw:$TEMP_DIR/esp"
+mkdir -p "$TEMP_DIR/esp/EFI/BOOT"
+cp "$SRC" "$TEMP_DIR/esp/EFI/BOOT/BOOTX64.EFI"
+
+# kernel.elf を ESP の \System\ に配置（ブートローダーが参照するパス）
+mkdir -p "$TEMP_DIR/esp/System"
+KERNEL_ELF="$ROOT_DIR/fs/System/kernel.elf"
+if [ -f "$KERNEL_ELF" ]; then
+    cp "$KERNEL_ELF" "$TEMP_DIR/esp/System/kernel.elf"
+    echo "kernel.elf -> esp/System/kernel.elf"
+else
+    echo "Warning: kernel.elf not found at $KERNEL_ELF" >&2
+    echo "  Run 'cargo build' first to build the kernel." >&2
+fi
 
 exec qemu-system-x86_64 \
     -bios "$OVMF" \

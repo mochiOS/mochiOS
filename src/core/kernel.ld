@@ -5,7 +5,9 @@ SECTIONS
     . = 0x200000;
 
     .text : {
+        __text_start = .;
         *(.text .text.*)
+        __text_end = .;
     }
 
     .rodata : ALIGN(4096) {

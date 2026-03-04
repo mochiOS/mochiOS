@@ -1,10 +1,10 @@
-/// カーネルスタンドアローンバイナリのエントリポイント
-///
-/// ブートローダーは sysv64 呼び出し規約で kernel_entry(boot_info_ptr) を呼ぶ。
-/// ここで自前の LockedHeap アロケータを設定してから swiftcore のカーネル本体へ移譲する。
-
 #![no_std]
 #![no_main]
+
+//! カーネルスタンドアローンバイナリのエントリポイント
+//!
+//! ブートローダーは sysv64 呼び出し規約で kernel_entry(boot_info_ptr) を呼ぶ。
+//! ここで自前の LockedHeap アロケータを設定してから swiftcore のカーネル本体へ移譲する。
 
 extern crate alloc;
 

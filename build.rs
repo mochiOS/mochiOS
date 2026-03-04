@@ -70,9 +70,8 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
-    // 依存ライブラリとしてビルドされる場合、またはカーネルビルドの再帰呼び出しの場合は
-    // include_bytes! に必要なプレースホルダーファイルだけ作成して終了する
-    if env::var("CARGO_PRIMARY_PACKAGE").is_err() || env::var("SWIFTCORE_BUILDING_KERNEL").is_ok() {
+    // カーネルビルドの再帰呼び出しの場合はプレースホルダーだけ作成して終了する
+    if env::var("SWIFTCORE_BUILDING_KERNEL").is_ok() {
         let _ = fs::write(out_dir.join("initfs.ext2"), b"");
         let _ = fs::write(out_dir.join("rootfs.ext2"), b"");
         return;
@@ -231,93 +230,3 @@ fn main() {
     println!("  ramfs/ -> {}", initfs_image_path.display());
     println!("  fs/    -> {}", ext2_image_path.display());
 }
-
-/*
-fn find_service_bin(manifest_dir: &Path, name: &str) -> Option<PathBuf> {
-    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
-    let profile_dir = if profile == "release" { "release" } else { "debug" };
-
-    if let Ok(target_dir) = env::var("CARGO_TARGET_DIR") {
-        let target_dir = PathBuf::from(target_dir);
-        let candidate = target_dir
-            .join("x86_64-unknown-none")
-            .join(profile_dir)
-            .join(name);
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-
-    let candidates = [
-        manifest_dir
-            .join("target/x86_64-unknown-none")
-            .join(profile_dir)
-            .join(name),
-        manifest_dir
-            .join("src/services")
-            .join(name)
-            .join("target/x86_64-unknown-none")
-            .join(profile_dir)
-            .join(name),
-    ];
-
-    candidates.into_iter().find(|p| p.is_file())
-}
-
-fn build_service(manifest_dir: &Path, name: &str) -> Option<PathBuf> {
-    if env::var("SWIFTCORE_SKIP_SHELL_BUILD").ok().as_deref() == Some("1") {
-        return None;
-    }
-
-    let svc_dir = manifest_dir.join("src/services").join(name);
-    if !svc_dir.is_dir() {
-        return None;
-    }
-
-    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
-    let mut cmd = Command::new("cargo");
-    cmd.current_dir(&svc_dir)
-        .env("SWIFTCORE_SKIP_SHELL_BUILD", "1")
-        .args(["build", "--target", "x86_64-unknown-none"]);
-
-    if profile == "release" {
-        cmd.arg("--release");
-    }
-
-    let status = cmd
-        .status();
-
-    match status {
-        Ok(s) if s.success() => find_service_bin(manifest_dir, name),
-        Ok(_) => None,
-        Err(_) => None,
-    }
-}
-
-fn copy_service(manifest_dir: &Path, name: &str, stage_dir: &Path) {
-    let env_key = match name {
-        "shell" => "SWIFTCORE_SHELL_BIN",
-        "keyboard" => "SWIFTCORE_KEYBOARD_BIN",
-        _ => "SWIFTCORE_SERVICE_BIN",
-    };
-
-    let env_bin = env::var(env_key).ok().and_then(|p| {
-        let path = PathBuf::from(p);
-        if path.is_file() { Some(path) } else { None }
-    });
-
-    let bin = env_bin
-        .or_else(|| find_service_bin(manifest_dir, name))
-        .or_else(|| build_service(manifest_dir, name));
-
-    if let Some(bin) = bin {
-        let dest = stage_dir.join(format!("{}.service", name));
-        let _ = fs::copy(&bin, &dest);
-    } else {
-        println!(
-            "cargo:warning=initfs: {} binary not found; set {} or build service crate",
-            name, env_key
-        );
-    }
-}
-*/

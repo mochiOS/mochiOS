@@ -7,7 +7,6 @@ use core::ptr::addr_of_mut;
 use swiftcore::{BootInfo, MemoryRegion, MemoryType};
 use uefi::prelude::*;
 use uefi::proto::console::gop::GraphicsOutput;
-use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::{File, FileAttribute, FileMode, FileInfo, FileType};
 use uefi::proto::media::fs::SimpleFileSystem;
 use uefi::table::boot::{AllocateType, MemoryType as UefiMemType};
@@ -69,19 +68,31 @@ struct Elf64Phdr {
 const PT_LOAD: u32 = 1;
 
 /// `\System\kernel.elf` を読み込み、PT_LOAD セグメントを物理アドレスに展開してエントリアドレスを返す
-unsafe fn load_kernel(bt: &BootServices, image_handle: Handle) -> Option<u64> {
-    // ブートローダーが存在するデバイス（ESP）を取得
-    let loaded_image = bt
-        .open_protocol_exclusive::<LoadedImage>(image_handle)
-        .ok()?;
-    let device_handle = loaded_image.device()?;
+unsafe fn load_kernel(bt: &BootServices, _image_handle: Handle) -> Option<u64> {
+    let kernel_path = cstr16!(r"\System\kernel.elf");
+
+    // 全 SimpleFileSystem ハンドルをスキャンして kernel.elf を探す
+    let sfs_handles = bt.find_handles::<SimpleFileSystem>().ok()?;
+    for handle in sfs_handles {
+        if let Some(entry) = try_load_from(bt, handle, kernel_path) {
+            return Some(entry);
+        }
+    }
+    None
+}
+
+/// 指定 SFS ハンドルから kernel.elf のロードを試みる
+unsafe fn try_load_from(
+    bt: &BootServices,
+    handle: uefi::Handle,
+    kernel_path: &uefi::CStr16,
+) -> Option<u64> {
     let mut sfs = bt
-        .open_protocol_exclusive::<SimpleFileSystem>(device_handle)
+        .open_protocol_exclusive::<SimpleFileSystem>(handle)
         .ok()?;
     let mut root = sfs.open_volume().ok()?;
 
     // カーネル ELF を開く
-    let kernel_path = cstr16!(r"\System\kernel.elf");
     let file_handle = root
         .open(kernel_path, FileMode::Read, FileAttribute::empty())
         .ok()?;

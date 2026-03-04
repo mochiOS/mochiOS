@@ -27,7 +27,7 @@ const R_X86_64_RELATIVE: u32 = 8;
 
 const PIE_LOAD_BIAS: u64 = 0x2000_0000;
 const PIE_ASLR_WINDOW_PAGES: u64 = 0x4000; // 64MiB
-static PIE_ASLR_COUNTER: AtomicU64 = AtomicU64::new(0xa726_f38d_c941_5e2b);
+static PIE_ASLR_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -79,10 +79,18 @@ fn aslr_mix64(mut x: u64) -> u64 {
 }
 
 fn next_pie_load_bias() -> u64 {
+    if PIE_ASLR_COUNTER.load(Ordering::Relaxed) == 0 {
+        let mut init = crate::cpu::boot_entropy_u64() ^ 0xa726_f38d_c941_5e2b;
+        if init == 0 {
+            init = 1;
+        }
+        let _ = PIE_ASLR_COUNTER.compare_exchange(0, init, Ordering::SeqCst, Ordering::Relaxed);
+    }
     let ctr = PIE_ASLR_COUNTER.fetch_add(0x9e37_79b9_7f4a_7c15, Ordering::Relaxed);
     let ticks = crate::interrupt::timer::get_ticks();
     let hw = crate::cpu::hw_random_u64().unwrap_or(0);
-    let offset_pages = aslr_mix64(ctr ^ ticks.rotate_left(13) ^ hw.rotate_left(11))
+    let boot = crate::cpu::boot_entropy_u64();
+    let offset_pages = aslr_mix64(ctr ^ ticks.rotate_left(13) ^ hw.rotate_left(11) ^ boot)
         % PIE_ASLR_WINDOW_PAGES;
     PIE_LOAD_BIAS + offset_pages * 4096
 }

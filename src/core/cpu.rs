@@ -4,10 +4,13 @@
 
 use crate::sprintln;
 use core::arch::asm;
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use spin::Mutex;
 
 static FSGSBASE_SUPPORTED: AtomicBool = AtomicBool::new(false);
 static SMAP_ENABLED: AtomicBool = AtomicBool::new(false);
+static BOOT_ENTROPY: AtomicU64 = AtomicU64::new(0);
+static CMOS_LOCK: Mutex<()> = Mutex::new(());
 
 /// CPUの初期化（SSE/FPU/NXE/SMEP/SMAP有効化）
 pub fn init() {
@@ -229,4 +232,91 @@ pub unsafe fn read_fs_base() -> u64 {
 
 pub fn is_smap_enabled() -> bool {
     SMAP_ENABLED.load(Ordering::Acquire)
+}
+
+#[inline]
+fn rdtsc() -> u64 {
+    let lo: u32;
+    let hi: u32;
+    unsafe {
+        asm!("rdtsc", out("eax") lo, out("edx") hi, options(nomem, nostack, preserves_flags));
+    }
+    ((hi as u64) << 32) | (lo as u64)
+}
+
+#[inline]
+fn aslr_mix64(mut x: u64) -> u64 {
+    x ^= x >> 30;
+    x = x.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    x ^= x >> 27;
+    x = x.wrapping_mul(0x94d0_49bb_1331_11eb);
+    x ^ (x >> 31)
+}
+
+#[inline]
+fn cmos_read(reg: u8) -> u8 {
+    use x86_64::instructions::port::Port;
+    unsafe {
+        let mut index = Port::<u8>::new(0x70);
+        let mut data = Port::<u8>::new(0x71);
+        index.write(0x80 | reg);
+        data.read()
+    }
+}
+
+#[inline]
+fn bcd_to_bin(v: u8) -> u8 {
+    (v & 0x0f) + ((v >> 4) * 10)
+}
+
+fn rtc_entropy_u64() -> u64 {
+    let _guard = CMOS_LOCK.lock();
+    while (cmos_read(0x0A) & 0x80) != 0 {
+        core::hint::spin_loop();
+    }
+    let mut sec = cmos_read(0x00);
+    let mut min = cmos_read(0x02);
+    let mut hour = cmos_read(0x04);
+    let mut day = cmos_read(0x07);
+    let mut mon = cmos_read(0x08);
+    let mut year = cmos_read(0x09);
+    let reg_b = cmos_read(0x0B);
+    if (reg_b & 0x04) == 0 {
+        sec = bcd_to_bin(sec);
+        min = bcd_to_bin(min);
+        hour = bcd_to_bin(hour & 0x7f);
+        day = bcd_to_bin(day);
+        mon = bcd_to_bin(mon);
+        year = bcd_to_bin(year);
+    }
+    (sec as u64)
+        | ((min as u64) << 8)
+        | ((hour as u64) << 16)
+        | ((day as u64) << 24)
+        | ((mon as u64) << 32)
+        | ((year as u64) << 40)
+}
+
+/// ASLR 用のブート時エントロピーを返す（同一ブート中は固定、ブート間は変化を期待）。
+pub fn boot_entropy_u64() -> u64 {
+    let cached = BOOT_ENTROPY.load(Ordering::Relaxed);
+    if cached != 0 {
+        return cached;
+    }
+
+    let mut seed = rdtsc()
+        ^ rtc_entropy_u64().rotate_left(19)
+        ^ (core::ptr::addr_of!(BOOT_ENTROPY) as u64).rotate_left(7);
+    if let Some(hw) = hw_random_u64() {
+        seed ^= hw.rotate_left(23);
+    }
+    if seed == 0 {
+        seed = 0x243f_6a88_85a3_08d3;
+    }
+
+    let mixed = aslr_mix64(seed);
+    match BOOT_ENTROPY.compare_exchange(0, mixed, Ordering::SeqCst, Ordering::Relaxed) {
+        Ok(_) => mixed,
+        Err(v) => v,
+    }
 }

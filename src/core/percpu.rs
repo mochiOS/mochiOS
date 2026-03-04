@@ -34,6 +34,14 @@ fn state_for_current_cpu() -> &'static PerCpuState {
     &CPU_STATES[current_cpu_id()]
 }
 
+#[inline(never)]
+fn halt_unsupported_cpu(_apic_id: u32) -> ! {
+    x86_64::instructions::interrupts::disable();
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
+
 #[inline]
 unsafe fn write_kernel_gs_base(base: u64) {
     let lo = base as u32;
@@ -49,7 +57,12 @@ unsafe fn write_kernel_gs_base(base: u64) {
 
 #[inline]
 pub fn current_cpu_id() -> usize {
-    (local_apic_id() as usize) % MAX_CPUS
+    let apic_id = local_apic_id() as usize;
+    if apic_id < MAX_CPUS {
+        apic_id
+    } else {
+        halt_unsupported_cpu(apic_id as u32)
+    }
 }
 
 #[inline]
@@ -72,8 +85,16 @@ fn local_apic_id() -> u32 {
 }
 
 pub fn init_boot_cpu(syscall_kernel_rsp: u64) {
+    let apic_id = local_apic_id() as usize;
+    assert!(
+        apic_id < MAX_CPUS,
+        "Boot CPU APIC ID {} exceeds MAX_CPUS {}",
+        apic_id,
+        MAX_CPUS
+    );
+
     let (cr3, _) = Cr3::read();
-    let state = state_for_current_cpu();
+    let state = &CPU_STATES[apic_id];
     state
         .kernel_cr3
         .store(cr3.start_address().as_u64(), Ordering::SeqCst);

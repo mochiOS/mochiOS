@@ -45,8 +45,7 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
         return EFAULT;
     }
 
-    let mut buf = Vec::with_capacity(len as usize);
-    buf.resize(len as usize, 0);
+    let mut buf = alloc::vec![0; len as usize];
     if let Err(err) = crate::syscall::copy_from_user(buf_ptr, &mut buf) {
         debug!("write: invalid user ptr {:#x}", buf_ptr);
         return err;
@@ -128,8 +127,7 @@ pub fn log(msg: u64, len: u64, level: u64) -> u64 {
         return super::types::EINVAL;
     }
 
-    let mut copied = Vec::with_capacity(len as usize);
-    copied.resize(len as usize, 0);
+    let mut copied = alloc::vec![0; len as usize];
     if let Err(err) = crate::syscall::copy_from_user(msg, &mut copied) {
         return err;
     }

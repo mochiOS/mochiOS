@@ -9,7 +9,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 /// 0 は未登録。
 static SERVICE_MANAGER_PID: AtomicU64 = AtomicU64::new(0);
 const EM_X86_64: u16 = 0x3E;
-static EXEC_ASLR_COUNTER: AtomicU64 = AtomicU64::new(0x7c4a_7f73_d3e1_9b1d);
+static EXEC_ASLR_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 struct UserPageTableGuard(Option<u64>);
 
@@ -51,13 +51,21 @@ fn next_aslr_seed(tag: &str) -> u64 {
         hash ^= *b as u64;
         hash = hash.wrapping_mul(0x100_0000_01b3);
     }
+    if EXEC_ASLR_COUNTER.load(Ordering::Relaxed) == 0 {
+        let mut init = crate::cpu::boot_entropy_u64() ^ 0x7c4a_7f73_d3e1_9b1d;
+        if init == 0 {
+            init = 1;
+        }
+        let _ = EXEC_ASLR_COUNTER.compare_exchange(0, init, Ordering::SeqCst, Ordering::Relaxed);
+    }
     let ctr = EXEC_ASLR_COUNTER.fetch_add(0x9e37_79b9_7f4a_7c15, Ordering::Relaxed);
     let ticks = crate::interrupt::timer::get_ticks();
     let tid = crate::task::current_thread_id()
         .map(|t| t.as_u64())
         .unwrap_or(0);
     let hw = crate::cpu::hw_random_u64().unwrap_or(0);
-    aslr_mix64(hash ^ ctr ^ ticks.rotate_left(17) ^ tid.rotate_left(7) ^ hw.rotate_left(29))
+    let boot = crate::cpu::boot_entropy_u64();
+    aslr_mix64(hash ^ ctr ^ ticks.rotate_left(17) ^ tid.rotate_left(7) ^ hw.rotate_left(29) ^ boot)
 }
 
 #[inline]

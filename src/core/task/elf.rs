@@ -116,6 +116,9 @@ pub fn load_elf(data: &[u8]) -> Result<LoadedElf> {
         if memsz == 0 {
             continue;
         }
+        if filesz > memsz {
+            return Err(KernelError::Memory(MemoryError::InvalidAddress));
+        }
 
         let file_end = match (phdr.p_offset as usize).checked_add(filesz) {
             Some(v) => v,

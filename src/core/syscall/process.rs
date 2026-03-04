@@ -605,6 +605,10 @@ pub fn futex(uaddr: u64, op: u32, val: u64, timeout: u64) -> u64 {
 
             crate::task::with_thread_mut(current_tid, |thread| thread.set_futex_timed_out(false));
 
+            // 割り込み禁止区間内で「値の確認 → キュー登録 → スリープ → 最初のyield」を
+            // アトミックに実行することで、wake と sleep の競合ウィンドウを排除する。
+            // yield_now() 内部の switch_to_thread も CLI を実行するため、
+            // without_interrupts をネストしても安全に動作する。
             let queued = x86_64::instructions::interrupts::without_interrupts(|| {
                 let current_val = crate::syscall::with_user_memory_access(|| unsafe {
                     core::ptr::read_volatile(uaddr as *const u32)
@@ -616,6 +620,9 @@ pub fn futex(uaddr: u64, op: u32, val: u64, timeout: u64) -> u64 {
                     return Err(EAGAIN);
                 }
                 crate::task::sleep_thread(current_tid);
+                // 割り込み禁止のまま最初のコンテキストスイッチを実行し、
+                // sleep_thread とyield の間に wake シグナルが失われる競合を防ぐ。
+                crate::task::yield_now();
                 Ok(())
             });
             if let Err(err) = queued {
@@ -628,9 +635,8 @@ pub fn futex(uaddr: u64, op: u32, val: u64, timeout: u64) -> u64 {
                 TimedOut,
             }
 
+            // 起床後に条件を確認し、まだ待機が必要な場合のみ再度 yield する。
             loop {
-                crate::task::yield_now();
-
                 let result = x86_64::instructions::interrupts::without_interrupts(|| {
                     let timed_out = crate::task::with_thread_mut(current_tid, |thread| {
                         thread.take_futex_timed_out()
@@ -668,7 +674,7 @@ pub fn futex(uaddr: u64, op: u32, val: u64, timeout: u64) -> u64 {
                 });
 
                 match result {
-                    WaitResult::Continue => {}
+                    WaitResult::Continue => crate::task::yield_now(),
                     WaitResult::Success => return SUCCESS,
                     WaitResult::TimedOut => return ETIMEDOUT,
                 }

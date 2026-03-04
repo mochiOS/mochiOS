@@ -67,9 +67,7 @@ pub struct BootInfo {
     pub memory_map_len: usize,
     /// メモリマップの各エントリサイズ
     pub memory_map_entry_size: usize,
-    /// アロケータ切り替え用フラグのアドレス (Virtual Address)
-    pub allocator_addr: u64,
-    /// カーネルアロケータの制御構造体へのアドレス (Virtual Address)
+    /// カーネルアロケータの制御構造体へのアドレス（kernel binaryが起動時に設定）
     pub kernel_heap_addr: u64,
 }
 

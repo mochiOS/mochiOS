@@ -6,7 +6,7 @@ use crate::info;
 use crate::mem::frame;
 use crate::result::{Kernel, Memory, Result};
 use spin::Mutex;
-use uefi::table::boot::MemoryType as UefiMemoryType;
+
 use x86_64::registers::control::{Cr3, Cr3Flags};
 use x86_64::{
     registers::control::{Cr0, Cr0Flags},

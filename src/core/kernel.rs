@@ -38,9 +38,8 @@ fn kernel_main() -> ! {
     }
 }
 
-/// カーネルエントリポイント
-#[no_mangle]
-pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
+/// カーネルエントリポイント（kernel binary から呼ばれる）
+pub fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     let memory_map = match kinit(boot_info) {
         Ok(map) => map,
         Err(e) => {

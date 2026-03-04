@@ -9,9 +9,74 @@ use builders::{
     create_initfs_image, parse_service_index, setup_fs_layout,
 };
 
+/// カーネル ELF をビルドして fs/System/kernel.elf にコピーする
+fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
+    let kernel_crate_dir = manifest_dir.join("src/core");
+    let kernel_target_dir = manifest_dir.join("target/kernel");
+    let mut cmd = std::process::Command::new("cargo");
+    cmd.current_dir(&kernel_crate_dir);
+    // 再帰防止：カーネルがルートを dep としてビルドする際のフラグ
+    cmd.env("SWIFTCORE_BUILDING_KERNEL", "1");
+    cmd.env("CARGO_TARGET_DIR", &kernel_target_dir);
+    cmd.args(["build", "-Z", "build-std=core,alloc"]);
+    if profile == "release" {
+        cmd.arg("--release");
+    }
+    let status = cmd.status();
+    match status {
+        Ok(s) if s.success() => {}
+        Ok(s) => {
+            println!(
+                "cargo:warning=kernel build exited with status {}",
+                s.code().unwrap_or(-1)
+            );
+            return;
+        }
+        Err(e) => {
+            println!("cargo:warning=failed to run kernel cargo build: {}", e);
+            return;
+        }
+    }
+
+    // kernel ELF を fs/System/kernel.elf にコピー
+    // CARGO_TARGET_DIR=target/kernel を使用しているのでそちらを参照する
+    let kernel_bin = kernel_target_dir
+        .join("x86_64-unknown-none")
+        .join(profile)
+        .join("kernel");
+    let system_dir = fs_dir.join("System");
+    let _ = fs::create_dir_all(&system_dir);
+    let dest = system_dir.join("kernel.elf");
+    if kernel_bin.exists() {
+        if let Err(e) = fs::copy(&kernel_bin, &dest) {
+            println!(
+                "cargo:warning=failed to copy kernel ELF to {}: {}",
+                dest.display(),
+                e
+            );
+        } else {
+            println!("Kernel ELF copied to {}", dest.display());
+        }
+    } else {
+        println!(
+            "cargo:warning=kernel binary not found at {}",
+            kernel_bin.display()
+        );
+    }
+}
+
 #[allow(unused)]
 fn main() {
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+
+    // 依存ライブラリとしてビルドされる場合、またはカーネルビルドの再帰呼び出しの場合は
+    // include_bytes! に必要なプレースホルダーファイルだけ作成して終了する
+    if env::var("CARGO_PRIMARY_PACKAGE").is_err() || env::var("SWIFTCORE_BUILDING_KERNEL").is_ok() {
+        let _ = fs::write(out_dir.join("initfs.ext2"), b"");
+        let _ = fs::write(out_dir.join("rootfs.ext2"), b"");
+        return;
+    }
 
     // ramfsとfsディレクトリを作成
     let ramfs_dir = manifest_dir.join("ramfs");
@@ -29,17 +94,20 @@ fn main() {
     setup_fs_layout(&fs_dir, &resources_src)
         .unwrap_or_else(|e| println!("cargo:warning=setup_fs_layout failed: {}", e));
 
+    // newlibのインストールディレクトリを取得
+    let target = env::var("TARGET").unwrap_or("x86_64-unknown-uefi".to_string());
+    let profile = env::var("PROFILE").unwrap_or("debug".to_string());
+    let target_dir = PathBuf::from(env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string()));
+
+    // カーネル ELF をビルド
+    build_kernel(&manifest_dir, &fs_dir, &profile);
+
     // newlibのビルド
     let newlib_src_dir = manifest_dir.join("src/lib");
     if !newlib_src_dir.exists() {
         panic!("Newlib source not found at {}", newlib_src_dir.display());
     }
     build_newlib(&newlib_src_dir);
-
-    // newlibのインストールディレクトリを取得
-    let target = env::var("TARGET").unwrap_or("x86_64-unknown-uefi".to_string());
-    let profile = env::var("PROFILE").unwrap_or("debug".to_string());
-    let target_dir = PathBuf::from(env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string()));
 
     let abs_target_dir = if target_dir.is_absolute() {
         target_dir
@@ -145,7 +213,6 @@ fn main() {
     }
 
     // initfs イメージを生成
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let initfs_image_path = out_dir.join("initfs.ext2");
 
     create_initfs_image(&ramfs_dir, &initfs_image_path).expect("Failed to create initfs image");

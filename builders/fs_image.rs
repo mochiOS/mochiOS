@@ -62,13 +62,17 @@ pub fn setup_fs_layout(fs_dir: &Path, resources_src: &Path) -> Result<(), String
         "System",           // システム（カーネルやカーネルに関連するファイルを配置）
         "Applications",     // ユーザーアプリケーションを配置
         "Binaries",         // コマンドやユーティリティを配置
-        "Libraries",         // ライブラリ（libc.aなど）を配置
-        "Mounts",          // マウントしたデバイスなどを配置
+        "Libraries",        // ライブラリ（libc.aなど）を配置
+        "Mount",            // マウントしたやつ配置
         "Boot",             // ブートローダー関連のファイルを配置
         "Resources",        // アイコンやUIリソースを配置（ユーザーアプリのリソースはここに置く）
         "Services",         // サービスを配置
         "Logs",             // ログを配置
         "Home",             // ユーザーディレクトリを配置
+        "Device",           // デバイスファイル（nullやttyなど）を配置
+        "Config",           // 設定ファイルを配置
+        "Variables",        // 環境変数や一時ファイルを配置
+        "Temp",             // 一時ファイルを配置
     ];
     
     for dir in &dirs {

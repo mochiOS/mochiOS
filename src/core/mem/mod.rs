@@ -55,12 +55,6 @@ pub fn init(boot_info: &'static crate::BootInfo) {
         }
     }
 
-    // カーネルアロケータへ切り替え
-    unsafe {
-        let ptr = boot_info.allocator_addr as *mut core::sync::atomic::AtomicBool;
-        (*ptr).store(true, core::sync::atomic::Ordering::Relaxed);
-    }
-
     // PITを停止してからPICを初期化
     interrupt::disable_pit();
     interrupt::init_pic();

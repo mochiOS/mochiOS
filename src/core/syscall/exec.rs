@@ -509,11 +509,13 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
             );
             heap_pre_mapped = true;
         }
-        let mut heap_initial_end = default_heap_base + heap_map_size;
 
         // __sinitがあれば、スタブを作成して先に呼び出す
         if let Some(sinit) = sinit_addr {
-            let stub_addr: u64 = default_heap_base + heap_map_size;
+            let stub_addr = match stack_end_vaddr.checked_add(4096) {
+                Some(v) => v,
+                None => return crate::syscall::types::EINVAL,
+            };
             crate::info!(
                 "Found __sinit at {:#x}, mapping init stub at {:#x}",
                 sinit,
@@ -555,7 +557,6 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
             } else {
                 // jump to stub first
                 entry = stub_addr;
-                heap_initial_end = heap_initial_end.saturating_add(4096);
             }
         }
 
@@ -571,7 +572,7 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
         proc.set_page_table(new_pt_phys);
         if heap_pre_mapped {
             proc.set_heap_start(default_heap_base);
-            proc.set_heap_end(heap_initial_end);
+            proc.set_heap_end(default_heap_base + heap_map_size);
         }
         let pid = proc.id();
         let is_core_service =

@@ -1,321 +1,219 @@
-# SwiftCore セキュリティアーキテクチャ／セキュリティモデル仕様（コード導出版）
+# SwiftCore セキュリティアーキテクチャ／セキュリティモデル仕様（コード導出）
 
-対象ブランチ: `dev`  
-分析対象: `src/core/**`（`cpu`, `mem`, `syscall`, `task`, `interrupt`, `percpu`, `init`）  
-文書目的: 「現時点の実装が、どの安全性不変条件を、どの機構で、どの範囲まで満たしているか」をコードから厳密に記述する。
-
----
-
-## 0. 分析方法と前提
-
-### 0.1 方法
-
-本書は実装コードから導出した**記述的仕様**であり、理想設計ではなく「実装されている実際の振る舞い」を対象とする。  
-主な参照先:
-
-- syscall 境界: `src/core/syscall/mod.rs`, `src/core/syscall/syscall_entry.rs`
-- メモリ分離/KPTI: `src/core/mem/paging.rs`, `src/core/interrupt/timer.rs`
-- 権限モデル: `src/core/task/ids.rs`, `src/core/syscall/io_port.rs`, `src/core/syscall/exec.rs`
-- 例外/割込み: `src/core/interrupt/idt.rs`
-- プロセス/スレッド: `src/core/task/process.rs`, `src/core/task/thread.rs`, `src/core/task/context.rs`, `src/core/task/scheduler.rs`
-
-### 0.2 本書の性質
-
-- 形式検証・完全網羅証明ではない（静的コード監査ベース）。
-- 「未記載の脆弱性が存在しない」ことを保証しない。
-- ただし、カーネル境界条件（ポインタ検証、CR3切替、権限判定、ELF検証、FD所有制約）については、実装上の成立条件を明示する。
+- 対象ブランチ: `dev`
+- 分析対象: `src/core/**` と関連する `src/user/**`
+- 最終更新: 2026-03-04
+- 文書目的: 実装済みコードから、**成立している安全性境界・不変条件・残余ギャップ**を厳密に記述する
 
 ---
 
-## 1. システム／信頼境界モデル
+## 0. エグゼクティブサマリ
 
-### 1.1 実行ドメイン
+現行実装は、カーネル境界防御として以下を成立させている。
 
-| ドメイン | CPU ring | 実装上の権限概念 | 代表 |
-|---|---:|---|---|
-| Kernel Core | Ring0 | `PrivilegeLevel::Core` | スケジューラ、メモリ管理、割込み処理 |
-| Service | Ring3 | `PrivilegeLevel::Service` | `.service` 実行体 |
-| User | Ring3 | `PrivilegeLevel::User` | 一般プロセス |
+1. **syscall 境界の fail-closed 化**  
+   `validate_user_ptr`（map-aware）＋`with_user_memory_access`（CR3/SMAP 制御）＋`copy_from_user` への収束。
+2. **KPTI/per-CPU 基盤の常用化**  
+   syscall/割込みで kernel CR3 に統一し、必要区間のみ user CR3 へ一時切替。
+3. **制御フロー保護**  
+   SYSRET 前に user RIP/RCX と user RSP の canonicality を検証し、異常時はプロセス終了へフォールバック。
+4. **資源分離の強化**  
+   FD owner 制約、IPC 世代番号検証、wait/reap と page table 破棄の連動を実装。
 
-`Service` と `User` はともに Ring3 だが、syscall レイヤで論理権限が分岐される（例: I/O port）。
+以前の残余リスク項目（R-01〜R-06）は実装上すべて閉塞済み。  
+現時点の主要論点は、脆弱性というより **運用品質（長時間回帰・互換拡張）** に移っている。
 
-### 1.2 保護対象アセット
+---
 
-1. カーネル制御フロー（RIP/RSP/CR3 の整合）
+## 1. 分析方法と前提
+
+### 1.1 方法
+
+- 本書は理想設計書ではなく、**実装コードから導出した記述的仕様**。
+- 主要参照モジュール:
+  - syscall 境界: `src/core/syscall/mod.rs`, `src/core/syscall/syscall_entry.rs`
+  - KPTI/ページング: `src/core/mem/paging.rs`, `src/core/interrupt/timer.rs`
+  - 権限モデル: `src/core/syscall/io_port.rs`, `src/core/syscall/exec.rs`, `src/core/task/ids.rs`
+  - プロセス/スレッド: `src/core/task/process.rs`, `src/core/task/thread.rs`, `src/core/task/context.rs`
+  - 例外封じ込め: `src/core/interrupt/idt.rs`
+
+### 1.2 制約
+
+- 静的監査＋実行検証結果に基づく。形式証明ではない。
+- 未記載脆弱性の不存在を保証するものではない。
+- ただし、境界条件（ユーザーポインタ・CR3・権限・資源所有）は実装根拠まで追跡済み。
+
+---
+
+## 2. 脅威モデル
+
+### 2.1 攻撃者能力
+
+- Ring3 から任意 syscall を発行可能。
+- syscall 引数（ポインタ、長さ、flags、fd、tid）を細工可能。
+- 悪性 ELF、長大文字列、race 条件を伴う入力を投入可能。
+
+### 2.2 保護対象
+
+1. カーネル制御フロー（RIP/RSP/CR3）
 2. カーネル専用メモリ（supervisor mapping）
-3. プロセス間資源分離（FD、IPC宛先、ページテーブル）
-4. 実行イメージの完全性（ELF妥当性、セグメント境界）
+3. プロセス間資源（FD / IPC / page table）
+4. 実行イメージ整合（ELF header/program header）
 
-### 1.3 攻撃者モデル
+### 2.3 想定外
 
-- 攻撃者は Ring3 から任意 syscall を実行できる。
-- syscall 引数（整数、ポインタ、長さ、フラグ）は任意に細工可能。
-- 悪性 ELF / 異常 long string / race を含む入力を与える。
-- ハードウェア攻撃（物理改ざん）は対象外。
+- 物理攻撃、ファームウェア改ざん、サイドチャネル全般の完全防御は対象外。
 
 ---
 
-## 2. セキュリティ不変条件（Security Invariants）
+## 3. セキュリティ不変条件（Invariants）
 
-以下を「成立すべき不変条件」と定義し、現実装での担保箇所を対応付ける。
-
-### INV-1: ユーザーポインタ安全性
-
-**定義**  
-ユーザー由来ポインタ `p,len` は、カーネル dereference 前に:
-
-1. canonical user range (`<= 0x0000_7FFF_FFFF_FFFF`)
-2. overflow なし
-3. 現在プロセスのユーザーページテーブル上で全ページ mapped
-
-を満たすこと。
-
-**実装根拠**  
-`syscall::validate_user_ptr` + `paging::is_user_range_mapped_in_table`。  
-実際のアクセスは `syscall::with_user_memory_access` 内で実施。
-
-### INV-2: SMAP下のユーザーメモリアクセス制御
-
-**定義**  
-SMAP 有効時、カーネルがユーザーメモリへアクセスする区間は明示的に許可されること。
-
-**実装根拠**  
-`with_user_memory_access` が `stac/clac` と CR3 切替を管理し、区間外アクセスを抑制。
-
-### INV-3: KPTI境界でのCR3整合
-
-**定義**  
-syscall/割込み処理中のカーネル実行は kernel CR3 で行われ、復帰時に user CR3 へ戻すこと。
-
-**実装根拠**  
-- syscall: `syscall_handler_rust` で `switch_to_kernel_page_table` / `restore_page_table`
-- timer IRQ: `timer_interrupt_handler` 入口で kernel CR3、出口で `switch_to_current_thread_user_page_table`
-
-### INV-4: 特権 syscall の論理権限制約
-
-**定義**  
-機密性の高い機能（I/O port、service起動）は論理権限で拒否されること。
-
-**実装根拠**  
-- I/O port: `syscall/io_port.rs` で `Core|Service` のみ許可
-- `.service` 実行: `syscall/exec.rs::caller_can_launch_service`
-
-### INV-5: 実行可能性ポリシー
-
-**定義**  
-不要な writable+executable を避け、実行権を最小化すること。
-
-**実装根拠**  
-- EFER.NXE 有効化: `cpu::enable_nxe`
-- ユーザースタック NX: `mem/user.rs::alloc_user_stack`
-- ELFセグメント NX: `paging::map_and_copy_segment_to`
-- カーネル `.text` を read-only に戻す: `paging::protect_kernel_text_pages`
-
-### INV-6: プロセス間 FD 分離
-
-**定義**  
-FD 操作は所有 PID のみ許可。
-
-**実装根拠**  
-`syscall/fs.rs` の `owner_pid` チェック（`read/close/seek/fstat`）。
-
-### INV-7: fork 後のアドレス空間分離
-
-**定義**  
-子プロセスの user ページは親と物理分離されること。
-
-**実装根拠**  
-`paging::clone_user_page_table` は USER_ACCESSIBLE な 4KiB ページを新規フレームへコピー。
-
-### INV-8: 例外封じ込め
-
-**定義**  
-ユーザーモード例外は当該プロセス終了、カーネルモード重大例外は停止へ遷移。
-
-**実装根拠**  
-`interrupt/idt.rs` の各 exception handler。
-
----
-
-## 3. 制御フロー境界モデル
-
-### 3.1 ブート時初期化の安全属性
-
-`init::kinit` は概ね以下順で初期化:
-
-1. CPU機能有効化（NXE/SMEP/SMAP/FSGSBASE）
-2. フレームアロケータ
-3. ページング初期化（新規 L4、`.text` 保護）
-4. PIT・スケジューラ・割込み
-5. SYSCALL MSR 設定
-
-これにより「NX/SMEP/SMAPが有効化された状態で syscall/割込み処理へ進む」前提を作る。
-
-### 3.2 syscall 入口
-
-SwiftCore は **2系統**を保持:
-
-1. `int 0x80` (`syscall_interrupt_handler`)
-2. `SYSCALL/SYSRET` (`syscall_entry`)
-
-両方とも最終的に `syscall_handler_rust -> dispatch` へ収束し、dispatch 前に kernel CR3 へ切替される。
-
-### 3.3 CVE-2012-0217 緩和
-
-`syscall_entry` では SYSRET 直前に user RSP の canonical 検査を行い、非正規アドレス検出時はプロセス終了へフォールバックする。
-
----
-
-## 4. メモリ保護モデル
-
-### 4.1 user range 検証アルゴリズム
-
-`paging::is_user_range_mapped_in_table` は:
-
-- `addr+len-1` の overflow を拒否
-- 上限超過を拒否
-- 範囲内全ページを走査して USER_ACCESSIBLE + PRESENT を要求
-
-し、「上限比較だけ」の検証に比べて強い条件を課す。
-
-### 4.2 KPTI の実装境界
-
-`create_user_page_table` は kernel L4 の高位領域を広く共有せず、低位側の最小コピー方針を取る。  
-一方で syscall 実行に必要な低位マッピングは残すため、完全非共有型 KPTI ではなく「最小共有型」に位置づく。
-
-### 4.3 スタック保護
-
-- ユーザースタック: 1ページ guard + NX (`mem/user.rs`)
-- カーネルスタック: 1ページの未マップ guard を配置し、コンテキスト切替時に guard 未マップ性を検証 (`thread.rs`, `context.rs`)
-
-ユーザースタック/カーネルスタックともに guard ページを未マップとする保護方式を採用する。
-
-### 4.4 フレーム解放
-
-- `munmap` は `unmap_range_in_table` を通じて unmap + frame 解放
-- `destroy_user_page_table` は user hierarchy を辿り frame を解放
-
----
-
-## 5. 実行イメージ（ELF/exec）セキュリティモデル
-
-### 5.1 ELF 妥当性チェック
-
-`task/elf.rs` と `elf/loader.rs` の両系統で、少なくとも以下を確認:
-
-- ELF magic
-- 64bit little-endian 条件
-- `e_machine == EM_X86_64 (0x3E)`
-- `p_offset + p_filesz` checked_add
-- `p_vaddr` / `p_memsz` 境界の overflow 防止
-
-### 5.2 セグメントマッピング方針
-
-ロード時は書き込み可能でコピーし、最終フラグで `WRITABLE` / `NO_EXECUTE` を調整する。  
-非 executable セグメントには NX を付与。
-
-### 5.3 `.service` 起動認可
-
-`exec` 経路では `.service` 実行時に:
-
-- Core 呼び出しは許可
-- それ以外は service manager PID 一致を要求
-- manager PID の存在、状態（Zombie/Terminated除外）、権限（Core/Service）を検証
-
----
-
-## 6. 資源分離モデル（FS / IPC / Process）
-
-### 6.1 FD テーブル
-
-`FD_TABLE` は `FileHandle { owner_pid, data, pos }` を保持し、操作ごとに `owner_pid == caller_pid` を要求。  
-`read` は lock 保持中に handle を使用し、close との UAF 窓を抑制。
-
-### 6.2 IPC
-
-Mailbox は thread slot 単位。宛先 thread id に加えてスロット世代番号を検証し、受信時に
-`msg.to == receiver` かつ `slot/generation` 一致を要求して、再利用スロットへの誤配送を防ぐ。
-
-### 6.3 wait/reap
-
-`wait` は parent-child 関係を前提に zombie を回収し、`WNOHANG` を実装。  
-ブロッキング待機時は無期限で待機し、回収時に子プロセスの user page table を破棄して frame 解放へ接続する。
-
----
-
-## 7. 現状評価（2026-03-03, コード導出）
-
-### 7.1 実装済み主要緩和
-
-- user pointer map-aware 検証
-- SMAP/STAC/CLAC 統制
-- KPTI CR3 切替（syscall + timer IRQ）
-- SMEP/SMAP/NXE 有効化
-- I/O port 論理権限ゲート
-- service 実行認可（PID生存性含む）
-- ELF 境界チェック強化
-- user stack NX + guard
-- FD owner 分離
-- SYSCALL stack pointer の per-CPU GS 化（SMP時の cross-core stack 汚染対策）
-- zombie 回収時の child page table 自動破棄
-- `RtSigaction` / `RtSigprocmask` の `ENOSYS` 明示化
-- カーネルスタック guard の未マップ化（fault-before-corruption）
-- IPC 宛先スロット世代検証（再利用スロット誤配送対策）
-- `wait` の無期限待機化（`WNOHANG` 以外）
-
-### 7.2 残余リスク / 既知ギャップ
-
-| ID | 状態 | 修正内容 | 根拠 |
+| ID | 不変条件 | 実装担保 | 状態 |
 |---|---|---|---|
-| R-01 | Closed | SYSCALL エントリのカーネルスタック取得を `gs:[offset]` に変更し、`IA32_KERNEL_GS_BASE` を per-CPU state に接続。 | `syscall/syscall_entry.rs`, `percpu.rs` |
-| R-02 | Closed | zombie 回収で child page table を `destroy_user_page_table` へ接続し、回収時に frame 解放。 | `task/process.rs`, `mem/paging.rs` |
-| R-03 | Closed | `RtSigaction`/`RtSigprocmask` を `SUCCESS` スタブから `ENOSYS` に変更。 | `syscall/mod.rs::dispatch` |
-| R-04 | Closed | カーネルスタック guard を未マップページ化し、コンテキスト切替時に guard 未マップを検証。 | `task/thread.rs`, `task/context.rs` |
-| R-05 | Closed | IPC メッセージへ宛先スロット世代を付与し、受信時一致検証で再利用スロット誤配送を遮断。 | `syscall/ipc.rs`, `task/thread.rs` |
-| R-06 | Closed | `wait` の 30秒 timeout を撤廃し、`WNOHANG` 以外は無期限待機へ変更。 | `syscall/process.rs` |
+| INV-1 | ユーザーポインタは canonical 範囲・overflow 無し・ページマップ済みのみ許可 | `validate_user_ptr`, `is_user_range_mapped_in_table` | Satisfied |
+| INV-2 | ユーザーメモリアクセスは限定区間でのみ実施 | `with_user_memory_access`（CR3 切替 + STAC/CLAC） | Satisfied |
+| INV-3 | syscall/割込みのカーネル処理は kernel CR3 で実行 | `switch_to_kernel_page_table`, timer IRQ 復帰処理 | Satisfied |
+| INV-4 | SYSRET 復帰前に user RIP/RSP 正規性を検証 | `syscall_entry.rs` canonicality check + kill fallback | Satisfied |
+| INV-5 | 特権 syscall は論理権限で拒否 | `io_port.rs`, `exec.rs::caller_can_launch_service` | Satisfied |
+| INV-6 | 実行可能性を最小化（NX/W^X/guard） | `enable_nxe`, stack NX+guard, `.text` 保護 | Satisfied |
+| INV-7 | プロセス間資源は所有/宛先整合を要求 | FD owner 制約, IPC generation 検証 | Satisfied |
+| INV-8 | `fork` 後に user page は物理分離 | `clone_user_page_table` | Satisfied |
+| INV-9 | 例外はユーザー封じ込め（kernel fatal は停止） | `interrupt/idt.rs` 各 handler | Satisfied |
+| INV-10 | zombie 回収で page table/frame 破棄が連動 | `reap_zombie_child_process` + `destroy_user_page_table` | Satisfied |
 
 ---
 
-## 8. 継続改善提案（運用品質）
+## 4. 実装モデル（境界ごとの詳細）
 
-1. KPTI の共有マッピング範囲を実測に基づいてさらに縮小（機能維持を確認しながら段階適用）  
-2. syscall / IPC / wait-reap のストレス試験を継続運用に組み込む  
-3. SMP 構成での per-CPU GS 初期化と SYSCALL 経路の長時間回帰試験を追加
+### 4.1 syscall 境界（入力検証）
+
+- `validate_user_ptr` は `ptr + len - 1` の包含終端で判定し、off-by-one を回避。
+- `read_user_cstring` はページ境界単位で妥当性を再確認し、最大長を超える入力を拒否。
+- バイト列取得は `copy_from_user` に統一し、syscall 実装ごとの unsafe 参照分散を削減。
+
+### 4.2 KPTI と per-CPU 状態
+
+- `percpu.rs` で CPU ローカル状態（`kernel_cr3`, `syscall_kernel_rsp`, `current_thread_id`）を保持。
+- SYSCALL エントリ時のカーネルスタック取得は `gs:[offset]` 参照でグローバル依存を除去。
+- `syscall_handler_rust` / timer IRQ で kernel CR3 実行を保証し、復帰時に user CR3 を復元。
+- user pointer 参照の実アクセスのみ `with_user_memory_access` で user CR3 に一時切替。
+
+### 4.3 SYSRET 復帰経路のハードニング
+
+- SYSRET 直前で user RSP と user RIP（`rcx`）の canonicality を検証。
+- 異常値検出時は通常復帰せず、カーネル側 kill 経路へ強制遷移（CVE-2012-0217 系の緩和）。
+
+### 4.4 メモリ実行ポリシー
+
+- NXE を有効化し、実行不可領域を明示。
+- ユーザースタックは guard page + NX を採用。
+- カーネル `.text` は writable を落とし read-only 化。
+- カーネルスタックは未マップ guard を使用し、コンテキスト切替時に guard 破壊を検知。  
+  （内部プール外スタックには誤検知回避ロジックを適用）
+
+### 4.5 ELF / exec / 権限モデル
+
+- ELF ロード時に magic/class/endianness/`EM_X86_64`/サイズ計算の安全性を検証。
+- `.service` 実行は manager PID と権限状態（Core/Service）を検証して許可。
+- `exec` の heap 状態初期化漏れは修正済み（runtime 回帰対策）。
+
+### 4.6 資源分離（FD / IPC / wait-reap）
+
+- FD テーブルは `owner_pid` 一致を必須化。
+- IPC は宛先 thread id に加え slot generation 一致を要求し、再利用スロット誤配送を遮断。
+- `wait` は `WNOHANG` 互換を維持しつつ、ブロッキング待機は無期限化。
+- zombie 回収時に child page table を破棄し、frame 解放を自動連動。
+
+### 4.7 signal syscall の扱い
+
+- `RtSigaction` / `RtSigprocmask` は `SUCCESS` スタブを廃止し、`ENOSYS` を明示。  
+  （「成功したように見える失敗」を禁止）
 
 ---
 
-## 9. 検証プロトコル（再現用）
+## 5. 残余リスク項目（R-01〜R-06）閉塞状況
 
-最低限の再検証コマンド:
+| ID | 現状態 | 実装内容 | 根拠 |
+|---|---|---|---|
+| R-01 | Closed | SYSCALL stack pointer を `gs:[offset]` の per-CPU 参照へ移行 | `syscall_entry.rs`, `percpu.rs` |
+| R-02 | Closed | zombie 回収で child page table を自動破棄 | `task/process.rs`, `mem/paging.rs` |
+| R-03 | Closed | `rt_sig*` を `ENOSYS` 明示に変更 | `syscall/mod.rs` |
+| R-04 | Closed | カーネルスタック guard を未マップ化し切替時検証 | `task/thread.rs`, `task/context.rs` |
+| R-05 | Closed | IPC generation 検証を導入し誤配送を抑止 | `syscall/ipc.rs`, `task/thread.rs` |
+| R-06 | Closed | `wait` の固定 timeout を撤廃し無期限待機化 | `syscall/process.rs` |
+
+---
+
+## 6. 検証結果（直近サイクル）
+
+### 6.1 静的/ビルド検証
 
 ```bash
 cargo fmt --all -- --check
-cargo build --locked --verbose
-cargo test --locked --verbose
+cargo build --locked --quiet
+cargo test --locked --quiet
 ```
 
-推奨追加（運用前）:
+上記は直近検証サイクルで成功。
 
-- 長時間 `fork/exit/wait` ループでフレーム使用量推移確認
-- syscall fuzz（不正 pointer/length/flags）で EFAULT/EINVAL fail-closed 確認
-- `.service` 認可の PID 生存性回帰テスト
+### 6.2 実行時スモーク
+
+```bash
+timeout 110s cargo run
+```
+
+- kernel/user page fault の再発は非観測。
+- `fs.service` は `InitFS mounted and initialized` 到達を確認。
 
 ---
 
-## 10. 証拠マップ（主要不変条件 -> 実装）
+## 7. 既知ギャップ（脆弱性というより互換・運用品質）
+
+1. **KPTI 共有範囲のさらなる縮小余地**  
+   `create_user_page_table` は既に最小化方針だが、低位共有マップはなお残る。
+2. **`clone(2)` の Linux 完全互換は未達**  
+   現状は `fork` 寄り挙動が中心。
+3. **TLS の `PT_TLS` ローダは未完**  
+   `arch_prctl` はあるが、TLS テンプレート配置は未完。
+4. **signal 互換の段階的導入が必要**  
+   現状 `rt_sig*` は fail-closed (`ENOSYS`)。
+
+---
+
+## 8. 継続改善提案
+
+### P0
+
+- syscall / IPC / wait-reap の長時間ストレス試験を CI 以外でも定期運用
+- `fork/exit/wait` ループでフレーム使用量・リークの継続監視
+
+### P1
+
+- KPTI 共有マッピングの実測ベース縮小
+- SMP 構成で GS/per-CPU 経路の soak test を追加
+
+### P2
+
+- signal/TLS/clone 互換を段階拡張し、`std` 実運用の失敗面を縮小
+
+---
+
+## 9. 証跡トレーサビリティ（不変条件 → 実装）
 
 | 不変条件 | 主実装 |
 |---|---|
 | INV-1 | `syscall/mod.rs::validate_user_ptr`, `mem/paging.rs::is_user_range_mapped_in_table` |
-| INV-2 | `syscall/mod.rs::with_user_memory_access`, `cpu.rs::is_smap_enabled` |
-| INV-3 | `syscall/mod.rs::syscall_handler_rust`, `syscall/syscall_entry.rs`, `interrupt/timer.rs` |
-| INV-4 | `syscall/io_port.rs`, `syscall/exec.rs::caller_can_launch_service` |
-| INV-5 | `cpu.rs::enable_nxe`, `mem/user.rs`, `mem/paging.rs::protect_kernel_text_pages` |
-| INV-6 | `syscall/fs.rs` |
-| INV-7 | `mem/paging.rs::clone_user_page_table`, `syscall/process.rs::fork` |
-| INV-8 | `interrupt/idt.rs` |
+| INV-2 | `syscall/mod.rs::with_user_memory_access` |
+| INV-3 | `syscall/syscall_entry.rs`, `syscall/mod.rs::syscall_handler_rust`, `interrupt/timer.rs` |
+| INV-4 | `syscall/syscall_entry.rs`（canonicality check + kill fallback） |
+| INV-5 | `syscall/io_port.rs`, `syscall/exec.rs` |
+| INV-6 | `cpu.rs`, `mem/user.rs`, `mem/paging.rs`, `task/thread.rs`, `task/context.rs` |
+| INV-7 | `syscall/fs.rs`, `syscall/ipc.rs`, `task/thread.rs` |
+| INV-8 | `mem/paging.rs::clone_user_page_table`, `syscall/process.rs::fork` |
+| INV-9 | `interrupt/idt.rs` |
+| INV-10 | `task/process.rs::reap_zombie_child_process`, `mem/paging.rs::destroy_user_page_table` |
 
 ---
 
-この文書は「実装済み対策の誇張」ではなく、成立している境界と継続改善が必要な境界を明示することを目的とする。  
-現時点では R-01〜R-06 を実装閉塞済みであり、残る論点は運用品質向上（継続検証・段階的縮小・長時間回帰）である。
+本書は「実装済み対策の宣言」ではなく、**成立している境界の証跡化**を目的とする。  
+今後の重点は、重大リスクの新規導入防止を前提に、互換拡張と運用検証の深度を高めることである。

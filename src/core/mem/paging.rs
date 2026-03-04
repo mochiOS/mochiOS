@@ -23,6 +23,66 @@ pub static PAGE_TABLE: Mutex<Option<OffsetPageTable<'static>>> = Mutex::new(None
 pub static PHYS_OFFSET: Mutex<Option<u64>> = Mutex::new(None);
 /// カーネルの元のL4ページテーブルの物理アドレス（init時に設定）
 pub static KERNEL_L4_PHYS: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
+/// x86-64 canonical ユーザー空間上限
+const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
+
+#[cfg(target_os = "uefi")]
+#[used]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text$A")]
+static __swiftcore_text_start_marker: u8 = 0;
+#[cfg(target_os = "uefi")]
+#[used]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text$Z")]
+static __swiftcore_text_end_marker: u8 = 0;
+
+#[cfg(not(target_os = "uefi"))]
+unsafe extern "C" {
+    static __text_start: u8;
+    static __text_end: u8;
+}
+
+#[cfg(target_os = "uefi")]
+fn kernel_text_range() -> (u64, u64) {
+    (
+        core::ptr::addr_of!(__swiftcore_text_start_marker) as u64,
+        core::ptr::addr_of!(__swiftcore_text_end_marker) as u64,
+    )
+}
+
+#[cfg(not(target_os = "uefi"))]
+fn kernel_text_range() -> (u64, u64) {
+    unsafe {
+        (
+            core::ptr::addr_of!(__text_start) as u64,
+            core::ptr::addr_of!(__text_end) as u64,
+        )
+    }
+}
+
+fn protect_kernel_text_pages(page_table: &mut OffsetPageTable<'static>) {
+    let (text_start, text_end) = kernel_text_range();
+    if text_end <= text_start {
+        crate::warn!(
+            "Invalid .text range: start={:#x}, end={:#x}",
+            text_start,
+            text_end
+        );
+        return;
+    }
+
+    let start_page = Page::<Size4KiB>::containing_address(VirtAddr::new(text_start));
+    let end_page = Page::<Size4KiB>::containing_address(VirtAddr::new(text_end - 1));
+
+    for page in Page::<Size4KiB>::range_inclusive(start_page, end_page) {
+        unsafe {
+            let _ = page_table
+                .update_flags(page, PageTableFlags::PRESENT)
+                .map(|flush| flush.flush());
+        }
+    }
+}
 
 /// ページングシステムを初期化
 ///
@@ -175,6 +235,9 @@ pub fn init(boot_info: &'static crate::BootInfo) {
         }
     }
 
+    // HIGH-06 対応: カーネル .text は読み取り専用に戻す
+    protect_kernel_text_pages(&mut page_table);
+
     // CR3スイッチ
     drop(allocator_lock);
 
@@ -272,6 +335,107 @@ pub fn physical_memory_offset() -> Option<u64> {
     *PHYS_OFFSET.lock()
 }
 
+fn user_page_flags_in_table(table_phys: u64, page_addr: u64) -> Option<PageTableFlags> {
+    let phys_off = physical_memory_offset()?;
+    if (table_phys & 0xfff) != 0 {
+        return None;
+    }
+
+    let l4_vaddr = table_phys.checked_add(phys_off)?;
+    let l4 = unsafe { &*(l4_vaddr as *const PageTable) };
+    let l4i = ((page_addr >> 39) & 0x1ff) as usize;
+    if l4i >= 256 {
+        return None;
+    }
+    let l4e = &l4[l4i];
+    let l4f = l4e.flags();
+    if l4e.is_unused()
+        || !l4f.contains(PageTableFlags::PRESENT)
+        || !l4f.contains(PageTableFlags::USER_ACCESSIBLE)
+    {
+        return None;
+    }
+
+    let l3_vaddr = l4e.addr().as_u64().checked_add(phys_off)?;
+    let l3 = unsafe { &*(l3_vaddr as *const PageTable) };
+    let l3i = ((page_addr >> 30) & 0x1ff) as usize;
+    let l3e = &l3[l3i];
+    let l3f = l3e.flags();
+    if l3e.is_unused()
+        || !l3f.contains(PageTableFlags::PRESENT)
+        || !l3f.contains(PageTableFlags::USER_ACCESSIBLE)
+    {
+        return None;
+    }
+    if l3f.contains(PageTableFlags::HUGE_PAGE) {
+        return Some(l3f);
+    }
+
+    let l2_vaddr = l3e.addr().as_u64().checked_add(phys_off)?;
+    let l2 = unsafe { &*(l2_vaddr as *const PageTable) };
+    let l2i = ((page_addr >> 21) & 0x1ff) as usize;
+    let l2e = &l2[l2i];
+    let l2f = l2e.flags();
+    if l2e.is_unused()
+        || !l2f.contains(PageTableFlags::PRESENT)
+        || !l2f.contains(PageTableFlags::USER_ACCESSIBLE)
+    {
+        return None;
+    }
+    if l2f.contains(PageTableFlags::HUGE_PAGE) {
+        return Some(l2f);
+    }
+
+    let l1_vaddr = l2e.addr().as_u64().checked_add(phys_off)?;
+    let l1 = unsafe { &*(l1_vaddr as *const PageTable) };
+    let l1i = ((page_addr >> 12) & 0x1ff) as usize;
+    let l1e = &l1[l1i];
+    let l1f = l1e.flags();
+    if l1e.is_unused()
+        || !l1f.contains(PageTableFlags::PRESENT)
+        || !l1f.contains(PageTableFlags::USER_ACCESSIBLE)
+    {
+        return None;
+    }
+    Some(l1f)
+}
+
+fn page_is_user_mapped_in_table(table_phys: u64, page_addr: u64) -> bool {
+    user_page_flags_in_table(table_phys, page_addr).is_some_and(|flags| {
+        flags.contains(PageTableFlags::PRESENT) && flags.contains(PageTableFlags::USER_ACCESSIBLE)
+    })
+}
+
+/// 指定したページテーブルでユーザー範囲がすべて有効にマップされているか確認する
+pub fn is_user_range_mapped_in_table(table_phys: u64, addr: u64, len: u64) -> bool {
+    if addr > USER_SPACE_END {
+        return false;
+    }
+    if len == 0 {
+        return true;
+    }
+
+    let end_inclusive = match addr.checked_add(len.saturating_sub(1)) {
+        Some(v) if v <= USER_SPACE_END => v,
+        _ => return false,
+    };
+
+    let mut page_addr = addr & !0xfffu64;
+    let end_page = end_inclusive & !0xfffu64;
+    loop {
+        if !page_is_user_mapped_in_table(table_phys, page_addr) {
+            return false;
+        }
+        if page_addr == end_page {
+            return true;
+        }
+        page_addr = match page_addr.checked_add(4096) {
+            Some(v) => v,
+            None => return false,
+        };
+    }
+}
+
 /// 指定した仮想アドレス範囲にセグメントをマップしてコピーする
 ///
 /// データはカーネルの恒等マッピング（phys = virt）経由で物理フレームに直接書き込む。
@@ -296,12 +460,29 @@ pub fn map_and_copy_segment(
 ) -> Result<()> {
     use crate::mem::frame;
     use crate::result::{Kernel, Memory};
-    use x86_64::structures::paging::PageTableFlags as Flags;
 
     let phys_off = physical_memory_offset().ok_or(Kernel::Memory(Memory::NotMapped))?;
-
+    if memsz == 0 {
+        return if filesz == 0 {
+            Ok(())
+        } else {
+            Err(Kernel::InvalidParam)
+        };
+    }
+    if memsz < filesz || (filesz as usize) > src.len() {
+        return Err(Kernel::InvalidParam);
+    }
+    let file_end = vaddr
+        .checked_add(filesz)
+        .ok_or(Kernel::Memory(Memory::InvalidAddress))?;
+    let mem_end = vaddr
+        .checked_add(memsz)
+        .ok_or(Kernel::Memory(Memory::InvalidAddress))?;
     let start = vaddr & !0xfffu64;
-    let end = ((vaddr + memsz + 0xfff) & !0xfffu64);
+    let end = mem_end
+        .checked_add(0xfff)
+        .map(|v| v & !0xfffu64)
+        .ok_or(Kernel::Memory(Memory::InvalidAddress))?;
 
     let mut page_addr = start;
     while page_addr < end {
@@ -319,7 +500,7 @@ pub fn map_and_copy_segment(
 
             // Temporarily map as writable for loading, but preserve execute permission
             // to avoid conflicts with final flags
-            let mut flags = PageTableFlags::PRESENT
+            let flags = PageTableFlags::PRESENT
                 | PageTableFlags::USER_ACCESSIBLE
                 | PageTableFlags::WRITABLE;
             // Don't set NO_EXECUTE during loading - we'll set it in the final flag update if needed
@@ -363,10 +544,8 @@ pub fn map_and_copy_segment(
 
         let page_start = page_addr;
         let page_end = page_addr + 4096;
-        let file_region_start = vaddr;
-        let file_region_end = vaddr + filesz;
-        let copy_start = core::cmp::max(page_start, file_region_start);
-        let copy_end = core::cmp::min(page_end, file_region_end);
+        let copy_start = core::cmp::max(page_start, vaddr);
+        let copy_end = core::cmp::min(page_end, file_end);
         if copy_start < copy_end {
             let src_off = (copy_start - vaddr) as usize;
             let len = (copy_end - copy_start) as usize;
@@ -383,9 +562,9 @@ pub fn map_and_copy_segment(
                 core::ptr::copy_nonoverlapping(src.as_ptr().add(src_off), dst_virt, len);
             }
         }
-        if page_start < vaddr + memsz {
-            let zero_start = core::cmp::max(page_start, vaddr + filesz);
-            let zero_end = core::cmp::min(page_end, vaddr + memsz);
+        if page_start < mem_end {
+            let zero_start = core::cmp::max(page_start, file_end);
+            let zero_end = core::cmp::min(page_end, mem_end);
             if zero_start < zero_end {
                 let offset_into_page = (zero_start - page_start);
                 let dst_virt_addr = page_start + offset_into_page;
@@ -479,7 +658,9 @@ pub fn create_user_page_table() -> Result<u64> {
     let new_l4 = unsafe { &mut *((new_l4_phys + phys_off) as *mut PageTable) };
     new_l4.zero();
 
-    // L4[0]: カーネルコード/スタックとユーザーコードが共存するエントリ
+    // KPTI強化: L4[0]（低位512GiB）のみ最小限コピーする。
+    // これにより上位L4エントリを通じた広域カーネルマッピングをユーザーテーブルから除外する。
+    // 実際のユーザー領域は exec/mmap 時に個別マップされる。
     if !kernel_l4[0].is_unused() {
         let kernel_l3_phys = kernel_l4[0].addr().as_u64();
         let kernel_l3 = unsafe { &*((kernel_l3_phys + phys_off) as *const PageTable) };
@@ -510,25 +691,118 @@ pub fn create_user_page_table() -> Result<u64> {
             new_l3[0].set_addr(x86_64::PhysAddr::new(new_l2_phys), kernel_l3[0].flags());
         }
 
-        // L3[1..512]: 1GB以上のカーネルメモリをそのままコピー
-        for i in 1..512 {
-            new_l3[i] = kernel_l3[i].clone();
-        }
-
         new_l4[0].set_addr(x86_64::PhysAddr::new(new_l3_phys), kernel_l4[0].flags());
     }
 
-    // L4[1..255]: その他の物理メモリ領域をカーネルからコピー
-    for i in 1..255 {
-        new_l4[i] = kernel_l4[i].clone();
-    }
-    // L4[255]: ユーザースタック領域（プロセス固有 - 空のままにする）
-    // L4[256..512]: カーネル上位半分をカーネルからコピー
-    for i in 256..512 {
-        new_l4[i] = kernel_l4[i].clone();
+    Ok(new_l4_phys)
+}
+
+/// 既存のユーザーページテーブルをフルコピーして新しいページテーブルを返す
+///
+/// - カーネル共有マッピングは `create_user_page_table()` により初期化
+/// - USER_ACCESSIBLE な4KiBページを新規フレームへコピー
+pub fn clone_user_page_table(src_table_phys: u64) -> Result<u64> {
+    use x86_64::structures::paging::PageTableFlags as Flags;
+
+    let phys_off = physical_memory_offset().ok_or(Kernel::Memory(Memory::NotMapped))?;
+    let dst_table_phys = create_user_page_table()?;
+
+    let src_l4 = unsafe { &*((src_table_phys + phys_off) as *const PageTable) };
+    let dst_l4 = unsafe { &mut *((dst_table_phys + phys_off) as *mut PageTable) };
+    let mut dst_pt = unsafe { OffsetPageTable::new(dst_l4, VirtAddr::new(phys_off)) };
+
+    for l4i in 0usize..256 {
+        let l4e = &src_l4[l4i];
+        if l4e.is_unused() || !l4e.flags().contains(Flags::PRESENT) {
+            continue;
+        }
+        let src_l3 = unsafe { &*((l4e.addr().as_u64() + phys_off) as *const PageTable) };
+        for l3i in 0usize..512 {
+            let l3e = &src_l3[l3i];
+            if l3e.is_unused() || !l3e.flags().contains(Flags::PRESENT) {
+                continue;
+            }
+            if l3e.flags().contains(Flags::HUGE_PAGE) {
+                continue;
+            }
+            let src_l2 = unsafe { &*((l3e.addr().as_u64() + phys_off) as *const PageTable) };
+            for l2i in 0usize..512 {
+                let l2e = &src_l2[l2i];
+                if l2e.is_unused() || !l2e.flags().contains(Flags::PRESENT) {
+                    continue;
+                }
+                if l2e.flags().contains(Flags::HUGE_PAGE) {
+                    continue;
+                }
+                let src_l1 = unsafe { &*((l2e.addr().as_u64() + phys_off) as *const PageTable) };
+                for l1i in 0usize..512 {
+                    let pte = &src_l1[l1i];
+                    if pte.is_unused() {
+                        continue;
+                    }
+                    let src_flags = pte.flags();
+                    if !src_flags.contains(Flags::PRESENT)
+                        || !src_flags.contains(Flags::USER_ACCESSIBLE)
+                    {
+                        continue;
+                    }
+
+                    let vaddr = ((l4i as u64) << 39)
+                        | ((l3i as u64) << 30)
+                        | ((l2i as u64) << 21)
+                        | ((l1i as u64) << 12);
+                    let page = Page::<Size4KiB>::containing_address(VirtAddr::new(vaddr));
+
+                    let new_frame = frame::allocate_frame()?;
+                    let mut dst_flags = Flags::PRESENT | Flags::USER_ACCESSIBLE;
+                    if src_flags.contains(Flags::WRITABLE) {
+                        dst_flags |= Flags::WRITABLE;
+                    }
+                    if src_flags.contains(Flags::NO_EXECUTE) {
+                        dst_flags |= Flags::NO_EXECUTE;
+                    }
+
+                    unsafe {
+                        let mut alloc_lock = frame::FRAME_ALLOCATOR.lock();
+                        let alloc_ref = alloc_lock
+                            .as_mut()
+                            .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+                        match dst_pt.map_to(page, new_frame, dst_flags, alloc_ref) {
+                            Ok(flush) => flush.ignore(),
+                            Err(
+                                x86_64::structures::paging::mapper::MapToError::PageAlreadyMapped(
+                                    _,
+                                ),
+                            ) => {
+                                let (old_frame, flush) = dst_pt
+                                    .unmap(page)
+                                    .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?;
+                                flush.ignore();
+                                let _ = frame::deallocate_frame(old_frame);
+                                let mut alloc_lock2 = frame::FRAME_ALLOCATOR.lock();
+                                let alloc_ref2 = alloc_lock2
+                                    .as_mut()
+                                    .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+                                dst_pt
+                                    .map_to(page, new_frame, dst_flags, alloc_ref2)
+                                    .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?
+                                    .ignore();
+                            }
+                            Err(_) => return Err(Kernel::Memory(Memory::InvalidAddress)),
+                        }
+                    }
+
+                    let src_ptr = (pte.addr().as_u64() + phys_off) as *const u8;
+                    let dst_ptr = (new_frame.start_address().as_u64() + phys_off) as *mut u8;
+                    unsafe {
+                        core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, 4096);
+                    }
+                }
+            }
+        }
     }
 
-    Ok(new_l4_phys)
+    Ok(dst_table_phys)
 }
 
 /// 指定したページテーブル（物理アドレス）にセグメントをマップしてコピーする
@@ -560,6 +834,22 @@ pub fn map_and_copy_segment_to(
     use x86_64::structures::paging::PageTableFlags as Flags;
 
     let phys_off = physical_memory_offset().ok_or(Kernel::Memory(Memory::NotMapped))?;
+    if memsz == 0 {
+        return if filesz == 0 {
+            Ok(())
+        } else {
+            Err(Kernel::InvalidParam)
+        };
+    }
+    if memsz < filesz || (filesz as usize) > src.len() {
+        return Err(Kernel::InvalidParam);
+    }
+    let file_end = vaddr
+        .checked_add(filesz)
+        .ok_or(Kernel::Memory(Memory::InvalidAddress))?;
+    let mem_end = vaddr
+        .checked_add(memsz)
+        .ok_or(Kernel::Memory(Memory::InvalidAddress))?;
     let l4 = unsafe { &mut *((table_phys + phys_off) as *mut PageTable) };
     let mut pt = unsafe { OffsetPageTable::new(l4, VirtAddr::new(phys_off)) };
 
@@ -572,7 +862,10 @@ pub fn map_and_copy_segment_to(
     }
 
     let start = vaddr & !0xfffu64;
-    let end = (vaddr + memsz + 0xfff) & !0xfffu64;
+    let end = mem_end
+        .checked_add(0xfff)
+        .map(|v| v & !0xfffu64)
+        .ok_or(Kernel::Memory(Memory::InvalidAddress))?;
 
     let mut page_addr = start;
     while page_addr < end {
@@ -609,10 +902,11 @@ pub fn map_and_copy_segment_to(
                 // カーネルのアイデンティティマップが残っている場合：アンマップして再マップ
                 // Note: alloc_lock is already dropped here, so re-acquiring is safe (no deadlock).
                 unsafe {
-                    pt.unmap(page)
-                        .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?
-                        .1
-                        .ignore();
+                    let (old_frame, flush) = pt
+                        .unmap(page)
+                        .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?;
+                    flush.ignore();
+                    let _ = frame::deallocate_frame(old_frame);
                     let mut alloc_lock2 = frame::FRAME_ALLOCATOR.lock();
                     let alloc_ref2 = alloc_lock2
                         .as_mut()
@@ -629,7 +923,7 @@ pub fn map_and_copy_segment_to(
         let page_start = page_addr;
         let page_end = page_addr + 4096;
         let copy_start = core::cmp::max(page_start, vaddr);
-        let copy_end = core::cmp::min(page_end, vaddr + filesz);
+        let copy_end = core::cmp::min(page_end, file_end);
         if copy_start < copy_end {
             let src_off = (copy_start - vaddr) as usize;
             let dst_off = (copy_start - page_start) as usize;
@@ -648,6 +942,133 @@ pub fn map_and_copy_segment_to(
     Ok(())
 }
 
+/// 指定したページテーブルでユーザー範囲をアンマップし、対応フレームを解放する
+pub fn unmap_range_in_table(table_phys: u64, addr: u64, length: u64) -> Result<()> {
+    if length == 0 {
+        return Ok(());
+    }
+    let phys_off = physical_memory_offset().ok_or(Kernel::Memory(Memory::NotMapped))?;
+    let end_raw = addr
+        .checked_add(length)
+        .ok_or(Kernel::Memory(Memory::InvalidAddress))?;
+    let start = addr & !0xfffu64;
+    let end = end_raw
+        .checked_add(0xfff)
+        .map(|v| v & !0xfffu64)
+        .ok_or(Kernel::Memory(Memory::InvalidAddress))?;
+
+    let l4 = unsafe { &mut *((table_phys + phys_off) as *mut PageTable) };
+    let mut pt = unsafe { OffsetPageTable::new(l4, VirtAddr::new(phys_off)) };
+
+    let mut page_addr = start;
+    while page_addr < end {
+        if !page_is_user_mapped_in_table(table_phys, page_addr) {
+            page_addr += 4096;
+            continue;
+        }
+        let page = Page::<Size4KiB>::containing_address(VirtAddr::new(page_addr));
+        if let Ok((frame, flush)) = pt.unmap(page) {
+            flush.ignore();
+            let _ = frame::deallocate_frame(frame);
+        }
+        page_addr += 4096;
+    }
+    Ok(())
+}
+
+fn deallocate_4k_frame_by_phys(frame_phys: u64) {
+    let frame = PhysFrame::<Size4KiB>::containing_address(x86_64::PhysAddr::new(frame_phys));
+    let _ = frame::deallocate_frame(frame);
+}
+
+fn destroy_user_l1_table(l1_phys: u64, phys_off: u64) {
+    let l1 = unsafe { &mut *((l1_phys + phys_off) as *mut PageTable) };
+    for i in 0..512 {
+        let entry = l1[i].clone();
+        let flags = entry.flags();
+        if entry.is_unused()
+            || !flags.contains(PageTableFlags::PRESENT)
+            || !flags.contains(PageTableFlags::USER_ACCESSIBLE)
+        {
+            continue;
+        }
+        deallocate_4k_frame_by_phys(entry.addr().as_u64());
+        l1[i].set_unused();
+    }
+    deallocate_4k_frame_by_phys(l1_phys);
+}
+
+fn destroy_user_l2_table(l2_phys: u64, phys_off: u64) {
+    let l2 = unsafe { &mut *((l2_phys + phys_off) as *mut PageTable) };
+    for i in 0..512 {
+        let entry = l2[i].clone();
+        let flags = entry.flags();
+        if entry.is_unused()
+            || !flags.contains(PageTableFlags::PRESENT)
+            || !flags.contains(PageTableFlags::USER_ACCESSIBLE)
+        {
+            continue;
+        }
+        if flags.contains(PageTableFlags::HUGE_PAGE) {
+            l2[i].set_unused();
+            continue;
+        }
+        destroy_user_l1_table(entry.addr().as_u64(), phys_off);
+        l2[i].set_unused();
+    }
+    deallocate_4k_frame_by_phys(l2_phys);
+}
+
+fn destroy_user_l3_table(l3_phys: u64, phys_off: u64) {
+    let l3 = unsafe { &mut *((l3_phys + phys_off) as *mut PageTable) };
+    for i in 0..512 {
+        let entry = l3[i].clone();
+        let flags = entry.flags();
+        if entry.is_unused()
+            || !flags.contains(PageTableFlags::PRESENT)
+            || !flags.contains(PageTableFlags::USER_ACCESSIBLE)
+        {
+            continue;
+        }
+        if flags.contains(PageTableFlags::HUGE_PAGE) {
+            l3[i].set_unused();
+            continue;
+        }
+        destroy_user_l2_table(entry.addr().as_u64(), phys_off);
+        l3[i].set_unused();
+    }
+    deallocate_4k_frame_by_phys(l3_phys);
+}
+
+/// 失敗したfork/exec経路のロールバック用に、ユーザーページテーブルを破棄する
+pub fn destroy_user_page_table(table_phys: u64) -> Result<()> {
+    if table_phys == 0 || (table_phys & 0xfff) != 0 {
+        return Err(Kernel::InvalidParam);
+    }
+    let phys_off = physical_memory_offset().ok_or(Kernel::Memory(Memory::NotMapped))?;
+    let l4 = unsafe { &mut *((table_phys + phys_off) as *mut PageTable) };
+
+    for i in 0usize..256 {
+        let entry = l4[i].clone();
+        let flags = entry.flags();
+        if entry.is_unused()
+            || !flags.contains(PageTableFlags::PRESENT)
+            || !flags.contains(PageTableFlags::USER_ACCESSIBLE)
+        {
+            continue;
+        }
+        if flags.contains(PageTableFlags::HUGE_PAGE) {
+            l4[i].set_unused();
+            continue;
+        }
+        destroy_user_l3_table(entry.addr().as_u64(), phys_off);
+        l4[i].set_unused();
+    }
+
+    deallocate_4k_frame_by_phys(table_phys);
+    Ok(())
+}
+
 /// CR3を指定した物理アドレスのページテーブルに切り替える
 ///
 /// ## Arguments
@@ -656,6 +1077,13 @@ pub fn map_and_copy_segment_to(
 /// ## Safety
 /// - `table_phys`が有効なページテーブルの物理アドレスであることを呼び出し元が保証する必要がある
 pub fn switch_page_table(table_phys: u64) {
+    if table_phys == 0 || (table_phys & 0xfff) != 0 {
+        crate::warn!(
+            "Refusing to switch CR3 with invalid page table address: {:#x}",
+            table_phys
+        );
+        return;
+    }
     unsafe {
         let frame = PhysFrame::<Size4KiB>::containing_address(x86_64::PhysAddr::new(table_phys));
         Cr3::write(frame, Cr3Flags::empty());

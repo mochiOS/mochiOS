@@ -104,7 +104,7 @@ pub fn open(path: &str, flags: u64) -> i64 {
         path.as_ptr() as u64,
         flags,
     );
-    if ret == u64::MAX {
+    if (ret as i64) < 0 {
         -1
     } else {
         ret as i64
@@ -121,7 +121,7 @@ pub fn open(path: &str, flags: u64) -> i64 {
 #[inline]
 pub fn close(fd: u64) -> i64 {
     let ret = syscall1(SyscallNumber::Close as u64, fd);
-    if ret == u64::MAX {
+    if (ret as i64) < 0 {
         -1
     } else {
         ret as i64

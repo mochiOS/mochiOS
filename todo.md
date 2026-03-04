@@ -2,6 +2,13 @@
 
 SwiftCoreを実用レベルに引き上げるための実装項目リスト
 
+## ✅ ステータス更新（2026-03-04）
+
+- セキュリティ基盤（KPTI / per-CPU GS / user pointer 検証 / SMAP 制御 / SYSRET canonicality / stack guard）は実装済み。
+- Linux 互換 syscall の基盤（`read/write/open/close/fstat/lseek/mmap/munmap/brk/futex/clock_gettime/getcwd/wait/fork/exec`）は利用可能。
+- 実行時回帰（kernel/user page fault, fs.service 起動時クラッシュ, user errno 判定不整合）は解消済み。
+- 下記チェックリストは「未実装ロードマップ」を中心とした長期計画として維持する。
+
 ## 最優先
 
 ### 1. ファイルシステムの完成

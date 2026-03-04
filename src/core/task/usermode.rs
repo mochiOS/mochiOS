@@ -11,6 +11,9 @@ use core::arch::asm;
 ///
 /// # 注意
 /// この関数は戻らない
+///
+/// # Safety
+/// `entry` と `user_stack` はユーザー空間の有効な実行/スタックアドレスである必要がある。
 pub unsafe fn jump_to_usermode(entry: u64, user_stack: u64) -> ! {
     let user_cs = gdt::user_code_selector() as u64 | 3; // RPL=3
     let user_ss = gdt::user_data_selector() as u64 | 3; // RPL=3
@@ -108,6 +111,9 @@ fn read_gdtr() -> (u64, u16) {
 /// fork の子プロセスとしてユーザーモードへジャンプする
 ///
 /// iretq フレームを構築し、RAX=0 (fork の子側戻り値) でユーザーに復帰する
+///
+/// # Safety
+/// `entry`/`stack`/`user_rflags`/`fs_base` は子プロセスの有効な復帰コンテキストである必要がある。
 pub unsafe fn jump_to_usermode_fork_child(
     entry: u64,
     stack: u64,

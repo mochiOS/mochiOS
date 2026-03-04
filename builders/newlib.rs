@@ -4,6 +4,24 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+fn tool_exists(name: &str) -> bool {
+    Command::new(name).arg("--version").output().is_ok()
+}
+
+fn apply_host_target_tool_fallback(cmd: &mut Command) {
+    cmd.env("CC_FOR_TARGET", "gcc")
+        .env("CXX_FOR_TARGET", "g++")
+        .env("AR_FOR_TARGET", "ar")
+        .env("AS_FOR_TARGET", "as")
+        .env("LD_FOR_TARGET", "ld")
+        .env("NM_FOR_TARGET", "nm")
+        .env("RANLIB_FOR_TARGET", "ranlib")
+        .env("STRIP_FOR_TARGET", "strip")
+        .env("OBJCOPY_FOR_TARGET", "objcopy")
+        .env("OBJDUMP_FOR_TARGET", "objdump")
+        .env("READELF_FOR_TARGET", "readelf");
+}
+
 pub fn build_newlib(src_dir: &Path) {
     let target = env::var("TARGET").expect("TARGET not set");
     let profile = env::var("PROFILE").expect("PROFILE not set");
@@ -22,6 +40,13 @@ pub fn build_newlib(src_dir: &Path) {
 
     let install_dir = build_base_dir.join("newlib_install");
     let build_dir = build_base_dir.join("newlib_build");
+    let use_host_target_tool_fallback = !tool_exists("x86_64-elf-gcc");
+
+    if use_host_target_tool_fallback {
+        println!(
+            "cargo:warning=x86_64-elf-gcc not found; using host gcc/binutils as target tool fallback"
+        );
+    }
 
     // Check if libc.a exists in the install location
     if install_dir.join("x86_64-elf/lib/libc.a").exists() {
@@ -47,11 +72,17 @@ pub fn build_newlib(src_dir: &Path) {
 
         let abs_configure = configure_script.canonicalize().unwrap();
 
-        let status = Command::new(abs_configure)
+        let mut configure_cmd = Command::new(abs_configure);
+        configure_cmd
             .current_dir(&build_dir)
             .arg(format!("--target={}", "x86_64-elf"))
             .arg(format!("--prefix={}", install_dir.display()))
-            .arg("--disable-multilib")
+            .arg("--disable-multilib");
+        if use_host_target_tool_fallback {
+            apply_host_target_tool_fallback(&mut configure_cmd);
+        }
+
+        let status = configure_cmd
             .status()
             .expect("Failed to execute newlib configure");
 
@@ -66,11 +97,13 @@ pub fn build_newlib(src_dir: &Path) {
 
     println!("Building newlib...");
 
-    let status = Command::new("make")
-        .current_dir(&build_dir)
-        .arg(make_j)
-        .status()
-        .expect("Failed to execute newlib make");
+    let mut make_cmd = Command::new("make");
+    make_cmd.current_dir(&build_dir).arg(make_j);
+    if use_host_target_tool_fallback {
+        apply_host_target_tool_fallback(&mut make_cmd);
+    }
+
+    let status = make_cmd.status().expect("Failed to execute newlib make");
 
     if !status.success() {
         let _ = fs::remove_dir_all(&build_dir);
@@ -79,9 +112,13 @@ pub fn build_newlib(src_dir: &Path) {
 
     println!("Installing newlib...");
 
-    let status = Command::new("make")
-        .current_dir(&build_dir)
-        .arg("install")
+    let mut make_install_cmd = Command::new("make");
+    make_install_cmd.current_dir(&build_dir).arg("install");
+    if use_host_target_tool_fallback {
+        apply_host_target_tool_fallback(&mut make_install_cmd);
+    }
+
+    let status = make_install_cmd
         .status()
         .expect("Failed to execute newlib make install");
 
@@ -102,11 +139,11 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
     let crt_obj = libc_dir.join("crt0.o");
 
     let status = Command::new("rustc")
-        .args(&["--emit", "obj"])
-        .args(&["--crate-type", "lib"])
-        .args(&["--edition", "2021"])
-        .args(&["--target", "x86_64-unknown-none"])
-        .args(&["-o", crt_obj.to_str().unwrap()])
+        .args(["--emit", "obj"])
+        .args(["--crate-type", "lib"])
+        .args(["--edition", "2021"])
+        .args(["--target", "x86_64-unknown-none"])
+        .args(["-o", crt_obj.to_str().unwrap()])
         .arg(&crt_src)
         .status()
         .expect("Failed to build crt0.o");
@@ -120,11 +157,11 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
     let glue_lib = libc_dir.join("libuserglue.a");
 
     let status = Command::new("rustc")
-        .args(&["--crate-type", "staticlib"])
-        .args(&["--edition", "2021"])
-        .args(&["--target", "x86_64-unknown-none"])
-        .args(&["-C", "panic=abort"])
-        .args(&["-o", glue_lib.to_str().unwrap()])
+        .args(["--crate-type", "staticlib"])
+        .args(["--edition", "2021"])
+        .args(["--target", "x86_64-unknown-none"])
+        .args(["-C", "panic=abort"])
+        .args(["-o", glue_lib.to_str().unwrap()])
         .arg(&lib_src)
         .status()
         .expect("Failed to build libuserglue.a");

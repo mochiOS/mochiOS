@@ -3,42 +3,127 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::convert::TryInto;
+use core::sync::atomic::{AtomicU64, Ordering};
+
+/// `.service` 実行を許可するサービスマネージャープロセスID
+/// 0 は未登録。
+static SERVICE_MANAGER_PID: AtomicU64 = AtomicU64::new(0);
+const EM_X86_64: u16 = 0x3E;
+static EXEC_ASLR_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+struct UserPageTableGuard(Option<u64>);
+
+impl UserPageTableGuard {
+    fn new(table_phys: u64) -> Self {
+        Self(Some(table_phys))
+    }
+
+    fn disarm(&mut self) {
+        self.0.take();
+    }
+}
+
+impl Drop for UserPageTableGuard {
+    fn drop(&mut self) {
+        if let Some(table_phys) = self.0.take() {
+            let _ = crate::mem::paging::destroy_user_page_table(table_phys);
+        }
+    }
+}
+
+/// サービスマネージャーPIDを登録する（IDベース認可）
+pub fn register_service_manager_pid(pid: u64) {
+    SERVICE_MANAGER_PID.store(pid, Ordering::SeqCst);
+}
+
+#[inline]
+fn aslr_mix64(mut x: u64) -> u64 {
+    x ^= x >> 30;
+    x = x.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    x ^= x >> 27;
+    x = x.wrapping_mul(0x94d0_49bb_1331_11eb);
+    x ^ (x >> 31)
+}
+
+fn next_aslr_seed(tag: &str) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325u64;
+    for b in tag.as_bytes() {
+        hash ^= *b as u64;
+        hash = hash.wrapping_mul(0x100_0000_01b3);
+    }
+    if EXEC_ASLR_COUNTER.load(Ordering::Relaxed) == 0 {
+        let mut init = crate::cpu::boot_entropy_u64() ^ 0x7c4a_7f73_d3e1_9b1d;
+        if init == 0 {
+            init = 1;
+        }
+        let _ = EXEC_ASLR_COUNTER.compare_exchange(0, init, Ordering::SeqCst, Ordering::Relaxed);
+    }
+    let ctr = EXEC_ASLR_COUNTER.fetch_add(0x9e37_79b9_7f4a_7c15, Ordering::Relaxed);
+    let ticks = crate::interrupt::timer::get_ticks();
+    let tid = crate::task::current_thread_id()
+        .map(|t| t.as_u64())
+        .unwrap_or(0);
+    let hw = crate::cpu::hw_random_u64().unwrap_or(0);
+    let boot = crate::cpu::boot_entropy_u64();
+    aslr_mix64(hash ^ ctr ^ ticks.rotate_left(17) ^ tid.rotate_left(7) ^ hw.rotate_left(29) ^ boot)
+}
+
+#[inline]
+fn aslr_offset_pages(seed: u64, max_pages: u64) -> u64 {
+    if max_pages == 0 {
+        0
+    } else {
+        aslr_mix64(seed) % max_pages
+    }
+}
+
+fn caller_can_launch_service() -> bool {
+    let caller = crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()));
+    let Some(caller_pid) = caller else {
+        // カーネルコンテキストからの起動は許可
+        return true;
+    };
+
+    if crate::task::with_process(caller_pid, |p| p.privilege())
+        .is_some_and(|lvl| lvl == crate::task::PrivilegeLevel::Core)
+    {
+        return true;
+    }
+
+    let manager_pid_raw = SERVICE_MANAGER_PID.load(Ordering::SeqCst);
+    if manager_pid_raw == 0 || caller_pid.as_u64() != manager_pid_raw {
+        return false;
+    }
+    let manager_pid = crate::task::ProcessId::from_u64(manager_pid_raw);
+    crate::task::with_process(manager_pid, |p| {
+        let state = p.state();
+        let alive = state != crate::task::ProcessState::Zombie
+            && state != crate::task::ProcessState::Terminated;
+        let privileged = matches!(
+            p.privilege(),
+            crate::task::PrivilegeLevel::Service | crate::task::PrivilegeLevel::Core
+        );
+        alive && privileged
+    })
+    .unwrap_or(false)
+}
 
 /// カーネル内から実行可能ファイルを読み込み実行するシステムコール
 pub fn exec_kernel(path_ptr: u64) -> u64 {
-    let mut provided_path: Option<&str> = None;
+    let mut provided_path: Option<String> = None;
     if path_ptr != 0 {
-        let mut len = 0usize;
-        unsafe {
-            let mut p = path_ptr as *const u8;
-            while *p != 0 {
-                len += 1;
-                p = p.add(1);
-                if len > 256 {
-                    return crate::syscall::types::EINVAL;
-                }
-            }
-            let slice = core::slice::from_raw_parts(path_ptr as *const u8, len);
-            if let Ok(path) = core::str::from_utf8(slice) {
-                provided_path = Some(path);
-            }
-        }
+        let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
+            Ok(s) => s,
+            Err(_) => return crate::syscall::types::EINVAL,
+        };
+        provided_path = Some(path);
     }
-    let path = provided_path.unwrap_or("/hello.bin");
+    let path = provided_path.as_deref().unwrap_or("/hello.bin");
 
     // ユーザー空間からはサービス（.serviceで終わる名前）を起動できない
-    // ただし core.service はサービスマネージャーとして他のサービスを起動できる
-    if path.ends_with(".service") {
-        let caller_is_core = crate::task::current_thread_id()
-            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-            .and_then(|pid| crate::task::with_process(pid, |p| {
-                let name = p.name();
-                name == "core.service" || name == "core"
-            }))
-            .unwrap_or(false);
-        if !caller_is_core {
-            return crate::syscall::types::EPERM;
-        }
+    if path.ends_with(".service") && !caller_can_launch_service() {
+        return crate::syscall::types::EPERM;
     }
 
     exec_internal(path, None)
@@ -52,10 +137,19 @@ pub fn exec_kernel_with_name(path: &str, name: &str) -> u64 {
 fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
     let process_name = name_override.unwrap_or(path);
     crate::debug!("exec: path={}, name={}", path, process_name);
+    let aslr_seed = next_aslr_seed(process_name);
 
     if let Some(data) = crate::init::fs::read(path) {
         let data: &[u8] = &data;
-        let mut entry = elf_loader::entry_point(data).unwrap_or(0);
+        // MED-27修正: エントリポイントが0の場合はELFが無効として拒否する
+        // 以前はentry=0のままプロセスを作成し、仮想アドレス0にジャンプしていた
+        let mut entry = match elf_loader::entry_point(data) {
+            Some(e) if e != 0 => e,
+            _ => {
+                crate::warn!("exec: ELF entry point is 0 or missing, rejecting");
+                return crate::syscall::types::EINVAL;
+            }
+        };
         crate::debug!("ELF entry: {:#x}", entry);
 
         // プロセス固有のページテーブルを作成
@@ -70,14 +164,32 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
                 return crate::syscall::types::EINVAL;
             }
         };
+        let mut new_pt_guard = UserPageTableGuard::new(new_pt_phys);
         crate::debug!("Created user page table at {:#x}", new_pt_phys);
 
+        // ELFアーキテクチャ検証 (MED-07)
         if let Some(eh) = elf_loader::parse_elf_header(data) {
+            if eh.e_machine != EM_X86_64 {
+                crate::warn!("ELF e_machine {:#x} is not x86-64, rejecting", eh.e_machine);
+                return crate::syscall::types::EINVAL;
+            }
             let phoff = eh.e_phoff as usize;
             let phentsz = eh.e_phentsize as usize;
+            // phentszが0の場合は無限ループを防ぐため拒否 (MED-08)
+            if phentsz == 0 {
+                crate::warn!("ELF phentsize is 0, rejecting");
+                return crate::syscall::types::EINVAL;
+            }
             let phnum = eh.e_phnum as usize;
             for i in 0..phnum {
-                let off_hdr = phoff + i * phentsz;
+                // オーバーフロー安全な乗算と加算 (MED-08)
+                let off_hdr = match i.checked_mul(phentsz).and_then(|x| phoff.checked_add(x)) {
+                    Some(o) if o < data.len() => o,
+                    _ => {
+                        crate::warn!("ELF program header offset overflow or out of bounds");
+                        return crate::syscall::types::EINVAL;
+                    }
+                };
                 if let Some(ph) = elf_loader::parse_phdr(data, off_hdr) {
                     if ph.p_type == elf_loader::PT_LOAD {
                         let vaddr = ph.p_vaddr;
@@ -88,6 +200,31 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
                         let writable = (flags & 0x2) != 0;
                         let executable = (flags & 0x1) != 0;
 
+                        // ELFセグメントのvaddrがユーザー空間内であることを検証 (CRIT-05)
+                        const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
+                        if vaddr >= USER_SPACE_END {
+                            crate::warn!("ELF segment vaddr {:#x} is in kernel space", vaddr);
+                            return crate::syscall::types::EINVAL;
+                        }
+                        if memsz > 0 {
+                            match vaddr.checked_add(memsz) {
+                                Some(e) if e <= USER_SPACE_END => {}
+                                _ => {
+                                    crate::warn!("ELF segment vaddr+memsz overflows user space");
+                                    return crate::syscall::types::EINVAL;
+                                }
+                            }
+                        }
+
+                        // ELFセグメントの境界チェック (CRIT-04)
+                        let src_end = match src_off.checked_add(filesz as usize) {
+                            Some(e) if e <= data.len() => e,
+                            _ => {
+                                crate::warn!("ELF segment src offset+filesz out of bounds");
+                                return crate::syscall::types::EINVAL;
+                            }
+                        };
+
                         crate::debug!(
                             "Mapping seg {} -> {:#x} (filesz={}, memsz={})",
                             i,
@@ -95,7 +232,7 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
                             filesz,
                             memsz
                         );
-                        let seg_src = &data[src_off..src_off + filesz as usize];
+                        let seg_src = &data[src_off..src_end];
 
                         if let Err(e) = crate::mem::paging::map_and_copy_segment_to(
                             new_pt_phys,
@@ -240,7 +377,11 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
             }
         }
 
-        let stack_end_vaddr: u64 = 0x0000_7FFF_FFF0_0000;
+        const STACK_TOP_BASE: u64 = 0x0000_7FFF_FFF0_0000;
+        const STACK_ASLR_MAX_PAGES: u64 = 4096; // 16MiB
+        let stack_end_vaddr = STACK_TOP_BASE.saturating_sub(
+            aslr_offset_pages(aslr_seed ^ 0x53a9_1e2d, STACK_ASLR_MAX_PAGES) * 4096,
+        );
         let stack_size_pages: usize = 8; // 32KiB stack
         let stack_base_vaddr = stack_end_vaddr - (stack_size_pages as u64 * 4096);
 
@@ -368,8 +509,12 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
 
         // Pre-map initial heap pages to avoid immediate page faults from user allocations.
         // Map two pages at the default heap base so small early allocations won't fault.
-        let default_heap_base: u64 = 0x4000_0000;
+        const HEAP_BASE_MIN: u64 = 0x4000_0000;
+        const HEAP_ASLR_MAX_PAGES: u64 = 0x8000; // 128MiB
+        let default_heap_base = HEAP_BASE_MIN
+            .saturating_add(aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, HEAP_ASLR_MAX_PAGES) * 4096);
         let heap_map_size: u64 = 4096 * 2;
+        let mut heap_pre_mapped = false;
         if let Err(e) = crate::mem::paging::map_and_copy_segment_to(
             new_pt_phys,
             default_heap_base,
@@ -391,11 +536,15 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
                 default_heap_base,
                 process_name
             );
+            heap_pre_mapped = true;
         }
 
         // __sinitがあれば、スタブを作成して先に呼び出す
         if let Some(sinit) = sinit_addr {
-            let stub_addr: u64 = default_heap_base + heap_map_size;
+            let stub_addr = match stack_end_vaddr.checked_add(4096) {
+                Some(v) => v,
+                None => return crate::syscall::types::EINVAL,
+            };
             crate::info!(
                 "Found __sinit at {:#x}, mapping init stub at {:#x}",
                 sinit,
@@ -403,6 +552,10 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
             );
             let mut stub_page = vec![0u8; 4096];
             let mut cur = 0usize;
+            if cur + 24 > stub_page.len() {
+                crate::warn!("__sinit stub size overflow: {}", cur + 24);
+                return crate::syscall::types::EINVAL;
+            }
             // movabs rax, <sinit>
             stub_page[cur..cur + 2].copy_from_slice(&[0x48, 0xB8]);
             cur += 2;
@@ -437,14 +590,42 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
         }
 
         // プロセスを作成してページテーブルをセット
-        let mut proc =
-            crate::task::Process::new(process_name, crate::task::PrivilegeLevel::User, None, 0);
+        let parent_pid = crate::task::current_thread_id()
+            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()));
+        let privilege = if path.ends_with(".service") {
+            crate::task::PrivilegeLevel::Service
+        } else {
+            crate::task::PrivilegeLevel::User
+        };
+        let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
         proc.set_page_table(new_pt_phys);
+        if heap_pre_mapped {
+            proc.set_heap_start(default_heap_base);
+            proc.set_heap_end(default_heap_base + heap_map_size);
+        }
         let pid = proc.id();
-        if crate::task::add_process(proc).is_none() {
+        let is_core_service =
+            process_name.ends_with("core.service") || path.ends_with("core.service");
+        if is_core_service
+            && SERVICE_MANAGER_PID
+                .compare_exchange(0, pid.as_u64(), Ordering::SeqCst, Ordering::SeqCst)
+                .is_err()
+        {
+            crate::warn!("core.service is already running, rejecting duplicate launch");
             return crate::syscall::types::EINVAL;
         }
-
+        if crate::task::add_process(proc).is_none() {
+            if is_core_service {
+                let _ = SERVICE_MANAGER_PID.compare_exchange(
+                    pid.as_u64(),
+                    0,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                );
+            }
+            return crate::syscall::types::EINVAL;
+        }
+        new_pt_guard.disarm();
         // allocate kernel stack for the new thread
         const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 4;
         let kstack = match crate::task::thread::allocate_kernel_stack(KERNEL_THREAD_STACK_SIZE) {
@@ -506,26 +687,15 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         return EINVAL;
     }
 
-    // ユーザー空間から null 終端パスを読み込む
-    let mut len = 0usize;
-    unsafe {
-        let mut p = path_ptr as *const u8;
-        while *p != 0 {
-            len += 1;
-            p = p.add(1);
-            if len > 256 {
-                return EINVAL;
-            }
-        }
-    }
-    let path_bytes = unsafe { core::slice::from_raw_parts(path_ptr as *const u8, len) };
-    let path = match core::str::from_utf8(path_bytes) {
+    let path_owned = match crate::syscall::read_user_cstring(path_ptr, 256) {
         Ok(s) => s,
         Err(_) => return EINVAL,
     };
+    let path = path_owned.as_str();
+    let aslr_seed = next_aslr_seed(path);
 
-    // ユーザー空間からはサービス（.serviceで終わる名前）を起動できない
-    if path.ends_with(".service") {
+    // サービス起動はサービスマネージャー(Coreまたは登録PID)に限定
+    if path.ends_with(".service") && !caller_can_launch_service() {
         return EPERM;
     }
 
@@ -547,19 +717,61 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         Ok(p) => p,
         Err(_) => return EINVAL,
     };
+    let mut new_pt_guard = UserPageTableGuard::new(new_pt_phys);
 
     // PT_LOAD セグメントをマップ
+    const USER_SPACE_END_EXECVE: u64 = 0x0000_7FFF_FFFF_FFFF;
     if let Some(eh) = crate::elf::loader::parse_elf_header(data) {
+        // ELFアーキテクチャ検証 (MED-07)
+        if eh.e_machine != EM_X86_64 {
+            crate::warn!("execve: ELF e_machine {:#x} is not x86-64", eh.e_machine);
+            return EINVAL;
+        }
         let phoff = eh.e_phoff as usize;
         let phentsz = eh.e_phentsize as usize;
+        // phentszが0の場合は無限ループを防ぐ (MED-08)
+        if phentsz == 0 {
+            return EINVAL;
+        }
         let phnum = eh.e_phnum as usize;
         for i in 0..phnum {
-            let off_hdr = phoff + i * phentsz;
+            // オーバーフロー安全な乗算と加算 (MED-08)
+            let off_hdr = match i.checked_mul(phentsz).and_then(|x| phoff.checked_add(x)) {
+                Some(o) if o < data.len() => o,
+                _ => return EINVAL,
+            };
             if let Some(ph) = crate::elf::loader::parse_phdr(data, off_hdr) {
                 if ph.p_type == crate::elf::loader::PT_LOAD {
-                    let seg_src =
-                        &data[ph.p_offset as usize..ph.p_offset as usize + ph.p_filesz as usize];
-                    if let Err(_) = crate::mem::paging::map_and_copy_segment_to(
+                    // ELFセグメントのvaddrがユーザー空間内であることを検証 (CRIT-05)
+                    if ph.p_vaddr >= USER_SPACE_END_EXECVE {
+                        crate::warn!(
+                            "execve: ELF segment vaddr {:#x} is in kernel space",
+                            ph.p_vaddr
+                        );
+                        return EINVAL;
+                    }
+                    if ph.p_memsz > 0 {
+                        match ph.p_vaddr.checked_add(ph.p_memsz) {
+                            Some(e) if e <= USER_SPACE_END_EXECVE => {}
+                            _ => {
+                                crate::warn!(
+                                    "execve: ELF segment vaddr+memsz overflows user space"
+                                );
+                                return EINVAL;
+                            }
+                        }
+                    }
+                    // ELFセグメントの境界チェック (CRIT-04)
+                    let src_off = ph.p_offset as usize;
+                    let src_end = match src_off.checked_add(ph.p_filesz as usize) {
+                        Some(e) if e <= data.len() => e,
+                        _ => {
+                            crate::warn!("execve: ELF segment src offset+filesz out of bounds");
+                            return EINVAL;
+                        }
+                    };
+                    let seg_src = &data[src_off..src_end];
+                    if crate::mem::paging::map_and_copy_segment_to(
                         new_pt_phys,
                         ph.p_vaddr,
                         ph.p_filesz,
@@ -567,7 +779,9 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
                         seg_src,
                         (ph.p_flags & 0x2) != 0,
                         (ph.p_flags & 0x1) != 0,
-                    ) {
+                    )
+                    .is_err()
+                    {
                         return EINVAL;
                     }
                 }
@@ -576,7 +790,10 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
     }
 
     // ユーザースタックをセットアップ (exec_internal と同じレイアウト)
-    let stack_end_vaddr: u64 = 0x0000_7FFF_FFF0_0000;
+    const STACK_TOP_BASE: u64 = 0x0000_7FFF_FFF0_0000;
+    const STACK_ASLR_MAX_PAGES: u64 = 4096; // 16MiB
+    let stack_end_vaddr = STACK_TOP_BASE
+        .saturating_sub(aslr_offset_pages(aslr_seed ^ 0x53a9_1e2d, STACK_ASLR_MAX_PAGES) * 4096);
     let stack_size_pages: usize = 8;
     let stack_base_vaddr = stack_end_vaddr - (stack_size_pages as u64 * 4096);
 
@@ -618,7 +835,7 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         return crate::syscall::types::EINVAL;
     }
 
-    if let Err(_) = crate::mem::paging::map_and_copy_segment_to(
+    if crate::mem::paging::map_and_copy_segment_to(
         new_pt_phys,
         stack_base_vaddr,
         0,
@@ -626,11 +843,13 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         &[],
         true,
         false,
-    ) {
+    )
+    .is_err()
+    {
         return EINVAL;
     }
     let top_page_vaddr = stack_end_vaddr - 4096;
-    if let Err(_) = crate::mem::paging::map_and_copy_segment_to(
+    if crate::mem::paging::map_and_copy_segment_to(
         new_pt_phys,
         top_page_vaddr,
         4096,
@@ -638,7 +857,29 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         &page_data,
         true,
         false,
-    ) {
+    )
+    .is_err()
+    {
+        return EINVAL;
+    }
+
+    // 初期ヒープをASLR付きで確保
+    const HEAP_BASE_MIN: u64 = 0x4000_0000;
+    const HEAP_ASLR_MAX_PAGES: u64 = 0x8000; // 128MiB
+    let heap_base = HEAP_BASE_MIN
+        .saturating_add(aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, HEAP_ASLR_MAX_PAGES) * 4096);
+    let heap_map_size: u64 = 4096 * 2;
+    if crate::mem::paging::map_and_copy_segment_to(
+        new_pt_phys,
+        heap_base,
+        0,
+        heap_map_size,
+        &[],
+        true,
+        false,
+    )
+    .is_err()
+    {
         return EINVAL;
     }
 
@@ -651,11 +892,20 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         Some(p) => p,
         None => return EINVAL,
     };
-    crate::task::with_process_mut(pid, |p| {
+    let old_pt_phys = crate::task::with_process_mut(pid, |p| {
+        let prev = p.page_table();
         p.set_page_table(new_pt_phys);
-        p.set_heap_start(0);
-        p.set_heap_end(0);
-    });
+        p.set_heap_start(heap_base);
+        p.set_heap_end(heap_base + heap_map_size);
+        prev
+    })
+    .flatten();
+    if let Some(old) = old_pt_phys {
+        if old != new_pt_phys {
+            let _ = crate::mem::paging::destroy_user_page_table(old);
+        }
+    }
+    new_pt_guard.disarm();
 
     // 新しいページテーブルに切り替えてジャンプ
     unsafe {

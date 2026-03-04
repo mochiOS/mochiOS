@@ -111,8 +111,18 @@ impl<T> SpinLock<T> {
     ///
     /// ## Returns
     /// - `&mut T`: 内部データへの可変参照
+    ///
+    /// # Safety
+    /// 呼び出し側は、現在このロックを保持しているか、他スレッドから同時アクセスされないことを保証する必要がある。
     pub unsafe fn force_unlock(&self) {
         self.locked.store(false, Ordering::Release);
+    }
+
+    /// 内部データへの不変ポインタを取得
+    ///
+    /// データ配置アドレスが必要な用途向け。排他制御は呼び出し側で担保すること。
+    pub fn as_ptr(&self) -> *const T {
+        self.data.get() as *const T
     }
 }
 

@@ -13,6 +13,140 @@ pub mod time;
 
 mod types;
 
+use alloc::string::String;
+use alloc::vec::Vec;
+
+/// ユーザー空間ポインタの有効性を検証する
+///
+/// ポインタが null でなく、ユーザー空間のアドレス範囲内にあること、
+/// かつ `ptr + len` がオーバーフローしないことを確認する。
+///
+/// x86-64 canonical ユーザー空間上限: 0x0000_7FFF_FFFF_FFFF
+pub fn validate_user_ptr(ptr: u64, len: u64) -> bool {
+    if ptr == 0 {
+        return false;
+    }
+    // x86-64 ユーザー空間の上限アドレス (canonical hole 下側)
+    const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
+    if ptr > USER_SPACE_END {
+        return false;
+    }
+    let end_inclusive = if len == 0 {
+        ptr
+    } else {
+        match ptr.checked_add(len - 1) {
+            Some(e) => e,
+            None => return false, // 整数オーバーフロー
+        }
+    };
+    if end_inclusive > USER_SPACE_END {
+        return false;
+    }
+
+    let user_pt = match crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+        .and_then(|pid| crate::task::with_process(pid, |p| p.page_table()))
+        .flatten()
+    {
+        Some(pt) => pt,
+        None => return false,
+    };
+
+    crate::mem::paging::is_user_range_mapped_in_table(user_pt, ptr, len)
+}
+
+/// ユーザー空間の null 終端文字列を最大長付きで読み取り、カーネル所有の `String` を返す。
+pub fn read_user_cstring(ptr: u64, max_len: usize) -> Result<String, u64> {
+    if ptr == 0 || max_len == 0 {
+        return Err(EINVAL);
+    }
+    if !validate_user_ptr(ptr, 1) {
+        return Err(EFAULT);
+    }
+
+    let mut bytes = Vec::with_capacity(max_len);
+    let mut checked_page = u64::MAX;
+    for i in 0..max_len {
+        let addr = ptr.checked_add(i as u64).ok_or(EFAULT)?;
+        let page_base = addr & !0xfffu64;
+        if page_base != checked_page {
+            if !validate_user_ptr(addr, 1) {
+                return Err(EFAULT);
+            }
+            checked_page = page_base;
+        }
+        let b = with_user_memory_access(|| unsafe { core::ptr::read(addr as *const u8) });
+        if b == 0 {
+            return String::from_utf8(bytes).map_err(|_| EINVAL);
+        }
+        bytes.push(b);
+    }
+    Err(EINVAL)
+}
+
+/// ユーザー空間からバイト列をコピーする（コピー先はカーネル空間）。
+pub fn copy_from_user(src_ptr: u64, dst: &mut [u8]) -> Result<(), u64> {
+    if dst.is_empty() {
+        return Ok(());
+    }
+    if src_ptr == 0 {
+        return Err(EFAULT);
+    }
+    if !validate_user_ptr(src_ptr, dst.len() as u64) {
+        return Err(EFAULT);
+    }
+
+    for (i, out) in dst.iter_mut().enumerate() {
+        let addr = src_ptr.checked_add(i as u64).ok_or(EFAULT)?;
+        *out = with_user_memory_access(|| unsafe { core::ptr::read(addr as *const u8) });
+    }
+    Ok(())
+}
+
+/// ユーザーポインタを実際に参照する短い区間を、必要に応じてユーザーCR3で実行する。
+///
+/// KPTI有効時、syscall本体はkernel CR3で実行されるため、ユーザー仮想アドレスを
+/// 直接参照する区間だけ一時的にuser CR3へ切り替える。
+pub fn with_user_memory_access<R>(f: impl FnOnce() -> R) -> R {
+    use x86_64::registers::control::Cr3;
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let kernel_cr3 = crate::percpu::kernel_cr3();
+        if kernel_cr3 == 0 {
+            return f();
+        }
+
+        let (cur, _) = Cr3::read();
+        let current_cr3 = cur.start_address().as_u64();
+        if current_cr3 != kernel_cr3 {
+            return f();
+        }
+
+        let user_pt = crate::task::current_thread_id()
+            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+            .and_then(|pid| crate::task::with_process(pid, |p| p.page_table()))
+            .flatten()
+            .unwrap_or(0);
+        if user_pt == 0 {
+            return f();
+        }
+
+        if crate::cpu::is_smap_enabled() {
+            unsafe {
+                asm!("stac", options(nostack, preserves_flags));
+            }
+        }
+        crate::mem::paging::switch_page_table(user_pt);
+        let out = f();
+        crate::mem::paging::switch_page_table(kernel_cr3);
+        if crate::cpu::is_smap_enabled() {
+            unsafe {
+                asm!("clac", options(nostack, preserves_flags));
+            }
+        }
+        out
+    })
+}
+
 pub use types::{
     SyscallNumber, EAGAIN, EBADF, EFAULT, EINVAL, ENODATA, ENOENT, ENOSYS, EPERM, SUCCESS,
 };
@@ -33,8 +167,8 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Mmap as u64 => process::mmap(arg0, arg1, arg2, arg3, arg4),
         x if x == SyscallNumber::Munmap as u64 => process::munmap(arg0, arg1),
         x if x == SyscallNumber::Brk as u64 => process::brk(arg0),
-        x if x == SyscallNumber::RtSigaction as u64 => SUCCESS, // スタブ
-        x if x == SyscallNumber::RtSigprocmask as u64 => SUCCESS, // スタブ
+        x if x == SyscallNumber::RtSigaction as u64 => ENOSYS,
+        x if x == SyscallNumber::RtSigprocmask as u64 => ENOSYS,
         x if x == SyscallNumber::GetPid as u64 => process::getpid(),
         x if x == SyscallNumber::Clone as u64 => process::fork(),
         x if x == SyscallNumber::Fork as u64 => process::fork(),
@@ -69,11 +203,33 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::FindProcessByName as u64 => {
             process::find_process_by_name(arg0, arg1)
         }
+        x if x == SyscallNumber::GetThreadPrivilege as u64 => task::get_thread_privilege(arg0),
         _ => ENOSYS,
     }
 }
 
+/// fork/clone のみ、現在スレッドへユーザーコンテキストを保存する
+#[no_mangle]
+pub extern "sysv64" fn save_user_context_for_fork(
+    num: u64,
+    user_rip: u64,
+    user_rsp: u64,
+    user_rflags: u64,
+) {
+    if num != SyscallNumber::Clone as u64 && num != SyscallNumber::Fork as u64 {
+        return;
+    }
+    if let Some(tid) = crate::task::current_thread_id() {
+        crate::task::with_thread_mut(tid, |t| {
+            t.set_syscall_user_context(user_rip, user_rsp, user_rflags);
+        });
+    }
+}
+
 /// システムコール割り込みハンドラ (int 0x80) - アセンブリラッパー
+///
+/// # Safety
+/// CPU が int 0x80 入口規約どおりのスタック/レジスタ状態でこの関数へ入ることを前提とする。
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn syscall_interrupt_handler() {
@@ -94,6 +250,22 @@ pub unsafe extern "C" fn syscall_interrupt_handler() {
         "push r13",
         "push r14",
         "push r15",
+
+        // fork/clone のときだけ、ユーザーコンテキストを現在スレッドへ保存
+        // saved stack layout:
+        // [rsp+112]=num(rax), [rsp+120]=user RIP, [rsp+136]=user RFLAGS, [rsp+144]=user RSP
+        "mov rax, [rsp + 112]",
+        "cmp rax, 56",
+        "je 2f",
+        "cmp rax, 57",
+        "jne 3f",
+        "2:",
+        "mov rdi, rax",
+        "mov rsi, [rsp + 120]",
+        "mov rdx, [rsp + 144]",
+        "mov rcx, [rsp + 136]",
+        "call {save_ctx_fn}",
+        "3:",
 
         // カーネルデータセグメントをロード
         // （ds/esはスタックに保存しない。復元時にユーザーセグメントを再設定）
@@ -149,6 +321,7 @@ pub unsafe extern "C" fn syscall_interrupt_handler() {
         // 割り込みから戻る
         "iretq",
 
+        save_ctx_fn = sym save_user_context_for_fork,
         syscall_handler = sym syscall_handler_rust,
     );
 }
@@ -162,9 +335,17 @@ extern "C" fn syscall_handler_rust(
     arg3: u64,
     arg4: u64,
 ) -> u64 {
-    // ユーザーのページテーブルはカーネルのマッピングをすべて含んでいるため、
-    // CR3の切り替えは不要。ユーザーメモリへのアクセスもそのまま可能。
-    dispatch(num, arg0, arg1, arg2, arg3, arg4)
+    let current_tid = crate::task::current_thread_id();
+    let prev_cr3 = syscall_entry::switch_to_kernel_page_table();
+    if let Some(tid) = current_tid {
+        crate::task::with_thread_mut(tid, |t| t.set_in_syscall(true));
+    }
+    let ret = dispatch(num, arg0, arg1, arg2, arg3, arg4);
+    if let Some(tid) = current_tid {
+        crate::task::with_thread_mut(tid, |t| t.set_in_syscall(false));
+    }
+    syscall_entry::restore_page_table(prev_cr3);
+    ret
 }
 
 /// SYSCALL 命令エントリから呼ばれる System V ABI ディスパッチ関数

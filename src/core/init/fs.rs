@@ -179,6 +179,10 @@ fn inode(image: &[u8], sb: Superblock, inode_num: u32) -> Option<Inode> {
     if inode_num == 0 {
         return None;
     }
+    // inodes_per_group が 0 なら除算パニックを防ぐ (#30)
+    if sb.inodes_per_group == 0 {
+        return None;
+    }
     let group = (inode_num - 1) / sb.inodes_per_group;
     let index = (inode_num - 1) % sb.inodes_per_group;
     let gd = group_desc(image, sb, group)?;
@@ -190,8 +194,8 @@ fn inode(image: &[u8], sb: Superblock, inode_num: u32) -> Option<Inode> {
 
     let mut blocks = [0u32; 15];
     let blocks_off = inode_off + 40;
-    for i in 0..15 {
-        blocks[i] = read_u32(image, blocks_off + i * 4)?;
+    for (i, block) in blocks.iter_mut().enumerate() {
+        *block = read_u32(image, blocks_off + i * 4)?;
     }
 
     Some(Inode { mode, size, blocks })
@@ -216,6 +220,10 @@ fn data_block_number(
     inode: Inode,
     block_index: usize,
 ) -> Option<u32> {
+    // block_size が 0 なら除算パニックを防ぐ
+    if sb.block_size == 0 {
+        return None;
+    }
     let entries_per_block = sb.block_size as usize / 4;
 
     // 直接ブロック (0-11)
@@ -264,7 +272,7 @@ fn read_inode_data(image: &[u8], sb: Superblock, inode_num: u32) -> Option<Vec<u
         return Some(Vec::new());
     }
     let size = inode.size as usize;
-    let blocks_needed = (size + sb.block_size as usize - 1) / sb.block_size as usize;
+    let blocks_needed = size.div_ceil(sb.block_size as usize);
     let mut buf = Vec::with_capacity(size);
 
     crate::debug!(
@@ -279,7 +287,7 @@ fn read_inode_data(image: &[u8], sb: Superblock, inode_num: u32) -> Option<Vec<u
         if block_num == 0 {
             // スパースファイルのホール: ゼロで埋めて続行
             let to_fill = core::cmp::min(sb.block_size as usize, size - buf.len());
-            buf.extend(core::iter::repeat(0u8).take(to_fill));
+            buf.extend(core::iter::repeat_n(0u8, to_fill));
             if buf.len() >= size {
                 break;
             }
@@ -406,11 +414,13 @@ fn read_path(path: &str) -> Option<Vec<u8>> {
     let mut current = inode(EXT2_IMAGE, sb, 2)?; // root
 
     let mut parts = path.split('/').filter(|p| !p.is_empty()).peekable();
-    if parts.peek().is_none() {
-        return None;
-    }
+    parts.peek()?;
 
     while let Some(part) = parts.next() {
+        // ディレクトリトラバーサル防止: ".." および "." を拒否する (C-7修正)
+        if part == ".." || part == "." {
+            return None;
+        }
         let is_last = parts.peek().is_none();
         let inode_num = find_inode_in_dir(EXT2_IMAGE, sb, current, part)?;
         let next_inode = inode(EXT2_IMAGE, sb, inode_num)?;

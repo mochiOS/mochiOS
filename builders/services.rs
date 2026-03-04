@@ -62,11 +62,8 @@ pub fn parse_service_index(index_path: &Path) -> Result<Vec<ServiceEntry>, Strin
             current_desc.clear();
             current_autostart = false;
             current_order = 999;
-        } else if line.starts_with("dir = ") {
-            current_dir = line["dir = ".len()..]
-                .trim_matches('"')
-                .trim_matches('\'')
-                .to_string();
+        } else if let Some(rest) = line.strip_prefix("dir = ") {
+            current_dir = rest.trim_matches('"').trim_matches('\'').to_string();
         } else if line.starts_with("fs = ") || line.starts_with("fs_type = ") {
             let prefix = if line.starts_with("fs = ") {
                 "fs = "
@@ -77,15 +74,12 @@ pub fn parse_service_index(index_path: &Path) -> Result<Vec<ServiceEntry>, Strin
                 .trim_matches('"')
                 .trim_matches('\'')
                 .to_string();
-        } else if line.starts_with("description = ") {
-            current_desc = line["description = ".len()..]
-                .trim_matches('"')
-                .trim_matches('\'')
-                .to_string();
-        } else if line.starts_with("autostart = ") {
-            current_autostart = line["autostart = ".len()..].trim().parse().unwrap_or(false);
-        } else if line.starts_with("order = ") {
-            current_order = line["order = ".len()..].trim().parse().unwrap_or(999);
+        } else if let Some(rest) = line.strip_prefix("description = ") {
+            current_desc = rest.trim_matches('"').trim_matches('\'').to_string();
+        } else if let Some(rest) = line.strip_prefix("autostart = ") {
+            current_autostart = rest.trim().parse().unwrap_or(false);
+        } else if let Some(rest) = line.strip_prefix("order = ") {
+            current_order = rest.trim().parse().unwrap_or(999);
         }
     }
 
@@ -141,13 +135,34 @@ pub fn build_service(
 
     // .cargo/config.toml にtargetが設定されているか確認
     let cargo_config = service_dir.join(".cargo/config.toml");
-    let has_config_target = std::fs::read_to_string(&cargo_config)
+    let cargo_config_text = std::fs::read_to_string(&cargo_config).ok();
+    let has_config_target = cargo_config_text
+        .as_deref()
         .map(|s| s.contains("[build]") && s.contains("target"))
         .unwrap_or(false);
+    let config_uses_json_target = cargo_config_text
+        .as_deref()
+        .map(|s| s.contains(".json"))
+        .unwrap_or(false);
+
+    let target_spec = if has_config_target {
+        None
+    } else {
+        find_target_spec(&service_dir)
+    };
+    let uses_json_target = config_uses_json_target
+        || target_spec
+            .as_deref()
+            .map(|t| t.ends_with(".json"))
+            .unwrap_or(false);
 
     // cargoでサービスをビルド
     let mut cmd = Command::new("cargo");
     cmd.args(["build"]);
+    if uses_json_target {
+        cmd.args(["-Z", "json-target-spec"]);
+        println!("  Enabling -Z json-target-spec");
+    }
 
     // 外側の cargo ビルドの環境変数をクリア (干渉を防ぐ)
     // ジョブサーバーとビルドシステムの変数をクリアして独立したビルドにする
@@ -168,7 +183,6 @@ pub fn build_service(
 
     if !has_config_target {
         // .cargo/config.toml にtargetがない場合のみ --target を渡す
-        let target_spec = find_target_spec(&service_dir);
         if let Some(target) = &target_spec {
             cmd.arg("--target").arg(target);
             println!("  Using target from JSON: {}", target);

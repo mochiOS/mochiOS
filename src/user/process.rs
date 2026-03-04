@@ -18,8 +18,8 @@ pub fn exec(path: &str) -> Result<u64, ()> {
         SyscallNumber::Exec as u64,
         path_buf.as_ptr() as u64,
     );
-    
-    if result == u64::MAX {
+
+    if (result as i64) < 0 {
         Err(())
     } else {
         Ok(result)

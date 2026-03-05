@@ -273,25 +273,21 @@ pub unsafe extern "C" fn syscall_interrupt_handler() {
         "mov ds, ax",
         "mov es, ax",
 
-        "sub rsp, 48",
+        // System V AMD64 ABI: rdi=num, rsi=arg0, rdx=arg1, rcx=arg2, r8=arg3, r9=arg4
+        // スタック上のオフセット (15 pushes × 8 bytes, sub rsp なし):
+        //   [rsp+0]=r15, [rsp+8]=r14, [rsp+16]=r13, [rsp+24]=r12, [rsp+32]=r11,
+        //   [rsp+40]=r10(arg3), [rsp+48]=r9, [rsp+56]=r8(arg4),
+        //   [rsp+64]=rdi(arg0), [rsp+72]=rsi(arg1), [rsp+80]=rbp, [rsp+88]=rbx,
+        //   [rsp+96]=rdx(arg2), [rsp+104]=rcx, [rsp+112]=rax(num)
+        "mov rdi, [rsp + 112]", // rax (syscall number)
+        "mov rsi, [rsp + 64]",  // rdi (arg0)
+        "mov rdx, [rsp + 72]",  // rsi (arg1)
+        "mov rcx, [rsp + 96]",  // rdx (arg2)
+        "mov r8,  [rsp + 40]",  // r10 (arg3)
+        "mov r9,  [rsp + 56]",  // r8  (arg4)
 
-        // スタック上の引数を設定 (arg3, arg4)
-        "mov r11, [rsp + 48 + 40]", // r10 (arg3)
-        "mov [rsp + 32], r11",
-        "mov r11, [rsp + 48 + 56]", // u_r8 (arg4)
-        "mov [rsp + 40], r11",
-
-        // レジスタ引数を設定 (num, arg0, arg1, arg2)
-        "mov rcx, [rsp + 48 + 112]", // rax (num)
-        "mov rdx, [rsp + 48 + 64]",  // rdi (arg0)
-        "mov r8,  [rsp + 48 + 72]",  // rsi (arg1)
-        "mov r9,  [rsp + 48 + 96]",  // rdx (arg2)
-
-        // Rust 関数を呼び出し
+        // Rust 関数を呼び出し (16バイトアライン済み: 160バイトオフセット)
         "call {syscall_handler}",
-
-        // スタックを戻す
-        "add rsp, 48",
 
         // 戻り値 (rax) をスタック上の保存された rax の位置に書き込む
         "mov [rsp + 112], rax",

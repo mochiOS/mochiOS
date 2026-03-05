@@ -107,7 +107,7 @@ unsafe fn load_initfs(bt: &BootServices, image_handle: Handle) -> (u64, usize) {
 
     for handle in handles {
         if let Some((addr, size)) = try_load_raw(bt, image_handle, handle, initfs_path) {
-            uefi::println!("[DBG] initfs loaded at {:#x} ({} bytes)", addr, size);
+            uefi::println!("initfs loaded at {:#x} ({} bytes)", addr, size);
             return (addr, size);
         }
     }
@@ -136,10 +136,23 @@ unsafe fn try_load_raw(
     let info = file.get_info::<FileInfo>(&mut info_buf).ok()?;
     let size = info.file_size() as usize;
     if size == 0 { return None; }
+    uefi::println!("initfs size: {} bytes, reading...", size);
     let pages = (size + 0xFFF) / 0x1000;
     let addr = bt.allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages).ok()?;
     let buf = core::slice::from_raw_parts_mut(addr as *mut u8, size);
-    file.read(buf).ok()?;
+    // 大きなファイルは UEFI Read() の上限があるためチャンク単位で読む
+    let mut read_total = 0usize;
+    while read_total < size {
+        let chunk = &mut buf[read_total..];
+        match file.read(chunk) {
+            Ok(0) => break, // EOF
+            Ok(n) => read_total += n,
+            Err(_) => return None,
+        }
+    }
+    if read_total != size {
+        uefi::println!("[WARN] initfs: read {} / {} bytes", read_total, size);
+    }
     Some((addr, size))
 }
 
@@ -149,15 +162,15 @@ unsafe fn load_kernel(bt: &BootServices, image_handle: Handle) -> Option<u64> {
 
     // LoadedImage からブートローダー自身のデバイスハンドルを取得して優先的に試みる
     match bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
-        Err(e) => uefi::println!("[DBG] LoadedImage open failed: {:?}", e.status()),
+        Err(e) => uefi::println!("LoadedImage open failed: {:?}", e.status()),
         Ok(loaded_image) => match loaded_image.device() {
-            None => uefi::println!("[DBG] LoadedImage.device() = None"),
+            None => uefi::println!("LoadedImage.device() = None"),
             Some(dev) => {
                 drop(loaded_image);
                 if let Some(entry) = try_load_from(bt, image_handle, dev, kernel_path) {
                     return Some(entry);
                 }
-                uefi::println!("[DBG] try_load_from (device handle) failed");
+                uefi::println!("try_load_from (device handle) failed");
             }
         },
     }
@@ -165,11 +178,11 @@ unsafe fn load_kernel(bt: &BootServices, image_handle: Handle) -> Option<u64> {
     // フォールバック: 全 SimpleFileSystem ハンドルをスキャンして kernel.elf を探す
     match bt.find_handles::<SimpleFileSystem>() {
         Err(e) => {
-            uefi::println!("[DBG] find_handles failed: {:?}", e.status());
+            uefi::println!("find_handles failed: {:?}", e.status());
             return None;
         }
         Ok(sfs_handles) => {
-            uefi::println!("[DBG] SFS handle count: {}", sfs_handles.len());
+            uefi::println!("SFS handle count: {}", sfs_handles.len());
             for handle in sfs_handles {
                 if let Some(entry) = try_load_from(bt, image_handle, handle, kernel_path) {
                     return Some(entry);
@@ -195,14 +208,14 @@ unsafe fn try_load_from(
     ) {
         Ok(s) => s,
         Err(e) => {
-            uefi::println!("[DBG] SFS open_protocol failed: {:?}", e.status());
+            uefi::println!("SFS open_protocol failed: {:?}", e.status());
             return None;
         }
     };
     let mut root = match sfs.open_volume() {
         Ok(r) => r,
         Err(e) => {
-            uefi::println!("[DBG] open_volume failed: {:?}", e.status());
+            uefi::println!("open_volume failed: {:?}", e.status());
             return None;
         }
     };
@@ -211,14 +224,14 @@ unsafe fn try_load_from(
     let file_handle = match root.open(kernel_path, FileMode::Read, FileAttribute::empty()) {
         Ok(f) => f,
         Err(e) => {
-            uefi::println!("[DBG] file open failed: {:?}", e.status());
+            uefi::println!("file open failed: {:?}", e.status());
             return None;
         }
     };
     let mut file = match file_handle.into_type().ok()? {
         FileType::Regular(f) => f,
         _ => {
-            uefi::println!("[DBG] not a regular file");
+            uefi::println!("not a regular file");
             return None;
         }
     };
@@ -228,25 +241,25 @@ unsafe fn try_load_from(
     let info = match file.get_info::<FileInfo>(&mut info_buf) {
         Ok(i) => i,
         Err(e) => {
-            uefi::println!("[DBG] get_info failed: {:?}", e.status());
+            uefi::println!("get_info failed: {:?}", e.status());
             return None;
         }
     };
     let file_size = info.file_size() as usize;
-    uefi::println!("[DBG] kernel.elf size: {} bytes", file_size);
+    uefi::println!("kernel.elf size: {} bytes", file_size);
     let pages = (file_size + 0xFFF) / 0x1000;
     let buf_phys = match bt.allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages) {
         Ok(p) => p,
         Err(e) => {
-            uefi::println!("[DBG] allocate_pages (buf) failed: {:?}", e.status());
+            uefi::println!("allocate_pages (buf) failed: {:?}", e.status());
             return None;
         }
     };
     let buf = core::slice::from_raw_parts_mut(buf_phys as *mut u8, file_size);
     match file.read(buf) {
-        Ok(n) => uefi::println!("[DBG] read {} / {} bytes", n, file_size),
+        Ok(n) => uefi::println!("read {} / {} bytes", n, file_size),
         Err(e) => {
-            uefi::println!("[DBG] file read failed: {:?}", e.status());
+            uefi::println!("file read failed: {:?}", e.status());
             return None;
         }
     }
@@ -254,7 +267,7 @@ unsafe fn try_load_from(
     // ELF マジック / クラス / アーキテクチャを検証
     let hdr = &*(buf.as_ptr() as *const Elf64Header);
     if &hdr.e_ident[0..4] != b"\x7fELF" || hdr.e_ident[4] != 2 || hdr.e_machine != 0x3E {
-        uefi::println!("[DBG] ELF check failed: ident={:?} machine={:#x}", &hdr.e_ident[0..4], hdr.e_machine);
+        uefi::println!("ELF check failed: ident={:?} machine={:#x}", &hdr.e_ident[0..4], hdr.e_machine);
         return None;
     }
 
@@ -272,15 +285,15 @@ unsafe fn try_load_from(
         load_max = load_max.max((phdr.p_paddr + phdr.p_memsz + 0xFFF) & !0xFFF);
     }
     if load_min == u64::MAX {
-        uefi::println!("[DBG] no PT_LOAD segments");
+        uefi::println!("no PT_LOAD segments");
         return None;
     }
     let kernel_pages = ((load_max - load_min) as usize) / 0x1000;
-    uefi::println!("[DBG] kernel range {:#x}..{:#x} ({} pages)", load_min, load_max, kernel_pages);
+    uefi::println!("kernel range {:#x}..{:#x} ({} pages)", load_min, load_max, kernel_pages);
     match bt.allocate_pages(AllocateType::Address(load_min), UefiMemType::LOADER_DATA, kernel_pages) {
         Ok(_) => {}
         Err(e) => {
-            uefi::println!("[DBG] allocate_pages kernel failed: {:?}", e.status());
+            uefi::println!("allocate_pages kernel failed: {:?}", e.status());
             return None;
         }
     }
@@ -326,7 +339,7 @@ unsafe fn try_load_from(
     }
     if rela_addr != 0 && rela_size > 0 && rela_ent > 0 {
         let rela_count = rela_size / rela_ent;
-        uefi::println!("[DBG] applying {} RELA relocations", rela_count);
+        uefi::println!("applying {} RELA relocations", rela_count);
         for i in 0..rela_count {
             let rela = &*((rela_addr as usize + i * rela_ent) as *const Elf64Rela);
             if (rela.r_info & 0xFFFF_FFFF) as u32 == R_X86_64_RELATIVE {

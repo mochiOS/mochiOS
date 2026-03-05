@@ -101,7 +101,7 @@ impl InitFs {
     pub fn create_sample_files(&mut self) -> VfsResult<()> {
         // readme.txtを作成
         let readme_inode = self.create(Self::ROOT_INODE, "readme.txt", 0o644)?;
-        let content = b"Welcome to SwiftCore OS!\nThis file is served by InitFS (VFS version).\n";
+        let content = b"Welcome to mochiOS!\nThis file is served by InitFS (VFS version).\n";
         self.write(readme_inode, 0, content)?;
 
         // hello.txtも作成

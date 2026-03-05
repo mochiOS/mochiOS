@@ -71,37 +71,37 @@ pub unsafe extern "C" fn switch_context(old_context: *mut Context, new_context: 
         "cli",
         // save current (ret address is at [rsp])
         "lea rax, [rsp + 0x08]",
-        // Microsoft x64 ABI (used by x86_64-unknown-uefi):
-        // 第1引数 (old_context) = rcx
-        // 第2引数 (new_context) = rdx
-        "mov [rcx + 0x00], rax", // rsp
-        "mov [rcx + 0x08], rbp", // rbp
-        "mov [rcx + 0x10], rbx", // rbx
-        "mov [rcx + 0x18], r12", // r12
-        "mov [rcx + 0x20], r13", // r13
-        "mov [rcx + 0x28], r14", // r14
-        "mov [rcx + 0x30], r15", // r15
-        "mov [rcx + 0x38], rdi", // rdi (MS ABI Callee-saved)
-        "mov [rcx + 0x40], rsi", // rsi (MS ABI Callee-saved)
+        // System V AMD64 ABI (used by x86_64-unknown-none):
+        // 第1引数 (old_context) = rdi
+        // 第2引数 (new_context) = rsi
+        "mov [rdi + 0x00], rax", // rsp
+        "mov [rdi + 0x08], rbp", // rbp
+        "mov [rdi + 0x10], rbx", // rbx
+        "mov [rdi + 0x18], r12", // r12
+        "mov [rdi + 0x20], r13", // r13
+        "mov [rdi + 0x28], r14", // r14
+        "mov [rdi + 0x30], r15", // r15
+        "mov [rdi + 0x38], rdi", // rdi
+        "mov [rdi + 0x40], rsi", // rsi
         // 戻り先アドレス（call命令でスタックにpushされている）を保存
         "mov rax, [rsp]",
-        "mov [rcx + 0x48], rax", // rip
+        "mov [rdi + 0x48], rax", // rip
         // RFLAGSを保存
         "pushfq",
         "pop rax",
-        "mov [rcx + 0x50], rax", // rflags
+        "mov [rdi + 0x50], rax", // rflags
         // 新しいコンテキストを復元
-        "mov rax, [rdx + 0x48]", // 新しいrip
-        "mov r11, [rdx + 0x50]", // 新しいrflags
-        "mov rbx, [rdx + 0x10]", // rbx
-        "mov r12, [rdx + 0x18]", // r12
-        "mov r13, [rdx + 0x20]", // r13
-        "mov r14, [rdx + 0x28]", // r14
-        "mov r15, [rdx + 0x30]", // r15
-        "mov rdi, [rdx + 0x38]", // rdi
-        "mov rsi, [rdx + 0x40]", // rsi
-        "mov rbp, [rdx + 0x08]", // rbp
-        "mov rsp, [rdx + 0x00]", // rsp
+        "mov rax, [rsi + 0x48]", // 新しいrip
+        "mov r11, [rsi + 0x50]", // 新しいrflags
+        "mov rbx, [rsi + 0x10]", // rbx
+        "mov r12, [rsi + 0x18]", // r12
+        "mov r13, [rsi + 0x20]", // r13
+        "mov r14, [rsi + 0x28]", // r14
+        "mov r15, [rsi + 0x30]", // r15
+        "mov rdi, [rsi + 0x38]", // rdi
+        "mov rbp, [rsi + 0x08]", // rbp
+        "mov rsp, [rsi + 0x00]", // rsp (rsiを最後に使う)
+        "mov rsi, [rsi + 0x40]", // rsi (rspセット後、rsiを上書きしてOK)
         // RFLAGSを復元
         "push r11",
         "popfq",

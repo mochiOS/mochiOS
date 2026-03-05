@@ -1,5 +1,5 @@
 [package]
-name = "SwiftCore"
+name = "mochiOS"
 version = "0.1.0"
 edition = "2021"
 authors = ["tas0dev"]
@@ -7,7 +7,7 @@ default-run = "boot"
 build = "build.rs"
 
 [lib]
-name = "swiftcore"
+name = "mochios"
 path = "src/core/lib.rs"
 test = false
 bench = false

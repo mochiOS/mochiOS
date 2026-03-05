@@ -16,7 +16,7 @@ fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
     let mut cmd = std::process::Command::new("cargo");
     cmd.current_dir(&kernel_crate_dir);
     // 再帰防止：カーネルがルートを dep としてビルドする際のフラグ
-    cmd.env("SWIFTCORE_BUILDING_KERNEL", "1");
+    cmd.env("MOCHIOS_BUILDING_KERNEL", "1");
     cmd.env("CARGO_TARGET_DIR", &kernel_target_dir);
     cmd.args(["build", "-Z", "build-std=core,alloc"]);
     if profile == "release" {
@@ -71,7 +71,7 @@ fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
     // カーネルビルドの再帰呼び出しの場合はプレースホルダーだけ作成して終了する
-    if env::var("SWIFTCORE_BUILDING_KERNEL").is_ok() {
+    if env::var("MOCHIOS_BUILDING_KERNEL").is_ok() {
         let _ = fs::write(out_dir.join("initfs.ext2"), b"");
         let _ = fs::write(out_dir.join("rootfs.ext2"), b"");
         return;

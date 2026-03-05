@@ -12,7 +12,7 @@ const EAGAIN: u64 = u64::MAX - 2;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
-    write_str("SwiftCore shell\n");
+    write_str("mochiOS shell\n");
     write_str("Type: (keyboard via IPC)\n");
 
     let mut buf = [0u8; 128];

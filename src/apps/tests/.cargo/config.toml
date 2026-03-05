@@ -1,2 +1,2 @@
 [build]
-target = "../../x86_64-swiftcore.json"
+target = "../../x86_64-mochios.json"

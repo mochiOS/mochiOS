@@ -151,7 +151,7 @@ fn test_readdir() -> bool {
 pub extern "C" fn main(argc: i32, argv: *const *const u8) -> i32 {
     unsafe {
         printf(b"\n========================================\n\0".as_ptr() as *const c_char);
-        printf(b"SwiftCore Test Suite\n\0".as_ptr() as *const c_char);
+        printf(b"mochiOS Test Suite\n\0".as_ptr() as *const c_char);
         printf(b"========================================\n\n\0".as_ptr() as *const c_char);
 
         printf(b"Test invocation:\n\0".as_ptr() as *const c_char);

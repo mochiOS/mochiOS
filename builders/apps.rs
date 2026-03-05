@@ -137,8 +137,8 @@ fn find_built_binary(target_dir: &Path, target_name: Option<&str>) -> Option<Pat
         }
     }
 
-    // x86_64-swiftcore/release/ を優先的に探す
-    let custom_target = target_dir.join("x86_64-swiftcore/release");
+    // x86_64-mochios/release/ を優先的に探す
+    let custom_target = target_dir.join("x86_64-mochios/release");
     if custom_target.is_dir() {
         if let Some(binary) = find_binary_in_dir(&custom_target) {
             return Some(binary);

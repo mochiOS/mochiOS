@@ -1,11 +1,11 @@
 [build]
-target = "../../x86_64-swiftcore.json"
+target = "../../x86_64-mochios.json"
 
 [unstable]
 build-std = ["core", "alloc", "panic_abort"]
 build-std-features = ["compiler-builtins-mem"]
 
-[target.x86_64-swiftcore]
+[target.x86_64-mochios]
 rustflags = [
     "-C", "link-arg=-nostdlib",
 ]

@@ -4,7 +4,7 @@
 extern crate alloc;
 
 use core::ptr::addr_of_mut;
-use swiftcore::{BootInfo, MemoryRegion, MemoryType};
+use mochios::{BootInfo, MemoryRegion, MemoryType};
 use uefi::prelude::*;
 use uefi::proto::console::gop::GraphicsOutput;
 use uefi::proto::media::file::{File, FileAttribute, FileMode, FileInfo, FileType};
@@ -293,7 +293,7 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
     let _ = system_table.stdout().clear();
     let _ = system_table
         .stdout()
-        .output_string(cstr16!("SwiftCore bootloader\n"));
+        .output_string(cstr16!("mochiOS bootloader\n"));
 
     // フレームバッファ情報を取得
     let (fb_addr, fb_size, screen_w, screen_h, stride) = {

@@ -30,12 +30,12 @@ const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
 #[used]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text$A")]
-static __swiftcore_text_start_marker: u8 = 0;
+static __mochios_text_start_marker: u8 = 0;
 #[cfg(target_os = "uefi")]
 #[used]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text$Z")]
-static __swiftcore_text_end_marker: u8 = 0;
+static __mochios_text_end_marker: u8 = 0;
 
 #[cfg(not(target_os = "uefi"))]
 unsafe extern "C" {
@@ -46,8 +46,8 @@ unsafe extern "C" {
 #[cfg(target_os = "uefi")]
 fn kernel_text_range() -> (u64, u64) {
     (
-        core::ptr::addr_of!(__swiftcore_text_start_marker) as u64,
-        core::ptr::addr_of!(__swiftcore_text_end_marker) as u64,
+        core::ptr::addr_of!(__mochios_text_start_marker) as u64,
+        core::ptr::addr_of!(__mochios_text_end_marker) as u64,
     )
 }
 

@@ -49,7 +49,7 @@ pub enum SyscallNumber {
     /// getcwd
     Getcwd = 79,
 
-    // SwiftCore独自syscall (Linux未使用番号帯: 512+)
+    // mochiOS独自syscall (Linux未使用番号帯: 512+)
     /// スケジューラへ譲る
     Yield = 512,
     /// タイマーティック数を取得
@@ -78,7 +78,7 @@ pub enum SyscallNumber {
     Readdir = 524,
     /// カレントディレクトリ変更
     Chdir = 525,
-    /// キーボードから1文字読み取る（SwiftCore 固有）
+    /// キーボードから1文字読み取る（mochiOS 固有）
     KeyboardRead = 526,
     /// スレッドIDからプロセスの権限レベルを取得 (0=Core, 1=Service, 2=User)
     GetThreadPrivilege = 527,

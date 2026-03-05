@@ -229,7 +229,7 @@ pub fn build_service(
     let target_dir = service_dir.join("target");
     // .cargo/config.toml のターゲットかデフォルト名を使用
     let target_name: Option<String> = if has_config_target {
-        Some("x86_64-swiftcore".to_string())
+        Some("x86_64-mochios".to_string())
     } else {
         None
     };
@@ -268,7 +268,7 @@ fn find_built_binary(target_dir: &Path, target_name: Option<&str>) -> Option<Pat
             }
         }
 
-        let dir = target_dir.join(format!("x86_64-swiftcore/{}", profile));
+        let dir = target_dir.join(format!("x86_64-mochios/{}", profile));
         if dir.is_dir() {
             if let Some(binary) = find_binary_in_dir(&dir) {
                 return Some(binary);

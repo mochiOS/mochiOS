@@ -51,7 +51,7 @@ pub enum SyscallNumber {
     /// getcwd
     Getcwd = 79,
 
-    // SwiftCore独自syscall (Linux未使用番号帯を使用: 512+)
+    // mochiOS独自syscall (Linux未使用番号帯を使用: 512+)
     /// スケジューラへ譲る
     Yield = 512,
     /// タイマーティック数を取得

@@ -1,6 +1,6 @@
-# SwiftCore 実装TODO
+# mochiOS 実装TODO
 
-SwiftCoreを実用レベルに引き上げるための実装項目リスト
+mochiOSを実用レベルに引き上げるための実装項目リスト
 
 ## ✅ ステータス更新（2026-03-04）
 

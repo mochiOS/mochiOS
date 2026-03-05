@@ -182,7 +182,7 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Exit as u64 => process::exit(arg0),
         x if x == SyscallNumber::ExitGroup as u64 => process::exit(arg0),
 
-        // SwiftCore独自syscall
+        // mochiOS独自syscall
         x if x == SyscallNumber::Yield as u64 => {
             task::yield_now();
             SUCCESS

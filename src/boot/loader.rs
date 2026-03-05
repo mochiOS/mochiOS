@@ -23,6 +23,8 @@ static mut BOOT_INFO: BootInfo = BootInfo {
     memory_map_len: 0,
     memory_map_entry_size: 0,
     kernel_heap_addr: 0,
+    initfs_addr: 0,
+    initfs_size: 0,
 };
 
 static mut MEMORY_MAP: [MemoryRegion; 256] = [MemoryRegion {
@@ -86,6 +88,60 @@ const DT_NULL: i64 = 0;
 const DT_RELA: i64 = 7;
 const DT_RELASZ: i64 = 8;
 const DT_RELAENT: i64 = 9;
+
+/// `\System\initfs.img` を読み込んで物理アドレスとサイズを返す
+unsafe fn load_initfs(bt: &BootServices, image_handle: Handle) -> (u64, usize) {
+    let initfs_path = cstr16!(r"\System\initfs.img");
+
+    // LoadedImage デバイスを優先
+    let handles: alloc::vec::Vec<uefi::Handle> = if let Ok(li) = bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
+        if let Some(dev) = li.device() {
+            drop(li);
+            alloc::vec![dev]
+        } else {
+            bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
+        }
+    } else {
+        bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
+    };
+
+    for handle in handles {
+        if let Some((addr, size)) = try_load_raw(bt, image_handle, handle, initfs_path) {
+            uefi::println!("[DBG] initfs loaded at {:#x} ({} bytes)", addr, size);
+            return (addr, size);
+        }
+    }
+    uefi::println!("[WARN] initfs.img not found, initfs will be empty");
+    (0, 0)
+}
+
+/// 指定ハンドルから任意ファイルをページ単位でロードし (物理アドレス, サイズ) を返す
+unsafe fn try_load_raw(
+    bt: &BootServices,
+    agent: uefi::Handle,
+    handle: uefi::Handle,
+    path: &uefi::CStr16,
+) -> Option<(u64, usize)> {
+    let mut sfs = bt.open_protocol::<SimpleFileSystem>(
+        OpenProtocolParams { handle, agent, controller: None },
+        OpenProtocolAttributes::GetProtocol,
+    ).ok()?;
+    let mut root = sfs.open_volume().ok()?;
+    let fh = root.open(path, FileMode::Read, FileAttribute::empty()).ok()?;
+    let mut file = match fh.into_type().ok()? {
+        FileType::Regular(f) => f,
+        _ => return None,
+    };
+    let mut info_buf = [0u8; 512];
+    let info = file.get_info::<FileInfo>(&mut info_buf).ok()?;
+    let size = info.file_size() as usize;
+    if size == 0 { return None; }
+    let pages = (size + 0xFFF) / 0x1000;
+    let addr = bt.allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages).ok()?;
+    let buf = core::slice::from_raw_parts_mut(addr as *mut u8, size);
+    file.read(buf).ok()?;
+    Some((addr, size))
+}
 
 /// `\System\kernel.elf` を読み込み、PT_LOAD セグメントを物理アドレスに展開してエントリアドレスを返す
 unsafe fn load_kernel(bt: &BootServices, image_handle: Handle) -> Option<u64> {
@@ -337,6 +393,12 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         }
     };
 
+    // initfs を ESP から読み込む
+    let (initfs_addr, initfs_size) = {
+        let bt = system_table.boot_services();
+        unsafe { load_initfs(bt, image_handle) }
+    };
+
     // Boot Services を終了してメモリマップを取得
     let (_system_table, memory_map_iter) =
         unsafe { system_table.exit_boot_services(UefiMemType::LOADER_DATA) };
@@ -380,6 +442,8 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         BOOT_INFO.memory_map_entry_size = core::mem::size_of::<MemoryRegion>();
         // kernel_heap_addr はカーネル自身が entry.rs 内で設定する
         BOOT_INFO.kernel_heap_addr = 0;
+        BOOT_INFO.initfs_addr = initfs_addr;
+        BOOT_INFO.initfs_size = initfs_size;
     }
 
     // カーネルへジャンプ (System V AMD64 ABI)

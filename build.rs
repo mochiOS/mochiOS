@@ -71,6 +71,7 @@ fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
     // カーネルビルドの再帰呼び出しの場合はプレースホルダーだけ作成して終了する
+    // (initfs は埋め込まず、ブートローダーが実行時にロードして BootInfo で渡す)
     if env::var("MOCHIOS_BUILDING_KERNEL").is_ok() {
         let _ = fs::write(out_dir.join("initfs.ext2"), b"");
         let _ = fs::write(out_dir.join("rootfs.ext2"), b"");

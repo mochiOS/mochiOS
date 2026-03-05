@@ -53,6 +53,15 @@ else
     echo "  Run 'cargo build' first to build the kernel." >&2
 fi
 
+# initfs.ext2 を ESP の \System\initfs.img として配置
+INITFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "initfs.ext2" -not -path "*/kernel/*" 2>/dev/null | sort -t/ -k1,1 | tail -1)
+if [ -n "$INITFS_IMG" ] && [ -f "$INITFS_IMG" ]; then
+    cp "$INITFS_IMG" "$TEMP_DIR/esp/System/initfs.img"
+    echo "initfs.ext2 -> esp/System/initfs.img"
+else
+    echo "Warning: initfs.ext2 not found" >&2
+fi
+
 exec qemu-system-x86_64 \
     -bios "$OVMF" \
     -drive format=raw,file=fat:rw:"$TEMP_DIR/esp" \

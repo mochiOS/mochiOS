@@ -69,6 +69,10 @@ pub struct BootInfo {
     pub memory_map_entry_size: usize,
     /// カーネルアロケータの制御構造体へのアドレス（kernel binaryが起動時に設定）
     pub kernel_heap_addr: u64,
+    /// initfs イメージの物理アドレス（ブートローダーが設定）
+    pub initfs_addr: u64,
+    /// initfs イメージのサイズ（バイト）
+    pub initfs_size: usize,
 }
 
 /// メモリ領域の種類

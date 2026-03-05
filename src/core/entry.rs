@@ -26,6 +26,12 @@ pub unsafe extern "sysv64" fn kernel_entry(boot_info_ptr: *mut mochios::BootInfo
     (*boot_info_ptr).kernel_heap_addr =
         &KERNEL_ALLOCATOR as *const LockedHeap as u64;
 
+    // ブートローダーがロードした initfs イメージを fs モジュールに設定
+    mochios::init::fs::set_image(
+        (*boot_info_ptr).initfs_addr,
+        (*boot_info_ptr).initfs_size,
+    );
+
     let boot_info: &'static mochios::BootInfo = &*(boot_info_ptr as *const _);
     mochios::kernel_entry(boot_info)
 }

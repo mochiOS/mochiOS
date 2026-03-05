@@ -40,7 +40,7 @@ pub fn create_ext2_image(fs_dir: &Path, output_path: &Path) -> Result<(), String
         .args(["-t", "ext2", "-b", "4096", "-m", "0", "-L", "rootfs", "-d"])
         .arg(fs_dir)
         .arg(output_path)
-        .arg("32768") // 128MB (32768 * 4KB blocks)
+        .arg("65536") // 256MB (65536 * 4KB blocks)
         .status();
 
     match status {

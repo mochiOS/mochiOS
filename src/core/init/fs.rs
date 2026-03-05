@@ -9,8 +9,22 @@ use core::str;
 
 /// EXT2ファイルシステムのマジックナンバー
 pub const EXT2_MAGIC: u16 = 0xEF53;
-/// ビルドスクリプトで生成されたイメージデータ
-pub const EXT2_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/initfs.ext2"));
+
+/// BootInfo から設定される initfs イメージへのスライス
+/// ブートローダーが initfs_addr / initfs_size を設定した後に init() で初期化される
+static mut INITFS_SLICE: &[u8] = &[];
+
+/// initfs スライスを BootInfo から設定する（kernel_entry から呼ばれる）
+pub unsafe fn set_image(addr: u64, size: usize) {
+    if addr != 0 && size != 0 {
+        INITFS_SLICE = core::slice::from_raw_parts(addr as *const u8, size);
+    }
+}
+
+#[inline]
+fn ext2_image() -> &'static [u8] {
+    unsafe { INITFS_SLICE }
+}
 
 /// スーパーブロックの構造体
 #[derive(Debug, Clone, Copy)]
@@ -68,7 +82,7 @@ pub struct FsEntries<'a> {
 
 /// initfsを初期化して情報を出力する
 pub fn init() {
-    let sb = match superblock(EXT2_IMAGE) {
+    let sb = match superblock(ext2_image()) {
         Some(sb) => sb,
         None => {
             crate::warn!("initfs: invalid image");
@@ -76,7 +90,7 @@ pub fn init() {
         }
     };
 
-    let root = match inode(EXT2_IMAGE, sb, 2) {
+    let root = match inode(ext2_image(), sb, 2) {
         Some(inode) if is_dir(inode.mode) => inode,
         _ => {
             crate::warn!("initfs: invalid root inode");
@@ -91,7 +105,7 @@ pub fn init() {
     );
 
     let mut count = 0usize;
-    for entry in FsEntries::new(EXT2_IMAGE, sb, root) {
+    for entry in FsEntries::new(ext2_image(), sb, root) {
         crate::debug!("initfs: {} ({} bytes)", entry.name, entry.data.len());
         count += 1;
     }
@@ -114,17 +128,17 @@ pub fn read(name: &str) -> Option<Vec<u8>> {
 /// ## Returns
 /// - root直下のファイルとサブディレクトリを列挙するイテレータ
 pub fn entries() -> FsEntries<'static> {
-    let sb = superblock(EXT2_IMAGE).unwrap_or(Superblock {
+    let sb = superblock(ext2_image()).unwrap_or(Superblock {
         block_size: 1024,
         inode_size: 128,
         inodes_per_group: 0,
     });
-    let root = inode(EXT2_IMAGE, sb, 2).unwrap_or(Inode {
+    let root = inode(ext2_image(), sb, 2).unwrap_or(Inode {
         mode: 0,
         size: 0,
         blocks: [0; 15],
     });
-    FsEntries::new(EXT2_IMAGE, sb, root)
+    FsEntries::new(ext2_image(), sb, root)
 }
 
 /// 2バイトのリトルエンディアン整数を読み取る
@@ -410,8 +424,8 @@ fn find_inode_in_dir(image: &[u8], sb: Superblock, dir_inode: Inode, name: &str)
 }
 
 fn read_path(path: &str) -> Option<Vec<u8>> {
-    let sb = superblock(EXT2_IMAGE)?;
-    let mut current = inode(EXT2_IMAGE, sb, 2)?; // root
+    let sb = superblock(ext2_image())?;
+    let mut current = inode(ext2_image(), sb, 2)?; // root
 
     let mut parts = path.split('/').filter(|p| !p.is_empty()).peekable();
     parts.peek()?;
@@ -422,13 +436,13 @@ fn read_path(path: &str) -> Option<Vec<u8>> {
             return None;
         }
         let is_last = parts.peek().is_none();
-        let inode_num = find_inode_in_dir(EXT2_IMAGE, sb, current, part)?;
-        let next_inode = inode(EXT2_IMAGE, sb, inode_num)?;
+        let inode_num = find_inode_in_dir(ext2_image(), sb, current, part)?;
+        let next_inode = inode(ext2_image(), sb, inode_num)?;
         if is_last {
             if is_dir(next_inode.mode) {
                 return None;
             }
-            return read_inode_data(EXT2_IMAGE, sb, inode_num);
+            return read_inode_data(ext2_image(), sb, inode_num);
         }
         if !is_dir(next_inode.mode) {
             return None;

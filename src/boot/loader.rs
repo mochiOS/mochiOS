@@ -9,10 +9,8 @@ use uefi::prelude::*;
 use uefi::proto::console::gop::GraphicsOutput;
 use uefi::proto::media::file::{File, FileAttribute, FileMode, FileInfo, FileType};
 use uefi::proto::media::fs::SimpleFileSystem;
-use uefi::table::boot::{AllocateType, MemoryType as UefiMemType};
-
-#[global_allocator]
-static ALLOCATOR: uefi::allocator::Allocator = uefi::allocator::Allocator;
+use uefi::proto::loaded_image::LoadedImage;
+use uefi::table::boot::{AllocateType, MemoryType as UefiMemType, OpenProtocolAttributes, OpenProtocolParams};
 
 static mut BOOT_INFO: BootInfo = BootInfo {
     physical_memory_offset: 0,
@@ -66,78 +64,220 @@ struct Elf64Phdr {
 }
 
 const PT_LOAD: u32 = 1;
+const PT_DYNAMIC: u32 = 2;
+
+/// ELF64 動的セクションエントリ
+#[repr(C)]
+struct Elf64Dyn {
+    d_tag: i64,
+    d_val: u64,
+}
+
+/// ELF64 RELA 再配置エントリ
+#[repr(C)]
+struct Elf64Rela {
+    r_offset: u64,
+    r_info: u64,
+    r_addend: i64,
+}
+
+const R_X86_64_RELATIVE: u32 = 8;
+const DT_NULL: i64 = 0;
+const DT_RELA: i64 = 7;
+const DT_RELASZ: i64 = 8;
+const DT_RELAENT: i64 = 9;
 
 /// `\System\kernel.elf` を読み込み、PT_LOAD セグメントを物理アドレスに展開してエントリアドレスを返す
-unsafe fn load_kernel(bt: &BootServices, _image_handle: Handle) -> Option<u64> {
+unsafe fn load_kernel(bt: &BootServices, image_handle: Handle) -> Option<u64> {
     let kernel_path = cstr16!(r"\System\kernel.elf");
 
-    // 全 SimpleFileSystem ハンドルをスキャンして kernel.elf を探す
-    let sfs_handles = bt.find_handles::<SimpleFileSystem>().ok()?;
-    for handle in sfs_handles {
-        if let Some(entry) = try_load_from(bt, handle, kernel_path) {
-            return Some(entry);
+    // LoadedImage からブートローダー自身のデバイスハンドルを取得して優先的に試みる
+    match bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
+        Err(e) => uefi::println!("[DBG] LoadedImage open failed: {:?}", e.status()),
+        Ok(loaded_image) => match loaded_image.device() {
+            None => uefi::println!("[DBG] LoadedImage.device() = None"),
+            Some(dev) => {
+                drop(loaded_image);
+                if let Some(entry) = try_load_from(bt, image_handle, dev, kernel_path) {
+                    return Some(entry);
+                }
+                uefi::println!("[DBG] try_load_from (device handle) failed");
+            }
+        },
+    }
+
+    // フォールバック: 全 SimpleFileSystem ハンドルをスキャンして kernel.elf を探す
+    match bt.find_handles::<SimpleFileSystem>() {
+        Err(e) => {
+            uefi::println!("[DBG] find_handles failed: {:?}", e.status());
+            return None;
+        }
+        Ok(sfs_handles) => {
+            uefi::println!("[DBG] SFS handle count: {}", sfs_handles.len());
+            for handle in sfs_handles {
+                if let Some(entry) = try_load_from(bt, image_handle, handle, kernel_path) {
+                    return Some(entry);
+                }
+            }
         }
     }
+
     None
 }
 
 /// 指定 SFS ハンドルから kernel.elf のロードを試みる
 unsafe fn try_load_from(
     bt: &BootServices,
+    agent: uefi::Handle,
     handle: uefi::Handle,
     kernel_path: &uefi::CStr16,
 ) -> Option<u64> {
-    let mut sfs = bt
-        .open_protocol_exclusive::<SimpleFileSystem>(handle)
-        .ok()?;
-    let mut root = sfs.open_volume().ok()?;
+    // GetProtocol で非排他的に開く（ファームウェアが既に開いていても失敗しない）
+    let mut sfs = match bt.open_protocol::<SimpleFileSystem>(
+        OpenProtocolParams { handle, agent, controller: None },
+        OpenProtocolAttributes::GetProtocol,
+    ) {
+        Ok(s) => s,
+        Err(e) => {
+            uefi::println!("[DBG] SFS open_protocol failed: {:?}", e.status());
+            return None;
+        }
+    };
+    let mut root = match sfs.open_volume() {
+        Ok(r) => r,
+        Err(e) => {
+            uefi::println!("[DBG] open_volume failed: {:?}", e.status());
+            return None;
+        }
+    };
 
     // カーネル ELF を開く
-    let file_handle = root
-        .open(kernel_path, FileMode::Read, FileAttribute::empty())
-        .ok()?;
+    let file_handle = match root.open(kernel_path, FileMode::Read, FileAttribute::empty()) {
+        Ok(f) => f,
+        Err(e) => {
+            uefi::println!("[DBG] file open failed: {:?}", e.status());
+            return None;
+        }
+    };
     let mut file = match file_handle.into_type().ok()? {
         FileType::Regular(f) => f,
-        _ => return None,
+        _ => {
+            uefi::println!("[DBG] not a regular file");
+            return None;
+        }
     };
 
     // ファイルサイズを取得して一時バッファに読み込む
     let mut info_buf = [0u8; 512];
-    let info = file.get_info::<FileInfo>(&mut info_buf).ok()?;
+    let info = match file.get_info::<FileInfo>(&mut info_buf) {
+        Ok(i) => i,
+        Err(e) => {
+            uefi::println!("[DBG] get_info failed: {:?}", e.status());
+            return None;
+        }
+    };
     let file_size = info.file_size() as usize;
+    uefi::println!("[DBG] kernel.elf size: {} bytes", file_size);
     let pages = (file_size + 0xFFF) / 0x1000;
-    let buf_phys = bt
-        .allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages)
-        .ok()?;
+    let buf_phys = match bt.allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages) {
+        Ok(p) => p,
+        Err(e) => {
+            uefi::println!("[DBG] allocate_pages (buf) failed: {:?}", e.status());
+            return None;
+        }
+    };
     let buf = core::slice::from_raw_parts_mut(buf_phys as *mut u8, file_size);
-    file.read(buf).ok()?;
+    match file.read(buf) {
+        Ok(n) => uefi::println!("[DBG] read {} / {} bytes", n, file_size),
+        Err(e) => {
+            uefi::println!("[DBG] file read failed: {:?}", e.status());
+            return None;
+        }
+    }
 
     // ELF マジック / クラス / アーキテクチャを検証
     let hdr = &*(buf.as_ptr() as *const Elf64Header);
     if &hdr.e_ident[0..4] != b"\x7fELF" || hdr.e_ident[4] != 2 || hdr.e_machine != 0x3E {
+        uefi::println!("[DBG] ELF check failed: ident={:?} machine={:#x}", &hdr.e_ident[0..4], hdr.e_machine);
         return None;
     }
 
-    // PT_LOAD セグメントを物理アドレスに展開
+    // PT_LOAD セグメント全体の物理アドレス範囲を計算し、一括で確保する
+    // (セグメントは隣接・重複することがあるため、個別確保は不可)
+    let mut load_min = u64::MAX;
+    let mut load_max = 0u64;
     for i in 0..hdr.e_phnum as usize {
         let phdr_offset = hdr.e_phoff as usize + i * hdr.e_phentsize as usize;
         let phdr = &*(buf.as_ptr().add(phdr_offset) as *const Elf64Phdr);
         if phdr.p_type != PT_LOAD || phdr.p_memsz == 0 {
             continue;
         }
-        let seg_pages = (phdr.p_memsz as usize + 0xFFF) / 0x1000;
-        bt.allocate_pages(
-            AllocateType::Address(phdr.p_paddr),
-            UefiMemType::LOADER_DATA,
-            seg_pages,
-        )
-        .ok()?;
+        load_min = load_min.min(phdr.p_paddr & !0xFFF);
+        load_max = load_max.max((phdr.p_paddr + phdr.p_memsz + 0xFFF) & !0xFFF);
+    }
+    if load_min == u64::MAX {
+        uefi::println!("[DBG] no PT_LOAD segments");
+        return None;
+    }
+    let kernel_pages = ((load_max - load_min) as usize) / 0x1000;
+    uefi::println!("[DBG] kernel range {:#x}..{:#x} ({} pages)", load_min, load_max, kernel_pages);
+    match bt.allocate_pages(AllocateType::Address(load_min), UefiMemType::LOADER_DATA, kernel_pages) {
+        Ok(_) => {}
+        Err(e) => {
+            uefi::println!("[DBG] allocate_pages kernel failed: {:?}", e.status());
+            return None;
+        }
+    }
+    // 全体をゼロクリア（BSS を含む）
+    core::ptr::write_bytes(load_min as *mut u8, 0, (load_max - load_min) as usize);
 
-        let dst = core::slice::from_raw_parts_mut(phdr.p_paddr as *mut u8, phdr.p_memsz as usize);
+    // 各 PT_LOAD セグメントのデータをコピー
+    for i in 0..hdr.e_phnum as usize {
+        let phdr_offset = hdr.e_phoff as usize + i * hdr.e_phentsize as usize;
+        let phdr = &*(buf.as_ptr().add(phdr_offset) as *const Elf64Phdr);
+        if phdr.p_type != PT_LOAD || phdr.p_filesz == 0 {
+            continue;
+        }
+        let dst = core::slice::from_raw_parts_mut(phdr.p_paddr as *mut u8, phdr.p_filesz as usize);
         let src = &buf[phdr.p_offset as usize..phdr.p_offset as usize + phdr.p_filesz as usize];
-        dst[..phdr.p_filesz as usize].copy_from_slice(src);
-        // BSS ゼロ埋め
-        dst[phdr.p_filesz as usize..].fill(0);
+        dst.copy_from_slice(src);
+    }
+
+    // PT_DYNAMIC から RELA 再配置テーブルを探して R_X86_64_RELATIVE を適用する
+    // PIE としてロードアドレス == リンクアドレス (0x200000) なので load_base = 0
+    let mut rela_addr = 0u64;
+    let mut rela_size = 0usize;
+    let mut rela_ent = core::mem::size_of::<Elf64Rela>();
+    for i in 0..hdr.e_phnum as usize {
+        let phdr_offset = hdr.e_phoff as usize + i * hdr.e_phentsize as usize;
+        let phdr = &*(buf.as_ptr().add(phdr_offset) as *const Elf64Phdr);
+        if phdr.p_type != PT_DYNAMIC {
+            continue;
+        }
+        let dyn_count = phdr.p_memsz as usize / core::mem::size_of::<Elf64Dyn>();
+        let dyn_ptr = phdr.p_paddr as *const Elf64Dyn;
+        for j in 0..dyn_count {
+            let entry = &*dyn_ptr.add(j);
+            match entry.d_tag {
+                DT_NULL => break,
+                DT_RELA => rela_addr = entry.d_val,
+                DT_RELASZ => rela_size = entry.d_val as usize,
+                DT_RELAENT => rela_ent = entry.d_val as usize,
+                _ => {}
+            }
+        }
+        break;
+    }
+    if rela_addr != 0 && rela_size > 0 && rela_ent > 0 {
+        let rela_count = rela_size / rela_ent;
+        uefi::println!("[DBG] applying {} RELA relocations", rela_count);
+        for i in 0..rela_count {
+            let rela = &*((rela_addr as usize + i * rela_ent) as *const Elf64Rela);
+            if (rela.r_info & 0xFFFF_FFFF) as u32 == R_X86_64_RELATIVE {
+                let target = rela.r_offset as *mut u64;
+                *target = rela.r_addend as u64; // load_base = 0
+            }
+        }
     }
 
     Some(hdr.e_entry)
@@ -182,17 +322,20 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         )
     };
 
-    // カーネル ELF をロード (Boot Services が有効な間に行う)
-    let kernel_entry_addr =
-        match unsafe { load_kernel(system_table.boot_services(), image_handle) } {
-            Some(addr) => addr,
-            None => {
-                let _ = system_table
-                    .stdout()
-                    .output_string(cstr16!("Failed to load kernel.elf\n"));
-                return Status::NOT_FOUND;
-            }
-        };
+    // カーネルをロード (boot_services の借用をスコープで切る)
+    let kernel_entry_addr = {
+        let bt = system_table.boot_services();
+        unsafe { load_kernel(bt, image_handle) }
+    };
+    let kernel_entry_addr = match kernel_entry_addr {
+        Some(addr) => addr,
+        None => {
+            let _ = system_table
+                .stdout()
+                .output_string(cstr16!("Failed to load kernel.elf\n"));
+            return Status::NOT_FOUND;
+        }
+    };
 
     // Boot Services を終了してメモリマップを取得
     let (_system_table, memory_map_iter) =

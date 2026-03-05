@@ -24,7 +24,7 @@ default = ["uefi-dep"]
 uefi-dep = ["dep:uefi"]
 
 [dependencies]
-uefi = { version = "0.30", features = ["alloc", "logger"], optional = true }
+uefi = { version = "0.30", features = ["alloc", "logger", "global_allocator"], optional = true }
 spin = "0.9"
 x86_64 = "0.15"
 linked_list_allocator = "0.10.5"

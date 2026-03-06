@@ -855,11 +855,11 @@ extern "x86-interrupt" fn virtualization_handler(stack_frame: InterruptStackFram
 /// IRQ1 をIDTに登録せずに放置するとキーストロークのたびに #GP が発生し
 /// OS全体が停止する (C-2修正)。このハンドラはスキャンコードを読み捨て EOI を送る。
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    // スキャンコードを読み取りコントローラをクリアする
-    let _scancode: u8 = unsafe {
+    let scancode: u8 = unsafe {
         let mut port = x86_64::instructions::port::Port::<u8>::new(0x60);
         port.read()
     };
+    crate::util::ps2kbd::push_scancode(scancode);
     // マスターPICにEOIを送信 (IRQ1はマスターPICが担当)
     unsafe {
         super::pic::PIC_MASTER.end_of_interrupt();

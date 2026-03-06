@@ -1,6 +1,8 @@
-use swiftlib::keyboard;
 use swiftlib::time;
 use swiftlib::vga;
+
+mod keyboard;
+use keyboard::Ps2Keyboard;
 
 const FONT_WIDTH: usize = 6;
 const FONT_HEIGHT: usize = 12;
@@ -266,6 +268,7 @@ fn main() {
         None => return,
     };
     let mut term = Terminal::new(fb_ptr, info, font);
+    let mut kbd = Ps2Keyboard::new();
 
     term.clear_screen();
     term.fg = 0x00FF_FF00; // 黄色
@@ -277,7 +280,7 @@ fn main() {
     loop {
         time::sleep_ms(10);
 
-        while let Some(ch) = keyboard::read_char() {
+        while let Some(ch) = kbd.read() {
             match ch {
                 b'\n' | b'\r' => {
                     term.handle_line();

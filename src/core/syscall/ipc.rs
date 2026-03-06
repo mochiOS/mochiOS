@@ -4,7 +4,7 @@ use super::{EAGAIN, EFAULT, EINVAL};
 
 const MAX_THREADS: usize = crate::task::ThreadQueue::MAX_THREADS;
 const MAILBOX_CAP: usize = 64;
-const MAX_MSG_SIZE: usize = 256;
+const MAX_MSG_SIZE: usize = 576; // DiskRequest(544) と DiskResponse(528) を収容できる最小サイズ
 
 #[derive(Debug, Clone, Copy)]
 pub struct Message {

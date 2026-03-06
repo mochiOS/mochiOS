@@ -86,10 +86,12 @@ fn vfs_error_to_errno(err: VfsError) -> i64 {
 
 /// disk.service から ext2 をマウントする（失敗時は InitFs にフォールバック）
 fn mount_filesystem() {
+    println!("[FS] mount_filesystem: searching for disk.service...");
     // disk.service を探す（最大5秒待つ）
     let mut disk_pid: Option<u64> = None;
-    for _ in 0..50 {
+    for i in 0..50 {
         if let Some(pid) = task::find_process_by_name("disk.service") {
+            println!("[FS] Found disk.service at iteration {} PID={}", i, pid);
             disk_pid = Some(pid);
             break;
         }
@@ -97,8 +99,9 @@ fn mount_filesystem() {
     }
 
     if let Some(pid) = disk_pid {
-        println!("[FS] Found disk.service (PID={}), mounting ext2 from disk 1...", pid);
+        println!("[FS] Mounting ext2 from disk 1 via PID={}...", pid);
         let device = DiskServiceDevice::new(pid, 1); // disk 1 = Primary Slave = swiftCore.img
+        println!("[FS] Calling Ext2Fs::new...");
         match Ext2Fs::new(std::boxed::Box::new(device)) {
             Ok(fs) => {
                 println!("[FS] ext2 filesystem mounted from ATA disk.");
@@ -113,6 +116,7 @@ fn mount_filesystem() {
         println!("[FS] disk.service not found, falling back to InitFs");
     }
 
+    println!("[FS] Initializing InitFs...");
     // フォールバック: InitFs
     let mut initfs = InitFs::new();
     if let Err(e) = initfs.create_sample_files() {

@@ -114,7 +114,10 @@ fn init_disks() {
 fn notify_ready_to_core() {
     // core.service の PID を取得
     let core_pid = match task::find_process_by_name("core.service") {
-        Some(pid) => pid,
+        Some(pid) => {
+            println!("[DISK] Found core.service (PID={})", pid);
+            pid
+        }
         None => {
             println!("[DISK] WARNING: core.service not found, skipping READY notify");
             return;

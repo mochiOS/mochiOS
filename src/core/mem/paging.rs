@@ -694,6 +694,16 @@ pub fn create_user_page_table() -> Result<u64> {
         new_l4[0].set_addr(x86_64::PhysAddr::new(new_l3_phys), kernel_l4[0].flags());
     }
 
+    // カーネルヒープ (0x4444_4444_0000, L4[136]) をユーザーページテーブルと共有する。
+    // with_user_memory_access がユーザーCR3に切り替えた際に
+    // カーネルヒープ上のデータ（FileHandle, Box<[u8]> など）へアクセスできるようにする。
+    // ヒープは init_memory 時に全ページがマップ済みのため、
+    // L4エントリ（L3テーブルへのポインタ）を共有するだけで十分。
+    const KERNEL_HEAP_L4_IDX: usize = 136; // 0x4444_4444_0000 >> 39 & 0x1ff
+    if !kernel_l4[KERNEL_HEAP_L4_IDX].is_unused() {
+        new_l4[KERNEL_HEAP_L4_IDX] = kernel_l4[KERNEL_HEAP_L4_IDX].clone();
+    }
+
     Ok(new_l4_phys)
 }
 
@@ -895,14 +905,14 @@ pub fn map_and_copy_segment_to(
                 .allocate_frame()
                 .ok_or(Kernel::Memory(Memory::OutOfMemory))?
         };
-        let phys_frame_addr = frame.start_address().as_u64();
+        let mut phys_frame_addr = frame.start_address().as_u64();
 
         // フレームを先にゼロ初期化（BSS領域のため）
         unsafe {
             core::ptr::write_bytes((phys_frame_addr + phys_off) as *mut u8, 0, 4096);
         }
 
-        // マップ（既にマップ済みの場合はアンマップして再マップ）
+        // マップ（既にマップ済みの場合は既存マッピングを確認して処理）
         let map_result = unsafe {
             let mut alloc_lock = frame::FRAME_ALLOCATOR.lock();
             let alloc_ref = alloc_lock
@@ -915,21 +925,46 @@ pub fn map_and_copy_segment_to(
                 flush.ignore();
             }
             Err(x86_64::structures::paging::mapper::MapToError::PageAlreadyMapped(_)) => {
-                // カーネルのアイデンティティマップが残っている場合：アンマップして再マップ
-                // Note: alloc_lock is already dropped here, so re-acquiring is safe (no deadlock).
+                use x86_64::structures::paging::mapper::TranslateResult;
+                use x86_64::structures::paging::Translate;
                 unsafe {
-                    let (old_frame, flush) = pt
-                        .unmap(page)
-                        .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?;
-                    flush.ignore();
-                    let _ = frame::deallocate_frame(old_frame);
-                    let mut alloc_lock2 = frame::FRAME_ALLOCATOR.lock();
-                    let alloc_ref2 = alloc_lock2
-                        .as_mut()
-                        .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
-                    pt.map_to(page, frame, final_flags, alloc_ref2)
-                        .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?
-                        .ignore();
+                    match pt.translate(VirtAddr::new(page_addr)) {
+                        TranslateResult::Mapped {
+                            flags: existing_flags,
+                            frame: existing_mapped_frame,
+                            ..
+                        } if existing_flags.contains(Flags::USER_ACCESSIBLE) => {
+                            // 別のELFセグメントが同じページをマップ済み：パーミッションをマージする。
+                            // 既存マッピングが実行可能なら新セグメントのNXビットを消してEXECを保持。
+                            let merged = if !existing_flags.contains(Flags::NO_EXECUTE) {
+                                final_flags & !Flags::NO_EXECUTE
+                            } else {
+                                final_flags
+                            };
+                            pt.update_flags(page, merged)
+                                .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?
+                                .ignore();
+                            // 新たに確保したフレームは不要なので解放
+                            frame::deallocate_frame(frame);
+                            // データコピー先を既存フレームに切り替える
+                            phys_frame_addr = existing_mapped_frame.start_address().as_u64();
+                        }
+                        _ => {
+                            // カーネルのアイデンティティマップが残っている場合：アンマップして再マップ
+                            let (old_frame, flush) = pt
+                                .unmap(page)
+                                .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?;
+                            flush.ignore();
+                            let _ = frame::deallocate_frame(old_frame);
+                            let mut alloc_lock2 = frame::FRAME_ALLOCATOR.lock();
+                            let alloc_ref2 = alloc_lock2
+                                .as_mut()
+                                .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+                            pt.map_to(page, frame, final_flags, alloc_ref2)
+                                .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?
+                                .ignore();
+                        }
+                    }
                 }
             }
             Err(_) => return Err(Kernel::Memory(Memory::InvalidAddress)),

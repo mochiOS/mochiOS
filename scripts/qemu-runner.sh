@@ -54,19 +54,21 @@ else
 fi
 
 # initfs.ext2 を ESP の \System\initfs.img として配置
-INITFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "initfs.ext2" -not -path "*/kernel/*" 2>/dev/null | sort -t/ -k1,1 | tail -1)
+# 最新ファイルを選択するために更新時刻でソート (古いリリースビルドを避ける)
+INITFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "initfs.ext2" -not -path "*/kernel/*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
 if [ -n "$INITFS_IMG" ] && [ -f "$INITFS_IMG" ]; then
     cp "$INITFS_IMG" "$TEMP_DIR/esp/System/initfs.img"
-    echo "initfs.ext2 -> esp/System/initfs.img"
+    echo "initfs.ext2 -> esp/System/initfs.img (from $INITFS_IMG)"
 else
     echo "Warning: initfs.ext2 not found" >&2
 fi
 
 # rootfs.ext2 を ESP の \System\rootfs.ext2 として配置
-ROOTFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "rootfs.ext2" -not -path "*/kernel/*" 2>/dev/null | sort -t/ -k1,1 | tail -1)
+# 最新ファイルを選択するために更新時刻でソート (古いリリースビルドを避ける)
+ROOTFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "rootfs.ext2" -not -path "*/kernel/*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
 if [ -n "$ROOTFS_IMG" ] && [ -f "$ROOTFS_IMG" ]; then
     cp "$ROOTFS_IMG" "$TEMP_DIR/esp/System/rootfs.ext2"
-    echo "rootfs.ext2 -> esp/System/rootfs.ext2"
+    echo "rootfs.ext2 -> esp/System/rootfs.ext2 (from $ROOTFS_IMG)"
 else
     echo "Warning: rootfs.ext2 not found" >&2
 fi

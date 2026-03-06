@@ -1,8 +1,3 @@
-#![no_std]
-#![no_main]
-
-extern crate alloc;
-
 use core::fmt::{self};
 use core::mem::size_of;
 
@@ -108,8 +103,7 @@ fn vfs_error_to_errno(err: VfsError) -> i64 {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn main(_argc: i32, _argv: *const *const u8) -> i32 {
+fn main() {
     println!("[FS] Service Started.");
 
     // InitFSを初期化

@@ -1,8 +1,3 @@
-#![no_std]
-#![no_main]
-
-extern crate alloc;
-
 use core::fmt::{self};
 use core::mem::size_of;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -127,9 +122,8 @@ fn init_disks() {
     println!("[DISK] ATA initialization complete");
 }
 
-#[no_mangle]
 #[allow(static_mut_refs)]
-pub extern "C" fn main(_argc: i32, _argv: *const *const u8) -> i32 {
+fn main() {
     println!("[DISK] Disk I/O Service Started.");
 
     // ディスクを初期化

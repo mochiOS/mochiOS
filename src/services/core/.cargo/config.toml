@@ -2,8 +2,8 @@
 target = "../../x86_64-mochios.json"
 
 [unstable]
-build-std = ["core", "alloc", "panic_abort"]
-build-std-features = ["compiler-builtins-mem"]
+build-std = ["std", "panic_abort"]
+json-target-spec = true
 
 [target.x86_64-mochios]
 rustflags = [

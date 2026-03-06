@@ -2,8 +2,8 @@
 //!
 //! 複数のファイルシステム実装を統一的に扱うための共通インターフェース
 
-use alloc::string::String;
-use alloc::vec::Vec;
+use std::string::String;
+use std::vec::Vec;
 
 /// ファイルタイプ
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

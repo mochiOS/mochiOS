@@ -1,8 +1,3 @@
-#![no_std]
-#![no_main]
-
-extern crate alloc;
-
 use core::fmt;
 use swiftlib::io;
 use swiftlib::process;
@@ -54,8 +49,7 @@ fn start_service(service: &ServiceDef) {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn main(_argc: i32, _argv: *const *const u8) -> i32 {
+fn main() {
     println!("[CORE] Service Manager Started");
 
     for service in SERVICES {

@@ -46,12 +46,25 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
             emit_rerun_if_changed(&src_dir);
         }
 
-        // カスタムターゲットファイルを探す
+        // カスタムターゲットファイルを探す（アプリディレクトリ内の .json を優先）
         let target_spec = find_target_spec(&path);
         let uses_json_target = target_spec
             .as_deref()
             .map(|t| t.ends_with(".json"))
             .unwrap_or(false);
+
+        // .cargo/config.toml にtargetが設定されているか確認
+        let cargo_config = path.join(".cargo/config.toml");
+        let cargo_config_text = std::fs::read_to_string(&cargo_config).ok();
+        let has_config_target = cargo_config_text
+            .as_deref()
+            .map(|s| s.contains("[build]") && s.contains("target"))
+            .unwrap_or(false);
+        let config_uses_json_target = cargo_config_text
+            .as_deref()
+            .map(|s| s.contains(".json"))
+            .unwrap_or(false);
+        let uses_json_target = uses_json_target || config_uses_json_target;
 
         // cargoでアプリをビルド
         let mut cmd = Command::new("cargo");
@@ -60,8 +73,26 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
             cmd.args(["-Z", "json-target-spec"]);
         }
 
-        // カスタムターゲットが見つかった場合は指定
-        if let Some(target) = &target_spec {
+        // 外側のビルド環境変数をクリアして干渉を防ぐ
+        for key in &[
+            "RUSTFLAGS",
+            "CARGO_ENCODED_RUSTFLAGS",
+            "CARGO_TARGET_DIR",
+            "CARGO_BUILD_TARGET",
+            "CARGO_MAKEFLAGS",
+            "__CARGO_TEST_CHANNEL_OVERRIDE_DO_NOT_USE_THIS",
+            "CARGO_BUILD_RUSTC",
+            "RUSTC",
+            "RUSTC_WRAPPER",
+            "RUSTC_WORKSPACE_WRAPPER",
+        ] {
+            cmd.env_remove(key);
+        }
+
+        // .cargo/config.toml にtargetがある場合は --target を渡さない
+        if has_config_target {
+            println!("  Using target from .cargo/config.toml");
+        } else if let Some(target) = &target_spec {
             cmd.arg("--target").arg(target);
             println!("  Using target: {}", target);
         } else {
@@ -78,7 +109,9 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
                 if output.status.success() {
                     // ビルド成果物を探す
                     let target_dir = path.join("target");
-                    let target_name = if let Some(p) = &target_spec {
+                    let target_name = if has_config_target {
+                        Some("x86_64-mochios".to_string())
+                    } else if let Some(p) = &target_spec {
                         Path::new(p)
                             .file_stem()
                             .map(|s| s.to_string_lossy().to_string())

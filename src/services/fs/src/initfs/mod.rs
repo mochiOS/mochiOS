@@ -3,8 +3,8 @@
 //! システム起動時に使用される簡易的なRAMベースファイルシステム
 //! 猫も杓子もInitFS！（？？？
 
-use alloc::string::String;
-use alloc::vec::Vec;
+use std::string::String;
+use std::vec::Vec;
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::common::vfs::{

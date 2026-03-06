@@ -449,3 +449,11 @@ pub unsafe extern "C" fn clock_gettime(_clk_id: i32, tp: *mut u8) -> i32 {
     }
     0
 }
+
+// ── ファイル I/O（std がリンク時に要求する基本 POSIX 関数）────────────────
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn open(path: *const u8, flags: i32, _mode: u32) -> i32 {
+    let ret = syscall2(SyscallNumber::Open as u64, path as u64, flags as u64);
+    if (ret as i64) < 0 { -1 } else { ret as i32 }
+}

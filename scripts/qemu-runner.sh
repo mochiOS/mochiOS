@@ -62,6 +62,15 @@ else
     echo "Warning: initfs.ext2 not found" >&2
 fi
 
+# rootfs.ext2 を ESP の \System\rootfs.ext2 として配置
+ROOTFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "rootfs.ext2" -not -path "*/kernel/*" 2>/dev/null | sort -t/ -k1,1 | tail -1)
+if [ -n "$ROOTFS_IMG" ] && [ -f "$ROOTFS_IMG" ]; then
+    cp "$ROOTFS_IMG" "$TEMP_DIR/esp/System/rootfs.ext2"
+    echo "rootfs.ext2 -> esp/System/rootfs.ext2"
+else
+    echo "Warning: rootfs.ext2 not found" >&2
+fi
+
 exec qemu-system-x86_64 \
     -bios "$OVMF" \
     -drive format=raw,file=fat:rw:"$TEMP_DIR/esp" \

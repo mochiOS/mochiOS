@@ -14,6 +14,9 @@ pub const EXT2_MAGIC: u16 = 0xEF53;
 /// ブートローダーが initfs_addr / initfs_size を設定した後に init() で初期化される
 static mut INITFS_SLICE: &[u8] = &[];
 
+/// rootfs (ext2) イメージへのスライス
+static mut ROOTFS_SLICE: &[u8] = &[];
+
 /// initfs スライスを BootInfo から設定する（kernel_entry から呼ばれる）
 pub unsafe fn set_image(addr: u64, size: usize) {
     if addr != 0 && size != 0 {
@@ -21,9 +24,21 @@ pub unsafe fn set_image(addr: u64, size: usize) {
     }
 }
 
+/// rootfs スライスを BootInfo から設定する（kernel_entry から呼ばれる）
+pub unsafe fn set_rootfs(addr: u64, size: usize) {
+    if addr != 0 && size != 0 {
+        ROOTFS_SLICE = core::slice::from_raw_parts(addr as *const u8, size);
+    }
+}
+
 #[inline]
 fn ext2_image() -> &'static [u8] {
     unsafe { INITFS_SLICE }
+}
+
+#[inline]
+fn rootfs_image() -> &'static [u8] {
+    unsafe { ROOTFS_SLICE }
 }
 
 /// スーパーブロックの構造体
@@ -112,15 +127,22 @@ pub fn init() {
     crate::debug!("initfs: {} entries", count);
 }
 
-/// ファイルを取得
+/// ファイルを取得（rootfs を優先し、なければ initfs を検索）
 ///
 /// ## Arguments
-/// - `name`: ルートからのパス（例: "hello.txt", "dir/sub.txt"）
+/// - `name`: ルートからのパス（例: "hello.txt", "System/fonts/ter-u12b.bdf"）
 ///
 /// ## Returns
 /// - ファイルが存在すれば内容のバイトベクタ、存在しなければNone
 pub fn read(name: &str) -> Option<Vec<u8>> {
-    read_path(name)
+    // rootfs から先に検索
+    if !rootfs_image().is_empty() {
+        if let Some(data) = read_path_in(rootfs_image(), name) {
+            return Some(data);
+        }
+    }
+    // fallback: initfs
+    read_path_in(ext2_image(), name)
 }
 
 /// ファイル一覧を取得（root直下）
@@ -423,9 +445,9 @@ fn find_inode_in_dir(image: &[u8], sb: Superblock, dir_inode: Inode, name: &str)
     None
 }
 
-fn read_path(path: &str) -> Option<Vec<u8>> {
-    let sb = superblock(ext2_image())?;
-    let mut current = inode(ext2_image(), sb, 2)?; // root
+fn read_path_in(image: &[u8], path: &str) -> Option<Vec<u8>> {
+    let sb = superblock(image)?;
+    let mut current = inode(image, sb, 2)?; // root
 
     let mut parts = path.split('/').filter(|p| !p.is_empty()).peekable();
     parts.peek()?;
@@ -436,13 +458,13 @@ fn read_path(path: &str) -> Option<Vec<u8>> {
             return None;
         }
         let is_last = parts.peek().is_none();
-        let inode_num = find_inode_in_dir(ext2_image(), sb, current, part)?;
-        let next_inode = inode(ext2_image(), sb, inode_num)?;
+        let inode_num = find_inode_in_dir(image, sb, current, part)?;
+        let next_inode = inode(image, sb, inode_num)?;
         if is_last {
             if is_dir(next_inode.mode) {
                 return None;
             }
-            return read_inode_data(ext2_image(), sb, inode_num);
+            return read_inode_data(image, sb, inode_num);
         }
         if !is_dir(next_inode.mode) {
             return None;

@@ -73,6 +73,10 @@ pub struct BootInfo {
     pub initfs_addr: u64,
     /// initfs イメージのサイズ（バイト）
     pub initfs_size: usize,
+    /// rootfs (ext2) イメージの物理アドレス（ブートローダーが設定）
+    pub rootfs_addr: u64,
+    /// rootfs イメージのサイズ（バイト）
+    pub rootfs_size: usize,
 }
 
 /// メモリ領域の種類

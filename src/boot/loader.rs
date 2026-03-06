@@ -25,6 +25,8 @@ static mut BOOT_INFO: BootInfo = BootInfo {
     kernel_heap_addr: 0,
     initfs_addr: 0,
     initfs_size: 0,
+    rootfs_addr: 0,
+    rootfs_size: 0,
 };
 
 static mut MEMORY_MAP: [MemoryRegion; 256] = [MemoryRegion {
@@ -112,6 +114,31 @@ unsafe fn load_initfs(bt: &BootServices, image_handle: Handle) -> (u64, usize) {
         }
     }
     uefi::println!("[WARN] initfs.img not found, initfs will be empty");
+    (0, 0)
+}
+
+/// `\System\rootfs.ext2` を読み込んで物理アドレスとサイズを返す
+unsafe fn load_rootfs(bt: &BootServices, image_handle: Handle) -> (u64, usize) {
+    let rootfs_path = cstr16!(r"\System\rootfs.ext2");
+
+    let handles: alloc::vec::Vec<uefi::Handle> = if let Ok(li) = bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
+        if let Some(dev) = li.device() {
+            drop(li);
+            alloc::vec![dev]
+        } else {
+            bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
+        }
+    } else {
+        bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
+    };
+
+    for handle in handles {
+        if let Some((addr, size)) = try_load_raw(bt, image_handle, handle, rootfs_path) {
+            uefi::println!("rootfs loaded at {:#x} ({} bytes)", addr, size);
+            return (addr, size);
+        }
+    }
+    uefi::println!("[WARN] rootfs.ext2 not found");
     (0, 0)
 }
 
@@ -412,6 +439,12 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         unsafe { load_initfs(bt, image_handle) }
     };
 
+    // rootfs を ESP から読み込む
+    let (rootfs_addr, rootfs_size) = {
+        let bt = system_table.boot_services();
+        unsafe { load_rootfs(bt, image_handle) }
+    };
+
     // Boot Services を終了してメモリマップを取得
     let (_system_table, memory_map_iter) =
         unsafe { system_table.exit_boot_services(UefiMemType::LOADER_DATA) };
@@ -457,6 +490,8 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         BOOT_INFO.kernel_heap_addr = 0;
         BOOT_INFO.initfs_addr = initfs_addr;
         BOOT_INFO.initfs_size = initfs_size;
+        BOOT_INFO.rootfs_addr = rootfs_addr;
+        BOOT_INFO.rootfs_size = rootfs_size;
     }
 
     // カーネルへジャンプ (System V AMD64 ABI)

@@ -31,6 +31,10 @@ pub unsafe extern "sysv64" fn kernel_entry(boot_info_ptr: *mut mochios::BootInfo
         (*boot_info_ptr).initfs_addr,
         (*boot_info_ptr).initfs_size,
     );
+    mochios::init::fs::set_rootfs(
+        (*boot_info_ptr).rootfs_addr,
+        (*boot_info_ptr).rootfs_size,
+    );
 
     let boot_info: &'static mochios::BootInfo = &*(boot_info_ptr as *const _);
     mochios::kernel_entry(boot_info)

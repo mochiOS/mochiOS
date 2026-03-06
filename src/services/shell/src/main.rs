@@ -8,19 +8,18 @@ const ASCII_START: usize = 32;
 const ASCII_END: usize = 127;
 const GLYPH_COUNT: usize = ASCII_END - ASCII_START;
 
-// BDF フォントファイルをコンパイル時に埋め込む
-static BDF_DATA: &[u8] = include_bytes!("../../../resources/fonts/ter-u12b.bdf");
-
 /// ASCII 文字ごとの 12 行ビットマップ (インデックス = codepoint - 32)
 struct Font {
     glyphs: [[u8; FONT_HEIGHT]; GLYPH_COUNT],
 }
 
 impl Font {
-    fn new() -> Self {
+    /// `System/fonts/ter-u12b.bdf` を読み込んで解析する
+    fn load() -> Option<Self> {
+        let data = std::fs::read("System/fonts/ter-u12b.bdf").ok()?;
         let mut font = Font { glyphs: [[0u8; FONT_HEIGHT]; GLYPH_COUNT] };
-        parse_bdf(BDF_DATA, &mut font.glyphs);
-        font
+        parse_bdf(&data, &mut font.glyphs);
+        Some(font)
     }
 
     fn glyph(&self, ch: u8) -> &[u8; FONT_HEIGHT] {
@@ -262,7 +261,10 @@ fn main() {
         None => return,
     };
 
-    let font = Font::new();
+    let font = match Font::load() {
+        Some(f) => f,
+        None => return,
+    };
     let mut term = Terminal::new(fb_ptr, info, font);
 
     term.clear_screen();

@@ -28,3 +28,10 @@ dir = "fs"
 fs = "initfs"
 autostart = false
 order = 10
+
+[core.service.vga]
+description = "VGA rendering service"
+dir = "vga"
+fs = "ext2"
+autostart = false
+order = 15

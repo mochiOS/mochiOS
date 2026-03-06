@@ -8,15 +8,15 @@ static FB_INFO: Once<FramebufferInfo> = Once::new();
 
 /// フレームバッファ
 #[derive(Clone, Copy)]
-struct FramebufferInfo {
+pub struct FramebufferInfo {
     /// アドレス
-    addr: u64,
+    pub addr: u64,
     ///　横幅
-    width: usize,
+    pub width: usize,
     /// 高さ
-    height: usize,
+    pub height: usize,
     ///　行当たりのバイト数
-    stride: usize,
+    pub stride: usize,
 }
 
 /// フォント縦サイズ
@@ -144,6 +144,11 @@ impl Write for Writer {
 
 /// グローバルライター
 static WRITER: Once<Mutex<Writer>> = Once::new();
+
+/// フレームバッファ情報を返す（syscall 用）
+pub fn get_info() -> Option<FramebufferInfo> {
+    FB_INFO.get().copied()
+}
 
 /// フレームバッファを初期化
 pub fn init(addr: u64, width: usize, height: usize, stride: usize) {

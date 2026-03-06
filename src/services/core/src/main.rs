@@ -17,6 +17,7 @@ struct ServiceDef {
 const SERVICES: &[ServiceDef] = &[
     ServiceDef { name: "disk.service", path: "disk.service" },
     ServiceDef { name: "fs.service",   path: "fs.service"   },
+    ServiceDef { name: "vga.service",  path: "vga.service"  },
 ];
 
 #[cfg(feature = "run_tests")]

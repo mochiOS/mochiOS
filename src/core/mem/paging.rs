@@ -1085,6 +1085,73 @@ pub fn destroy_user_page_table(table_phys: u64) -> Result<()> {
     Ok(())
 }
 
+/// 物理アドレス範囲をユーザープロセスのページテーブルにマップする
+///
+/// フレームバッファなどの MMIO 領域をユーザー空間へ公開するために使用する。
+/// 新規フレームは割り当てず、指定された物理アドレスのページをそのままマップする。
+///
+/// ## Arguments
+/// * `table_phys` - ユーザープロセスの L4 ページテーブルの物理アドレス
+/// * `virt_addr`  - マップ先の仮想アドレス (4KiB アライン済み)
+/// * `phys_addr`  - マップ元の物理アドレス (4KiB アライン済み)
+/// * `size`       - マップするサイズ (バイト単位)
+pub fn map_physical_range_to_user(
+    table_phys: u64,
+    virt_addr: u64,
+    phys_addr: u64,
+    size: u64,
+) -> Result<()> {
+    use crate::result::{Kernel, Memory};
+    use x86_64::structures::paging::PageTableFlags as Flags;
+
+    let phys_off = physical_memory_offset().ok_or(Kernel::Memory(Memory::NotMapped))?;
+    if size == 0 {
+        return Ok(());
+    }
+
+    let l4 = unsafe { &mut *((table_phys + phys_off) as *mut PageTable) };
+    let mut pt = unsafe { OffsetPageTable::new(l4, VirtAddr::new(phys_off)) };
+
+    let flags = Flags::PRESENT | Flags::WRITABLE | Flags::USER_ACCESSIBLE | Flags::NO_EXECUTE;
+
+    let virt_start = virt_addr & !0xfffu64;
+    let phys_start = phys_addr & !0xfffu64;
+    let total_pages = size.checked_add(0xfff).map(|v| v >> 12).unwrap_or(0);
+
+    for i in 0..total_pages {
+        let page =
+            Page::<Size4KiB>::containing_address(VirtAddr::new(virt_start + i * 4096));
+        let frame = PhysFrame::containing_address(x86_64::PhysAddr::new(phys_start + i * 4096));
+
+        let map_result = unsafe {
+            let mut alloc_lock = frame::FRAME_ALLOCATOR.lock();
+            let alloc_ref = alloc_lock
+                .as_mut()
+                .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+            pt.map_to(page, frame, flags, alloc_ref)
+        };
+
+        match map_result {
+            Ok(flush) => flush.ignore(),
+            Err(x86_64::structures::paging::mapper::MapToError::PageAlreadyMapped(_)) => unsafe {
+                if let Ok((_, flush)) = pt.unmap(page) {
+                    flush.ignore();
+                }
+                let mut alloc_lock2 = frame::FRAME_ALLOCATOR.lock();
+                let alloc_ref2 = alloc_lock2
+                    .as_mut()
+                    .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+                pt.map_to(page, frame, flags, alloc_ref2)
+                    .map_err(|_| Kernel::Memory(Memory::InvalidAddress))?
+                    .ignore();
+            },
+            Err(_) => return Err(Kernel::Memory(Memory::InvalidAddress)),
+        }
+    }
+
+    Ok(())
+}
+
 /// CR3を指定した物理アドレスのページテーブルに切り替える
 ///
 /// ## Arguments

@@ -80,3 +80,5 @@ exec qemu-system-x86_64 \
     -no-reboot \
     -d int,guest_errors \
     -D qemu.log \
+    -serial stdio \
+    -vga std

@@ -25,3 +25,18 @@ pub fn exec(path: &str) -> Result<u64, ()> {
         Ok(result)
     }
 }
+
+/// メモリ上の ELF データから新プロセスを起動する
+pub fn exec_from_buffer(elf_data: &[u8]) -> Result<u64, ()> {
+    use super::sys::syscall2;
+    let result = syscall2(
+        SyscallNumber::ExecFromBuffer as u64,
+        elf_data.as_ptr() as u64,
+        elf_data.len() as u64,
+    );
+    if (result as i64) < 0 {
+        Err(())
+    } else {
+        Ok(result)
+    }
+}

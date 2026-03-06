@@ -136,11 +136,21 @@ pub fn exec_kernel_with_name(path: &str, name: &str) -> u64 {
 
 fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
     let process_name = name_override.unwrap_or(path);
-    crate::debug!("exec: path={}, name={}", path, process_name);
+    if let Some(data) = crate::init::fs::read(path) {
+        exec_with_data(&data, process_name)
+    } else {
+        crate::warn!("exec: file not found: {}", path);
+        crate::syscall::types::ENOENT
+    }
+}
+
+/// メモリ上の ELF バッファからプロセスを生成する（内部共通実装）
+fn exec_with_data(data: &[u8], process_name: &str) -> u64 {
+    crate::debug!("exec: name={}", process_name);
     let aslr_seed = next_aslr_seed(process_name);
 
-    if let Some(data) = crate::init::fs::read(path) {
-        let data: &[u8] = &data;
+    {
+        let data: &[u8] = data;
         // MED-27修正: エントリポイントが0の場合はELFが無効として拒否する
         // 以前はentry=0のままプロセスを作成し、仮想アドレス0にジャンプしていた
         let mut entry = match elf_loader::entry_point(data) {
@@ -151,8 +161,6 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
             }
         };
         crate::debug!("ELF entry: {:#x}", entry);
-
-        // プロセス固有のページテーブルを作成
         let new_pt_phys = match crate::mem::paging::create_user_page_table() {
             Ok(phys) => phys,
             Err(e) => {
@@ -592,7 +600,7 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
         // プロセスを作成してページテーブルをセット
         let parent_pid = crate::task::current_thread_id()
             .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()));
-        let privilege = if path.ends_with(".service") {
+        let privilege = if process_name.ends_with(".service") {
             crate::task::PrivilegeLevel::Service
         } else {
             crate::task::PrivilegeLevel::User
@@ -605,7 +613,7 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
         }
         let pid = proc.id();
         let is_core_service =
-            process_name.ends_with("core.service") || path.ends_with("core.service");
+            process_name.ends_with("core.service");
         if is_core_service
             && SERVICE_MANAGER_PID
                 .compare_exchange(0, pid.as_u64(), Ordering::SeqCst, Ordering::SeqCst)
@@ -932,4 +940,31 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         crate::mem::paging::switch_page_table(new_pt_phys);
         crate::task::jump_to_usermode(entry, initial_rsp);
     }
+}
+
+/// メモリ上の ELF バッファから新プロセスを起動するシステムコール
+///
+/// # 引数
+/// - `buf_ptr`: ユーザー空間の ELF データへのポインタ
+/// - `buf_len`: バッファのバイト数
+pub fn exec_from_buffer_syscall(buf_ptr: u64, buf_len: u64) -> u64 {
+    use crate::syscall::types::{EINVAL, EPERM};
+
+    // core/service のみ許可
+    if !caller_can_launch_service() {
+        return EPERM;
+    }
+
+    if buf_ptr == 0 || buf_len == 0 || buf_len > 32 * 1024 * 1024 {
+        return EINVAL;
+    }
+
+    // ユーザー空間からデータをコピー
+    let data = unsafe {
+        let ptr = buf_ptr as *const u8;
+        core::slice::from_raw_parts(ptr, buf_len as usize)
+    };
+    let owned: Vec<u8> = data.to_vec();
+
+    exec_with_data(&owned, "user_exec")
 }

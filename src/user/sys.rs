@@ -82,12 +82,14 @@ pub enum SyscallNumber {
     Chdir = 525,
     /// キーボードから1文字読み取る（ユーザー側）
     KeyboardRead = 526,
-    /// スレッドIDからプロセスの権限レベルを取得 (0=Core, 1=Service, 2=User)
+/// スレッドIDからプロセスの権限レベルを取得 (0=Core, 1=Service, 2=User)
     GetThreadPrivilege = 527,
-    /// フレームバッファ情報取得 (width, height, stride を FbInfo に書き込む)
+    /// フレームバッファ情報取得
     GetFramebufferInfo = 528,
-    /// フレームバッファを呼び出し元プロセスにマップし仮想アドレスを返す
+    /// フレームバッファをマップ
     MapFramebuffer = 529,
+    /// メモリ上の ELF バッファから新プロセスを起動
+    ExecFromBuffer = 530,
 }
 
 /// 入力が空

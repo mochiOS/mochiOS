@@ -1,6 +1,6 @@
 //! タスク系システムコール（ユーザー側）
 
-use super::sys::{syscall0, syscall1, SyscallNumber};
+use super::sys::{syscall0, syscall1, syscall2, SyscallNumber};
 
 /// スケジューラに実行権を譲る
 pub fn yield_now() {
@@ -57,4 +57,23 @@ pub fn exit(code: i32) -> ! {
 /// 0=Core, 1=Service, 2=User, または u64::MAX (エラー)
 pub fn get_thread_privilege(tid: u64) -> u64 {
     syscall1(SyscallNumber::GetThreadPrivilege as u64, tid)
+}
+
+/// 名前でプロセスを検索し、そのスレッドIDを返す（見つからなければ None）
+pub fn find_process_by_name(name: &str) -> Option<u64> {
+    use super::sys::syscall2;
+    let bytes = name.as_bytes();
+    if bytes.is_empty() || bytes.len() > 64 {
+        return None;
+    }
+    let ret = syscall2(
+        SyscallNumber::FindProcessByName as u64,
+        bytes.as_ptr() as u64,
+        bytes.len() as u64,
+    );
+    if ret == 0 {
+        None
+    } else {
+        Some(ret)
+    }
 }

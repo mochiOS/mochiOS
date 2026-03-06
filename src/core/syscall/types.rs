@@ -86,6 +86,8 @@ pub enum SyscallNumber {
     GetFramebufferInfo = 528,
     /// フレームバッファをユーザー空間にマップ、マップ済み仮想アドレスを返す
     MapFramebuffer = 529,
+    /// メモリ上の ELF バッファから新プロセスを起動
+    ExecFromBuffer = 530,
 }
 
 /// 成功

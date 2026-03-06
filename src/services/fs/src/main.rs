@@ -19,7 +19,7 @@ const MAX_HANDLES: usize = 16;
 struct OpenFile {
     used: bool,
     handle: FileHandle,
-    fs_id: usize,  // どのファイルシステムか
+    fs_id: usize,
 }
 
 impl OpenFile {
@@ -34,8 +34,11 @@ impl OpenFile {
 
 static mut HANDLES: [OpenFile; MAX_HANDLES] = [OpenFile::new(); MAX_HANDLES];
 
-// マウントされたファイルシステム（簡易的に1つだけ）
-static mut MOUNTED_FS: Option<InitFs> = None;
+/// マウントされたファイルシステム（ext2 優先、InitFs フォールバック）
+static mut MOUNTED_FS: Option<std::boxed::Box<dyn FileSystem>> = None;
+
+/// READY通知
+const OP_NOTIFY_READY: u64 = 0xFF;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -81,20 +84,65 @@ fn vfs_error_to_errno(err: VfsError) -> i64 {
     }
 }
 
-fn main() {
-    println!("[FS] Service Started.");
+/// disk.service から ext2 をマウントする（失敗時は InitFs にフォールバック）
+fn mount_filesystem() {
+    // disk.service を探す（最大5秒待つ）
+    let mut disk_pid: Option<u64> = None;
+    for _ in 0..50 {
+        if let Some(pid) = task::find_process_by_name("disk.service") {
+            disk_pid = Some(pid);
+            break;
+        }
+        task::sleep(100);
+    }
 
-    // InitFSを初期化
+    if let Some(pid) = disk_pid {
+        println!("[FS] Found disk.service (PID={}), mounting ext2 from disk 1...", pid);
+        let device = DiskServiceDevice::new(pid, 1); // disk 1 = Primary Slave = swiftCore.img
+        match Ext2Fs::new(std::boxed::Box::new(device)) {
+            Ok(fs) => {
+                println!("[FS] ext2 filesystem mounted from ATA disk.");
+                unsafe { MOUNTED_FS = Some(std::boxed::Box::new(fs)); }
+                return;
+            }
+            Err(e) => {
+                println!("[FS] ext2 mount failed: {:?}, falling back to InitFs", e);
+            }
+        }
+    } else {
+        println!("[FS] disk.service not found, falling back to InitFs");
+    }
+
+    // フォールバック: InitFs
     let mut initfs = InitFs::new();
     if let Err(e) = initfs.create_sample_files() {
         println!("[FS] Warning: Failed to create sample files: {:?}", e);
     }
+    unsafe { MOUNTED_FS = Some(std::boxed::Box::new(initfs)); }
+    println!("[FS] InitFS mounted as fallback.");
+}
 
-    unsafe {
-        MOUNTED_FS = Some(initfs);
+/// core.service に準備完了を通知する
+fn notify_ready_to_core() {
+    let core_pid = match task::find_process_by_name("core.service") {
+        Some(pid) => pid,
+        None => {
+            println!("[FS] WARNING: core.service not found, skipping READY notify");
+            return;
+        }
+    };
+
+    let op_bytes = OP_NOTIFY_READY.to_le_bytes();
+    if ipc::ipc_send(core_pid, &op_bytes) == 0 {
+        println!("[FS] Sent READY to core.service (PID={})", core_pid);
     }
+}
 
-    println!("[FS] InitFS mounted and initialized.");
+fn main() {
+    println!("[FS] Service Started.");
+
+    mount_filesystem();
+    notify_ready_to_core();
 
     let mut recv_buf = AlignedBuffer([0u8; 256]);
 
@@ -102,7 +150,6 @@ fn main() {
         let (sender, len) = ipc::ipc_recv(&mut recv_buf.0);
 
         // EAGAIN (メッセージなし) の場合はCPUを譲る
-        // EAGAIN時、sender=0xFFFFFFFF, len=0xFFFFFFFD になる
         if sender == 0xFFFFFFFF || len == 0xFFFFFFFD {
             task::yield_now();
             continue;
@@ -116,18 +163,16 @@ fn main() {
 
             match req.op {
                 FsRequest::OP_OPEN => {
-                    // パスを文字列に変換
                     let mut path_len = 0;
                     while path_len < 128 && req.path[path_len] != 0 {
                         path_len += 1;
                     }
-                    
+
                     if let Ok(path_str) = core::str::from_utf8(&req.path[..path_len]) {
                         unsafe {
                             if let Some(ref fs) = MOUNTED_FS {
-                                match resolve_path(fs as &dyn FileSystem, path_str) {
+                                match resolve_path(fs.as_ref(), path_str) {
                                     Ok(inode) => {
-                                        // 空きハンドルを探す
                                         let mut handle_idx: i64 = -1;
                                         for i in 0..MAX_HANDLES {
                                             if !HANDLES[i].used {
@@ -161,7 +206,7 @@ fn main() {
 
                                 let mut buf = [0u8; 128];
                                 let actual_len = core::cmp::min(read_len, 128);
-                                
+
                                 match fs.read(inode, offset, &mut buf[..actual_len]) {
                                     Ok(bytes_read) => {
                                         resp.data[..bytes_read].copy_from_slice(&buf[..bytes_read]);
@@ -180,7 +225,6 @@ fn main() {
                     }
                 },
                 FsRequest::OP_WRITE => {
-                    // TODO: 書き込み実装
                     resp.status = vfs_error_to_errno(VfsError::NotSupported);
                 },
                 FsRequest::OP_CLOSE => {
@@ -202,7 +246,6 @@ fn main() {
             };
 
             let _ = ipc::ipc_send(sender, resp_slice);
-
         }
     }
 }

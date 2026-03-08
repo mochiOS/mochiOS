@@ -253,21 +253,27 @@ impl Terminal {
     fn drain_child_output(&mut self, pid: u64) {
         let mut buf = [0u8; 512];
         loop {
-            // 届いたIPCメッセージをすべて描画
-            loop {
-                let (_, len) = ipc::ipc_recv(&mut buf);
-                if len == 0 || len as usize > buf.len() {
-                    break;
-                }
+            // メッセージが届くまでスリープして待機（ビジーウェイトしない）
+            let (_, len) = ipc::ipc_recv_wait(&mut buf);
+            if len > 0 && len as usize <= buf.len() {
                 if let Ok(s) = core::str::from_utf8(&buf[..len as usize]) {
                     self.write_str(s);
                 }
+                // 続きのメッセージをノンブロッキングで掃き出す
+                loop {
+                    let (_, len2) = ipc::ipc_recv(&mut buf);
+                    if len2 == 0 || len2 as usize > buf.len() {
+                        break;
+                    }
+                    if let Ok(s) = core::str::from_utf8(&buf[..len2 as usize]) {
+                        self.write_str(s);
+                    }
+                }
             }
-            // 子プロセスが終了していれば抜ける
+            // 子プロセスが終了していれば抜ける（exit 通知で起床した場合もここで検知）
             if task::wait_nonblocking(pid as i64).is_some() {
                 break;
             }
-            task::yield_now();
         }
         // 終了後に残ったメッセージを念のため掃き出す
         loop {

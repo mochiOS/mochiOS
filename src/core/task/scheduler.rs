@@ -20,8 +20,8 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-    /// デフォルトのタイムスライス（10ms × 10 = 100ms）
-    pub const DEFAULT_TIME_SLICE: u64 = 10;
+    /// デフォルトのタイムスライス（10ms × 2 = 20ms）
+    pub const DEFAULT_TIME_SLICE: u64 = 2;
 
     /// 新しいスケジューラを作成
     pub const fn new() -> Self {
@@ -217,14 +217,64 @@ pub fn sleep_thread(id: ThreadId) {
 
 /// スレッドを起床させる
 ///
-/// Sleeping/Blocked状態のスレッドをReady状態にする
+/// Sleeping/Blocked状態のスレッドをReady状態にする。
+/// Ready状態の場合は pending_wakeup フラグを立てて競合を防ぐ。
 pub fn wake_thread(id: ThreadId) {
     with_thread_mut(id, |thread| {
         let state = thread.state();
         if state == ThreadState::Sleeping || state == ThreadState::Blocked {
             thread.set_state(ThreadState::Ready);
+        } else if state == ThreadState::Ready {
+            // まだ眠っていない場合、起床要求を記録しておく
+            thread.set_pending_wakeup();
         }
     });
+}
+
+/// 現在のスレッドをスリープ状態にする。
+///
+/// pending_wakeup フラグが立っていれば眠らずに即座に返す（競合回避）。
+/// # Returns
+/// `true` なら実際に Sleeping 状態に遷移した。`false` なら眠らなかった。
+pub fn sleep_thread_unless_woken(id: ThreadId) -> bool {
+    with_thread_mut(id, |thread| {
+        if thread.take_pending_wakeup() {
+            // 先に wake が呼ばれていたので眠らない
+            false
+        } else {
+            thread.set_state(ThreadState::Sleeping);
+            true
+        }
+    })
+    .unwrap_or(false)
+}
+
+/// 子プロセス終了時に親プロセスの先頭スレッドの IPC waiter を起床させる。
+/// IPC recv_blocking でスリープしている親スレッドを叩き起こし、child exit を検知させる。
+fn wake_parent_ipc_waiter(exited_pid: crate::task::ProcessId) {
+    use crate::task::with_process;
+    let parent_pid = match with_process(exited_pid, |p| p.parent_id()) {
+        Some(Some(pid)) => pid,
+        _ => return,
+    };
+
+    // 親プロセスの最初のスレッドを探し、IPC mailbox に積まれた waiter を起床させる
+    let mut parent_tid: Option<ThreadId> = None;
+    crate::task::for_each_thread(|thread| {
+        if parent_tid.is_none() && thread.process_id() == parent_pid {
+            parent_tid = Some(thread.id());
+        }
+    });
+
+    if let Some(tid) = parent_tid {
+        // Mailbox の waiter を直接チェックして起床
+        let idx = match crate::task::thread_slot_index(tid) {
+            Some(i) => i,
+            None => return,
+        };
+        wake_thread(tid); // pending_wakeup も立つので recv_blocking が眠らずに再試行できる
+        let _ = idx; // waiter は recv_blocking 側が自分でクリアする
+    }
 }
 
 /// スレッドを終了させる
@@ -270,6 +320,8 @@ pub fn exit_current_task(exit_code: u64) -> ! {
             });
             if !has_other_live_threads {
                 crate::task::mark_process_exited(pid, exit_code);
+                // 親プロセスが IPC でブロックしている可能性があるので起床させる
+                wake_parent_ipc_waiter(pid);
             }
         }
 

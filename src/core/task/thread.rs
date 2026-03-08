@@ -55,6 +55,8 @@ pub struct Thread {
     syscall_user_rflags: u64,
     /// futex wait timeout で起床したことを示すフラグ
     futex_timed_out: bool,
+    /// IPC受信などで眠る前に起床要求が来たことを示すフラグ
+    pending_wakeup: bool,
 }
 
 // Simple kernel stack pool for creating kernel stacks for threads
@@ -202,6 +204,7 @@ impl Thread {
             syscall_user_rsp: 0,
             syscall_user_rflags: 0,
             futex_timed_out: false,
+            pending_wakeup: false,
         }
     }
 
@@ -302,6 +305,7 @@ impl Thread {
             syscall_user_rsp: 0,
             syscall_user_rflags: 0,
             futex_timed_out: false,
+            pending_wakeup: false,
         }
     }
 
@@ -403,6 +407,7 @@ impl Thread {
             syscall_user_rsp: user_rsp,
             syscall_user_rflags: user_rflags,
             futex_timed_out: false,
+            pending_wakeup: false,
         }
     }
 
@@ -450,6 +455,18 @@ impl Thread {
         let timed_out = self.futex_timed_out;
         self.futex_timed_out = false;
         timed_out
+    }
+
+    /// 起床要求フラグを立てる（眠る前に wake が呼ばれた場合の競合回避）
+    pub fn set_pending_wakeup(&mut self) {
+        self.pending_wakeup = true;
+    }
+
+    /// 起床要求フラグを取り出して消去する。true なら眠る必要はない。
+    pub fn take_pending_wakeup(&mut self) -> bool {
+        let v = self.pending_wakeup;
+        self.pending_wakeup = false;
+        v
     }
 
     /// スレッドIDを取得

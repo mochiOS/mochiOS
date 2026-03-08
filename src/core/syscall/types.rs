@@ -94,6 +94,8 @@ pub enum SyscallNumber {
     SetConsoleCursor = 531,
     /// コンソールカーソルのピクセルY位置を取得
     GetConsoleCursor = 532,
+    /// IPC受信（ブロッキング版）：メッセージが届くまでスリープして待機
+    IpcRecvWait = 533,
 }
 
 /// 成功

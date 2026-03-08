@@ -90,6 +90,10 @@ pub enum SyscallNumber {
     MapFramebuffer = 529,
     /// メモリ上の ELF バッファから新プロセスを起動
     ExecFromBuffer = 530,
+    /// コンソールカーソルのピクセルY位置を設定
+    SetConsoleCursor = 531,
+    /// コンソールカーソルのピクセルY位置を取得
+    GetConsoleCursor = 532,
 }
 
 /// 成功

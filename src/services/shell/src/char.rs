@@ -1,4 +1,4 @@
-use swiftlib::{process, vga};
+use swiftlib::{process, task, vga};
 
 
 const FONT_WIDTH: usize = 6;
@@ -302,8 +302,18 @@ impl Terminal {
                 let path = self.find_in_path(cmd_name).map(|s| s.to_string());
                 match path {
                     Some(bin_path) => {
+                        // カーネルWRITERのカーソルをシェルの現在行に同期
+                        let cursor_pixel_y = self.row * FONT_HEIGHT as u32;
+                        swiftlib::vga::set_console_cursor(cursor_pixel_y);
                         match process::exec(&bin_path) {
-                            Ok(_pid) => {}
+                            Ok(pid) => {
+                                // 子プロセスの終了を待つ
+                                swiftlib::task::wait(pid as i64);
+                                // WRITERのカーソル位置を取得してシェルの行を更新
+                                let end_pixel_y = swiftlib::vga::get_console_cursor();
+                                self.row = ((end_pixel_y + FONT_HEIGHT as u32 - 1) / FONT_HEIGHT as u32).min(self.max_rows - 1);
+                                self.col = 0;
+                            }
                             Err(()) => {
                                 self.write_str("exec failed: ");
                                 self.write_str(&bin_path);

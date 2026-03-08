@@ -4,17 +4,44 @@ use std::process::Command;
 
 use super::utils::emit_rerun_if_changed;
 
+/// ディレクトリ以下のファイルの合計バイト数を再帰的に計算する
+fn compute_content_size(dir: &Path) -> u64 {
+    let mut total = 0u64;
+    if let Ok(rd) = fs::read_dir(dir) {
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                total += compute_content_size(&path);
+            } else if let Ok(meta) = path.metadata() {
+                total += meta.len();
+            }
+        }
+    }
+    total
+}
+
+/// コンテンツサイズからext2イメージのブロック数を計算する
+/// オーバーヘッド 25% + ext2メタデータ用 10MB を加算し、最小 32MB を保証する
+fn blocks_for_dir(dir: &Path, block_size: u64) -> u64 {
+    let content = compute_content_size(dir);
+    let needed = ((content * 5 / 4) + 10 * 1024 * 1024).max(32 * 1024 * 1024);
+    (needed + block_size - 1) / block_size
+}
+
 /// InitFS (ramfs) 用のext2イメージを生成
 pub fn create_initfs_image(ramfs_dir: &Path, output_path: &Path) -> Result<(), String> {
     println!("Creating initfs ext2 image from {}", ramfs_dir.display());
 
     emit_rerun_if_changed(ramfs_dir);
 
+    let num_blocks = blocks_for_dir(ramfs_dir, 4096);
+    println!("initfs: {} 4K-blocks ({} MB)", num_blocks, num_blocks * 4 / 1024);
+
     let status = Command::new("mke2fs")
         .args(["-t", "ext2", "-b", "4096", "-m", "0", "-L", "initfs", "-d"])
         .arg(ramfs_dir)
         .arg(output_path)
-        .arg("32768") // 128MB (32768 * 4KB blocks) - increase size to fit static libs like libgcc_s.a
+        .arg(num_blocks.to_string())
         .status();
 
     match status {
@@ -36,11 +63,14 @@ pub fn create_ext2_image(fs_dir: &Path, output_path: &Path) -> Result<(), String
 
     emit_rerun_if_changed(fs_dir);
 
+    let num_blocks = blocks_for_dir(fs_dir, 4096);
+    println!("rootfs: {} 4K-blocks ({} MB)", num_blocks, num_blocks * 4 / 1024);
+
     let status = Command::new("mke2fs")
         .args(["-t", "ext2", "-b", "4096", "-m", "0", "-L", "rootfs", "-d"])
         .arg(fs_dir)
         .arg(output_path)
-        .arg("65536") // 256MB (65536 * 4KB blocks)
+        .arg(num_blocks.to_string())
         .status();
 
     match status {

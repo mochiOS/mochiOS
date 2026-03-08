@@ -39,43 +39,75 @@ trap "rm -rf $TEMP_DIR" EXIT
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-mkdir -p "$TEMP_DIR/esp/EFI/BOOT"
-cp "$SRC" "$TEMP_DIR/esp/EFI/BOOT/BOOTX64.EFI"
+BOOTX64="$TEMP_DIR/BOOTX64.EFI"
+cp "$SRC" "$BOOTX64"
 
-# kernel.elf を ESP の \System\ に配置（ブートローダーが参照するパス）
-mkdir -p "$TEMP_DIR/esp/System"
+# kernel.elf
 KERNEL_ELF="$ROOT_DIR/fs/System/kernel.elf"
-if [ -f "$KERNEL_ELF" ]; then
-    cp "$KERNEL_ELF" "$TEMP_DIR/esp/System/kernel.elf"
-    echo "kernel.elf -> esp/System/kernel.elf"
-else
+if [ ! -f "$KERNEL_ELF" ]; then
     echo "Warning: kernel.elf not found at $KERNEL_ELF" >&2
     echo "  Run 'cargo build' first to build the kernel." >&2
 fi
 
-# initfs.ext2 を ESP の \System\initfs.img として配置
-# 最新ファイルを選択するために更新時刻でソート (古いリリースビルドを避ける)
+# initfs.ext2 -> System/initfs.img
 INITFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "initfs.ext2" -not -path "*/kernel/*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
-if [ -n "$INITFS_IMG" ] && [ -f "$INITFS_IMG" ]; then
-    cp "$INITFS_IMG" "$TEMP_DIR/esp/System/initfs.img"
-    echo "initfs.ext2 -> esp/System/initfs.img (from $INITFS_IMG)"
-else
+if [ -z "$INITFS_IMG" ] || [ ! -f "$INITFS_IMG" ]; then
     echo "Warning: initfs.ext2 not found" >&2
 fi
 
-# rootfs.ext2 を ESP の \System\rootfs.ext2 として配置
-# 最新ファイルを選択するために更新時刻でソート (古いリリースビルドを避ける)
+# rootfs.ext2 -> System/rootfs.ext2
 ROOTFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "rootfs.ext2" -not -path "*/kernel/*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
-if [ -n "$ROOTFS_IMG" ] && [ -f "$ROOTFS_IMG" ]; then
-    cp "$ROOTFS_IMG" "$TEMP_DIR/esp/System/rootfs.ext2"
-    echo "rootfs.ext2 -> esp/System/rootfs.ext2 (from $ROOTFS_IMG)"
-else
+if [ -z "$ROOTFS_IMG" ] || [ ! -f "$ROOTFS_IMG" ]; then
     echo "Warning: rootfs.ext2 not found" >&2
 fi
 
+# ── 実ESPイメージを構築（VVFATの代わり） ──────────────────────────────────
+# ファイルの合計サイズを計算してFAT32イメージのサイズを決める
+esp_bytes=0
+for f in "$BOOTX64" "$KERNEL_ELF" "$INITFS_IMG" "$ROOTFS_IMG"; do
+    [ -f "$f" ] && esp_bytes=$(( esp_bytes + $(stat -c%s "$f") ))
+done
+# 50MB のパディングを追加してMB単位に切り上げ
+esp_mb=$(( (esp_bytes / 1048576) + 50 ))
+echo "ESP image: ${esp_mb} MB (content: $((esp_bytes / 1048576)) MB)"
+
+ESP_IMG="$TEMP_DIR/esp.img"
+dd if=/dev/zero of="$ESP_IMG" bs=1M count="$esp_mb" status=none
+mkdosfs -F 32 -n EFI "$ESP_IMG" > /dev/null
+
+mmd -i "$ESP_IMG" ::/EFI ::/EFI/BOOT ::/System
+
+mcopy -i "$ESP_IMG" "$BOOTX64" ::/EFI/BOOT/BOOTX64.EFI
+echo "BOOTX64.EFI -> esp/EFI/BOOT/"
+
+if [ -f "$KERNEL_ELF" ]; then
+    mcopy -i "$ESP_IMG" "$KERNEL_ELF" ::/System/kernel.elf
+    echo "kernel.elf  -> esp/System/"
+fi
+
+if [ -n "$INITFS_IMG" ] && [ -f "$INITFS_IMG" ]; then
+    mcopy -i "$ESP_IMG" "$INITFS_IMG" ::/System/initfs.img
+    echo "initfs.img  -> esp/System/ ($(( $(stat -c%s "$INITFS_IMG") / 1048576 )) MB)"
+fi
+
+if [ -n "$ROOTFS_IMG" ] && [ -f "$ROOTFS_IMG" ]; then
+    mcopy -i "$ESP_IMG" "$ROOTFS_IMG" ::/System/rootfs.ext2
+    echo "rootfs.ext2 -> esp/System/ ($(( $(stat -c%s "$ROOTFS_IMG") / 1048576 )) MB)"
+fi
+
+# ── KVM アクセラレーション（利用可能な場合） ─────────────────────────────
+KVM_ARGS=()
+if [ -e /dev/kvm ] && [ -r /dev/kvm ]; then
+    KVM_ARGS=(-enable-kvm -cpu host)
+    echo "KVM acceleration enabled"
+else
+    echo "Warning: KVM not available, running without hardware acceleration" >&2
+fi
+
 exec qemu-system-x86_64 \
+    "${KVM_ARGS[@]}" \
     -bios "$OVMF" \
-    -drive format=raw,file=fat:rw:"$TEMP_DIR/esp" \
+    -drive format=raw,file="$ESP_IMG",media=disk \
     -drive id=disk0,file=target/swiftCore.img,format=raw,if=ide,index=1,media=disk \
     -net none \
     -m 512M \

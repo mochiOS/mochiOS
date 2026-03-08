@@ -607,6 +607,8 @@ fn exec_with_data(data: &[u8], process_name: &str) -> u64 {
         };
         let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
         proc.set_page_table(new_pt_phys);
+        proc.set_stack_bottom(stack_base_vaddr);
+        proc.set_stack_top(stack_end_vaddr);
         if heap_pre_mapped {
             proc.set_heap_start(default_heap_base);
             proc.set_heap_end(default_heap_base + heap_map_size);
@@ -923,6 +925,8 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         p.set_page_table(new_pt_phys);
         p.set_heap_start(heap_base);
         p.set_heap_end(heap_base + heap_map_size);
+        p.set_stack_bottom(stack_base_vaddr);
+        p.set_stack_top(stack_end_vaddr);
         prev
     })
     .flatten();

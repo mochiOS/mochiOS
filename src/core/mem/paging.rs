@@ -249,6 +249,8 @@ pub fn init(boot_info: &'static crate::BootInfo) {
         // カーネルの元のページテーブルアドレスを保存
         KERNEL_L4_PHYS.store(l4_table_addr, core::sync::atomic::Ordering::Relaxed);
     }
+    // フレームアロケータに HHDM オフセットを伝えてフリーリストを有効化
+    super::frame::set_phys_offset(physical_memory_offset);
     crate::debug!("Switched CR3 successfully.");
 
     crate::debug!(

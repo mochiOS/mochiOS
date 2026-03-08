@@ -25,6 +25,10 @@ pub struct Process {
     heap_start: u64,
     /// 現在のヒープ終了アドレス (program break)
     heap_end: u64,
+    /// ユーザースタックの現在の最低マップアドレス（下向きに伸びる）
+    stack_bottom: u64,
+    /// ユーザースタックのトップアドレス（初期 RSP 付近）
+    stack_top: u64,
     /// 優先度（0が最高、値が大きいほど低い）
     priority: u8,
     /// 終了コード（生存中はNone）
@@ -64,6 +68,8 @@ impl Process {
             page_table: None, // TODO: ページテーブル実装後に設定
             heap_start,
             heap_end: heap_start,
+            stack_bottom: 0,
+            stack_top: 0,
             priority,
             exit_code: None,
         }
@@ -144,6 +150,11 @@ impl Process {
     pub fn set_heap_start(&mut self, addr: u64) {
         self.heap_start = addr;
     }
+
+    pub fn stack_bottom(&self) -> u64 { self.stack_bottom }
+    pub fn stack_top(&self) -> u64 { self.stack_top }
+    pub fn set_stack_bottom(&mut self, addr: u64) { self.stack_bottom = addr; }
+    pub fn set_stack_top(&mut self, addr: u64) { self.stack_top = addr; }
 }
 
 impl core::fmt::Debug for Process {

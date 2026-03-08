@@ -292,8 +292,10 @@ pub fn terminate_thread(id: ThreadId) {
     }
 
     crate::syscall::process::clear_futex_waiter(id);
-    // スレッドをキューから削除
-    remove_thread(id);
+    // スレッドをキューから削除し、カーネルスタックを解放
+    if let Some(thread) = remove_thread(id) {
+        crate::task::free_kernel_stack(thread.kernel_stack_base());
+    }
 }
 
 /// 現在のタスクを終了させる（exitシステムコール用）
@@ -335,7 +337,11 @@ pub fn exit_current_task(exit_code: u64) -> ! {
 
                 // スレッドをキューから削除（コンテキストスイッチ前に削除）
                 crate::syscall::process::clear_futex_waiter(current_id);
+                let kstack_base = with_thread(current_id, |t| t.kernel_stack_base()).unwrap_or(0);
                 remove_thread(current_id);
+
+                // カーネルスタックをフリーリストへ返却（スイッチ直前、まだスタックは有効）
+                crate::task::free_kernel_stack(kstack_base);
 
                 // コンテキストスイッチを実行（終了したスレッドのコンテキストは保存しない）
                 // old_context_ptr = None を渡すことで、現在のコンテキストを保存せずに次のスレッドにジャンプ
@@ -352,7 +358,9 @@ pub fn exit_current_task(exit_code: u64) -> ! {
 
         // スレッドをキューから削除
         crate::syscall::process::clear_futex_waiter(current_id);
-        remove_thread(current_id);
+        if let Some(thread) = remove_thread(current_id) {
+            crate::task::free_kernel_stack(thread.kernel_stack_base());
+        }
     }
 
     // スレッドがない場合は永久にhaltして待機

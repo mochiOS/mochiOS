@@ -457,3 +457,32 @@ pub unsafe extern "C" fn open(path: *const u8, flags: i32, _mode: u32) -> i32 {
     let ret = syscall2(SyscallNumber::Open as u64, path as u64, flags as u64);
     if (ret as i64) < 0 { -1 } else { ret as i32 }
 }
+
+/// `iovec` structure for writev
+#[repr(C)]
+struct IoVec {
+    iov_base: *const u8,
+    iov_len: usize,
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn writev(fd: i32, iov: *const IoVec, iovcnt: i32) -> isize {
+    let mut total: isize = 0;
+    for i in 0..iovcnt {
+        let v = &*iov.add(i as usize);
+        if v.iov_len == 0 {
+            continue;
+        }
+        let ret = crate::sys::syscall3(
+            SyscallNumber::Write as u64,
+            fd as u64,
+            v.iov_base as u64,
+            v.iov_len as u64,
+        );
+        if (ret as i64) < 0 {
+            return if total == 0 { -1 } else { total };
+        }
+        total += ret as isize;
+    }
+    total
+}

@@ -9,7 +9,7 @@ pub mod frame;
 pub mod gdt;
 pub mod paging;
 pub mod tss;
-mod user;
+pub(crate) mod user;
 
 /// メモリの初期化
 ///

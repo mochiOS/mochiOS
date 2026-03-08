@@ -202,8 +202,17 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
         let libc_mtime = libc_a.metadata().and_then(|m| m.modified()).ok();
         let lib_mtime = lib_src.metadata().and_then(|m| m.modified()).ok();
         let crt_mtime = crt_src.metadata().and_then(|m| m.modified()).ok();
+        // Check all .rs files in user_dir for changes
+        let newest_src = fs::read_dir(user_dir)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|e| e.path().extension().map(|x| x == "rs").unwrap_or(false))
+            .filter_map(|e| e.metadata().and_then(|m| m.modified()).ok())
+            .max();
         if let (Some(libc_t), Some(lib_t), Some(crt_t)) = (libc_mtime, lib_mtime, crt_mtime) {
-            if libc_t > lib_t && libc_t > crt_t {
+            let newest = [lib_t, crt_t].into_iter().chain(newest_src).max().unwrap_or(lib_t);
+            if libc_t > newest {
                 println!("user libs up to date, skipping");
                 return;
             }

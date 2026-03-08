@@ -110,7 +110,8 @@ fn caller_can_launch_service() -> bool {
 }
 
 /// カーネル内から実行可能ファイルを読み込み実行するシステムコール
-pub fn exec_kernel(path_ptr: u64) -> u64 {
+/// args_ptr: ヌル区切り引数文字列へのポインタ（"arg1\0arg2\0\0"形式）、0 なら引数なし
+pub fn exec_kernel(path_ptr: u64, args_ptr: u64) -> u64 {
     let mut provided_path: Option<String> = None;
     if path_ptr != 0 {
         let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
@@ -126,18 +127,53 @@ pub fn exec_kernel(path_ptr: u64) -> u64 {
         return crate::syscall::types::EPERM;
     }
 
-    exec_internal(path, None)
+    // args_ptr が非 0 なら "\0" 区切り引数文字列を解析する（最大 512 バイト）
+    let mut extra_args_storage: Vec<u8> = Vec::new();
+    let extra_args: Vec<&str>;
+    if args_ptr != 0 && crate::syscall::validate_user_ptr(args_ptr, 1) {
+        // 最大 512 バイト読む
+        let max = 512usize;
+        crate::syscall::with_user_memory_access(|| unsafe {
+            let ptr = args_ptr as *const u8;
+            for i in 0..max {
+                let b = ptr.add(i).read_volatile();
+                extra_args_storage.push(b);
+                // 連続する \0\0 で終端
+                let len = extra_args_storage.len();
+                if len >= 2
+                    && extra_args_storage[len - 1] == 0
+                    && extra_args_storage[len - 2] == 0
+                {
+                    break;
+                }
+            }
+        });
+        extra_args = extra_args_storage
+            .split(|&b| b == 0)
+            .filter_map(|s| {
+                if s.is_empty() {
+                    None
+                } else {
+                    core::str::from_utf8(s).ok()
+                }
+            })
+            .collect();
+    } else {
+        extra_args = Vec::new();
+    }
+
+    exec_internal(path, None, &extra_args)
 }
 
 /// 名前を指定してカーネル内から実行可能ファイルを実行する（カーネル内部用）
 pub fn exec_kernel_with_name(path: &str, name: &str) -> u64 {
-    exec_internal(path, Some(name))
+    exec_internal(path, Some(name), &[])
 }
 
-fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
+fn exec_internal(path: &str, name_override: Option<&str>, args: &[&str]) -> u64 {
     let process_name = name_override.unwrap_or(path);
     if let Some(data) = crate::init::fs::read(path) {
-        exec_with_data(&data, process_name)
+        exec_with_data(&data, process_name, args)
     } else {
         crate::warn!("exec: file not found: {}", path);
         crate::syscall::types::ENOENT
@@ -145,7 +181,7 @@ fn exec_internal(path: &str, name_override: Option<&str>) -> u64 {
 }
 
 /// メモリ上の ELF バッファからプロセスを生成する（内部共通実装）
-fn exec_with_data(data: &[u8], process_name: &str) -> u64 {
+fn exec_with_data(data: &[u8], process_name: &str, args: &[&str]) -> u64 {
     crate::debug!("exec: name={}", process_name);
     let aslr_seed = next_aslr_seed(process_name);
 
@@ -394,12 +430,17 @@ fn exec_with_data(data: &[u8], process_name: &str) -> u64 {
         let stack_base_vaddr = stack_end_vaddr - (stack_size_pages as u64 * 4096);
 
         // Prepare arguments (argv) and environment variables (envp)
-        let args = [process_name];
+        // argv[0] は process_name、以降は呼び出し元が渡した args
+        let mut all_args: Vec<&str> = Vec::new();
+        all_args.push(process_name);
+        for a in args {
+            all_args.push(a);
+        }
         let envs: [&str; 0] = [];
 
         let mut string_block = Vec::new();
         let mut argv_offsets = Vec::new();
-        for arg in args {
+        for arg in &all_args {
             argv_offsets.push(string_block.len());
             string_block.extend_from_slice(arg.as_bytes());
             string_block.push(0);
@@ -416,7 +457,7 @@ fn exec_with_data(data: &[u8], process_name: &str) -> u64 {
 
         // Pointers: argc(8) + argv(8*N) + NULL(8) + envp(8*M) + NULL(8) + Auxv(16)
         let pointers_bytes = 8 // argc
-            + (args.len() * 8) // argv
+            + (all_args.len() * 8) // argv
             + 8 // NULL
             + (envs.len() * 8) // envp
             + 8 // NULL
@@ -443,7 +484,7 @@ fn exec_with_data(data: &[u8], process_name: &str) -> u64 {
         page_data.resize(unused_space, 0);
 
         // Push Argc
-        page_data.extend_from_slice(&(args.len() as u64).to_ne_bytes());
+        page_data.extend_from_slice(&(all_args.len() as u64).to_ne_bytes());
 
         // Push Argv Ptrs
         for off in argv_offsets {
@@ -986,5 +1027,5 @@ pub fn exec_from_buffer_syscall(buf_ptr: u64, buf_len: u64) -> u64 {
         core::ptr::copy_nonoverlapping(buf_ptr as *const u8, dst_ptr, buf_len as usize);
     });
 
-    exec_with_data(&owned, "user_exec")
+    exec_with_data(&owned, "user_exec", &[])
 }

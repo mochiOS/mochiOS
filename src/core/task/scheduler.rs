@@ -267,13 +267,10 @@ fn wake_parent_ipc_waiter(exited_pid: crate::task::ProcessId) {
     });
 
     if let Some(tid) = parent_tid {
-        // Mailbox の waiter を直接チェックして起床
-        let idx = match crate::task::thread_slot_index(tid) {
-            Some(i) => i,
-            None => return,
-        };
-        wake_thread(tid); // pending_wakeup も立つので recv_blocking が眠らずに再試行できる
-        let _ = idx; // waiter は recv_blocking 側が自分でクリアする
+        // ゼロ長メッセージを mailbox に積んで recv_blocking が確実に戻れるようにする。
+        // wake_thread だけでは「スリープ中に Ready に変えて pending_wakeup なし」の場合、
+        // recv_blocking が yield 後に再スリープしてしまうため、必ずメッセージを使う。
+        crate::syscall::ipc::send_from_kernel(tid.as_u64(), &[]);
     }
 }
 

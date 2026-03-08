@@ -375,7 +375,18 @@ impl Terminal {
                 let path = self.find_in_path(cmd_name).map(|s| s.to_string());
                 match path {
                     Some(bin_path) => {
-                        match process::exec(&bin_path) {
+                        // 引数をスペース区切りで分割して子プロセスに渡す
+                        let arg_parts: Vec<&str> = if args.is_empty() {
+                            Vec::new()
+                        } else {
+                            args.split(' ').filter(|s| !s.is_empty()).collect()
+                        };
+                        let result = if arg_parts.is_empty() {
+                            process::exec(&bin_path)
+                        } else {
+                            process::exec_with_args(&bin_path, &arg_parts)
+                        };
+                        match result {
                             Ok(pid) => {
                                 // 子プロセスの出力をIPCで受け取りながら終了を待つ
                                 self.drain_child_output(pid);

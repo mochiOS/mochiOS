@@ -254,7 +254,7 @@ pub unsafe fn enter_user_from_kernel(ctx: &Context) -> ! {
         cs = in(reg) user_cs,
         rip = in(reg) ctx.rip,
         options(noreturn)
-    );
+    )
 }
 
 /// 割込み内からの切替。呼び出し側で割込み時のレジスタを `saved` に収めて渡す。

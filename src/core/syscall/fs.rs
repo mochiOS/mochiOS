@@ -200,6 +200,13 @@ pub fn stat(path_ptr: u64, stat_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     if crate::init::fs::read(&path).is_some() {
+        // stat バッファを最小限ゼロ初期化して返す
+        const MIN_STAT_SIZE: u64 = 144; // sizeof(struct stat) on Linux x86_64
+        if stat_ptr != 0 && crate::syscall::validate_user_ptr(stat_ptr, MIN_STAT_SIZE) {
+            crate::syscall::with_user_memory_access(|| unsafe {
+                core::ptr::write_bytes(stat_ptr as *mut u8, 0, MIN_STAT_SIZE as usize);
+            });
+        }
         SUCCESS
     } else {
         ENOENT

@@ -10,6 +10,8 @@ pub enum SyscallNumber {
     Open = 2,
     /// ファイルを閉じる
     Close = 3,
+    /// ファイル情報取得 (path)
+    Stat = 4,
     /// ファイル情報取得
     Fstat = 5,
     /// ファイルシーク

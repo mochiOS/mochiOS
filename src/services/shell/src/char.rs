@@ -123,12 +123,21 @@ impl Terminal {
         }
     }
 
-    /// PATH の各ディレクトリで `{cmd}.elf` を探す
+    /// PATH の各ディレクトリでコマンドを探す
+    /// `cmd` が `.elf` で終わる場合はそのまま、そうでなければ `.elf` を付けて検索する
     fn find_in_path(&self, cmd: &str) -> Option<String> {
         let path_val = self.get_env("PATH").unwrap_or_default();
+        let filename = if cmd.ends_with(".elf") {
+            cmd.to_string()
+        } else {
+            format!("{}.elf", cmd)
+        };
         for dir in path_val.split(':') {
-            let candidate = format!("{}/{}.elf", dir, cmd);
-            if std::fs::metadata(&candidate).is_ok() {
+            let candidate = format!("{}/{}", dir, filename);
+            // stat syscall 未実装のため open/close で存在確認
+            let fd = swiftlib::io::open(&candidate, 0);
+            if fd >= 0 {
+                swiftlib::io::close(fd as u64);
                 return Some(candidate);
             }
         }

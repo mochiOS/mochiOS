@@ -112,15 +112,27 @@ pub fn setup_fs_layout(fs_dir: &Path, resources_src: &Path) -> Result<(), String
         println!("Created directory: {}", path.display());
     }
 
-    // src/resources/ 以下をすべて fs/System/ にコピー
+    // src/resources/ の各サブディレクトリを対応する fs/ ディレクトリにコピー
+    // 例: src/resources/System/ → fs/System/
+    //     src/resources/Config/ → fs/Config/
     if resources_src.is_dir() {
-        let system_dir = fs_dir.join("System");
-        copy_dir_recursive(resources_src, &system_dir)?;
-        println!(
-            "Copied resources from {} to {}",
-            resources_src.display(),
-            system_dir.display()
-        );
+        for entry in fs::read_dir(resources_src)
+            .map_err(|e| format!("Failed to read resources dir: {}", e))?
+        {
+            let entry = entry.map_err(|e| format!("Failed to read resources entry: {}", e))?;
+            let src_path = entry.path();
+            if !src_path.is_dir() {
+                continue;
+            }
+            let dir_name = entry.file_name();
+            let dst_path = fs_dir.join(&dir_name);
+            copy_dir_recursive(&src_path, &dst_path)?;
+            println!(
+                "Copied resources/{} -> {}",
+                dir_name.to_string_lossy(),
+                dst_path.display()
+            );
+        }
     }
 
     Ok(())

@@ -1,4 +1,4 @@
-use swiftlib::{process, task, vga};
+use swiftlib::{ipc, process, task, vga};
 
 
 const FONT_WIDTH: usize = 6;
@@ -249,6 +249,38 @@ impl Terminal {
         self.fg = 0x00FF_FFFF; // シアン
     }
 
+    /// 子プロセスのIPC出力を受け取りながら終了を待つ
+    fn drain_child_output(&mut self, pid: u64) {
+        let mut buf = [0u8; 512];
+        loop {
+            // 届いたIPCメッセージをすべて描画
+            loop {
+                let (_, len) = ipc::ipc_recv(&mut buf);
+                if len == 0 || len as usize > buf.len() {
+                    break;
+                }
+                if let Ok(s) = core::str::from_utf8(&buf[..len as usize]) {
+                    self.write_str(s);
+                }
+            }
+            // 子プロセスが終了していれば抜ける
+            if task::wait_nonblocking(pid as i64).is_some() {
+                break;
+            }
+            task::yield_now();
+        }
+        // 終了後に残ったメッセージを念のため掃き出す
+        loop {
+            let (_, len) = ipc::ipc_recv(&mut buf);
+            if len == 0 || len as usize > buf.len() {
+                break;
+            }
+            if let Ok(s) = core::str::from_utf8(&buf[..len as usize]) {
+                self.write_str(s);
+            }
+        }
+    }
+
     pub fn handle_line(&mut self) {
         // バッファから文字列をコピーして借用を解放
         let mut tmp = [0u8; 256];
@@ -302,17 +334,10 @@ impl Terminal {
                 let path = self.find_in_path(cmd_name).map(|s| s.to_string());
                 match path {
                     Some(bin_path) => {
-                        // カーネルWRITERのカーソルをシェルの現在行に同期
-                        let cursor_pixel_y = self.row * FONT_HEIGHT as u32;
-                        swiftlib::vga::set_console_cursor(cursor_pixel_y);
                         match process::exec(&bin_path) {
                             Ok(pid) => {
-                                // 子プロセスの終了を待つ
-                                swiftlib::task::wait(pid as i64);
-                                // WRITERのカーソル位置を取得してシェルの行を更新
-                                let end_pixel_y = swiftlib::vga::get_console_cursor();
-                                self.row = ((end_pixel_y + FONT_HEIGHT as u32 - 1) / FONT_HEIGHT as u32).min(self.max_rows - 1);
-                                self.col = 0;
+                                // 子プロセスの出力をIPCで受け取りながら終了を待つ
+                                self.drain_child_output(pid);
                             }
                             Err(()) => {
                                 self.write_str("exec failed: ");

@@ -70,6 +70,36 @@ impl Mailbox {
 
 static MAILBOXES: SpinLock<[Mailbox; MAX_THREADS]> = SpinLock::new([Mailbox::new(); MAX_THREADS]);
 
+/// カーネル内部からIPC送信（ユーザー空間コピー不要）
+pub fn send_from_kernel(dest_thread_id: u64, data: &[u8]) -> bool {
+    let len = data.len();
+    if len > MAX_MSG_SIZE {
+        return false;
+    }
+    let (idx, dest_generation) =
+        match crate::task::thread_slot_index_and_generation_by_u64(dest_thread_id) {
+            Some(v) => v,
+            None => return false,
+        };
+    if idx >= MAX_THREADS {
+        return false;
+    }
+    let sender = crate::task::current_thread_id()
+        .map(|t| t.as_u64())
+        .unwrap_or(0);
+    let mut msg_data = [0u8; MAX_MSG_SIZE];
+    msg_data[..len].copy_from_slice(data);
+    let msg = Message {
+        from: sender,
+        to: dest_thread_id,
+        to_slot: idx as u16,
+        to_generation: dest_generation,
+        len,
+        data: msg_data,
+    };
+    MAILBOXES.lock().get_mut(idx).map_or(false, |mb| mb.push(msg).is_ok())
+}
+
 /// IPC送信
 /// arg0: dest_thread_id
 /// arg1: buf_ptr

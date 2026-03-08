@@ -2,16 +2,26 @@
 
 use super::types::{EBADF, EFAULT, SUCCESS};
 use crate::util::console;
-use crate::util::log::set_level;
-use crate::MemoryType::KernelStack;
-use crate::{debug, error, info, warn, Kernel};
-use alloc::vec::Vec;
-use core::fmt::Write;
+use crate::{debug, error, info, warn};
 
 /// 標準出力のファイルディスクリプタ
 const STDOUT_FD: u64 = 1;
-/// 標準エラー出力のファイルディスクリプタ  
+/// 標準エラー出力のファイルディスクリプタ
 const STDERR_FD: u64 = 2;
+
+/// 現在のプロセスの親プロセスのメインスレッドIDを返す
+fn get_parent_thread_id() -> Option<u64> {
+    let tid = crate::task::current_thread_id()?;
+    let pid = crate::task::with_thread(tid, |t| t.process_id())?;
+    let parent_pid = crate::task::with_process(pid, |p| p.parent_id())??;
+    let mut parent_tid: Option<u64> = None;
+    crate::task::for_each_thread(|t| {
+        if parent_tid.is_none() && t.process_id() == parent_pid {
+            parent_tid = Some(t.id().as_u64());
+        }
+    });
+    parent_tid
+}
 
 /// Writeシステムコール
 ///
@@ -23,57 +33,43 @@ const STDERR_FD: u64 = 2;
 /// # 戻り値
 /// 書き込んだバイト数、またはエラーコード
 pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
-    use crate::debug;
-
     debug!("write: fd={}, buf_ptr={:#x}, len={}", fd, buf_ptr, len);
 
-    // ファイルディスクリプタの検証
     if fd != STDOUT_FD && fd != STDERR_FD {
-        debug!("write: invalid fd");
         return EBADF;
     }
-
-    // 長さが0の場合は何もせず成功
     if len == 0 {
-        debug!("write: len=0, returning success");
         return SUCCESS;
     }
-
-    // ポインタの検証（NULL チェック）
     if buf_ptr == 0 {
-        debug!("write: null pointer");
         return EFAULT;
     }
 
-    let mut buf = alloc::vec![0; len as usize];
+    let mut buf = alloc::vec![0u8; len as usize];
     if let Err(err) = crate::syscall::copy_from_user(buf_ptr, &mut buf) {
-        debug!("write: invalid user ptr {:#x}", buf_ptr);
         return err;
     }
-    debug!("write: copied {} bytes from user buffer", buf.len());
 
-    // UTF-8として解釈を試みる
-    if let Ok(s) = core::str::from_utf8(&buf) {
-        debug!("write: valid UTF-8: {:?}", s);
-        // シリアルポートとフレームバッファの両方に出力
-        x86_64::instructions::interrupts::without_interrupts(|| {
-            let mut console = console::SERIAL.lock();
-            let _ = console.write_str(s);
-        });
-        crate::util::vga::print(format_args!("{}", s));
-    } else {
-        debug!("write: invalid UTF-8, writing bytes");
-        // UTF-8でない場合はバイト列として出力
+    // シリアルには常に出力する（デバッグ用）
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        use core::fmt::Write;
+        let mut serial = console::SERIAL.lock();
         for &byte in &buf {
-            x86_64::instructions::interrupts::without_interrupts(|| {
-                let mut console = console::SERIAL.lock();
-                console.send_byte(byte);
-            });
+            serial.send_byte(byte);
+        }
+    });
+
+    // 親プロセス（シェル）が存在すればIPCで転送して描画させる
+    if let Some(parent_tid) = get_parent_thread_id() {
+        const CHUNK: usize = 512;
+        let mut offset = 0;
+        while offset < buf.len() {
+            let end = core::cmp::min(offset + CHUNK, buf.len());
+            crate::syscall::ipc::send_from_kernel(parent_tid, &buf[offset..end]);
+            offset = end;
         }
     }
 
-    debug!("write: returning {}", len);
-    // 書き込んだバイト数を返す
     len
 }
 
@@ -91,16 +87,13 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     }
 
     if fd == 0 {
-        // キーボードから1文字読み取り
         let ch = crate::syscall::keyboard::read_char();
         if ch == ENODATA {
             return ENODATA;
         }
-        // ユーザー空間アドレスの有効性を検証する
         if !super::validate_user_ptr(buf_ptr, 1) {
             return EFAULT;
         }
-        // 返された値を1バイトとしてコピー
         crate::syscall::with_user_memory_access(|| unsafe {
             let dst = core::slice::from_raw_parts_mut(buf_ptr as *mut u8, 1);
             dst[0] = ch as u8;
@@ -108,7 +101,6 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
         return 1;
     }
 
-    // その他の FD は fs モジュールに委譲
     crate::syscall::fs::read(fd, buf_ptr, len)
 }
 
@@ -127,7 +119,7 @@ pub fn log(msg: u64, len: u64, level: u64) -> u64 {
         return super::types::EINVAL;
     }
 
-    let mut copied = alloc::vec![0; len as usize];
+    let mut copied = alloc::vec![0u8; len as usize];
     if let Err(err) = crate::syscall::copy_from_user(msg, &mut copied) {
         return err;
     }

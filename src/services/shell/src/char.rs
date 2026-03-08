@@ -85,6 +85,7 @@ pub struct Terminal {
     pub input_len: usize,
 }
 
+#[allow(unused)]
 impl Terminal {
     pub fn new(fb_ptr: *mut u32, info: vga::FbInfo, font: Font) -> Self {
         let max_cols = info.width / FONT_WIDTH as u32;

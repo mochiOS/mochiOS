@@ -179,15 +179,40 @@ pub fn build_newlib(src_dir: &Path) {
 }
 
 pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
-    println!("Building user libs...");
-
     if !libc_dir.exists() {
         fs::create_dir_all(libc_dir).expect("Failed to create libc dir");
     }
 
     let crt_src = user_dir.join("crt.rs");
+    let lib_src = user_dir.join("lib.rs");
     let crt_obj = libc_dir.join("crt0.o");
+    let libc_a = libc_dir.join("libc.a");
+    let libg_a = libc_dir.join("libg.a");
+    // 元の newlib libc.a を一度だけ保存しておく。以降のマージはここを起点にする。
+    let libc_base_a = libc_dir.join("libc_newlib_base.a");
+    let glue_lib = libc_dir.join("libuserglue.a");
 
+    // 初回のみ: 元の newlib libc.a をバックアップ
+    if !libc_base_a.exists() && libc_a.exists() {
+        fs::copy(&libc_a, &libc_base_a).expect("Failed to save libc_newlib_base.a");
+    }
+
+    // ソースが変更されていなければスキップ (crt0.o が存在する場合のみ)
+    if libc_base_a.exists() && libc_a.exists() && crt_obj.exists() {
+        let libc_mtime = libc_a.metadata().and_then(|m| m.modified()).ok();
+        let lib_mtime = lib_src.metadata().and_then(|m| m.modified()).ok();
+        let crt_mtime = crt_src.metadata().and_then(|m| m.modified()).ok();
+        if let (Some(libc_t), Some(lib_t), Some(crt_t)) = (libc_mtime, lib_mtime, crt_mtime) {
+            if libc_t > lib_t && libc_t > crt_t {
+                println!("user libs up to date, skipping");
+                return;
+            }
+        }
+    }
+
+    println!("Building user libs...");
+
+    // 1. crt0.o のビルド
     let status = Command::new("rustc")
         .args(["--emit", "obj"])
         .args(["--crate-type", "lib"])
@@ -197,15 +222,11 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
         .arg(&crt_src)
         .status()
         .expect("Failed to build crt0.o");
-
     if !status.success() {
         panic!("Failed to build crt0.o");
     }
 
     // 2. libuserglue.a のビルド
-    let lib_src = user_dir.join("lib.rs");
-    let glue_lib = libc_dir.join("libuserglue.a");
-
     let status = Command::new("rustc")
         .args(["--crate-type", "staticlib"])
         .args(["--edition", "2021"])
@@ -215,51 +236,60 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
         .arg(&lib_src)
         .status()
         .expect("Failed to build libuserglue.a");
-
     if !status.success() {
         panic!("Failed to build libuserglue.a");
     }
 
-    // 3. libc.a にマージ
+    // 3. libc_newlib_base.a + libuserglue.a → libc.a へマージ
+    //
+    // 方針: libc.a を直接上書きせず、temp ファイルに書いてから rename する。
+    // 中断してもオリジナルの libc_newlib_base.a は常に無傷で残る。
     let merge_dir = libc_dir.join("merge_tmp");
     if merge_dir.exists() {
         fs::remove_dir_all(&merge_dir).unwrap();
     }
     fs::create_dir(&merge_dir).unwrap();
 
-    let libc_a = libc_dir.join("libc.a");
-    let libglue_a = glue_lib;
-
+    // libuserglue.a のオブジェクトだけを展開 (libc.a は触らない)
     let status = Command::new("ar")
         .current_dir(&merge_dir)
         .arg("x")
-        .arg(&libc_a)
-        .status()
-        .expect("Failed to extract libc.a");
-    if !status.success() {
-        panic!("ar x libc.a failed");
-    }
-
-    let status = Command::new("ar")
-        .current_dir(&merge_dir)
-        .arg("x")
-        .arg(&libglue_a)
+        .arg(&glue_lib)
         .status()
         .expect("Failed to extract libuserglue.a");
     if !status.success() {
         panic!("ar x libuserglue.a failed");
     }
 
+    // ベースのコピーに userglue オブジェクトを追加 (ar q = quick append, インデックスは後で再構築)
+    let libc_tmp = libc_dir.join("libc_merged_tmp.a");
+    let base_src = if libc_base_a.exists() { &libc_base_a } else { &libc_a };
+    fs::copy(base_src, &libc_tmp).expect("Failed to copy libc base to temp");
+
     let status = Command::new("sh")
         .current_dir(&merge_dir)
         .arg("-c")
-        .arg(format!("ar rcs {} *.o", libc_a.to_str().unwrap()))
+        .arg(format!("ar q {} *.o", libc_tmp.to_str().unwrap()))
         .status()
-        .expect("Failed to repack libc.a");
-
+        .expect("Failed to append objects to libc temp");
     if !status.success() {
-        panic!("ar rcs libc.a failed");
+        panic!("ar q libc_merged_tmp.a failed");
     }
+
+    // シンボルインデックスを再構築
+    let status = Command::new("ranlib")
+        .arg(&libc_tmp)
+        .status()
+        .expect("Failed to run ranlib");
+    if !status.success() {
+        panic!("ranlib libc_merged_tmp.a failed");
+    }
+
+    // アトミックに libc.a を置き換え
+    fs::rename(&libc_tmp, &libc_a).expect("Failed to rename libc_merged_tmp.a to libc.a");
+
+    // libg.a (デバッグ版) も同期させる
+    let _ = fs::copy(&libc_a, &libg_a);
 
     fs::remove_dir_all(&merge_dir).unwrap();
     println!("Successfully merged user glue into libc.a");

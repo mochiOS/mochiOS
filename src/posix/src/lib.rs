@@ -52,7 +52,7 @@ pub struct file_clone_range {}
 pub const T_TYPE: u32 = 0;
 pub const _IOC_SIZESHIFT: u32 = 0;
 
-pub unsafe fn ioctl(_fd: c_int, _request: Ioctl, ...) -> c_int { 0 }
+pub unsafe fn ioctl(_fd: c_int, _request: Ioctl, _arg: u64) -> c_int { 0 }
 pub unsafe fn CMSG_FIRSTHDR(_mhdr: *const msghdr) -> *mut cmsghdr { core::ptr::null_mut() }
 pub unsafe fn CMSG_DATA(_cmsg: *const cmsghdr) -> *mut c_uchar { core::ptr::null_mut() }
 pub const fn CMSG_ALIGN(_len: usize) -> usize { 0 }

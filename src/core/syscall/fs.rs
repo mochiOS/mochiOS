@@ -34,6 +34,39 @@ fn read_cstring(ptr: u64) -> Result<String, u64> {
     crate::syscall::read_user_cstring(ptr, 1024)
 }
 
+/// パスを正規化する（`.` / `..` を解決し重複スラッシュを除去）
+fn normalize_path(path: &str) -> String {
+    let mut parts: Vec<&str> = Vec::new();
+    for seg in path.split('/') {
+        match seg {
+            "" | "." => {}
+            ".." => { parts.pop(); }
+            other => parts.push(other),
+        }
+    }
+    if parts.is_empty() {
+        "/".to_string()
+    } else {
+        alloc::format!("/{}", parts.join("/"))
+    }
+}
+
+/// プロセスの CWD を基に相対パスを絶対パスへ解決する
+fn resolve_path(pid_raw: u64, path: &str) -> String {
+    if path.starts_with('/') {
+        normalize_path(path)
+    } else {
+        let pid = crate::task::ids::ProcessId::from_u64(pid_raw);
+        let cwd = crate::task::with_process(pid, |p| {
+            let mut s = alloc::string::String::new();
+            s.push_str(p.cwd());
+            s
+        })
+        .unwrap_or_else(|| "/".to_string());
+        normalize_path(&alloc::format!("{}/{}", cwd.trim_end_matches('/'), path))
+    }
+}
+
 /// Openシステムコール (initfs の読み取り専用をサポートする簡易実装)
 /// - path はユーザー空間の null 終端文字列ポインタ
 /// - flags は無視
@@ -47,6 +80,9 @@ pub fn open(path_ptr: u64, _flags: u64) -> u64 {
         Ok(s) => s,
         Err(e) => return e,
     };
+
+    // 相対パスを CWD で解決する
+    let path = resolve_path(owner_pid, &path);
 
     // ディレクトリの場合は空データで dir_path を記録し、ファイルの場合は内容を読み込む
     let (data_vec, dir_path) = if crate::init::fs::is_directory(&path) {
@@ -281,38 +317,57 @@ pub fn readdir(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
     to_copy as u64
 }
 
-/// Chdirシステムコール（簡易実装）
+/// Chdirシステムコール
 pub fn chdir(path_ptr: u64) -> u64 {
     if path_ptr == 0 {
         return EINVAL;
     }
+    let pid_raw = match current_process_id_raw() {
+        Some(pid) => pid,
+        None => return EBADF,
+    };
     let path = match read_cstring(path_ptr) {
         Ok(s) => s,
         Err(e) => return e,
     };
-    // initfs はルートのみサポートしているため "/" のみを受け入れる
-    if path == "/" {
-        SUCCESS
-    } else {
-        ENOENT
+    let resolved = resolve_path(pid_raw, &path);
+    if !crate::init::fs::is_directory(&resolved) {
+        return ENOENT;
     }
+    let pid = crate::task::ids::ProcessId::from_u64(pid_raw);
+    crate::task::with_process_mut(pid, |p| p.set_cwd(&resolved));
+    SUCCESS
 }
 
-/// Getcwdシステムコール（簡易実装）
+/// Getcwdシステムコール
 pub fn getcwd(buf_ptr: u64, size: u64) -> u64 {
     if buf_ptr == 0 || size == 0 {
         return EINVAL;
     }
-    // ユーザー空間アドレスの有効性を検証する
     if !crate::syscall::validate_user_ptr(buf_ptr, size) {
         return EFAULT;
     }
-    let cwd = b"/\0";
-    if (size as usize) < cwd.len() {
+    let pid_raw = match current_process_id_raw() {
+        Some(pid) => pid,
+        None => return EFAULT,
+    };
+    let pid = crate::task::ids::ProcessId::from_u64(pid_raw);
+    // CWD を一時バッファにコピーしてからロック外で書き込む
+    let mut tmp = [0u8; 256];
+    let cwd_len = crate::task::with_process(pid, |p| {
+        let s = p.cwd().as_bytes();
+        let n = s.len().min(255);
+        tmp[..n].copy_from_slice(&s[..n]);
+        n
+    })
+    .unwrap_or(1);
+    let needed = cwd_len + 1;
+    if (size as usize) < needed {
         return EINVAL;
     }
     crate::syscall::with_user_memory_access(|| unsafe {
-        core::ptr::copy_nonoverlapping(cwd.as_ptr(), buf_ptr as *mut u8, cwd.len());
+        core::ptr::copy_nonoverlapping(tmp.as_ptr(), buf_ptr as *mut u8, cwd_len);
+        *(buf_ptr as *mut u8).add(cwd_len) = 0;
     });
     buf_ptr
 }

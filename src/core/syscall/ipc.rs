@@ -303,8 +303,18 @@ pub fn recv_blocking(buf_ptr: u64, max_len: u64) -> u64 {
                 // メッセージなし：pending_wakeup がなければスリープして yield
                 if crate::task::sleep_thread_unless_woken(receiver) {
                     crate::task::yield_now();
+                    // 実際にスリープして起床 → ループしてメッセージを再確認
+                } else {
+                    // pending_wakeup で即起床（子プロセス終了通知など）だがメッセージなし
+                    // → waiter をクリアして 0 を返し、呼び出し元が終了検知できるようにする
+                    {
+                        let mut boxes = MAILBOXES.lock();
+                        if boxes[idx].waiter == receiver_u64 {
+                            boxes[idx].waiter = 0;
+                        }
+                    }
+                    return 0;
                 }
-                // 起床後に再びループ先頭でメッセージを確認
             }
         }
     }

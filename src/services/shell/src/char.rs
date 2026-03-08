@@ -1,4 +1,4 @@
-use swiftlib::{ipc, process, task, vga};
+use swiftlib::{fs, ipc, process, task, vga};
 
 
 const FONT_WIDTH: usize = 6;
@@ -92,7 +92,7 @@ impl Terminal {
         let max_cols = info.width / FONT_WIDTH as u32;
         let max_rows = info.height / FONT_HEIGHT as u32;
         let mut env = Vec::new();
-        env.push(("PATH".to_string(), "Binaries".to_string()));
+        env.push(("PATH".to_string(), "/Binaries".to_string()));
         Terminal {
             fb_ptr,
             width: info.width,
@@ -264,8 +264,11 @@ impl Terminal {
     }
 
     pub fn prompt(&mut self) {
+        let mut cwd_buf = [0u8; 256];
+        let cwd = fs::getcwd(&mut cwd_buf).unwrap_or("/");
         self.fg = 0x00FF_88FF; // 紫
-        self.write_str("mochi> ");
+        self.write_str(cwd);
+        self.write_str(" mochi> ");
         self.fg = 0x00FF_FFFF; // シアン
     }
 
@@ -333,11 +336,11 @@ impl Terminal {
         // コマンド名と引数を分割
         let mut parts = cmd.splitn(2, ' ');
         let cmd_name = parts.next().unwrap_or("");
-        let _args = parts.next().unwrap_or("");
+        let args = parts.next().unwrap_or("");
 
         match cmd_name {
             "help" => {
-                self.write_str("Commands: help, clear, version, export\n");
+                self.write_str("Commands: help, clear, version, export, cd\n");
                 self.write_str("Other commands are loaded from PATH (Binaries/*.elf)\n");
             }
             "clear" => {
@@ -346,11 +349,20 @@ impl Terminal {
             "version" => {
                 self.write_str("mochiOS shell v0.1\n");
             }
+            "cd" => {
+                let target = if args.is_empty() { "/" } else { args };
+                let ret = fs::chdir(target);
+                if ret != 0 {
+                    self.write_str("cd: no such directory: ");
+                    self.write_str(target);
+                    self.write_byte(b'\n');
+                }
+            }
             "export" => {
                 // export VAR=VALUE
-                if let Some(eq) = _args.find('=') {
-                    let key = _args[..eq].trim();
-                    let val = _args[eq + 1..].trim();
+                if let Some(eq) = args.find('=') {
+                    let key = args[..eq].trim();
+                    let val = args[eq + 1..].trim();
                     let key_owned = key.to_string();
                     let val_owned = val.to_string();
                     self.set_env(&key_owned, &val_owned);

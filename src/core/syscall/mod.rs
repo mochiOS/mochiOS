@@ -7,6 +7,7 @@ pub mod io_port;
 pub mod ipc;
 pub mod keyboard;
 pub mod pgroup;
+pub mod pipe;
 pub mod process;
 pub mod signal;
 pub mod syscall_entry;
@@ -237,9 +238,22 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Lstat as u64     => fs::stat(arg0, arg1),
         x if x == SyscallNumber::Readlink as u64  => types::EINVAL, // スタブ: シンボリックリンク非対応
         x if x == SyscallNumber::Fcntl as u64     => fs::fcntl(arg0, arg1, arg2),
-        x if x == SyscallNumber::Pipe as u64      => types::ENOSYS, // 未実装
+        x if x == SyscallNumber::Pipe as u64      => pipe::pipe_syscall(arg0),
         x if x == SyscallNumber::Dup as u64       => fs::dup(arg0),
         x if x == SyscallNumber::Dup2 as u64      => fs::dup2(arg0, arg1),
+        // 追加: BusyBox 互換 syscall
+        x if x == SyscallNumber::Mprotect as u64      => pgroup::mprotect(arg0, arg1, arg2),
+        x if x == SyscallNumber::Nanosleep as u64     => pgroup::nanosleep(arg0, arg1),
+        x if x == SyscallNumber::Uname as u64         => pgroup::uname(arg0),
+        x if x == SyscallNumber::Getrlimit as u64     => pgroup::getrlimit(arg0, arg1),
+        x if x == SyscallNumber::SetTidAddress as u64 => pgroup::set_tid_address(arg0),
+        x if x == SyscallNumber::Prlimit64 as u64     => pgroup::prlimit64(arg0, arg1, arg2, arg3),
+        x if x == SyscallNumber::Pipe2 as u64         => pipe::pipe2_syscall(arg0, arg1),
+        x if x == SyscallNumber::Openat as u64        => fs::openat(arg0 as i64, arg1, arg2, arg3),
+        x if x == SyscallNumber::Getdents64 as u64    => fs::getdents64(arg0, arg1, arg2),
+        x if x == SyscallNumber::Newfstatat as u64    => fs::newfstatat(arg0 as i64, arg1, arg2, arg3),
+        x if x == SyscallNumber::Faccessat as u64     => fs::faccessat(arg0 as i64, arg1, arg2, arg3),
+        x if x == SyscallNumber::Readlinkat as u64    => types::EINVAL, // スタブ
         _ => ENOSYS,
     }
 }

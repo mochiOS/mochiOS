@@ -17,12 +17,16 @@ pub const O_CLOEXEC: u64 = 0x80000;
 
 /// オープンファイルの状態を保持するハンドル
 pub struct FileHandle {
-    /// ファイル内容（initfs からロード済み）
+    /// ファイル内容（initfs からロード済み、パイプの場合は空）
     pub data: Box<[u8]>,
-    /// 現在の読み取り/書き込み位置
+    /// 現在の読み取り/書き込み位置（パイプの場合はエントリインデックス兼用）
     pub pos: usize,
     /// Some(path) であればディレクトリ fd
     pub dir_path: Option<String>,
+    /// Some(id) であればパイプ fd（グローバル PIPE_TABLE のインデックス）
+    pub pipe_id: Option<usize>,
+    /// パイプの書き込み端の場合 true
+    pub pipe_write: bool,
 }
 
 /// プロセスごとのファイルディスクリプタテーブル
@@ -131,6 +135,8 @@ impl FdTable {
                 data: fh.data.clone(),
                 pos: fh.pos,
                 dir_path: fh.dir_path.clone(),
+                pipe_id: fh.pipe_id,
+                pipe_write: fh.pipe_write,
             });
             new_table.entries[i] = Box::into_raw(new_fh) as u64;
             new_table.flags[i] = self.flags[i];

@@ -88,6 +88,30 @@ pub enum SyscallNumber {
     Dup = 32,
     /// dup2
     Dup2 = 33,
+    /// mprotect
+    Mprotect = 10,
+    /// nanosleep
+    Nanosleep = 35,
+    /// uname
+    Uname = 63,
+    /// getrlimit
+    Getrlimit = 97,
+    /// set_tid_address
+    SetTidAddress = 218,
+    /// openat
+    Openat = 257,
+    /// getdents64
+    Getdents64 = 217,
+    /// prlimit64
+    Prlimit64 = 302,
+    /// pipe2
+    Pipe2 = 293,
+    /// newfstatat (fstatat)
+    Newfstatat = 262,
+    /// faccessat
+    Faccessat = 269,
+    /// readlinkat
+    Readlinkat = 267,
 
     // mochiOS独自syscall (Linux未使用番号帯: 512+)
     /// スケジューラへ譲る
@@ -172,3 +196,7 @@ pub const ENOTTY: u64 = (-25i64) as u64;
 pub const ERANGE: u64 = (-34i64) as u64;
 /// 操作がサポートされていない
 pub const ENOTSUP: u64 = (-95i64) as u64;
+/// パイプが壊れている
+pub const EPIPE: u64 = (-32i64) as u64;
+/// ファイルディスクリプタが多すぎる
+pub const EMFILE: u64 = (-24i64) as u64;

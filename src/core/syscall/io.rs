@@ -26,7 +26,7 @@ fn get_parent_thread_id() -> Option<u64> {
 /// Writeシステムコール
 ///
 /// # 引数
-/// - `fd`: ファイルディスクリプタ (1=stdout, 2=stderr)
+/// - `fd`: ファイルディスクリプタ (1=stdout, 2=stderr, >=3=ファイル/パイプ)
 /// - `buf_ptr`: 書き込むデータのポインタ
 /// - `len`: 書き込むデータの長さ
 ///
@@ -35,14 +35,20 @@ fn get_parent_thread_id() -> Option<u64> {
 pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     debug!("write: fd={}, buf_ptr={:#x}, len={}", fd, buf_ptr, len);
 
-    if fd != STDOUT_FD && fd != STDERR_FD {
-        return EBADF;
-    }
     if len == 0 {
         return SUCCESS;
     }
     if buf_ptr == 0 {
         return EFAULT;
+    }
+
+    // fd >= 3: パイプ書き込みを試みる
+    if fd >= 3 {
+        return write_fd(fd, buf_ptr, len);
+    }
+
+    if fd != STDOUT_FD && fd != STDERR_FD {
+        return EBADF;
     }
 
     let mut buf = alloc::vec![0u8; len as usize];
@@ -73,9 +79,53 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     len
 }
 
+/// fd >= 3 への書き込み（パイプ書き込み端か通常ファイルへの書き込み）
+fn write_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
+    use crate::task::fd_table::FileHandle;
+    use super::types::{EPIPE, ENOSYS};
+
+    let pid = match crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+    {
+        Some(p) => p,
+        None => return EBADF,
+    };
+
+    let idx = fd as usize;
+    // パイプかどうか確認
+    let pipe_info = crate::task::with_process(pid, |p| {
+        p.fd_table().get_raw(idx).map(|ptr| {
+            let fh = unsafe { &*ptr };
+            (fh.pipe_id, fh.pipe_write)
+        })
+    }).flatten();
+
+    match pipe_info {
+        Some((Some(pipe_id), true)) => {
+            // パイプ書き込み端
+            if !super::validate_user_ptr(buf_ptr, len) {
+                return EFAULT;
+            }
+            let mut buf = alloc::vec![0u8; len as usize];
+            if let Err(e) = crate::syscall::copy_from_user(buf_ptr, &mut buf) {
+                return e;
+            }
+            match crate::syscall::pipe::pipe_write(pipe_id, &buf) {
+                Ok(n) => n as u64,
+                Err(e) => e,
+            }
+        }
+        Some((None, _)) | Some((Some(_), false)) => {
+            // 通常ファイル or 読み込み端への write: EBADF（書き込みサポートなし）
+            EBADF
+        }
+        None => EBADF,
+    }
+}
+
 /// Readシステムコール
 /// - fd == 0 の場合はキーボードからブロッキングで読み取る
-/// - fd >= 3 の場合は initfs から開かれたファイルを読み取る（fs::read に委譲）
+/// - fd >= 3 の場合はパイプ or initfs から開かれたファイルを読み取る（fs::read / pipe に委譲）
 pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     use super::types::EFAULT;
 
@@ -114,7 +164,51 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
         return read_count;
     }
 
-    crate::syscall::fs::read(fd, buf_ptr, len)
+    if fd >= 3 {
+        return read_fd(fd, buf_ptr, len);
+    }
+
+    // fd=1,2 への read は無効
+    super::types::EBADF
+}
+
+/// fd >= 3 からの読み取り（パイプ読み込み端 or 通常ファイル）
+fn read_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
+    let pid = match crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+    {
+        Some(p) => p,
+        None => return EBADF,
+    };
+
+    let idx = fd as usize;
+    let pipe_info = crate::task::with_process(pid, |p| {
+        p.fd_table().get_raw(idx).map(|ptr| {
+            let fh = unsafe { &*(ptr as *const crate::task::fd_table::FileHandle) };
+            (fh.pipe_id, fh.pipe_write)
+        })
+    }).flatten();
+
+    match pipe_info {
+        Some((Some(pipe_id), false)) => {
+            // パイプ読み込み端: ブロッキング読み取り
+            if !super::validate_user_ptr(buf_ptr, len) {
+                return EFAULT;
+            }
+            let mut buf = alloc::vec![0u8; len as usize];
+            let n = crate::syscall::pipe::pipe_read_blocking(pipe_id, &mut buf);
+            if n > 0 {
+                crate::syscall::with_user_memory_access(|| unsafe {
+                    core::ptr::copy_nonoverlapping(buf.as_ptr(), buf_ptr as *mut u8, n);
+                });
+            }
+            n as u64
+        }
+        _ => {
+            // 通常ファイル
+            crate::syscall::fs::read(fd, buf_ptr, len)
+        }
+    }
 }
 
 /// Logシステムコール

@@ -97,6 +97,8 @@ pub fn open(path_ptr: u64, flags: u64) -> u64 {
         data: data_vec.into_boxed_slice(),
         pos: 0,
         dir_path,
+        pipe_id: None,
+        pipe_write: false,
     });
 
     match with_fd_table_mut(owner_pid, |t| t.alloc(handle, cloexec)) {
@@ -510,6 +512,8 @@ pub fn dup(fd: u64) -> u64 {
                 data: fh.data.clone(),
                 pos: fh.pos,
                 dir_path: fh.dir_path.clone(),
+                pipe_id: fh.pipe_id,
+                pipe_write: fh.pipe_write,
             })
         })
     });
@@ -562,6 +566,8 @@ pub fn dup2(old_fd: u64, new_fd: u64) -> u64 {
                 data: fh.data.clone(),
                 pos: fh.pos,
                 dir_path: fh.dir_path.clone(),
+                pipe_id: fh.pipe_id,
+                pipe_write: fh.pipe_write,
             })
         })
     });
@@ -579,4 +585,244 @@ pub fn dup2(old_fd: u64, new_fd: u64) -> u64 {
     });
 
     new_fd
+}
+
+/// Openat システムコール
+///
+/// AT_FDCWD(-100) の場合は CWD 相対の open() と同等。
+/// それ以外の dirfd は fd_table からディレクトリパスを取得してプレフィックスとして使用する。
+pub fn openat(dirfd: i64, path_ptr: u64, flags: u64, _mode: u64) -> u64 {
+    const AT_FDCWD: i64 = -100;
+
+    if dirfd == AT_FDCWD {
+        // CWD 相対 → 通常の open() と同じ
+        return open(path_ptr, flags);
+    }
+
+    // dirfd が示すディレクトリを取得
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+    let idx = dirfd as usize;
+    if idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
+    let dir_path = match with_fd_table(pid, |t| {
+        t.get_raw(idx).and_then(|ptr| {
+            let fh = unsafe { &*ptr };
+            fh.dir_path.clone()
+        })
+    }) {
+        Some(Some(p)) => p,
+        _ => return EBADF,
+    };
+
+    // path を dir_path に対して解決する
+    let path = match read_cstring(path_ptr) {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let full_path = if path.starts_with('/') {
+        path
+    } else {
+        alloc::format!("{}/{}", dir_path.trim_end_matches('/'), path)
+    };
+
+    // full_path を持つ一時ポインタを使って open する代わりに直接処理
+    let (data_vec, final_dir_path) = if crate::init::fs::is_directory(&full_path) {
+        (Vec::new(), Some(full_path.clone()))
+    } else {
+        match crate::init::fs::read(&full_path) {
+            Some(d) => (d, None),
+            None => return ENOENT,
+        }
+    };
+
+    let cloexec = (flags & O_CLOEXEC) != 0;
+    let handle = alloc::boxed::Box::new(FileHandle {
+        data: data_vec.into_boxed_slice(),
+        pos: 0,
+        dir_path: final_dir_path,
+        pipe_id: None,
+        pipe_write: false,
+    });
+    match with_fd_table_mut(pid, |t| t.alloc(handle, cloexec)) {
+        Some(Some(fd)) => fd as u64,
+        _ => ENOSYS,
+    }
+}
+
+/// Newfstatat (fstatat) システムコール
+///
+/// AT_FDCWD(-100) の場合は stat() と同等。
+pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
+    const AT_FDCWD: i64 = -100;
+    const AT_EMPTY_PATH: u64 = 0x1000;
+
+    // AT_EMPTY_PATH: path が空の場合は dirfd 自体を fstat する
+    if (flags & AT_EMPTY_PATH) != 0 {
+        if dirfd == AT_FDCWD {
+            return stat(path_ptr, stat_ptr);
+        }
+        return fstat(dirfd as u64, stat_ptr);
+    }
+
+    if dirfd == AT_FDCWD {
+        return stat(path_ptr, stat_ptr);
+    }
+
+    // dirfd 相対パスを解決して stat
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+    let idx = dirfd as usize;
+    if idx >= PROCESS_MAX_FDS { return EBADF; }
+    let dir_path = match with_fd_table(pid, |t| {
+        t.get_raw(idx).and_then(|ptr| unsafe { (*ptr).dir_path.clone() })
+    }) {
+        Some(Some(p)) => p,
+        _ => return EBADF,
+    };
+    let path = match read_cstring(path_ptr) {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let full = if path.starts_with('/') { path } else {
+        alloc::format!("{}/{}", dir_path.trim_end_matches('/'), path)
+    };
+    match crate::init::fs::file_metadata(&full) {
+        Some((inode_mode, size)) => {
+            const STAT_SIZE: u64 = 144;
+            if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) { return EFAULT; }
+            let perm = (inode_mode as u32) & 0o777;
+            let mode = if perm == 0 { inode_mode as u32 | 0o755 } else { inode_mode as u32 };
+            write_stat_buf(stat_ptr, mode, size);
+            SUCCESS
+        }
+        None => ENOENT,
+    }
+}
+
+/// Faccessat システムコール
+pub fn faccessat(dirfd: i64, path_ptr: u64, _mode: u64, _flags: u64) -> u64 {
+    use super::types::ENOENT;
+    const AT_FDCWD: i64 = -100;
+    if path_ptr == 0 { return EINVAL; }
+    let path = match read_cstring(path_ptr) {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let resolved = if dirfd == AT_FDCWD || path.starts_with('/') {
+        path
+    } else {
+        let pid = match current_process_id_raw() {
+            Some(p) => p,
+            None => return EBADF,
+        };
+        let idx = dirfd as usize;
+        if idx >= PROCESS_MAX_FDS { return EBADF; }
+        match with_fd_table(current_process_id_raw().unwrap_or(0), |t| {
+            t.get_raw(idx).and_then(|ptr| unsafe { (*ptr).dir_path.clone() })
+        }) {
+            Some(Some(d)) => alloc::format!("{}/{}", d.trim_end_matches('/'), path),
+            _ => return EBADF,
+        }
+    };
+    if crate::init::fs::file_metadata(&resolved).is_some() { SUCCESS } else { ENOENT }
+}
+
+/// Getdents64 システムコール
+///
+/// struct linux_dirent64 形式でエントリをバッファに書き込む。
+/// - d_ino (8), d_off (8), d_reclen (2), d_type (1), d_name (可変長, null終端)
+/// - レコードは 8 バイトアラインメント
+/// FD の `pos` をエントリインデックスとして使用する。
+pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
+    if buf_ptr == 0 || buf_len == 0 { return EINVAL; }
+    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) { return EFAULT; }
+    if fd < FD_BASE as u64 { return EBADF; }
+    let idx = fd as usize;
+    if idx >= PROCESS_MAX_FDS { return EBADF; }
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+
+    // ディレクトリパスと現在の読み取り位置を取得
+    let (dir_path, start_pos) = match with_fd_table(pid, |t| {
+        t.get_raw(idx).map(|ptr| {
+            let fh = unsafe { &*ptr };
+            (fh.dir_path.clone(), fh.pos)
+        })
+    }) {
+        Some(Some((Some(p), pos))) => (p, pos),
+        _ => return EBADF,
+    };
+
+    let entries = match crate::init::fs::readdir_path(&dir_path) {
+        Some(e) => e,
+        None => return EINVAL,
+    };
+
+    let mut written: usize = 0;
+    let mut new_pos = start_pos;
+
+    // "." と ".." を先頭に追加
+    let dot_entries: [(&str, u8); 2] = [(".", 4u8), ("..", 4u8)];
+    let all_entries: Vec<(alloc::string::String, u8)> = {
+        let mut v: Vec<(alloc::string::String, u8)> = dot_entries
+            .iter()
+            .map(|(n, t)| (alloc::string::String::from(*n), *t))
+            .collect();
+        for name in &entries {
+            // ディレクトリかファイルかを判定
+            let child_path = alloc::format!("{}/{}", dir_path.trim_end_matches('/'), name);
+            let dtype = if crate::init::fs::is_directory(&child_path) { 4u8 } else { 8u8 };
+            v.push((name.clone(), dtype));
+        }
+        v
+    };
+
+    crate::syscall::with_user_memory_access(|| {
+        for (i, (name, dtype)) in all_entries.iter().enumerate().skip(start_pos) {
+            let name_bytes = name.as_bytes();
+            let name_len = name_bytes.len() + 1; // null 終端含む
+            // d_ino(8) + d_off(8) + d_reclen(2) + d_type(1) + d_name
+            let raw_size = 8 + 8 + 2 + 1 + name_len;
+            let reclen = (raw_size + 7) & !7usize; // 8 バイトアライン
+            if written + reclen > buf_len as usize {
+                break;
+            }
+            let entry_ptr = (buf_ptr + written as u64) as *mut u8;
+            unsafe {
+                let buf = core::slice::from_raw_parts_mut(entry_ptr, reclen);
+                buf.fill(0);
+                // d_ino = i+1
+                buf[0..8].copy_from_slice(&((i as u64 + 1).to_ne_bytes()));
+                // d_off = next position
+                let next_off = (i + 1) as u64;
+                buf[8..16].copy_from_slice(&next_off.to_ne_bytes());
+                // d_reclen
+                buf[16..18].copy_from_slice(&(reclen as u16).to_ne_bytes());
+                // d_type
+                buf[18] = *dtype;
+                // d_name (null terminated)
+                buf[19..19 + name_bytes.len()].copy_from_slice(name_bytes);
+                buf[19 + name_bytes.len()] = 0;
+            }
+            written += reclen;
+            new_pos = i + 1;
+        }
+    });
+
+    // FD の pos を更新する
+    with_fd_table_mut(pid, |t| {
+        if let Some(ptr) = t.get_raw(idx) {
+            unsafe { (*ptr).pos = new_pos; }
+        }
+    });
+
+    written as u64
 }

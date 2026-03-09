@@ -111,19 +111,26 @@ pub fn getsid(pid_arg: u64) -> u64 {
     }
 }
 
-/// ioctl システムコール（TIOCGPGRP / TIOCSPGRP のみ対応）
+/// ioctl システムコール
 ///
+/// 対応コマンド:
 /// - TIOCGPGRP (0x540f): フォアグラウンドプロセスグループを取得
 /// - TIOCSPGRP (0x5410): フォアグラウンドプロセスグループを設定
-/// - その他のコマンドは EINVAL を返す
+/// - TIOCGWINSZ (0x5413): ウィンドウサイズ取得
+/// - TCGETS (0x5401): termios 取得
+/// - TCSETS/TCSETSW/TCSETSF (0x5402-0x5404): termios 設定
 pub fn ioctl(fd: u64, request: u64, arg: u64) -> u64 {
     const TIOCGPGRP: u64 = 0x540f;
     const TIOCSPGRP: u64 = 0x5410;
     const TIOCGWINSZ: u64 = 0x5413;
+    const TCGETS:    u64 = 0x5401;
+    const TCSETS:    u64 = 0x5402;
+    const TCSETSW:   u64 = 0x5403;
+    const TCSETSF:   u64 = 0x5404;
+    const TIOCSWINSZ:u64 = 0x5414;
 
     match request {
         TIOCGPGRP => {
-            // フォアグラウンドプロセスグループを返す（自プロセスの pgid）
             if arg == 0 || !crate::syscall::validate_user_ptr(arg, 4) {
                 return EINVAL;
             }
@@ -136,24 +143,40 @@ pub fn ioctl(fd: u64, request: u64, arg: u64) -> u64 {
             });
             SUCCESS
         }
-        TIOCSPGRP => {
-            // フォアグラウンドプロセスグループの設定（スタブ: 常に成功）
-            SUCCESS
-        }
+        TIOCSPGRP => SUCCESS,
         TIOCGWINSZ => {
-            // ウィンドウサイズ: struct winsize { ws_row, ws_col, ws_xpixel, ws_ypixel } (各 u16)
+            // struct winsize: { ws_row(u16), ws_col(u16), ws_xpixel(u16), ws_ypixel(u16) }
             if arg == 0 || !crate::syscall::validate_user_ptr(arg, 8) {
                 return EINVAL;
             }
             crate::syscall::with_user_memory_access(|| unsafe {
                 let buf = core::slice::from_raw_parts_mut(arg as *mut u8, 8);
                 buf.fill(0);
-                // ws_row = 24, ws_col = 80
-                buf[0..2].copy_from_slice(&24u16.to_ne_bytes());
-                buf[2..4].copy_from_slice(&80u16.to_ne_bytes());
+                buf[0..2].copy_from_slice(&24u16.to_ne_bytes()); // ws_row
+                buf[2..4].copy_from_slice(&80u16.to_ne_bytes()); // ws_col
             });
             SUCCESS
         }
+        TIOCSWINSZ => SUCCESS,
+        TCGETS => {
+            // struct termios (60 バイト) をゼロ初期化した上で最小限のフラグを設定して返す
+            // サイズ: c_iflag(4)+c_oflag(4)+c_cflag(4)+c_lflag(4)+c_line(1)+c_cc(19)+pad(24) = 60
+            const TERMIOS_SIZE: u64 = 60;
+            if arg == 0 || !crate::syscall::validate_user_ptr(arg, TERMIOS_SIZE) {
+                return EINVAL;
+            }
+            crate::syscall::with_user_memory_access(|| unsafe {
+                let buf = core::slice::from_raw_parts_mut(arg as *mut u8, TERMIOS_SIZE as usize);
+                buf.fill(0);
+                // c_cflag: CS8(0x30) | CREAD(0x80) | CLOCAL(0x800)
+                let cflag: u32 = 0x30 | 0x80 | 0x800;
+                buf[8..12].copy_from_slice(&cflag.to_ne_bytes());
+                // c_cc[VMIN]=1, c_cc[VTIME]=0 (offset 17 for VMIN)
+                buf[17] = 1;
+            });
+            SUCCESS
+        }
+        TCSETS | TCSETSW | TCSETSF => SUCCESS, // termios 設定は無視して成功
         _ => EINVAL,
     }
 }
@@ -182,3 +205,93 @@ pub fn getuid() -> u64 { 0 }
 pub fn getgid() -> u64 { 0 }
 pub fn geteuid() -> u64 { 0 }
 pub fn getegid() -> u64 { 0 }
+
+/// uname システムコール
+///
+/// struct utsname のレイアウト (Linux x86_64): 各フィールド 65 バイト × 6 = 390 バイト
+/// sysname, nodename, release, version, machine, domainname
+pub fn uname(buf_ptr: u64) -> u64 {
+    const FIELD_LEN: usize = 65;
+    const UTSNAME_SIZE: u64 = (FIELD_LEN * 6) as u64;
+    if buf_ptr == 0 || !crate::syscall::validate_user_ptr(buf_ptr, UTSNAME_SIZE) {
+        return EINVAL;
+    }
+    let fields: [&[u8]; 6] = [
+        b"mochiOS",                  // sysname
+        b"mochi",                    // nodename
+        b"0.1.0",                    // release
+        b"mochiOS 0.1.0",            // version
+        b"x86_64",                   // machine
+        b"",                         // domainname
+    ];
+    crate::syscall::with_user_memory_access(|| unsafe {
+        let buf = core::slice::from_raw_parts_mut(buf_ptr as *mut u8, UTSNAME_SIZE as usize);
+        buf.fill(0);
+        for (i, f) in fields.iter().enumerate() {
+            let off = i * FIELD_LEN;
+            let n = f.len().min(FIELD_LEN - 1);
+            buf[off..off + n].copy_from_slice(&f[..n]);
+        }
+    });
+    SUCCESS
+}
+
+/// nanosleep システムコール
+///
+/// struct timespec { tv_sec: i64, tv_nsec: i64 } を受け取りスリープする。
+pub fn nanosleep(req_ptr: u64, _rem_ptr: u64) -> u64 {
+    if req_ptr == 0 || !crate::syscall::validate_user_ptr(req_ptr, 16) {
+        return EINVAL;
+    }
+    let (secs, nsecs) = crate::syscall::with_user_memory_access(|| unsafe {
+        let secs  = core::ptr::read_unaligned(req_ptr as *const i64);
+        let nsecs = core::ptr::read_unaligned((req_ptr + 8) as *const i64);
+        (secs, nsecs)
+    });
+    if secs < 0 || nsecs < 0 || nsecs >= 1_000_000_000 {
+        return EINVAL;
+    }
+    let total_ms = (secs as u64) * 1000 + (nsecs as u64) / 1_000_000;
+    if total_ms > 0 {
+        crate::syscall::process::sleep(total_ms);
+    }
+    SUCCESS
+}
+
+/// mprotect システムコール（スタブ: 常に成功）
+///
+/// ユーザー空間のメモリ保護変更は現在未実装のため常に成功を返す。
+pub fn mprotect(_addr: u64, _len: u64, _prot: u64) -> u64 {
+    SUCCESS
+}
+
+/// getrlimit システムコール（リソース上限を無限大で返す）
+pub fn getrlimit(_resource: u64, rlim_ptr: u64) -> u64 {
+    if rlim_ptr == 0 || !crate::syscall::validate_user_ptr(rlim_ptr, 16) {
+        return EINVAL;
+    }
+    // struct rlimit { rlim_cur: u64, rlim_max: u64 }
+    crate::syscall::with_user_memory_access(|| unsafe {
+        core::ptr::write_unaligned(rlim_ptr as *mut u64, u64::MAX);
+        core::ptr::write_unaligned((rlim_ptr + 8) as *mut u64, u64::MAX);
+    });
+    SUCCESS
+}
+
+/// prlimit64 システムコール（スタブ: 無限大を返し、設定を無視）
+pub fn prlimit64(_pid: u64, _resource: u64, _new_limit: u64, old_limit: u64) -> u64 {
+    if old_limit != 0 {
+        return getrlimit(0, old_limit);
+    }
+    SUCCESS
+}
+
+/// set_tid_address システムコール
+///
+/// musl libc の初期化で呼ばれる。現在のスレッド ID を返す。
+pub fn set_tid_address(_tidptr: u64) -> u64 {
+    match crate::task::current_thread_id() {
+        Some(tid) => tid.as_u64(),
+        None => 1,
+    }
+}

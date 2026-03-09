@@ -74,10 +74,10 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
 }
 
 /// Readシステムコール
-/// - fd == 0 の場合はキーボードから1バイト読み取る（なければ ENODATA を返す）
+/// - fd == 0 の場合はキーボードからブロッキングで読み取る
 /// - fd >= 3 の場合は initfs から開かれたファイルを読み取る（fs::read に委譲）
 pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
-    use super::types::{EFAULT, ENODATA};
+    use super::types::EFAULT;
 
     if buf_ptr == 0 {
         return EFAULT;
@@ -87,18 +87,31 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     }
 
     if fd == 0 {
-        let ch = crate::syscall::keyboard::read_char();
-        if ch == ENODATA {
-            return ENODATA;
-        }
-        if !super::validate_user_ptr(buf_ptr, 1) {
+        if !super::validate_user_ptr(buf_ptr, len) {
             return EFAULT;
         }
+
+        // 少なくとも1バイト届くまでブロックする
+        let first = crate::syscall::keyboard::read_char_blocking();
         crate::syscall::with_user_memory_access(|| unsafe {
-            let dst = core::slice::from_raw_parts_mut(buf_ptr as *mut u8, 1);
-            dst[0] = ch as u8;
+            (buf_ptr as *mut u8).write(first);
         });
-        return 1;
+
+        // バッファに残っているスキャンコードを len-1 バイトまで追加で読む（ノンブロッキング）
+        let mut read_count: u64 = 1;
+        while read_count < len {
+            match crate::util::ps2kbd::pop_scancode() {
+                Some(sc) => {
+                    crate::syscall::with_user_memory_access(|| unsafe {
+                        (buf_ptr as *mut u8).add(read_count as usize).write(sc);
+                    });
+                    read_count += 1;
+                }
+                None => break,
+            }
+        }
+
+        return read_count;
     }
 
     crate::syscall::fs::read(fd, buf_ptr, len)

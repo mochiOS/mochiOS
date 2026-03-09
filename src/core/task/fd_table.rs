@@ -31,9 +31,9 @@ pub struct FileHandle {
 /// サイズが大きいため必ず `Box<FdTable>` として使用すること。
 pub struct FdTable {
     /// FD ごとの FileHandle 生ポインタ (0 = 空き)
-    entries: [u64; PROCESS_MAX_FDS],
+    pub(crate) entries: [u64; PROCESS_MAX_FDS],
     /// FD ごとのフラグ (FD_CLOEXEC など)
-    flags: [u8; PROCESS_MAX_FDS],
+    pub(crate) flags: [u8; PROCESS_MAX_FDS],
 }
 
 impl FdTable {

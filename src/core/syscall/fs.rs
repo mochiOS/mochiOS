@@ -158,57 +158,129 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
     fh.pos as u64
 }
 
-/// Fstatシステムコール (簡易実装)
+/// Linux x86_64 struct stat をユーザーバッファに書き込む
+///
+/// struct stat のレイアウト (144 バイト):
+///   0:  st_dev    (u64)
+///   8:  st_ino    (u64)
+///   16: st_nlink  (u64)
+///   24: st_mode   (u32)
+///   28: st_uid    (u32)
+///   32: st_gid    (u32)
+///   36: __pad0    (u32)
+///   40: st_rdev   (u64)
+///   48: st_size   (i64)
+///   56: st_blksize (i64)
+///   64: st_blocks  (i64)  — 512 バイト単位
+///   72-143: timespec × 3 + unused (ゼロ)
+fn write_stat_buf(stat_ptr: u64, mode: u32, size: u64) {
+    const STAT_SIZE: usize = 144;
+    let blocks = size.div_ceil(512);
+    crate::syscall::with_user_memory_access(|| unsafe {
+        let buf = core::slice::from_raw_parts_mut(stat_ptr as *mut u8, STAT_SIZE);
+        buf.fill(0);
+        // st_dev = 1 (仮のデバイス番号)
+        buf[0..8].copy_from_slice(&1u64.to_ne_bytes());
+        // st_ino = 1 (inode 番号は省略)
+        buf[8..16].copy_from_slice(&1u64.to_ne_bytes());
+        // st_nlink = 1
+        buf[16..24].copy_from_slice(&1u64.to_ne_bytes());
+        // st_mode
+        buf[24..28].copy_from_slice(&mode.to_ne_bytes());
+        // st_size
+        buf[48..56].copy_from_slice(&size.to_ne_bytes());
+        // st_blksize = 4096
+        buf[56..64].copy_from_slice(&4096u64.to_ne_bytes());
+        // st_blocks
+        buf[64..72].copy_from_slice(&blocks.to_ne_bytes());
+    });
+}
+
+/// Fstatシステムコール
 pub fn fstat(fd: u64, stat_ptr: u64) -> u64 {
     if stat_ptr == 0 {
         return EFAULT;
     }
-    const MIN_STAT_SIZE: u64 = 144;
-    if !crate::syscall::validate_user_ptr(stat_ptr, MIN_STAT_SIZE) {
+    const STAT_SIZE: u64 = 144;
+    if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
         return EFAULT;
     }
 
-    let fd_valid = if fd < FD_BASE as u64 {
-        true
-    } else {
-        let pid = match current_process_id_raw() {
-            Some(p) => p,
-            None => return EBADF,
-        };
-        matches!(
-            with_fd_table(pid, |t| t.get_raw(fd as usize)),
-            Some(Some(_))
-        )
+    if fd < FD_BASE as u64 {
+        // stdin/stdout/stderr → キャラクタデバイス (S_IFCHR | 0666 = 0x2000 | 0o666)
+        write_stat_buf(stat_ptr, 0x2000 | 0o666, 0);
+        return SUCCESS;
+    }
+
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
     };
-    if !fd_valid {
+    let idx = fd as usize;
+    if idx >= PROCESS_MAX_FDS {
         return EBADF;
     }
 
-    crate::syscall::with_user_memory_access(|| unsafe {
-        core::ptr::write_bytes(stat_ptr as *mut u8, 0, MIN_STAT_SIZE as usize);
+    // FileHandle から (size, is_dir) を取得する
+    let file_info = with_fd_table(pid, |t| {
+        t.get_raw(idx).map(|ptr| {
+            let fh = unsafe { &*ptr };
+            (fh.data.len() as u64, fh.dir_path.is_some())
+        })
     });
+    let (size, is_dir) = match file_info {
+        Some(Some(v)) => v,
+        _ => return EBADF,
+    };
+    // S_IFREG = 0x8000, S_IFDIR = 0x4000
+    let mode = if is_dir { 0x4000u32 | 0o755 } else { 0x8000u32 | 0o755 };
+    write_stat_buf(stat_ptr, mode, size);
     SUCCESS
 }
 
-/// Statシステムコール (簡易実装)
+/// Statシステムコール
 pub fn stat(path_ptr: u64, stat_ptr: u64) -> u64 {
     if path_ptr == 0 || stat_ptr == 0 {
         return EINVAL;
+    }
+    const STAT_SIZE: u64 = 144;
+    if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
+        return EFAULT;
     }
     let path = match read_cstring(path_ptr) {
         Ok(s) => s,
         Err(e) => return e,
     };
-    if crate::init::fs::read(&path).is_some() || crate::init::fs::is_directory(&path) {
-        const MIN_STAT_SIZE: u64 = 144;
-        if crate::syscall::validate_user_ptr(stat_ptr, MIN_STAT_SIZE) {
-            crate::syscall::with_user_memory_access(|| unsafe {
-                core::ptr::write_bytes(stat_ptr as *mut u8, 0, MIN_STAT_SIZE as usize);
-            });
+    let pid_raw = current_process_id_raw();
+    let resolved = if let Some(p) = pid_raw {
+        if path.starts_with('/') {
+            path
+        } else {
+            let pid = crate::task::ids::ProcessId::from_u64(p);
+            let cwd = crate::task::with_process(pid, |proc| {
+                let mut s = alloc::string::String::new();
+                s.push_str(proc.cwd());
+                s
+            }).unwrap_or_else(|| "/".to_string());
+            let joined = alloc::format!("{}/{}", cwd.trim_end_matches('/'), path);
+            // 正規化は簡易: 連続スラッシュのみ処理
+            joined
         }
-        SUCCESS
     } else {
-        ENOENT
+        path
+    };
+
+    match crate::init::fs::file_metadata(&resolved) {
+        Some((inode_mode, size)) => {
+            // ext2 inode mode をそのまま使用（S_IFREG/S_IFDIR ビットを保持）
+            let mode = inode_mode as u32;
+            // パーミッションビットが 0 の場合はデフォルト値を設定
+            let perm = mode & 0o777;
+            let mode = if perm == 0 { mode | 0o755 } else { mode };
+            write_stat_buf(stat_ptr, mode, size);
+            SUCCESS
+        }
+        None => ENOENT,
     }
 }
 
@@ -362,4 +434,149 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     });
     fh.pos += to_read;
     to_read as u64
+}
+
+/// Fcntl システムコール（FD フラグ操作）
+///
+/// - F_GETFD (1): FD フラグを取得
+/// - F_SETFD (2): FD フラグを設定
+/// - F_GETFL (3): ファイル状態フラグを取得（スタブ: 0 を返す）
+/// - F_SETFL (4): ファイル状態フラグを設定（スタブ: 成功を返す）
+pub fn fcntl(fd: u64, cmd: u64, arg: u64) -> u64 {
+    use crate::task::fd_table::FD_CLOEXEC;
+    const F_GETFD: u64 = 1;
+    const F_SETFD: u64 = 2;
+    const F_GETFL: u64 = 3;
+    const F_SETFL: u64 = 4;
+
+    if fd < FD_BASE as u64 {
+        // stdin/stdout/stderr: FD フラグは 0
+        return match cmd {
+            F_GETFD | F_GETFL => 0,
+            F_SETFD | F_SETFL => SUCCESS,
+            _ => EINVAL,
+        };
+    }
+    let idx = fd as usize;
+    if idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+
+    match cmd {
+        F_GETFD => {
+            match with_fd_table(pid, |t| t.get_flags(idx)) {
+                Some(Some(flags)) => flags as u64,
+                _ => EBADF,
+            }
+        }
+        F_SETFD => {
+            let cloexec = (arg & 1) != 0;
+            let new_flags = if cloexec { FD_CLOEXEC } else { 0 };
+            match with_fd_table_mut(pid, |t| t.set_flags(idx, new_flags)) {
+                Some(true) => SUCCESS,
+                _ => EBADF,
+            }
+        }
+        F_GETFL => 0,    // O_RDONLY スタブ
+        F_SETFL => SUCCESS,
+        _ => EINVAL,
+    }
+}
+
+/// Dup システムコール: FD を複製して最小の空き番号に割り当てる
+pub fn dup(fd: u64) -> u64 {
+    if fd < FD_BASE as u64 {
+        // stdin/stdout/stderr の複製は対応しない（スタブ: EBADF）
+        return EBADF;
+    }
+    let idx = fd as usize;
+    if idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+
+    // 既存エントリをクローンして新しい FD を割り当てる
+    let cloned = with_fd_table(pid, |t| {
+        t.get_raw(idx).map(|ptr| {
+            let fh = unsafe { &*ptr };
+            alloc::boxed::Box::new(FileHandle {
+                data: fh.data.clone(),
+                pos: fh.pos,
+                dir_path: fh.dir_path.clone(),
+            })
+        })
+    });
+    let new_handle = match cloned {
+        Some(Some(h)) => h,
+        _ => return EBADF,
+    };
+
+    match with_fd_table_mut(pid, |t| t.alloc(new_handle, false)) {
+        Some(Some(new_fd)) => new_fd as u64,
+        _ => ENOSYS,
+    }
+}
+
+/// Dup2 システムコール: FD を指定した番号に複製する
+pub fn dup2(old_fd: u64, new_fd: u64) -> u64 {
+    if new_fd < FD_BASE as u64 || new_fd as usize >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
+    if old_fd == new_fd {
+        // old_fd が有効かどうかだけ確認
+        if old_fd < FD_BASE as u64 {
+            return old_fd;
+        }
+        let pid = match current_process_id_raw() {
+            Some(p) => p,
+            None => return EBADF,
+        };
+        return match with_fd_table(pid, |t| t.get_raw(old_fd as usize)) {
+            Some(Some(_)) => old_fd,
+            _ => EBADF,
+        };
+    }
+
+    let old_idx = old_fd as usize;
+    if old_idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
+    let new_idx = new_fd as usize;
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+
+    // old_fd のクローンを作成
+    let cloned = with_fd_table(pid, |t| {
+        t.get_raw(old_idx).map(|ptr| {
+            let fh = unsafe { &*ptr };
+            alloc::boxed::Box::new(FileHandle {
+                data: fh.data.clone(),
+                pos: fh.pos,
+                dir_path: fh.dir_path.clone(),
+            })
+        })
+    });
+    let new_handle = match cloned {
+        Some(Some(h)) => h,
+        _ => return EBADF,
+    };
+
+    // new_fd が使用中なら閉じる
+    with_fd_table_mut(pid, |t| {
+        t.close_fd(new_idx);
+        let ptr = alloc::boxed::Box::into_raw(new_handle) as u64;
+        t.entries[new_idx] = ptr;
+        t.flags[new_idx] = 0;
+    });
+
+    new_fd
 }

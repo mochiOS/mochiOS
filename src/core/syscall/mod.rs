@@ -6,6 +6,7 @@ pub mod io;
 pub mod io_port;
 pub mod ipc;
 pub mod keyboard;
+pub mod pgroup;
 pub mod process;
 pub mod signal;
 pub mod syscall_entry;
@@ -221,6 +222,24 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::GetConsoleCursor as u64 => {
             crate::util::vga::get_cursor_pixel_y() as u64
         }
+        // プロセスグループ・セッション・ユーティリティ
+        x if x == SyscallNumber::GetPpid as u64   => pgroup::getppid(),
+        x if x == SyscallNumber::Setpgid as u64   => pgroup::setpgid(arg0, arg1),
+        x if x == SyscallNumber::Getpgid as u64   => pgroup::getpgid(arg0),
+        x if x == SyscallNumber::Setsid as u64    => pgroup::setsid(),
+        x if x == SyscallNumber::Getsid as u64    => pgroup::getsid(arg0),
+        x if x == SyscallNumber::Ioctl as u64     => pgroup::ioctl(arg0, arg1, arg2),
+        x if x == SyscallNumber::Access as u64    => pgroup::access(arg0, arg1),
+        x if x == SyscallNumber::Getuid as u64    => pgroup::getuid(),
+        x if x == SyscallNumber::Getgid as u64    => pgroup::getgid(),
+        x if x == SyscallNumber::Geteuid as u64   => pgroup::geteuid(),
+        x if x == SyscallNumber::Getegid as u64   => pgroup::getegid(),
+        x if x == SyscallNumber::Lstat as u64     => fs::stat(arg0, arg1),
+        x if x == SyscallNumber::Readlink as u64  => types::EINVAL, // スタブ: シンボリックリンク非対応
+        x if x == SyscallNumber::Fcntl as u64     => fs::fcntl(arg0, arg1, arg2),
+        x if x == SyscallNumber::Pipe as u64      => types::ENOSYS, // 未実装
+        x if x == SyscallNumber::Dup as u64       => fs::dup(arg0),
+        x if x == SyscallNumber::Dup2 as u64      => fs::dup2(arg0, arg1),
         _ => ENOSYS,
     }
 }

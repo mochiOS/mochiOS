@@ -752,15 +752,51 @@ fn exec_with_data(data: &[u8], process_name: &str, args: &[&str]) -> u64 {
     }
 }
 
+/// ユーザー空間の null 終端ポインタ配列（char**）を読み取る
+///
+/// 各エントリは 64 ビットポインタ。NULL で終端。
+/// max_entries を超えた場合は切り捨てる。
+fn read_user_ptr_array(array_ptr: u64, max_entries: usize) -> Vec<String> {
+    use crate::syscall::types::EFAULT;
+    if array_ptr == 0 {
+        return Vec::new();
+    }
+    let mut result = Vec::new();
+    for i in 0..=max_entries {
+        let ptr_addr = match (i as u64).checked_mul(8).and_then(|o| array_ptr.checked_add(o)) {
+            Some(a) => a,
+            None => break,
+        };
+        if !crate::syscall::validate_user_ptr(ptr_addr, 8) {
+            break;
+        }
+        let entry_ptr = crate::syscall::with_user_memory_access(|| unsafe {
+            core::ptr::read_unaligned(ptr_addr as *const u64)
+        });
+        if entry_ptr == 0 {
+            break;
+        }
+        let s = match crate::syscall::read_user_cstring(entry_ptr, 4096) {
+            Ok(s) => s,
+            Err(_) => break,
+        };
+        result.push(s);
+        if result.len() >= max_entries {
+            break;
+        }
+    }
+    result
+}
+
 /// execve システムコール
 ///
 /// 現在のプロセスイメージを新しいプログラムで置き換える
 ///
 /// # 引数
 /// - `path_ptr`: 実行ファイルパスのポインタ (null 終端)
-/// - `_argv`: 引数ベクタ (現在は無視)
-/// - `_envp`: 環境変数ベクタ (現在は無視)
-pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
+/// - `argv`: 引数ポインタ配列 (char*[]) — null 終端、0 の場合は [path] を使用
+/// - `envp`: 環境変数ポインタ配列 (char*[]) — null 終端、0 の場合は空
+pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
     use crate::syscall::types::{EINVAL, ENOENT, EPERM};
 
     if path_ptr == 0 {
@@ -869,7 +905,7 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
         }
     }
 
-    // ユーザースタックをセットアップ (exec_internal と同じレイアウト)
+    // ユーザースタックをセットアップ (Linux x86_64 ABI: argc, argv[], NULL, envp[], NULL, auxv[])
     const STACK_TOP_BASE: u64 = 0x0000_7FFF_FFF0_0000;
     const STACK_ASLR_MAX_PAGES: u64 = 4096; // 16MiB
     let stack_end_vaddr = STACK_TOP_BASE
@@ -877,16 +913,40 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
     let stack_size_pages: usize = 8;
     let stack_base_vaddr = stack_end_vaddr - (stack_size_pages as u64 * 4096);
 
-    let args = [path];
+    // argv / envp をユーザー空間から読み込む
+    let mut argv_strings = read_user_ptr_array(argv, 256);
+    if argv_strings.is_empty() {
+        argv_strings.push(path_owned.clone());
+    }
+    let envp_strings = read_user_ptr_array(envp, 1024);
+
+    let argc = argv_strings.len();
+    let nenvp = envp_strings.len();
+
+    // 文字列ブロック: argv 文字列 → envp 文字列（各 null 終端）
     let mut string_block: Vec<u8> = Vec::new();
     let mut argv_offsets: Vec<usize> = Vec::new();
-    for arg in args {
+    let mut envp_offsets: Vec<usize> = Vec::new();
+    for s in &argv_strings {
         argv_offsets.push(string_block.len());
-        string_block.extend_from_slice(arg.as_bytes());
+        string_block.extend_from_slice(s.as_bytes());
         string_block.push(0);
     }
+    for s in &envp_strings {
+        envp_offsets.push(string_block.len());
+        string_block.extend_from_slice(s.as_bytes());
+        string_block.push(0);
+    }
+
     let string_area_len = string_block.len();
-    let pointers_bytes = 8 + (args.len() * 8) + 8 + 8 + 16;
+    // auxv: AT_PAGESZ(6,4096), AT_ENTRY(9,entry), AT_NULL(0,0) = 3 エントリ × 16 バイト
+    let n_auxv: usize = 3;
+    let pointers_bytes = 8               // argc
+        + argc * 8                       // argv ポインタ
+        + 8                             // argv null 終端
+        + nenvp * 8                     // envp ポインタ
+        + 8                             // envp null 終端
+        + n_auxv * 16;                  // auxv エントリ
     let total_data_needed = string_area_len + pointers_bytes;
     let padding_len = (16 - (total_data_needed % 16)) % 16;
     let total_size = total_data_needed + padding_len;
@@ -896,22 +956,34 @@ pub fn execve_syscall(path_ptr: u64, _argv: u64, _envp: u64) -> u64 {
     let string_area_base = stack_end_vaddr - string_area_len as u64;
     let initial_rsp = stack_end_vaddr - total_size as u64;
 
+    // トップページのデータを構築する（4096 バイト丁度になること）
     let mut page_data: Vec<u8> = Vec::new();
     let page_offset = total_size % 4096;
-    let unused_space = 4096 - page_offset;
+    let unused_space = if page_offset == 0 { 0 } else { 4096 - page_offset };
     page_data.resize(unused_space, 0);
-    page_data.extend_from_slice(&(args.len() as u64).to_ne_bytes());
-    for off in argv_offsets {
-        page_data.extend_from_slice(&(string_area_base + off as u64).to_ne_bytes());
+    // argc
+    page_data.extend_from_slice(&(argc as u64).to_ne_bytes());
+    // argv ポインタ
+    for off in &argv_offsets {
+        page_data.extend_from_slice(&(string_area_base + *off as u64).to_ne_bytes());
     }
     page_data.extend_from_slice(&0u64.to_ne_bytes()); // argv null
+    // envp ポインタ
+    for off in &envp_offsets {
+        page_data.extend_from_slice(&(string_area_base + *off as u64).to_ne_bytes());
+    }
     page_data.extend_from_slice(&0u64.to_ne_bytes()); // envp null
-    page_data.extend_from_slice(&0u64.to_ne_bytes()); // auxv[0]
-    page_data.extend_from_slice(&0u64.to_ne_bytes()); // auxv[1]
+    // auxv エントリ
+    page_data.extend_from_slice(&6u64.to_ne_bytes());           // AT_PAGESZ key
+    page_data.extend_from_slice(&4096u64.to_ne_bytes());        // AT_PAGESZ value
+    page_data.extend_from_slice(&9u64.to_ne_bytes());           // AT_ENTRY key
+    page_data.extend_from_slice(&(entry as u64).to_ne_bytes()); // AT_ENTRY value
+    page_data.extend_from_slice(&0u64.to_ne_bytes());           // AT_NULL key
+    page_data.extend_from_slice(&0u64.to_ne_bytes());           // AT_NULL value
     page_data.resize(page_data.len() + padding_len, 0);
     page_data.extend_from_slice(&string_block);
     if page_data.len() != 4096 {
-        crate::warn!("internal: page_data.len() != 4096: {}", page_data.len());
+        crate::warn!("execve: page_data.len()={} != 4096", page_data.len());
         return EINVAL;
     }
 

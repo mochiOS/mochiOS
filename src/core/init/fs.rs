@@ -430,6 +430,44 @@ fn find_inode_in_dir(image: &[u8], sb: Superblock, dir_inode: Inode, name: &str)
 }
 
 /// パスがディレクトリかどうかを確認する（rootfs優先、"."と"/"はルートとして扱う）
+/// ファイルメタデータ: (inode_mode, size_bytes)
+///
+/// - `inode_mode` は ext2 の inode mode フィールド（ファイル種別 + パーミッション）
+/// - ファイルが存在しない場合は `None`
+pub fn file_metadata(path: &str) -> Option<(u16, u64)> {
+    if !rootfs_image().is_empty() {
+        if let Some(m) = file_metadata_in(rootfs_image(), path) {
+            return Some(m);
+        }
+    }
+    file_metadata_in(ext2_image(), path)
+}
+
+fn file_metadata_in(image: &[u8], path: &str) -> Option<(u16, u64)> {
+    let sb = superblock(image)?;
+    let normalized = path.trim_matches('/');
+    if normalized.is_empty() || normalized == "." {
+        // ルートディレクトリ
+        let root = inode(image, sb, 2)?;
+        return Some((root.mode, 0));
+    }
+    let mut current = inode(image, sb, 2)?;
+    let mut parts = normalized.split('/').filter(|p| !p.is_empty()).peekable();
+    while let Some(part) = parts.next() {
+        if part == ".." || part == "." {
+            continue;
+        }
+        let inode_num = find_inode_in_dir(image, sb, current, part)?;
+        let next = inode(image, sb, inode_num)?;
+        if parts.peek().is_none() {
+            // 最終コンポーネント
+            return Some((next.mode, next.size as u64));
+        }
+        current = next;
+    }
+    None
+}
+
 pub fn is_directory(path: &str) -> bool {
     if !rootfs_image().is_empty() && resolve_dir_inode_in(rootfs_image(), path).is_some() {
         return true;

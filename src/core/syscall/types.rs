@@ -54,6 +54,40 @@ pub enum SyscallNumber {
     Kill = 62,
     /// getcwd
     Getcwd = 79,
+    /// getppid
+    GetPpid = 110,
+    /// setpgid
+    Setpgid = 109,
+    /// getpgid
+    Getpgid = 121,
+    /// setsid
+    Setsid = 112,
+    /// getsid
+    Getsid = 124,
+    /// ioctl
+    Ioctl = 16,
+    /// access
+    Access = 21,
+    /// getuid
+    Getuid = 102,
+    /// getgid
+    Getgid = 104,
+    /// geteuid
+    Geteuid = 107,
+    /// getegid
+    Getegid = 108,
+    /// lstat (stat のシンボリックリンク非追跡版、ここでは stat と同一実装)
+    Lstat = 6,
+    /// readlink (スタブ)
+    Readlink = 89,
+    /// fcntl (FD フラグ操作)
+    Fcntl = 72,
+    /// pipe
+    Pipe = 22,
+    /// dup
+    Dup = 32,
+    /// dup2
+    Dup2 = 33,
 
     // mochiOS独自syscall (Linux未使用番号帯: 512+)
     /// スケジューラへ譲る
@@ -130,3 +164,11 @@ pub const ENODATA: u64 = (-61i64) as u64;
 pub const EAGAIN: u64 = (-11i64) as u64;
 /// メモリ不足
 pub const ENOMEM: u64 = (-12i64) as u64;
+/// ファイルが既に存在する
+pub const EEXIST: u64 = (-17i64) as u64;
+/// デバイスでない (TTY 操作に非 TTY FD を使用した)
+pub const ENOTTY: u64 = (-25i64) as u64;
+/// 引数が範囲外
+pub const ERANGE: u64 = (-34i64) as u64;
+/// 操作がサポートされていない
+pub const ENOTSUP: u64 = (-95i64) as u64;

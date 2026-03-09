@@ -37,8 +37,8 @@ pub struct Process {
     priority: u8,
     /// 終了コード（生存中はNone）
     exit_code: Option<u64>,
-    /// シグナル状態（ハンドラ・マスク・pending）
-    signal_state: SignalState,
+    /// シグナル状態（ハンドラ・マスク・pending）— ヒープに置いてスタック消費を抑える
+    signal_state: alloc::boxed::Box<SignalState>,
 }
 
 impl Process {
@@ -84,7 +84,7 @@ impl Process {
             cwd_len: 1,
             priority,
             exit_code: None,
-            signal_state: SignalState::new(),
+            signal_state: alloc::boxed::Box::new(SignalState::new()),
         }
     }
 

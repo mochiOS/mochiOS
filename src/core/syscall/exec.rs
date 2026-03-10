@@ -835,22 +835,29 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
     };
     let mut new_pt_guard = UserPageTableGuard::new(new_pt_phys);
 
-    // PT_LOAD セグメントをマップ
+    // PT_LOAD セグメントをマップ / ELF メタデータを収集
     const USER_SPACE_END_EXECVE: u64 = 0x0000_7FFF_FFFF_FFFF;
+    let mut phdr_vaddr: u64 = 0;
+    let mut phentsize: u64 = 0;
+    let mut phnum: u64 = 0;
     if let Some(eh) = crate::elf::loader::parse_elf_header(data) {
         // ELFアーキテクチャ検証 (MED-07)
         if eh.e_machine != EM_X86_64 {
             crate::warn!("execve: ELF e_machine {:#x} is not x86-64", eh.e_machine);
             return EINVAL;
         }
+        phentsize = eh.e_phentsize as u64;
+        phnum     = eh.e_phnum as u64;
         let phoff = eh.e_phoff as usize;
         let phentsz = eh.e_phentsize as usize;
         // phentszが0の場合は無限ループを防ぐ (MED-08)
         if phentsz == 0 {
             return EINVAL;
         }
-        let phnum = eh.e_phnum as usize;
-        for i in 0..phnum {
+        let n = eh.e_phnum as usize;
+        let mut load_base: u64 = 0;
+        let mut load_base_set = false;
+        for i in 0..n {
             // オーバーフロー安全な乗算と加算 (MED-08)
             let off_hdr = match i.checked_mul(phentsz).and_then(|x| phoff.checked_add(x)) {
                 Some(o) if o < data.len() => o,
@@ -876,6 +883,11 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
                                 return EINVAL;
                             }
                         }
+                    }
+                    // 最初の PT_LOAD から load_base を計算 (AT_PHDR 算出用)
+                    if !load_base_set {
+                        load_base = ph.p_vaddr.saturating_sub(ph.p_offset);
+                        load_base_set = true;
                     }
                     // ELFセグメントの境界チェック (CRIT-04)
                     let src_off = ph.p_offset as usize;
@@ -903,6 +915,7 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
                 }
             }
         }
+        phdr_vaddr = load_base + eh.e_phoff;
     }
 
     // ユーザースタックをセットアップ (Linux x86_64 ABI: argc, argv[], NULL, envp[], NULL, auxv[])
@@ -923,7 +936,7 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
     let argc = argv_strings.len();
     let nenvp = envp_strings.len();
 
-    // 文字列ブロック: argv 文字列 → envp 文字列（各 null 終端）
+    // 文字列ブロック: argv 文字列 → envp 文字列 → AT_RANDOM データ → execfn
     let mut string_block: Vec<u8> = Vec::new();
     let mut argv_offsets: Vec<usize> = Vec::new();
     let mut envp_offsets: Vec<usize> = Vec::new();
@@ -937,16 +950,30 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         string_block.extend_from_slice(s.as_bytes());
         string_block.push(0);
     }
+    // AT_RANDOM 用の 16 バイト疑似乱数（aslr_seed から LCG で生成）
+    let random_offset = string_block.len();
+    let mut rng = aslr_seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    for _ in 0..16 {
+        rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        string_block.push((rng >> 33) as u8);
+    }
+    // AT_EXECFN 用: 実行ファイルのパス（null 終端）
+    let execfn_offset = string_block.len();
+    string_block.extend_from_slice(path_owned.as_bytes());
+    string_block.push(0);
 
     let string_area_len = string_block.len();
-    // auxv: AT_PAGESZ(6,4096), AT_ENTRY(9,entry), AT_NULL(0,0) = 3 エントリ × 16 バイト
-    let n_auxv: usize = 3;
+    // auxv: 17 エントリ × 16 バイト
+    // AT_PHDR(3), AT_PHENT(4), AT_PHNUM(5), AT_PAGESZ(6), AT_BASE(7), AT_FLAGS(8),
+    // AT_ENTRY(9), AT_UID(11), AT_EUID(12), AT_GID(13), AT_EGID(14),
+    // AT_HWCAP(16), AT_CLKTCK(17), AT_SECURE(23), AT_RANDOM(25), AT_EXECFN(31), AT_NULL(0)
+    let n_auxv: usize = 17;
     let pointers_bytes = 8               // argc
         + argc * 8                       // argv ポインタ
-        + 8                             // argv null 終端
-        + nenvp * 8                     // envp ポインタ
-        + 8                             // envp null 終端
-        + n_auxv * 16;                  // auxv エントリ
+        + 8                              // argv null 終端
+        + nenvp * 8                      // envp ポインタ
+        + 8                              // envp null 終端
+        + n_auxv * 16;                   // auxv エントリ
     let total_data_needed = string_area_len + pointers_bytes;
     let padding_len = (16 - (total_data_needed % 16)) % 16;
     let total_size = total_data_needed + padding_len;
@@ -954,6 +981,8 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         return EINVAL;
     }
     let string_area_base = stack_end_vaddr - string_area_len as u64;
+    let random_addr  = string_area_base + random_offset as u64;
+    let execfn_addr  = string_area_base + execfn_offset as u64;
     let initial_rsp = stack_end_vaddr - total_size as u64;
 
     // トップページのデータを構築する（4096 バイト丁度になること）
@@ -973,13 +1002,30 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         page_data.extend_from_slice(&(string_area_base + *off as u64).to_ne_bytes());
     }
     page_data.extend_from_slice(&0u64.to_ne_bytes()); // envp null
-    // auxv エントリ
-    page_data.extend_from_slice(&6u64.to_ne_bytes());           // AT_PAGESZ key
-    page_data.extend_from_slice(&4096u64.to_ne_bytes());        // AT_PAGESZ value
-    page_data.extend_from_slice(&9u64.to_ne_bytes());           // AT_ENTRY key
-    page_data.extend_from_slice(&(entry as u64).to_ne_bytes()); // AT_ENTRY value
-    page_data.extend_from_slice(&0u64.to_ne_bytes());           // AT_NULL key
-    page_data.extend_from_slice(&0u64.to_ne_bytes());           // AT_NULL value
+    // auxv エントリ (key: u64, value: u64)
+    macro_rules! auxv {
+        ($key:expr, $val:expr) => {
+            page_data.extend_from_slice(&($key as u64).to_ne_bytes());
+            page_data.extend_from_slice(&($val as u64).to_ne_bytes());
+        };
+    }
+    auxv!(3u64,  phdr_vaddr);           // AT_PHDR
+    auxv!(4u64,  phentsize);            // AT_PHENT
+    auxv!(5u64,  phnum);                // AT_PHNUM
+    auxv!(6u64,  4096u64);              // AT_PAGESZ
+    auxv!(7u64,  0u64);                 // AT_BASE (静的リンク = 0)
+    auxv!(8u64,  0u64);                 // AT_FLAGS
+    auxv!(9u64,  entry as u64);         // AT_ENTRY
+    auxv!(11u64, 0u64);                 // AT_UID
+    auxv!(12u64, 0u64);                 // AT_EUID
+    auxv!(13u64, 0u64);                 // AT_GID
+    auxv!(14u64, 0u64);                 // AT_EGID
+    auxv!(16u64, 0u64);                 // AT_HWCAP
+    auxv!(17u64, 100u64);               // AT_CLKTCK
+    auxv!(23u64, 0u64);                 // AT_SECURE
+    auxv!(25u64, random_addr);          // AT_RANDOM
+    auxv!(31u64, execfn_addr);          // AT_EXECFN
+    auxv!(0u64,  0u64);                 // AT_NULL
     page_data.resize(page_data.len() + padding_len, 0);
     page_data.extend_from_slice(&string_block);
     if page_data.len() != 4096 {

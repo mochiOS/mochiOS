@@ -339,6 +339,21 @@ unsafe fn try_load_from(
         Ok(_) => {}
         Err(e) => {
             vga_println!("allocate_pages kernel failed: {:?}", e.status());
+            // 診断: load_min 付近のメモリマップエントリを表示する
+            if let Ok(mmap) = bt.memory_map(UefiMemType::LOADER_DATA) {
+                vga_println!("memory map around {:#x}:", load_min);
+                for desc in mmap.entries() {
+                    let end = desc.phys_start + desc.page_count * 0x1000;
+                    if end > load_min.saturating_sub(0x200000)
+                        && desc.phys_start < load_min + 0x200000
+                    {
+                        vga_println!(
+                            "  [{:#010x}..{:#010x}] type={:?}",
+                            desc.phys_start, end, desc.ty
+                        );
+                    }
+                }
+            }
             return None;
         }
     }
@@ -384,7 +399,7 @@ unsafe fn try_load_from(
     }
 
     // PT_DYNAMIC から RELA 再配置テーブルを探して R_X86_64_RELATIVE を適用する
-    // PIE としてロードアドレス == リンクアドレス (0x200000) なので load_base = 0
+    // ロードアドレス == リンクアドレス (0x4000000) なので load_base = 0
     let mut rela_addr = 0u64;
     let mut rela_size = 0usize;
     let mut rela_ent = size_of::<Elf64Rela>();

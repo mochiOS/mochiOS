@@ -24,7 +24,7 @@ fi
 # -t ext2: ファイルシステムタイプ
 # -b 4096: ブロックサイズ
 # -d $INITFS_DIR: ディレクトリ内容をルートにコピー
-# -L swiftCore: ボリュームラベル
+# -L mochiOS: ボリュームラベル
 # -F: ファイルへの書き込みを強制
 mke2fs -t ext2 -b 4096 -d "$INITFS_DIR" -L mochiOS -F "$OUTPUT_IMG" "$SIZE"
 

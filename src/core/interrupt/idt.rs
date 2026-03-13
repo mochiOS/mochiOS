@@ -716,6 +716,28 @@ extern "x86-interrupt" fn page_fault_handler(
     }
 
     if is_user_mode {
+        if let Some(tid) = crate::task::current_thread_id() {
+            if let Some((pid, name)) = crate::task::with_thread(tid, |t| {
+                let pid = t.process_id();
+                let name = crate::task::with_process(pid, |p| {
+                    let mut s = alloc::string::String::new();
+                    s.push_str(p.name());
+                    s
+                })
+                .unwrap_or_else(|| alloc::string::String::from("<unknown>"));
+                (pid, name)
+            }) {
+                error!(
+                    "Faulting user context: pid={:?}, tid={:?}, process='{}', rip={:#x}, rsp={:#x}",
+                    pid,
+                    tid,
+                    name,
+                    stack_frame.instruction_pointer.as_u64(),
+                    stack_frame.stack_pointer.as_u64()
+                );
+            }
+        }
+
         // 保護違反（既マップページへの不正アクセス）でなければスタック拡張を試みる
         let is_protection_violation = error_code
             .contains(x86_64::structures::idt::PageFaultErrorCode::PROTECTION_VIOLATION);

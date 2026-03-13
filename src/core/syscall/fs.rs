@@ -69,6 +69,12 @@ fn resolve_path(pid_raw: u64, path: &str) -> String {
     }
 }
 
+#[inline]
+fn is_process_busybox(pid_raw: u64) -> bool {
+    let pid = crate::task::ids::ProcessId::from_u64(pid_raw);
+    crate::task::with_process(pid, |p| p.name().ends_with("busybox.elf")).unwrap_or(false)
+}
+
 /// Openシステムコール (initfs の読み取り専用をサポートする簡易実装)
 pub fn open(path_ptr: u64, flags: u64) -> u64 {
     let owner_pid = match current_process_id_raw() {
@@ -82,6 +88,10 @@ pub fn open(path_ptr: u64, flags: u64) -> u64 {
     };
 
     let path = resolve_path(owner_pid, &path);
+    let busybox = is_process_busybox(owner_pid);
+    if busybox {
+        crate::info!("busybox open: path='{}', flags={:#x}", path, flags);
+    }
 
     let (data_vec, dir_path) = if crate::init::fs::is_directory(&path) {
         (Vec::new(), Some(path.clone()))
@@ -101,10 +111,14 @@ pub fn open(path_ptr: u64, flags: u64) -> u64 {
         pipe_write: false,
     });
 
-    match with_fd_table_mut(owner_pid, |t| t.alloc(handle, cloexec)) {
+    let ret = match with_fd_table_mut(owner_pid, |t| t.alloc(handle, cloexec)) {
         Some(Some(fd)) => fd as u64,
         _ => ENOSYS,
+    };
+    if busybox {
+        crate::info!("busybox open -> {}", ret);
     }
+    ret
 }
 
 /// Closeシステムコール
@@ -120,10 +134,14 @@ pub fn close(fd: u64) -> u64 {
         Some(p) => p,
         None => return EBADF,
     };
-    match with_fd_table_mut(pid, |t| t.close_fd(idx)) {
+    let ret = match with_fd_table_mut(pid, |t| t.close_fd(idx)) {
         Some(true) => SUCCESS,
         _ => EBADF,
+    };
+    if is_process_busybox(pid) {
+        crate::info!("busybox close: fd={}, ret={:#x}", fd, ret);
     }
+    ret
 }
 
 /// Seekシステムコール
@@ -758,7 +776,12 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
         })
     }) {
         Some(Some((Some(p), pos))) => (p, pos),
-        _ => return EBADF,
+        _ => {
+            if is_process_busybox(pid) {
+                crate::info!("busybox getdents64: fd={} is invalid or not a directory", fd);
+            }
+            return EBADF;
+        }
     };
 
     let entries = match crate::init::fs::readdir_path(&dir_path) {
@@ -823,6 +846,16 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
             unsafe { (*ptr).pos = new_pos; }
         }
     });
+
+    if is_process_busybox(pid) {
+        crate::info!(
+            "busybox getdents64: fd={}, start_pos={}, entries={}, written={}",
+            fd,
+            start_pos,
+            all_entries.len(),
+            written
+        );
+    }
 
     written as u64
 }

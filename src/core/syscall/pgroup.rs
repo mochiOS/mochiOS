@@ -258,10 +258,14 @@ pub fn nanosleep(req_ptr: u64, _rem_ptr: u64) -> u64 {
     SUCCESS
 }
 
-/// mprotect システムコール（スタブ: 常に成功）
+/// mprotect システムコール（スタブ）
 ///
-/// ユーザー空間のメモリ保護変更は現在未実装のため常に成功を返す。
-pub fn mprotect(_addr: u64, _len: u64, _prot: u64) -> u64 {
+/// addr=0（nullページ）への保護変更は EINVAL を返す。
+/// それ以外は SUCCESS を返す（未実装）。
+pub fn mprotect(addr: u64, _len: u64, _prot: u64) -> u64 {
+    if addr < 0x1000 {
+        return super::types::EINVAL;
+    }
     SUCCESS
 }
 

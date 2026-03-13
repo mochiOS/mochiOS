@@ -6,6 +6,8 @@ pub enum SyscallNumber {
     Read = 0,
     /// 書き込み
     Write = 1,
+    /// ベクタ書き込み
+    Writev = 20,
     /// ファイルを開く
     Open = 2,
     /// ファイルを閉じる

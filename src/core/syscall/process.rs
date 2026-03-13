@@ -176,6 +176,14 @@ pub fn brk(addr: u64) -> u64 {
     };
 
     let result = crate::task::with_process_mut(pid, |process| {
+        crate::info!(
+            "brk(pid={:?}, process='{}'): req={:#x}, heap_start={:#x}, heap_end={:#x}",
+            pid,
+            process.name(),
+            addr,
+            process.heap_start(),
+            process.heap_end()
+        );
         if process.heap_start() == 0 {
             let default_heap_base = 0x4000_0000;
             process.set_heap_start(default_heap_base);
@@ -251,9 +259,18 @@ pub fn brk(addr: u64) -> u64 {
     });
 
     match result {
-        Some(Ok(addr)) => addr,
-        Some(Err(err)) => err,
-        None => ENOSYS,
+        Some(Ok(addr)) => {
+            crate::info!("brk(pid={:?}) -> {:#x}", pid, addr);
+            addr
+        }
+        Some(Err(err)) => {
+            crate::info!("brk(pid={:?}) -> err {:#x}", pid, err);
+            err
+        }
+        None => {
+            crate::info!("brk(pid={:?}) -> ENOSYS", pid);
+            ENOSYS
+        }
     }
 }
 
@@ -472,6 +489,16 @@ pub fn mmap(addr: u64, length: u64, _prot: u64, flags: u64, _fd: u64) -> u64 {
     };
 
     let result = crate::task::with_process_mut(pid, |process| {
+        crate::info!(
+            "mmap(pid={:?}, process='{}'): addr={:#x}, len={:#x}, flags={:#x}, heap_start={:#x}, heap_end={:#x}",
+            pid,
+            process.name(),
+            addr,
+            length,
+            flags,
+            process.heap_start(),
+            process.heap_end()
+        );
         // mmap用のヒープ領域を現在のbrk以降に割り当てる
         // (簡易実装: brkと同じ領域を使う)
         if process.heap_start() == 0 {
@@ -536,9 +563,18 @@ pub fn mmap(addr: u64, length: u64, _prot: u64, flags: u64, _fd: u64) -> u64 {
     });
 
     match result {
-        Some(Ok(va)) => va,
-        Some(Err(e)) => e,
-        None => ENOMEM,
+        Some(Ok(va)) => {
+            crate::info!("mmap(pid={:?}) -> {:#x}", pid, va);
+            va
+        }
+        Some(Err(e)) => {
+            crate::info!("mmap(pid={:?}) -> err {:#x}", pid, e);
+            e
+        }
+        None => {
+            crate::info!("mmap(pid={:?}) -> ENOMEM", pid);
+            ENOMEM
+        }
     }
 }
 

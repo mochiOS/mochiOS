@@ -1,6 +1,6 @@
 //! I/O関連のシステムコール
 
-use super::types::{EBADF, EFAULT, SUCCESS};
+use super::types::{EBADF, EFAULT, EINVAL, SUCCESS};
 use crate::util::console;
 use crate::{debug, error, info, warn};
 
@@ -8,6 +8,16 @@ use crate::{debug, error, info, warn};
 const STDOUT_FD: u64 = 1;
 /// 標準エラー出力のファイルディスクリプタ
 const STDERR_FD: u64 = 2;
+const IOVEC_SIZE: u64 = 16;
+const IOV_MAX: u64 = 1024;
+
+#[inline]
+fn is_current_process_busybox() -> bool {
+    crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+        .and_then(|pid| crate::task::with_process(pid, |p| p.name().ends_with("busybox.elf")))
+        .unwrap_or(false)
+}
 
 /// 現在のプロセスの親プロセスのメインスレッドIDを返す
 fn get_parent_thread_id() -> Option<u64> {
@@ -66,17 +76,120 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     });
 
     // 親プロセス（シェル）が存在すればIPCで転送して描画させる
-    if let Some(parent_tid) = get_parent_thread_id() {
+    let mut sent_chunks: usize = 0;
+    let mut failed_chunks: usize = 0;
+    let parent_tid = get_parent_thread_id();
+    if let Some(parent_tid) = parent_tid {
         const CHUNK: usize = 512;
         let mut offset = 0;
         while offset < buf.len() {
             let end = core::cmp::min(offset + CHUNK, buf.len());
-            crate::syscall::ipc::send_from_kernel(parent_tid, &buf[offset..end]);
+            if crate::syscall::ipc::send_from_kernel(parent_tid, &buf[offset..end]) {
+                sent_chunks += 1;
+            } else {
+                failed_chunks += 1;
+            }
             offset = end;
         }
     }
+    if is_current_process_busybox() && (fd == STDOUT_FD || fd == STDERR_FD) {
+        info!(
+            "busybox write: fd={}, len={}, parent_tid={:?}, sent_chunks={}, failed_chunks={}",
+            fd,
+            len,
+            parent_tid,
+            sent_chunks,
+            failed_chunks
+        );
+    }
 
     len
+}
+
+/// Writevシステムコール
+///
+/// iov 配列を順に処理し、内部的に `write` を呼び出す。
+pub fn writev(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
+    if iovcnt == 0 {
+        return SUCCESS;
+    }
+    if iov_ptr == 0 {
+        return EFAULT;
+    }
+    if iovcnt > IOV_MAX {
+        return EINVAL;
+    }
+
+    let table_bytes = match iovcnt.checked_mul(IOVEC_SIZE) {
+        Some(n) => n,
+        None => return EINVAL,
+    };
+    if !super::validate_user_ptr(iov_ptr, table_bytes) {
+        return EFAULT;
+    }
+
+    let mut total_written: u64 = 0;
+    for i in 0..iovcnt {
+        let off = match i.checked_mul(IOVEC_SIZE) {
+            Some(v) => v,
+            None => return EINVAL,
+        };
+        let entry_ptr = match iov_ptr.checked_add(off) {
+            Some(v) => v,
+            None => return EFAULT,
+        };
+
+        let mut entry = [0u8; IOVEC_SIZE as usize];
+        if let Err(err) = crate::syscall::copy_from_user(entry_ptr, &mut entry) {
+            return if total_written > 0 { total_written } else { err };
+        }
+
+        let mut base_bytes = [0u8; 8];
+        let mut len_bytes = [0u8; 8];
+        base_bytes.copy_from_slice(&entry[0..8]);
+        len_bytes.copy_from_slice(&entry[8..16]);
+        let base = u64::from_ne_bytes(base_bytes);
+        let len = u64::from_ne_bytes(len_bytes);
+
+        if len == 0 {
+            continue;
+        }
+        if base == 0 {
+            return if total_written > 0 {
+                total_written
+            } else {
+                EFAULT
+            };
+        }
+
+        let wrote = write(fd, base, len);
+        if (wrote as i64) < 0 {
+            return if total_written > 0 {
+                total_written
+            } else {
+                wrote
+            };
+        }
+
+        total_written = match total_written.checked_add(wrote) {
+            Some(v) => v,
+            None => return EINVAL,
+        };
+
+        if wrote < len {
+            break;
+        }
+    }
+
+    if is_current_process_busybox() {
+        info!(
+            "busybox writev: fd={}, iovcnt={}, total_written={}",
+            fd,
+            iovcnt,
+            total_written
+        );
+    }
+    total_written
 }
 
 /// fd >= 3 への書き込み（パイプ書き込み端か通常ファイルへの書き込み）

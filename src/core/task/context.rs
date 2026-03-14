@@ -170,8 +170,8 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
         let pid = thread.process_id();
         let fs = thread.fs_base();
         let in_syscall = thread.in_syscall();
-        let priv_level = with_process(pid, |p| p.privilege())
-            .unwrap_or(crate::task::PrivilegeLevel::Core);
+        let priv_level =
+            with_process(pid, |p| p.privilege()).unwrap_or(crate::task::PrivilegeLevel::Core);
         crate::debug!(
             "  Next context ptr: {:p}, rsp={:#x}, rip={:#x}, kstack={:#x}",
             ptr,
@@ -205,9 +205,7 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
         if kernel_cr3 != 0 {
             crate::mem::paging::switch_page_table(kernel_cr3);
         }
-    } else if let Some(pt_phys) =
-        with_process(next_process_id, |p| p.page_table()).flatten()
-    {
+    } else if let Some(pt_phys) = with_process(next_process_id, |p| p.page_table()).flatten() {
         crate::mem::paging::switch_page_table(pt_phys);
     }
 
@@ -292,8 +290,8 @@ pub unsafe fn switch_to_thread_from_isr(
         if let Some(thread) = queue.get(next_id) {
             let ptr = thread.context() as *const Context;
             let proc = thread.process_id();
-            let priv_level = with_process(proc, |p| p.privilege())
-                .unwrap_or(crate::task::PrivilegeLevel::Core);
+            let priv_level =
+                with_process(proc, |p| p.privilege()).unwrap_or(crate::task::PrivilegeLevel::Core);
             let kstack = thread.kernel_stack_top();
             let fs = thread.fs_base();
             let in_syscall = thread.in_syscall();
@@ -328,9 +326,7 @@ pub unsafe fn switch_to_thread_from_isr(
         if kernel_cr3 != 0 {
             crate::mem::paging::switch_page_table(kernel_cr3);
         }
-    } else if let Some(pt_phys) =
-        with_process(next_process_id, |p| p.page_table()).flatten()
-    {
+    } else if let Some(pt_phys) = with_process(next_process_id, |p| p.page_table()).flatten() {
         crate::mem::paging::switch_page_table(pt_phys);
     }
 

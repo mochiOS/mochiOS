@@ -5,17 +5,17 @@
 
 use super::types::{EINVAL, EPERM, ESRCH, SUCCESS};
 use crate::task::{
-    current_thread_id, default_action, with_process, with_process_mut, DefaultAction,
-    ProcessId, SigAction, SIG_DFL, SIG_IGN, SIGCHLD, SIGKILL,
+    current_thread_id, default_action, with_process, with_process_mut, DefaultAction, ProcessId,
+    SigAction, SIGCHLD, SIGKILL, SIG_DFL, SIG_IGN,
 };
 
 // ---- rt_sigprocmask の how 引数 ----
-const SIG_BLOCK:   u64 = 0;
+const SIG_BLOCK: u64 = 0;
 const SIG_UNBLOCK: u64 = 1;
 const SIG_SETMASK: u64 = 2;
 
 // ---- SIGKILL / SIGSTOP はブロック・ハンドラ変更不可 ----
-const UNCATCHABLE_MASK: u64 = (1u64 << (SIGKILL - 1)) | (1u64 << (18usize));  // SIGKILL | SIGSTOP
+const UNCATCHABLE_MASK: u64 = (1u64 << (SIGKILL - 1)) | (1u64 << (18usize)); // SIGKILL | SIGSTOP
 
 // ---- ユーザー空間の struct sigaction レイアウト (Linux x86-64 互換) ----
 // sa_handler:  [+0]  u64
@@ -40,7 +40,10 @@ pub fn rt_sigaction(signum: u64, new_act_ptr: u64, old_act_ptr: u64) -> u64 {
         return EINVAL;
     }
 
-    let pid = match current_pid() { Some(p) => p, None => return EINVAL };
+    let pid = match current_pid() {
+        Some(p) => p,
+        None => return EINVAL,
+    };
 
     // 旧アクションを読み出してユーザー空間に書く
     if old_act_ptr != 0 {
@@ -63,14 +66,23 @@ pub fn rt_sigaction(signum: u64, new_act_ptr: u64, old_act_ptr: u64) -> u64 {
         if !crate::syscall::validate_user_ptr(new_act_ptr, SIGACTION_SIZE) {
             return super::types::EFAULT;
         }
-        let (handler, flags, restorer, mask) =
-            crate::syscall::with_user_memory_access(|| unsafe {
-                let p = new_act_ptr as *const u64;
-                (p.add(0).read(), p.add(1).read(), p.add(2).read(), p.add(3).read())
-            });
+        let (handler, flags, restorer, mask) = crate::syscall::with_user_memory_access(|| unsafe {
+            let p = new_act_ptr as *const u64;
+            (
+                p.add(0).read(),
+                p.add(1).read(),
+                p.add(2).read(),
+                p.add(3).read(),
+            )
+        });
         // mask の uncatchable ビットは強制クリア
         let mask = mask & !UNCATCHABLE_MASK;
-        let action = SigAction { handler, flags, restorer, mask };
+        let action = SigAction {
+            handler,
+            flags,
+            restorer,
+            mask,
+        };
         with_process_mut(pid, |p| p.signal_state_mut().set_action(sig, action));
     }
 
@@ -84,7 +96,10 @@ pub fn rt_sigaction(signum: u64, new_act_ptr: u64, old_act_ptr: u64) -> u64 {
 /// - `set_ptr`: 操作対象マスク (NULLなら変更しない)
 /// - `oldset_ptr`: 旧マスクの書き出し先 (NULLなら無視)
 pub fn rt_sigprocmask(how: u64, set_ptr: u64, oldset_ptr: u64) -> u64 {
-    let pid = match current_pid() { Some(p) => p, None => return EINVAL };
+    let pid = match current_pid() {
+        Some(p) => p,
+        None => return EINVAL,
+    };
 
     // 旧マスクを返す
     if oldset_ptr != 0 {
@@ -103,16 +118,16 @@ pub fn rt_sigprocmask(how: u64, set_ptr: u64, oldset_ptr: u64) -> u64 {
     if !crate::syscall::validate_user_ptr(set_ptr, 8) {
         return super::types::EFAULT;
     }
-    let new_set = crate::syscall::with_user_memory_access(|| unsafe {
-        (set_ptr as *const u64).read()
-    }) & !UNCATCHABLE_MASK;  // SIGKILL/SIGSTOP は常にアンブロック
+    let new_set =
+        crate::syscall::with_user_memory_access(|| unsafe { (set_ptr as *const u64).read() })
+            & !UNCATCHABLE_MASK; // SIGKILL/SIGSTOP は常にアンブロック
 
     with_process_mut(pid, |p| {
         let mask = &mut p.signal_state_mut().mask;
         match how {
-            SIG_BLOCK   => *mask |= new_set,
+            SIG_BLOCK => *mask |= new_set,
             SIG_UNBLOCK => *mask &= !new_set,
-            SIG_SETMASK => *mask  = new_set,
+            SIG_SETMASK => *mask = new_set,
             _ => {}
         }
     });
@@ -159,7 +174,11 @@ pub fn kill(pid_raw: u64, sig_raw: u64) -> u64 {
                 }
             }
         }
-        if found { SUCCESS } else { ESRCH }
+        if found {
+            SUCCESS
+        } else {
+            ESRCH
+        }
     } else {
         EINVAL
     }
@@ -243,8 +262,8 @@ pub extern "sysv64" fn signal_and_return(kstack: *mut u64, syscall_ret: u64) -> 
         _ => return syscall_ret,
     };
 
-    let action = with_process(pid, |p| p.signal_state().action(sig))
-        .unwrap_or(SigAction::default_action());
+    let action =
+        with_process(pid, |p| p.signal_state().action(sig)).unwrap_or(SigAction::default_action());
 
     if action.is_ignored() {
         return syscall_ret;
@@ -274,9 +293,9 @@ pub extern "sysv64" fn signal_and_return(kstack: *mut u64, syscall_ret: u64) -> 
 /// `kstack` は有効な割り込みスタックフレームを指している必要がある。
 unsafe fn setup_signal_frame(kstack: *mut u64, sig: usize, action: &SigAction) {
     // 割り込みフレームから user RIP / RSP / RFLAGS を取得
-    let user_rip    = kstack.add(15).read();
+    let user_rip = kstack.add(15).read();
     let user_rflags = kstack.add(17).read();
-    let user_rsp    = kstack.add(18).read();
+    let user_rsp = kstack.add(18).read();
 
     // ユーザースタック上にシグナルフレームを構築
     // レイアウト（低アドレス → 高アドレス, 新 RSP は先頭）:
@@ -306,9 +325,9 @@ unsafe fn setup_signal_frame(kstack: *mut u64, sig: usize, action: &SigAction) {
     }
 
     // 割り込みフレームを書き換えてハンドラへリダイレクト
-    kstack.add(8).write(sig as u64);    // RDI = シグナル番号（ハンドラの第1引数）
+    kstack.add(8).write(sig as u64); // RDI = シグナル番号（ハンドラの第1引数）
     kstack.add(15).write(action.handler); // user RIP → ハンドラ
-    kstack.add(18).write(new_rsp);        // user RSP → シグナルフレーム先頭
+    kstack.add(18).write(new_rsp); // user RSP → シグナルフレーム先頭
 }
 
 /// シグナルフレームをユーザースタックに書き込む
@@ -325,7 +344,7 @@ fn write_signal_frame(
     }
     crate::syscall::with_user_memory_access(|| unsafe {
         let p = new_rsp as *mut u64;
-        p.add(0).write(restorer);      // return address
+        p.add(0).write(restorer); // return address
         p.add(1).write(saved_rip);
         p.add(2).write(saved_rsp);
         p.add(3).write(saved_rflags);
@@ -350,11 +369,10 @@ pub fn rt_sigreturn(kstack: *mut u64) {
         crate::task::exit_current_task(11); // SIGSEGV
     }
 
-    let (saved_rip, saved_rsp, saved_rflags) =
-        crate::syscall::with_user_memory_access(|| unsafe {
-            let p = user_rsp as *const u64;
-            (p.add(0).read(), p.add(1).read(), p.add(2).read())
-        });
+    let (saved_rip, saved_rsp, saved_rflags) = crate::syscall::with_user_memory_access(|| unsafe {
+        let p = user_rsp as *const u64;
+        (p.add(0).read(), p.add(1).read(), p.add(2).read())
+    });
 
     unsafe {
         kstack.add(15).write(saved_rip);

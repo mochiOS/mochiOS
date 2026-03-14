@@ -65,8 +65,12 @@ impl PipeBuffer {
         to_read
     }
 
-    pub fn available(&self) -> usize { self.len }
-    pub fn is_full(&self)  -> bool { self.len == PIPE_BUF_SIZE }
+    pub fn available(&self) -> usize {
+        self.len
+    }
+    pub fn is_full(&self) -> bool {
+        self.len == PIPE_BUF_SIZE
+    }
 
     /// 読み込み待ちスレッドを登録する
     pub fn set_waiter(&self, tid: u64) {
@@ -113,7 +117,9 @@ pub fn alloc_pipe() -> Option<usize> {
 pub fn close_write_end(id: usize) {
     let mut table = PIPE_TABLE.lock();
     if let Some(Some(pb)) = table.get_mut(id) {
-        if pb.write_refs > 0 { pb.write_refs -= 1; }
+        if pb.write_refs > 0 {
+            pb.write_refs -= 1;
+        }
         if pb.write_refs == 0 {
             pb.wake_reader();
         }
@@ -127,7 +133,9 @@ pub fn close_write_end(id: usize) {
 pub fn close_read_end(id: usize) {
     let mut table = PIPE_TABLE.lock();
     if let Some(Some(pb)) = table.get_mut(id) {
-        if pb.read_refs > 0 { pb.read_refs -= 1; }
+        if pb.read_refs > 0 {
+            pb.read_refs -= 1;
+        }
         if pb.read_refs == 0 && pb.write_refs == 0 {
             table[id] = None;
         }
@@ -137,13 +145,17 @@ pub fn close_read_end(id: usize) {
 /// パイプに書き込む。バッファが満杯の場合は ENOSYS（簡易実装: ノンブロッキング）。
 /// 書き込んだバイト数を返す。
 pub fn pipe_write(id: usize, data: &[u8]) -> Result<usize, u64> {
-    use super::types::{EPIPE, ENOSYS};
+    use super::types::{ENOSYS, EPIPE};
     let mut table = PIPE_TABLE.lock();
     match table.get_mut(id).and_then(|s| s.as_mut()) {
         None => Err(EPIPE),
         Some(pb) => {
-            if pb.read_refs == 0 { return Err(EPIPE); }
-            if pb.is_full() { return Err(ENOSYS); }
+            if pb.read_refs == 0 {
+                return Err(EPIPE);
+            }
+            if pb.is_full() {
+                return Err(ENOSYS);
+            }
             let n = pb.write_bytes(data);
             pb.wake_reader();
             Ok(n)
@@ -238,14 +250,12 @@ pub fn pipe2_syscall(pipefd_ptr: u64, flags: u64) -> u64 {
     });
 
     let pid_id = crate::task::ids::ProcessId::from_u64(pid);
-    let read_fd = crate::task::with_process_mut(pid_id, |p| {
-        p.fd_table_mut().alloc(read_handle, cloexec)
-    })
-    .flatten();
-    let write_fd = crate::task::with_process_mut(pid_id, |p| {
-        p.fd_table_mut().alloc(write_handle, cloexec)
-    })
-    .flatten();
+    let read_fd =
+        crate::task::with_process_mut(pid_id, |p| p.fd_table_mut().alloc(read_handle, cloexec))
+            .flatten();
+    let write_fd =
+        crate::task::with_process_mut(pid_id, |p| p.fd_table_mut().alloc(write_handle, cloexec))
+            .flatten();
 
     match (read_fd, write_fd) {
         (Some(rfd), Some(wfd)) => {

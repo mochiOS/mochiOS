@@ -739,8 +739,8 @@ extern "x86-interrupt" fn page_fault_handler(
         }
 
         // 保護違反（既マップページへの不正アクセス）でなければスタック拡張を試みる
-        let is_protection_violation = error_code
-            .contains(x86_64::structures::idt::PageFaultErrorCode::PROTECTION_VIOLATION);
+        let is_protection_violation =
+            error_code.contains(x86_64::structures::idt::PageFaultErrorCode::PROTECTION_VIOLATION);
         if !is_protection_violation {
             if try_grow_user_stack(faulting_addr.as_u64()) {
                 return; // スタック拡張成功 → 命令を再試行
@@ -803,8 +803,16 @@ fn try_grow_user_stack(fault_addr: u64) -> bool {
     // フォルトページから現在の下端まで一括マップ（通常は1ページだけ）
     let new_page = (fault_addr / 4096) * 4096;
     let map_size = stack_bottom - new_page;
-    if crate::mem::paging::map_and_copy_segment_to(page_table, new_page, 0, map_size, &[], true, false)
-        .is_ok()
+    if crate::mem::paging::map_and_copy_segment_to(
+        page_table,
+        new_page,
+        0,
+        map_size,
+        &[],
+        true,
+        false,
+    )
+    .is_ok()
     {
         crate::task::with_process_mut(pid, |p| p.set_stack_bottom(new_page));
         crate::debug!("Stack grown: {:#x} -> {:#x}", stack_bottom, new_page);

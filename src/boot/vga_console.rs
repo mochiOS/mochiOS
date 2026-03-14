@@ -211,12 +211,12 @@ const BG_COLOR: u32 = 0x00000000; // 黒
 
 /// ブートフェーズ専用 VGA フレームバッファコンソール
 pub struct VgaConsole {
-    fb:     *mut u32,
-    width:  usize,
+    fb: *mut u32,
+    width: usize,
     height: usize,
     stride: usize, // ピクセル単位の1行あたりの幅
-    col:    usize, // 現在の文字カラム
-    row:    usize, // 現在の文字ロウ
+    col: usize,    // 現在の文字カラム
+    row: usize,    // 現在の文字ロウ
 }
 
 // ブートローダーはシングルスレッド動作なので Send/Sync を手動実装
@@ -225,7 +225,14 @@ unsafe impl Sync for VgaConsole {}
 
 impl VgaConsole {
     pub const fn new() -> Self {
-        Self { fb: core::ptr::null_mut(), width: 0, height: 0, stride: 0, col: 0, row: 0 }
+        Self {
+            fb: core::ptr::null_mut(),
+            width: 0,
+            height: 0,
+            stride: 0,
+            col: 0,
+            row: 0,
+        }
     }
 
     /// GOP フレームバッファで初期化し、画面をクリア
@@ -240,7 +247,9 @@ impl VgaConsole {
     }
 
     pub fn clear(&mut self) {
-        if self.fb.is_null() { return; }
+        if self.fb.is_null() {
+            return;
+        }
         let total = self.stride * self.height;
         unsafe {
             for i in 0..total {
@@ -251,12 +260,18 @@ impl VgaConsole {
         self.row = 0;
     }
 
-    fn cols(&self) -> usize { self.width  / CHAR_W }
-    fn rows(&self) -> usize { self.height / CHAR_H }
+    fn cols(&self) -> usize {
+        self.width / CHAR_W
+    }
+    fn rows(&self) -> usize {
+        self.height / CHAR_H
+    }
 
     /// 1行上にスクロール
     fn scroll_up(&mut self) {
-        if self.fb.is_null() { return; }
+        if self.fb.is_null() {
+            return;
+        }
         let row_pixels = CHAR_H * self.stride;
         let total_rows = self.rows();
         // 全行を1行分上に移動
@@ -275,7 +290,9 @@ impl VgaConsole {
 
     /// 文字を現在位置に描画（制御文字処理あり）
     pub fn put_char(&mut self, c: char) {
-        if self.fb.is_null() { return; }
+        if self.fb.is_null() {
+            return;
+        }
 
         match c {
             '\n' => {
@@ -305,7 +322,11 @@ impl VgaConsole {
 
         for (row_idx, &bits) in glyph.iter().enumerate() {
             for bit_idx in 0..CHAR_W {
-                let color = if (bits >> bit_idx) & 1 != 0 { FG_COLOR } else { BG_COLOR };
+                let color = if (bits >> bit_idx) & 1 != 0 {
+                    FG_COLOR
+                } else {
+                    BG_COLOR
+                };
                 let x = px + bit_idx;
                 let y = py + row_idx;
                 if x < self.width && y < self.height {

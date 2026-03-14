@@ -1,8 +1,8 @@
 use crate::interrupt::spinlock::SpinLock;
 
+use super::fd_table::FdTable;
 use super::ids::{PrivilegeLevel, ProcessId, ProcessState};
 use super::signal::SignalState;
-use super::fd_table::FdTable;
 
 /// プロセス構造体
 ///
@@ -174,10 +174,18 @@ impl Process {
         self.heap_start = addr;
     }
 
-    pub fn stack_bottom(&self) -> u64 { self.stack_bottom }
-    pub fn stack_top(&self) -> u64 { self.stack_top }
-    pub fn set_stack_bottom(&mut self, addr: u64) { self.stack_bottom = addr; }
-    pub fn set_stack_top(&mut self, addr: u64) { self.stack_top = addr; }
+    pub fn stack_bottom(&self) -> u64 {
+        self.stack_bottom
+    }
+    pub fn stack_top(&self) -> u64 {
+        self.stack_top
+    }
+    pub fn set_stack_bottom(&mut self, addr: u64) {
+        self.stack_bottom = addr;
+    }
+    pub fn set_stack_top(&mut self, addr: u64) {
+        self.stack_top = addr;
+    }
 
     pub fn cwd(&self) -> &str {
         core::str::from_utf8(&self.cwd[..self.cwd_len]).unwrap_or("/")
@@ -222,7 +230,11 @@ impl Process {
 
     /// プロセスグループ ID を取得（0 は自身の PID を意味する）
     pub fn pgid(&self) -> u64 {
-        if self.pgid == 0 { self.id.as_u64() } else { self.pgid }
+        if self.pgid == 0 {
+            self.id.as_u64()
+        } else {
+            self.pgid
+        }
     }
 
     /// プロセスグループ ID を設定
@@ -232,7 +244,11 @@ impl Process {
 
     /// セッション ID を取得（0 は自身の PID を意味する）
     pub fn sid(&self) -> u64 {
-        if self.sid == 0 { self.id.as_u64() } else { self.sid }
+        if self.sid == 0 {
+            self.id.as_u64()
+        } else {
+            self.sid
+        }
     }
 
     /// セッション ID を設定

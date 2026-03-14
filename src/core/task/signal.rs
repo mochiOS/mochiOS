@@ -6,8 +6,8 @@ pub const SIG_DFL: u64 = 0;
 pub const SIG_IGN: u64 = 1;
 
 // ----- シグナル番号定数 (Linux x86-64 互換) -----
-pub const SIGHUP:  usize = 1;
-pub const SIGINT:  usize = 2;
+pub const SIGHUP: usize = 1;
+pub const SIGINT: usize = 2;
 pub const SIGQUIT: usize = 3;
 pub const SIGKILL: usize = 9;
 pub const SIGTERM: usize = 15;
@@ -57,12 +57,23 @@ pub struct SigAction {
 
 impl SigAction {
     pub const fn default_action() -> Self {
-        Self { handler: SIG_DFL, flags: 0, restorer: 0, mask: 0 }
+        Self {
+            handler: SIG_DFL,
+            flags: 0,
+            restorer: 0,
+            mask: 0,
+        }
     }
 
-    pub fn is_default(&self) -> bool { self.handler == SIG_DFL }
-    pub fn is_ignored(&self) -> bool { self.handler == SIG_IGN }
-    pub fn has_user_handler(&self) -> bool { self.handler > SIG_IGN }
+    pub fn is_default(&self) -> bool {
+        self.handler == SIG_DFL
+    }
+    pub fn is_ignored(&self) -> bool {
+        self.handler == SIG_IGN
+    }
+    pub fn has_user_handler(&self) -> bool {
+        self.handler > SIG_IGN
+    }
 }
 
 /// プロセスのシグナル状態

@@ -211,7 +211,11 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
             .filter_map(|e| e.metadata().and_then(|m| m.modified()).ok())
             .max();
         if let (Some(libc_t), Some(lib_t), Some(crt_t)) = (libc_mtime, lib_mtime, crt_mtime) {
-            let newest = [lib_t, crt_t].into_iter().chain(newest_src).max().unwrap_or(lib_t);
+            let newest = [lib_t, crt_t]
+                .into_iter()
+                .chain(newest_src)
+                .max()
+                .unwrap_or(lib_t);
             if libc_t > newest {
                 println!("user libs up to date, skipping");
                 return;
@@ -272,7 +276,11 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
 
     // ベースのコピーに userglue オブジェクトを追加 (ar q = quick append, インデックスは後で再構築)
     let libc_tmp = libc_dir.join("libc_merged_tmp.a");
-    let base_src = if libc_base_a.exists() { &libc_base_a } else { &libc_a };
+    let base_src = if libc_base_a.exists() {
+        &libc_base_a
+    } else {
+        &libc_a
+    };
     fs::copy(base_src, &libc_tmp).expect("Failed to copy libc base to temp");
 
     let status = Command::new("sh")

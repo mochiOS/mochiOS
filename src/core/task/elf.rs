@@ -1,8 +1,8 @@
 //! ELFローダ
 
-use crate::result::{Kernel, Memory, Process, Result};
 use crate::init;
 use crate::mem::{frame, user};
+use crate::result::{Kernel, Memory, Process, Result};
 use crate::task::{add_process, add_thread, PrivilegeLevel, Process as TaskProcess, Thread};
 use core::sync::atomic::{AtomicU64, Ordering};
 use x86_64::structures::paging::Page;
@@ -90,8 +90,8 @@ fn next_pie_load_bias() -> u64 {
     let ticks = crate::interrupt::timer::get_ticks();
     let hw = crate::cpu::hw_random_u64().unwrap_or(0);
     let boot = crate::cpu::boot_entropy_u64();
-    let offset_pages = aslr_mix64(ctr ^ ticks.rotate_left(13) ^ hw.rotate_left(11) ^ boot)
-        % PIE_ASLR_WINDOW_PAGES;
+    let offset_pages =
+        aslr_mix64(ctr ^ ticks.rotate_left(13) ^ hw.rotate_left(11) ^ boot) % PIE_ASLR_WINDOW_PAGES;
     PIE_LOAD_BIAS + offset_pages * 4096
 }
 
@@ -248,7 +248,9 @@ pub fn spawn_service(path: &str, name: &'static str) -> Result<()> {
     // push auxv (key,val) ... AT_NULL
     let mut push_u64 = |val: u64| {
         sp = sp.saturating_sub(8);
-        unsafe { *(sp as *mut u64) = val; }
+        unsafe {
+            *(sp as *mut u64) = val;
+        }
     };
 
     // AT_NULL

@@ -2,7 +2,7 @@ use swiftlib::ipc;
 use swiftlib::process;
 use swiftlib::time;
 
-/// READY通知 OP コード（disk.service / fs.service が送信）
+/// READY通知OPコード
 const OP_NOTIFY_READY: u64 = 0xFF;
 
 /// サービス定義
@@ -12,8 +12,9 @@ struct ServiceDef {
 }
 
 const SERVICES: &[ServiceDef] = &[
-    ServiceDef { name: "disk.service", path: "disk.service" },
-    ServiceDef { name: "fs.service",   path: "fs.service"   },
+    ServiceDef { name: "disk.service",   path: "disk.service"   },
+    ServiceDef { name: "fs.service",     path: "fs.service"     },
+    ServiceDef { name: "driver.service", path: "driver.service" },
 ];
 
 #[cfg(feature = "run_tests")]
@@ -30,7 +31,6 @@ fn start_service(service: &ServiceDef) {
     }
 }
 
-/// disk.service と fs.service の READY 通知を待つ（最大タイムアウト付き）
 fn wait_for_ready(expected_count: usize) {
     let mut ready_count = 0;
     let mut recv_buf = [0u8; 64];
@@ -69,8 +69,7 @@ fn main() {
         start_service(service);
     }
 
-    // disk と fs が揃うまで待つ
-    wait_for_ready(2);
+    wait_for_ready(3);
 
     // shell.service を起動（std::fs::read で ELF を読んで exec_from_buffer で実行）
     println!("[CORE] Loading shell.service from Services/...");

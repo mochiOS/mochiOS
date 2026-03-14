@@ -15,9 +15,9 @@ pub mod task;
 pub mod time;
 pub mod vga;
 
-mod types;
 mod console;
 mod linux;
+mod types;
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -216,7 +216,9 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::GetThreadPrivilege as u64 => task::get_thread_privilege(arg0),
         x if x == SyscallNumber::GetFramebufferInfo as u64 => vga::get_framebuffer_info(arg0),
         x if x == SyscallNumber::MapFramebuffer as u64 => vga::map_framebuffer(),
-        x if x == SyscallNumber::ExecFromBuffer as u64 => exec::exec_from_buffer_syscall(arg0, arg1),
+        x if x == SyscallNumber::ExecFromBuffer as u64 => {
+            exec::exec_from_buffer_syscall(arg0, arg1)
+        }
         x if x == SyscallNumber::SetConsoleCursor as u64 => {
             crate::util::vga::set_cursor_pixel_y(arg0 as usize);
             0
@@ -225,36 +227,36 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
             crate::util::vga::get_cursor_pixel_y() as u64
         }
         // プロセスグループ・セッション・ユーティリティ
-        x if x == SyscallNumber::GetPpid as u64   => pgroup::getppid(),
-        x if x == SyscallNumber::Setpgid as u64   => pgroup::setpgid(arg0, arg1),
-        x if x == SyscallNumber::Getpgid as u64   => pgroup::getpgid(arg0),
-        x if x == SyscallNumber::Setsid as u64    => pgroup::setsid(),
-        x if x == SyscallNumber::Getsid as u64    => pgroup::getsid(arg0),
-        x if x == SyscallNumber::Ioctl as u64     => pgroup::ioctl(arg0, arg1, arg2),
-        x if x == SyscallNumber::Access as u64    => pgroup::access(arg0, arg1),
-        x if x == SyscallNumber::Getuid as u64    => pgroup::getuid(),
-        x if x == SyscallNumber::Getgid as u64    => pgroup::getgid(),
-        x if x == SyscallNumber::Geteuid as u64   => pgroup::geteuid(),
-        x if x == SyscallNumber::Getegid as u64   => pgroup::getegid(),
-        x if x == SyscallNumber::Lstat as u64     => fs::stat(arg0, arg1),
-        x if x == SyscallNumber::Readlink as u64  => types::EINVAL, // スタブ: シンボリックリンク非対応
-        x if x == SyscallNumber::Fcntl as u64     => fs::fcntl(arg0, arg1, arg2),
-        x if x == SyscallNumber::Pipe as u64      => pipe::pipe_syscall(arg0),
-        x if x == SyscallNumber::Dup as u64       => fs::dup(arg0),
-        x if x == SyscallNumber::Dup2 as u64      => fs::dup2(arg0, arg1),
+        x if x == SyscallNumber::GetPpid as u64 => pgroup::getppid(),
+        x if x == SyscallNumber::Setpgid as u64 => pgroup::setpgid(arg0, arg1),
+        x if x == SyscallNumber::Getpgid as u64 => pgroup::getpgid(arg0),
+        x if x == SyscallNumber::Setsid as u64 => pgroup::setsid(),
+        x if x == SyscallNumber::Getsid as u64 => pgroup::getsid(arg0),
+        x if x == SyscallNumber::Ioctl as u64 => pgroup::ioctl(arg0, arg1, arg2),
+        x if x == SyscallNumber::Access as u64 => pgroup::access(arg0, arg1),
+        x if x == SyscallNumber::Getuid as u64 => pgroup::getuid(),
+        x if x == SyscallNumber::Getgid as u64 => pgroup::getgid(),
+        x if x == SyscallNumber::Geteuid as u64 => pgroup::geteuid(),
+        x if x == SyscallNumber::Getegid as u64 => pgroup::getegid(),
+        x if x == SyscallNumber::Lstat as u64 => fs::stat(arg0, arg1),
+        x if x == SyscallNumber::Readlink as u64 => types::EINVAL, // スタブ: シンボリックリンク非対応
+        x if x == SyscallNumber::Fcntl as u64 => fs::fcntl(arg0, arg1, arg2),
+        x if x == SyscallNumber::Pipe as u64 => pipe::pipe_syscall(arg0),
+        x if x == SyscallNumber::Dup as u64 => fs::dup(arg0),
+        x if x == SyscallNumber::Dup2 as u64 => fs::dup2(arg0, arg1),
         // 追加: BusyBox 互換 syscall
-        x if x == SyscallNumber::Mprotect as u64      => pgroup::mprotect(arg0, arg1, arg2),
-        x if x == SyscallNumber::Nanosleep as u64     => pgroup::nanosleep(arg0, arg1),
-        x if x == SyscallNumber::Uname as u64         => pgroup::uname(arg0),
-        x if x == SyscallNumber::Getrlimit as u64     => pgroup::getrlimit(arg0, arg1),
+        x if x == SyscallNumber::Mprotect as u64 => pgroup::mprotect(arg0, arg1, arg2),
+        x if x == SyscallNumber::Nanosleep as u64 => pgroup::nanosleep(arg0, arg1),
+        x if x == SyscallNumber::Uname as u64 => pgroup::uname(arg0),
+        x if x == SyscallNumber::Getrlimit as u64 => pgroup::getrlimit(arg0, arg1),
         x if x == SyscallNumber::SetTidAddress as u64 => pgroup::set_tid_address(arg0),
-        x if x == SyscallNumber::Prlimit64 as u64     => pgroup::prlimit64(arg0, arg1, arg2, arg3),
-        x if x == SyscallNumber::Pipe2 as u64         => pipe::pipe2_syscall(arg0, arg1),
-        x if x == SyscallNumber::Openat as u64        => fs::openat(arg0 as i64, arg1, arg2, arg3),
-        x if x == SyscallNumber::Getdents64 as u64    => fs::getdents64(arg0, arg1, arg2),
-        x if x == SyscallNumber::Newfstatat as u64    => fs::newfstatat(arg0 as i64, arg1, arg2, arg3),
-        x if x == SyscallNumber::Faccessat as u64     => fs::faccessat(arg0 as i64, arg1, arg2, arg3),
-        x if x == SyscallNumber::Readlinkat as u64    => types::EINVAL, // スタブ
+        x if x == SyscallNumber::Prlimit64 as u64 => pgroup::prlimit64(arg0, arg1, arg2, arg3),
+        x if x == SyscallNumber::Pipe2 as u64 => pipe::pipe2_syscall(arg0, arg1),
+        x if x == SyscallNumber::Openat as u64 => fs::openat(arg0 as i64, arg1, arg2, arg3),
+        x if x == SyscallNumber::Getdents64 as u64 => fs::getdents64(arg0, arg1, arg2),
+        x if x == SyscallNumber::Newfstatat as u64 => fs::newfstatat(arg0 as i64, arg1, arg2, arg3),
+        x if x == SyscallNumber::Faccessat as u64 => fs::faccessat(arg0 as i64, arg1, arg2, arg3),
+        x if x == SyscallNumber::Readlinkat as u64 => types::EINVAL, // スタブ
         _ => {
             if let Some(tid) = crate::task::current_thread_id()
                 .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
@@ -266,7 +268,7 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
                 }
             }
             ENOSYS
-        },
+        }
     }
 }
 

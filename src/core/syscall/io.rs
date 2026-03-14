@@ -95,11 +95,7 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     if is_current_process_busybox() && (fd == STDOUT_FD || fd == STDERR_FD) {
         info!(
             "busybox write: fd={}, len={}, parent_tid={:?}, sent_chunks={}, failed_chunks={}",
-            fd,
-            len,
-            parent_tid,
-            sent_chunks,
-            failed_chunks
+            fd, len, parent_tid, sent_chunks, failed_chunks
         );
     }
 
@@ -141,7 +137,11 @@ pub fn writev(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
 
         let mut entry = [0u8; IOVEC_SIZE as usize];
         if let Err(err) = crate::syscall::copy_from_user(entry_ptr, &mut entry) {
-            return if total_written > 0 { total_written } else { err };
+            return if total_written > 0 {
+                total_written
+            } else {
+                err
+            };
         }
 
         let mut base_bytes = [0u8; 8];
@@ -184,9 +184,7 @@ pub fn writev(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
     if is_current_process_busybox() {
         info!(
             "busybox writev: fd={}, iovcnt={}, total_written={}",
-            fd,
-            iovcnt,
-            total_written
+            fd, iovcnt, total_written
         );
     }
     total_written
@@ -194,8 +192,8 @@ pub fn writev(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
 
 /// fd >= 3 への書き込み（パイプ書き込み端か通常ファイルへの書き込み）
 fn write_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
+    use super::types::{ENOSYS, EPIPE};
     use crate::task::fd_table::FileHandle;
-    use super::types::{EPIPE, ENOSYS};
 
     let pid = match crate::task::current_thread_id()
         .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
@@ -211,7 +209,8 @@ fn write_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
             let fh = unsafe { &*ptr };
             (fh.pipe_id, fh.pipe_write)
         })
-    }).flatten();
+    })
+    .flatten();
 
     match pipe_info {
         Some((Some(pipe_id), true)) => {
@@ -300,7 +299,8 @@ fn read_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
             let fh = unsafe { &*(ptr as *const crate::task::fd_table::FileHandle) };
             (fh.pipe_id, fh.pipe_write)
         })
-    }).flatten();
+    })
+    .flatten();
 
     match pipe_info {
         Some((Some(pipe_id), false)) => {

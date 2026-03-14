@@ -57,7 +57,10 @@ pub fn map_framebuffer() -> u64 {
     let phys_addr = fb_info.addr;
     // stride は u32 ピクセル単位、1ピクセル = 4バイト
     let fb_size = fb_info.height as u64 * fb_info.stride as u64 * 4;
-    let fb_size_aligned = fb_size.checked_add(0xfff).map(|v| v & !0xfffu64).unwrap_or(0);
+    let fb_size_aligned = fb_size
+        .checked_add(0xfff)
+        .map(|v| v & !0xfffu64)
+        .unwrap_or(0);
 
     if fb_size_aligned == 0 {
         return EINVAL;
@@ -91,8 +94,13 @@ pub fn map_framebuffer() -> u64 {
             None => return Err(ENOMEM),
         };
 
-        crate::mem::paging::map_physical_range_to_user(pt_phys, map_start, phys_addr, fb_size_aligned)
-            .map_err(|_| ENOMEM)?;
+        crate::mem::paging::map_physical_range_to_user(
+            pt_phys,
+            map_start,
+            phys_addr,
+            fb_size_aligned,
+        )
+        .map_err(|_| ENOMEM)?;
 
         let new_end = map_start.checked_add(fb_size_aligned).unwrap_or(map_start);
         process.set_heap_end(new_end);

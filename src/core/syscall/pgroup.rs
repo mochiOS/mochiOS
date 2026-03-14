@@ -55,8 +55,7 @@ pub fn setpgid(pid_arg: u64, pgid_arg: u64) -> u64 {
 
     // 呼び出し元は自分自身または直接の子プロセスのみ変更可能
     let is_child = if target_pid != caller {
-        crate::task::with_process(target_pid, |p| p.parent_id() == Some(caller))
-            .unwrap_or(false)
+        crate::task::with_process(target_pid, |p| p.parent_id() == Some(caller)).unwrap_or(false)
     } else {
         true
     };
@@ -64,7 +63,11 @@ pub fn setpgid(pid_arg: u64, pgid_arg: u64) -> u64 {
         return EPERM;
     }
 
-    let new_pgid = if pgid_arg == 0 { target_pid.as_u64() } else { pgid_arg };
+    let new_pgid = if pgid_arg == 0 {
+        target_pid.as_u64()
+    } else {
+        pgid_arg
+    };
 
     match crate::task::with_process_mut(target_pid, |p| {
         p.set_pgid(new_pgid);
@@ -123,11 +126,11 @@ pub fn ioctl(fd: u64, request: u64, arg: u64) -> u64 {
     const TIOCGPGRP: u64 = 0x540f;
     const TIOCSPGRP: u64 = 0x5410;
     const TIOCGWINSZ: u64 = 0x5413;
-    const TCGETS:    u64 = 0x5401;
-    const TCSETS:    u64 = 0x5402;
-    const TCSETSW:   u64 = 0x5403;
-    const TCSETSF:   u64 = 0x5404;
-    const TIOCSWINSZ:u64 = 0x5414;
+    const TCGETS: u64 = 0x5401;
+    const TCSETS: u64 = 0x5402;
+    const TCSETSW: u64 = 0x5403;
+    const TCSETSF: u64 = 0x5404;
+    const TIOCSWINSZ: u64 = 0x5414;
 
     match request {
         TIOCGPGRP => {
@@ -201,10 +204,18 @@ pub fn access(path_ptr: u64, _mode: u64) -> u64 {
 }
 
 /// getuid / geteuid / getgid / getegid システムコール（常に 0 = root を返す）
-pub fn getuid() -> u64 { 0 }
-pub fn getgid() -> u64 { 0 }
-pub fn geteuid() -> u64 { 0 }
-pub fn getegid() -> u64 { 0 }
+pub fn getuid() -> u64 {
+    0
+}
+pub fn getgid() -> u64 {
+    0
+}
+pub fn geteuid() -> u64 {
+    0
+}
+pub fn getegid() -> u64 {
+    0
+}
 
 /// uname システムコール
 ///
@@ -217,12 +228,12 @@ pub fn uname(buf_ptr: u64) -> u64 {
         return EINVAL;
     }
     let fields: [&[u8]; 6] = [
-        b"mochiOS",                  // sysname
-        b"mochi",                    // nodename
-        b"0.1.0",                    // release
-        b"mochiOS 0.1.0",            // version
-        b"x86_64",                   // machine
-        b"",                         // domainname
+        b"mochiOS",       // sysname
+        b"mochi",         // nodename
+        b"0.1.0",         // release
+        b"mochiOS 0.1.0", // version
+        b"x86_64",        // machine
+        b"",              // domainname
     ];
     crate::syscall::with_user_memory_access(|| unsafe {
         let buf = core::slice::from_raw_parts_mut(buf_ptr as *mut u8, UTSNAME_SIZE as usize);
@@ -244,7 +255,7 @@ pub fn nanosleep(req_ptr: u64, _rem_ptr: u64) -> u64 {
         return EINVAL;
     }
     let (secs, nsecs) = crate::syscall::with_user_memory_access(|| unsafe {
-        let secs  = core::ptr::read_unaligned(req_ptr as *const i64);
+        let secs = core::ptr::read_unaligned(req_ptr as *const i64);
         let nsecs = core::ptr::read_unaligned((req_ptr + 8) as *const i64);
         (secs, nsecs)
     });

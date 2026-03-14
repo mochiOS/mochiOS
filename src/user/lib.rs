@@ -44,6 +44,8 @@ pub mod vga;
 pub mod keyboard;
 /// マウス入力
 pub mod mouse;
+/// MMIO/物理メモリマップ
+pub mod mmio;
 
 #[cfg(not(feature = "std-support"))]
 use core::panic::PanicInfo;

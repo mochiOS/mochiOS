@@ -1,8 +1,8 @@
-<h1 align="center">mochiOS</h1>
 <div align="center">
-    <a href="https://deepwiki.com/tas0dev/mochiOS"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-    <a href="https://deps.rs/repo/github/tas0dev/mochiOS" target="_blank"><img src="https://deps.rs/repo/github/tas0dev/mochiOS/status.svg" alt="dependency status" /></a>
-    <a href="https://discord.gg/2zYbEnMC5H" target="_blank"><img src="https://img.shields.io/badge/Discord-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord server" /></a>
+<h1>mochiOS</h1>
+<a href="https://deepwiki.com/tas0dev/mochiOS"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+<a href="https://deps.rs/repo/github/tas0dev/mochiOS" target="_blank"><img src="https://deps.rs/repo/github/tas0dev/mochiOS/status.svg" alt="dependency status" /></a>
+<a href="https://discord.gg/2zYbEnMC5H" target="_blank"><img src="https://img.shields.io/badge/Discord-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord server" /></a>
 </div>
 
 ## About
@@ -57,3 +57,8 @@ mochiOSはハイブリッドアーキテクチャを採用した、新しいOS�
 ## Document
 まともなドキュメントはまだないです。
 [DeepWiki](https://deepwiki.com/tas0dev/mochiOS)を読んでください。
+
+<div align="center">
+<img src="src/resources/Resources/mochimochi-kun.png" width="50" alt="mochimochi-kun">
+<small>< みんなの貢献待ってるよ！</small>
+</div>

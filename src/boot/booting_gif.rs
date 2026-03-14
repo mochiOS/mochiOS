@@ -4,7 +4,7 @@ use core::cmp::min;
 
 const BOOTING_GIF: &[u8] = include_bytes!("../resources/Resources/booting.gif");
 const MARGIN_PX: usize = 16;
-const TICK_QUANTUM_MS: u16 = 35;
+const TICK_QUANTUM_MS: u16 = 6;
 
 #[derive(Clone)]
 struct GifFrame {

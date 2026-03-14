@@ -230,10 +230,7 @@ unsafe fn try_load_raw(
         let chunk = &mut buf[read_total..read_end];
         match file.read(chunk) {
             Ok(0) => break, // EOF
-            Ok(n) => {
-                read_total += n;
-                tick_booting_gif(&mut anim);
-            }
+            Ok(n) => read_total += n,
             Err(_) => return None,
         }
     }
@@ -460,10 +457,7 @@ unsafe fn try_load_from(
         let chunk = &mut buf[read_total..read_end];
         match file.read(chunk) {
             Ok(0) => break,
-            Ok(n) => {
-                read_total += n;
-                tick_booting_gif(&mut anim);
-            }
+            Ok(n) => read_total += n,
             Err(e) => {
                 vga_println!("file read failed: {:?}", e.status());
                 return None;

@@ -8,6 +8,8 @@ use core::sync::atomic::{AtomicU64, Ordering};
 
 /// rawスキャンコードのバッファ (割り込みハンドラ ↔ syscall)
 pub static SCANCODE_BUF: Fifo<u8, 256> = Fifo::new();
+/// ドライバ監視用のミラーキュー（通常入力を消費しない）
+pub static SCANCODE_TAP_BUF: Fifo<u8, 256> = Fifo::new();
 
 /// read(0, ...) でブロッキング待機しているスレッドのID（0 = 待ちなし）
 static KEYBOARD_WAITER: AtomicU64 = AtomicU64::new(0);
@@ -15,6 +17,7 @@ static KEYBOARD_WAITER: AtomicU64 = AtomicU64::new(0);
 /// IRQ1 ハンドラから呼ぶ: rawスキャンコードをバッファへ積み、待機スレッドを起床させる
 pub fn push_scancode(scancode: u8) {
     let _ = SCANCODE_BUF.push(scancode);
+    let _ = SCANCODE_TAP_BUF.push(scancode);
 
     // ブロッキング read で眠っているスレッドがいれば起床させる
     let waiter = KEYBOARD_WAITER.swap(0, Ordering::AcqRel);
@@ -26,6 +29,11 @@ pub fn push_scancode(scancode: u8) {
 /// `KeyboardRead` syscall から呼ぶ: rawスキャンコードを1バイト取り出す
 pub fn pop_scancode() -> Option<u8> {
     SCANCODE_BUF.pop()
+}
+
+/// ドライバ監視用ミラーキューから rawスキャンコードを1バイト取り出す
+pub fn pop_tap_scancode() -> Option<u8> {
+    SCANCODE_TAP_BUF.pop()
 }
 
 /// ブロッキング read 用: 現在のスレッドをwaiterとして登録する

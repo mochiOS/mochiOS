@@ -52,6 +52,7 @@ struct KeyboardDecoder {
 }
 
 impl KeyboardDecoder {
+    /// スキャンコードをデコード
     fn decode_scancode(&mut self, scancode: u8) -> Option<u8> {
         if scancode & SC_RELEASE != 0 {
             let make = scancode & !SC_RELEASE;
@@ -90,11 +91,11 @@ impl KeyboardDecoder {
 
 fn log_key_event(ch: u8) {
     match ch {
-        b'\n' => println!("[USB3.0][KBD] <ENTER>"),
-        b'\t' => println!("[USB3.0][KBD] <TAB>"),
-        0x08 => println!("[USB3.0][KBD] <BACKSPACE>"),
-        b' '..=b'~' => println!("[USB3.0][KBD] '{}'", ch as char),
-        _ => println!("[USB3.0][KBD] 0x{:02X}", ch),
+        b'\n' => println!("[xHCI][KBD] <ENTER>"),
+        b'\t' => println!("[xHCI][KBD] <TAB>"),
+        0x08 => println!("[xHCI][KBD] <BACKSPACE>"),
+        b' '..=b'~' => println!("[xHCI][KBD] '{}'", ch as char),
+        _ => println!("[xHCI][KBD] 0x{:02X}", ch),
     }
 }
 
@@ -107,7 +108,7 @@ fn log_mouse_event(packet: mouse::MousePacket, last_buttons: &mut u8) {
 
     let dy_screen = -(packet.dy as i16);
     println!(
-        "[USB3.0][MOUSE] dx={:>4}, dy={:>4}, L={} R={} M={}",
+        "[xHCI][MOUSE] dx={:>4}, dy={:>4}, L={} R={} M={}",
         packet.dx as i16,
         dy_screen,
         packet.left() as u8,
@@ -118,8 +119,8 @@ fn log_mouse_event(packet: mouse::MousePacket, last_buttons: &mut u8) {
 }
 
 fn main() {
-    println!("[USB3.0] driver started");
-    println!("[USB3.0] input monitor mode enabled (keyboard tap + mouse packet)");
+    println!("[xHCI] driver started");
+    println!("[xHCI] input monitor mode enabled (keyboard tap + mouse packet)");
 
     let mut decoder = KeyboardDecoder::default();
     let mut last_buttons = 0u8;
@@ -140,7 +141,7 @@ fn main() {
                 Ok(None) => break,
                 Err(err) => {
                     if !warned_keyboard_err {
-                        println!("[USB3.0] keyboard tap error: {:#x}", err);
+                        println!("[xHCI] keyboard tap error: {:#x}", err);
                         warned_keyboard_err = true;
                     }
                     break;
@@ -157,7 +158,7 @@ fn main() {
                 Ok(None) => break,
                 Err(err) => {
                     if !warned_mouse_err {
-                        println!("[USB3.0] mouse read error: {:#x}", err);
+                        println!("[xHCI] mouse read error: {:#x}", err);
                         warned_mouse_err = true;
                     }
                     break;

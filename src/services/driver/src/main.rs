@@ -7,7 +7,7 @@ use swiftlib::time;
 
 const OP_NOTIFY_READY: u64 = 0xFF;
 const DRIVER_CONFIG_PATH: &str = "Config/drivers.list";
-const DEFAULT_DRIVERS: &[&str] = &["Binaries/drivers/usb3.0.elf"];
+const DEFAULT_DRIVERS: &[&str] = &["Binaries/drivers/usb.elf"];
 
 fn load_driver_list() -> Vec<String> {
     let mut drivers = Vec::new();

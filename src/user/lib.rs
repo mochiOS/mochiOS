@@ -42,6 +42,8 @@ pub mod vga;
 
 /// キーボード入力
 pub mod keyboard;
+/// マウス入力
+pub mod mouse;
 
 #[cfg(not(feature = "std-support"))]
 use core::panic::PanicInfo;
@@ -79,4 +81,3 @@ unsafe impl GlobalAlloc for NewlibAllocator {
 
 #[global_allocator]
 static ALLOCATOR: NewlibAllocator = NewlibAllocator;
-

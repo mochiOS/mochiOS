@@ -102,6 +102,10 @@ pub enum SyscallNumber {
     GetConsoleCursor = 532,
     /// IPC受信（ブロッキング版）
     IpcRecvWait = 533,
+    /// キーボード入力の監視用タップ（通常入力を消費しない）
+    KeyboardReadTap = 534,
+    /// PS/2 マウスの3バイトパケットを読み取る（b0 | b1<<8 | b2<<16）
+    MouseRead = 535,
 }
 
 /// 入力が空

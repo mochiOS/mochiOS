@@ -46,6 +46,9 @@ pub fn kinit(boot_info: &'static BootInfo) -> Result<&'static [MemoryRegion]> {
     // 発生する可能性があった。正しい初期化順序: PIT→スケジューラ→タイマー→割り込み有効化
     interrupt::init_pit();
     task::init_scheduler();
+    if !util::ps2mouse::init() {
+        crate::warn!("PS/2 mouse initialization failed");
+    }
     interrupt::enable_timer_interrupt();
 
     unsafe {

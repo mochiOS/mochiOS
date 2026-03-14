@@ -54,9 +54,13 @@ pub fn init() {
         // ハードウェア割り込みハンドラ（32-47番）
         idt[32].set_handler_fn(super::timer::timer_interrupt_handler); // Timer IRQ0
         idt[33].set_handler_fn(keyboard_interrupt_handler); // Keyboard IRQ1 (C-2修正)
+        idt[44].set_handler_fn(mouse_interrupt_handler); // Mouse IRQ12 (PS/2 AUX)
 
         // それ以外のハードウェア割り込みはとりあえずスタブ
         for i in 34..48 {
+            if i == 44 {
+                continue;
+            }
             idt[i].set_handler_fn(generic_interrupt_handler);
         }
 
@@ -955,6 +959,17 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     unsafe {
         super::pic::PIC_MASTER.end_of_interrupt();
     }
+}
+
+/// マウス割り込みハンドラ (IRQ12 / ベクタ 44)
+extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    let byte: u8 = unsafe {
+        let mut port = x86_64::instructions::port::Port::<u8>::new(0x60);
+        port.read()
+    };
+    crate::util::ps2mouse::push_byte(byte);
+    // IRQ12 はスレーブPIC配下なので、スレーブ→マスターの順でEOIを送る
+    super::send_eoi(44);
 }
 
 /// 一般的な割り込みハンドラ（スタブ）

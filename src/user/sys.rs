@@ -106,6 +106,8 @@ pub enum SyscallNumber {
     KeyboardReadTap = 534,
     /// PS/2 マウスの3バイトパケットを読み取る（b0 | b1<<8 | b2<<16）
     MouseRead = 535,
+    /// 物理アドレス範囲をユーザー空間にマップ
+    MapPhysicalRange = 536,
 }
 
 /// 入力が空

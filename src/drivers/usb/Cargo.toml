@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "usb3_0"
+name = "xhci"
 path = "src/main.rs"
 test = false
 bench = false

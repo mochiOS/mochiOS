@@ -1,8 +1,10 @@
 [package]
-name = "posix"
+name = "posix-types"
 version = "0.2.0"
 authors = ["tas0dev"]
 edition = "2021"
 
 [lib]
 name = "posix"
+test = false
+bench = false

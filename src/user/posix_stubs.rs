@@ -5,7 +5,6 @@
 
 use crate::sys::{syscall1, syscall2, syscall6, SyscallNumber};
 
-
 // errno
 static mut ERRNO_VAL: i32 = 0;
 
@@ -14,8 +13,8 @@ pub unsafe extern "C" fn __errno_location() -> *mut i32 {
     &raw mut ERRNO_VAL
 }
 
-
 // メモリ管理
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn mmap(
     addr: *mut u8,
@@ -69,6 +68,7 @@ pub unsafe extern "C" fn syscall() {
         "ret",
     );
 }
+
 
 // 単純なスレッドローカルストレージ (シングルスレッド用)
 const MAX_TLS_KEYS: usize = 128;
@@ -134,7 +134,7 @@ pub struct PthreadAttr {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_attr_init(attr: *mut PthreadAttr) -> i32 {
     if !attr.is_null() {
-        core::ptr::write_bytes(attr as *mut u8, 0, core::mem::size_of::<PthreadAttr>());
+        core::ptr::write_bytes(attr as *mut u8, 0, size_of::<PthreadAttr>());
     }
     0
 }
@@ -238,12 +238,10 @@ pub unsafe extern "C" fn socketpair(
     -1 // ENOSYS
 }
 
-
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn getauxval(_type_: u64) -> u64 {
     0
 }
-
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn waitpid(_pid: i32, _status: *mut i32, _options: i32) -> i32 {
@@ -450,4 +448,42 @@ pub unsafe extern "C" fn clock_gettime(_clk_id: i32, tp: *mut u8) -> i32 {
         core::ptr::write((tp as *mut i64).add(1), nsec);
     }
     0
+}
+
+// ── ファイル I/O（std がリンク時に要求する基本 POSIX 関数）────────────────
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn open(path: *const u8, flags: i32, _mode: u32) -> i32 {
+    let ret = syscall2(SyscallNumber::Open as u64, path as u64, flags as u64);
+    if (ret as i64) < 0 { -1 } else { ret as i32 }
+}
+
+/// `iovec` structure for writev
+#[repr(C)]
+struct IoVec {
+    iov_base: *const u8,
+    iov_len: usize,
+}
+
+#[unsafe(no_mangle)]
+#[allow(private_interfaces)]
+pub unsafe extern "C" fn writev(fd: i32, iov: *const IoVec, iovcnt: i32) -> isize {
+    let mut total: isize = 0;
+    for i in 0..iovcnt {
+        let v = &*iov.add(i as usize);
+        if v.iov_len == 0 {
+            continue;
+        }
+        let ret = crate::sys::syscall3(
+            SyscallNumber::Write as u64,
+            fd as u64,
+            v.iov_base as u64,
+            v.iov_len as u64,
+        );
+        if (ret as i64) < 0 {
+            return if total == 0 { -1 } else { total };
+        }
+        total += ret as isize;
+    }
+    total
 }

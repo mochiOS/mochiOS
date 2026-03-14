@@ -1,6 +1,8 @@
 use crate::interrupt::spinlock::SpinLock;
 
 use super::ids::{PrivilegeLevel, ProcessId, ProcessState};
+use super::signal::SignalState;
+use super::fd_table::FdTable;
 
 /// プロセス構造体
 ///
@@ -25,8 +27,25 @@ pub struct Process {
     heap_start: u64,
     /// 現在のヒープ終了アドレス (program break)
     heap_end: u64,
+    /// ユーザースタックの現在の最低マップアドレス（下向きに伸びる）
+    stack_bottom: u64,
+    /// ユーザースタックのトップアドレス（初期 RSP 付近）
+    stack_top: u64,
+    /// カレントワーキングディレクトリ（固定バッファ、ヒープ確保不要）
+    cwd: [u8; 256],
+    cwd_len: usize,
     /// 優先度（0が最高、値が大きいほど低い）
     priority: u8,
+    /// 終了コード（生存中はNone）
+    exit_code: Option<u64>,
+    /// プロセスグループID（0 = 自身の PID と同じ）
+    pgid: u64,
+    /// セッションID（0 = 自身の PID と同じ）
+    sid: u64,
+    /// シグナル状態（ハンドラ・マスク・pending）— ヒープに置いてスタック消費を抑える
+    signal_state: alloc::boxed::Box<SignalState>,
+    /// プロセスごとのファイルディスクリプタテーブル — ヒープに置いてスタック消費を抑える
+    fd_table: alloc::boxed::Box<FdTable>,
 }
 
 impl Process {
@@ -62,7 +81,20 @@ impl Process {
             page_table: None, // TODO: ページテーブル実装後に設定
             heap_start,
             heap_end: heap_start,
+            stack_bottom: 0,
+            stack_top: 0,
+            cwd: {
+                let mut b = [0u8; 256];
+                b[0] = b'/';
+                b
+            },
+            cwd_len: 1,
             priority,
+            exit_code: None,
+            pgid: 0,
+            sid: 0,
+            signal_state: alloc::boxed::Box::new(SignalState::new()),
+            fd_table: FdTable::new_boxed(),
         }
     }
 
@@ -101,6 +133,17 @@ impl Process {
         self.priority
     }
 
+    /// 終了コードを取得
+    pub fn exit_code(&self) -> Option<u64> {
+        self.exit_code
+    }
+
+    /// 終了状態へ遷移
+    pub fn mark_exited(&mut self, exit_code: u64) {
+        self.state = ProcessState::Zombie;
+        self.exit_code = Some(exit_code);
+    }
+
     /// ページテーブルアドレスを取得
     pub fn page_table(&self) -> Option<u64> {
         self.page_table
@@ -130,6 +173,72 @@ impl Process {
     pub fn set_heap_start(&mut self, addr: u64) {
         self.heap_start = addr;
     }
+
+    pub fn stack_bottom(&self) -> u64 { self.stack_bottom }
+    pub fn stack_top(&self) -> u64 { self.stack_top }
+    pub fn set_stack_bottom(&mut self, addr: u64) { self.stack_bottom = addr; }
+    pub fn set_stack_top(&mut self, addr: u64) { self.stack_top = addr; }
+
+    pub fn cwd(&self) -> &str {
+        core::str::from_utf8(&self.cwd[..self.cwd_len]).unwrap_or("/")
+    }
+
+    pub fn set_cwd(&mut self, path: &str) {
+        let bytes = path.as_bytes();
+        let len = bytes.len().min(255);
+        self.cwd[..len].copy_from_slice(&bytes[..len]);
+        self.cwd_len = len;
+    }
+
+    /// シグナル状態への読み取りアクセス
+    pub fn signal_state(&self) -> &SignalState {
+        &self.signal_state
+    }
+
+    /// シグナル状態への可変アクセス
+    pub fn signal_state_mut(&mut self) -> &mut SignalState {
+        &mut self.signal_state
+    }
+
+    /// FD テーブルへの読み取りアクセス
+    pub fn fd_table(&self) -> &FdTable {
+        &self.fd_table
+    }
+
+    /// FD テーブルへの可変アクセス
+    pub fn fd_table_mut(&mut self) -> &mut FdTable {
+        &mut self.fd_table
+    }
+
+    /// fork 用: FD テーブルをクローンして新しい Box を返す
+    pub fn clone_fd_table_for_fork(&self) -> alloc::boxed::Box<FdTable> {
+        self.fd_table.clone_for_fork()
+    }
+
+    /// FD テーブルを差し替える（fork の子プロセス初期化で使用）
+    pub fn set_fd_table(&mut self, table: alloc::boxed::Box<FdTable>) {
+        self.fd_table = table;
+    }
+
+    /// プロセスグループ ID を取得（0 は自身の PID を意味する）
+    pub fn pgid(&self) -> u64 {
+        if self.pgid == 0 { self.id.as_u64() } else { self.pgid }
+    }
+
+    /// プロセスグループ ID を設定
+    pub fn set_pgid(&mut self, pgid: u64) {
+        self.pgid = pgid;
+    }
+
+    /// セッション ID を取得（0 は自身の PID を意味する）
+    pub fn sid(&self) -> u64 {
+        if self.sid == 0 { self.id.as_u64() } else { self.sid }
+    }
+
+    /// セッション ID を設定
+    pub fn set_sid(&mut self, sid: u64) {
+        self.sid = sid;
+    }
 }
 
 impl core::fmt::Debug for Process {
@@ -141,7 +250,8 @@ impl core::fmt::Debug for Process {
             .field("state", &self.state)
             .field("privilege", &self.privilege)
             .field("parent_id", &self.parent_id)
-            .field("priority", &self.priority);
+            .field("priority", &self.priority)
+            .field("exit_code", &self.exit_code);
 
         if let Some(pt) = self.page_table {
             debug_struct.field("page_table", &format_args!("{:#x}", pt));
@@ -244,14 +354,65 @@ impl ProcessTable {
         // 名前比較（簡易実装: 完全一致のみ考慮）
         // 注: Processの名前に .service などの拡張子を含む場合があるため
         // ここでは前方一致などで緩和するのも手だが、厳密には完全一致で。
-        self.processes.iter()
+        self.processes
+            .iter()
             .filter_map(|slot| slot.as_ref())
-            .find(|p| p.name() == name || (p.name().len() > 0 && p.name() == name))
+            .find(|p| p.name() == name)
+    }
+
+    fn is_child_match(process: &Process, parent: ProcessId, target: Option<ProcessId>) -> bool {
+        if process.parent_id() != Some(parent) {
+            return false;
+        }
+        if let Some(target_id) = target {
+            process.id() == target_id
+        } else {
+            true
+        }
+    }
+
+    /// 対象に一致する子プロセスが存在するかを返す
+    pub fn has_child(&self, parent: ProcessId, target: Option<ProcessId>) -> bool {
+        self.processes
+            .iter()
+            .filter_map(|slot| slot.as_ref())
+            .any(|p| Self::is_child_match(p, parent, target))
+    }
+
+    /// ゾンビ子プロセスを1つ回収する
+    pub fn reap_zombie_child(
+        &mut self,
+        parent: ProcessId,
+        target: Option<ProcessId>,
+    ) -> Option<(ProcessId, u64, Option<u64>)> {
+        for slot in &mut self.processes {
+            let should_reap = slot.as_ref().is_some_and(|proc| {
+                Self::is_child_match(proc, parent, target) && proc.state() == ProcessState::Zombie
+            });
+            if !should_reap {
+                continue;
+            }
+
+            if let Some(proc) = slot.take() {
+                let pid = proc.id();
+                let exit_code = proc.exit_code().unwrap_or(0);
+                let page_table = proc.page_table();
+                self.count = self.count.saturating_sub(1);
+                return Some((pid, exit_code, page_table));
+            }
+        }
+        None
     }
 
     /// 現在のプロセス数を取得
     pub fn count(&self) -> usize {
         self.count
+    }
+}
+
+impl Default for ProcessTable {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -261,6 +422,11 @@ static PROCESS_TABLE: SpinLock<ProcessTable> = SpinLock::new(ProcessTable::new()
 /// プロセステーブルにプロセスを追加
 pub fn add_process(process: Process) -> Option<ProcessId> {
     PROCESS_TABLE.lock().add(process)
+}
+
+/// プロセスを削除
+pub fn remove_process(id: ProcessId) -> Option<Process> {
+    PROCESS_TABLE.lock().remove(id)
 }
 
 /// プロセスIDでプロセス情報を取得（読み取り専用操作）
@@ -296,6 +462,37 @@ where
     for process in table.iter() {
         f(process);
     }
+}
+
+/// プロセスを終了状態（Zombie）へ遷移させる
+pub fn mark_process_exited(id: ProcessId, exit_code: u64) {
+    let mut table = PROCESS_TABLE.lock();
+    if let Some(proc) = table.get_mut(id) {
+        proc.mark_exited(exit_code);
+    }
+}
+
+/// 一致する子プロセスが存在するか確認する
+pub fn has_child_process(parent: ProcessId, target: Option<ProcessId>) -> bool {
+    PROCESS_TABLE.lock().has_child(parent, target)
+}
+
+/// 一致するゾンビ子プロセスを回収する
+pub fn reap_zombie_child_process(
+    parent: ProcessId,
+    target: Option<ProcessId>,
+) -> Option<(ProcessId, u64)> {
+    let (pid, exit_code, page_table) = PROCESS_TABLE.lock().reap_zombie_child(parent, target)?;
+    if let Some(table_phys) = page_table {
+        if let Err(e) = crate::mem::paging::destroy_user_page_table(table_phys) {
+            crate::warn!(
+                "Failed to destroy child page table while reaping pid={:?}: {:?}",
+                pid,
+                e
+            );
+        }
+    }
+    Some((pid, exit_code))
 }
 
 /// 現在のプロセス数を取得

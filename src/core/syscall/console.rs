@@ -1,8 +1,8 @@
-use alloc::vec::Vec;
 use crate::{
     syscall::{EFAULT, EINVAL},
     util,
 };
+use alloc::vec::Vec;
 
 /// コンソール書き込み (buf_ptr, len)
 pub fn write(buf_ptr: u64, len: u64) -> u64 {

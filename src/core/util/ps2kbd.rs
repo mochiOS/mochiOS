@@ -3,8 +3,8 @@
 //! IRQ1 割り込みハンドラからスキャンコードを受け取りFIFOに蓄積する。
 //! 変換ロジックはユーザー空間 (shell.service) が担当する。
 
-use core::sync::atomic::{AtomicU64, Ordering};
 use super::fifo::Fifo;
+use core::sync::atomic::{AtomicU64, Ordering};
 
 /// rawスキャンコードのバッファ (割り込みハンドラ ↔ syscall)
 pub static SCANCODE_BUF: Fifo<u8, 256> = Fifo::new();

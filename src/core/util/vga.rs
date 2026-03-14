@@ -21,7 +21,7 @@ pub struct FramebufferInfo {
 
 /// フォントサイズ (8×8 ビットマップ)
 const FONT_HEIGHT: usize = 8;
-const FONT_WIDTH:  usize = 8;
+const FONT_WIDTH: usize = 8;
 
 /// 8×8 ビットマップフォント (ASCII 0x20–0x7F)
 /// bit 0 = 左端ピクセル
@@ -138,7 +138,7 @@ impl Writer {
         Self {
             col: 0,
             row: 0,
-            max_cols: info.width  / FONT_WIDTH,
+            max_cols: info.width / FONT_WIDTH,
             max_rows: info.height / FONT_HEIGHT,
         }
     }
@@ -146,7 +146,9 @@ impl Writer {
     fn put_pixel(info: &FramebufferInfo, x: usize, y: usize, color: u32) {
         if x < info.width && y < info.height {
             let fb_ptr = info.addr as *mut u32;
-            unsafe { fb_ptr.add(y * info.stride + x).write_volatile(color); }
+            unsafe {
+                fb_ptr.add(y * info.stride + x).write_volatile(color);
+            }
         }
     }
 
@@ -256,7 +258,12 @@ pub fn get_info() -> Option<FramebufferInfo> {
 
 /// フレームバッファを初期化
 pub fn init(addr: u64, width: usize, height: usize, stride: usize) {
-    FB_INFO.call_once(|| FramebufferInfo { addr, width, height, stride });
+    FB_INFO.call_once(|| FramebufferInfo {
+        addr,
+        width,
+        height,
+        stride,
+    });
     if let Some(info) = FB_INFO.get() {
         WRITER.call_once(|| Mutex::new(Writer::new(info)));
         if let Some(writer) = WRITER.get() {

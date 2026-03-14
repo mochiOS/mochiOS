@@ -357,7 +357,10 @@ pub fn translate_addr_in_table(
     }
     if l3f.contains(PageTableFlags::HUGE_PAGE) {
         let page_off = addr.as_u64() & ((1u64 << 30) - 1);
-        return Some((PhysAddr::new(l3e.addr().as_u64().checked_add(page_off)?), l3f));
+        return Some((
+            PhysAddr::new(l3e.addr().as_u64().checked_add(page_off)?),
+            l3f,
+        ));
     }
 
     let l2_vaddr = l3e.addr().as_u64().checked_add(phys_off)?;
@@ -370,7 +373,10 @@ pub fn translate_addr_in_table(
     }
     if l2f.contains(PageTableFlags::HUGE_PAGE) {
         let page_off = addr.as_u64() & ((1u64 << 21) - 1);
-        return Some((PhysAddr::new(l2e.addr().as_u64().checked_add(page_off)?), l2f));
+        return Some((
+            PhysAddr::new(l2e.addr().as_u64().checked_add(page_off)?),
+            l2f,
+        ));
     }
 
     let l1_vaddr = l2e.addr().as_u64().checked_add(phys_off)?;
@@ -383,7 +389,10 @@ pub fn translate_addr_in_table(
     }
 
     let page_off = addr.as_u64() & 0xfff;
-    Some((PhysAddr::new(l1e.addr().as_u64().checked_add(page_off)?), l1f))
+    Some((
+        PhysAddr::new(l1e.addr().as_u64().checked_add(page_off)?),
+        l1f,
+    ))
 }
 
 /// 指定したページテーブル上の仮想アドレスからu64値を読み出す
@@ -674,8 +683,7 @@ pub fn map_and_copy_segment(
                 }
 
                 // 同じ物理フレームに新しいフラグで再マップ
-                let phys_frame =
-                    PhysFrame::containing_address(PhysAddr::new(phys_frame_addr));
+                let phys_frame = PhysFrame::containing_address(PhysAddr::new(phys_frame_addr));
                 {
                     let mut alloc_lock = frame::FRAME_ALLOCATOR.lock();
                     let alloc_ref = alloc_lock
@@ -739,7 +747,8 @@ fn clone_kernel_l2_table_without_user_entries(src_l2_phys: u64, phys_off: u64) -
             continue;
         }
 
-        let new_l1_phys = clone_kernel_l1_table_without_user_entries(entry.addr().as_u64(), phys_off)?;
+        let new_l1_phys =
+            clone_kernel_l1_table_without_user_entries(entry.addr().as_u64(), phys_off)?;
         new_l2[i].set_addr(PhysAddr::new(new_l1_phys), flags);
     }
 
@@ -1259,8 +1268,7 @@ pub fn map_physical_range_to_user(
     let total_pages = size.checked_add(0xfff).map(|v| v >> 12).unwrap_or(0);
 
     for i in 0..total_pages {
-        let page =
-            Page::<Size4KiB>::containing_address(VirtAddr::new(virt_start + i * 4096));
+        let page = Page::<Size4KiB>::containing_address(VirtAddr::new(virt_start + i * 4096));
         let frame = PhysFrame::containing_address(PhysAddr::new(phys_start + i * 4096));
 
         let map_result = unsafe {

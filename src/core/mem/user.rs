@@ -4,8 +4,8 @@ use spin::Mutex;
 use x86_64::structures::paging::{Page, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 
-use crate::result::{Kernel, Memory, Result};
 use crate::mem::{frame, paging};
+use crate::result::{Kernel, Memory, Result};
 
 const PAGE_SIZE: u64 = 4096;
 const USER_STACK_TOP: u64 = 0x0000_8000_0000; // 2GB

@@ -1,10 +1,10 @@
 //! ファイルシステム関連のシステムコール
 
 use super::types::{EBADF, EFAULT, EINVAL, ENOENT, ENOSYS, SUCCESS};
+use crate::task::fd_table::{FdTable, FileHandle, FD_BASE, O_CLOEXEC, PROCESS_MAX_FDS};
 use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use crate::task::fd_table::{FdTable, FileHandle, FD_BASE, O_CLOEXEC, PROCESS_MAX_FDS};
 
 // グローバル FD テーブルは廃止。各プロセスの Process::fd_table を使用する。
 
@@ -42,7 +42,9 @@ fn normalize_path(path: &str) -> String {
     for seg in path.split('/') {
         match seg {
             "" | "." => {}
-            ".." => { parts.pop(); }
+            ".." => {
+                parts.pop();
+            }
             other => parts.push(other),
         }
     }
@@ -253,7 +255,11 @@ pub fn fstat(fd: u64, stat_ptr: u64) -> u64 {
         _ => return EBADF,
     };
     // S_IFREG = 0x8000, S_IFDIR = 0x4000
-    let mode = if is_dir { 0x4000u32 | 0o755 } else { 0x8000u32 | 0o755 };
+    let mode = if is_dir {
+        0x4000u32 | 0o755
+    } else {
+        0x8000u32 | 0o755
+    };
     write_stat_buf(stat_ptr, mode, size);
     SUCCESS
 }
@@ -281,7 +287,8 @@ pub fn stat(path_ptr: u64, stat_ptr: u64) -> u64 {
                 let mut s = alloc::string::String::new();
                 s.push_str(proc.cwd());
                 s
-            }).unwrap_or_else(|| "/".to_string());
+            })
+            .unwrap_or_else(|| "/".to_string());
             let joined = alloc::format!("{}/{}", cwd.trim_end_matches('/'), path);
             // 正規化は簡易: 連続スラッシュのみ処理
             joined
@@ -487,12 +494,10 @@ pub fn fcntl(fd: u64, cmd: u64, arg: u64) -> u64 {
     };
 
     match cmd {
-        F_GETFD => {
-            match with_fd_table(pid, |t| t.get_flags(idx)) {
-                Some(Some(flags)) => flags as u64,
-                _ => EBADF,
-            }
-        }
+        F_GETFD => match with_fd_table(pid, |t| t.get_flags(idx)) {
+            Some(Some(flags)) => flags as u64,
+            _ => EBADF,
+        },
         F_SETFD => {
             let cloexec = (arg & 1) != 0;
             let new_flags = if cloexec { FD_CLOEXEC } else { 0 };
@@ -501,7 +506,7 @@ pub fn fcntl(fd: u64, cmd: u64, arg: u64) -> u64 {
                 _ => EBADF,
             }
         }
-        F_GETFL => 0,    // O_RDONLY スタブ
+        F_GETFL => 0, // O_RDONLY スタブ
         F_SETFL => SUCCESS,
         _ => EINVAL,
     }
@@ -696,9 +701,12 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
         None => return EBADF,
     };
     let idx = dirfd as usize;
-    if idx >= PROCESS_MAX_FDS { return EBADF; }
+    if idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
     let dir_path = match with_fd_table(pid, |t| {
-        t.get_raw(idx).and_then(|ptr| unsafe { (*ptr).dir_path.clone() })
+        t.get_raw(idx)
+            .and_then(|ptr| unsafe { (*ptr).dir_path.clone() })
     }) {
         Some(Some(p)) => p,
         _ => return EBADF,
@@ -707,15 +715,23 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
         Ok(s) => s,
         Err(e) => return e,
     };
-    let full = if path.starts_with('/') { path } else {
+    let full = if path.starts_with('/') {
+        path
+    } else {
         alloc::format!("{}/{}", dir_path.trim_end_matches('/'), path)
     };
     match crate::init::fs::file_metadata(&full) {
         Some((inode_mode, size)) => {
             const STAT_SIZE: u64 = 144;
-            if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) { return EFAULT; }
+            if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
+                return EFAULT;
+            }
             let perm = (inode_mode as u32) & 0o777;
-            let mode = if perm == 0 { inode_mode as u32 | 0o755 } else { inode_mode as u32 };
+            let mode = if perm == 0 {
+                inode_mode as u32 | 0o755
+            } else {
+                inode_mode as u32
+            };
             write_stat_buf(stat_ptr, mode, size);
             SUCCESS
         }
@@ -727,7 +743,9 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
 pub fn faccessat(dirfd: i64, path_ptr: u64, _mode: u64, _flags: u64) -> u64 {
     use super::types::ENOENT;
     const AT_FDCWD: i64 = -100;
-    if path_ptr == 0 { return EINVAL; }
+    if path_ptr == 0 {
+        return EINVAL;
+    }
     let path = match read_cstring(path_ptr) {
         Ok(s) => s,
         Err(e) => return e,
@@ -740,15 +758,22 @@ pub fn faccessat(dirfd: i64, path_ptr: u64, _mode: u64, _flags: u64) -> u64 {
             None => return EBADF,
         };
         let idx = dirfd as usize;
-        if idx >= PROCESS_MAX_FDS { return EBADF; }
+        if idx >= PROCESS_MAX_FDS {
+            return EBADF;
+        }
         match with_fd_table(current_process_id_raw().unwrap_or(0), |t| {
-            t.get_raw(idx).and_then(|ptr| unsafe { (*ptr).dir_path.clone() })
+            t.get_raw(idx)
+                .and_then(|ptr| unsafe { (*ptr).dir_path.clone() })
         }) {
             Some(Some(d)) => alloc::format!("{}/{}", d.trim_end_matches('/'), path),
             _ => return EBADF,
         }
     };
-    if crate::init::fs::file_metadata(&resolved).is_some() { SUCCESS } else { ENOENT }
+    if crate::init::fs::file_metadata(&resolved).is_some() {
+        SUCCESS
+    } else {
+        ENOENT
+    }
 }
 
 /// Getdents64 システムコール
@@ -758,11 +783,19 @@ pub fn faccessat(dirfd: i64, path_ptr: u64, _mode: u64, _flags: u64) -> u64 {
 /// - レコードは 8 バイトアラインメント
 /// FD の `pos` をエントリインデックスとして使用する。
 pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
-    if buf_ptr == 0 || buf_len == 0 { return EINVAL; }
-    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) { return EFAULT; }
-    if fd < FD_BASE as u64 { return EBADF; }
+    if buf_ptr == 0 || buf_len == 0 {
+        return EINVAL;
+    }
+    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) {
+        return EFAULT;
+    }
+    if fd < FD_BASE as u64 {
+        return EBADF;
+    }
     let idx = fd as usize;
-    if idx >= PROCESS_MAX_FDS { return EBADF; }
+    if idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
     let pid = match current_process_id_raw() {
         Some(p) => p,
         None => return EBADF,
@@ -778,7 +811,10 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
         Some(Some((Some(p), pos))) => (p, pos),
         _ => {
             if is_process_busybox(pid) {
-                crate::info!("busybox getdents64: fd={} is invalid or not a directory", fd);
+                crate::info!(
+                    "busybox getdents64: fd={} is invalid or not a directory",
+                    fd
+                );
             }
             return EBADF;
         }
@@ -802,7 +838,11 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
         for name in &entries {
             // ディレクトリかファイルかを判定
             let child_path = alloc::format!("{}/{}", dir_path.trim_end_matches('/'), name);
-            let dtype = if crate::init::fs::is_directory(&child_path) { 4u8 } else { 8u8 };
+            let dtype = if crate::init::fs::is_directory(&child_path) {
+                4u8
+            } else {
+                8u8
+            };
             v.push((name.clone(), dtype));
         }
         v
@@ -812,7 +852,7 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
         for (i, (name, dtype)) in all_entries.iter().enumerate().skip(start_pos) {
             let name_bytes = name.as_bytes();
             let name_len = name_bytes.len() + 1; // null 終端含む
-            // d_ino(8) + d_off(8) + d_reclen(2) + d_type(1) + d_name
+                                                 // d_ino(8) + d_off(8) + d_reclen(2) + d_type(1) + d_name
             let raw_size = 8 + 8 + 2 + 1 + name_len;
             let reclen = (raw_size + 7) & !7usize; // 8 バイトアライン
             if written + reclen > buf_len as usize {
@@ -843,7 +883,9 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
     // FD の pos を更新する
     with_fd_table_mut(pid, |t| {
         if let Some(ptr) = t.get_raw(idx) {
-            unsafe { (*ptr).pos = new_pos; }
+            unsafe {
+                (*ptr).pos = new_pos;
+            }
         }
     });
 

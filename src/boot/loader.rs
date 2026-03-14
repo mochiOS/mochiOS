@@ -9,10 +9,12 @@ use core::ptr::addr_of_mut;
 use mochios::{BootInfo, MemoryRegion, MemoryType};
 use uefi::prelude::*;
 use uefi::proto::console::gop::GraphicsOutput;
-use uefi::proto::media::file::{File, FileAttribute, FileMode, FileInfo, FileType};
-use uefi::proto::media::fs::SimpleFileSystem;
 use uefi::proto::loaded_image::LoadedImage;
-use uefi::table::boot::{AllocateType, MemoryType as UefiMemType, OpenProtocolAttributes, OpenProtocolParams};
+use uefi::proto::media::file::{File, FileAttribute, FileInfo, FileMode, FileType};
+use uefi::proto::media::fs::SimpleFileSystem;
+use uefi::table::boot::{
+    AllocateType, MemoryType as UefiMemType, OpenProtocolAttributes, OpenProtocolParams,
+};
 
 /// VGA フレームバッファへ書き出す print マクロ
 macro_rules! vga_print {
@@ -110,16 +112,17 @@ unsafe fn load_initfs(bt: &BootServices, image_handle: Handle) -> (u64, usize) {
     let initfs_path = cstr16!(r"\System\initfs.img");
 
     // LoadedImage デバイスを優先
-    let handles: alloc::vec::Vec<Handle> = if let Ok(li) = bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
-        if let Some(dev) = li.device() {
-            drop(li);
-            alloc::vec![dev]
+    let handles: alloc::vec::Vec<Handle> =
+        if let Ok(li) = bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
+            if let Some(dev) = li.device() {
+                drop(li);
+                alloc::vec![dev]
+            } else {
+                bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
+            }
         } else {
             bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
-        }
-    } else {
-        bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
-    };
+        };
 
     for handle in handles {
         if let Some((addr, size)) = try_load_raw(bt, image_handle, handle, initfs_path) {
@@ -135,16 +138,17 @@ unsafe fn load_initfs(bt: &BootServices, image_handle: Handle) -> (u64, usize) {
 unsafe fn load_rootfs(bt: &BootServices, image_handle: Handle) -> (u64, usize) {
     let rootfs_path = cstr16!(r"\System\rootfs.ext2");
 
-    let handles: alloc::vec::Vec<Handle> = if let Ok(li) = bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
-        if let Some(dev) = li.device() {
-            drop(li);
-            alloc::vec![dev]
+    let handles: alloc::vec::Vec<Handle> =
+        if let Ok(li) = bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
+            if let Some(dev) = li.device() {
+                drop(li);
+                alloc::vec![dev]
+            } else {
+                bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
+            }
         } else {
             bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
-        }
-    } else {
-        bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
-    };
+        };
 
     for handle in handles {
         if let Some((addr, size)) = try_load_raw(bt, image_handle, handle, rootfs_path) {
@@ -163,12 +167,20 @@ unsafe fn try_load_raw(
     handle: Handle,
     path: &uefi::CStr16,
 ) -> Option<(u64, usize)> {
-    let mut sfs = bt.open_protocol::<SimpleFileSystem>(
-        OpenProtocolParams { handle, agent, controller: None },
-        OpenProtocolAttributes::GetProtocol,
-    ).ok()?;
+    let mut sfs = bt
+        .open_protocol::<SimpleFileSystem>(
+            OpenProtocolParams {
+                handle,
+                agent,
+                controller: None,
+            },
+            OpenProtocolAttributes::GetProtocol,
+        )
+        .ok()?;
     let mut root = sfs.open_volume().ok()?;
-    let fh = root.open(path, FileMode::Read, FileAttribute::empty()).ok()?;
+    let fh = root
+        .open(path, FileMode::Read, FileAttribute::empty())
+        .ok()?;
     let mut file = match fh.into_type().ok()? {
         FileType::Regular(f) => f,
         _ => return None,
@@ -176,10 +188,14 @@ unsafe fn try_load_raw(
     let mut info_buf = [0u8; 512];
     let info = file.get_info::<FileInfo>(&mut info_buf).ok()?;
     let size = info.file_size() as usize;
-    if size == 0 { return None; }
+    if size == 0 {
+        return None;
+    }
     vga_println!("initfs size: {} bytes, reading...", size);
     let pages = (size + 0xFFF) / 0x1000;
-    let addr = bt.allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages).ok()?;
+    let addr = bt
+        .allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages)
+        .ok()?;
     let buf = core::slice::from_raw_parts_mut(addr as *mut u8, size);
     // 大きなファイルは UEFI Read() の上限があるためチャンク単位で読む
     let mut read_total = 0usize;
@@ -244,7 +260,11 @@ unsafe fn try_load_from(
 ) -> Option<u64> {
     // GetProtocol で非排他的に開く（ファームウェアが既に開いていても失敗しない）
     let mut sfs = match bt.open_protocol::<SimpleFileSystem>(
-        OpenProtocolParams { handle, agent, controller: None },
+        OpenProtocolParams {
+            handle,
+            agent,
+            controller: None,
+        },
         OpenProtocolAttributes::GetProtocol,
     ) {
         Ok(s) => s,
@@ -306,7 +326,11 @@ unsafe fn try_load_from(
     // ELF マジック / クラス / アーキテクチャを検証
     let hdr = &*(hdr_buf.as_ptr() as *const Elf64Header);
     if &hdr.e_ident[0..4] != b"\x7fELF" || hdr.e_ident[4] != 2 || hdr.e_machine != 0x3E {
-        vga_println!("ELF check failed: ident={:?} machine={:#x}", &hdr.e_ident[0..4], hdr.e_machine);
+        vga_println!(
+            "ELF check failed: ident={:?} machine={:#x}",
+            &hdr.e_ident[0..4],
+            hdr.e_machine
+        );
         return None;
     }
 
@@ -334,8 +358,17 @@ unsafe fn try_load_from(
     // カーネルページをフルバッファより先に確保することで、
     // 後の AnyPages 確保が同アドレスに重ならないようにする
     let kernel_pages = ((load_max - load_min) as usize) / 0x1000;
-    vga_println!("kernel range {:#x}..{:#x} ({} pages)", load_min, load_max, kernel_pages);
-    match bt.allocate_pages(AllocateType::Address(load_min), UefiMemType::LOADER_DATA, kernel_pages) {
+    vga_println!(
+        "kernel range {:#x}..{:#x} ({} pages)",
+        load_min,
+        load_max,
+        kernel_pages
+    );
+    match bt.allocate_pages(
+        AllocateType::Address(load_min),
+        UefiMemType::LOADER_DATA,
+        kernel_pages,
+    ) {
         Ok(_) => {}
         Err(e) => {
             vga_println!("allocate_pages kernel failed: {:?}", e.status());
@@ -349,7 +382,9 @@ unsafe fn try_load_from(
                     {
                         vga_println!(
                             "  [{:#010x}..{:#010x}] type={:?}",
-                            desc.phys_start, end, desc.ty
+                            desc.phys_start,
+                            end,
+                            desc.ty
                         );
                     }
                 }
@@ -367,7 +402,8 @@ unsafe fn try_load_from(
         return None;
     }
     let pages = (file_size + 0xFFF) / 0x1000;
-    let buf_phys = match bt.allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages) {
+    let buf_phys = match bt.allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages)
+    {
         Ok(p) => p,
         Err(e) => {
             vga_println!("allocate_pages (buf) failed: {:?}", e.status());
@@ -463,10 +499,10 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         };
         let mode_info = gop.current_mode_info();
         let mut fb = gop.frame_buffer();
-        let fb_ptr  = fb.as_mut_ptr() as *mut u32;
-        let fb_sz   = fb.size();
-        let (w, h)  = mode_info.resolution();
-        let st      = mode_info.stride();
+        let fb_ptr = fb.as_mut_ptr() as *mut u32;
+        let fb_sz = fb.size();
+        let (w, h) = mode_info.resolution();
+        let st = mode_info.stride();
         vga_console::CONSOLE.lock().init(fb_ptr, w, h, st);
         (fb_ptr as u64, fb_sz, w, h, st)
     };
@@ -553,4 +589,3 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         core::mem::transmute(kernel_entry_addr);
     unsafe { kernel_entry(addr_of_mut!(BOOT_INFO)) }
 }
-

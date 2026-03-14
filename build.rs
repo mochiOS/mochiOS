@@ -5,8 +5,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use builders::{
-    build_apps, build_utils, build_newlib, build_service, build_user_libs, copy_newlib_libs, create_ext2_image,
-    create_initfs_image, parse_service_index, setup_fs_layout,
+    build_apps, build_drivers, build_newlib, build_service, build_user_libs, build_utils,
+    copy_newlib_libs, create_ext2_image, create_initfs_image, parse_service_index, setup_fs_layout,
 };
 
 /// カーネル ELF をビルドして fs/System/kernel.elf にコピーする
@@ -129,7 +129,8 @@ fn main() {
     // newlibライブラリをramfsとfsにコピー
     copy_newlib_libs(&libc_dir, &ramfs_dir.join("Libraries"))
         .expect("cargo:warning=Failed to copy newlib libs to ramfs/Libraries");
-    copy_newlib_libs(&libc_dir, &fs_dir.join("Libraries")).expect("cargo:warning=Failed to copy newlib libs to fs/Libraries");
+    copy_newlib_libs(&libc_dir, &fs_dir.join("Libraries"))
+        .expect("cargo:warning=Failed to copy newlib libs to fs/Libraries");
 
     // libgcc_sをfs/Librariesにコピー
     if let Ok(out) = std::process::Command::new("gcc")
@@ -220,6 +221,27 @@ fn main() {
     if utils_dir.is_dir() {
         println!("Building utility commands");
         build_utils(&utils_dir, &binaries_dir);
+    }
+
+    // ドライバをビルド
+    let drivers_dir = manifest_dir.join("src/drivers");
+    let drivers_binaries_dir = binaries_dir.join("drivers");
+    let driver_autostart_entries = if drivers_dir.is_dir() {
+        println!("Building drivers");
+        build_drivers(&drivers_dir, &drivers_binaries_dir)
+    } else {
+        Vec::new()
+    };
+
+    // driver.service が参照する自動起動ドライバ一覧を生成
+    let driver_autostart_path = fs_dir.join("Config").join("drivers.list");
+    match fs::write(&driver_autostart_path, driver_autostart_entries.join("\n")) {
+        Ok(_) => println!("Generated {}", driver_autostart_path.display()),
+        Err(e) => println!(
+            "cargo:warning=Failed to write {}: {}",
+            driver_autostart_path.display(),
+            e
+        ),
     }
 
     // initfs イメージを生成

@@ -35,7 +35,11 @@ pub fn create_initfs_image(ramfs_dir: &Path, output_path: &Path) -> Result<(), S
     emit_rerun_if_changed(ramfs_dir);
 
     let num_blocks = blocks_for_dir(ramfs_dir, 4096);
-    println!("initfs: {} 4K-blocks ({} MB)", num_blocks, num_blocks * 4 / 1024);
+    println!(
+        "initfs: {} 4K-blocks ({} MB)",
+        num_blocks,
+        num_blocks * 4 / 1024
+    );
 
     let status = Command::new("mke2fs")
         .args(["-t", "ext2", "-b", "4096", "-m", "0", "-L", "initfs", "-d"])
@@ -64,7 +68,11 @@ pub fn create_ext2_image(fs_dir: &Path, output_path: &Path) -> Result<(), String
     emit_rerun_if_changed(fs_dir);
 
     let num_blocks = blocks_for_dir(fs_dir, 4096);
-    println!("rootfs: {} 4K-blocks ({} MB)", num_blocks, num_blocks * 4 / 1024);
+    println!(
+        "rootfs: {} 4K-blocks ({} MB)",
+        num_blocks,
+        num_blocks * 4 / 1024
+    );
 
     let status = Command::new("mke2fs")
         .args(["-t", "ext2", "-b", "4096", "-m", "0", "-L", "rootfs", "-d"])
@@ -89,22 +97,22 @@ pub fn create_ext2_image(fs_dir: &Path, output_path: &Path) -> Result<(), String
 /// fsディレクトリの標準レイアウトを作成
 pub fn setup_fs_layout(fs_dir: &Path, resources_src: &Path) -> Result<(), String> {
     let dirs = [
-        "System",           // システム（カーネルやカーネルに関連するファイルを配置）
-        "Applications",     // ユーザーアプリケーションを配置
-        "Binaries",         // コマンドやユーティリティを配置
-        "Libraries",        // ライブラリ（libc.aなど）を配置
-        "Mount",            // マウントしたやつ配置
-        "Boot",             // ブートローダー関連のファイルを配置
-        "Resources",        // アイコンやUIリソースを配置（ユーザーアプリのリソースはここに置く）
-        "Services",         // サービスを配置
-        "Logs",             // ログを配置
-        "Home",             // ユーザーディレクトリを配置
-        "Device",           // デバイスファイル（nullやttyなど）を配置
-        "Config",           // 設定ファイルを配置
-        "Variables",        // 環境変数や一時ファイルを配置
-        "Temp",             // 一時ファイルを配置
+        "System",       // システム（カーネルやカーネルに関連するファイルを配置）
+        "Applications", // ユーザーアプリケーションを配置
+        "Binaries",     // コマンドやユーティリティを配置
+        "Libraries",    // ライブラリ（libc.aなど）を配置
+        "Mount",        // マウントしたやつ配置
+        "Boot",         // ブートローダー関連のファイルを配置
+        "Resources",    // アイコンやUIリソースを配置（ユーザーアプリのリソースはここに置く）
+        "Services",     // サービスを配置
+        "Logs",         // ログを配置
+        "Home",         // ユーザーディレクトリを配置
+        "Device",       // デバイスファイル（nullやttyなど）を配置
+        "Config",       // 設定ファイルを配置
+        "Variables",    // 環境変数や一時ファイルを配置
+        "Temp",         // 一時ファイルを配置
     ];
-    
+
     for dir in &dirs {
         let path = fs_dir.join(dir);
         fs::create_dir_all(&path)
@@ -140,11 +148,10 @@ pub fn setup_fs_layout(fs_dir: &Path, resources_src: &Path) -> Result<(), String
 
 /// ディレクトリを再帰的にコピーする
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
-    fs::create_dir_all(dst)
-        .map_err(|e| format!("Failed to create {}: {}", dst.display(), e))?;
+    fs::create_dir_all(dst).map_err(|e| format!("Failed to create {}: {}", dst.display(), e))?;
 
-    for entry in fs::read_dir(src)
-        .map_err(|e| format!("Failed to read {}: {}", src.display(), e))?
+    for entry in
+        fs::read_dir(src).map_err(|e| format!("Failed to read {}: {}", src.display(), e))?
     {
         let entry =
             entry.map_err(|e| format!("Failed to read entry in {}: {}", src.display(), e))?;

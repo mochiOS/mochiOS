@@ -156,9 +156,7 @@ pub fn exec_kernel(path_ptr: u64, args_ptr: u64) -> u64 {
                 extra_args_storage.push(b);
                 // 連続する \0\0 で終端
                 let len = extra_args_storage.len();
-                if len >= 2
-                    && extra_args_storage[len - 1] == 0
-                    && extra_args_storage[len - 2] == 0
+                if len >= 2 && extra_args_storage[len - 1] == 0 && extra_args_storage[len - 2] == 0
                 {
                     break;
                 }
@@ -166,7 +164,13 @@ pub fn exec_kernel(path_ptr: u64, args_ptr: u64) -> u64 {
         });
         extra_args = extra_args_storage
             .split(|&b| b == 0)
-            .filter_map(|s| if s.is_empty() { None } else { core::str::from_utf8(s).ok() })
+            .filter_map(|s| {
+                if s.is_empty() {
+                    None
+                } else {
+                    core::str::from_utf8(s).ok()
+                }
+            })
             .collect();
     } else {
         extra_args = Vec::new();
@@ -206,7 +210,11 @@ fn map_initial_tls(table_phys: u64, aslr_seed: u64) -> Result<u64, u64> {
     ) {
         Ok(()) => Ok(tls_base),
         Err(e) => {
-            crate::warn!("Failed to map initial TLS block at {:#x}: {:?}", tls_base, e);
+            crate::warn!(
+                "Failed to map initial TLS block at {:#x}: {:?}",
+                tls_base,
+                e
+            );
             Err(crate::syscall::types::EINVAL)
         }
     }
@@ -255,12 +263,8 @@ fn build_initial_user_stack(
     string_block.push(0);
 
     let string_area_len = string_block.len();
-    let pointers_bytes = 8
-        + (argv.len() * 8)
-        + 8
-        + (envp.len() * 8)
-        + 8
-        + (auxv_entries.len() * 16);
+    let pointers_bytes =
+        8 + (argv.len() * 8) + 8 + (envp.len() * 8) + 8 + (auxv_entries.len() * 16);
     let total_data_needed = string_area_len + pointers_bytes;
     let padding_len = (16 - (total_data_needed % 16)) % 16;
     let total_size = total_data_needed + padding_len;
@@ -277,7 +281,11 @@ fn build_initial_user_stack(
 
     let mut page_data = Vec::new();
     let page_offset = total_size % 4096;
-    let unused_space = if page_offset == 0 { 0 } else { 4096 - page_offset };
+    let unused_space = if page_offset == 0 {
+        0
+    } else {
+        4096 - page_offset
+    };
     page_data.resize(unused_space, 0);
 
     page_data.extend_from_slice(&(argv.len() as u64).to_ne_bytes());
@@ -772,8 +780,7 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
             Err(errno) => return errno,
         };
         let pid = proc.id();
-        let is_core_service =
-            process_name.ends_with("core.service");
+        let is_core_service = process_name.ends_with("core.service");
         if is_core_service
             && SERVICE_MANAGER_PID
                 .compare_exchange(0, pid.as_u64(), Ordering::SeqCst, Ordering::SeqCst)
@@ -870,7 +877,10 @@ fn read_user_ptr_array(array_ptr: u64, max_entries: usize) -> Vec<String> {
     }
     let mut result = Vec::new();
     for i in 0..=max_entries {
-        let ptr_addr = match (i as u64).checked_mul(8).and_then(|o| array_ptr.checked_add(o)) {
+        let ptr_addr = match (i as u64)
+            .checked_mul(8)
+            .and_then(|o| array_ptr.checked_add(o))
+        {
             Some(a) => a,
             None => break,
         };
@@ -954,7 +964,7 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
             return EINVAL;
         }
         phentsize = eh.e_phentsize as u64;
-        phnum     = eh.e_phnum as u64;
+        phnum = eh.e_phnum as u64;
         let phoff = eh.e_phoff as usize;
         let phentsz = eh.e_phentsize as usize;
         // phentszが0の場合は無限ループを防ぐ (MED-08)
@@ -1059,8 +1069,13 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         stack_end_vaddr,
         initial_rsp,
         page_data,
-    } = match build_initial_user_stack(aslr_seed, &argv_refs, &envp_refs, &path_owned, &auxv_entries)
-    {
+    } = match build_initial_user_stack(
+        aslr_seed,
+        &argv_refs,
+        &envp_refs,
+        &path_owned,
+        &auxv_entries,
+    ) {
         Ok(stack) => stack,
         Err(errno) => return errno,
     };

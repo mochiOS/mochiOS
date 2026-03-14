@@ -511,7 +511,11 @@ fn resolve_dir_inode_in(image: &[u8], path: &str) -> Option<u32> {
         current = inode(image, sb, next_num)?;
         current_num = next_num;
     }
-    if is_dir(current.mode) { Some(current_num) } else { None }
+    if is_dir(current.mode) {
+        Some(current_num)
+    } else {
+        None
+    }
 }
 
 fn readdir_path_in(image: &[u8], path: &str) -> Option<alloc::vec::Vec<alloc::string::String>> {

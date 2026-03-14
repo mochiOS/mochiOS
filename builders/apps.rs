@@ -213,7 +213,10 @@ pub fn build_utils(utils_dir: &Path, output_dir: &Path) {
             let release_dir = utils_dir.join("target/x86_64-mochios/release");
             let binaries = find_all_binaries(&release_dir);
             if binaries.is_empty() {
-                println!("cargo:warning=No binaries found in {}", release_dir.display());
+                println!(
+                    "cargo:warning=No binaries found in {}",
+                    release_dir.display()
+                );
             }
             for elf_path in binaries {
                 let name = elf_path.file_name().unwrap().to_string_lossy();

@@ -66,7 +66,9 @@ impl FdTable {
             }
         }
         // スロット不足: ハンドルを解放
-        unsafe { drop(Box::from_raw(ptr as *mut FileHandle)); }
+        unsafe {
+            drop(Box::from_raw(ptr as *mut FileHandle));
+        }
         None
     }
 
@@ -79,7 +81,11 @@ impl FdTable {
             return None;
         }
         let ptr = self.entries[fd];
-        if ptr == 0 { None } else { Some(ptr as *mut FileHandle) }
+        if ptr == 0 {
+            None
+        } else {
+            Some(ptr as *mut FileHandle)
+        }
     }
 
     /// FD の所有権を取り出す（close に相当）。
@@ -88,7 +94,9 @@ impl FdTable {
             return None;
         }
         let ptr = self.entries[fd];
-        if ptr == 0 { return None; }
+        if ptr == 0 {
+            return None;
+        }
         self.entries[fd] = 0;
         self.flags[fd] = 0;
         Some(unsafe { Box::from_raw(ptr as *mut FileHandle) })
@@ -106,7 +114,9 @@ impl FdTable {
                 let ptr = self.entries[i];
                 self.entries[i] = 0;
                 self.flags[i] = 0;
-                unsafe { drop(Box::from_raw(ptr as *mut FileHandle)); }
+                unsafe {
+                    drop(Box::from_raw(ptr as *mut FileHandle));
+                }
             }
         }
     }
@@ -117,7 +127,9 @@ impl FdTable {
             if self.entries[i] != 0 {
                 let ptr = self.entries[i];
                 self.entries[i] = 0;
-                unsafe { drop(Box::from_raw(ptr as *mut FileHandle)); }
+                unsafe {
+                    drop(Box::from_raw(ptr as *mut FileHandle));
+                }
             }
         }
     }
@@ -129,7 +141,9 @@ impl FdTable {
         let mut new_table = FdTable::new_boxed();
         for i in FD_BASE..PROCESS_MAX_FDS {
             let ptr = self.entries[i];
-            if ptr == 0 { continue; }
+            if ptr == 0 {
+                continue;
+            }
             let fh = unsafe { &*(ptr as *const FileHandle) };
             let new_fh = Box::new(FileHandle {
                 data: fh.data.clone(),
@@ -146,15 +160,23 @@ impl FdTable {
 
     /// FD のフラグを取得する。FD が未使用の場合 `None`。
     pub fn get_flags(&self, fd: usize) -> Option<u8> {
-        if fd < FD_BASE || fd >= PROCESS_MAX_FDS { return None; }
-        if self.entries[fd] == 0 { return None; }
+        if fd < FD_BASE || fd >= PROCESS_MAX_FDS {
+            return None;
+        }
+        if self.entries[fd] == 0 {
+            return None;
+        }
         Some(self.flags[fd])
     }
 
     /// FD のフラグを設定する。FD が有効な場合 `true`。
     pub fn set_flags(&mut self, fd: usize, flags: u8) -> bool {
-        if fd < FD_BASE || fd >= PROCESS_MAX_FDS { return false; }
-        if self.entries[fd] == 0 { return false; }
+        if fd < FD_BASE || fd >= PROCESS_MAX_FDS {
+            return false;
+        }
+        if self.entries[fd] == 0 {
+            return false;
+        }
         self.flags[fd] = flags;
         true
     }

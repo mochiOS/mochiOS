@@ -150,39 +150,6 @@ unsafe fn load_initfs(
     (0, 0)
 }
 
-/// `\System\rootfs.ext2` を読み込んで物理アドレスとサイズを返す
-unsafe fn load_rootfs(
-    bt: &BootServices,
-    image_handle: Handle,
-    mut anim: Option<&mut booting_gif::BootingGifPlayer>,
-) -> (u64, usize) {
-    let rootfs_path = cstr16!(r"\System\rootfs.ext2");
-
-    let handles: alloc::vec::Vec<Handle> =
-        if let Ok(li) = bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
-            if let Some(dev) = li.device() {
-                drop(li);
-                alloc::vec![dev]
-            } else {
-                bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
-            }
-        } else {
-            bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
-        };
-
-    for handle in handles {
-        tick_booting_gif(&mut anim);
-        if let Some((addr, size)) =
-            try_load_raw(bt, image_handle, handle, rootfs_path, "rootfs", anim.as_deref_mut())
-        {
-            vga_println!("rootfs loaded at {:#x} ({} bytes)", addr, size);
-            return (addr, size);
-        }
-    }
-    vga_println!("[WARN] rootfs.ext2 not found");
-    (0, 0)
-}
-
 /// 指定ハンドルから任意ファイルをページ単位でロードし (物理アドレス, サイズ) を返す
 unsafe fn try_load_raw(
     bt: &BootServices,
@@ -592,11 +559,9 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         unsafe { load_initfs(bt, image_handle, booting_anim.as_mut()) }
     };
 
-    // rootfs を ESP から読み込む
-    let (rootfs_addr, rootfs_size) = {
-        let bt = system_table.boot_services();
-        unsafe { load_rootfs(bt, image_handle, booting_anim.as_mut()) }
-    };
+    // rootfs は起動後に fs.service がマウントして利用するため、
+    // ブートローダーではプリロードしない（起動時間短縮）
+    let (rootfs_addr, rootfs_size) = (0u64, 0usize);
 
     // Boot Services を終了してメモリマップを取得
     let (_system_table, memory_map_iter) =

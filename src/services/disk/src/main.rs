@@ -153,8 +153,8 @@ fn main() {
     loop {
         let (sender, len) = ipc::ipc_recv(&mut recv_buf.0);
 
-        // EAGAIN (メッセージなし) の場合はCPUを譲る
-        if sender == 0xFFFFFFFF || len == 0xFFFFFFFD {
+        // メッセージなし（ipc_recv の戻り値は (0, 0)）
+        if sender == 0 && len == 0 {
             task::yield_now();
             continue;
         }
@@ -177,10 +177,12 @@ fn main() {
             }
 
             let req: DiskRequest = unsafe { core::ptr::read_unaligned(recv_buf.0.as_ptr() as *const _) };
-            println!(
-                "[DISK] REQ op={} disk={} lba={} from PID={}",
-                req.op, req.disk_id, req.lba, sender
-            );
+            if req.op != DiskRequest::OP_READ {
+                println!(
+                    "[DISK] REQ op={} disk={} lba={} from PID={}",
+                    req.op, req.disk_id, req.lba, sender
+                );
+            }
 
             let mut resp = DiskResponse {
                 status: -1,

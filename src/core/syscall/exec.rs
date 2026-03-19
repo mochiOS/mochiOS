@@ -98,8 +98,19 @@ fn caller_can_launch_service() -> bool {
         return true;
     };
 
-    if crate::task::with_process(caller_pid, |p| p.privilege())
-        .is_some_and(|lvl| lvl == crate::task::PrivilegeLevel::Core)
+    if crate::task::with_process(caller_pid, |p| {
+        p.privilege() == crate::task::PrivilegeLevel::Core
+    })
+    .unwrap_or(false)
+    {
+        return true;
+    }
+
+    // fs.service からの実行要求は、core.service から委譲された起動経路として許可する。
+    if crate::task::with_process(caller_pid, |p| {
+        p.privilege() == crate::task::PrivilegeLevel::Service && p.name() == "fs.service"
+    })
+    .unwrap_or(false)
     {
         return true;
     }

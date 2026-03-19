@@ -75,12 +75,11 @@ impl DiskServiceDevice {
             return Err(VfsError::IoError);
         }
 
-        // レスポンスを受信（EAGAIN の場合はスピン、最大 1000 回）
+        // レスポンスを受信（ブロッキング）
         let mut resp_buf = [0u8; size_of::<DiskResponse>()];
         let (sender, len) = loop {
-            let (s, l) = ipc::ipc_recv(&mut resp_buf);
-            // EAGAIN sentinel: sender=0xFFFF_FFFF または len=0xFFFF_FFFD
-            if s == 0xFFFF_FFFF || l == 0xFFFF_FFFD {
+            let (s, l) = ipc::ipc_recv_wait(&mut resp_buf);
+            if s == 0 && l == 0 {
                 continue;
             }
             break (s, l);
@@ -91,7 +90,7 @@ impl DiskServiceDevice {
         }
 
         let resp: DiskResponse = unsafe {
-            core::ptr::read(resp_buf.as_ptr() as *const DiskResponse)
+            core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskResponse)
         };
 
         if resp.status != 0 {
@@ -127,11 +126,11 @@ impl DiskServiceDevice {
             return Err(VfsError::IoError);
         }
 
-        // レスポンスを受信（EAGAIN の場合はスピン）
+        // レスポンスを受信（ブロッキング）
         let mut resp_buf = [0u8; size_of::<DiskResponse>()];
         let (sender, len) = loop {
-            let (s, l) = ipc::ipc_recv(&mut resp_buf);
-            if s == 0xFFFF_FFFF || l == 0xFFFF_FFFD {
+            let (s, l) = ipc::ipc_recv_wait(&mut resp_buf);
+            if s == 0 && l == 0 {
                 continue;
             }
             break (s, l);
@@ -142,7 +141,7 @@ impl DiskServiceDevice {
         }
 
         let resp: DiskResponse = unsafe {
-            core::ptr::read(resp_buf.as_ptr() as *const DiskResponse)
+            core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskResponse)
         };
 
         if resp.status != 0 {

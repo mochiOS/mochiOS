@@ -1,4 +1,4 @@
-use swiftlib::{fs, ipc, process, task, vga};
+use swiftlib::{fs, io, ipc, process, task, vga};
 
 // 色の編集がだるっちいったらありゃしないのでgeminiに作ってもらったエディタを使ってください。
 // https://gemini.google.com/share/02481dc7584f
@@ -31,6 +31,45 @@ const ANSI_COLOR_BRIGHT: [u32; 8] = [
     0x0055_FFFF, // bright cyan
     0x00FF_FFFF, // bright white
 ];
+const FONT_BIN_PATH: &str = "/System/fonts/ter-u12b.bin";
+const FONT_BDF_PATH: &str = "/System/fonts/ter-u12b.bdf";
+const FONT_BIN_SIZE: usize = GLYPH_COUNT * FONT_HEIGHT;
+const FONT_BDF_MAX_SIZE: usize = 512 * 1024;
+const FONT_READ_CHUNK: usize = 512;
+
+fn read_file(path: &str, max_size: usize) -> Option<Vec<u8>> {
+    if max_size == 0 {
+        return None;
+    }
+
+    let fd = io::open(path, io::O_RDONLY);
+    if fd < 0 {
+        return None;
+    }
+
+    let mut out = Vec::new();
+    let mut chunk = [0u8; FONT_READ_CHUNK];
+    while out.len() < max_size {
+        let read_len = core::cmp::min(chunk.len(), max_size - out.len());
+        let n = io::read(fd as u64, &mut chunk[..read_len]);
+        if (n as i64) < 0 {
+            let _ = io::close(fd as u64);
+            return None;
+        }
+        let n = n as usize;
+        if n == 0 {
+            break;
+        }
+        out.extend_from_slice(&chunk[..n]);
+    }
+
+    let _ = io::close(fd as u64);
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
 
 /// ASCII 文字ごとの 12 行ビットマップ (インデックス = codepoint - 32)
 pub struct Font {
@@ -38,12 +77,52 @@ pub struct Font {
 }
 
 impl Font {
-    /// `System/fonts/ter-u12b.bdf` を読み込んで解析する
+    fn fallback() -> Self {
+        let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
+        for (i, glyph) in glyphs.iter_mut().enumerate() {
+            let ch = (ASCII_START + i) as u8;
+            if ch == b' ' {
+                continue;
+            }
+            glyph[0] = 0xFC;
+            glyph[FONT_HEIGHT - 1] = 0xFC;
+            for row in glyph.iter_mut().take(FONT_HEIGHT - 1).skip(1) {
+                *row = 0x84;
+            }
+        }
+        Font { glyphs }
+    }
+
+    fn load_from_binary() -> Option<Self> {
+        let data = read_file(FONT_BIN_PATH, FONT_BIN_SIZE)?;
+        if data.len() < FONT_BIN_SIZE {
+            return None;
+        }
+
+        let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
+        for (i, glyph) in glyphs.iter_mut().enumerate() {
+            let start = i * FONT_HEIGHT;
+            glyph.copy_from_slice(&data[start..start + FONT_HEIGHT]);
+        }
+        Some(Font { glyphs })
+    }
+
+    fn load_from_bdf() -> Option<Self> {
+        let data = read_file(FONT_BDF_PATH, FONT_BDF_MAX_SIZE)?;
+        let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
+        parse_bdf(&data, &mut glyphs);
+        Some(Font { glyphs })
+    }
+
+    /// `System/fonts/ter-u12b.bin` を優先し、失敗時はBDFを解析する
     pub fn load() -> Option<Self> {
-        let data = std::fs::read("System/fonts/ter-u12b.bdf").ok()?;
-        let mut font = Font { glyphs: [[0u8; FONT_HEIGHT]; GLYPH_COUNT] };
-        parse_bdf(&data, &mut font.glyphs);
-        Some(font)
+        if let Some(font) = Self::load_from_binary() {
+            return Some(font);
+        }
+        if let Some(font) = Self::load_from_bdf() {
+            return Some(font);
+        }
+        Some(Self::fallback())
     }
 
     fn glyph(&self, ch: u8) -> &[u8; FONT_HEIGHT] {

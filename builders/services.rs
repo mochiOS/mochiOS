@@ -158,7 +158,8 @@ pub fn build_service(
 
     // cargoでサービスをビルド
     let mut cmd = Command::new("cargo");
-    cmd.args(["build"]);
+    // 起動時ロード時間を抑えるため、サービスは常に release でビルドする
+    cmd.args(["build", "--release"]);
     if uses_json_target {
         cmd.args(["-Z", "json-target-spec"]);
         println!("  Enabling -Z json-target-spec");
@@ -267,7 +268,7 @@ pub fn build_service(
 }
 
 fn find_built_binary(target_dir: &Path, target_name: Option<&str>) -> Option<PathBuf> {
-    for profile in &["debug", "release"] {
+    for profile in &["release", "debug"] {
         if let Some(target) = target_name {
             let dir = target_dir.join(format!("{}/{}", target, profile));
             if dir.is_dir() {

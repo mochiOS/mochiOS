@@ -138,7 +138,7 @@ impl Ext2Fs {
             .map_err(|_| VfsError::IoError)?;
 
         let superblock: Ext2Superblock = unsafe {
-            core::ptr::read(sb_buf.as_ptr() as *const Ext2Superblock)
+            core::ptr::read_unaligned(sb_buf.as_ptr() as *const Ext2Superblock)
         };
 
         // マジックナンバーをチェック
@@ -181,7 +181,7 @@ impl Ext2Fs {
         for i in 0..num_groups {
             let offset = i * size_of::<Ext2GroupDesc>();
             let desc: Ext2GroupDesc = unsafe {
-                core::ptr::read((gdt_buf.as_ptr() as usize + offset) as *const Ext2GroupDesc)
+                core::ptr::read_unaligned((gdt_buf.as_ptr() as usize + offset) as *const Ext2GroupDesc)
             };
             group_desc_table.push(desc);
         }
@@ -247,7 +247,7 @@ impl Ext2Fs {
 
         // inodeを抽出
         let inode: Ext2Inode = unsafe {
-            core::ptr::read((block_buf.as_ptr() as usize + byte_offset) as *const Ext2Inode)
+            core::ptr::read_unaligned((block_buf.as_ptr() as usize + byte_offset) as *const Ext2Inode)
         };
 
         Ok(inode)
@@ -399,7 +399,7 @@ impl FileSystem for Ext2Fs {
             }
 
             let entry: Ext2DirEntry = unsafe {
-                core::ptr::read((data.as_ptr() as usize + offset) as *const Ext2DirEntry)
+                core::ptr::read_unaligned((data.as_ptr() as usize + offset) as *const Ext2DirEntry)
             };
 
             if entry.rec_len == 0 {
@@ -443,29 +443,57 @@ impl FileSystem for Ext2Fs {
         
         let start_block = (offset / self.block_size as u64) as u32;
         let block_offset = (offset % self.block_size as u64) as usize;
+        let ptrs_per_block = (self.block_size / 4) as u32;
         
-        let mut bytes_read = 0;
+        let mut bytes_read = 0usize;
         let mut current_block = start_block;
+        let mut single_indirect_cache: Option<Vec<u8>> = None;
+        let mut block_buf = vec![0u8; self.block_size];
         
         while bytes_read < to_read {
-            let block_num = self.get_block_num(&ext2_inode, current_block)?;
+            let block_num = if current_block < 12 {
+                ext2_inode.i_block[current_block as usize]
+            } else if current_block < 12 + ptrs_per_block {
+                let indirect_block = ext2_inode.i_block[12];
+                if indirect_block == 0 {
+                    0
+                } else {
+                    if single_indirect_cache.is_none() {
+                        let mut indirect = vec![0u8; self.block_size];
+                        self.read_fs_block(indirect_block, &mut indirect)?;
+                        single_indirect_cache = Some(indirect);
+                    }
+
+                    if let Some(ref indirect) = single_indirect_cache {
+                        let ptr_off = ((current_block - 12) * 4) as usize;
+                        u32::from_le_bytes([
+                            indirect[ptr_off],
+                            indirect[ptr_off + 1],
+                            indirect[ptr_off + 2],
+                            indirect[ptr_off + 3],
+                        ])
+                    } else {
+                        0
+                    }
+                }
+            } else {
+                self.get_block_num(&ext2_inode, current_block)?
+            };
+
+            let start = if current_block == start_block { block_offset } else { 0 };
+            let remaining = to_read - bytes_read;
+            let to_copy = core::cmp::min(remaining, self.block_size - start);
+
             if block_num == 0 {
                 // スパースファイル - ゼロで埋める
-                let remaining = to_read - bytes_read;
-                let to_zero = core::cmp::min(remaining, self.block_size - block_offset);
-                buf[bytes_read..bytes_read + to_zero].fill(0);
-                bytes_read += to_zero;
+                buf[bytes_read..bytes_read + to_copy].fill(0);
             } else {
-                let mut block_buf = vec![0u8; self.block_size];
                 self.read_fs_block(block_num, &mut block_buf)?;
-                
-                let start = if current_block == start_block { block_offset } else { 0 };
-                let remaining = to_read - bytes_read;
-                let to_copy = core::cmp::min(remaining, self.block_size - start);
-                
-                buf[bytes_read..bytes_read + to_copy].copy_from_slice(&block_buf[start..start + to_copy]);
-                bytes_read += to_copy;
+                buf[bytes_read..bytes_read + to_copy]
+                    .copy_from_slice(&block_buf[start..start + to_copy]);
             }
+
+            bytes_read += to_copy;
             
             current_block += 1;
         }
@@ -519,7 +547,7 @@ impl FileSystem for Ext2Fs {
             }
 
             let entry: Ext2DirEntry = unsafe {
-                core::ptr::read((data.as_ptr() as usize + offset) as *const Ext2DirEntry)
+                core::ptr::read_unaligned((data.as_ptr() as usize + offset) as *const Ext2DirEntry)
             };
 
             if entry.rec_len == 0 {

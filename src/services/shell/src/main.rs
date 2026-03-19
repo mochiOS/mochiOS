@@ -8,17 +8,32 @@ use swiftlib::{time, vga};
 fn main() {
     let info = match vga::get_info() {
         Some(i) => i,
-        None => return,
+        None => {
+            println!("[SHELL] Failed to get framebuffer info");
+            loop {
+                time::sleep_ms(1000);
+            }
+        }
     };
     
     let fb_ptr = match vga::map_framebuffer() {
         Some(p) => p,
-        None => return,
+        None => {
+            println!("[SHELL] Failed to map framebuffer");
+            loop {
+                time::sleep_ms(1000);
+            }
+        }
     };
 
     let font = match Font::load() {
         Some(f) => f,
-        None => return,
+        None => {
+            println!("[SHELL] Failed to load font");
+            loop {
+                time::sleep_ms(1000);
+            }
+        }
     };
     
     let mut term = Terminal::new(fb_ptr, info, font);

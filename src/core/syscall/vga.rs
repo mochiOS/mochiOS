@@ -55,14 +55,24 @@ pub fn map_framebuffer() -> u64 {
     };
 
     let phys_addr = fb_info.addr;
+    let phys_base = phys_addr & !0xfffu64;
+    let phys_offset = phys_addr & 0xfffu64;
     // stride は u32 ピクセル単位、1ピクセル = 4バイト
-    let fb_size = fb_info.height as u64 * fb_info.stride as u64 * 4;
-    let fb_size_aligned = fb_size
-        .checked_add(0xfff)
+    let fb_size = match (fb_info.height as u64)
+        .checked_mul(fb_info.stride as u64)
+        .and_then(|v| v.checked_mul(4))
+    {
+        Some(v) => v,
+        None => return EINVAL,
+    };
+    // 先頭の物理オフセット分も含めてページ境界まで拡張する
+    let map_size = fb_size
+        .checked_add(phys_offset)
+        .and_then(|v| v.checked_add(0xfff))
         .map(|v| v & !0xfffu64)
         .unwrap_or(0);
 
-    if fb_size_aligned == 0 {
+    if map_size == 0 {
         return EINVAL;
     }
 
@@ -97,15 +107,15 @@ pub fn map_framebuffer() -> u64 {
         crate::mem::paging::map_physical_range_to_user(
             pt_phys,
             map_start,
-            phys_addr,
-            fb_size_aligned,
+            phys_base,
+            map_size,
         )
         .map_err(|_| ENOMEM)?;
 
-        let new_end = map_start.checked_add(fb_size_aligned).unwrap_or(map_start);
+        let new_end = map_start.checked_add(map_size).unwrap_or(map_start);
         process.set_heap_end(new_end);
 
-        Ok(map_start)
+        Ok(map_start + phys_offset)
     });
 
     match result {

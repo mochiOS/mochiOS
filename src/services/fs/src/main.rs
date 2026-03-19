@@ -1,6 +1,7 @@
 use core::mem::size_of;
 use std::boxed;
 use swiftlib::ipc;
+use swiftlib::process;
 use swiftlib::task;
 
 mod common;
@@ -14,12 +15,22 @@ use ext2::Ext2Fs;
 use initfs::InitFs;
 
 const MAX_HANDLES: usize = 16;
+const FS_DATA_MAX: usize = 560;
+const READ_CACHE_SIZE: usize = 4096;
+const EXEC_READ_CHUNK: usize = 64 * 1024;
+const ELF_HEADER_SIZE: usize = 64;
+const ELF_PHDR_SIZE: usize = 56;
+const ELF_PT_LOAD: u32 = 1;
+const MAX_EXEC_IMAGE_SIZE: usize = 64 * 1024 * 1024;
 
 #[derive(Clone, Copy)]
 struct OpenFile {
     used: bool,
     handle: FileHandle,
     fs_id: usize,
+    cache_start: u64,
+    cache_len: usize,
+    cache_data: [u8; READ_CACHE_SIZE],
 }
 
 impl OpenFile {
@@ -32,6 +43,9 @@ impl OpenFile {
                 flags: 0,
             },
             fs_id: 0,
+            cache_start: 0,
+            cache_len: 0,
+            cache_data: [0; READ_CACHE_SIZE],
         }
     }
 }
@@ -58,6 +72,7 @@ impl FsRequest {
     const OP_READ: u64 = 2;
     const OP_WRITE: u64 = 3;
     const OP_CLOSE: u64 = 4;
+    const OP_EXEC: u64 = 5;
 }
 
 #[repr(C)]
@@ -65,7 +80,7 @@ impl FsRequest {
 struct FsResponse {
     status: i64,
     len: u64,
-    data: [u8; 128],
+    data: [u8; FS_DATA_MAX],
 }
 
 #[repr(align(8))]
@@ -86,6 +101,127 @@ fn vfs_error_to_errno(err: VfsError) -> i64 {
         VfsError::FileTooBig => -27,       // EFBIG
         VfsError::NotSupported => -38,     // ENOSYS
     }
+}
+
+#[inline]
+fn read_u16_le(buf: &[u8], offset: usize) -> Option<u16> {
+    let bytes = buf.get(offset..offset + 2)?;
+    Some(u16::from_le_bytes([bytes[0], bytes[1]]))
+}
+
+#[inline]
+fn read_u32_le(buf: &[u8], offset: usize) -> Option<u32> {
+    let bytes = buf.get(offset..offset + 4)?;
+    Some(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+}
+
+#[inline]
+fn read_u64_le(buf: &[u8], offset: usize) -> Option<u64> {
+    let bytes = buf.get(offset..offset + 8)?;
+    Some(u64::from_le_bytes([
+        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+    ]))
+}
+
+fn read_exact_at(
+    fs: &dyn FileSystem,
+    inode: u64,
+    offset: u64,
+    buf: &mut [u8],
+) -> Result<(), VfsError> {
+    let mut done = 0usize;
+    while done < buf.len() {
+        let end = core::cmp::min(done + EXEC_READ_CHUNK, buf.len());
+        let n = fs.read(inode, offset + done as u64, &mut buf[done..end])?;
+        if n == 0 {
+            return Err(VfsError::IoError);
+        }
+        done += n;
+    }
+    Ok(())
+}
+
+fn read_exec_image_from_inode(fs: &dyn FileSystem, inode: u64) -> Result<Vec<u8>, VfsError> {
+    let file_size_u64 = fs.stat(inode)?.size;
+    let file_size = usize::try_from(file_size_u64).map_err(|_| VfsError::FileTooBig)?;
+    if file_size < ELF_HEADER_SIZE {
+        return Err(VfsError::InvalidArgument);
+    }
+
+    let mut ehdr = [0u8; ELF_HEADER_SIZE];
+    read_exact_at(fs, inode, 0, &mut ehdr)?;
+    if &ehdr[0..4] != b"\x7fELF" {
+        return Err(VfsError::InvalidArgument);
+    }
+
+    let e_phoff = read_u64_le(&ehdr, 32)
+        .and_then(|v| usize::try_from(v).ok())
+        .ok_or(VfsError::InvalidArgument)?;
+    let e_phentsize = read_u16_le(&ehdr, 54)
+        .map(|v| v as usize)
+        .ok_or(VfsError::InvalidArgument)?;
+    let e_phnum = read_u16_le(&ehdr, 56)
+        .map(|v| v as usize)
+        .ok_or(VfsError::InvalidArgument)?;
+
+    if e_phnum == 0 || e_phentsize < ELF_PHDR_SIZE {
+        return Err(VfsError::InvalidArgument);
+    }
+
+    let ph_table_size = e_phentsize
+        .checked_mul(e_phnum)
+        .ok_or(VfsError::InvalidArgument)?;
+    let ph_end = e_phoff
+        .checked_add(ph_table_size)
+        .ok_or(VfsError::InvalidArgument)?;
+    if ph_end > file_size {
+        return Err(VfsError::InvalidArgument);
+    }
+
+    let mut hdr_and_ph = vec![0u8; ph_end];
+    read_exact_at(fs, inode, 0, &mut hdr_and_ph)?;
+
+    let mut required_end = ph_end;
+    let mut has_load = false;
+    for i in 0..e_phnum {
+        let ph_off = e_phoff
+            .checked_add(i.checked_mul(e_phentsize).ok_or(VfsError::InvalidArgument)?)
+            .ok_or(VfsError::InvalidArgument)?;
+        if ph_off
+            .checked_add(ELF_PHDR_SIZE)
+            .map_or(true, |end| end > hdr_and_ph.len())
+        {
+            return Err(VfsError::InvalidArgument);
+        }
+
+        let p_type = read_u32_le(&hdr_and_ph, ph_off).ok_or(VfsError::InvalidArgument)?;
+        if p_type != ELF_PT_LOAD {
+            continue;
+        }
+        has_load = true;
+
+        let p_offset = read_u64_le(&hdr_and_ph, ph_off + 8).ok_or(VfsError::InvalidArgument)?;
+        let p_filesz = read_u64_le(&hdr_and_ph, ph_off + 32).ok_or(VfsError::InvalidArgument)?;
+        let seg_end_u64 = p_offset
+            .checked_add(p_filesz)
+            .ok_or(VfsError::InvalidArgument)?;
+        let seg_end = usize::try_from(seg_end_u64).map_err(|_| VfsError::FileTooBig)?;
+        required_end = core::cmp::max(required_end, seg_end);
+    }
+
+    if !has_load {
+        return Err(VfsError::InvalidArgument);
+    }
+    if required_end > file_size {
+        return Err(VfsError::InvalidArgument);
+    }
+    if required_end > MAX_EXEC_IMAGE_SIZE {
+        return Err(VfsError::FileTooBig);
+    }
+
+    let mut image = vec![0u8; required_end];
+    read_exact_at(fs, inode, 0, &mut image)?;
+    Ok(image)
 }
 
 //noinspection ALL
@@ -162,20 +298,22 @@ fn main() {
     loop {
         let (sender, len) = ipc::ipc_recv(&mut recv_buf.0);
 
-        // EAGAIN (メッセージなし) の場合はCPUを譲る
-        if sender == 0xFFFFFFFF || len == 0xFFFFFFFD {
+        // メッセージなし（ipc_recv の戻り値は (0, 0)）
+        if sender == 0 && len == 0 {
             task::yield_now();
             continue;
         }
 
         if sender != 0 && (len as usize) >= size_of::<FsRequest>() {
-            let req: FsRequest = unsafe { core::ptr::read(recv_buf.0.as_ptr() as *const _) };
-            println!("[FS] REQ op={} from PID={}", req.op, sender);
+            let req: FsRequest = unsafe { core::ptr::read_unaligned(recv_buf.0.as_ptr() as *const _) };
+            if req.op != FsRequest::OP_READ {
+                println!("[FS] REQ op={} from PID={}", req.op, sender);
+            }
 
             let mut resp = FsResponse {
                 status: -1,
                 len: 0,
-                data: [0; 128],
+                data: [0; FS_DATA_MAX],
             };
 
             match req.op {
@@ -196,6 +334,8 @@ fn main() {
                                                 HANDLES[i].used = true;
                                                 HANDLES[i].handle = FileHandle::new(inode, 0);
                                                 HANDLES[i].fs_id = 0;
+                                                HANDLES[i].cache_start = 0;
+                                                HANDLES[i].cache_len = 0;
                                                 handle_idx = i as i64;
                                                 break;
                                             }
@@ -217,22 +357,61 @@ fn main() {
                     if fd < MAX_HANDLES && unsafe { HANDLES[fd].used } {
                         unsafe {
                             if let Some(ref fs) = MOUNTED_FS {
-                                let handle = &mut HANDLES[fd].handle;
+                                let open_file = &mut HANDLES[fd];
+                                let handle = &mut open_file.handle;
                                 let inode = handle.inode;
                                 let offset = handle.offset;
+                                let actual_len = core::cmp::min(read_len, FS_DATA_MAX);
 
-                                let mut buf = [0u8; 128];
-                                let actual_len = core::cmp::min(read_len, 128);
+                                if actual_len == 0 {
+                                    resp.status = 0;
+                                    resp.len = 0;
+                                } else {
+                                    let mut can_serve = true;
+                                    let cache_end = open_file.cache_start + open_file.cache_len as u64;
+                                    let cache_hit = open_file.cache_len > 0
+                                        && offset >= open_file.cache_start
+                                        && offset < cache_end;
 
-                                match fs.read(inode, offset, &mut buf[..actual_len]) {
-                                    Ok(bytes_read) => {
-                                        resp.data[..bytes_read].copy_from_slice(&buf[..bytes_read]);
-                                        resp.len = bytes_read as u64;
-                                        resp.status = bytes_read as i64;
-                                        handle.offset += bytes_read as u64;
+                                    if !cache_hit {
+                                        let cache_base =
+                                            offset - (offset % READ_CACHE_SIZE as u64);
+                                        match fs.read(inode, cache_base, &mut open_file.cache_data) {
+                                            Ok(bytes_read) => {
+                                                open_file.cache_start = cache_base;
+                                                open_file.cache_len = bytes_read;
+                                            }
+                                            Err(e) => {
+                                                resp.status = vfs_error_to_errno(e);
+                                                can_serve = false;
+                                            }
+                                        }
                                     }
-                                    Err(e) => {
-                                        resp.status = vfs_error_to_errno(e);
+
+                                    if !can_serve {
+                                        // resp.status はエラー設定済み
+                                    } else if open_file.cache_len == 0 {
+                                        // EOF
+                                        resp.status = 0;
+                                        resp.len = 0;
+                                    } else {
+                                        let cache_offset = (offset - open_file.cache_start) as usize;
+                                        if cache_offset >= open_file.cache_len {
+                                            resp.status = 0;
+                                            resp.len = 0;
+                                        } else {
+                                            let bytes_read = core::cmp::min(
+                                                actual_len,
+                                                open_file.cache_len - cache_offset,
+                                            );
+                                            resp.data[..bytes_read].copy_from_slice(
+                                                &open_file.cache_data
+                                                    [cache_offset..cache_offset + bytes_read],
+                                            );
+                                            resp.len = bytes_read as u64;
+                                            resp.status = bytes_read as i64;
+                                            handle.offset += bytes_read as u64;
+                                        }
                                     }
                                 }
                             }
@@ -249,10 +428,50 @@ fn main() {
                     if fd < MAX_HANDLES && unsafe { HANDLES[fd].used } {
                         unsafe {
                             HANDLES[fd].used = false;
+                            HANDLES[fd].cache_start = 0;
+                            HANDLES[fd].cache_len = 0;
                         }
                         resp.status = 0;
                     } else {
                         resp.status = -9; // EBADF
+                    }
+                }
+                FsRequest::OP_EXEC => {
+                    let mut path_len = 0;
+                    while path_len < 128 && req.path[path_len] != 0 {
+                        path_len += 1;
+                    }
+
+                    if let Ok(path_str) = core::str::from_utf8(&req.path[..path_len]) {
+                        println!("[FS] OP_EXEC: {}", path_str);
+                        unsafe {
+                            if let Some(ref fs) = MOUNTED_FS {
+                                match resolve_path(fs.as_ref(), path_str) {
+                                    Ok(inode) => match read_exec_image_from_inode(fs.as_ref(), inode) {
+                                        Ok(elf_data) => {
+                                            match process::exec_from_buffer(&elf_data) {
+                                                Ok(pid) => {
+                                                    resp.status = pid as i64;
+                                                }
+                                                Err(_) => {
+                                                    resp.status = -5; // EIO
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            resp.status = vfs_error_to_errno(e);
+                                        }
+                                    },
+                                    Err(e) => {
+                                        resp.status = vfs_error_to_errno(e);
+                                    }
+                                }
+                            } else {
+                                resp.status = -5; // EIO
+                            }
+                        }
+                    } else {
+                        resp.status = -22; // EINVAL
                     }
                 }
                 _ => {
@@ -265,7 +484,10 @@ fn main() {
                 core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>())
             };
 
-            let _ = ipc::ipc_send(sender, resp_slice);
+            let send_ret = ipc::ipc_send(sender, resp_slice);
+            if send_ret != 0 {
+                println!("[FS] WARN: failed to send response to {} (ret={})", sender, send_ret);
+            }
         }
     }
 }

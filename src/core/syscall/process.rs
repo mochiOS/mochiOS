@@ -176,7 +176,7 @@ pub fn brk(addr: u64) -> u64 {
     };
 
     let result = crate::task::with_process_mut(pid, |process| {
-        crate::info!(
+        crate::debug!(
             "brk(pid={:?}, process='{}'): req={:#x}, heap_start={:#x}, heap_end={:#x}",
             pid,
             process.name(),
@@ -260,15 +260,15 @@ pub fn brk(addr: u64) -> u64 {
 
     match result {
         Some(Ok(addr)) => {
-            crate::info!("brk(pid={:?}) -> {:#x}", pid, addr);
+            crate::debug!("brk(pid={:?}) -> {:#x}", pid, addr);
             addr
         }
         Some(Err(err)) => {
-            crate::info!("brk(pid={:?}) -> err {:#x}", pid, err);
+            crate::debug!("brk(pid={:?}) -> err {:#x}", pid, err);
             err
         }
         None => {
-            crate::info!("brk(pid={:?}) -> ENOSYS", pid);
+            crate::debug!("brk(pid={:?}) -> ENOSYS", pid);
             ENOSYS
         }
     }

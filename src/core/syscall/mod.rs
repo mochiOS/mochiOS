@@ -217,6 +217,8 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::KeyboardRead as u64 => keyboard::read_char(),
         x if x == SyscallNumber::KeyboardReadTap as u64 => keyboard::read_char_tap(),
         x if x == SyscallNumber::MouseRead as u64 => mouse::read_packet(),
+        x if x == SyscallNumber::KeyboardInject as u64 => keyboard::inject_scancode(arg0),
+        x if x == SyscallNumber::MouseInject as u64 => mouse::inject_packet(arg0),
         x if x == SyscallNumber::MapPhysicalRange as u64 => mmio::map_physical_range(arg0, arg1),
         x if x == SyscallNumber::VirtToPhys as u64 => mmio::virt_to_phys(arg0),
         x if x == SyscallNumber::FindProcessByName as u64 => {
@@ -227,6 +229,9 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::MapFramebuffer as u64 => vga::map_framebuffer(),
         x if x == SyscallNumber::ExecFromBuffer as u64 => {
             exec::exec_from_buffer_syscall(arg0, arg1)
+        }
+        x if x == SyscallNumber::ExecFromBufferNamed as u64 => {
+            exec::exec_from_buffer_named_syscall(arg0, arg1, arg2)
         }
         x if x == SyscallNumber::SetConsoleCursor as u64 => {
             crate::util::vga::set_cursor_pixel_y(arg0 as usize);

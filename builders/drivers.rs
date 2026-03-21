@@ -42,6 +42,9 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "unknown".to_string());
         let driver_output_name = normalize_driver_name(&driver_dir_name);
+        let expected_bin_name = parse_driver_binary_name(&cargo_toml).or_else(|| {
+            Some(driver_dir_name.clone())
+        });
 
         println!(
             "Building driver: {} -> {}.elf",
@@ -109,14 +112,22 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
         match output {
             Ok(output) => {
                 if !output.status.success() {
-                    println!("cargo:warning=Failed to build driver {}", driver_dir_name);
-                    if !output.stderr.is_empty() {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        for line in stderr.lines().take(20) {
-                            println!("cargo:warning=  {}", line);
-                        }
-                    }
-                    continue;
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let err_tail = if stderr.len() > 4000 {
+                        &stderr[stderr.len() - 4000..]
+                    } else {
+                        &stderr
+                    };
+                    let out_tail = if stdout.len() > 2000 {
+                        &stdout[stdout.len() - 2000..]
+                    } else {
+                        &stdout
+                    };
+                    panic!(
+                        "Failed to build driver {}: status={} STDERR={} STDOUT={}",
+                        driver_dir_name, output.status, err_tail, out_tail
+                    );
                 }
 
                 let target_dir = path.join("target");
@@ -130,7 +141,9 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
                     Some("x86_64-unknown-none".to_string())
                 };
 
-                if let Some(elf_path) = find_built_binary(&target_dir, target_name.as_deref()) {
+                if let Some(elf_path) =
+                    find_built_binary(&target_dir, target_name.as_deref(), expected_bin_name.as_deref())
+                {
                     let dest_name = format!("{}.elf", driver_output_name);
                     let dest = output_dir.join(&dest_name);
                     if let Err(e) = fs::copy(&elf_path, &dest) {
@@ -150,15 +163,12 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
                         autostart_entries.push(format!("Binaries/drivers/{}", dest_name));
                     }
                 } else {
-                    println!(
-                        "cargo:warning=Built driver binary not found for {}",
-                        driver_dir_name
-                    );
+                    panic!("Built driver binary not found for {}", driver_dir_name);
                 }
             }
             Err(e) => {
-                println!(
-                    "cargo:warning=Failed to execute cargo for driver {}: {}",
+                panic!(
+                    "Failed to execute cargo for driver {}: {}",
                     driver_dir_name, e
                 );
             }
@@ -174,11 +184,57 @@ fn normalize_driver_name(driver_dir_name: &str) -> String {
     driver_dir_name.replace('_', ".")
 }
 
-fn find_built_binary(target_dir: &Path, target_name: Option<&str>) -> Option<PathBuf> {
+fn parse_driver_binary_name(cargo_toml: &Path) -> Option<String> {
+    let content = fs::read_to_string(cargo_toml).ok()?;
+    let mut in_bin = false;
+    let mut in_package = false;
+    let mut package_name: Option<String> = None;
+
+    for line in content.lines() {
+        let line = line.trim();
+        if line.starts_with('[') && line.ends_with(']') {
+            in_bin = line == "[[bin]]";
+            in_package = line == "[package]";
+            continue;
+        }
+
+        if let Some(rest) = line.strip_prefix("name = ") {
+            let name = rest.trim_matches('"').trim_matches('\'').to_string();
+            if in_bin {
+                return Some(name);
+            }
+            if in_package && package_name.is_none() {
+                package_name = Some(name);
+            }
+        }
+    }
+
+    package_name
+}
+
+fn find_binary_in_dir_prefer(dir: &Path, preferred: Option<&str>) -> Option<PathBuf> {
+    if let Some(name) = preferred {
+        let direct = dir.join(name);
+        if direct.is_file() {
+            return Some(direct);
+        }
+        let alt = dir.join(name.replace('-', "_"));
+        if alt.is_file() {
+            return Some(alt);
+        }
+    }
+    find_binary_in_dir(dir)
+}
+
+fn find_built_binary(
+    target_dir: &Path,
+    target_name: Option<&str>,
+    preferred_bin: Option<&str>,
+) -> Option<PathBuf> {
     if let Some(target) = target_name {
         let custom_target = target_dir.join(format!("{}/release", target));
         if custom_target.is_dir() {
-            if let Some(binary) = find_binary_in_dir(&custom_target) {
+            if let Some(binary) = find_binary_in_dir_prefer(&custom_target, preferred_bin) {
                 return Some(binary);
             }
         }
@@ -186,14 +242,14 @@ fn find_built_binary(target_dir: &Path, target_name: Option<&str>) -> Option<Pat
 
     let custom_target = target_dir.join("x86_64-mochios/release");
     if custom_target.is_dir() {
-        if let Some(binary) = find_binary_in_dir(&custom_target) {
+        if let Some(binary) = find_binary_in_dir_prefer(&custom_target, preferred_bin) {
             return Some(binary);
         }
     }
 
     let release_dir = target_dir.join("release");
     if release_dir.is_dir() {
-        if let Some(binary) = find_binary_in_dir(&release_dir) {
+        if let Some(binary) = find_binary_in_dir_prefer(&release_dir, preferred_bin) {
             return Some(binary);
         }
     }

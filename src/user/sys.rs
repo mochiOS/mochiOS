@@ -114,8 +114,18 @@ pub enum SyscallNumber {
     PortInWords = 538,
     /// I/Oポートへ 16-bit ワード列を一括書き込み
     PortOutWords = 539,
+    /// キーボード入力キューへ raw スキャンコードを注入
+    KeyboardInject = 540,
+    /// マウス入力キューへ 3バイトパケットを注入
+    MouseInject = 541,
+    /// メモリ上の ELF バッファと実行パス名から新プロセスを起動
+    ExecFromBufferNamed = 542,
 }
 
+/// 操作が許可されていない
+pub const EPERM: u64 = (-1i64) as u64;
+/// 無効な引数
+pub const EINVAL: u64 = (-22i64) as u64;
 /// 入力が空
 pub const ENODATA: u64 = (-61i64) as u64;
 

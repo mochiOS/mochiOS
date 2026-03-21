@@ -451,7 +451,7 @@ fn main() {
                                 match resolve_path(fs.as_ref(), path_str) {
                                     Ok(inode) => match read_exec_image_from_inode(fs.as_ref(), inode) {
                                         Ok(elf_data) => {
-                                            match process::exec_from_buffer(&elf_data) {
+                                            match process::exec_from_buffer_named(path_str, &elf_data) {
                                                 Ok(pid) => {
                                                     resp.status = pid as i64;
                                                 }

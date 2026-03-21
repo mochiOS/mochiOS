@@ -86,57 +86,7 @@ pub struct XhciRegs {
     pub(crate) context_size: usize,
 }
 
-
-#[rustfmt::skip]
-pub const MAP_NORMAL: [u8; 128] = [
-    0,    0x1B, b'1', b'2', b'3', b'4', b'5', b'6',
-    b'7', b'8', b'9', b'0', b'-', b'=', 0x08, b'\t',
-    b'q', b'w', b'e', b'r', b't', b'y', b'u', b'i',
-    b'o', b'p', b'[', b']', b'\n', 0,   b'a', b's',
-    b'd', b'f', b'g', b'h', b'j', b'k', b'l', b';',
-    b'\'',b'`', 0,   b'\\',b'z', b'x', b'c', b'v',
-    b'b', b'n', b'm', b',', b'.', b'/', 0,   b'*',
-    0,    b' ', 0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    b'7',
-    b'8', b'9', b'-', b'4', b'5', b'6', b'+', b'1',
-    b'2', b'3', b'0', b'.', 0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,
-];
-
-#[rustfmt::skip]
-pub const MAP_SHIFT: [u8; 128] = [
-    0,    0x1B, b'!', b'@', b'#', b'$', b'%', b'^',
-    b'&', b'*', b'(', b')', b'_', b'+', 0x08, b'\t',
-    b'Q', b'W', b'E', b'R', b'T', b'Y', b'U', b'I',
-    b'O', b'P', b'{', b'}', b'\n', 0,   b'A', b'S',
-    b'D', b'F', b'G', b'H', b'J', b'K', b'L', b':',
-    b'"', b'~', 0,   b'|', b'Z', b'X', b'C', b'V',
-    b'B', b'N', b'M', b'<', b'>', b'?', 0,   b'*',
-    0,    b' ', 0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    b'7',
-    b'8', b'9', b'-', b'4', b'5', b'6', b'+', b'1',
-    b'2', b'3', b'0', b'.', 0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,
-];
-
-pub const SC_LSHIFT: u8 = 0x2A;
-pub const SC_RSHIFT: u8 = 0x36;
-pub const SC_CAPSLOCK: u8 = 0x3A;
 pub const SC_RELEASE: u8 = 0x80;
-
-#[derive(Default)]
-pub struct KeyboardDecoder {
-    pub(crate) shift: bool,
-    pub(crate) caps: bool,
-}
 
 pub struct TransferRing {
     pub(crate) page: DmaPage,

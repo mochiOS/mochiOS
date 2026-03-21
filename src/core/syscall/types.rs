@@ -172,6 +172,12 @@ pub enum SyscallNumber {
     PortInWords = 538,
     /// I/Oポートへ 16-bit ワード列を一括書き込み
     PortOutWords = 539,
+    /// キーボード入力キューへ raw スキャンコードを注入（Service/Core専用）
+    KeyboardInject = 540,
+    /// マウス入力キューへ 3バイトパケットを注入（Service/Core専用）
+    MouseInject = 541,
+    /// メモリ上の ELF バッファと実行パス名から新プロセスを起動
+    ExecFromBufferNamed = 542,
 }
 
 /// 成功

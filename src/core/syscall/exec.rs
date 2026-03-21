@@ -205,6 +205,17 @@ fn exec_internal(path: &str, name_override: Option<&str>, args: &[&str]) -> u64 
     }
 }
 
+#[inline]
+fn resolve_exec_privilege(process_name: &str, exec_path: &str) -> crate::task::PrivilegeLevel {
+    // .service は従来通り Service 権限で実行。
+    // 追加で Binaries/drivers 配下のドライバ ELF も Service 権限にする。
+    if process_name.ends_with(".service") || exec_path.starts_with("Binaries/drivers/") {
+        crate::task::PrivilegeLevel::Service
+    } else {
+        crate::task::PrivilegeLevel::User
+    }
+}
+
 fn map_initial_tls(table_phys: u64, aslr_seed: u64) -> Result<u64, u64> {
     let tls_base = TLS_BASE_MIN
         .saturating_add(aslr_offset_pages(aslr_seed ^ 0x19d7_3c6a, TLS_ASLR_MAX_PAGES) * 4096);
@@ -762,11 +773,7 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
         // プロセスを作成してページテーブルをセット
         let parent_pid = crate::task::current_thread_id()
             .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()));
-        let privilege = if process_name.ends_with(".service") {
-            crate::task::PrivilegeLevel::Service
-        } else {
-            crate::task::PrivilegeLevel::User
-        };
+        let privilege = resolve_exec_privilege(process_name, exec_path);
         let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
         proc.set_page_table(new_pt_phys);
         proc.set_stack_bottom(stack_base_vaddr);
@@ -1212,4 +1219,38 @@ pub fn exec_from_buffer_syscall(buf_ptr: u64, buf_len: u64) -> u64 {
     });
 
     exec_with_data(&owned, "user_exec", "user_exec", &[])
+}
+
+/// メモリ上の ELF バッファと実行パス名から新プロセスを起動するシステムコール
+///
+/// # 引数
+/// - `buf_ptr`: ユーザー空間の ELF データへのポインタ
+/// - `buf_len`: バッファのバイト数
+/// - `path_ptr`: ユーザー空間の null 終端パス文字列
+pub fn exec_from_buffer_named_syscall(buf_ptr: u64, buf_len: u64, path_ptr: u64) -> u64 {
+    use crate::syscall::types::{EFAULT, EINVAL, EPERM};
+
+    if !caller_can_launch_service() {
+        return EPERM;
+    }
+    if buf_ptr == 0 || buf_len == 0 || buf_len > 32 * 1024 * 1024 || path_ptr == 0 {
+        return EINVAL;
+    }
+    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) {
+        return EFAULT;
+    }
+
+    let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
+        Ok(s) => s,
+        Err(_) => return EINVAL,
+    };
+    let process_name = path.rsplit('/').next().unwrap_or(path.as_str());
+
+    let mut owned = alloc::vec![0u8; buf_len as usize];
+    let dst_ptr = owned.as_mut_ptr();
+    crate::syscall::with_user_memory_access(|| unsafe {
+        core::ptr::copy_nonoverlapping(buf_ptr as *const u8, dst_ptr, buf_len as usize);
+    });
+
+    exec_with_data(&owned, process_name, path.as_str(), &[])
 }

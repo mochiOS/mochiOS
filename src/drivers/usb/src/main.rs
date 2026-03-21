@@ -2,10 +2,12 @@ use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{compiler_fence, Ordering as AtomicOrdering};
 use std::alloc::{alloc_zeroed, Layout};
 
-use swiftlib::{keyboard, mmio, mouse, port, time};
+use swiftlib::{mmio, port, time};
 
 mod define;
+mod hid;
 use define::*;
+use hid::{parse_hid_report, HidParserState};
 
 fn pci_config_address(bdf: PciBdf, offset: u8) -> u32 {
     0x8000_0000
@@ -134,6 +136,7 @@ fn mmio_write_u32(base: *mut u8, offset: usize, value: u32) {
 }
 
 #[inline]
+#[allow(unused)]
 fn mmio_read_u64(base: *mut u8, offset: usize) -> u64 {
     let lo = u64::from(mmio_read_u32(base, offset));
     let hi = u64::from(mmio_read_u32(base, offset + 4));
@@ -203,6 +206,7 @@ impl DmaPage {
         unsafe { read_volatile(self.virt.add(offset) as *const u32) }
     }
 
+    #[allow(unused)]
     fn write_bytes(&self, offset: usize, bytes: &[u8]) {
         if offset + bytes.len() > self.size {
             return;
@@ -343,6 +347,7 @@ impl CommandRing {
         self.trb_count - 1
     }
 
+    #[allow(unused)]
     fn push_noop_command(&mut self) -> u64 {
         self.push_command([0, 0, 0, TRB_TYPE_NOOP_CMD << 10])
     }
@@ -428,12 +433,6 @@ impl EventRing {
     }
 }
 
-#[derive(Default)]
-struct HidParserState {
-    prev_keys: [u8; 6],
-    prev_mouse_buttons: u8,
-}
-
 #[derive(Clone, Copy)]
 struct HidEndpointConfig {
     ep_addr: u8,
@@ -478,9 +477,11 @@ enum PendingTransferKind {
     DeviceDescriptor8 { slot_id: u8 },
     ConfigHeader { slot_id: u8 },
     ConfigFull { slot_id: u8 },
+    SetConfiguration { slot_id: u8 },
     InterruptIn { slot_id: u8, dci: u8 },
 }
 
+#[allow(unused)]
 struct PendingTransfer {
     trb_phys: u64,
     data_phys: u64,
@@ -892,6 +893,42 @@ fn submit_get_config_full(runtime: &mut XhciRuntime, slot_id: u8, total_len: u16
     )
 }
 
+fn submit_set_configuration(runtime: &mut XhciRuntime, slot_id: u8, config_value: u8) -> bool {
+    let Some(dev_idx) = find_device_index(runtime, slot_id) else {
+        return false;
+    };
+
+    let status_trb_phys = {
+        let dev = &mut runtime.devices[dev_idx];
+        let setup_packet = u64::from(0x00u8)
+            | (u64::from(0x09u8) << 8)
+            | (u64::from(config_value) << 16);
+        let setup_trb = [
+            setup_packet as u32,
+            (setup_packet >> 32) as u32,
+            8,
+            (TRB_TYPE_SETUP_STAGE << 10) | (1 << 6), // TRT=NoData, IDT
+        ];
+        let status_trb = [
+            0,
+            0,
+            0,
+            (TRB_TYPE_STATUS_STAGE << 10) | (1 << 5) | (1 << 16), // IOC + DIR(IN)
+        ];
+        let _ = dev.ep0_ring.push_trb(setup_trb);
+        dev.ep0_ring.push_trb(status_trb)
+    };
+
+    runtime.pending_transfers.push(PendingTransfer {
+        trb_phys: status_trb_phys,
+        data_phys: 0,
+        data_len: 0,
+        kind: PendingTransferKind::SetConfiguration { slot_id },
+    });
+    ring_doorbell(&runtime.regs, usize::from(slot_id), 1); // EP0
+    true
+}
+
 fn parse_hid_endpoint_from_config(config: &[u8]) -> Option<HidEndpointConfig> {
     let mut idx = 0usize;
     let mut in_hid_interface = false;
@@ -995,114 +1032,6 @@ fn submit_interrupt_in_transfer(runtime: &mut XhciRuntime, slot_id: u8, dci: u8)
     });
     ring_doorbell(&runtime.regs, usize::from(slot_id), u32::from(target));
     true
-}
-
-fn hid_usage_to_char(usage: u8, shift: bool) -> Option<char> {
-    match usage {
-        0x04..=0x1D => {
-            let c = (b'a' + (usage - 0x04)) as char;
-            Some(if shift { c.to_ascii_uppercase() } else { c })
-        }
-        0x1E..=0x27 => {
-            const NORMAL: [char; 10] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-            const SHIFT: [char; 10] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')'];
-            let idx = (usage - 0x1E) as usize;
-            Some(if shift { SHIFT[idx] } else { NORMAL[idx] })
-        }
-        0x2D => Some(if shift { '_' } else { '-' }),
-        0x2E => Some(if shift { '+' } else { '=' }),
-        0x2F => Some(if shift { '{' } else { '[' }),
-        0x30 => Some(if shift { '}' } else { ']' }),
-        0x31 => Some(if shift { '|' } else { '\\' }),
-        0x33 => Some(if shift { ':' } else { ';' }),
-        0x34 => Some(if shift { '"' } else { '\'' }),
-        0x35 => Some(if shift { '~' } else { '`' }),
-        0x36 => Some(if shift { '<' } else { ',' }),
-        0x37 => Some(if shift { '>' } else { '.' }),
-        0x38 => Some(if shift { '?' } else { '/' }),
-        0x2C => Some(' '),
-        _ => None,
-    }
-}
-
-fn parse_hid_keyboard_report(slot: u8, ep: u8, report: &[u8], state: &mut HidParserState) -> bool {
-    if report.len() < 8 {
-        return false;
-    }
-
-    let modifiers = report[0];
-    let shift = (modifiers & 0x22) != 0;
-    let keys = &report[2..8];
-
-    for &usage in keys {
-        if usage == 0 {
-            continue;
-        }
-        if state.prev_keys.contains(&usage) {
-            continue;
-        }
-        if let Some(ch) = hid_usage_to_char(usage, shift) {
-            println!("[xHCI][HID][slot:{} ep:{}] key '{}'", slot, ep, ch);
-        } else {
-            println!(
-                "[xHCI][HID][slot:{} ep:{}] usage=0x{:02x} modifiers=0x{:02x}",
-                slot, ep, usage, modifiers
-            );
-        }
-    }
-
-    state.prev_keys.copy_from_slice(keys);
-    true
-}
-
-fn parse_hid_mouse_report(slot: u8, ep: u8, report: &[u8], state: &mut HidParserState) -> bool {
-    if report.len() < 3 {
-        return false;
-    }
-
-    let (buttons_idx, data_idx) = if (report[0] & 0xF8) == 0 {
-        (0usize, 1usize)
-    } else if report.len() >= 4 && (report[1] & 0xF8) == 0 {
-        (1usize, 2usize)
-    } else {
-        return false;
-    };
-
-    if report.len() <= data_idx + 1 {
-        return false;
-    }
-
-    let buttons = report[buttons_idx] & 0x07;
-    let dx = report[data_idx] as i8;
-    let dy = report[data_idx + 1] as i8;
-    let wheel = if report.len() > data_idx + 2 {
-        report[data_idx + 2] as i8
-    } else {
-        0
-    };
-
-    if dx != 0 || dy != 0 || wheel != 0 || buttons != state.prev_mouse_buttons {
-        println!(
-            "[xHCI][HID][slot:{} ep:{}] mouse dx={} dy={} wheel={} L={} R={} M={}",
-            slot,
-            ep,
-            dx,
-            dy,
-            wheel,
-            (buttons & 0x01) as u8,
-            ((buttons >> 1) & 0x01) as u8,
-            ((buttons >> 2) & 0x01) as u8
-        );
-    }
-    state.prev_mouse_buttons = buttons;
-    true
-}
-
-fn parse_hid_report(slot: u8, ep: u8, report: &[u8], state: &mut HidParserState) {
-    if parse_hid_keyboard_report(slot, ep, report, state) {
-        return;
-    }
-    let _ = parse_hid_mouse_report(slot, ep, report, state);
 }
 
 fn handle_command_completion_event(
@@ -1258,6 +1187,7 @@ fn handle_transfer_event(
                 println!("[xHCI] HID interrupt endpoint not found in config descriptor");
                 return;
             };
+            let config_value = config_bytes.get(5).copied().unwrap_or(1);
 
             let ring = match TransferRing::new() {
                 Ok(r) => r,
@@ -1287,6 +1217,22 @@ fn handle_transfer_event(
                 "[xHCI] HID endpoint selected: slot={} ep=0x{:02x} dci={} max_packet={} interval={}",
                 slot_id, hid_cfg.ep_addr, hid_cfg.dci, hid_cfg.max_packet, hid_cfg.interval
             );
+            if !submit_set_configuration(runtime, slot_id, config_value) {
+                println!(
+                    "[xHCI] failed to submit SET_CONFIGURATION: slot={} config={}",
+                    slot_id, config_value
+                );
+            }
+        }
+        PendingTransferKind::SetConfiguration { slot_id } => {
+            if !success {
+                println!(
+                    "[xHCI] SET_CONFIGURATION failed: slot={} code={}",
+                    slot_id, completion_code
+                );
+                return;
+            }
+            println!("[xHCI] SET_CONFIGURATION completed: slot={}", slot_id);
             let _ = submit_configure_endpoint_command(runtime, slot_id);
         }
         PendingTransferKind::InterruptIn { slot_id, dci } => {
@@ -1305,7 +1251,7 @@ fn handle_transfer_event(
                 }
             }
             let _ = submit_interrupt_in_transfer(runtime, slot_id, dci);
-        }
+        },
     }
 }
 
@@ -1331,7 +1277,7 @@ fn poll_xhci_events(runtime: &mut XhciRuntime) -> bool {
         };
         handled = true;
 
-        let trb_type = ((event[3] >> 10) & 0x3F) as u32;
+        let trb_type = (event[3] >> 10) & 0x3F;
         let completion_code = ((event[2] >> 24) & 0xFF) as u8;
         let slot_id = ((event[3] >> 24) & 0xFF) as u8;
         let ep_id = ((event[3] >> 16) & 0x1F) as u8;
@@ -1524,122 +1470,13 @@ fn init_xhci_controller() -> Option<XhciRuntime> {
     Some(runtime)
 }
 
-impl KeyboardDecoder {
-    fn decode_scancode(&mut self, scancode: u8) -> Option<u8> {
-        if scancode & SC_RELEASE != 0 {
-            let make = scancode & !SC_RELEASE;
-            if make == SC_LSHIFT || make == SC_RSHIFT {
-                self.shift = false;
-            }
-            return None;
-        }
-
-        match scancode {
-            SC_LSHIFT | SC_RSHIFT => {
-                self.shift = true;
-                return None;
-            }
-            SC_CAPSLOCK => {
-                self.caps = !self.caps;
-                return None;
-            }
-            _ => {}
-        }
-
-        let idx = scancode as usize;
-        if idx >= 128 {
-            return None;
-        }
-
-        let use_shift = self.shift ^ (self.caps && MAP_NORMAL[idx].is_ascii_alphabetic());
-        let ch = if use_shift { MAP_SHIFT[idx] } else { MAP_NORMAL[idx] };
-        if ch == 0 {
-            None
-        } else {
-            Some(ch)
-        }
-    }
-}
-
-fn log_key_event(ch: u8) {
-    match ch {
-        b'\n' => println!("[xHCI][KBD] <ENTER>"),
-        b'\t' => println!("[xHCI][KBD] <TAB>"),
-        0x08 => println!("[xHCI][KBD] <BACKSPACE>"),
-        b' '..=b'~' => println!("[xHCI][KBD] '{}'", ch as char),
-        _ => println!("[xHCI][KBD] 0x{:02X}", ch),
-    }
-}
-
-fn log_mouse_event(packet: mouse::MousePacket, last_buttons: &mut u8) {
-    let moved = packet.dx != 0 || packet.dy != 0;
-    let buttons_changed = packet.buttons != *last_buttons;
-    if !moved && !buttons_changed {
-        return;
-    }
-
-    let dy_screen = -(packet.dy as i16);
-    println!(
-        "[xHCI][MOUSE] dx={:>4}, dy={:>4}, L={} R={} M={}",
-        packet.dx as i16,
-        dy_screen,
-        packet.left() as u8,
-        packet.right() as u8,
-        packet.middle() as u8
-    );
-    *last_buttons = packet.buttons;
-}
-
 fn run_input_monitor_loop(mut xhci: Option<XhciRuntime>) {
-    let mut decoder = KeyboardDecoder::default();
-    let mut last_buttons = 0u8;
-    let mut warned_keyboard_err = false;
-    let mut warned_mouse_err = false;
-
     loop {
-        let mut handled_any = false;
-
-        if let Some(runtime) = xhci.as_mut() {
-            if poll_xhci_events(runtime) {
-                handled_any = true;
-            }
-        }
-
-        loop {
-            match keyboard::read_scancode_tap() {
-                Ok(Some(scancode)) => {
-                    handled_any = true;
-                    if let Some(ch) = decoder.decode_scancode(scancode) {
-                        log_key_event(ch);
-                    }
-                }
-                Ok(None) => break,
-                Err(err) => {
-                    if !warned_keyboard_err {
-                        println!("[xHCI] keyboard tap error: {:#x}", err);
-                        warned_keyboard_err = true;
-                    }
-                    break;
-                }
-            }
-        }
-
-        loop {
-            match mouse::read_packet() {
-                Ok(Some(packet)) => {
-                    handled_any = true;
-                    log_mouse_event(packet, &mut last_buttons);
-                }
-                Ok(None) => break,
-                Err(err) => {
-                    if !warned_mouse_err {
-                        println!("[xHCI] mouse read error: {:#x}", err);
-                        warned_mouse_err = true;
-                    }
-                    break;
-                }
-            }
-        }
+        let handled_any = if let Some(runtime) = xhci.as_mut() {
+            poll_xhci_events(runtime)
+        } else {
+            false
+        };
 
         if !handled_any {
             time::sleep_ms(2);
@@ -1650,6 +1487,6 @@ fn run_input_monitor_loop(mut xhci: Option<XhciRuntime>) {
 fn main() {
     println!("[xHCI] driver started");
     let xhci_runtime = init_xhci_controller();
-    println!("[xHCI] input monitor mode enabled (keyboard tap + mouse packet)");
+    println!("[xHCI] USB HID injection mode enabled");
     run_input_monitor_loop(xhci_runtime);
 }

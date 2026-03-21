@@ -427,12 +427,20 @@ pub unsafe extern "C" fn posix_spawnattr_destroy(_attr: *mut u8) -> i32 { 0 }
 pub unsafe extern "C" fn posix_memalign(
     memptr: *mut *mut u8, alignment: usize, size: usize,
 ) -> i32 {
-    extern "C" { fn malloc(size: usize) -> *mut u8; }
-    let ptr = malloc(size + alignment);
-    if ptr.is_null() { return 12; } // ENOMEM
-    let addr = ptr as usize;
-    let aligned = (addr + alignment - 1) & !(alignment - 1);
-    *memptr = aligned as *mut u8;
+    // POSIX: alignment は 2 のべき乗かつ sizeof(void*) の倍数である必要がある。
+    if memptr.is_null()
+        || alignment == 0
+        || !alignment.is_power_of_two()
+        || (alignment % core::mem::size_of::<*mut u8>()) != 0
+    {
+        return 22; // EINVAL
+    }
+
+    let ptr = crate::libc::memalign(alignment, size);
+    if ptr.is_null() {
+        return 12; // ENOMEM
+    }
+    *memptr = ptr;
     0
 }
 

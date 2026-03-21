@@ -76,40 +76,35 @@ pub extern "C" fn isatty(fd: i32) -> i32 {
     _isatty(fd)
 }
 
-// ヒープの現在の末端アドレス
-static mut HEAP_END: usize = 0;
-
 #[no_mangle]
 pub extern "C" fn _sbrk(incr: isize) -> *mut u8 {
-    unsafe {
-        // ヒープの初期化が行われていない場合
-        if HEAP_END == 0 {
-            // 現在のbrk（ヒープの末端）を取得するために brk(0) を呼ぶ
-            let cur = syscall1(SyscallNumber::Brk as u64, 0);
+    // brk は mmap/MMIO マッピングでも更新されるため、ユーザー側で末端を
+    // キャッシュすると整合性が壊れてヒープ破壊につながる。
+    // 毎回 brk(0) で現在値を取得してから更新する。
+    let cur = syscall1(SyscallNumber::Brk as u64, 0);
+    if cur == 0 || cur > 0xffff_ffff_ffff_f000 {
+        return -1_isize as *mut u8;
+    }
+    let old_heap_end = cur;
 
-            // エラー判定 (0や異常値が返ってきた場合)
-            if cur == 0 || cur > 0xffff_ffff_ffff_f000 {
-                return -1_isize as *mut u8;
-            }
-            HEAP_END = cur as usize;
-        }
+    // 安全側に倒して縮小は未サポートにする（MMIO 併用時の破壊回避）。
+    if incr < 0 {
+        return -1_isize as *mut u8;
+    }
+    if incr == 0 {
+        return old_heap_end as *mut u8;
+    }
 
-        let old_heap_end = HEAP_END;
-
-        // sbrk(0) の場合は現在値を返すだけ
-        if incr == 0 {
-            return old_heap_end as *mut u8;
-        }
-
-        let new_heap_end = (old_heap_end as isize + incr) as usize;
-        let ret = syscall1(SyscallNumber::Brk as u64, new_heap_end as u64);
-
-        if ret == new_heap_end as u64 {
-            HEAP_END = new_heap_end;
-            old_heap_end as *mut u8
-        } else {
-            -1_isize as *mut u8
-        }
+    let incr_u64 = incr as u64;
+    let new_heap_end = match old_heap_end.checked_add(incr_u64) {
+        Some(v) => v,
+        None => return -1_isize as *mut u8,
+    };
+    let ret = syscall1(SyscallNumber::Brk as u64, new_heap_end);
+    if ret == new_heap_end {
+        old_heap_end as *mut u8
+    } else {
+        -1_isize as *mut u8
     }
 }
 

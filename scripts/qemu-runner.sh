@@ -109,6 +109,10 @@ exec qemu-system-x86_64 \
     -bios "$OVMF" \
     -drive format=raw,file="$ESP_IMG",media=disk \
     -drive id=disk0,file=target/mochiOS.img,format=raw,if=ide,index=1,media=disk \
+    -usb \
+    -device qemu-xhci,id=xhci \
+    -device usb-kbd,bus=xhci.0 \
+    -device usb-tablet,bus=xhci.0 \
     -net none \
     -m 512M \
     -no-reboot \

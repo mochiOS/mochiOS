@@ -79,3 +79,28 @@ pub fn exec_from_buffer(elf_data: &[u8]) -> Result<u64, ()> {
         Ok(result)
     }
 }
+
+/// メモリ上の ELF データと実行パス名から新プロセスを起動する
+pub fn exec_from_buffer_named(path: &str, elf_data: &[u8]) -> Result<u64, ()> {
+    use super::sys::syscall3;
+
+    let mut path_buf = [0u8; 256];
+    let path_bytes = path.as_bytes();
+    if path_bytes.is_empty() || path_bytes.len() >= 255 {
+        return Err(());
+    }
+    path_buf[..path_bytes.len()].copy_from_slice(path_bytes);
+    path_buf[path_bytes.len()] = 0;
+
+    let result = syscall3(
+        SyscallNumber::ExecFromBufferNamed as u64,
+        elf_data.as_ptr() as u64,
+        elf_data.len() as u64,
+        path_buf.as_ptr() as u64,
+    );
+    if (result as i64) < 0 {
+        Err(())
+    } else {
+        Ok(result)
+    }
+}

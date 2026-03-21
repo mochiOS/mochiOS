@@ -44,6 +44,8 @@ pub mod vga;
 pub mod keyboard;
 /// マウス入力
 pub mod mouse;
+/// 入力注入
+pub mod input;
 /// MMIO/物理メモリマップ
 pub mod mmio;
 

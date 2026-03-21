@@ -329,7 +329,7 @@ fn main() {
         println!("Building drivers");
         build_drivers(&drivers_dir, &drivers_binaries_dir)
     } else {
-        Vec::new()
+        panic!("Drivers directory not found: {}", drivers_dir.display());
     };
 
     // driver.service が参照する自動起動ドライバ一覧を生成

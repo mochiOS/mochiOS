@@ -204,7 +204,7 @@ pub fn exec_kernel_with_name(path: &str, name: &str) -> u64 {
 fn exec_internal(path: &str, name_override: Option<&str>, args: &[&str]) -> u64 {
     let process_name = name_override.unwrap_or(path);
     if let Some(data) = crate::init::fs::read(path) {
-        exec_with_data(&data, process_name, path, args)
+        exec_with_data(&data, process_name, path, args, None)
     } else {
         crate::warn!("exec: file not found: {}", path);
         crate::syscall::types::ENOENT
@@ -356,7 +356,24 @@ fn build_initial_user_stack(
 }
 
 /// メモリ上の ELF バッファからプロセスを生成する（内部共通実装）
-fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str]) -> u64 {
+fn delegated_parent_pid() -> Option<crate::task::ProcessId> {
+    let caller_tid = crate::task::current_thread_id()?;
+    let caller_pid = crate::task::with_thread(caller_tid, |t| t.process_id())?;
+    let is_fs_service = crate::task::with_process(caller_pid, |p| p.name() == "fs.service")
+        .unwrap_or(false);
+    if !is_fs_service {
+        return None;
+    }
+    crate::task::with_process(caller_pid, |p| p.parent_id()).flatten()
+}
+
+fn exec_with_data(
+    data: &[u8],
+    process_name: &str,
+    exec_path: &str,
+    args: &[&str],
+    parent_override: Option<crate::task::ProcessId>,
+) -> u64 {
     crate::debug!("exec: name={}", process_name);
     let aslr_seed = next_aslr_seed(process_name);
 
@@ -777,8 +794,10 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
         }
 
         // プロセスを作成してページテーブルをセット
-        let parent_pid = crate::task::current_thread_id()
-            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()));
+        let parent_pid = parent_override.or_else(|| {
+            crate::task::current_thread_id()
+                .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+        });
         let privilege = resolve_exec_privilege(process_name, exec_path);
         let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
         proc.set_page_table(new_pt_phys);
@@ -1224,7 +1243,7 @@ pub fn exec_from_buffer_syscall(buf_ptr: u64, buf_len: u64) -> u64 {
         core::ptr::copy_nonoverlapping(buf_ptr as *const u8, dst_ptr, buf_len as usize);
     });
 
-    exec_with_data(&owned, "user_exec", "user_exec", &[])
+    exec_with_data(&owned, "user_exec", "user_exec", &[], delegated_parent_pid())
 }
 
 /// メモリ上の ELF バッファと実行パス名から新プロセスを起動するシステムコール
@@ -1258,7 +1277,13 @@ pub fn exec_from_buffer_named_syscall(buf_ptr: u64, buf_len: u64, path_ptr: u64)
         core::ptr::copy_nonoverlapping(buf_ptr as *const u8, dst_ptr, buf_len as usize);
     });
 
-    exec_with_data(&owned, process_name, path.as_str(), &[])
+    exec_with_data(
+        &owned,
+        process_name,
+        path.as_str(),
+        &[],
+        delegated_parent_pid(),
+    )
 }
 
 /// メモリ上の ELF バッファと実行パス名・引数から新プロセスを起動するシステムコール
@@ -1304,5 +1329,11 @@ pub fn exec_from_buffer_named_args_syscall(
         core::ptr::copy_nonoverlapping(buf_ptr as *const u8, dst_ptr, buf_len as usize);
     });
 
-    exec_with_data(&owned, process_name, path.as_str(), &args_refs)
+    exec_with_data(
+        &owned,
+        process_name,
+        path.as_str(),
+        &args_refs,
+        delegated_parent_pid(),
+    )
 }

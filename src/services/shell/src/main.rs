@@ -17,7 +17,6 @@ fn main() {
             }
         }
     };
-    
     let fb_ptr = match vga::map_framebuffer() {
         Some(p) => p,
         None => {

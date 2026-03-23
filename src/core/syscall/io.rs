@@ -11,14 +11,6 @@ const STDERR_FD: u64 = 2;
 const IOVEC_SIZE: u64 = 16;
 const IOV_MAX: u64 = 1024;
 
-#[inline]
-fn is_current_process_busybox() -> bool {
-    crate::task::current_thread_id()
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .and_then(|pid| crate::task::with_process(pid, |p| p.name().ends_with("busybox.elf")))
-        .unwrap_or(false)
-}
-
 /// 現在のプロセスの親プロセスのメインスレッドIDを返す
 fn get_parent_thread_id() -> Option<u64> {
     let tid = crate::task::current_thread_id()?;
@@ -92,13 +84,6 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
             offset = end;
         }
     }
-    if is_current_process_busybox() && (fd == STDOUT_FD || fd == STDERR_FD) {
-        info!(
-            "busybox write: fd={}, len={}, parent_tid={:?}, sent_chunks={}, failed_chunks={}",
-            fd, len, parent_tid, sent_chunks, failed_chunks
-        );
-    }
-
     len
 }
 
@@ -181,12 +166,6 @@ pub fn writev(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
         }
     }
 
-    if is_current_process_busybox() {
-        info!(
-            "busybox writev: fd={}, iovcnt={}, total_written={}",
-            fd, iovcnt, total_written
-        );
-    }
     total_written
 }
 

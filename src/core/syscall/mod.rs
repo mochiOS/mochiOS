@@ -275,15 +275,6 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Faccessat as u64 => fs::faccessat(arg0 as i64, arg1, arg2, arg3),
         x if x == SyscallNumber::Readlinkat as u64 => types::EINVAL, // スタブ
         _ => {
-            if let Some(tid) = crate::task::current_thread_id()
-                .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-            {
-                if crate::task::with_process(tid, |p| p.name().ends_with("busybox.elf"))
-                    .unwrap_or(false)
-                {
-                    crate::warn!("busybox ENOSYS syscall: num={}", num);
-                }
-            }
             ENOSYS
         }
     }
@@ -422,18 +413,11 @@ extern "C" fn syscall_handler_rust(
 ) -> u64 {
     crate::percpu::install_current_cpu_gs_base();
     let current_tid = crate::task::current_thread_id();
-    let is_busybox = current_tid
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .and_then(|pid| crate::task::with_process(pid, |p| p.name().ends_with("busybox.elf")))
-        .unwrap_or(false);
     let prev_cr3 = syscall_entry::switch_to_kernel_page_table();
     if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(true));
     }
     let ret = dispatch(num, arg0, arg1, arg2, arg3, arg4);
-    if is_busybox {
-        crate::info!("busybox syscall: num={}, ret={:#x}", num, ret);
-    }
     if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(false));
     }

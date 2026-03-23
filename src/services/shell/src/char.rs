@@ -1,5 +1,5 @@
 use core::mem::size_of;
-use swiftlib::{fs, io, ipc, task, vga};
+use swiftlib::{fs, io, ipc, task, time, vga};
 
 // 色の編集がだるっちいったらありゃしないのでgeminiに作ってもらったエディタを使ってください。
 // https://gemini.google.com/share/02481dc7584f
@@ -41,6 +41,7 @@ const ENV_FILE_MAX_SIZE: usize = 4096;
 const FONT_READ_CHUNK: usize = 512;
 const FS_PATH_MAX: usize = 128;
 const FS_DATA_MAX: usize = 560;
+const FS_REQ_TIMEOUT_MS: u64 = 2000;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -127,16 +128,21 @@ fn encode_exec_path_and_args(path: &str, args: &[&str]) -> Option<[u8; FS_PATH_M
 
 fn fs_request(fs_tid: u64, req: &FsRequest) -> Result<FsResponse, ()> {
     let req_slice = unsafe {
-        core::slice::from_raw_parts(&req as *const _ as *const u8, size_of::<FsRequest>())
+        core::slice::from_raw_parts(req as *const _ as *const u8, size_of::<FsRequest>())
     };
     if ipc::ipc_send(fs_tid, req_slice) != 0 {
         return Err(());
     }
 
     let mut resp_buf = [0u8; size_of::<FsResponse>()];
+    let start_tick = time::get_ticks();
     loop {
-        let (sender, len) = ipc::ipc_recv_wait(&mut resp_buf);
+        let (sender, len) = ipc::ipc_recv(&mut resp_buf);
         if sender == 0 && len == 0 {
+            if time::get_ticks().saturating_sub(start_tick) > FS_REQ_TIMEOUT_MS {
+                return Err(());
+            }
+            time::sleep_ms(1);
             continue;
         }
         if sender != fs_tid || (len as usize) < size_of::<FsResponse>() {
@@ -361,7 +367,9 @@ pub struct Terminal {
 #[allow(unused)]
 impl Terminal {
     fn load_env_file(&mut self) {
-        let data = match read_file_via_fs_service(ENV_FILE_PATH, ENV_FILE_MAX_SIZE) {
+        let data = match read_file(ENV_FILE_PATH, ENV_FILE_MAX_SIZE)
+            .or_else(|| read_file_via_fs_service(ENV_FILE_PATH, ENV_FILE_MAX_SIZE))
+        {
             Some(d) => d,
             None => return,
         };
@@ -398,10 +406,14 @@ impl Terminal {
         let fd = swiftlib::io::open(path, io::O_RDONLY);
         if fd >= 0 {
             swiftlib::io::close(fd as u64);
-            true
-        } else {
-            false
+            return true;
         }
+
+        false
+    }
+
+    fn should_try_busybox_alias(cmd: &str) -> bool {
+        matches!(cmd, "ls" | "cat")
     }
 
     fn busybox_fallback_in_path(&self) -> Option<String> {
@@ -495,55 +507,43 @@ impl Terminal {
         let glyph = *self.font.glyph(ch);
         let x0 = col * FONT_WIDTH as u32;
         let y0 = row * FONT_HEIGHT as u32;
-        // 1フォント行を一括コピーすることで MMIO 書き込み回数を 72→12 に削減
-        let mut row_buf = [0u32; FONT_WIDTH];
         for (r, &bits) in glyph.iter().enumerate() {
             let y = y0 + r as u32;
             if y >= self.height { break; }
             if x0 + FONT_WIDTH as u32 > self.width { break; }
             for c in 0..FONT_WIDTH {
                 let on = (bits >> (7 - c)) & 1 != 0;
-                row_buf[c] = if on { self.fg } else { self.bg };
-            }
-            // row_buf → フレームバッファ（スタック→MMIO の bulk write）
-            let offset = (y * self.stride + x0) as usize;
-            unsafe {
-                core::ptr::copy_nonoverlapping(
-                    row_buf.as_ptr(),
-                    self.fb_ptr.add(offset),
-                    FONT_WIDTH,
-                );
+                let color = if on { self.fg } else { self.bg };
+                self.put_pixel(x0 + c as u32, y, color);
             }
         }
     }
 
     pub fn clear_screen(&mut self) {
-        // bg = 0x00000000 なので write_bytes(0) で全ピクセルをゼロ埋め（高速）
-        let total_bytes = (self.height * self.stride) as usize * 4;
-        unsafe {
-            core::ptr::write_bytes(self.fb_ptr as *mut u8, 0, total_bytes);
+        let total = (self.height * self.stride) as usize;
+        for i in 0..total {
+            unsafe {
+                self.fb_ptr.add(i).write_volatile(0);
+            }
         }
         self.col = 0;
         self.row = 0;
     }
 
     fn scroll_up(&mut self) {
-        let row_pixels = FONT_HEIGHT as u32 * self.stride;
-        let total = self.height * self.stride;
-        // 本体をコピー（MMIO read + write だが memmove 相当で効率的）
-        unsafe {
-            let src = self.fb_ptr.add(row_pixels as usize);
-            core::ptr::copy(src, self.fb_ptr, (total - row_pixels) as usize);
+        let row_pixels = (FONT_HEIGHT as u32 * self.stride) as usize;
+        let total_pixels = (self.height * self.stride) as usize;
+        let copy_pixels = total_pixels.saturating_sub(row_pixels);
+        for i in 0..copy_pixels {
+            let v = unsafe { self.fb_ptr.add(i + row_pixels).read_volatile() };
+            unsafe {
+                self.fb_ptr.add(i).write_volatile(v);
+            }
         }
-        // 最終行をゼロ埋め（write_bytes で高速クリア）
-        let last_row_start = (self.height - FONT_HEIGHT as u32) * self.stride;
-        let clear_bytes = (FONT_HEIGHT as u32 * self.stride) as usize * 4;
-        unsafe {
-            core::ptr::write_bytes(
-                self.fb_ptr.add(last_row_start as usize) as *mut u8,
-                0,
-                clear_bytes,
-            );
+        for i in copy_pixels..total_pixels {
+            unsafe {
+                self.fb_ptr.add(i).write_volatile(0);
+            }
         }
         self.row = self.max_rows - 1;
     }
@@ -853,7 +853,7 @@ impl Terminal {
             "help" => {
                 self.write_str("Commands: help, clear, version, export, cd\n");
                 self.write_str("Other commands are loaded from PATH (Binaries/*.elf)\n");
-                self.write_str("BusyBox applets are available via aliases (e.g. 'ls' -> busybox ls)\n");
+                self.write_str("BusyBox aliases: ls, cat\n");
             }
             "clear" => {
                 self.clear_screen();
@@ -885,7 +885,11 @@ impl Terminal {
             _ => {
                 // PATH からコマンドを探して実行
                 let mut path = self.find_in_path(cmd_name).map(|s| s.to_string());
-                if path.is_none() && cmd_name != "busybox" && cmd_name != "busybox.elf" {
+                if path.is_none()
+                    && cmd_name != "busybox"
+                    && cmd_name != "busybox.elf"
+                    && Self::should_try_busybox_alias(cmd_name)
+                {
                     path = self.busybox_fallback_in_path();
                 }
                 match path {

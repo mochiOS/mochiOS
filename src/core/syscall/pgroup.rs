@@ -88,7 +88,8 @@ pub fn setsid() -> u64 {
         p.set_pgid(pid_val);
         p.set_sid(pid_val);
         pid_val
-    }).unwrap_or_else(|| ESRCH)
+    })
+    .unwrap_or_else(|| ESRCH)
 }
 
 /// Getsid システムコール

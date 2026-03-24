@@ -151,3 +151,50 @@ pub fn exec_from_buffer_named_with_args(
         Ok(result)
     }
 }
+
+/// メモリ上の ELF データと実行パス名・引数・要求元スレッドIDから新プロセスを起動する
+pub fn exec_from_buffer_named_with_args_and_requester(
+    path: &str,
+    elf_data: &[u8],
+    args: &[&str],
+    requester_tid: u64,
+) -> Result<u64, i64> {
+    use super::sys::syscall5;
+
+    let mut path_buf = [0u8; 256];
+    let path_bytes = path.as_bytes();
+    if path_bytes.is_empty() || path_bytes.len() >= 255 {
+        return Err(-22);
+    }
+    path_buf[..path_bytes.len()].copy_from_slice(path_bytes);
+    path_buf[path_bytes.len()] = 0;
+
+    let mut args_buf = [0u8; 512];
+    let mut pos = 0usize;
+    for arg in args {
+        let b = arg.as_bytes();
+        if pos + b.len() + 2 > args_buf.len() {
+            return Err(-22);
+        }
+        args_buf[pos..pos + b.len()].copy_from_slice(b);
+        pos += b.len();
+        args_buf[pos] = 0;
+        pos += 1;
+    }
+    args_buf[pos] = 0;
+    let args_ptr = if args.is_empty() { 0 } else { args_buf.as_ptr() as u64 };
+
+    let result = syscall5(
+        SyscallNumber::ExecFromBufferNamedArgsWithRequester as u64,
+        elf_data.as_ptr() as u64,
+        elf_data.len() as u64,
+        path_buf.as_ptr() as u64,
+        args_ptr,
+        requester_tid,
+    );
+    if (result as i64) < 0 {
+        Err(result as i64)
+    } else {
+        Ok(result)
+    }
+}

@@ -620,13 +620,13 @@ fn main() {
                                     Ok(elf_data) => {
                                         let arg_refs: Vec<&str> =
                                             args_owned.iter().map(|s| s.as_str()).collect();
-                                        let exec_ret = if arg_refs.is_empty() {
-                                            process::exec_from_buffer_named(path_str, &elf_data)
-                                        } else {
-                                            process::exec_from_buffer_named_with_args(
-                                                path_str, &elf_data, &arg_refs,
-                                            )
-                                        };
+                                        let exec_ret =
+                                            process::exec_from_buffer_named_with_args_and_requester(
+                                                path_str,
+                                                &elf_data,
+                                                &arg_refs,
+                                                sender,
+                                            );
                                         match exec_ret {
                                             Ok(pid) => {
                                                 resp.status = pid as i64;

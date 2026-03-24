@@ -45,13 +45,40 @@ pub fn wait(pid: i64) -> (i64, i32) {
 /// 子プロセスの終了を非ブロッキングで確認する（WNOHANG）
 /// 戻り値: Some(pid) = 終了済み, None = まだ実行中
 pub fn wait_nonblocking(pid: i64) -> Option<i64> {
+    match wait_nonblocking_status(pid) {
+        WaitNonblockingStatus::Exited(done_pid) => Some(done_pid),
+        _ => None,
+    }
+}
+
+/// `wait(WNOHANG)` の詳細結果
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WaitNonblockingStatus {
+    /// 子プロセスが終了済み（回収された PID）
+    Exited(i64),
+    /// 対象子プロセスはまだ実行中
+    Running,
+    /// 対象に一致する子プロセスが存在しない（ECHILD）
+    NoChild,
+    /// その他のエラー（負の errno）
+    Error(i64),
+}
+
+/// 子プロセスの終了を非ブロッキングで確認する（WNOHANG, 詳細版）
+pub fn wait_nonblocking_status(pid: i64) -> WaitNonblockingStatus {
     use super::sys::syscall3;
     const WNOHANG: u64 = 0x1;
+    const ECHILD: i64 = -10;
     let ret = syscall3(SyscallNumber::Wait as u64, pid as u64, 0, WNOHANG);
-    if (ret as i64) > 0 {
-        Some(ret as i64)
+    let ret_i64 = ret as i64;
+    if ret_i64 > 0 {
+        WaitNonblockingStatus::Exited(ret_i64)
+    } else if ret_i64 == 0 {
+        WaitNonblockingStatus::Running
+    } else if ret_i64 == ECHILD {
+        WaitNonblockingStatus::NoChild
     } else {
-        None
+        WaitNonblockingStatus::Error(ret_i64)
     }
 }
 

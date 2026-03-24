@@ -166,7 +166,6 @@ use x86_64::structures::idt::InterruptStackFrame;
 /// システムコールのディスパッチ
 pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64) -> u64 {
     match num {
-        // Linux互換syscall
         x if x == SyscallNumber::Read as u64 => io::read(arg0, arg1, arg2),
         x if x == SyscallNumber::Write as u64 => io::write(arg0, arg1, arg2),
         x if x == SyscallNumber::Writev as u64 => io::writev(arg0, arg1, arg2),
@@ -193,8 +192,6 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Getcwd as u64 => fs::getcwd(arg0, arg1),
         x if x == SyscallNumber::Exit as u64 => process::exit(arg0),
         x if x == SyscallNumber::ExitGroup as u64 => process::exit(arg0),
-
-        // mochiOS独自syscall
         x if x == SyscallNumber::Yield as u64 => {
             task::yield_now();
             SUCCESS
@@ -236,6 +233,9 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::ExecFromBufferNamedArgs as u64 => {
             exec::exec_from_buffer_named_args_syscall(arg0, arg1, arg2, arg3)
         }
+        x if x == SyscallNumber::ExecFromBufferNamedArgsWithRequester as u64 => {
+            exec::exec_from_buffer_named_args_with_requester_syscall(arg0, arg1, arg2, arg3, arg4)
+        }
         x if x == SyscallNumber::SetConsoleCursor as u64 => {
             crate::util::vga::set_cursor_pixel_y(arg0 as usize);
             0
@@ -243,7 +243,6 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::GetConsoleCursor as u64 => {
             crate::util::vga::get_cursor_pixel_y() as u64
         }
-        // プロセスグループ・セッション・ユーティリティ
         x if x == SyscallNumber::GetPpid as u64 => pgroup::getppid(),
         x if x == SyscallNumber::Setpgid as u64 => pgroup::setpgid(arg0, arg1),
         x if x == SyscallNumber::Getpgid as u64 => pgroup::getpgid(arg0),
@@ -256,12 +255,11 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Geteuid as u64 => pgroup::geteuid(),
         x if x == SyscallNumber::Getegid as u64 => pgroup::getegid(),
         x if x == SyscallNumber::Lstat as u64 => fs::stat(arg0, arg1),
-        x if x == SyscallNumber::Readlink as u64 => types::EINVAL, // スタブ: シンボリックリンク非対応
+        x if x == SyscallNumber::Readlink as u64 => types::EINVAL,
         x if x == SyscallNumber::Fcntl as u64 => fs::fcntl(arg0, arg1, arg2),
         x if x == SyscallNumber::Pipe as u64 => pipe::pipe_syscall(arg0),
         x if x == SyscallNumber::Dup as u64 => fs::dup(arg0),
         x if x == SyscallNumber::Dup2 as u64 => fs::dup2(arg0, arg1),
-        // 追加: BusyBox 互換 syscall
         x if x == SyscallNumber::Mprotect as u64 => pgroup::mprotect(arg0, arg1, arg2),
         x if x == SyscallNumber::Nanosleep as u64 => pgroup::nanosleep(arg0, arg1),
         x if x == SyscallNumber::Uname as u64 => pgroup::uname(arg0),
@@ -273,10 +271,8 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Getdents64 as u64 => fs::getdents64(arg0, arg1, arg2),
         x if x == SyscallNumber::Newfstatat as u64 => fs::newfstatat(arg0 as i64, arg1, arg2, arg3),
         x if x == SyscallNumber::Faccessat as u64 => fs::faccessat(arg0 as i64, arg1, arg2, arg3),
-        x if x == SyscallNumber::Readlinkat as u64 => types::EINVAL, // スタブ
-        _ => {
-            ENOSYS
-        }
+        x if x == SyscallNumber::Readlinkat as u64 => types::EINVAL,
+        _ => ENOSYS,
     }
 }
 

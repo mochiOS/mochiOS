@@ -42,6 +42,8 @@ const FONT_READ_CHUNK: usize = 512;
 const FS_PATH_MAX: usize = 128;
 const FS_DATA_MAX: usize = 560;
 const FS_REQ_TIMEOUT_MS: u64 = 2000;
+const IPC_MSG_MAX: usize = 576;
+const PENDING_IPC_CAPACITY: usize = 32;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -65,6 +67,65 @@ struct FsResponse {
     status: i64,
     len: u64,
     data: [u8; FS_DATA_MAX],
+}
+
+#[derive(Clone, Copy)]
+struct PendingIpcMessage {
+    used: bool,
+    sender: u64,
+    len: usize,
+    data: [u8; IPC_MSG_MAX],
+}
+
+impl PendingIpcMessage {
+    const fn new() -> Self {
+        Self {
+            used: false,
+            sender: 0,
+            len: 0,
+            data: [0; IPC_MSG_MAX],
+        }
+    }
+}
+
+static mut PENDING_IPC_MESSAGES: [PendingIpcMessage; PENDING_IPC_CAPACITY] =
+    [PendingIpcMessage::new(); PENDING_IPC_CAPACITY];
+
+fn enqueue_pending_message(sender: u64, data: &[u8], len: usize) -> bool {
+    let copy_len = core::cmp::min(len, core::cmp::min(data.len(), IPC_MSG_MAX));
+    unsafe {
+        for slot in &mut PENDING_IPC_MESSAGES {
+            if !slot.used {
+                slot.used = true;
+                slot.sender = sender;
+                slot.len = copy_len;
+                if copy_len > 0 {
+                    slot.data[..copy_len].copy_from_slice(&data[..copy_len]);
+                }
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn take_pending_message(buf: &mut [u8]) -> Option<(u64, usize)> {
+    unsafe {
+        for slot in &mut PENDING_IPC_MESSAGES {
+            if slot.used {
+                let copy_len = core::cmp::min(slot.len, buf.len());
+                if copy_len > 0 {
+                    buf[..copy_len].copy_from_slice(&slot.data[..copy_len]);
+                }
+                let sender = slot.sender;
+                slot.used = false;
+                slot.sender = 0;
+                slot.len = 0;
+                return Some((sender, copy_len));
+            }
+        }
+    }
+    None
 }
 
 fn read_file(path: &str, max_size: usize) -> Option<Vec<u8>> {
@@ -146,6 +207,8 @@ fn fs_request(fs_tid: u64, req: &FsRequest) -> Result<FsResponse, ()> {
             continue;
         }
         if sender != fs_tid || (len as usize) < size_of::<FsResponse>() {
+            let msg_len = core::cmp::min(len as usize, resp_buf.len());
+            let _ = enqueue_pending_message(sender, &resp_buf[..msg_len], msg_len);
             continue;
         }
         let resp: FsResponse = unsafe {
@@ -366,6 +429,20 @@ pub struct Terminal {
 
 #[allow(unused)]
 impl Terminal {
+    fn drain_pending_ipc_messages(&mut self, buf: &mut [u8]) -> bool {
+        let mut wrote = false;
+        while let Some((_, len)) = take_pending_message(buf) {
+            if len == 0 || len > buf.len() {
+                continue;
+            }
+            if let Ok(s) = core::str::from_utf8(&buf[..len]) {
+                self.write_str(s);
+                wrote = true;
+            }
+        }
+        wrote
+    }
+
     fn load_env_file(&mut self) {
         let data = match read_file(ENV_FILE_PATH, ENV_FILE_MAX_SIZE)
             .or_else(|| read_file_via_fs_service(ENV_FILE_PATH, ENV_FILE_MAX_SIZE))
@@ -743,8 +820,35 @@ impl Terminal {
 
     /// 子プロセスのIPC出力を受け取りながら終了を待つ
     fn drain_child_output(&mut self, pid: u64) {
-        let mut buf = [0u8; 512];
+        let mut buf = [0u8; IPC_MSG_MAX];
         loop {
+            let mut wrote = false;
+            if self.drain_pending_ipc_messages(&mut buf) {
+                wrote = true;
+            }
+            loop {
+                let (_, len2) = ipc::ipc_recv(&mut buf);
+                if len2 == 0 || len2 as usize > buf.len() {
+                    break;
+                }
+                if let Ok(s) = core::str::from_utf8(&buf[..len2 as usize]) {
+                    self.write_str(s);
+                    wrote = true;
+                }
+            }
+            if wrote {
+                self.flush();
+            }
+            let child_finished = match task::wait_nonblocking_status(pid as i64) {
+                task::WaitNonblockingStatus::Exited(_) => true,
+                task::WaitNonblockingStatus::Running => false,
+                task::WaitNonblockingStatus::NoChild => true,
+                task::WaitNonblockingStatus::Error(_) => true,
+            };
+            if child_finished {
+                break;
+            }
+
             // メッセージが届くまでスリープして待機（ビジーウェイトしない）
             let (_, len) = ipc::ipc_recv_wait(&mut buf);
             if len > 0 && len as usize <= buf.len() {
@@ -765,11 +869,21 @@ impl Terminal {
                 self.flush();
             }
             // 子プロセスが終了していれば抜ける（exit 通知で起床した場合もここで検知）
-            if task::wait_nonblocking(pid as i64).is_some() {
+            let child_finished = match task::wait_nonblocking_status(pid as i64) {
+                task::WaitNonblockingStatus::Exited(_) => true,
+                task::WaitNonblockingStatus::Running => false,
+                task::WaitNonblockingStatus::NoChild => true,
+                task::WaitNonblockingStatus::Error(_) => true,
+            };
+            if child_finished {
                 break;
             }
         }
         // 終了後に残ったメッセージを念のため掃き出す
+        let mut wrote = false;
+        if self.drain_pending_ipc_messages(&mut buf) {
+            wrote = true;
+        }
         loop {
             let (_, len) = ipc::ipc_recv(&mut buf);
             if len == 0 || len as usize > buf.len() {
@@ -777,9 +891,12 @@ impl Terminal {
             }
             if let Ok(s) = core::str::from_utf8(&buf[..len as usize]) {
                 self.write_str(s);
+                wrote = true;
             }
         }
-        self.flush();
+        if wrote {
+            self.flush();
+        }
     }
 
     fn parse_command_line(line: &str) -> Vec<String> {

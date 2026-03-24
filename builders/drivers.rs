@@ -42,9 +42,8 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "unknown".to_string());
         let driver_output_name = normalize_driver_name(&driver_dir_name);
-        let expected_bin_name = parse_driver_binary_name(&cargo_toml).or_else(|| {
-            Some(driver_dir_name.clone())
-        });
+        let expected_bin_name =
+            parse_driver_binary_name(&cargo_toml).or_else(|| Some(driver_dir_name.clone()));
 
         println!(
             "Building driver: {} -> {}.elf",
@@ -141,9 +140,11 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
                     Some("x86_64-unknown-none".to_string())
                 };
 
-                if let Some(elf_path) =
-                    find_built_binary(&target_dir, target_name.as_deref(), expected_bin_name.as_deref())
-                {
+                if let Some(elf_path) = find_built_binary(
+                    &target_dir,
+                    target_name.as_deref(),
+                    expected_bin_name.as_deref(),
+                ) {
                     let dest_name = format!("{}.elf", driver_output_name);
                     let dest = output_dir.join(&dest_name);
                     if let Err(e) = fs::copy(&elf_path, &dest) {

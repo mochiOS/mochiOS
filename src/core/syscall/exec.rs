@@ -133,7 +133,11 @@ fn caller_can_launch_service() -> bool {
     .unwrap_or(false)
 }
 
-fn read_nul_args_from_user(args_ptr: u64, max_total_bytes: usize, max_args: usize) -> Result<Vec<String>, u64> {
+fn read_nul_args_from_user(
+    args_ptr: u64,
+    max_total_bytes: usize,
+    max_args: usize,
+) -> Result<Vec<String>, u64> {
     use crate::syscall::types::{EFAULT, EINVAL};
 
     if args_ptr == 0 {
@@ -359,8 +363,8 @@ fn build_initial_user_stack(
 fn delegated_parent_pid() -> Option<crate::task::ProcessId> {
     let caller_tid = crate::task::current_thread_id()?;
     let caller_pid = crate::task::with_thread(caller_tid, |t| t.process_id())?;
-    let is_fs_service = crate::task::with_process(caller_pid, |p| p.name() == "fs.service")
-        .unwrap_or(false);
+    let is_fs_service =
+        crate::task::with_process(caller_pid, |p| p.name() == "fs.service").unwrap_or(false);
     if !is_fs_service {
         return None;
     }
@@ -1243,7 +1247,13 @@ pub fn exec_from_buffer_syscall(buf_ptr: u64, buf_len: u64) -> u64 {
         core::ptr::copy_nonoverlapping(buf_ptr as *const u8, dst_ptr, buf_len as usize);
     });
 
-    exec_with_data(&owned, "user_exec", "user_exec", &[], delegated_parent_pid())
+    exec_with_data(
+        &owned,
+        "user_exec",
+        "user_exec",
+        &[],
+        delegated_parent_pid(),
+    )
 }
 
 /// メモリ上の ELF バッファと実行パス名から新プロセスを起動するシステムコール
@@ -1335,5 +1345,62 @@ pub fn exec_from_buffer_named_args_syscall(
         path.as_str(),
         &args_refs,
         delegated_parent_pid(),
+    )
+}
+
+/// メモリ上の ELF バッファと実行パス名・引数・要求元スレッドIDから新プロセスを起動するシステムコール
+pub fn exec_from_buffer_named_args_with_requester_syscall(
+    buf_ptr: u64,
+    buf_len: u64,
+    path_ptr: u64,
+    args_ptr: u64,
+    requester_tid: u64,
+) -> u64 {
+    use crate::syscall::types::{EFAULT, EINVAL, EPERM};
+
+    if !caller_can_launch_service() {
+        return EPERM;
+    }
+    if buf_ptr == 0 || buf_len == 0 || buf_len > 32 * 1024 * 1024 || path_ptr == 0 {
+        return EINVAL;
+    }
+    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) {
+        return EFAULT;
+    }
+
+    let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
+        Ok(s) => s,
+        Err(_) => return EINVAL,
+    };
+    let process_name = path.rsplit('/').next().unwrap_or(path.as_str());
+
+    let args_owned = match read_nul_args_from_user(args_ptr, 512, 64) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let args_refs: Vec<&str> = args_owned.iter().map(|s| s.as_str()).collect();
+
+    let mut owned = alloc::vec![0u8; buf_len as usize];
+    let dst_ptr = owned.as_mut_ptr();
+    crate::syscall::with_user_memory_access(|| unsafe {
+        core::ptr::copy_nonoverlapping(buf_ptr as *const u8, dst_ptr, buf_len as usize);
+    });
+
+    let parent_override = if requester_tid != 0 {
+        let requester = crate::task::ThreadId::from_u64(requester_tid);
+        match crate::task::with_thread(requester, |t| t.process_id()) {
+            Some(pid) => Some(pid),
+            None => return EINVAL,
+        }
+    } else {
+        None
+    };
+
+    exec_with_data(
+        &owned,
+        process_name,
+        path.as_str(),
+        &args_refs,
+        parent_override.or_else(delegated_parent_pid),
     )
 }

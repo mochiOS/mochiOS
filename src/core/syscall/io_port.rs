@@ -1,6 +1,6 @@
 //! I/Oポートアクセス用のシステムコール
 
-use crate::syscall::{EINVAL, EFAULT, EPERM, SUCCESS};
+use crate::syscall::{EFAULT, EINVAL, EPERM, SUCCESS};
 use core::arch::asm;
 
 /// 呼び出し元プロセスがI/Oポートアクセス権限を持つか確認する

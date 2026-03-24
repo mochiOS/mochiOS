@@ -122,6 +122,8 @@ pub enum SyscallNumber {
     ExecFromBufferNamed = 542,
     /// メモリ上の ELF バッファと実行パス名＋引数から新プロセスを起動
     ExecFromBufferNamedArgs = 543,
+    /// メモリ上の ELF バッファと実行パス名＋引数＋要求元スレッドIDから新プロセスを起動
+    ExecFromBufferNamedArgsWithRequester = 544,
 }
 
 /// 操作が許可されていない

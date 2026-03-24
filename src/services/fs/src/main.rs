@@ -24,6 +24,9 @@ const ELF_PT_LOAD: u32 = 1;
 const MAX_EXEC_IMAGE_SIZE: usize = 64 * 1024 * 1024;
 pub(crate) const IPC_MAX_MSG_SIZE: usize = 576;
 const PENDING_IPC_CAPACITY: usize = 16;
+const EXEC_CACHE_MAX_ENTRIES: usize = 8;
+const EXEC_CACHE_MAX_TOTAL_BYTES: usize = 16 * 1024 * 1024;
+const EXEC_CACHE_MAX_IMAGE_SIZE: usize = 8 * 1024 * 1024;
 
 #[derive(Clone, Copy)]
 struct OpenFile {
@@ -191,6 +194,94 @@ pub(crate) fn take_pending_fs_request(
         }
     }
     None
+}
+
+struct ExecCacheEntry {
+    path: String,
+    image: Vec<u8>,
+    last_used: u64,
+}
+
+struct ExecImageCache {
+    entries: Vec<ExecCacheEntry>,
+    total_bytes: usize,
+    use_counter: u64,
+}
+
+impl ExecImageCache {
+    fn new() -> Self {
+        Self {
+            entries: Vec::new(),
+            total_bytes: 0,
+            use_counter: 0,
+        }
+    }
+
+    fn next_use_counter(&mut self) -> u64 {
+        self.use_counter = self.use_counter.wrapping_add(1);
+        if self.use_counter == 0 {
+            self.use_counter = 1;
+        }
+        self.use_counter
+    }
+
+    fn evict_lru(&mut self) {
+        if self.entries.is_empty() {
+            return;
+        }
+
+        let mut lru_index = 0usize;
+        let mut lru_used = self.entries[0].last_used;
+        for i in 1..self.entries.len() {
+            if self.entries[i].last_used < lru_used {
+                lru_index = i;
+                lru_used = self.entries[i].last_used;
+            }
+        }
+
+        let removed = self.entries.swap_remove(lru_index);
+        self.total_bytes = self.total_bytes.saturating_sub(removed.image.len());
+    }
+
+    fn get(&mut self, path: &str) -> Option<&[u8]> {
+        let idx = self.entries.iter().position(|entry| entry.path == path)?;
+        let now = self.next_use_counter();
+        self.entries[idx].last_used = now;
+        Some(self.entries[idx].image.as_slice())
+    }
+
+    fn insert(&mut self, path: &str, image: Vec<u8>) {
+        let image_len = image.len();
+        if image_len == 0
+            || image_len > EXEC_CACHE_MAX_IMAGE_SIZE
+            || image_len > EXEC_CACHE_MAX_TOTAL_BYTES
+        {
+            return;
+        }
+
+        if let Some(idx) = self.entries.iter().position(|entry| entry.path == path) {
+            let old = self.entries.swap_remove(idx);
+            self.total_bytes = self.total_bytes.saturating_sub(old.image.len());
+        }
+
+        while self.entries.len() >= EXEC_CACHE_MAX_ENTRIES {
+            self.evict_lru();
+        }
+        while self.total_bytes.saturating_add(image_len) > EXEC_CACHE_MAX_TOTAL_BYTES {
+            if self.entries.is_empty() {
+                return;
+            }
+            self.evict_lru();
+        }
+
+        let last_used = self.next_use_counter();
+        self.total_bytes = self.total_bytes.saturating_add(image_len);
+        self.entries.push(ExecCacheEntry {
+            path: path.to_string(),
+            image,
+            last_used,
+        });
+    }
 }
 
 fn vfs_error_to_errno(err: VfsError) -> i64 {
@@ -365,6 +456,11 @@ fn decode_exec_path_and_args(raw: &[u8; 128]) -> Result<(String, Vec<String>), i
     Ok((path, args))
 }
 
+fn exec_from_image(path: &str, image: &[u8], args: &[String], requester_tid: u64) -> Result<u64, i64> {
+    let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    process::exec_from_buffer_named_with_args_and_requester(path, image, &arg_refs, requester_tid)
+}
+
 //noinspection ALL
 /// disk.service から ext2 をマウントする（失敗時は InitFs にフォールバック）
 fn mount_filesystem() {
@@ -435,6 +531,7 @@ fn main() {
     notify_ready_to_core();
 
     let mut recv_buf = AlignedBuffer([0u8; IPC_MAX_MSG_SIZE]);
+    let mut exec_cache = ExecImageCache::new();
 
     loop {
         let disk_tid = task::find_process_by_name("disk.service");
@@ -613,40 +710,33 @@ fn main() {
                     };
                     let path_str = path_owned.as_str();
                     println!("[FS] OP_EXEC: {}", path_str);
-                    unsafe {
-                        if let Some(ref fs) = MOUNTED_FS {
-                            match resolve_path(fs.as_ref(), path_str) {
-                                Ok(inode) => match read_exec_image_from_inode(fs.as_ref(), inode) {
-                                    Ok(elf_data) => {
-                                        let arg_refs: Vec<&str> =
-                                            args_owned.iter().map(|s| s.as_str()).collect();
-                                        let exec_ret =
-                                            process::exec_from_buffer_named_with_args_and_requester(
-                                                path_str,
-                                                &elf_data,
-                                                &arg_refs,
-                                                sender,
-                                            );
-                                        match exec_ret {
-                                            Ok(pid) => {
-                                                resp.status = pid as i64;
+                    let exec_ret = if let Some(image) = exec_cache.get(path_str) {
+                        exec_from_image(path_str, image, &args_owned, sender)
+                    } else {
+                        unsafe {
+                            if let Some(ref fs) = MOUNTED_FS {
+                                match resolve_path(fs.as_ref(), path_str) {
+                                    Ok(inode) => match read_exec_image_from_inode(fs.as_ref(), inode) {
+                                        Ok(elf_data) => {
+                                            let exec_ret =
+                                                exec_from_image(path_str, &elf_data, &args_owned, sender);
+                                            if exec_ret.is_ok() {
+                                                exec_cache.insert(path_str, elf_data);
                                             }
-                                            Err(errno) => {
-                                                resp.status = errno;
-                                            }
+                                            exec_ret
                                         }
-                                    }
-                                    Err(e) => {
-                                        resp.status = vfs_error_to_errno(e);
-                                    }
-                                },
-                                Err(e) => {
-                                    resp.status = vfs_error_to_errno(e);
+                                        Err(e) => Err(vfs_error_to_errno(e)),
+                                    },
+                                    Err(e) => Err(vfs_error_to_errno(e)),
                                 }
+                            } else {
+                                Err(-5) // EIO
                             }
-                        } else {
-                            resp.status = -5; // EIO
                         }
+                    };
+                    match exec_ret {
+                        Ok(pid) => resp.status = pid as i64,
+                        Err(errno) => resp.status = errno,
                     }
                 }
                 _ => {

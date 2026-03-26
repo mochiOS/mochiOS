@@ -10,19 +10,19 @@ mod ext2;
 mod initfs;
 
 use common::{resolve_path, FileHandle, FileSystem, VfsError};
+use common::vfs::FileType;
 use disk_device::DiskServiceDevice;
 use ext2::Ext2Fs;
 use initfs::InitFs;
 
 const MAX_HANDLES: usize = 16;
-const FS_DATA_MAX: usize = 560;
+const FS_DATA_MAX: usize = 512;
 const READ_CACHE_SIZE: usize = 4096;
-const EXEC_READ_CHUNK: usize = 64 * 1024;
 const ELF_HEADER_SIZE: usize = 64;
 const ELF_PHDR_SIZE: usize = 56;
 const ELF_PT_LOAD: u32 = 1;
 const MAX_EXEC_IMAGE_SIZE: usize = 64 * 1024 * 1024;
-pub(crate) const IPC_MAX_MSG_SIZE: usize = 576;
+pub(crate) const IPC_MAX_MSG_SIZE: usize = 2064;
 const PENDING_IPC_CAPACITY: usize = 16;
 const EXEC_CACHE_MAX_ENTRIES: usize = 8;
 const EXEC_CACHE_MAX_TOTAL_BYTES: usize = 16 * 1024 * 1024;
@@ -78,6 +78,9 @@ impl FsRequest {
     const OP_WRITE: u64 = 3;
     const OP_CLOSE: u64 = 4;
     const OP_EXEC: u64 = 5;
+    const OP_STAT: u64 = 6;
+    const OP_FSTAT: u64 = 7;
+    const OP_READDIR: u64 = 8;
 }
 
 #[repr(C)]
@@ -107,7 +110,19 @@ fn is_fs_request_message(data: &[u8], len: usize) -> bool {
         return false;
     }
     match decode_message_op(data, len) {
-        Some(op) => (FsRequest::OP_OPEN..=FsRequest::OP_EXEC).contains(&op),
+        Some(op) => {
+            matches!(
+                op,
+                FsRequest::OP_OPEN
+                    | FsRequest::OP_READ
+                    | FsRequest::OP_WRITE
+                    | FsRequest::OP_CLOSE
+                    | FsRequest::OP_EXEC
+                    | FsRequest::OP_STAT
+                    | FsRequest::OP_FSTAT
+                    | FsRequest::OP_READDIR
+            )
+        }
         None => false,
     }
 }
@@ -301,6 +316,29 @@ fn vfs_error_to_errno(err: VfsError) -> i64 {
     }
 }
 
+fn file_type_mode_bits(file_type: FileType) -> u16 {
+    match file_type {
+        FileType::RegularFile => 0x8000,
+        FileType::Directory => 0x4000,
+        FileType::SymbolicLink => 0xA000,
+        FileType::BlockDevice => 0x6000,
+        FileType::CharDevice => 0x2000,
+        FileType::Fifo => 0x1000,
+        FileType::Socket => 0xC000,
+    }
+}
+
+fn mode_from_attr(file_type: FileType, mode: u16) -> u16 {
+    let mut out = mode;
+    if (out & 0xF000) == 0 {
+        out |= file_type_mode_bits(file_type);
+    }
+    if (out & 0o777) == 0 {
+        out |= 0o755;
+    }
+    out
+}
+
 #[inline]
 fn read_u16_le(buf: &[u8], offset: usize) -> Option<u16> {
     let bytes = buf.get(offset..offset + 2)?;
@@ -329,8 +367,7 @@ fn read_exact_at(
 ) -> Result<(), VfsError> {
     let mut done = 0usize;
     while done < buf.len() {
-        let end = core::cmp::min(done + EXEC_READ_CHUNK, buf.len());
-        let n = fs.read(inode, offset + done as u64, &mut buf[done..end])?;
+        let n = fs.read(inode, offset + done as u64, &mut buf[done..])?;
         if n == 0 {
             return Err(VfsError::IoError);
         }
@@ -456,6 +493,17 @@ fn decode_exec_path_and_args(raw: &[u8; 128]) -> Result<(String, Vec<String>), i
     Ok((path, args))
 }
 
+fn decode_path(raw: &[u8; 128]) -> Result<&str, i64> {
+    let mut path_end = 0usize;
+    while path_end < raw.len() && raw[path_end] != 0 {
+        path_end += 1;
+    }
+    if path_end == 0 {
+        return Err(-22); // EINVAL
+    }
+    core::str::from_utf8(&raw[..path_end]).map_err(|_| -22)
+}
+
 fn exec_from_image(path: &str, image: &[u8], args: &[String], requester_tid: u64) -> Result<u64, i64> {
     let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     process::exec_from_buffer_named_with_args_and_requester(path, image, &arg_refs, requester_tid)
@@ -528,10 +576,10 @@ fn main() {
     println!("[FS] Service Started.");
 
     mount_filesystem();
+    let mut exec_cache = ExecImageCache::new();
     notify_ready_to_core();
 
     let mut recv_buf = AlignedBuffer([0u8; IPC_MAX_MSG_SIZE]);
-    let mut exec_cache = ExecImageCache::new();
 
     loop {
         let disk_tid = task::find_process_by_name("disk.service");
@@ -570,7 +618,11 @@ fn main() {
 
         if sender != 0 && len >= size_of::<FsRequest>() {
             let req: FsRequest = unsafe { core::ptr::read_unaligned(recv_buf.0.as_ptr() as *const _) };
-            if req.op != FsRequest::OP_READ {
+            if req.op != FsRequest::OP_READ
+                && req.op != FsRequest::OP_STAT
+                && req.op != FsRequest::OP_FSTAT
+                && req.op != FsRequest::OP_READDIR
+            {
                 println!("[FS] REQ op={} from PID={}", req.op, sender);
             }
 
@@ -582,35 +634,37 @@ fn main() {
 
             match req.op {
                 FsRequest::OP_OPEN => {
-                    let mut path_len = 0;
-                    while path_len < 128 && req.path[path_len] != 0 {
-                        path_len += 1;
-                    }
-
-                    if let Ok(path_str) = core::str::from_utf8(&req.path[..path_len]) {
-                        unsafe {
-                            if let Some(ref fs) = MOUNTED_FS {
-                                match resolve_path(fs.as_ref(), path_str) {
-                                    Ok(inode) => {
-                                        let mut handle_idx: i64 = -1;
-                                        for i in 0..MAX_HANDLES {
-                                            if !HANDLES[i].used {
-                                                HANDLES[i].used = true;
-                                                HANDLES[i].handle = FileHandle::new(inode, 0);
-                                                HANDLES[i].fs_id = 0;
-                                                HANDLES[i].cache_start = 0;
-                                                HANDLES[i].cache_len = 0;
-                                                handle_idx = i as i64;
-                                                break;
-                                            }
+                    let path_str = match decode_path(&req.path) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            resp.status = e;
+                            continue;
+                        }
+                    };
+                    unsafe {
+                        if let Some(ref fs) = MOUNTED_FS {
+                            match resolve_path(fs.as_ref(), path_str) {
+                                Ok(inode) => {
+                                    let mut handle_idx: i64 = -1;
+                                    for i in 0..MAX_HANDLES {
+                                        if !HANDLES[i].used {
+                                            HANDLES[i].used = true;
+                                            HANDLES[i].handle = FileHandle::new(inode, 0);
+                                            HANDLES[i].fs_id = 0;
+                                            HANDLES[i].cache_start = 0;
+                                            HANDLES[i].cache_len = 0;
+                                            handle_idx = i as i64;
+                                            break;
                                         }
-                                        resp.status = handle_idx;
                                     }
-                                    Err(e) => {
-                                        resp.status = vfs_error_to_errno(e);
-                                    }
+                                    resp.status = handle_idx;
+                                }
+                                Err(e) => {
+                                    resp.status = vfs_error_to_errno(e);
                                 }
                             }
+                        } else {
+                            resp.status = -5; // EIO
                         }
                     }
                 }
@@ -700,6 +754,103 @@ fn main() {
                         resp.status = -9; // EBADF
                     }
                 }
+                FsRequest::OP_STAT => {
+                    let path_str = match decode_path(&req.path) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            resp.status = e;
+                            continue;
+                        }
+                    };
+                    unsafe {
+                        if let Some(ref fs) = MOUNTED_FS {
+                            match resolve_path(fs.as_ref(), path_str).and_then(|inode| fs.stat(inode)) {
+                                Ok(attr) => {
+                                    resp.status = mode_from_attr(attr.file_type, attr.mode) as i64;
+                                    resp.len = attr.size;
+                                }
+                                Err(e) => {
+                                    resp.status = vfs_error_to_errno(e);
+                                }
+                            }
+                        } else {
+                            resp.status = -5; // EIO
+                        }
+                    }
+                }
+                FsRequest::OP_FSTAT => {
+                    let fd = req.arg1 as usize;
+                    if fd < MAX_HANDLES && unsafe { HANDLES[fd].used } {
+                        unsafe {
+                            if let Some(ref fs) = MOUNTED_FS {
+                                let inode = HANDLES[fd].handle.inode;
+                                match fs.stat(inode) {
+                                    Ok(attr) => {
+                                        resp.status = mode_from_attr(attr.file_type, attr.mode) as i64;
+                                        resp.len = attr.size;
+                                    }
+                                    Err(e) => {
+                                        resp.status = vfs_error_to_errno(e);
+                                    }
+                                }
+                            } else {
+                                resp.status = -5; // EIO
+                            }
+                        }
+                    } else {
+                        resp.status = -9; // EBADF
+                    }
+                }
+                FsRequest::OP_READDIR => {
+                    let fd = req.arg1 as usize;
+                    if fd >= MAX_HANDLES || unsafe { !HANDLES[fd].used } {
+                        resp.status = -9; // EBADF
+                        continue;
+                    }
+                    let start = (req.arg2 >> 32) as usize;
+                    let max_len = (req.arg2 & 0xFFFF_FFFF) as usize;
+                    let max_len = core::cmp::min(max_len, FS_DATA_MAX);
+                    if max_len == 0 {
+                        resp.status = start as i64;
+                        resp.len = 0;
+                        continue;
+                    }
+                    unsafe {
+                        if let Some(ref fs) = MOUNTED_FS {
+                            let inode = HANDLES[fd].handle.inode;
+                            match fs.readdir(inode) {
+                                Ok(entries) => {
+                                    let mut offset = 0usize;
+                                    let mut next_index = start;
+                                    for entry in entries.iter().skip(start) {
+                                        if entry.name == "." || entry.name == ".." {
+                                            next_index += 1;
+                                            continue;
+                                        }
+                                        let name_bytes = entry.name.as_bytes();
+                                        let need = name_bytes.len() + 1; // '\n'
+                                        if need > max_len.saturating_sub(offset) {
+                                            break;
+                                        }
+                                        resp.data[offset..offset + name_bytes.len()]
+                                            .copy_from_slice(name_bytes);
+                                        offset += name_bytes.len();
+                                        resp.data[offset] = b'\n';
+                                        offset += 1;
+                                        next_index += 1;
+                                    }
+                                    resp.status = next_index as i64;
+                                    resp.len = offset as u64;
+                                }
+                                Err(e) => {
+                                    resp.status = vfs_error_to_errno(e);
+                                }
+                            }
+                        } else {
+                            resp.status = -5; // EIO
+                        }
+                    }
+                }
                 FsRequest::OP_EXEC => {
                     let (path_owned, args_owned) = match decode_exec_path_and_args(&req.path) {
                         Ok(v) => v,
@@ -709,7 +860,6 @@ fn main() {
                         }
                     };
                     let path_str = path_owned.as_str();
-                    println!("[FS] OP_EXEC: {}", path_str);
                     let exec_ret = if let Some(image) = exec_cache.get(path_str) {
                         exec_from_image(path_str, image, &args_owned, sender)
                     } else {

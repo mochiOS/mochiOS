@@ -23,6 +23,10 @@ pub struct FileHandle {
     pub pos: usize,
     /// Some(path) であればディレクトリ fd
     pub dir_path: Option<String>,
+    /// true の場合、データは fs.service で管理されるリモート FD（fd_remote 値を参照）
+    pub is_remote: bool,
+    /// fs.service 側のファイルディスクリプタ（is_remote=true のとき有効）
+    pub fd_remote: u64,
     /// Some(id) であればパイプ fd（グローバル PIPE_TABLE のインデックス）
     pub pipe_id: Option<usize>,
     /// パイプの書き込み端の場合 true
@@ -149,6 +153,8 @@ impl FdTable {
                 data: fh.data.clone(),
                 pos: fh.pos,
                 dir_path: fh.dir_path.clone(),
+                is_remote: fh.is_remote,
+                fd_remote: fh.fd_remote,
                 pipe_id: fh.pipe_id,
                 pipe_write: fh.pipe_write,
             });

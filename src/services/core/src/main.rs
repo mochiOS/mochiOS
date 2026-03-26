@@ -7,7 +7,7 @@ use swiftlib::time;
 /// READY通知OPコード
 const OP_NOTIFY_READY: u64 = 0xFF;
 const FS_PATH_MAX: usize = 128;
-const FS_DATA_MAX: usize = 560;
+const FS_DATA_MAX: usize = 2048;
 
 #[repr(C)]
 #[derive(Clone, Copy)]

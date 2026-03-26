@@ -170,13 +170,6 @@ pub fn resolve_path(fs: &dyn FileSystem, path: &str) -> VfsResult<u64> {
     let mut current_inode = fs.root_inode();
     
     for component in components {
-        // 現在のinodeがディレクトリか確認
-        let attr = fs.stat(current_inode)?;
-        if attr.file_type != FileType::Directory {
-            return Err(VfsError::NotDirectory);
-        }
-        
-        // 次の要素を検索
         current_inode = fs.lookup(current_inode, component)?;
     }
     

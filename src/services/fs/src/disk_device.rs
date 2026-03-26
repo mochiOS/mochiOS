@@ -6,10 +6,12 @@ use swiftlib::ipc;
 
 use crate::common::vfs::{VfsError, VfsResult};
 use crate::enqueue_pending_message;
+use crate::IPC_MAX_MSG_SIZE;
 use crate::ext2::BlockDevice;
 use crate::take_pending_message_for_sender;
 
-const MAX_SECTORS_PER_REQ: usize = 32;
+const MAX_SECTORS_PER_REQ: usize = 64;
+const BULK_SECTORS_PER_MSG: usize = 4;
 
 /// ディスク操作リクエスト（書き込みデータを含む）
 #[repr(C)]
@@ -29,7 +31,7 @@ impl DiskRequest {
     const OP_INFO: u64 = 3;
 }
 
-/// ディスク操作レスポンス
+/// ディスク操作レスポンス（1セクタ）
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 struct DiskResponse {
@@ -53,6 +55,31 @@ impl DiskServiceDevice {
             disk_id,
             sector_size: 512,
         }
+    }
+
+    #[inline]
+    fn copy_bulk_chunk(
+        &self,
+        chunk_index: usize,
+        expected_chunk_bytes: usize,
+        src: &[u8],
+        dst: &mut [u8],
+    ) -> VfsResult<()> {
+        if src.len() < expected_chunk_bytes {
+            return Err(VfsError::IoError);
+        }
+        let start = chunk_index
+            .checked_mul(BULK_SECTORS_PER_MSG)
+            .and_then(|v| v.checked_mul(self.sector_size))
+            .ok_or(VfsError::InvalidArgument)?;
+        let end = start
+            .checked_add(expected_chunk_bytes)
+            .ok_or(VfsError::InvalidArgument)?;
+        if end > dst.len() {
+            return Err(VfsError::InvalidArgument);
+        }
+        dst[start..end].copy_from_slice(&src[..expected_chunk_bytes]);
+        Ok(())
     }
 
     /// セクタを読み取る（内部用）
@@ -94,22 +121,38 @@ impl DiskServiceDevice {
             return Err(VfsError::IoError);
         }
 
-        // count 件のレスポンスを順次受信（ブロッキング）
-        let mut resp_buf = [0u8; size_of::<DiskResponse>()];
-        for i in 0..count {
+        let mut resp_buf = [0u8; IPC_MAX_MSG_SIZE];
+        let chunk_count = count.div_ceil(BULK_SECTORS_PER_MSG);
+        for chunk_idx in 0..chunk_count {
+            let remaining = count - chunk_idx * BULK_SECTORS_PER_MSG;
+            let chunk_sectors = core::cmp::min(BULK_SECTORS_PER_MSG, remaining);
+            let expected_chunk_bytes = chunk_sectors
+                .checked_mul(self.sector_size)
+                .ok_or(VfsError::InvalidArgument)?;
+            let expected_bulk_len = size_of::<i64>() + size_of::<u64>() + expected_chunk_bytes;
+
             if let Some(n) = take_pending_message_for_sender(self.disk_service_pid, &mut resp_buf) {
-                if n < size_of::<DiskResponse>() {
+                if n == size_of::<DiskResponse>() && chunk_sectors == 1 {
+                    let resp: DiskResponse = unsafe {
+                        core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskResponse)
+                    };
+                    if resp.status != 0 || resp.len != self.sector_size as u64 {
+                        return Err(VfsError::IoError);
+                    }
+                    self.copy_bulk_chunk(chunk_idx, self.sector_size, &resp.data, buf)?;
+                    continue;
+                }
+                if n < expected_bulk_len {
                     return Err(VfsError::IoError);
                 }
-                let resp: DiskResponse = unsafe {
-                    core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskResponse)
-                };
-                if resp.status != 0 || resp.len < self.sector_size as u64 {
+                let status = i64::from_le_bytes(resp_buf[0..8].try_into().map_err(|_| VfsError::IoError)?);
+                let data_len =
+                    u64::from_le_bytes(resp_buf[8..16].try_into().map_err(|_| VfsError::IoError)?)
+                        as usize;
+                if status != 0 || data_len != expected_chunk_bytes {
                     return Err(VfsError::IoError);
                 }
-                let start = i * self.sector_size;
-                let end = start + self.sector_size;
-                buf[start..end].copy_from_slice(&resp.data[..self.sector_size]);
+                self.copy_bulk_chunk(chunk_idx, expected_chunk_bytes, &resp_buf[16..16 + data_len], buf)?;
                 continue;
             }
 
@@ -131,21 +174,29 @@ impl DiskServiceDevice {
                 break (s, l);
             };
 
-            if (len as usize) < size_of::<DiskResponse>() {
+            let len = len as usize;
+            if len == size_of::<DiskResponse>() && chunk_sectors == 1 {
+                let resp: DiskResponse = unsafe {
+                    core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskResponse)
+                };
+                if resp.status != 0 || resp.len != self.sector_size as u64 {
+                    return Err(VfsError::IoError);
+                }
+                self.copy_bulk_chunk(chunk_idx, self.sector_size, &resp.data, buf)?;
+                continue;
+            }
+            if len < expected_bulk_len {
                 return Err(VfsError::IoError);
             }
 
-            let resp: DiskResponse = unsafe {
-                core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskResponse)
-            };
-
-            if resp.status != 0 || resp.len < self.sector_size as u64 {
+            let status = i64::from_le_bytes(resp_buf[0..8].try_into().map_err(|_| VfsError::IoError)?);
+            let data_len =
+                u64::from_le_bytes(resp_buf[8..16].try_into().map_err(|_| VfsError::IoError)?)
+                    as usize;
+            if status != 0 || data_len != expected_chunk_bytes {
                 return Err(VfsError::IoError);
             }
-
-            let start = i * self.sector_size;
-            let end = start + self.sector_size;
-            buf[start..end].copy_from_slice(&resp.data[..self.sector_size]);
+            self.copy_bulk_chunk(chunk_idx, expected_chunk_bytes, &resp_buf[16..16 + data_len], buf)?;
         }
 
         Ok(())

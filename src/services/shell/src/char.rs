@@ -40,9 +40,9 @@ const FONT_BDF_MAX_SIZE: usize = 512 * 1024;
 const ENV_FILE_MAX_SIZE: usize = 4096;
 const FONT_READ_CHUNK: usize = 512;
 const FS_PATH_MAX: usize = 128;
-const FS_DATA_MAX: usize = 560;
+const FS_DATA_MAX: usize = 512;
 const FS_REQ_TIMEOUT_MS: u64 = 2000;
-const IPC_MSG_MAX: usize = 576;
+const IPC_MSG_MAX: usize = 2064;
 const PENDING_IPC_CAPACITY: usize = 32;
 
 #[repr(C)]
@@ -160,6 +160,10 @@ fn read_file(path: &str, max_size: usize) -> Option<Vec<u8>> {
     } else {
         Some(out)
     }
+}
+
+fn read_file_from_fs(path: &str, max_size: usize) -> Option<Vec<u8>> {
+    read_file(path, max_size).or_else(|| read_file_via_fs_service(path, max_size))
 }
 
 fn encode_exec_path_and_args(path: &str, args: &[&str]) -> Option<[u8; FS_PATH_MAX]> {
@@ -324,7 +328,7 @@ impl Font {
     }
 
     fn load_from_binary() -> Option<Self> {
-        let data = read_file(FONT_BIN_PATH, FONT_BIN_SIZE)?;
+        let data = read_file_from_fs(FONT_BIN_PATH, FONT_BIN_SIZE)?;
         if data.len() < FONT_BIN_SIZE {
             return None;
         }
@@ -338,7 +342,7 @@ impl Font {
     }
 
     fn load_from_bdf() -> Option<Self> {
-        let data = read_file(FONT_BDF_PATH, FONT_BDF_MAX_SIZE)?;
+        let data = read_file_from_fs(FONT_BDF_PATH, FONT_BDF_MAX_SIZE)?;
         let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
         parse_bdf(&data, &mut glyphs);
         Some(Font { glyphs })

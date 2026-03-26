@@ -9,7 +9,8 @@ mod ata;
 use ata::{AtaDrive, AtaPorts, DriveType};
 
 const MAX_DISKS: usize = 4;
-const MAX_BULK_READ_SECTORS: u64 = 32;
+const MAX_BULK_READ_SECTORS: u64 = 64;
+const BULK_SECTORS_PER_MSG: usize = 4;
 
 static mut DISKS: [Option<AtaDrive>; MAX_DISKS] = [None, None, None, None];
 static mut DISK_PROBE_ATTEMPTED: [bool; MAX_DISKS] = [false; MAX_DISKS];
@@ -49,6 +50,15 @@ struct DiskResponse {
     status: i64,
     len: u64,
     data: [u8; 512],
+}
+
+/// ディスク操作レスポンス（複数セクタ）
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct DiskBulkResponse {
+    status: i64,
+    len: u64,
+    data: [u8; BULK_SECTORS_PER_MSG * 512],
 }
 
 #[repr(align(8))]
@@ -127,7 +137,33 @@ fn send_response(dest_thread: u64, resp: &DiskResponse) {
     let resp_slice = unsafe {
         core::slice::from_raw_parts(resp as *const _ as *const u8, size_of::<DiskResponse>())
     };
-    let _ = ipc::ipc_send(dest_thread, resp_slice);
+    for _ in 0..100 {
+        if ipc::ipc_send(dest_thread, resp_slice) == 0 {
+            return;
+        }
+        task::yield_now();
+    }
+    println!(
+        "[DISK] WARN: failed to send response to {} after retries",
+        dest_thread
+    );
+}
+
+#[inline]
+fn send_bulk_response(dest_thread: u64, resp: &DiskBulkResponse) {
+    let resp_slice = unsafe {
+        core::slice::from_raw_parts(resp as *const _ as *const u8, size_of::<DiskBulkResponse>())
+    };
+    for _ in 0..100 {
+        if ipc::ipc_send(dest_thread, resp_slice) == 0 {
+            return;
+        }
+        task::yield_now();
+    }
+    println!(
+        "[DISK] WARN: failed to send bulk response to {} after retries",
+        dest_thread
+    );
 }
 
 #[allow(static_mut_refs)]
@@ -196,16 +232,22 @@ fn main() {
                                 let mut bulk = vec![0u8; total_bytes];
                                 match drive.read_sectors(req.lba, req.count as u8, &mut bulk) {
                                     Ok(_) => {
-                                        for i in 0..count {
-                                            let mut chunk_resp = DiskResponse {
+                                        let mut offset = 0usize;
+                                        while offset < total_bytes {
+                                            let chunk_bytes = core::cmp::min(
+                                                BULK_SECTORS_PER_MSG * 512,
+                                                total_bytes - offset,
+                                            );
+                                            let mut chunk_resp = DiskBulkResponse {
                                                 status: 0,
-                                                len: 512,
-                                                data: [0; 512],
+                                                len: chunk_bytes as u64,
+                                                data: [0; BULK_SECTORS_PER_MSG * 512],
                                             };
-                                            let start = i * 512;
-                                            let end = start + 512;
-                                            chunk_resp.data.copy_from_slice(&bulk[start..end]);
-                                            send_response(sender, &chunk_resp);
+                                            let end = offset + chunk_bytes;
+                                            chunk_resp.data[..chunk_bytes]
+                                                .copy_from_slice(&bulk[offset..end]);
+                                            send_bulk_response(sender, &chunk_resp);
+                                            offset = end;
                                         }
                                     }
                                     Err(_) => {

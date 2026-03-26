@@ -238,6 +238,8 @@ pub fn pipe2_syscall(pipefd_ptr: u64, flags: u64) -> u64 {
         data: alloc::boxed::Box::new([]),
         pos: 0,
         dir_path: None,
+        is_remote: false,
+        fd_remote: 0,
         pipe_id: Some(pipe_id),
         pipe_write: false,
     });
@@ -245,6 +247,8 @@ pub fn pipe2_syscall(pipefd_ptr: u64, flags: u64) -> u64 {
         data: alloc::boxed::Box::new([]),
         pos: 0,
         dir_path: None,
+        is_remote: false,
+        fd_remote: 0,
         pipe_id: Some(pipe_id),
         pipe_write: true,
     });

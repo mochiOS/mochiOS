@@ -160,6 +160,9 @@ impl Ext2Fs {
         device.read_block(EXT2_SUPERBLOCK_OFFSET / device.block_size() as u64, &mut sb_buf)
             .map_err(|_| VfsError::IoError)?;
 
+        // Debug: print first bytes of superblock to help diagnose mount failures
+        println!("[FS-DBG] ext2 superblock first16: {:02x?}", &sb_buf[..16]);
+
         let superblock: Ext2Superblock = unsafe {
             core::ptr::read_unaligned(sb_buf.as_ptr() as *const Ext2Superblock)
         };

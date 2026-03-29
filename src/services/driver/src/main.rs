@@ -3,6 +3,7 @@ use std::vec::Vec;
 use swiftlib::time;
 use swiftlib::task;
 use swiftlib::fs;
+use swiftlib::ipc;
 
 const OP_NOTIFY_READY: u64 = 0xFF;
 const DRIVER_CONFIG_PATH: &str = "Config/drivers.list";

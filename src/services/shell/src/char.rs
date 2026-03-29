@@ -40,7 +40,6 @@ const FONT_BDF_MAX_SIZE: usize = 512 * 1024;
 const ENV_FILE_MAX_SIZE: usize = 4096;
 const FONT_READ_CHUNK: usize = 512;
 const FS_PATH_MAX: usize = 128;
-const FS_DATA_MAX: usize = 512;
 const FS_REQ_TIMEOUT_MS: u64 = 2000;
 const IPC_MSG_MAX: usize = 2064;
 const PENDING_IPC_CAPACITY: usize = 32;
@@ -66,7 +65,7 @@ impl FsRequest {
 struct FsResponse {
     status: i64,
     len: u64,
-    data: [u8; FS_DATA_MAX],
+    data: [u8; fs::FS_DATA_MAX],
 }
 
 #[derive(Clone, Copy)]
@@ -163,7 +162,8 @@ fn read_file(path: &str, max_size: usize) -> Option<Vec<u8>> {
 }
 
 fn read_file_from_fs(path: &str, max_size: usize) -> Option<Vec<u8>> {
-    read_file(path, max_size).or_else(|| read_file_via_fs_service(path, max_size))
+    // Prefer ATA rootfs via fs.service; fall back to local initfs via syscall
+    read_file_via_fs_service(path, max_size).or_else(|| read_file(path, max_size))
 }
 
 fn encode_exec_path_and_args(path: &str, args: &[&str]) -> Option<[u8; FS_PATH_MAX]> {
@@ -256,7 +256,7 @@ fn read_file_via_fs_service(path: &str, max_size: usize) -> Option<Vec<u8>> {
 
     let mut out = Vec::new();
     while out.len() < max_size {
-        let req_len = core::cmp::min(FS_DATA_MAX, max_size - out.len());
+        let req_len = core::cmp::min(fs::FS_DATA_MAX, max_size - out.len());
         if req_len == 0 {
             break;
         }
@@ -279,7 +279,7 @@ fn read_file_via_fs_service(path: &str, max_size: usize) -> Option<Vec<u8>> {
             return None;
         }
 
-        let n = core::cmp::min(resp.len as usize, FS_DATA_MAX);
+        let n = core::cmp::min(resp.len as usize, fs::FS_DATA_MAX);
         if n == 0 {
             break;
         }

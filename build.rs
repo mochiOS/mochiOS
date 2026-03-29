@@ -343,6 +343,29 @@ fn main() {
         ),
     }
 
+    // services.index に基づき、initfs 以外の autostart サービス一覧を生成 (Config/services.list)
+    let mut services_autostart_entries: Vec<String> = Vec::new();
+    for svc in &services {
+        if svc.autostart {
+            if svc.fs_type != "initfs" {
+                services_autostart_entries.push(format!("Services/{}.service", svc.name));
+            } else {
+                // 場合によっては initfs に autostart=true が設定されていることがある。
+                // 開発者に分かるようにビルド時警告を出す。
+                println!("cargo:warning=Autostart service '{}' skipped for services.list because fs='initfs'. If you want it on ATA, set fs = 'ata' in src/services/index.toml", svc.name);
+            }
+        }
+    }
+    let services_autostart_path = fs_dir.join("Config").join("services.list");
+    match fs::write(&services_autostart_path, services_autostart_entries.join("\n")) {
+        Ok(_) => println!("Generated {}", services_autostart_path.display()),
+        Err(e) => println!(
+            "cargo:warning=Failed to write {}: {}",
+            services_autostart_path.display(),
+            e
+        ),
+    }
+
     // initfs イメージを生成
     let initfs_image_path = out_dir.join("initfs.ext2");
 

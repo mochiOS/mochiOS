@@ -1,49 +1,9 @@
-use core::mem::size_of;
 use swiftlib::ipc;
 use swiftlib::process;
-use swiftlib::task;
 use swiftlib::time;
 
 /// READY通知OPコード
 const OP_NOTIFY_READY: u64 = 0xFF;
-const FS_PATH_MAX: usize = 128;
-const FS_DATA_MAX: usize = 2048;
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct FsRequest {
-    op: u64,
-    arg1: u64,
-    arg2: u64,
-    path: [u8; FS_PATH_MAX],
-}
-
-impl FsRequest {
-    const OP_EXEC: u64 = 5;
-
-    fn exec(path: &str) -> Option<Self> {
-        let mut path_buf = [0u8; FS_PATH_MAX];
-        let bytes = path.as_bytes();
-        if bytes.len() >= FS_PATH_MAX {
-            return None;
-        }
-        path_buf[..bytes.len()].copy_from_slice(bytes);
-        Some(Self {
-            op: Self::OP_EXEC,
-            arg1: 0,
-            arg2: 0,
-            path: path_buf,
-        })
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct FsResponse {
-    status: i64,
-    len: u64,
-    data: [u8; FS_DATA_MAX],
-}
 
 /// サービス定義
 struct ServiceDef {
@@ -73,6 +33,20 @@ fn start_service(service: &ServiceDef) -> Option<u64> {
         Err(_) => {
             println!("[CORE] Failed to start {}", service.name);
             None
+        }
+    }
+}
+
+fn start_background_service(service: &ServiceDef) -> Option<u64> {
+    println!("[CORE] Starting background service: {}", service.name);
+    match exec_file_via_fs_service(service.path) {
+        Ok(pid) => {
+            println!("[CORE] {} started via fs.service (PID={})", service.name, pid);
+            Some(pid)
+        }
+        Err(errno) => {
+            println!("[CORE] exec via fs.service failed for {}: errno={}, falling back", service.name, errno);
+            start_service(service)
         }
     }
 }
@@ -131,40 +105,8 @@ fn wait_for_ready(expected_pids: &[u64]) {
     }
 }
 
-fn fs_request(fs_pid: u64, req: &FsRequest) -> Result<FsResponse, &'static str> {
-    let req_slice = unsafe {
-        core::slice::from_raw_parts(req as *const _ as *const u8, size_of::<FsRequest>())
-    };
-    if ipc::ipc_send(fs_pid, req_slice) != 0 {
-        return Err("ipc_send failed");
-    }
-
-    let mut resp_buf = [0u8; size_of::<FsResponse>()];
-    loop {
-        let (sender, len) = ipc::ipc_recv_wait(&mut resp_buf);
-        if sender == 0 && len == 0 {
-            continue;
-        }
-        if sender != fs_pid || (len as usize) < size_of::<FsResponse>() {
-            continue;
-        }
-
-        let resp: FsResponse = unsafe {
-            core::ptr::read_unaligned(resp_buf.as_ptr() as *const FsResponse)
-        };
-        return Ok(resp);
-    }
-}
-
 fn exec_file_via_fs_service(path: &str) -> Result<u64, i64> {
-    let fs_tid = task::find_process_by_name("fs.service")
-        .ok_or(-3)?; // ESRCH
-    let exec_req = FsRequest::exec(path).ok_or(-22)?; // EINVAL
-    let resp = fs_request(fs_tid, &exec_req).map_err(|_| -5)?; // EIO
-    if resp.status < 0 {
-        return Err(resp.status);
-    }
-    Ok(resp.status as u64)
+    swiftlib::fs::exec_via_fs(path)
 }
 
 fn start_shell_service() {
@@ -186,6 +128,25 @@ fn start_shell_service() {
     }
 }
 
+fn fs_open_read_lines(path: &str) -> Result<Vec<String>, i64> {
+    match swiftlib::fs::read_file_via_fs(path, 4096) {
+        Some(bytes) => {
+            let mut lines = Vec::new();
+            if let Ok(text) = core::str::from_utf8(&bytes) {
+                for line in text.lines() {
+                    let line = line.trim();
+                    if line.is_empty() || line.starts_with('#') {
+                        continue;
+                    }
+                    lines.push(line.to_string());
+                }
+            }
+            Ok(lines)
+        }
+        None => Err(-5),
+    }
+}
+
 fn main() {
     println!("[CORE] Service Manager Started");
 
@@ -198,8 +159,24 @@ fn main() {
 
     start_shell_service();
 
-    for service in BACKGROUND_SERVICES {
-        let _ = start_service(service);
+    // Try to read fs/Config/services.list via fs.service and start listed services from ATA rootfs.
+    match fs_open_read_lines("Config/services.list") {
+        Ok(lines) => {
+            println!("[CORE] Found services.list with {} entries", lines.len());
+            for p in lines {
+                println!("[CORE] Requesting exec for {}", p);
+                match exec_file_via_fs_service(&p) {
+                    Ok(pid) => println!("[CORE] {} started (PID={})", p, pid),
+                    Err(errno) => println!("[CORE] Failed to exec {} via fs.service: errno={}", p, errno),
+                }
+            }
+        }
+        Err(errno) => {
+            println!("[CORE] No services.list via fs.service (errno={}), falling back to background list", errno);
+            for service in BACKGROUND_SERVICES {
+                let _ = start_background_service(service);
+            }
+        }
     }
 
     #[cfg(feature = "run_tests")]

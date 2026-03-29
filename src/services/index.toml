@@ -5,14 +5,14 @@
 # description = サービスの説明
 # dir = サービスのディレクトリ
 # fs_type = サービスをどのファイルシステムに配置するか（initfs または ata）
-# autostart = カーネル起動時に自動起動するか（core.serviceのみtrue、他はfalse）
+# autostart = カーネル起動時に自動起動するか（initfsに含まれている奴は勝手に起動するやつだけにしようね）
 # order = 起動順序（数値が小さいほど先に起動、core.serviceが他を起動）
 
 [core.service]
 description = "Core service / system manager"
 dir = "core"
 fs = "initfs"
-autostart = true
+autostart = false
 order = 0
 
 [core.service.disk]
@@ -32,8 +32,8 @@ order = 10
 [core.service.driver]
 description = "Driver manager - launches hardware drivers"
 dir = "driver"
-fs = "initfs"
-autostart = false
+fs = "ata"
+autostart = true
 order = 12
 
 [core.service.shell]

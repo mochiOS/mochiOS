@@ -55,8 +55,7 @@ use crate::task;
 use crate::time;
 use core::mem::size_of;
 
-const FS_PATH_MAX_IPC: usize = 128;
-const FS_DATA_MAX_IPC: usize = 512;
+include!("../../shared/fs_consts.rs");
 const FS_REQ_TIMEOUT_MS: u64 = 2000;
 
 #[repr(C)]
@@ -65,7 +64,7 @@ struct FsRequestIp {
     op: u64,
     arg1: u64,
     arg2: u64,
-    path: [u8; FS_PATH_MAX_IPC],
+    path: [u8; FS_PATH_MAX],
 }
 
 impl FsRequestIp {
@@ -75,9 +74,9 @@ impl FsRequestIp {
     const OP_EXEC: u64 = 5;
 
     fn exec(path: &str) -> Option<Self> {
-        let mut path_buf = [0u8; FS_PATH_MAX_IPC];
+        let mut path_buf = [0u8; FS_PATH_MAX];
         let bytes = path.as_bytes();
-        if bytes.len() >= FS_PATH_MAX_IPC {
+        if bytes.len() >= FS_PATH_MAX {
             return None;
         }
         path_buf[..bytes.len()].copy_from_slice(bytes);
@@ -87,10 +86,10 @@ impl FsRequestIp {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct FsResponseIp {
-    status: i64,
-    len: u64,
-    data: [u8; FS_DATA_MAX_IPC],
+pub struct FsResponseIp {
+    pub status: i64,
+    pub len: u64,
+    pub data: [u8; FS_DATA_MAX],
 }
 
 fn find_fs_service() -> Option<u64> {
@@ -138,9 +137,9 @@ pub fn exec_via_fs(path: &str) -> Result<u64, i64> {
 /// Open via fs.service. Returns fd or negative errno.
 pub fn open_via_fs(path: &str) -> Result<u64, i64> {
     let fs_tid = find_fs_service().ok_or(-3)?;
-    let mut path_buf = [0u8; FS_PATH_MAX_IPC];
+    let mut path_buf = [0u8; FS_PATH_MAX];
     let bytes = path.as_bytes();
-    if bytes.len() >= FS_PATH_MAX_IPC {
+    if bytes.len() >= FS_PATH_MAX {
         return Err(-22);
     }
     path_buf[..bytes.len()].copy_from_slice(bytes);
@@ -155,13 +154,13 @@ pub fn open_via_fs(path: &str) -> Result<u64, i64> {
 /// Read via fs.service into out buffer. Returns bytes read or negative errno.
 pub fn read_via_fs(fd: u64, out: &mut [u8]) -> Result<usize, i64> {
     let fs_tid = find_fs_service().ok_or(-3)?;
-    let req = FsRequestIp { op: FsRequestIp::OP_READ, arg1: fd, arg2: out.len() as u64, path: [0u8; FS_PATH_MAX_IPC] };
+    let req = FsRequestIp { op: FsRequestIp::OP_READ, arg1: fd, arg2: out.len() as u64, path: [0u8; FS_PATH_MAX] };
     let resp = fs_ipc_request(fs_tid, &req).map_err(|_| -5)?;
     if resp.status < 0 {
         return Err(resp.status);
     }
     let n = resp.len as usize;
-    if n > out.len() || n > FS_DATA_MAX_IPC {
+    if n > out.len() || n > FS_DATA_MAX {
         return Err(-5);
     }
     out[..n].copy_from_slice(&resp.data[..n]);
@@ -171,7 +170,7 @@ pub fn read_via_fs(fd: u64, out: &mut [u8]) -> Result<usize, i64> {
 /// Close via fs.service (best effort)
 pub fn close_via_fs(fd: u64) {
     if let Some(fs_tid) = find_fs_service() {
-        let req = FsRequestIp { op: FsRequestIp::OP_CLOSE, arg1: fd, arg2: 0, path: [0u8; FS_PATH_MAX_IPC] };
+        let req = FsRequestIp { op: FsRequestIp::OP_CLOSE, arg1: fd, arg2: 0, path: [0u8; FS_PATH_MAX] };
         let _ = fs_ipc_request(fs_tid, &req);
     }
 }
@@ -180,7 +179,7 @@ pub fn close_via_fs(fd: u64) {
 pub fn read_file_via_fs(path: &str, max_size: usize) -> Option<Vec<u8>> {
     let fd = open_via_fs(path).ok()?;
     let mut out = Vec::new();
-    let mut chunk = [0u8; FS_DATA_MAX_IPC];
+    let mut chunk = [0u8; FS_DATA_MAX];
     while out.len() < max_size {
         let to_read = core::cmp::min(chunk.len(), max_size - out.len());
         match read_via_fs(fd, &mut chunk[..to_read]) {

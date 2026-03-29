@@ -143,6 +143,7 @@ impl DiskServiceDevice {
                     continue;
                 }
                 if n < expected_bulk_len {
+                    println!("[FS-DBG] disk response too short (pending): got={}, expected={}", n, expected_bulk_len);
                     return Err(VfsError::IoError);
                 }
                 let status = i64::from_le_bytes(resp_buf[0..8].try_into().map_err(|_| VfsError::IoError)?);
@@ -186,6 +187,7 @@ impl DiskServiceDevice {
                 continue;
             }
             if len < expected_bulk_len {
+                println!("[FS-DBG] disk response too short: got={}, expected={}", len, expected_bulk_len);
                 return Err(VfsError::IoError);
             }
 

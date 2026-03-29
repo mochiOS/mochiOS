@@ -16,8 +16,8 @@ use ext2::Ext2Fs;
 use initfs::InitFs;
 
 const MAX_HANDLES: usize = 16;
-const FS_DATA_MAX: usize = 512;
-const READ_CACHE_SIZE: usize = 4096;
+include!("../../../../shared/fs_consts.rs");
+const READ_CACHE_SIZE: usize = 65536;
 const ELF_HEADER_SIZE: usize = 64;
 const ELF_PHDR_SIZE: usize = 56;
 const ELF_PT_LOAD: u32 = 1;
@@ -892,6 +892,29 @@ fn main() {
                 _ => {
                     println!("[FS] Unknown OP: {}", req.op);
                     continue;
+                }
+            }
+
+            // Debug: print concise request/response info for failing operations
+            match req.op {
+                FsRequest::OP_OPEN | FsRequest::OP_STAT => {
+                    let path_s = match decode_path(&req.path) { Ok(s) => s, Err(_) => "<invalid>" };
+                    println!("[FS-DBG] REQ op={} sender={} path='{}' -> status={} len={}", req.op, sender, path_s, resp.status, resp.len);
+                }
+                FsRequest::OP_EXEC => {
+                    let path_s = match decode_exec_path_and_args(&req.path) { Ok((p, _)) => p.as_str(), Err(_) => "<invalid>" };
+                    println!("[FS-DBG] REQ OP_EXEC sender={} path='{}' -> status={} len={}", sender, path_s, resp.status, resp.len);
+                }
+                FsRequest::OP_READ => {
+                    println!("[FS-DBG] REQ OP_READ sender={} fd={} req_len={} -> status={} len={}", sender, req.arg1, req.arg2, resp.status, resp.len);
+                }
+                FsRequest::OP_READDIR => {
+                    let start = (req.arg2 >> 32) as usize;
+                    let max_len = (req.arg2 & 0xFFFF_FFFF) as usize;
+                    println!("[FS-DBG] REQ OP_READDIR sender={} fd={} start={} max_len={} -> status={} len={}", sender, req.arg1, start, max_len, resp.status, resp.len);
+                }
+                _ => {
+                    println!("[FS-DBG] REQ op={} sender={} -> status={} len={}", req.op, sender, resp.status, resp.len);
                 }
             }
 

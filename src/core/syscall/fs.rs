@@ -1,5 +1,6 @@
 //! ファイルシステム関連のシステムコール
 
+use crate::syscall::process::sleep;
 use super::types::{EBADF, EFAULT, EINVAL, EIO, ENOENT, ENOSYS, ESRCH, SUCCESS};
 use crate::task::fd_table::{FdTable, FileHandle, FD_BASE, O_CLOEXEC, PROCESS_MAX_FDS};
 use alloc::string::String;
@@ -32,8 +33,7 @@ where
     crate::task::with_process_mut(pid, |p| f(p.fd_table_mut()))
 }
 
-const FS_PATH_MAX: usize = 128;
-const FS_DATA_MAX: usize = 2048;
+include!("../../../shared/fs_consts.rs");
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -239,7 +239,8 @@ fn mode_for_stat(mode: u16) -> u32 {
 
 #[inline]
 fn should_fallback_to_initfs(errno: u64) -> bool {
-    errno == ESRCH || errno == EIO
+    // Only fallback to initfs if fs.service is missing. Prefer ATA rootfs when fs.service exists.
+    errno == ESRCH
 }
 
 fn parse_readdir_names(bytes: &[u8]) -> Vec<String> {
@@ -292,14 +293,54 @@ fn resolve_path(pid_raw: u64, path: &str) -> String {
     }
 }
 
+const FS_SERVICE_RETRY_COUNT: usize = 3;
+const FS_SERVICE_RETRY_MS: u64 = 10;
+
 fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
-    let (data_vec, dir_path, is_remote, fd_remote) = match open_via_fs_service(path, flags) {
-        Ok(remote_fd) => {
-            let (mode, _) = match fstat_via_fs_service(remote_fd) {
-                Ok(v) => v,
-                Err(e) => {
+    // Helper: retry open via fs.service on transient EIO
+    let mut last_err = 0u64;
+    let mut opened = None;
+    for _ in 0..FS_SERVICE_RETRY_COUNT {
+        match open_via_fs_service(path, flags) {
+            Ok(remote_fd) => { opened = Some(remote_fd); break; }
+            Err(e) => {
+                last_err = e;
+                if e == EIO {
+                    // transient, yield and retry
+                    crate::task::yield_now();
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    let (data_vec, dir_path, is_remote, fd_remote) = match opened {
+        Some(remote_fd) => {
+            // fstat may also transiently fail; retry similarly
+            let mut last_fstat_err = 0u64;
+            let mut fstat_ok: Option<(u16, u64)> = None;
+            for _ in 0..FS_SERVICE_RETRY_COUNT {
+                match fstat_via_fs_service(remote_fd) {
+                    Ok(v) => { fstat_ok = Some(v); break; }
+                    Err(e) => {
+                        last_fstat_err = e;
+                        if e == EIO {
+                            // transient, yield and retry
+                            crate::task::yield_now();
+                            continue;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            let (mode, _) = match fstat_ok {
+                Some(v) => v,
+                None => {
                     let _ = close_via_fs_service(remote_fd);
-                    return e;
+                    return if last_fstat_err != 0 { last_fstat_err } else { EIO };
                 }
             };
             (
@@ -313,17 +354,21 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
                 remote_fd,
             )
         }
-        Err(errno) if should_fallback_to_initfs(errno) => {
-            if crate::init::fs::is_directory(path) {
-                (Vec::new(), Some(path.to_string()), false, 0)
-            } else {
-                match crate::init::fs::read(path) {
+        None => {
+            let errno = if last_err != 0 { last_err } else { EIO };
+            if should_fallback_to_initfs(errno) {
+                if crate::init::fs::is_directory(path) {
+                    (Vec::new(), Some(path.to_string()), false, 0)
+                } else {
+                    match crate::init::fs::read(path) {
                     Some(d) => (d, None, false, 0),
                     None => return ENOENT,
                 }
             }
+            } else {
+                return errno;
+            }
         }
-        Err(errno) => return errno,
     };
 
     let cloexec = (flags & O_CLOEXEC) != 0;

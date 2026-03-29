@@ -1,177 +1,49 @@
-use core::mem::size_of;
 use std::vec::Vec;
 
-use swiftlib::ipc;
-use swiftlib::task;
 use swiftlib::time;
+use swiftlib::task;
+use swiftlib::fs;
 
 const OP_NOTIFY_READY: u64 = 0xFF;
-const FS_PATH_MAX: usize = 128;
-const FS_DATA_MAX: usize = 2048;
 const DRIVER_CONFIG_PATH: &str = "Config/drivers.list";
 const DEFAULT_DRIVERS: &[&str] = &["Binaries/drivers/usb.elf"];
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct FsRequest {
-    op: u64,
-    arg1: u64,
-    arg2: u64,
-    path: [u8; FS_PATH_MAX],
-}
-
-impl FsRequest {
-    const OP_OPEN: u64 = 1;
-    const OP_READ: u64 = 2;
-    const OP_CLOSE: u64 = 4;
-    const OP_EXEC: u64 = 5;
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct FsResponse {
-    status: i64,
-    len: u64,
-    data: [u8; FS_DATA_MAX],
-}
-
-fn fs_request(fs_tid: u64, req: &FsRequest) -> Option<FsResponse> {
-    let req_slice = unsafe {
-        core::slice::from_raw_parts(req as *const _ as *const u8, size_of::<FsRequest>())
-    };
-    if ipc::ipc_send(fs_tid, req_slice) != 0 {
-        return None;
-    }
-
-    let mut resp_buf = [0u8; size_of::<FsResponse>()];
-    loop {
-        let (sender, len) = ipc::ipc_recv_wait(&mut resp_buf);
-        if sender == 0 && len == 0 {
-            continue;
-        }
-        if sender != fs_tid {
-            continue;
-        }
-        if (len as usize) < size_of::<FsResponse>() {
-            println!("[DRIVER] fs response too short: len={}", len);
-            continue;
-        }
-        let resp: FsResponse = unsafe {
-            core::ptr::read_unaligned(resp_buf.as_ptr() as *const FsResponse)
-        };
-        return Some(resp);
-    }
-}
-
 fn fs_exec(fs_tid: u64, path: &str) -> Result<u64, i64> {
-    let mut path_buf = [0u8; FS_PATH_MAX];
-    let bytes = path.as_bytes();
-    if bytes.len() >= FS_PATH_MAX {
-        return Err(-22);
-    }
-    path_buf[..bytes.len()].copy_from_slice(bytes);
-    let req = FsRequest {
-        op: FsRequest::OP_EXEC,
-        arg1: 0,
-        arg2: 0,
-        path: path_buf,
-    };
-    let resp = fs_request(fs_tid, &req).ok_or(-5)?;
-    if resp.status < 0 {
-        println!("[DRIVER] fs exec errno={} path={}", resp.status, path);
-        return Err(resp.status);
-    }
-    Ok(resp.status as u64)
+    // swiftlib::fs handles finding fs.service and IPC details
+    fs::exec_via_fs(path)
 }
 
-fn fs_open(fs_tid: u64, path: &str) -> Result<u64, i64> {
-    let mut path_buf = [0u8; FS_PATH_MAX];
-    let bytes = path.as_bytes();
-    if bytes.len() >= FS_PATH_MAX {
-        return Err(-22);
-    }
-    path_buf[..bytes.len()].copy_from_slice(bytes);
-    let req = FsRequest {
-        op: FsRequest::OP_OPEN,
-        arg1: 0,
-        arg2: 0,
-        path: path_buf,
-    };
-    let resp = fs_request(fs_tid, &req).ok_or(-5)?;
-    if resp.status < 0 {
-        println!("[DRIVER] fs open errno={} path={}", resp.status, path);
-        return Err(resp.status);
-    }
-    Ok(resp.status as u64)
+fn fs_open(_fs_tid: u64, path: &str) -> Result<u64, i64> {
+    fs::open_via_fs(path)
 }
 
-fn fs_read(fs_tid: u64, fd: u64, out: &mut [u8]) -> Result<usize, i64> {
-    let req = FsRequest {
-        op: FsRequest::OP_READ,
-        arg1: fd,
-        arg2: out.len() as u64,
-        path: [0u8; FS_PATH_MAX],
-    };
-    let resp = fs_request(fs_tid, &req).ok_or(-5)?;
-    if resp.status < 0 {
-        println!("[DRIVER] fs read errno={} fd={}", resp.status, fd);
-        return Err(resp.status);
-    }
-    let n = resp.len as usize;
-    if n > out.len() || n > FS_DATA_MAX {
-        return Err(-5);
-    }
-    out[..n].copy_from_slice(&resp.data[..n]);
-    Ok(n)
+fn fs_read(_fs_tid: u64, fd: u64, out: &mut [u8]) -> Result<usize, i64> {
+    fs::read_via_fs(fd, out)
 }
 
-fn fs_close(fs_tid: u64, fd: u64) {
-    let req = FsRequest {
-        op: FsRequest::OP_CLOSE,
-        arg1: fd,
-        arg2: 0,
-        path: [0u8; FS_PATH_MAX],
-    };
-    let _ = fs_request(fs_tid, &req);
+fn fs_close(_fs_tid: u64, fd: u64) {
+    fs::close_via_fs(fd)
 }
 
-fn load_driver_list(fs_tid: u64) -> Vec<String> {
+fn load_driver_list(_fs_tid: u64) -> Vec<String> {
     let mut drivers = Vec::new();
 
-    match fs_open(fs_tid, DRIVER_CONFIG_PATH) {
-        Ok(fd) => {
-            let mut buf = [0u8; FS_DATA_MAX];
-            let mut chunk = [0u8; FS_DATA_MAX];
-            let mut text = String::new();
-            loop {
-                let n = match fs_read(fs_tid, fd, &mut chunk) {
-                    Ok(n) => n,
-                    Err(errno) => {
-                        println!("[DRIVER] fs read failed errno={} path={}", errno, DRIVER_CONFIG_PATH);
-                        break;
+    match swiftlib::fs::read_file_via_fs(DRIVER_CONFIG_PATH, 4096) {
+        Some(bytes) => {
+            if let Ok(text) = core::str::from_utf8(&bytes) {
+                for line in text.lines() {
+                    let line = line.trim();
+                    if line.is_empty() || line.starts_with('#') {
+                        continue;
                     }
-                };
-                if n == 0 {
-                    break;
+                    drivers.push(line.to_string());
                 }
-                buf[..n].copy_from_slice(&chunk[..n]);
-                if let Ok(s) = core::str::from_utf8(&buf[..n]) {
-                    text.push_str(s);
-                }
-            }
-            fs_close(fs_tid, fd);
-            for line in text.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                drivers.push(line.to_string());
             }
         }
-        Err(errno) => {
+        None => {
             println!(
-                "[DRIVER] Failed to open {} via fs.service (errno={}, using defaults)",
-                DRIVER_CONFIG_PATH, errno
+                "[DRIVER] Failed to open {} via fs.service (using defaults)",
+                DRIVER_CONFIG_PATH
             );
         }
     }

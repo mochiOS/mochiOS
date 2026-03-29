@@ -972,15 +972,27 @@ impl Terminal {
 
         match cmd_name {
             "help" => {
-                self.write_str("Commands: help, clear, version, export, cd\n");
-                self.write_str("Other commands are loaded from PATH (Binaries/*.elf)\n");
-                self.write_str("BusyBox aliases: ls, cat\n");
+                self.write_str("Please run this command:\n");
+                self.write_str("\tcd Binaries");
+                self.write_str("\tls");
             }
             "clear" => {
                 self.clear_screen();
             }
             "version" => {
-                self.write_str("mochiOS shell v0.1\n");
+                if let Some(data) = read_file_from_fs("/System/about.txt", 4096) {
+                    if let Ok(text) = core::str::from_utf8(&data) {
+                        self.write_str(text);
+                        // テキストの末尾に改行がない場合に備えて調整
+                        if !text.ends_with('\n') {
+                            self.write_byte(b'\n');
+                        }
+                    } else {
+                        self.write_str("Error: /System/about.txt is not valid UTF-8... sorry :(\n");
+                    }
+                } else {
+                    self.write_str("/System/about.txt not found \nwhy japanese people!?!?!?\n");
+                }
             }
             "cd" => {
                 let target = args.first().map(|s| s.as_str()).unwrap_or("/");
@@ -1041,7 +1053,7 @@ impl Terminal {
                         }
                     }
                     None => {
-                        self.write_str("command not found: ");
+                        self.write_str("command / binary not found: ");
                         self.write_str(cmd_name);
                         self.write_byte(b'\n');
                     }

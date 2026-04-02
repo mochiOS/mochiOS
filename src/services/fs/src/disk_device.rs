@@ -6,9 +6,9 @@ use swiftlib::ipc;
 
 use crate::common::vfs::{VfsError, VfsResult};
 use crate::enqueue_pending_message;
-use crate::IPC_MAX_MSG_SIZE;
 use crate::ext2::BlockDevice;
 use crate::take_pending_message_for_sender;
+use crate::IPC_MAX_MSG_SIZE;
 
 const MAX_SECTORS_PER_REQ: usize = 64;
 const BULK_SECTORS_PER_MSG: usize = 4;
@@ -121,7 +121,7 @@ impl DiskServiceDevice {
             return Err(VfsError::IoError);
         }
 
-        let mut resp_buf = [0u8; IPC_MAX_MSG_SIZE];
+        let mut resp_buf = vec![0u8; IPC_MAX_MSG_SIZE];
         let chunk_count = count.div_ceil(BULK_SECTORS_PER_MSG);
         for chunk_idx in 0..chunk_count {
             let remaining = count - chunk_idx * BULK_SECTORS_PER_MSG;
@@ -143,17 +143,26 @@ impl DiskServiceDevice {
                     continue;
                 }
                 if n < expected_bulk_len {
-                    println!("[FS-DBG] disk response too short (pending): got={}, expected={}", n, expected_bulk_len);
+                    println!(
+                        "[FS-DBG] disk response too short (pending): got={}, expected={}",
+                        n, expected_bulk_len
+                    );
                     return Err(VfsError::IoError);
                 }
-                let status = i64::from_le_bytes(resp_buf[0..8].try_into().map_err(|_| VfsError::IoError)?);
+                let status =
+                    i64::from_le_bytes(resp_buf[0..8].try_into().map_err(|_| VfsError::IoError)?);
                 let data_len =
                     u64::from_le_bytes(resp_buf[8..16].try_into().map_err(|_| VfsError::IoError)?)
                         as usize;
                 if status != 0 || data_len != expected_chunk_bytes {
                     return Err(VfsError::IoError);
                 }
-                self.copy_bulk_chunk(chunk_idx, expected_chunk_bytes, &resp_buf[16..16 + data_len], buf)?;
+                self.copy_bulk_chunk(
+                    chunk_idx,
+                    expected_chunk_bytes,
+                    &resp_buf[16..16 + data_len],
+                    buf,
+                )?;
                 continue;
             }
 
@@ -177,9 +186,8 @@ impl DiskServiceDevice {
 
             let len = len as usize;
             if len == size_of::<DiskResponse>() && chunk_sectors == 1 {
-                let resp: DiskResponse = unsafe {
-                    core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskResponse)
-                };
+                let resp: DiskResponse =
+                    unsafe { core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskResponse) };
                 if resp.status != 0 || resp.len != self.sector_size as u64 {
                     return Err(VfsError::IoError);
                 }
@@ -187,18 +195,27 @@ impl DiskServiceDevice {
                 continue;
             }
             if len < expected_bulk_len {
-                println!("[FS-DBG] disk response too short: got={}, expected={}", len, expected_bulk_len);
+                println!(
+                    "[FS-DBG] disk response too short: got={}, expected={}",
+                    len, expected_bulk_len
+                );
                 return Err(VfsError::IoError);
             }
 
-            let status = i64::from_le_bytes(resp_buf[0..8].try_into().map_err(|_| VfsError::IoError)?);
+            let status =
+                i64::from_le_bytes(resp_buf[0..8].try_into().map_err(|_| VfsError::IoError)?);
             let data_len =
                 u64::from_le_bytes(resp_buf[8..16].try_into().map_err(|_| VfsError::IoError)?)
                     as usize;
             if status != 0 || data_len != expected_chunk_bytes {
                 return Err(VfsError::IoError);
             }
-            self.copy_bulk_chunk(chunk_idx, expected_chunk_bytes, &resp_buf[16..16 + data_len], buf)?;
+            self.copy_bulk_chunk(
+                chunk_idx,
+                expected_chunk_bytes,
+                &resp_buf[16..16 + data_len],
+                buf,
+            )?;
         }
 
         Ok(())
@@ -258,9 +275,8 @@ impl DiskServiceDevice {
             }
         }
 
-        let resp: DiskResponse = unsafe {
-            core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskResponse)
-        };
+        let resp: DiskResponse =
+            unsafe { core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskResponse) };
 
         if resp.status != 0 {
             Err(VfsError::IoError)
@@ -283,9 +299,7 @@ impl BlockDevice for DiskServiceDevice {
         if count == 0 {
             return Ok(());
         }
-        let total = count
-            .checked_mul(self.sector_size)
-            .ok_or(())?;
+        let total = count.checked_mul(self.sector_size).ok_or(())?;
         if buf.len() < total {
             return Err(());
         }
@@ -293,12 +307,11 @@ impl BlockDevice for DiskServiceDevice {
         let mut done = 0usize;
         while done < count {
             let chunk = core::cmp::min(MAX_SECTORS_PER_REQ, count - done);
-            let lba = start_block
-                .checked_add(done as u64)
-                .ok_or(())?;
+            let lba = start_block.checked_add(done as u64).ok_or(())?;
             let begin = done * self.sector_size;
             let end = begin + chunk * self.sector_size;
-            self.read_sectors(lba, chunk, &mut buf[begin..end]).map_err(|_| ())?;
+            self.read_sectors(lba, chunk, &mut buf[begin..end])
+                .map_err(|_| ())?;
             done += chunk;
         }
         Ok(())

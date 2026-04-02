@@ -22,7 +22,8 @@ const ELF_HEADER_SIZE: usize = 64;
 const ELF_PHDR_SIZE: usize = 56;
 const ELF_PT_LOAD: u32 = 1;
 const MAX_EXEC_IMAGE_SIZE: usize = 64 * 1024 * 1024;
-pub(crate) const IPC_MAX_MSG_SIZE: usize = 2064;
+// IPC_MAX_MSG_SIZE is defined in shared/fs_consts.rs; remove local duplicate
+// pub(crate) const IPC_MAX_MSG_SIZE: usize = 2064;
 const PENDING_IPC_CAPACITY: usize = 16;
 const EXEC_CACHE_MAX_ENTRIES: usize = 8;
 const EXEC_CACHE_MAX_TOTAL_BYTES: usize = 16 * 1024 * 1024;
@@ -421,7 +422,10 @@ fn read_exec_image_from_inode(fs: &dyn FileSystem, inode: u64) -> Result<Vec<u8>
     let mut has_load = false;
     for i in 0..e_phnum {
         let ph_off = e_phoff
-            .checked_add(i.checked_mul(e_phentsize).ok_or(VfsError::InvalidArgument)?)
+            .checked_add(
+                i.checked_mul(e_phentsize)
+                    .ok_or(VfsError::InvalidArgument)?,
+            )
             .ok_or(VfsError::InvalidArgument)?;
         if ph_off
             .checked_add(ELF_PHDR_SIZE)
@@ -471,7 +475,9 @@ fn decode_exec_path_and_args(raw: &[u8; 128]) -> Result<(String, Vec<String>), i
     if path_end == 0 {
         return Err(-22); // EINVAL
     }
-    let path = core::str::from_utf8(&raw[..path_end]).map_err(|_| -22)?.to_string();
+    let path = core::str::from_utf8(&raw[..path_end])
+        .map_err(|_| -22)?
+        .to_string();
 
     let mut args = Vec::new();
     let mut i = path_end + 1;
@@ -505,14 +511,24 @@ fn decode_path(raw: &[u8; 128]) -> Result<&str, i64> {
     core::str::from_utf8(&raw[..path_end]).map_err(|_| -22)
 }
 
-fn exec_from_image(path: &str, image: &[u8], args: &[String], requester_tid: u64) -> Result<u64, i64> {
+fn exec_from_image(
+    path: &str,
+    image: &[u8],
+    args: &[String],
+    requester_tid: u64,
+) -> Result<u64, i64> {
     let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     // Prefer mapped, zero-copy streaming path via kernel (exec_from_fs_stream).
     match process::exec_via_fs_stream(path, &arg_refs) {
         Ok(pid) => Ok(pid),
         Err(_e) => {
             // Fallback to older copy-into-kernel path
-            process::exec_from_buffer_named_with_args_and_requester(path, image, &arg_refs, requester_tid)
+            process::exec_from_buffer_named_with_args_and_requester(
+                path,
+                image,
+                &arg_refs,
+                requester_tid,
+            )
         }
     }
 }
@@ -587,7 +603,7 @@ fn main() {
     let mut exec_cache = ExecImageCache::new();
     notify_ready_to_core();
 
-    let mut recv_buf = AlignedBuffer([0u8; IPC_MAX_MSG_SIZE]);
+    let mut recv_buf = Box::new(AlignedBuffer([0u8; IPC_MAX_MSG_SIZE]));
 
     loop {
         let disk_tid = task::find_process_by_name("disk.service");
@@ -625,7 +641,8 @@ fn main() {
         }
 
         if sender != 0 && len >= size_of::<FsRequest>() {
-            let req: FsRequest = unsafe { core::ptr::read_unaligned(recv_buf.0.as_ptr() as *const _) };
+            let req: FsRequest =
+                unsafe { core::ptr::read_unaligned(recv_buf.0.as_ptr() as *const _) };
             if req.op != FsRequest::OP_READ
                 && req.op != FsRequest::OP_STAT
                 && req.op != FsRequest::OP_FSTAT
@@ -634,11 +651,11 @@ fn main() {
                 println!("[FS] REQ op={} from PID={}", req.op, sender);
             }
 
-            let mut resp = FsResponse {
+            let mut resp = Box::new(FsResponse {
                 status: -1,
                 len: 0,
                 data: [0; FS_DATA_MAX],
-            };
+            });
 
             match req.op {
                 FsRequest::OP_OPEN => {
@@ -646,9 +663,17 @@ fn main() {
                         Ok(v) => v,
                         Err(e) => {
                             resp.status = e;
+                            let resp_slice = unsafe {
+                                core::slice::from_raw_parts(
+                                    resp.as_ref() as *const _ as *const u8,
+                                    size_of::<FsResponse>(),
+                                )
+                            };
+                            let _ = ipc::ipc_send(sender, resp_slice);
                             continue;
                         }
                     };
+                    println!("[FS-DBG] OP_OPEN path='{}' from {}", path_str, sender);
                     unsafe {
                         if let Some(ref fs) = MOUNTED_FS {
                             match resolve_path(fs.as_ref(), path_str) {
@@ -694,15 +719,16 @@ fn main() {
                                     resp.len = 0;
                                 } else {
                                     let mut can_serve = true;
-                                    let cache_end = open_file.cache_start + open_file.cache_len as u64;
+                                    let cache_end =
+                                        open_file.cache_start + open_file.cache_len as u64;
                                     let cache_hit = open_file.cache_len > 0
                                         && offset >= open_file.cache_start
                                         && offset < cache_end;
 
                                     if !cache_hit {
-                                        let cache_base =
-                                            offset - (offset % READ_CACHE_SIZE as u64);
-                                        match fs.read(inode, cache_base, &mut open_file.cache_data) {
+                                        let cache_base = offset - (offset % READ_CACHE_SIZE as u64);
+                                        match fs.read(inode, cache_base, &mut open_file.cache_data)
+                                        {
                                             Ok(bytes_read) => {
                                                 open_file.cache_start = cache_base;
                                                 open_file.cache_len = bytes_read;
@@ -721,7 +747,8 @@ fn main() {
                                         resp.status = 0;
                                         resp.len = 0;
                                     } else {
-                                        let cache_offset = (offset - open_file.cache_start) as usize;
+                                        let cache_offset =
+                                            (offset - open_file.cache_start) as usize;
                                         if cache_offset >= open_file.cache_len {
                                             resp.status = 0;
                                             resp.len = 0;
@@ -767,12 +794,21 @@ fn main() {
                         Ok(v) => v,
                         Err(e) => {
                             resp.status = e;
+                            let resp_slice = unsafe {
+                                core::slice::from_raw_parts(
+                                    resp.as_ref() as *const _ as *const u8,
+                                    size_of::<FsResponse>(),
+                                )
+                            };
+                            let _ = ipc::ipc_send(sender, resp_slice);
                             continue;
                         }
                     };
                     unsafe {
                         if let Some(ref fs) = MOUNTED_FS {
-                            match resolve_path(fs.as_ref(), path_str).and_then(|inode| fs.stat(inode)) {
+                            match resolve_path(fs.as_ref(), path_str)
+                                .and_then(|inode| fs.stat(inode))
+                            {
                                 Ok(attr) => {
                                     resp.status = mode_from_attr(attr.file_type, attr.mode) as i64;
                                     resp.len = attr.size;
@@ -794,7 +830,8 @@ fn main() {
                                 let inode = HANDLES[fd].handle.inode;
                                 match fs.stat(inode) {
                                     Ok(attr) => {
-                                        resp.status = mode_from_attr(attr.file_type, attr.mode) as i64;
+                                        resp.status =
+                                            mode_from_attr(attr.file_type, attr.mode) as i64;
                                         resp.len = attr.size;
                                     }
                                     Err(e) => {
@@ -864,6 +901,13 @@ fn main() {
                         Ok(v) => v,
                         Err(e) => {
                             resp.status = e;
+                            let resp_slice = unsafe {
+                                core::slice::from_raw_parts(
+                                    resp.as_ref() as *const _ as *const u8,
+                                    size_of::<FsResponse>(),
+                                )
+                            };
+                            let _ = ipc::ipc_send(sender, resp_slice);
                             continue;
                         }
                     };
@@ -874,17 +918,30 @@ fn main() {
                         unsafe {
                             if let Some(ref fs) = MOUNTED_FS {
                                 match resolve_path(fs.as_ref(), path_str) {
-                                    Ok(inode) => match read_exec_image_from_inode(fs.as_ref(), inode) {
-                                        Ok(elf_data) => {
-                                            let exec_ret =
-                                                exec_from_image(path_str, &elf_data, &args_owned, sender);
-                                            if exec_ret.is_ok() {
-                                                exec_cache.insert(path_str, elf_data);
+                                    Ok(inode) => {
+                                        match read_exec_image_from_inode(fs.as_ref(), inode) {
+                                            Ok(elf_data) => {
+                                                // Avoid invoking exec_via_fs_stream from fs.service itself
+                                                // because the syscall path communicates back to fs.service
+                                                // and may deadlock. Use the buffer-copy syscall that
+                                                // accepts requester TID instead.
+                                                let arg_refs: Vec<&str> = args_owned.iter().map(|s| s.as_str()).collect();
+                                                match process::exec_from_buffer_named_with_args_and_requester(
+                                                    path_str,
+                                                    &elf_data,
+                                                    &arg_refs,
+                                                    sender,
+                                                ) {
+                                                    Ok(pid) => {
+                                                        exec_cache.insert(path_str, elf_data);
+                                                        Ok(pid)
+                                                    }
+                                                    Err(errno) => Err(errno),
+                                                }
                                             }
-                                            exec_ret
+                                            Err(e) => Err(vfs_error_to_errno(e)),
                                         }
-                                        Err(e) => Err(vfs_error_to_errno(e)),
-                                    },
+                                    }
                                     Err(e) => Err(vfs_error_to_errno(e)),
                                 }
                             } else {
@@ -897,7 +954,7 @@ fn main() {
                         Err(errno) => resp.status = errno,
                     }
                 }
-                FsRequest::OP_EXEC_STREAM => {
+                FsRequest::OP_EXEC_STREAM => unsafe {
                     // Stream the ELF image back to requester in large chunks.
                     let (path_owned, _args_owned) = match decode_exec_path_and_args(&req.path) {
                         Ok(v) => v,
@@ -905,379 +962,185 @@ fn main() {
                             resp.status = e;
                             // send single error response
                             let resp_slice = unsafe {
-                                core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>())
+                                core::slice::from_raw_parts(
+                                    resp.as_ref() as *const _ as *const u8,
+                                    size_of::<FsResponse>(),
+                                )
                             };
                             let _ = ipc::ipc_send(sender, resp_slice);
                             continue;
                         }
                     };
                     let path_str = path_owned.as_str();
-                    // If requester asked for mapped-write mode (arg1==1), avoid building a large Vec
-                    if req.arg1 == 1 {
-                        // Resolve inode and validate ELF to compute required total size
-                        let inode = unsafe {
-                            if let Some(ref fs) = MOUNTED_FS {
-                                match resolve_path(fs.as_ref(), path_str) {
-                                    Ok(i) => i,
-                                    Err(e) => {
-                                        resp.status = vfs_error_to_errno(e) as i64;
-                                        let resp_slice = unsafe { core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                                        let _ = ipc::ipc_send(sender, resp_slice);
-                                        continue;
-                                    }
-                                }
-                            } else {
-                                resp.status = -5;
-                                let resp_slice = unsafe { core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>()) };
+                    // Resolve inode and determine required_end (ELF validation) up-front so either streaming or mapped-write can use it
+                    let inode = match unsafe { MOUNTED_FS.as_ref() } {
+                        Some(fs_box) => match resolve_path(fs_box.as_ref(), path_str) {
+                            Ok(i) => i,
+                            Err(e) => unsafe {
+                                resp.status = vfs_error_to_errno(e);
+                                let resp_slice = core::slice::from_raw_parts(
+                                    resp.as_ref() as *const _ as *const u8,
+                                    size_of::<FsResponse>(),
+                                );
                                 let _ = ipc::ipc_send(sender, resp_slice);
                                 continue;
-                            }
-                        };
-
-                        // read ELF header and program headers to determine required_end
-                        let mut ehdr = [0u8; ELF_HEADER_SIZE];
-                        unsafe {
-                            if let Some(ref fs) = MOUNTED_FS {
-                                match read_exact_at(fs.as_ref(), inode, 0, &mut ehdr) {
-                                    Ok(()) => {}
-                                    Err(e) => {
-                                        resp.status = vfs_error_to_errno(e) as i64;
-                                        let resp_slice = unsafe { core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                                        let _ = ipc::ipc_send(sender, resp_slice);
-                                        continue;
-                                    }
-                                }
-                            }
-                        }
-                        if &ehdr[0..4] != b"\x7fELF" {
-                            resp.status = -22;
-                            let resp_slice = unsafe { core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>()) };
+                            },
+                        },
+                        None => unsafe {
+                            resp.status = -5;
+                            let resp_slice = core::slice::from_raw_parts(
+                                resp.as_ref() as *const _ as *const u8,
+                                size_of::<FsResponse>(),
+                            );
                             let _ = ipc::ipc_send(sender, resp_slice);
                             continue;
-                        }
+                        },
+                    };
 
-                        let e_phoff = read_u64_le(&ehdr, 32).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
-                        let e_phentsize = read_u16_le(&ehdr, 54).map(|v| v as usize).unwrap_or(0);
-                        let e_phnum = read_u16_le(&ehdr, 56).map(|v| v as usize).unwrap_or(0);
-
-                        if e_phnum == 0 || e_phentsize < ELF_PHDR_SIZE {
-                            resp.status = -22;
-                            let resp_slice = unsafe { core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                            let _ = ipc::ipc_send(sender, resp_slice);
-                            continue;
-                        }
-
-                        let ph_table_size = e_phentsize.checked_mul(e_phnum).unwrap_or(0);
-                        let ph_end = e_phoff.checked_add(ph_table_size).unwrap_or(0);
-
-                        // read hdr+ph table
-                        let mut hdr_and_ph = vec![0u8; ph_end];
-                        unsafe {
-                            if let Some(ref fs) = MOUNTED_FS {
-                                match read_exact_at(fs.as_ref(), inode, 0, &mut hdr_and_ph) {
-                                    Ok(()) => {}
-                                    Err(e) => {
-                                        resp.status = vfs_error_to_errno(e) as i64;
-                                        let resp_slice = unsafe { core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                                        let _ = ipc::ipc_send(sender, resp_slice);
-                                        continue;
-                                    }
-                                }
-                            }
-                        }
-
-                        let mut required_end = ph_end;
-                        let mut has_load = false;
-                        for i in 0..e_phnum {
-                            let ph_off = e_phoff.checked_add(i.checked_mul(e_phentsize).unwrap_or(0)).unwrap_or(0);
-                            let p_type = read_u32_le(&hdr_and_ph, ph_off).unwrap_or(0);
-                            if p_type != ELF_PT_LOAD { continue; }
-                            has_load = true;
-                            let p_offset = read_u64_le(&hdr_and_ph, ph_off + 8).unwrap_or(0);
-                            let p_filesz = read_u64_le(&hdr_and_ph, ph_off + 32).unwrap_or(0);
-                            let seg_end_u64 = p_offset.checked_add(p_filesz).unwrap_or(0);
-                            let seg_end = usize::try_from(seg_end_u64).unwrap_or(usize::MAX);
-                            required_end = core::cmp::max(required_end, seg_end);
-                        }
-
-                        if !has_load || required_end == 0 || required_end > MAX_EXEC_IMAGE_SIZE {
-                            resp.status = -22;
-                            let resp_slice = unsafe { core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                            let _ = ipc::ipc_send(sender, resp_slice);
-                            continue;
-                        }
-
-                        // send header with total length
-                        resp.status = 0;
-                        resp.len = required_end as u64;
-                        let resp_slice = unsafe { core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>()) };
+                    // read ELF header and program headers to determine required_end
+                    let mut ehdr = [0u8; ELF_HEADER_SIZE];
+                    if let Err(e) =
+                        read_exact_at(MOUNTED_FS.as_ref().unwrap().as_ref(), inode, 0, &mut ehdr)
+                    {
+                        resp.status = vfs_error_to_errno(e);
+                        let resp_slice = core::slice::from_raw_parts(
+                            resp.as_ref() as *const _ as *const u8,
+                            size_of::<FsResponse>(),
+                        );
                         let _ = ipc::ipc_send(sender, resp_slice);
-
-                        // wait for kernel notify with mapping info
-                        let mut map_buf = [0u8; 16];
-                        let (notify_sender, n) = ipc::ipc_recv_wait(&mut map_buf);
-                        if notify_sender == 0 || n < 16 {
-                            let mut err_resp = FsResponse { status: -5, len: 0, data: [0; FS_DATA_MAX] };
-                            let err_slice = unsafe { core::slice::from_raw_parts(&err_resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                            let _ = ipc::ipc_send(sender, err_slice);
-                            continue;
-                        }
-                        let map_start = u64::from_ne_bytes(map_buf[0..8].try_into().unwrap());
-                        let expect_total = u64::from_ne_bytes(map_buf[8..16].try_into().unwrap()) as usize;
-                        if expect_total != required_end {
-                            let mut err_resp = FsResponse { status: -22, len: 0, data: [0; FS_DATA_MAX] };
-                            let err_slice = unsafe { core::slice::from_raw_parts(&err_resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                            let _ = ipc::ipc_send(sender, err_slice);
-                            continue;
-                        }
-
-                        // Single-threaded fast path: if required_end is small, do single copy
-                        if required_end <= 65536 {
-                            unsafe {
-                                let dst = core::slice::from_raw_parts_mut(map_start as *mut u8, required_end);
-                                let mut buf = vec![0u8; required_end];
-                                if let Err(e) = read_exact_at(fs.as_ref().unwrap(), inode, 0, &mut buf) {
-                                    let mut err_resp = FsResponse { status: vfs_error_to_errno(e) as i64, len: 0, data: [0; FS_DATA_MAX] };
-                                    let err_slice = unsafe { core::slice::from_raw_parts(&err_resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                                    let _ = ipc::ipc_send(sender, err_slice);
-                                    continue;
-                                }
-                                dst.copy_from_slice(&buf);
-                            }
-                            let ack = [0u8; 8];
-                            let _ = ipc::ipc_send(sender, &ack);
-                            continue;
-                        }
-
-                        // read file directly into mapped region in chunks — parallelized with larger chunk tuning
-                        {
-                            let page_size = 4096usize;
-                            let pages = (required_end + page_size - 1) / page_size;
-                            // decide parallelism: use available_parallelism but not more than pages
-                            let avail = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as usize;
-                            let mut workers = core::cmp::min(avail, pages);
-                            if workers == 0 { workers = 1; }
-
-                            use std::sync::{Arc, Mutex};
-                            use std::sync::atomic::{AtomicBool, Ordering};
-
-                            let err_flag = Arc::new(AtomicBool::new(false));
-                            let err_code = Arc::new(Mutex::new(None::<i64>));
-
-                            // take raw pointer to filesystem object (safe because FileSystem: Send+Sync)
-                            let fs_ptr = unsafe { MOUNTED_FS.as_ref().map(|b| &**b as *const dyn common::vfs::FileSystem) };
-                            if fs_ptr.is_none() {
-                                let mut err_resp = FsResponse { status: -5, len: 0, data: [0; FS_DATA_MAX] };
-                                let err_slice = unsafe { core::slice::from_raw_parts(&err_resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                                let _ = ipc::ipc_send(sender, err_slice);
-                            } else {
-                                let fs_ptr = fs_ptr.unwrap();
-                                let mut handles = Vec::new();
-                                // increase pages per worker to reduce syscall/read overhead
-                                let pages_per_worker = core::cmp::max(1, (pages + workers - 1) / workers);
-                                for w in 0..workers {
-                                    let start_page = w * pages_per_worker;
-                                    if start_page >= pages { break; }
-                                    let end_page = core::cmp::min(pages, start_page + pages_per_worker);
-                                    let map_start_local = map_start;
-                                    let inode_local = inode;
-                                    let required_end_local = required_end;
-                                    let err_flag = err_flag.clone();
-                                    let err_code = err_code.clone();
-                                    // fs_ptr is a raw pointer copy
-                                    let fs_ptr = fs_ptr;
-                                    let handle = std::thread::spawn(move || {
-                                        // read larger contiguous chunks per worker
-                                        let mut off = start_page * page_size;
-                                        while off < end_page * page_size && off < required_end_local {
-                                            if err_flag.load(Ordering::SeqCst) { return; }
-                                            let chunk = core::cmp::min((end_page * page_size) - off, 64 * 1024); // up to 64KB per read
-                                            unsafe {
-                                                let dst = core::slice::from_raw_parts_mut((map_start_local + off as u64) as *mut u8, chunk);
-                                                let fs_ref: &dyn common::vfs::FileSystem = &*fs_ptr;
-                                                match fs_ref.read(inode_local, off as u64, dst) {
-                                                    Ok(nread) => {
-                                                        if nread == 0 { break; }
-                                                        off += nread;
-                                                    }
-                                                    Err(e) => {
-                                                        let mut guard = err_code.lock().unwrap();
-                                                        if guard.is_none() { *guard = Some(vfs_error_to_errno(e) as i64); }
-                                                        err_flag.store(true, Ordering::SeqCst);
-                                                        return;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    });
-                                    handles.push(handle);
-                                }
-
-                                // join
-                                for h in handles {
-                                    let _ = h.join();
-                                }
-
-                                if err_flag.load(Ordering::SeqCst) {
-                                    let code = *err_code.lock().unwrap();
-                                    let errno = code.unwrap_or(-5);
-                                    let mut err_resp = FsResponse { status: errno, len: 0, data: [0; FS_DATA_MAX] };
-                                    let err_slice = unsafe { core::slice::from_raw_parts(&err_resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                                    let _ = ipc::ipc_send(sender, err_slice);
-                                }
-                            }
-                        }
-
-                        // notify kernel of completion
-                        let ack = [0u8; 8];
-                        let _ = ipc::ipc_send(sender, &ack);
                         continue;
-                    } else {
-                        if req.arg1 == 1 {
-                            // mapped-write mode: inform kernel of total length, then wait for kernel to map frames
-                            resp.status = 0;
-                            resp.len = image.len() as u64;
-                            let resp_slice = unsafe {
-                                core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>())
-                            };
-                            let _ = ipc::ipc_send(sender, resp_slice);
-                            // wait for kernel notify with mapping info
-                            // map_start(8) + total(8) + optional pages list (8*N)
-                            let mut map_buf = [0u8; 272];
-                            let (notify_sender, n) = ipc::ipc_recv_wait(&mut map_buf);
-                            if notify_sender == 0 || n < 16 {
-                                // failed to receive mapping info
-                                let mut err_resp = FsResponse { status: -5, len: 0, data: [0; FS_DATA_MAX] };
-                                let err_slice = unsafe { core::slice::from_raw_parts(&err_resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                                let _ = ipc::ipc_send(sender, err_slice);
-                                continue;
-                            }
-                            let map_start = u64::from_ne_bytes(map_buf[0..8].try_into().unwrap());
-                            let expect_total = u64::from_ne_bytes(map_buf[8..16].try_into().unwrap()) as usize;
-                            if expect_total != image.len() {
-                                // size mismatch
-                                let mut err_resp = FsResponse { status: -22, len: 0, data: [0; FS_DATA_MAX] };
-                                let err_slice = unsafe { core::slice::from_raw_parts(&err_resp as *const _ as *const u8, size_of::<FsResponse>()) };
-                                let _ = ipc::ipc_send(sender, err_slice);
-                                continue;
-                            }
-                            // optional: parse page list if present (for logging/verification)
-                            let mut pages: Vec<u64> = Vec::new();
-                            if n > 16 {
-                                let mut off = 16usize;
-                                while off + 8 <= n as usize {
-                                    let pa = u64::from_ne_bytes(map_buf[off..off + 8].try_into().unwrap());
-                                    pages.push(pa);
-                                    off += 8;
-                                }
-                            }
-                            // write image directly into mapped region (single copy from image -> mapped pages)
-                            unsafe {
-                                let dst = core::slice::from_raw_parts_mut(map_start as *mut u8, image.len());
-                                dst.copy_from_slice(&image);
-                            }
-                            // notify kernel of completion (send empty ack)
-                            let ack = [0u8; 8];
-                            let _ = ipc::ipc_send(sender, &ack);
-                            continue;
-                        } else {
-                            // send initial FsResponse with total length
-                            resp.status = 0;
-                            resp.len = image.len() as u64;
-                            // send header
-                            let resp_slice = unsafe {
-                                core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>())
-                            };
-                            let _ = ipc::ipc_send(sender, resp_slice);
-                            // stream raw data chunks (no per-chunk header) to enable kernel to receive directly
-                            let mut offset = 0usize;
-                            let chunk_payload = IPC_MAX_MSG_SIZE;
-                            while offset < image.len() {
-                                let take = core::cmp::min(chunk_payload, image.len() - offset);
-                                let _ = ipc::ipc_send(sender, &image[offset..offset + take]);
-                                offset += take;
-                            }
-                            // done
+                    }
+                    if &ehdr[0..4] != b"\x7fELF" {
+                        resp.status = -22;
+                        let resp_slice = core::slice::from_raw_parts(
+                            resp.as_ref() as *const _ as *const u8,
+                            size_of::<FsResponse>(),
+                        );
+                        let _ = ipc::ipc_send(sender, resp_slice);
+                        continue;
+                    }
+
+                    let e_phoff = read_u64_le(&ehdr, 32)
+                        .and_then(|v| usize::try_from(v).ok())
+                        .unwrap_or(0);
+                    let e_phentsize = read_u16_le(&ehdr, 54).map(|v| v as usize).unwrap_or(0);
+                    let e_phnum = read_u16_le(&ehdr, 56).map(|v| v as usize).unwrap_or(0);
+
+                    if e_phnum == 0 || e_phentsize < ELF_PHDR_SIZE {
+                        resp.status = -22;
+                        let resp_slice = core::slice::from_raw_parts(
+                            resp.as_ref() as *const _ as *const u8,
+                            size_of::<FsResponse>(),
+                        );
+                        let _ = ipc::ipc_send(sender, resp_slice);
+                        continue;
+                    }
+
+                    let ph_table_size = e_phentsize.checked_mul(e_phnum).unwrap_or(0);
+                    let ph_end = e_phoff.checked_add(ph_table_size).unwrap_or(0);
+
+                    // read hdr+ph table
+                    let mut hdr_and_ph = vec![0u8; ph_end];
+                    if let Err(e) = read_exact_at(
+                        MOUNTED_FS.as_ref().unwrap().as_ref(),
+                        inode,
+                        0,
+                        &mut hdr_and_ph,
+                    ) {
+                        resp.status = vfs_error_to_errno(e);
+                        let resp_slice = core::slice::from_raw_parts(
+                            resp.as_ref() as *const _ as *const u8,
+                            size_of::<FsResponse>(),
+                        );
+                        let _ = ipc::ipc_send(sender, resp_slice);
+                        continue;
+                    }
+
+                    let mut required_end = ph_end;
+                    let mut has_load = false;
+                    for i in 0..e_phnum {
+                        let ph_off = e_phoff
+                            .checked_add(i.checked_mul(e_phentsize).unwrap_or(0))
+                            .unwrap_or(0);
+                        let p_type = read_u32_le(&hdr_and_ph, ph_off).unwrap_or(0);
+                        if p_type != ELF_PT_LOAD {
                             continue;
                         }
+                        has_load = true;
+                        let p_offset = read_u64_le(&hdr_and_ph, ph_off + 8).unwrap_or(0);
+                        let p_filesz = read_u64_le(&hdr_and_ph, ph_off + 32).unwrap_or(0);
+                        let seg_end_u64 = p_offset.checked_add(p_filesz).unwrap_or(0);
+                        let seg_end = usize::try_from(seg_end_u64).unwrap_or(usize::MAX);
+                        required_end = core::cmp::max(required_end, seg_end);
                     }
-                }
+
+                    if !has_load || required_end == 0 || required_end > MAX_EXEC_IMAGE_SIZE {
+                        resp.status = -22;
+                        let resp_slice = core::slice::from_raw_parts(
+                            resp.as_ref() as *const _ as *const u8,
+                            size_of::<FsResponse>(),
+                        );
+                        let _ = ipc::ipc_send(sender, resp_slice);
+                        continue;
+                    }
+
+                    // ストリーミングモードのみサポート（ゼロコピーは無効化）
+                    // send initial FsResponse with total length
+                    resp.status = 0;
+                    resp.len = required_end as u64;
+                    // send header
+                    let resp_slice = core::slice::from_raw_parts(
+                            resp.as_ref() as *const _ as *const u8,
+                            size_of::<FsResponse>(),
+                        );
+                        let _ = ipc::ipc_send(sender, resp_slice);
+                        // stream raw data chunks by reading from fs in chunks
+                        let mut offset = 0usize;
+                        let chunk_payload = IPC_MAX_MSG_SIZE;
+                        unsafe {
+                            let fs_ref: &dyn common::vfs::FileSystem =
+                                &*MOUNTED_FS.as_ref().unwrap().as_ref();
+                            while offset < required_end {
+                                let take = core::cmp::min(chunk_payload, required_end - offset);
+                                let mut tmp = vec![0u8; take];
+                                match fs_ref.read(inode, offset as u64, &mut tmp) {
+                                    Ok(nread) => {
+                                        if nread == 0 {
+                                            break;
+                                        }
+                                        let _ = ipc::ipc_send(sender, &tmp[..nread]);
+                                        offset += nread;
+                                    }
+                                    Err(e) => {
+                                        let err_resp = FsResponse {
+                                            status: vfs_error_to_errno(e),
+                                            len: 0,
+                                            data: [0; FS_DATA_MAX],
+                                        };
+                                        let err_slice = core::slice::from_raw_parts(
+                                            &err_resp as *const _ as *const u8,
+                                            size_of::<FsResponse>(),
+                                        );
+                                        let _ = ipc::ipc_send(sender, err_slice);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        // done
+                        continue;
+                },
+                0_u64 | 10_u64..=u64::MAX => todo!(),
             }
 
-            // Debug: print concise request/response info for failing operations
-            match req.op {
-                FsRequest::OP_OPEN | FsRequest::OP_STAT => {
-                    let path_s = match decode_path(&req.path) {
-                        Ok(s) => s,
-                        Err(_) => "<invalid>"
-                    };
-                    println!("[FS-DBG] REQ op={} sender={} path='{}' -> status={} len={}", req.op, sender, path_s, resp.status, resp.len);
-                }
-                FsRequest::OP_EXEC => {
-                    let path_s = match decode_exec_path_and_args(&req.path) {
-                        Ok((p, _)) => p.as_str(),
-                        Err(_) => "<invalid>"
-                    };
-                    println!("[FS-DBG] REQ OP_EXEC sender={} path='{}' -> status={} len={}", sender, path_s, resp.status, resp.len);
-                }
-                FsRequest::OP_READ => {
-                    println!("[FS-DBG] REQ OP_READ sender={} fd={} req_len={} -> status={} len={}", sender, req.arg1, req.arg2, resp.status, resp.len);
-                }
-                FsRequest::OP_READDIR => {
-                    let start = (req.arg2 >> 32) as usize;
-                    let max_len = (req.arg2 & 0xFFFF_FFFF) as usize;
-                    println!("[FS-DBG] REQ OP_READDIR sender={} fd={} start={} max_len={} -> status={} len={}", sender, req.arg1, start, max_len, resp.status, resp.len);
-                }
-                _ => {
-                    println!("[FS-DBG] REQ op={} sender={} -> status={} len={}", req.op, sender, resp.status, resp.len);
-                }
-            }
-
+            // 通常の応答を送信（continue していない操作用）
             let resp_slice = unsafe {
-                core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>())
+                core::slice::from_raw_parts(
+                    resp.as_ref() as *const _ as *const u8,
+                    size_of::<FsResponse>(),
+                )
             };
-
-            let send_ret = ipc::ipc_send(sender, resp_slice);
-            if send_ret != 0 {
-                println!("[FS] WARN: failed to send response to {} (ret={})", sender, send_ret);
-            }
-        }
-
-        match req.op {
-            FsRequest::OP_OPEN | FsRequest::OP_STAT => {
-                let path_s = match decode_path(&req.path) {
-                    Ok(s) => s,
-                    Err(_) => "<invalid>"
-                };
-                println!("[FS-DBG] REQ op={} sender={} path='{}' -> status={} len={}", req.op, sender, path_s, resp.status, resp.len);
-            }
-            FsRequest::OP_EXEC => {
-                let path_s = match decode_exec_path_and_args(&req.path) {
-                    Ok((p, _)) => p.as_str(),
-                    Err(_) => "<invalid>"
-                };
-                println!("[FS-DBG] REQ OP_EXEC sender={} path='{}' -> status={} len={}", sender, path_s, resp.status, resp.len);
-            }
-            FsRequest::OP_READ => {
-                println!("[FS-DBG] REQ OP_READ sender={} fd={} req_len={} -> status={} len={}", sender, req.arg1, req.arg2, resp.status, resp.len);
-            }
-            FsRequest::OP_READDIR => {
-                let start = (req.arg2 >> 32) as usize;
-                let max_len = (req.arg2 & 0xFFFF_FFFF) as usize;
-                println!("[FS-DBG] REQ OP_READDIR sender={} fd={} start={} max_len={} -> status={} len={}", sender, req.arg1, start, max_len, resp.status, resp.len);
-            }
-            _ => {
-                println!("[FS-DBG] REQ op={} sender={} -> status={} len={}", req.op, sender, resp.status, resp.len);
-            }
-        }
-
-        let resp_slice = unsafe {
-            core::slice::from_raw_parts(&resp as *const _ as *const u8, size_of::<FsResponse>())
-        };
-
-        let send_ret = ipc::ipc_send(sender, resp_slice);
-        if send_ret != 0 {
-            println!("[FS] WARN: failed to send response to {} (ret={})", sender, send_ret);
+            let _ = ipc::ipc_send(sender, resp_slice);
         }
     }
 }

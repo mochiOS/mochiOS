@@ -78,6 +78,12 @@ static mut TLS_DESTRUCTORS: [Option<unsafe extern "C" fn(*mut u8)>; MAX_TLS_KEYS
 static mut TLS_NEXT_KEY: usize = 1; // 0 は無効なキー
 
 #[unsafe(no_mangle)]
+// Provide minimal stubs to satisfy libstd linking on custom target (no real pthread support)
+// sched_yield is required by std::sys::thread::unix::yield_now
+pub extern "C" fn sched_yield() -> i32 {
+    0
+}
+
 pub unsafe extern "C" fn pthread_self() -> u64 {
     1 // スレッド ID = 1 (シングルスレッド)
 }

@@ -7,9 +7,7 @@ use std::boxed::Box;
 use std::string::String;
 use std::vec::Vec;
 
-use crate::common::vfs::{
-    DirEntry, FileAttr, FileSystem, FileType, VfsError, VfsResult,
-};
+use crate::common::vfs::{DirEntry, FileAttr, FileSystem, FileType, VfsError, VfsResult};
 
 /// ブロックデバイストレイト
 ///
@@ -18,7 +16,7 @@ use crate::common::vfs::{
 pub trait BlockDevice: Send + Sync {
     /// ブロックサイズ（通常512バイト）
     fn block_size(&self) -> usize;
-    
+
     /// ブロックを読み取る
     fn read_block(&self, block_num: u64, buf: &mut [u8]) -> Result<(), ()>;
 
@@ -34,16 +32,14 @@ pub trait BlockDevice: Send + Sync {
         }
 
         for i in 0..count {
-            let lba = start_block
-                .checked_add(i as u64)
-                .ok_or(())?;
+            let lba = start_block.checked_add(i as u64).ok_or(())?;
             let begin = i * block_size;
             let end = begin + block_size;
             self.read_block(lba, &mut buf[begin..end])?;
         }
         Ok(())
     }
-    
+
     /// ブロックに書き込む
     fn write_block(&mut self, block_num: u64, buf: &[u8]) -> Result<(), ()>;
 }
@@ -52,35 +48,35 @@ pub trait BlockDevice: Send + Sync {
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 struct Ext2Superblock {
-    s_inodes_count: u32,        // inode総数
-    s_blocks_count: u32,        // ブロック総数
-    s_r_blocks_count: u32,      // 予約ブロック数
-    s_free_blocks_count: u32,   // 空きブロック数
-    s_free_inodes_count: u32,   // 空きinode数
-    s_first_data_block: u32,    // 最初のデータブロック
-    s_log_block_size: u32,      // ブロックサイズ (1024 << s_log_block_size)
-    s_log_frag_size: u32,       // フラグメントサイズ
-    s_blocks_per_group: u32,    // グループあたりブロック数
-    s_frags_per_group: u32,     // グループあたりフラグメント数
-    s_inodes_per_group: u32,    // グループあたりinode数
-    s_mtime: u32,               // マウント時刻
-    s_wtime: u32,               // 書き込み時刻
-    s_mnt_count: u16,           // マウント回数
-    s_max_mnt_count: u16,       // 最大マウント回数
-    s_magic: u16,               // マジックナンバー (0xEF53)
-    s_state: u16,               // ファイルシステム状態
-    s_errors: u16,              // エラー時の動作
-    s_minor_rev_level: u16,     // マイナーリビジョン
-    s_lastcheck: u32,           // 最終チェック時刻
-    s_checkinterval: u32,       // チェック間隔
-    s_creator_os: u32,          // 作成OS
-    s_rev_level: u32,           // リビジョンレベル
-    s_def_resuid: u16,          // 予約ブロックのデフォルトUID
-    s_def_resgid: u16,          // 予約ブロックのデフォルトGID
+    s_inodes_count: u32,      // inode総数
+    s_blocks_count: u32,      // ブロック総数
+    s_r_blocks_count: u32,    // 予約ブロック数
+    s_free_blocks_count: u32, // 空きブロック数
+    s_free_inodes_count: u32, // 空きinode数
+    s_first_data_block: u32,  // 最初のデータブロック
+    s_log_block_size: u32,    // ブロックサイズ (1024 << s_log_block_size)
+    s_log_frag_size: u32,     // フラグメントサイズ
+    s_blocks_per_group: u32,  // グループあたりブロック数
+    s_frags_per_group: u32,   // グループあたりフラグメント数
+    s_inodes_per_group: u32,  // グループあたりinode数
+    s_mtime: u32,             // マウント時刻
+    s_wtime: u32,             // 書き込み時刻
+    s_mnt_count: u16,         // マウント回数
+    s_max_mnt_count: u16,     // 最大マウント回数
+    s_magic: u16,             // マジックナンバー (0xEF53)
+    s_state: u16,             // ファイルシステム状態
+    s_errors: u16,            // エラー時の動作
+    s_minor_rev_level: u16,   // マイナーリビジョン
+    s_lastcheck: u32,         // 最終チェック時刻
+    s_checkinterval: u32,     // チェック間隔
+    s_creator_os: u32,        // 作成OS
+    s_rev_level: u32,         // リビジョンレベル
+    s_def_resuid: u16,        // 予約ブロックのデフォルトUID
+    s_def_resgid: u16,        // 予約ブロックのデフォルトGID
     // EXT2_DYNAMIC_REV (rev_level == 1) の追加フィールド
-    s_first_ino: u32,           // 最初の使用可能inode
-    s_inode_size: u16,          // inodeサイズ
-    // ... その他のフィールドは省略
+    s_first_ino: u32, // 最初の使用可能inode
+    s_inode_size: u16, // inodeサイズ
+                      // ... その他のフィールドは省略
 }
 
 const EXT2_MAGIC: u16 = 0xEF53;
@@ -90,54 +86,54 @@ const EXT2_SUPERBLOCK_OFFSET: u64 = 1024;
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 struct Ext2Inode {
-    i_mode: u16,                // ファイルモード
-    i_uid: u16,                 // 所有者UID
-    i_size: u32,                // サイズ（下位32ビット）
-    i_atime: u32,               // アクセス時刻
-    i_ctime: u32,               // 作成時刻
-    i_mtime: u32,               // 変更時刻
-    i_dtime: u32,               // 削除時刻
-    i_gid: u16,                 // グループID
-    i_links_count: u16,         // ハードリンク数
-    i_blocks: u32,              // ブロック数
-    i_flags: u32,               // フラグ
-    i_osd1: u32,                // OS依存1
-    i_block: [u32; 15],         // ブロックポインタ
-    i_generation: u32,          // ファイルバージョン
-    i_file_acl: u32,            // ファイルACL
-    i_dir_acl: u32,             // ディレクトリACL
-    i_faddr: u32,               // フラグメントアドレス
-    i_osd2: [u8; 12],           // OS依存2
+    i_mode: u16,        // ファイルモード
+    i_uid: u16,         // 所有者UID
+    i_size: u32,        // サイズ（下位32ビット）
+    i_atime: u32,       // アクセス時刻
+    i_ctime: u32,       // 作成時刻
+    i_mtime: u32,       // 変更時刻
+    i_dtime: u32,       // 削除時刻
+    i_gid: u16,         // グループID
+    i_links_count: u16, // ハードリンク数
+    i_blocks: u32,      // ブロック数
+    i_flags: u32,       // フラグ
+    i_osd1: u32,        // OS依存1
+    i_block: [u32; 15], // ブロックポインタ
+    i_generation: u32,  // ファイルバージョン
+    i_file_acl: u32,    // ファイルACL
+    i_dir_acl: u32,     // ディレクトリACL
+    i_faddr: u32,       // フラグメントアドレス
+    i_osd2: [u8; 12],   // OS依存2
 }
 
 // inode モードフラグ
-const EXT2_S_IFREG: u16 = 0x8000;   // 通常ファイル
-const EXT2_S_IFDIR: u16 = 0x4000;   // ディレクトリ
-const EXT2_S_IFLNK: u16 = 0xA000;   // シンボリックリンク
+const EXT2_S_IFREG: u16 = 0x8000; // 通常ファイル
+const EXT2_S_IFDIR: u16 = 0x4000; // ディレクトリ
+const EXT2_S_IFLNK: u16 = 0xA000; // シンボリックリンク
 
 /// EXT2ディレクトリエントリ
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 struct Ext2DirEntry {
-    inode: u32,         // inode番号
-    rec_len: u16,       // このエントリのサイズ
-    name_len: u8,       // 名前の長さ
-    file_type: u8,      // ファイルタイプ
-    // name: [u8]       // 可変長の名前（name_lenバイト）
+    inode: u32,   // inode番号
+    rec_len: u16, // このエントリのサイズ
+    name_len: u8, // 名前の長さ
+    file_type: u8, // ファイルタイプ
+                  // name: [u8]       // 可変長の名前（name_lenバイト）
 }
 
 /// ブロックグループディスクリプタ
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 struct Ext2GroupDesc {
-    bg_block_bitmap: u32,       // ブロックビットマップのブロック番号
-    bg_inode_bitmap: u32,       // inodeビットマップのブロック番号
-    bg_inode_table: u32,        // inodeテーブルの開始ブロック番号
-    bg_free_blocks_count: u16,  // 空きブロック数
-    bg_free_inodes_count: u16,  // 空きinode数
-    bg_used_dirs_count: u16,    // ディレクトリ数
-    bg_pad: u16,                // パディング
-    bg_reserved: [u32; 3],      // 予約
+    bg_block_bitmap: u32,      // ブロックビットマップのブロック番号
+    bg_inode_bitmap: u32,      // inodeビットマップのブロック番号
+    bg_inode_table: u32,       // inodeテーブルの開始ブロック番号
+    bg_free_blocks_count: u16, // 空きブロック数
+    bg_free_inodes_count: u16, // 空きinode数
+    bg_used_dirs_count: u16,   // ディレクトリ数
+    bg_pad: u16,               // パディング
+    bg_reserved: [u32; 3],     // 予約
 }
 
 /// EXT2ファイルシステム
@@ -157,15 +153,18 @@ impl Ext2Fs {
     pub fn new(device: Box<dyn BlockDevice>) -> VfsResult<Self> {
         // スーパーブロックを読み取る
         let mut sb_buf = vec![0u8; 1024];
-        device.read_block(EXT2_SUPERBLOCK_OFFSET / device.block_size() as u64, &mut sb_buf)
+        device
+            .read_block(
+                EXT2_SUPERBLOCK_OFFSET / device.block_size() as u64,
+                &mut sb_buf,
+            )
             .map_err(|_| VfsError::IoError)?;
 
         // Debug: print first bytes of superblock to help diagnose mount failures
         println!("[FS-DBG] ext2 superblock first16: {:02x?}", &sb_buf[..16]);
 
-        let superblock: Ext2Superblock = unsafe {
-            core::ptr::read_unaligned(sb_buf.as_ptr() as *const Ext2Superblock)
-        };
+        let superblock: Ext2Superblock =
+            unsafe { core::ptr::read_unaligned(sb_buf.as_ptr() as *const Ext2Superblock) };
 
         // マジックナンバーをチェック
         if superblock.s_magic != EXT2_MAGIC {
@@ -173,7 +172,7 @@ impl Ext2Fs {
         }
 
         let block_size = 1024 << superblock.s_log_block_size;
-        
+
         // inodeサイズを取得（デフォルトは128バイト）
         let inode_size = if superblock.s_rev_level >= 1 {
             superblock.s_inode_size as usize
@@ -182,22 +181,26 @@ impl Ext2Fs {
         };
 
         // ブロックグループディスクリプタテーブルを読み取る
-        let num_groups = ((superblock.s_blocks_count + superblock.s_blocks_per_group - 1) 
+        let num_groups = ((superblock.s_blocks_count + superblock.s_blocks_per_group - 1)
             / superblock.s_blocks_per_group) as usize;
-        
+
         let gdt_block = if block_size == 1024 { 2 } else { 1 };
         let gdt_size = num_groups * size_of::<Ext2GroupDesc>();
         let gdt_blocks = (gdt_size + block_size - 1) / block_size;
-        
+
         let mut gdt_buf = vec![0u8; gdt_blocks * block_size];
         for i in 0..gdt_blocks {
             let mut block_buf = vec![0u8; block_size];
             let blocks_per_fs_block = block_size / device.block_size();
             let start_block = (gdt_block + i) as u64 * blocks_per_fs_block as u64;
-            
+
             for j in 0..blocks_per_fs_block {
                 let offset = j * device.block_size();
-                device.read_block(start_block + j as u64, &mut block_buf[offset..offset + device.block_size()])
+                device
+                    .read_block(
+                        start_block + j as u64,
+                        &mut block_buf[offset..offset + device.block_size()],
+                    )
                     .map_err(|_| VfsError::IoError)?;
             }
             gdt_buf[i * block_size..(i + 1) * block_size].copy_from_slice(&block_buf);
@@ -207,7 +210,9 @@ impl Ext2Fs {
         for i in 0..num_groups {
             let offset = i * size_of::<Ext2GroupDesc>();
             let desc: Ext2GroupDesc = unsafe {
-                core::ptr::read_unaligned((gdt_buf.as_ptr() as usize + offset) as *const Ext2GroupDesc)
+                core::ptr::read_unaligned(
+                    (gdt_buf.as_ptr() as usize + offset) as *const Ext2GroupDesc,
+                )
             };
             group_desc_table.push(desc);
         }
@@ -273,7 +278,9 @@ impl Ext2Fs {
 
         // inodeを抽出
         let inode: Ext2Inode = unsafe {
-            core::ptr::read_unaligned((block_buf.as_ptr() as usize + byte_offset) as *const Ext2Inode)
+            core::ptr::read_unaligned(
+                (block_buf.as_ptr() as usize + byte_offset) as *const Ext2Inode,
+            )
         };
 
         Ok(inode)
@@ -404,7 +411,7 @@ impl FileSystem for Ext2Fs {
 
     fn stat(&self, inode: u64) -> VfsResult<FileAttr> {
         let ext2_inode = self.read_inode(inode)?;
-        
+
         let file_type = match ext2_inode.i_mode & 0xF000 {
             EXT2_S_IFREG => FileType::RegularFile,
             EXT2_S_IFDIR => FileType::Directory,
@@ -428,7 +435,7 @@ impl FileSystem for Ext2Fs {
 
     fn lookup(&self, parent_inode: u64, name: &str) -> VfsResult<u64> {
         let parent = self.read_inode(parent_inode)?;
-        
+
         // ディレクトリかチェック
         if parent.i_mode & 0xF000 != EXT2_S_IFDIR {
             return Err(VfsError::NotDirectory);
@@ -437,22 +444,22 @@ impl FileSystem for Ext2Fs {
         // ディレクトリの内容を読み取る
         let size = parent.i_size as usize;
         let mut data = vec![0u8; size];
-        
+
         let mut read_offset = 0;
         let mut block_idx = 0;
-        
+
         while read_offset < size {
             let block_num = self.get_block_num(&parent, block_idx)?;
             if block_num == 0 {
                 break;
             }
-            
+
             let mut block_buf = vec![0u8; self.block_size];
             self.read_fs_block(block_num, &mut block_buf)?;
-            
+
             let to_copy = core::cmp::min(self.block_size, size - read_offset);
             data[read_offset..read_offset + to_copy].copy_from_slice(&block_buf[..to_copy]);
-            
+
             read_offset += to_copy;
             block_idx += 1;
         }
@@ -476,7 +483,7 @@ impl FileSystem for Ext2Fs {
                 let name_offset = offset + size_of::<Ext2DirEntry>();
                 if name_offset + entry.name_len as usize <= size {
                     let entry_name = &data[name_offset..name_offset + entry.name_len as usize];
-                    
+
                     if let Ok(entry_name_str) = core::str::from_utf8(entry_name) {
                         if entry_name_str == name {
                             return Ok(entry.inode as u64);
@@ -493,31 +500,35 @@ impl FileSystem for Ext2Fs {
 
     fn read(&self, inode: u64, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let ext2_inode = self.read_inode(inode)?;
-        
+
         // 通常ファイルかチェック
         if ext2_inode.i_mode & 0xF000 != EXT2_S_IFREG {
             return Err(VfsError::IsDirectory);
         }
 
         let file_size = ext2_inode.i_size as u64;
-        
+
         if offset >= file_size {
             return Ok(0); // EOF
         }
 
         let to_read = core::cmp::min(buf.len(), (file_size - offset) as usize);
-        
+
         let start_block = (offset / self.block_size as u64) as u32;
         let block_offset = (offset % self.block_size as u64) as usize;
         let ptrs_per_block = (self.block_size / 4) as u32;
-        
+
         let mut bytes_read = 0usize;
         let mut current_block = start_block;
         let mut single_indirect_cache: Option<Vec<u8>> = None;
         let mut block_buf = vec![0u8; self.block_size];
-        
+
         while bytes_read < to_read {
-            let start = if current_block == start_block { block_offset } else { 0 };
+            let start = if current_block == start_block {
+                block_offset
+            } else {
+                0
+            };
             let remaining = to_read - bytes_read;
             let mut next_block = current_block;
             let mut run_len = 0usize;
@@ -618,7 +629,7 @@ impl FileSystem for Ext2Fs {
 
     fn readdir(&self, inode: u64) -> VfsResult<Vec<DirEntry>> {
         let ext2_inode = self.read_inode(inode)?;
-        
+
         // ディレクトリかチェック
         if ext2_inode.i_mode & 0xF000 != EXT2_S_IFDIR {
             return Err(VfsError::NotDirectory);
@@ -626,23 +637,23 @@ impl FileSystem for Ext2Fs {
 
         let size = ext2_inode.i_size as usize;
         let mut data = vec![0u8; size];
-        
+
         // ディレクトリの内容を読み取る
         let mut read_offset = 0;
         let mut block_idx = 0;
-        
+
         while read_offset < size {
             let block_num = self.get_block_num(&ext2_inode, block_idx)?;
             if block_num == 0 {
                 break;
             }
-            
+
             let mut block_buf = vec![0u8; self.block_size];
             self.read_fs_block(block_num, &mut block_buf)?;
-            
+
             let to_copy = core::cmp::min(self.block_size, size - read_offset);
             data[read_offset..read_offset + to_copy].copy_from_slice(&block_buf[..to_copy]);
-            
+
             read_offset += to_copy;
             block_idx += 1;
         }
@@ -650,7 +661,7 @@ impl FileSystem for Ext2Fs {
         // ディレクトリエントリを解析
         let mut entries = Vec::new();
         let mut offset = 0;
-        
+
         while offset < size {
             if offset + size_of::<Ext2DirEntry>() > size {
                 break;
@@ -668,7 +679,7 @@ impl FileSystem for Ext2Fs {
                 let name_offset = offset + size_of::<Ext2DirEntry>();
                 if name_offset + entry.name_len as usize <= size {
                     let entry_name = &data[name_offset..name_offset + entry.name_len as usize];
-                    
+
                     if let Ok(name_str) = core::str::from_utf8(entry_name) {
                         let file_type = match entry.file_type {
                             1 => FileType::RegularFile,
@@ -676,7 +687,7 @@ impl FileSystem for Ext2Fs {
                             7 => FileType::SymbolicLink,
                             _ => FileType::RegularFile,
                         };
-                        
+
                         entries.push(DirEntry {
                             name: String::from(name_str),
                             inode: entry.inode as u64,

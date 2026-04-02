@@ -9,7 +9,9 @@ mod ata;
 use ata::{AtaDrive, AtaPorts, DriveType};
 
 use std::sync::{Arc, Mutex};
-use std::thread;
+// avoid using std::thread to keep target linking clean
+// thread primitives not needed: we use synchronous handling
+// use std::thread;
 
 const MAX_DISKS: usize = 4;
 const MAX_BULK_READ_SECTORS: u64 = 64;
@@ -242,40 +244,41 @@ fn main() {
                         // clone lock Arc if available
                         let lock_arc = unsafe { DISK_LOCKS.as_ref().and_then(|v| v.get(disk_id_local).cloned()) };
 
-                        thread::spawn(move || {
-                            // validate and probe
-                            try_probe_disk(disk_id_local);
-                            unsafe {
-                                if let Some(ref drive) = DISKS[disk_id_local] {
-                                    let total_bytes = match count_local.checked_mul(512) { Some(v) => v, None => { let resp = DiskResponse { status: -22, len: 0, data: [0;512] }; send_response(sender_local, &resp); return; } };
-                                    let mut bulk = vec![0u8; total_bytes];
+                        // Handle synchronously to avoid spawning pthread-backed threads on custom target
+                        try_probe_disk(disk_id_local);
+                        unsafe {
+                            if let Some(ref drive) = DISKS[disk_id_local] {
+                                let total_bytes = match count_local.checked_mul(512) {
+                                    Some(v) => v,
+                                    None => { let resp = DiskResponse { status: -22, len: 0, data: [0;512] }; send_response(sender_local, &resp); continue; }
+                                };
+                                let mut bulk = vec![0u8; total_bytes];
 
-                                    // use AtaDrive's async enqueue API to allow coalescing across requests
-                                    match drive.enqueue_read_sectors(lba_local, count_local as u8) {
-                                        Ok(rx) => match rx.recv() {
-                                            Ok(Ok(vec)) => { bulk.copy_from_slice(&vec[..]); }
-                                            Ok(Err(_e)) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; send_response(sender_local, &resp); return; }
-                                            Err(_) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; send_response(sender_local, &resp); return; }
-                                        },
-                                        Err(_) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; send_response(sender_local, &resp); return; }
-                                    }
-
-                                    // send bulk responses in chunks
-                                    let mut offset = 0usize;
-                                    while offset < total_bytes {
-                                        let chunk_bytes = core::cmp::min(BULK_SECTORS_PER_MSG * 512, total_bytes - offset);
-                                        let mut chunk_resp = DiskBulkResponse { status: 0, len: chunk_bytes as u64, data: [0; BULK_SECTORS_PER_MSG * 512] };
-                                        let end = offset + chunk_bytes;
-                                        chunk_resp.data[..chunk_bytes].copy_from_slice(&bulk[offset..end]);
-                                        send_bulk_response(sender_local, &chunk_resp);
-                                        offset = end;
-                                    }
-                                } else {
-                                    let resp = DiskResponse { status: -6, len: 0, data: [0;512] };
-                                    send_response(sender_local, &resp);
+                                // use AtaDrive's enqueue API (which may fallback to synchronous read)
+                                match drive.enqueue_read_sectors(lba_local, count_local as u8) {
+                                    Ok(rx) => match rx.recv() {
+                                        Ok(Ok(vec)) => { bulk.copy_from_slice(&vec[..]); }
+                                        Ok(Err(_e)) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; send_response(sender_local, &resp); continue; }
+                                        Err(_) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; send_response(sender_local, &resp); continue; }
+                                    },
+                                    Err(_) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; send_response(sender_local, &resp); continue; }
                                 }
+
+                                // send bulk responses in chunks
+                                let mut offset = 0usize;
+                                while offset < total_bytes {
+                                    let chunk_bytes = core::cmp::min(BULK_SECTORS_PER_MSG * 512, total_bytes - offset);
+                                    let mut chunk_resp = DiskBulkResponse { status: 0, len: chunk_bytes as u64, data: [0; BULK_SECTORS_PER_MSG * 512] };
+                                    let end = offset + chunk_bytes;
+                                    chunk_resp.data[..chunk_bytes].copy_from_slice(&bulk[offset..end]);
+                                    send_bulk_response(sender_local, &chunk_resp);
+                                    offset = end;
+                                }
+                            } else {
+                                let resp = DiskResponse { status: -6, len: 0, data: [0;512] };
+                                send_response(sender_local, &resp);
                             }
-                        });
+                        }
                         continue;
                     } else {
                         resp.status = -22; // EINVAL

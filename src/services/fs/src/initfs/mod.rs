@@ -3,13 +3,11 @@
 //! システム起動時に使用される簡易的なRAMベースファイルシステム
 //! 猫も杓子もInitFS！（？？？
 
+use core::sync::atomic::{AtomicU64, Ordering};
 use std::string::String;
 use std::vec::Vec;
-use core::sync::atomic::{AtomicU64, Ordering};
 
-use crate::common::vfs::{
-    DirEntry, FileAttr, FileSystem, FileType, VfsError, VfsResult,
-};
+use crate::common::vfs::{DirEntry, FileAttr, FileSystem, FileType, VfsError, VfsResult};
 
 const MAX_FILES: usize = 64;
 const FILE_SIZE: usize = 4096;
@@ -75,17 +73,17 @@ impl InitFs {
 
     pub fn new() -> Self {
         let mut inodes = Vec::new();
-        
+
         // inode 0は未使用
         inodes.push(InitFsInode::new_empty());
-        
+
         // inode 1はルートディレクトリ
         inodes.push(InitFsInode::new_dir(
             Self::ROOT_INODE,
             String::from("/"),
             Self::ROOT_INODE, // ルートの親は自分自身
         ));
-        
+
         // 残りを初期化
         for _ in 2..MAX_FILES {
             inodes.push(InitFsInode::new_empty());
@@ -148,7 +146,7 @@ impl FileSystem for InitFs {
 
     fn stat(&self, inode: u64) -> VfsResult<FileAttr> {
         let node = self.get_inode(inode)?;
-        
+
         Ok(FileAttr {
             file_type: node.file_type,
             size: node.size,
@@ -185,7 +183,7 @@ impl FileSystem for InitFs {
 
     fn read(&self, inode: u64, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let node = self.get_inode(inode)?;
-        
+
         if node.file_type != FileType::RegularFile {
             return Err(VfsError::IsDirectory);
         }
@@ -197,15 +195,15 @@ impl FileSystem for InitFs {
 
         let available = node.data.len() - offset;
         let to_read = core::cmp::min(buf.len(), available);
-        
+
         buf[..to_read].copy_from_slice(&node.data[offset..offset + to_read]);
-        
+
         Ok(to_read)
     }
 
     fn write(&mut self, inode: u64, offset: u64, buf: &[u8]) -> VfsResult<usize> {
         let node = self.get_inode_mut(inode)?;
-        
+
         if node.file_type != FileType::RegularFile {
             return Err(VfsError::IsDirectory);
         }
@@ -229,20 +227,20 @@ impl FileSystem for InitFs {
 
     fn readdir(&self, inode: u64) -> VfsResult<Vec<DirEntry>> {
         let node = self.get_inode(inode)?;
-        
+
         if node.file_type != FileType::Directory {
             return Err(VfsError::NotDirectory);
         }
 
         let mut entries = Vec::new();
-        
+
         // . と .. を追加
         entries.push(DirEntry {
             name: String::from("."),
             inode,
             file_type: FileType::Directory,
         });
-        
+
         entries.push(DirEntry {
             name: String::from(".."),
             inode: node.parent,
@@ -266,7 +264,7 @@ impl FileSystem for InitFs {
     fn create(&mut self, parent_inode: u64, name: &str, _mode: u16) -> VfsResult<u64> {
         // 親がディレクトリか確認
         let _parent = self.get_inode(parent_inode)?;
-        
+
         // 既存ファイルをチェック
         if self.lookup(parent_inode, name).is_ok() {
             return Err(VfsError::AlreadyExists);
@@ -274,23 +272,19 @@ impl FileSystem for InitFs {
 
         // 新しいinodeを割り当て
         let inode_num = self.allocate_inode()?;
-        
-        let mut new_file = InitFsInode::new_file(
-            inode_num,
-            String::from(name),
-            parent_inode,
-        );
+
+        let mut new_file = InitFsInode::new_file(inode_num, String::from(name), parent_inode);
         new_file.used = true;
-        
+
         self.inodes[inode_num as usize] = new_file;
-        
+
         Ok(inode_num)
     }
 
     fn mkdir(&mut self, parent_inode: u64, name: &str, _mode: u16) -> VfsResult<u64> {
         // 親がディレクトリか確認
         let _parent = self.get_inode(parent_inode)?;
-        
+
         // 既存ディレクトリをチェック
         if self.lookup(parent_inode, name).is_ok() {
             return Err(VfsError::AlreadyExists);
@@ -298,23 +292,19 @@ impl FileSystem for InitFs {
 
         // 新しいinodeを割り当て
         let inode_num = self.allocate_inode()?;
-        
-        let mut new_dir = InitFsInode::new_dir(
-            inode_num,
-            String::from(name),
-            parent_inode,
-        );
+
+        let mut new_dir = InitFsInode::new_dir(inode_num, String::from(name), parent_inode);
         new_dir.used = true;
-        
+
         self.inodes[inode_num as usize] = new_dir;
-        
+
         Ok(inode_num)
     }
 
     fn unlink(&mut self, parent_inode: u64, name: &str) -> VfsResult<()> {
         let inode = self.lookup(parent_inode, name)?;
         let node = self.get_inode(inode)?;
-        
+
         if node.file_type == FileType::Directory {
             return Err(VfsError::IsDirectory);
         }
@@ -326,14 +316,15 @@ impl FileSystem for InitFs {
     fn rmdir(&mut self, parent_inode: u64, name: &str) -> VfsResult<()> {
         let inode = self.lookup(parent_inode, name)?;
         let node = self.get_inode(inode)?;
-        
+
         if node.file_type != FileType::Directory {
             return Err(VfsError::NotDirectory);
         }
 
         // ディレクトリが空か確認
         let entries = self.readdir(inode)?;
-        if entries.len() > 2 {  // . と .. 以外がある
+        if entries.len() > 2 {
+            // . と .. 以外がある
             return Err(VfsError::NotSupported); // ENOTEMPTY的なエラー
         }
 
@@ -343,14 +334,14 @@ impl FileSystem for InitFs {
 
     fn truncate(&mut self, inode: u64, size: u64) -> VfsResult<()> {
         let node = self.get_inode_mut(inode)?;
-        
+
         if node.file_type != FileType::RegularFile {
             return Err(VfsError::IsDirectory);
         }
 
         node.data.resize(size as usize, 0);
         node.size = size;
-        
+
         Ok(())
     }
 

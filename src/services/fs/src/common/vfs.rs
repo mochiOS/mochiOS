@@ -55,18 +55,18 @@ pub struct FileAttr {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(unused)]
 pub enum VfsError {
-    NotFound,           // ファイルが存在しない
-    PermissionDenied,   // 権限がない
-    AlreadyExists,      // すでに存在する
-    IsDirectory,        // ディレクトリである
-    NotDirectory,       // ディレクトリでない
-    InvalidArgument,    // 引数が不正
-    IoError,            // I/Oエラー
-    OutOfSpace,         // 容量不足
-    ReadOnlyFs,         // 読み取り専用
-    TooManyOpenFiles,   // オープンファイル数上限
-    FileTooBig,         // ファイルが大きすぎる
-    NotSupported,       // 未対応の操作
+    NotFound,         // ファイルが存在しない
+    PermissionDenied, // 権限がない
+    AlreadyExists,    // すでに存在する
+    IsDirectory,      // ディレクトリである
+    NotDirectory,     // ディレクトリでない
+    InvalidArgument,  // 引数が不正
+    IoError,          // I/Oエラー
+    OutOfSpace,       // 容量不足
+    ReadOnlyFs,       // 読み取り専用
+    TooManyOpenFiles, // オープンファイル数上限
+    FileTooBig,       // ファイルが大きすぎる
+    NotSupported,     // 未対応の操作
 }
 
 pub type VfsResult<T> = Result<T, VfsError>;
@@ -151,9 +151,7 @@ impl FileHandle {
 
 /// パスを構成要素に分割
 pub fn split_path(path: &str) -> Vec<&str> {
-    path.split('/')
-        .filter(|s| !s.is_empty())
-        .collect()
+    path.split('/').filter(|s| !s.is_empty()).collect()
 }
 
 /// パスからinodeを解決
@@ -161,17 +159,17 @@ pub fn split_path(path: &str) -> Vec<&str> {
 /// ファイルシステムのルートからパスを辿ってinodeを取得
 pub fn resolve_path(fs: &dyn FileSystem, path: &str) -> VfsResult<u64> {
     let components = split_path(path);
-    
+
     if components.is_empty() {
         // ルートディレクトリ
         return Ok(fs.root_inode());
     }
 
     let mut current_inode = fs.root_inode();
-    
+
     for component in components {
         current_inode = fs.lookup(current_inode, component)?;
     }
-    
+
     Ok(current_inode)
 }

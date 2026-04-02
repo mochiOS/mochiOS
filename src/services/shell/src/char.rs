@@ -328,24 +328,38 @@ impl Font {
     }
 
     fn load_from_binary() -> Option<Self> {
-        let data = read_file_from_fs(FONT_BIN_PATH, FONT_BIN_SIZE)?;
-        if data.len() < FONT_BIN_SIZE {
-            return None;
+        match read_file_from_fs(FONT_BIN_PATH, FONT_BIN_SIZE) {
+            Some(data) => {
+                if data.len() < FONT_BIN_SIZE {
+                    println!("[SHELL] Font binary too small: {} bytes", data.len());
+                    return None;
+                }
+                let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
+                for (i, glyph) in glyphs.iter_mut().enumerate() {
+                    let start = i * FONT_HEIGHT;
+                    glyph.copy_from_slice(&data[start..start + FONT_HEIGHT]);
+                }
+                Some(Font { glyphs })
+            }
+            None => {
+                println!("[SHELL] Font binary not found or read failed: {}", FONT_BIN_PATH);
+                None
+            }
         }
-
-        let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
-        for (i, glyph) in glyphs.iter_mut().enumerate() {
-            let start = i * FONT_HEIGHT;
-            glyph.copy_from_slice(&data[start..start + FONT_HEIGHT]);
-        }
-        Some(Font { glyphs })
     }
 
     fn load_from_bdf() -> Option<Self> {
-        let data = read_file_from_fs(FONT_BDF_PATH, FONT_BDF_MAX_SIZE)?;
-        let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
-        parse_bdf(&data, &mut glyphs);
-        Some(Font { glyphs })
+        match read_file_from_fs(FONT_BDF_PATH, FONT_BDF_MAX_SIZE) {
+            Some(data) => {
+                let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
+                parse_bdf(&data, &mut glyphs);
+                Some(Font { glyphs })
+            }
+            None => {
+                println!("[SHELL] BDF font not found or read failed: {}", FONT_BDF_PATH);
+                None
+            }
+        }
     }
 
     /// `System/fonts/ter-u12b.bin` を優先し、失敗時はBDFを解析する
@@ -356,6 +370,7 @@ impl Font {
         if let Some(font) = Self::load_from_bdf() {
             return Some(font);
         }
+        println!("[SHELL] Using fallback font");
         Some(Self::fallback())
     }
 

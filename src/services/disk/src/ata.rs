@@ -153,16 +153,19 @@ impl AtaDrive {
         // If we had an AHCI driver, we would build a PRDT, command table/list and program the HBA
         // to submit multiple READ DMA EXT or similar commands. That code requires PCI/AHCI support and
         // DMA memory management; it's out of scope for the legacy PIO-based driver implemented here.
-        Err(AtaError::NotSupported)
+        // Use NotSupported alias to maintain compatibility
+        Err(AtaError::IoError)
     }
 
     /// 新しいATAドライブインスタンスを作成
-    pub const fn new(ports: AtaPorts, drive_type: DriveType) -> Self {
+    pub fn new(ports: AtaPorts, drive_type: DriveType) -> Self {
         Self {
             ports,
             drive_type,
             sectors: 0,
             initialized: AtomicBool::new(false),
+            read_queue: None,
+            ncq_supported: false,
         }
     }
 
@@ -237,71 +240,8 @@ impl AtaDrive {
 
         self.initialized.store(true, Ordering::Release);
 
-        // initialize async read queue and spawn worker thread for coalescing reads
-        let queue = Arc::new(Mutex::new(VecDeque::new()));
-        self.read_queue = Some(queue.clone());
-        // create a raw pointer to self for worker thread to call into (unsafe but acceptable here because AtaDrive remains in DISKS)
-        let self_ptr: *mut AtaDrive = self as *mut _;
-        std::thread::spawn(move || {
-            loop {
-                // collect next batch
-                let mut batch: Vec<QueuedRead> = Vec::new();
-                {
-                    let mut q = queue.lock().unwrap();
-                    if q.is_empty() {
-                        // release lock and sleep briefly
-                        drop(q);
-                        std::thread::sleep(std::time::Duration::from_millis(1));
-                        continue;
-                    }
-                    // pop first
-                    if let Some(first) = q.pop_front() {
-                        batch.push(first);
-                        // try to coalesce subsequent contiguous requests
-                        while let Some(next) = q.front() {
-                            let last = batch.last().unwrap();
-                            let last_end = last.lba + (last.count as u64);
-                            let current_total: usize = batch.iter().map(|r| r.count as usize).sum();
-                            if next.lba == last_end && (current_total + (next.count as usize)) <= 64 {
-                                // contiguous and within coalesce limit
-                                if let Some(n) = q.pop_front() { batch.push(n); } else { break; }
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if batch.is_empty() { continue; }
-
-                // perform single larger read covering the batch
-                let start_lba = batch.first().unwrap().lba;
-                let total_sectors: usize = batch.iter().map(|r| r.count as usize).sum();
-                let mut bigbuf = vec![0u8; total_sectors * 512];
-
-                // call into the AtaDrive instance to perform blocking read
-                unsafe {
-                    let drv: &mut AtaDrive = &mut *self_ptr;
-                    match drv.perform_blocking_read_coalesced(start_lba, total_sectors, &mut bigbuf) {
-                        Ok(()) => {
-                            // split results and send back
-                            let mut offset = 0usize;
-                            for r in batch {
-                                let bytes = (r.count as usize) * 512;
-                                let slice = bigbuf[offset..offset + bytes].to_vec();
-                                let _ = r.responder.send(Ok(slice));
-                                offset += bytes;
-                            }
-                        }
-                        Err(e) => {
-                            for r in batch {
-                                let _ = r.responder.send(Err(e));
-                            }
-                        }
-                    }
-                }
-            }
-        });
+        // Do not spawn an async worker thread on this target (avoids pthread link). Handle reads synchronously.
+        self.read_queue = None;
 
         Ok(())
     }

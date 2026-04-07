@@ -1,7 +1,9 @@
 //! ファイルシステム関連のシステムコール（ユーザー側）
 
 use super::sys::{syscall1, syscall2, syscall3, SyscallNumber};
+use alloc::format;
 use alloc::vec::Vec;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 fn path_buf(path: &str) -> ([u8; 512], usize) {
     let mut buf = [0u8; 512];
@@ -55,8 +57,9 @@ use crate::task;
 use crate::time;
 use core::mem::size_of;
 
-use crate::fs_consts::{FS_DATA_MAX, FS_PATH_MAX, IPC_MAX_MSG_SIZE};
+use crate::fs_consts::{FS_DATA_MAX, FS_PATH_MAX};
 const FS_REQ_TIMEOUT_MS: u64 = 2000;
+const FS_PENDING_CAPACITY: usize = 16;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -92,6 +95,89 @@ pub struct FsResponseIp {
     pub data: [u8; FS_DATA_MAX],
 }
 
+#[derive(Clone, Copy)]
+struct PendingIpcMessage {
+    used: bool,
+    sender: u64,
+    len: usize,
+    data: [u8; size_of::<FsResponseIp>()],
+}
+
+impl PendingIpcMessage {
+    const fn empty() -> Self {
+        Self {
+            used: false,
+            sender: 0,
+            len: 0,
+            data: [0; size_of::<FsResponseIp>()],
+        }
+    }
+}
+
+static FS_PENDING_LOCK: AtomicBool = AtomicBool::new(false);
+static mut FS_PENDING_MESSAGES: [PendingIpcMessage; FS_PENDING_CAPACITY] =
+    [PendingIpcMessage::empty(); FS_PENDING_CAPACITY];
+
+struct PendingQueueGuard;
+
+impl PendingQueueGuard {
+    fn lock() -> Self {
+        while FS_PENDING_LOCK
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
+            core::hint::spin_loop();
+        }
+        Self
+    }
+}
+
+impl Drop for PendingQueueGuard {
+    fn drop(&mut self) {
+        FS_PENDING_LOCK.store(false, Ordering::Release);
+    }
+}
+
+fn enqueue_pending_message(sender: u64, len: usize, bytes: &[u8]) -> bool {
+    let copy_len = core::cmp::min(len, core::cmp::min(bytes.len(), size_of::<FsResponseIp>()));
+    let _lock = PendingQueueGuard::lock();
+    unsafe {
+        for slot in FS_PENDING_MESSAGES.iter_mut() {
+            if !slot.used {
+                slot.used = true;
+                slot.sender = sender;
+                slot.len = copy_len;
+                if copy_len > 0 {
+                    slot.data[..copy_len].copy_from_slice(&bytes[..copy_len]);
+                }
+                return true;
+            }
+        }
+    }
+    let msg = format!(
+        "[swiftlib::fs] WARN: pending queue full (sender={}, len={})\n",
+        sender, len
+    );
+    let _ = crate::io::write_stderr(msg.as_bytes());
+    false
+}
+
+fn take_pending_message_for(sender: u64) -> Option<FsResponseIp> {
+    let _lock = PendingQueueGuard::lock();
+    unsafe {
+        for slot in FS_PENDING_MESSAGES.iter_mut() {
+            if slot.used && slot.sender == sender && slot.len >= size_of::<FsResponseIp>() {
+                let resp = core::ptr::read_unaligned(slot.data.as_ptr() as *const FsResponseIp);
+                slot.used = false;
+                slot.sender = 0;
+                slot.len = 0;
+                return Some(resp);
+            }
+        }
+    }
+    None
+}
+
 fn find_fs_service() -> Option<u64> {
     task::find_process_by_name("fs.service")
 }
@@ -107,15 +193,21 @@ fn fs_ipc_request(fs_tid: u64, req: &FsRequestIp) -> Result<FsResponseIp, ()> {
     let mut resp_buf = [0u8; size_of::<FsResponseIp>()];
     let start_tick = time::get_ticks();
     loop {
+        if let Some(resp) = take_pending_message_for(fs_tid) {
+            return Ok(resp);
+        }
+
         let (sender, len) = ipc::ipc_recv(&mut resp_buf);
         if sender == 0 && len == 0 {
             if time::get_ticks().saturating_sub(start_tick) > FS_REQ_TIMEOUT_MS {
                 return Err(());
             }
-            time::sleep_ms(1);
+            time::sleep_ms(0); // yield のみ
             continue;
         }
         if sender != fs_tid || (len as usize) < size_of::<FsResponseIp>() {
+            let msg_len = core::cmp::min(len as usize, resp_buf.len());
+            let _ = enqueue_pending_message(sender, msg_len, &resp_buf[..msg_len]);
             continue;
         }
         let resp: FsResponseIp = unsafe { core::ptr::read_unaligned(resp_buf.as_ptr() as *const FsResponseIp) };
@@ -175,9 +267,14 @@ pub fn close_via_fs(fd: u64) {
     }
 }
 
-/// Convenience: read whole file via fs.service (or None on error)
-pub fn read_file_via_fs(path: &str, max_size: usize) -> Option<Vec<u8>> {
-    let fd = open_via_fs(path).ok()?;
+/// Convenience: read whole file via fs.service.
+/// Returns Ok(None) if the file is missing, Err on other errors, and Ok(Some(empty)) for empty files.
+pub fn read_file_via_fs(path: &str, max_size: usize) -> Result<Option<Vec<u8>>, i64> {
+    let fd = match open_via_fs(path) {
+        Ok(fd) => fd,
+        Err(errno) if errno == -2 => return Ok(None),
+        Err(errno) => return Err(errno),
+    };
     let mut out = Vec::new();
     let mut chunk = [0u8; FS_DATA_MAX];
     while out.len() < max_size {
@@ -185,9 +282,12 @@ pub fn read_file_via_fs(path: &str, max_size: usize) -> Option<Vec<u8>> {
         match read_via_fs(fd, &mut chunk[..to_read]) {
             Ok(0) => break,
             Ok(n) => out.extend_from_slice(&chunk[..n]),
-            Err(_) => { close_via_fs(fd); return None; }
+            Err(errno) => {
+                close_via_fs(fd);
+                return Err(errno);
+            }
         }
     }
     close_via_fs(fd);
-    if out.is_empty() { None } else { Some(out) }
+    Ok(Some(out))
 }

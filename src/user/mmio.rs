@@ -11,10 +11,14 @@ pub fn map_physical(phys_addr: u64, size: usize) -> Result<*mut u8, u64> {
     if size == 0 {
         return Err(EINVAL);
     }
+    if phys_addr.checked_add(size as u64).is_none() {
+        return Err(EINVAL);
+    }
 
     let ret = syscall2(SyscallNumber::MapPhysicalRange as u64, phys_addr, size as u64);
-    if ret == 0 || (ret as i64) < 0 {
-        Err(ret)
+    let signed_ret = ret as i64;
+    if (-4095..=-1).contains(&signed_ret) {
+        Err((-signed_ret) as u64)
     } else {
         Ok(ret as *mut u8)
     }
@@ -23,8 +27,9 @@ pub fn map_physical(phys_addr: u64, size: usize) -> Result<*mut u8, u64> {
 /// ユーザー仮想アドレスを物理アドレスへ変換する
 pub fn virt_to_phys(ptr: *const u8) -> Result<u64, u64> {
     let ret = syscall1(SyscallNumber::VirtToPhys as u64, ptr as u64);
-    if ret == 0 || (ret as i64) < 0 {
-        Err(ret)
+    let signed_ret = ret as i64;
+    if (-4095..=-1).contains(&signed_ret) {
+        Err((-signed_ret) as u64)
     } else {
         Ok(ret)
     }

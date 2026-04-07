@@ -1,6 +1,6 @@
 //! マウス系システムコール（ユーザー側）
 
-use super::sys::{syscall0, SyscallNumber, ENODATA};
+use super::sys::{syscall1, SyscallNumber, ENODATA};
 
 /// PS/2 3バイトパケットを展開した入力イベント
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,7 +32,8 @@ impl MousePacket {
 
 /// PS/2 マウスパケットを1件読み取る（非ブロッキング）
 pub fn read_packet() -> Result<Option<MousePacket>, u64> {
-    let ret = syscall0(SyscallNumber::MouseRead as u64);
+    let mut raw: u32 = 0;
+    let ret = syscall1(SyscallNumber::MouseRead as u64, (&mut raw as *mut u32) as u64);
     if ret == ENODATA {
         return Ok(None);
     }
@@ -40,9 +41,9 @@ pub fn read_packet() -> Result<Option<MousePacket>, u64> {
         return Err(ret);
     }
 
-    let b0 = (ret & 0xFF) as u8;
-    let b1 = ((ret >> 8) & 0xFF) as u8;
-    let b2 = ((ret >> 16) & 0xFF) as u8;
+    let b0 = (raw & 0xFF) as u8;
+    let b1 = ((raw >> 8) & 0xFF) as u8;
+    let b2 = ((raw >> 16) & 0xFF) as u8;
     Ok(Some(MousePacket {
         buttons: b0 & 0x07,
         dx: b1 as i8,

@@ -41,7 +41,7 @@ const ENV_FILE_MAX_SIZE: usize = 4096;
 const FONT_READ_CHUNK: usize = 512;
 const FS_PATH_MAX: usize = 128;
 const FS_REQ_TIMEOUT_MS: u64 = 2000;
-const IPC_MSG_MAX: usize = 2064;
+const IPC_MSG_MAX: usize = 4128;
 const PENDING_IPC_CAPACITY: usize = 32;
 
 #[repr(C)]
@@ -58,7 +58,14 @@ impl FsRequest {
     const OP_READ: u64 = 2;
     const OP_CLOSE: u64 = 4;
     const OP_EXEC: u64 = 5;
+    const OP_STAT: u64 = 6;
+    const OP_READDIR: u64 = 8;
 }
+
+/// FS service の STAT/FSTAT が返す mode のファイルタイプビット
+const S_IFMT: u64 = 0o170000;
+const S_IFDIR: u64 = 0o040000;
+const S_IFREG: u64 = 0o100000;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -199,7 +206,7 @@ fn fs_request(fs_tid: u64, req: &FsRequest) -> Result<FsResponse, ()> {
         return Err(());
     }
 
-    let mut resp_buf = Box::new([0u8; size_of::<FsResponse>()]);
+    let mut resp_buf = Box::new([0u8; IPC_MSG_MAX]);
     let start_tick = time::get_ticks();
     loop {
         let (sender, len) = ipc::ipc_recv(&mut *resp_buf);
@@ -207,12 +214,13 @@ fn fs_request(fs_tid: u64, req: &FsRequest) -> Result<FsResponse, ()> {
             if time::get_ticks().saturating_sub(start_tick) > FS_REQ_TIMEOUT_MS {
                 return Err(());
             }
-            time::sleep_ms(1);
+            time::sleep_ms(0); // yield のみ（1ms スリープ不要）
             continue;
         }
         if sender != fs_tid || (len as usize) < size_of::<FsResponse>() {
             let msg_len = core::cmp::min(len as usize, resp_buf.len());
             let _ = enqueue_pending_message(sender, &resp_buf[..msg_len], msg_len);
+            time::sleep_ms(0);
             continue;
         }
         let resp: FsResponse = unsafe {
@@ -303,6 +311,115 @@ fn exec_via_fs_service(path: &str, args: &[&str]) -> Result<u64, i64> {
         return Err(resp.status);
     }
     Ok(resp.status as u64)
+}
+
+/// OP_STAT 経由でファイルの (mode, size) を取得
+fn stat_via_fs_service(path: &str) -> Option<(u64, u64)> {
+    let fs_tid = task::find_process_by_name("fs.service")?;
+    let mut path_buf = [0u8; FS_PATH_MAX];
+    let bytes = path.as_bytes();
+    if bytes.is_empty() || bytes.len() >= FS_PATH_MAX {
+        return None;
+    }
+    path_buf[..bytes.len()].copy_from_slice(bytes);
+    let req = FsRequest {
+        op: FsRequest::OP_STAT,
+        arg1: 0,
+        arg2: 0,
+        path: path_buf,
+    };
+    let resp = fs_request(fs_tid, &req).ok()?;
+    if resp.status < 0 {
+        return None;
+    }
+    Some((resp.status as u64, resp.len))
+}
+
+/// OP_READDIR をページネーションしながら全エントリ名を取得
+fn readdir_all_via_fs_service(path: &str) -> Option<Vec<String>> {
+    let fs_tid = task::find_process_by_name("fs.service")?;
+    let fd = open_via_fs_service(fs_tid, path).ok()?;
+    let mut entries: Vec<String> = Vec::new();
+    let max_len = swiftlib::fs_consts::FS_DATA_MAX as u64;
+    let mut start: u64 = 0;
+    loop {
+        let req = FsRequest {
+            op: FsRequest::OP_READDIR,
+            arg1: fd,
+            arg2: (start << 32) | max_len,
+            path: [0; FS_PATH_MAX],
+        };
+        let resp = match fs_request(fs_tid, &req) {
+            Ok(r) => r,
+            Err(()) => {
+                close_via_fs_service(fs_tid, fd);
+                return None;
+            }
+        };
+        if resp.status < 0 {
+            close_via_fs_service(fs_tid, fd);
+            return None;
+        }
+        if resp.len == 0 {
+            break;
+        }
+        let data = &resp.data[..resp.len as usize];
+        for chunk in data.split(|&b| b == b'\n') {
+            if chunk.is_empty() {
+                continue;
+            }
+            if let Ok(s) = core::str::from_utf8(chunk) {
+                entries.push(s.to_string());
+            }
+        }
+        let next_start = resp.status as u64;
+        if next_start <= start {
+            break;
+        }
+        start = next_start;
+    }
+    close_via_fs_service(fs_tid, fd);
+    Some(entries)
+}
+
+/// CWD を基準にパスを絶対化する。 "." "/foo" "../bar" などを解決。
+fn resolve_path(arg: &str) -> String {
+    let abs = if arg.starts_with('/') {
+        arg.to_string()
+    } else {
+        let mut cwd_buf = [0u8; 256];
+        let cwd = fs::getcwd(&mut cwd_buf).unwrap_or("/");
+        if arg.is_empty() || arg == "." {
+            return cwd.to_string();
+        }
+        if cwd == "/" {
+            format!("/{}", arg)
+        } else {
+            format!("{}/{}", cwd, arg)
+        }
+    };
+
+    // "." と ".." を正規化
+    let mut stack: Vec<&str> = Vec::new();
+    for comp in abs.split('/') {
+        match comp {
+            "" | "." => {}
+            ".." => {
+                stack.pop();
+            }
+            other => stack.push(other),
+        }
+    }
+    if stack.is_empty() {
+        "/".to_string()
+    } else {
+        let mut out = String::new();
+        for c in &stack {
+            out.push('/');
+            out.push_str(c);
+        }
+        out
+    }
 }
 
 /// ASCII 文字ごとの 12 行ビットマップ (インデックス = codepoint - 32)
@@ -487,8 +604,6 @@ impl Terminal {
                 if !key.is_empty() {
                     self.set_env(key, val);
                 }
-            } else {
-                self.set_env("PATH", line);
             }
         }
     }
@@ -614,7 +729,11 @@ impl Terminal {
             return;
         }
         let offset = (y * self.stride + x) as usize;
-        unsafe { self.fb_ptr.add(offset).write_volatile(color); }
+        // GOP 実装によっては上位8bitをアルファとして扱うため、常に不透明で書き込む。
+        let opaque = color | 0xFF00_0000;
+        unsafe {
+            self.fb_ptr.add(offset).write_volatile(opaque);
+        }
     }
 
     fn draw_char(&self, ch: u8, col: u32, row: u32) {
@@ -936,6 +1055,519 @@ impl Terminal {
         }
     }
 
+    // ================================================================
+    // ネイティブビルトインコマンド群
+    // BusyBox を介さずシェル内で直接実装し、ELF ロード/IPC コマンド実行の
+    // オーバーヘッドを回避する。
+    // ================================================================
+
+    /// 共通: ファイル内容を取得（fs.service 経由、フォールバックで直接 syscall）
+    fn load_file_bytes(&self, path: &str, limit: usize) -> Option<Vec<u8>> {
+        let abs = resolve_path(path);
+        read_file_from_fs(&abs, limit)
+    }
+
+    /// 共通: ファイル内容をテキストとして書き出す
+    fn write_file_text(&mut self, data: &[u8]) {
+        if let Ok(text) = core::str::from_utf8(data) {
+            self.write_str(text);
+            if !text.ends_with('\n') {
+                self.write_byte(b'\n');
+            }
+        } else {
+            // バイナリは可読文字のみ表示
+            for &b in data {
+                if b == b'\n' || b == b'\t' || (0x20..0x7F).contains(&b) {
+                    self.write_byte(b);
+                } else {
+                    self.write_byte(b'.');
+                }
+            }
+            self.write_byte(b'\n');
+        }
+    }
+
+    /// ls [-l] [path...]
+    fn builtin_ls(&mut self, args: &[String]) {
+        let mut long = false;
+        let mut targets: Vec<&str> = Vec::new();
+        for a in args {
+            if a == "-l" || a == "-la" || a == "-al" {
+                long = true;
+            } else if a.starts_with('-') {
+                // 未知オプションは無視
+            } else {
+                targets.push(a.as_str());
+            }
+        }
+        if targets.is_empty() {
+            targets.push(".");
+        }
+
+        let multi = targets.len() > 1;
+        for (i, t) in targets.iter().enumerate() {
+            if multi {
+                if i > 0 {
+                    self.write_byte(b'\n');
+                }
+                self.write_str(t);
+                self.write_str(":\n");
+            }
+            let abs = resolve_path(t);
+
+            // まず stat してファイル/ディレクトリ判定
+            match stat_via_fs_service(&abs) {
+                Some((mode, size)) => {
+                    let is_dir = (mode & S_IFMT) == S_IFDIR;
+                    if !is_dir {
+                        // 単一ファイル指定
+                        if long {
+                            self.ls_print_long_line(t, mode, size);
+                        } else {
+                            self.write_str(t);
+                            self.write_byte(b'\n');
+                        }
+                        continue;
+                    }
+                }
+                None => {
+                    self.write_str("ls: cannot access '");
+                    self.write_str(t);
+                    self.write_str("': No such file or directory\n");
+                    continue;
+                }
+            }
+
+            // ディレクトリを列挙
+            let entries = match readdir_all_via_fs_service(&abs) {
+                Some(e) => e,
+                None => {
+                    self.write_str("ls: cannot read directory '");
+                    self.write_str(t);
+                    self.write_str("'\n");
+                    continue;
+                }
+            };
+
+            // ソート（名前順）
+            let mut sorted = entries;
+            sorted.sort();
+
+            for name in &sorted {
+                let child_path = if abs == "/" {
+                    format!("/{}", name)
+                } else {
+                    format!("{}/{}", abs, name)
+                };
+                if long {
+                    match stat_via_fs_service(&child_path) {
+                        Some((mode, size)) => {
+                            self.ls_print_long_line(name, mode, size);
+                        }
+                        None => {
+                            self.write_str("? ");
+                            self.write_str(name);
+                            self.write_byte(b'\n');
+                        }
+                    }
+                } else {
+                    // 色分け: ディレクトリは青、その他は白
+                    let mode = stat_via_fs_service(&child_path).map(|(m, _)| m).unwrap_or(0);
+                    let is_dir = (mode & S_IFMT) == S_IFDIR;
+                    if is_dir {
+                        self.fg = 0x005599FF;
+                    }
+                    self.write_str(name);
+                    if is_dir {
+                        self.write_byte(b'/');
+                        self.fg = DEFAULT_FG;
+                    }
+                    self.write_byte(b'\n');
+                }
+            }
+        }
+    }
+
+    fn ls_print_long_line(&mut self, name: &str, mode: u64, size: u64) {
+        let is_dir = (mode & S_IFMT) == S_IFDIR;
+        // type bit
+        self.write_byte(if is_dir { b'd' } else { b'-' });
+        // rwx for user/group/other
+        let perm = mode & 0o777;
+        let bits = [
+            (perm >> 8) & 1, (perm >> 7) & 1, (perm >> 6) & 1,
+            (perm >> 5) & 1, (perm >> 4) & 1, (perm >> 3) & 1,
+            (perm >> 2) & 1, (perm >> 1) & 1, perm & 1,
+        ];
+        let chars = [b'r', b'w', b'x', b'r', b'w', b'x', b'r', b'w', b'x'];
+        for i in 0..9 {
+            self.write_byte(if bits[i] != 0 { chars[i] } else { b'-' });
+        }
+        self.write_byte(b' ');
+        // size（右詰め 10 桁）
+        let size_str = format!("{}", size);
+        let pad = 10usize.saturating_sub(size_str.len());
+        for _ in 0..pad {
+            self.write_byte(b' ');
+        }
+        self.write_str(&size_str);
+        self.write_byte(b' ');
+        // name (ディレクトリは色付け)
+        if is_dir {
+            self.fg = 0x005599FF;
+        }
+        self.write_str(name);
+        if is_dir {
+            self.write_byte(b'/');
+            self.fg = DEFAULT_FG;
+        }
+        self.write_byte(b'\n');
+    }
+
+    /// cat file...
+    fn builtin_cat(&mut self, args: &[String]) {
+        if args.is_empty() {
+            self.write_str("usage: cat <file>...\n");
+            return;
+        }
+        for arg in args {
+            match self.load_file_bytes(arg, 1024 * 1024) {
+                Some(data) => self.write_file_text(&data),
+                None => {
+                    self.write_str("cat: ");
+                    self.write_str(arg);
+                    self.write_str(": No such file\n");
+                }
+            }
+        }
+    }
+
+    /// echo [-n] args...
+    fn builtin_echo(&mut self, args: &[String]) {
+        let mut trailing_newline = true;
+        let mut start = 0;
+        if let Some(first) = args.first() {
+            if first == "-n" {
+                trailing_newline = false;
+                start = 1;
+            }
+        }
+        for (i, a) in args[start..].iter().enumerate() {
+            if i > 0 {
+                self.write_byte(b' ');
+            }
+            self.write_str(a);
+        }
+        if trailing_newline {
+            self.write_byte(b'\n');
+        }
+    }
+
+    /// pwd
+    fn builtin_pwd(&mut self) {
+        let mut buf = [0u8; 256];
+        let cwd = fs::getcwd(&mut buf).unwrap_or("/");
+        self.write_str(cwd);
+        self.write_byte(b'\n');
+    }
+
+    /// stat file...
+    fn builtin_stat(&mut self, args: &[String]) {
+        if args.is_empty() {
+            self.write_str("usage: stat <file>...\n");
+            return;
+        }
+        for arg in args {
+            let abs = resolve_path(arg);
+            match stat_via_fs_service(&abs) {
+                Some((mode, size)) => {
+                    let is_dir = (mode & S_IFMT) == S_IFDIR;
+                    self.write_str("  File: ");
+                    self.write_str(arg);
+                    self.write_byte(b'\n');
+                    self.write_str("  Type: ");
+                    self.write_str(if is_dir { "directory" } else { "regular file" });
+                    self.write_byte(b'\n');
+                    self.write_str("  Size: ");
+                    self.write_str(&format!("{}", size));
+                    self.write_byte(b'\n');
+                    self.write_str("  Mode: ");
+                    self.write_str(&format!("{:o}", mode & 0o7777));
+                    self.write_byte(b'\n');
+                }
+                None => {
+                    self.write_str("stat: cannot stat '");
+                    self.write_str(arg);
+                    self.write_str("': No such file or directory\n");
+                }
+            }
+        }
+    }
+
+    /// head [-n N] file...
+    fn builtin_head(&mut self, args: &[String]) {
+        let (n, files) = Self::parse_nflag(args, 10);
+        if files.is_empty() {
+            self.write_str("usage: head [-n N] <file>...\n");
+            return;
+        }
+        let multi = files.len() > 1;
+        for (i, arg) in files.iter().enumerate() {
+            if multi {
+                if i > 0 {
+                    self.write_byte(b'\n');
+                }
+                self.write_str("==> ");
+                self.write_str(arg);
+                self.write_str(" <==\n");
+            }
+            match self.load_file_bytes(arg, 1024 * 1024) {
+                Some(data) => {
+                    if let Ok(text) = core::str::from_utf8(&data) {
+                        for (idx, line) in text.lines().enumerate() {
+                            if idx >= n {
+                                break;
+                            }
+                            self.write_str(line);
+                            self.write_byte(b'\n');
+                        }
+                    } else {
+                        self.write_str("head: binary file\n");
+                    }
+                }
+                None => {
+                    self.write_str("head: ");
+                    self.write_str(arg);
+                    self.write_str(": No such file\n");
+                }
+            }
+        }
+    }
+
+    /// tail [-n N] file...
+    fn builtin_tail(&mut self, args: &[String]) {
+        let (n, files) = Self::parse_nflag(args, 10);
+        if files.is_empty() {
+            self.write_str("usage: tail [-n N] <file>...\n");
+            return;
+        }
+        let multi = files.len() > 1;
+        for (i, arg) in files.iter().enumerate() {
+            if multi {
+                if i > 0 {
+                    self.write_byte(b'\n');
+                }
+                self.write_str("==> ");
+                self.write_str(arg);
+                self.write_str(" <==\n");
+            }
+            match self.load_file_bytes(arg, 1024 * 1024) {
+                Some(data) => {
+                    if let Ok(text) = core::str::from_utf8(&data) {
+                        let lines: Vec<&str> = text.lines().collect();
+                        let start = lines.len().saturating_sub(n);
+                        for line in &lines[start..] {
+                            self.write_str(line);
+                            self.write_byte(b'\n');
+                        }
+                    } else {
+                        self.write_str("tail: binary file\n");
+                    }
+                }
+                None => {
+                    self.write_str("tail: ");
+                    self.write_str(arg);
+                    self.write_str(": No such file\n");
+                }
+            }
+        }
+    }
+
+    /// -n フラグを処理して (count, files) を返す
+    fn parse_nflag(args: &[String], default: usize) -> (usize, Vec<String>) {
+        let mut n = default;
+        let mut files: Vec<String> = Vec::new();
+        let mut i = 0;
+        while i < args.len() {
+            let a = &args[i];
+            if a == "-n" {
+                if i + 1 < args.len() {
+                    if let Ok(v) = args[i + 1].parse::<usize>() {
+                        n = v;
+                    }
+                    i += 2;
+                    continue;
+                }
+            } else if let Some(rest) = a.strip_prefix("-n") {
+                if let Ok(v) = rest.parse::<usize>() {
+                    n = v;
+                    i += 1;
+                    continue;
+                }
+            }
+            files.push(a.clone());
+            i += 1;
+        }
+        (n, files)
+    }
+
+    /// wc [-lwc] file...
+    fn builtin_wc(&mut self, args: &[String]) {
+        let mut show_lines = false;
+        let mut show_words = false;
+        let mut show_bytes = false;
+        let mut files: Vec<&str> = Vec::new();
+        for a in args {
+            if let Some(flags) = a.strip_prefix('-') {
+                for ch in flags.chars() {
+                    match ch {
+                        'l' => show_lines = true,
+                        'w' => show_words = true,
+                        'c' => show_bytes = true,
+                        _ => {}
+                    }
+                }
+            } else {
+                files.push(a.as_str());
+            }
+        }
+        if !show_lines && !show_words && !show_bytes {
+            show_lines = true;
+            show_words = true;
+            show_bytes = true;
+        }
+        if files.is_empty() {
+            self.write_str("usage: wc [-lwc] <file>...\n");
+            return;
+        }
+        for arg in &files {
+            match self.load_file_bytes(arg, 1024 * 1024) {
+                Some(data) => {
+                    let bytes = data.len();
+                    let text = core::str::from_utf8(&data).unwrap_or("");
+                    let lines = text.lines().count();
+                    let words = text.split_whitespace().count();
+                    let mut first = true;
+                    if show_lines {
+                        self.write_str(&format!("{:>7}", lines));
+                        first = false;
+                    }
+                    if show_words {
+                        if !first { self.write_byte(b' '); }
+                        self.write_str(&format!("{:>7}", words));
+                        first = false;
+                    }
+                    if show_bytes {
+                        if !first { self.write_byte(b' '); }
+                        self.write_str(&format!("{:>7}", bytes));
+                    }
+                    self.write_byte(b' ');
+                    self.write_str(arg);
+                    self.write_byte(b'\n');
+                }
+                None => {
+                    self.write_str("wc: ");
+                    self.write_str(arg);
+                    self.write_str(": No such file\n");
+                }
+            }
+        }
+    }
+
+    /// grep pattern file...
+    fn builtin_grep(&mut self, args: &[String]) {
+        if args.len() < 2 {
+            self.write_str("usage: grep <pattern> <file>...\n");
+            return;
+        }
+        let pattern = args[0].as_str();
+        let files = &args[1..];
+        let multi = files.len() > 1;
+        for arg in files {
+            match self.load_file_bytes(arg, 1024 * 1024) {
+                Some(data) => {
+                    if let Ok(text) = core::str::from_utf8(&data) {
+                        for line in text.lines() {
+                            if line.contains(pattern) {
+                                if multi {
+                                    self.write_str(arg);
+                                    self.write_byte(b':');
+                                }
+                                self.write_str(line);
+                                self.write_byte(b'\n');
+                            }
+                        }
+                    }
+                }
+                None => {
+                    self.write_str("grep: ");
+                    self.write_str(arg);
+                    self.write_str(": No such file\n");
+                }
+            }
+        }
+    }
+
+    /// which cmd...
+    fn builtin_which(&mut self, args: &[String]) {
+        if args.is_empty() {
+            self.write_str("usage: which <cmd>...\n");
+            return;
+        }
+        for arg in args {
+            let name = arg.clone();
+            if let Some(path) = self.find_in_path(&name) {
+                self.write_str(&path);
+                self.write_byte(b'\n');
+            } else {
+                self.write_str(arg);
+                self.write_str(": not found\n");
+            }
+        }
+    }
+
+    /// env
+    fn builtin_env(&mut self) {
+        for (k, v) in self.env.clone().iter() {
+            self.write_str(k);
+            self.write_byte(b'=');
+            self.write_str(v);
+            self.write_byte(b'\n');
+        }
+    }
+
+    /// basename path
+    fn builtin_basename(&mut self, args: &[String]) {
+        if args.is_empty() {
+            self.write_str("usage: basename <path>\n");
+            return;
+        }
+        let p = args[0].trim_end_matches('/');
+        let base = match p.rfind('/') {
+            Some(i) => &p[i + 1..],
+            None => p,
+        };
+        let base = if base.is_empty() { "/" } else { base };
+        self.write_str(base);
+        self.write_byte(b'\n');
+    }
+
+    /// dirname path
+    fn builtin_dirname(&mut self, args: &[String]) {
+        if args.is_empty() {
+            self.write_str("usage: dirname <path>\n");
+            return;
+        }
+        let p = args[0].trim_end_matches('/');
+        let dir = match p.rfind('/') {
+            Some(0) => "/",
+            Some(i) => &p[..i],
+            None => ".",
+        };
+        self.write_str(dir);
+        self.write_byte(b'\n');
+    }
+
     fn parse_command_line(line: &str) -> Vec<String> {
         let mut tokens = Vec::new();
         let mut current = String::new();
@@ -1005,9 +1637,14 @@ impl Terminal {
 
         match cmd_name {
             "help" => {
-                self.write_str("Please run this command:\n");
-                self.write_str("\tcd Binaries");
-                self.write_str("\tls");
+                self.write_str("mochiOS shell builtins:\n");
+                self.write_str("  ls [-l] [path]     cat <file>...     echo [-n] args\n");
+                self.write_str("  pwd                cd <dir>          stat <file>\n");
+                self.write_str("  head [-n N] <f>    tail [-n N] <f>   wc [-lwc] <f>\n");
+                self.write_str("  grep <pat> <f>     which <cmd>       env\n");
+                self.write_str("  basename <p>       dirname <p>       export K=V\n");
+                self.write_str("  clear              version           true / false\n");
+                self.write_str("External binaries in $PATH are executed directly (no BusyBox).\n");
             }
             "clear" => {
                 self.clear_screen();
@@ -1016,15 +1653,14 @@ impl Terminal {
                 if let Some(data) = read_file_from_fs("/System/about.txt", 4096) {
                     if let Ok(text) = core::str::from_utf8(&data) {
                         self.write_str(text);
-                        // テキストの末尾に改行がない場合に備えて調整
                         if !text.ends_with('\n') {
                             self.write_byte(b'\n');
                         }
                     } else {
-                        self.write_str("Error: /System/about.txt is not valid UTF-8... sorry :(\n");
+                        self.write_str("Error: /System/about.txt is not valid UTF-8\n");
                     }
                 } else {
-                    self.write_str("/System/about.txt not found \nwhy japanese people!?!?!?\n");
+                    self.write_str("mochiOS (about.txt not found)\n");
                 }
             }
             "cd" => {
@@ -1037,45 +1673,36 @@ impl Terminal {
                 }
             }
             "export" => {
-                // export VAR=VALUE
                 if let Some(eq) = joined_args.find('=') {
-                    let key = joined_args[..eq].trim();
-                    let val = joined_args[eq + 1..].trim();
-                    let key_owned = key.to_string();
-                    let val_owned = val.to_string();
-                    self.set_env(&key_owned, &val_owned);
+                    let key = joined_args[..eq].trim().to_string();
+                    let val = joined_args[eq + 1..].trim().to_string();
+                    self.set_env(&key, &val);
                 } else {
                     self.write_str("usage: export VAR=VALUE\n");
                 }
             }
+            "ls"       => self.builtin_ls(args),
+            "cat"      => self.builtin_cat(args),
+            "echo"     => self.builtin_echo(args),
+            "pwd"      => self.builtin_pwd(),
+            "stat"     => self.builtin_stat(args),
+            "head"     => self.builtin_head(args),
+            "tail"     => self.builtin_tail(args),
+            "wc"       => self.builtin_wc(args),
+            "grep"     => self.builtin_grep(args),
+            "which"    => self.builtin_which(args),
+            "env"      => self.builtin_env(),
+            "basename" => self.builtin_basename(args),
+            "dirname"  => self.builtin_dirname(args),
+            "true"     => {}
+            "false"    => {}
             _ => {
-                // PATH からコマンドを探して実行
-                let mut path = self.find_in_path(cmd_name).map(|s| s.to_string());
-                if path.is_none()
-                    && cmd_name != "busybox"
-                    && cmd_name != "busybox.elf"
-                    && Self::should_try_busybox_alias(cmd_name)
-                {
-                    path = self.busybox_fallback_in_path();
-                }
-                match path {
+                // PATH から直接実行（BusyBox フォールバック廃止）
+                match self.find_in_path(cmd_name).map(|s| s.to_string()) {
                     Some(bin_path) => {
-                        let mut arg_parts: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-                        // busybox は applet 名を argv[1] に要求するため補完する。
-                        if (cmd_name == "busybox" || cmd_name == "busybox.elf")
-                            && arg_parts.is_empty()
-                        {
-                            // no-op (usage 表示)
-                        } else if cmd_name != "busybox"
-                            && cmd_name != "busybox.elf"
-                            && bin_path.ends_with("/busybox.elf")
-                        {
-                            arg_parts.insert(0, cmd_name);
-                        }
-                        let result = exec_via_fs_service(&bin_path, &arg_parts);
-                        match result {
+                        let arg_parts: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+                        match exec_via_fs_service(&bin_path, &arg_parts) {
                             Ok(pid) => {
-                                // 子プロセスの出力をIPCで受け取りながら終了を待つ
                                 self.drain_child_output(pid);
                             }
                             Err(_) => {
@@ -1086,7 +1713,7 @@ impl Terminal {
                         }
                     }
                     None => {
-                        self.write_str("command / binary not found: ");
+                        self.write_str("command not found: ");
                         self.write_str(cmd_name);
                         self.write_byte(b'\n');
                     }

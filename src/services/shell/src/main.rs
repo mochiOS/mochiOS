@@ -46,6 +46,7 @@ fn main() {
     term.fg = 0x00FF_FFFF;
     term.prompt();
     term.flush();
+    println!("[SHELL] Ready. Input is on the QEMU VGA window.");
 
     loop {
         time::sleep_ms(10);

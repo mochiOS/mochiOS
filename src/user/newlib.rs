@@ -1,6 +1,29 @@
 //! Newlib サポート用のシステムコールグルーコード
 
 use super::sys::{syscall1, syscall2, syscall3, SyscallNumber};
+use core::sync::atomic::{AtomicBool, Ordering};
+
+static SBRK_LOCK: AtomicBool = AtomicBool::new(false);
+
+struct SbrkLockGuard;
+
+impl SbrkLockGuard {
+    fn lock() -> Self {
+        while SBRK_LOCK
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
+            core::hint::spin_loop();
+        }
+        Self
+    }
+}
+
+impl Drop for SbrkLockGuard {
+    fn drop(&mut self) {
+        SBRK_LOCK.store(false, Ordering::Release);
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn _write(fd: i32, buf: *const u8, len: usize) -> isize {
@@ -78,6 +101,8 @@ pub extern "C" fn isatty(fd: i32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn _sbrk(incr: isize) -> *mut u8 {
+    let _sbrk_guard = SbrkLockGuard::lock();
+
     // brk は mmap/MMIO マッピングでも更新されるため、ユーザー側で末端を
     // キャッシュすると整合性が壊れてヒープ破壊につながる。
     // 毎回 brk(0) で現在値を取得してから更新する。

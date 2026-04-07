@@ -43,12 +43,14 @@ pub fn wait(pid: i64) -> (i64, i32) {
 }
 
 /// 子プロセスの終了を非ブロッキングで確認する（WNOHANG）
-/// 戻り値: Some(pid) = 終了済み, None = まだ実行中
-pub fn wait_nonblocking(pid: i64) -> Option<i64> {
-    match wait_nonblocking_status(pid) {
-        WaitNonblockingStatus::Exited(done_pid) => Some(done_pid),
-        _ => None,
-    }
+///
+/// 戻り値:
+/// - `WaitNonblockingStatus::Exited(pid)`: 子プロセス終了済み
+/// - `WaitNonblockingStatus::Running`: 子プロセスはまだ実行中
+/// - `WaitNonblockingStatus::NoChild`: 対象子プロセスなし
+/// - `WaitNonblockingStatus::Error(errno)`: その他エラー
+pub fn wait_nonblocking(pid: i64) -> WaitNonblockingStatus {
+    wait_nonblocking_status(pid)
 }
 
 /// `wait(WNOHANG)` の詳細結果

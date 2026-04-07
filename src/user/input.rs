@@ -13,11 +13,11 @@ pub fn inject_scancode(scancode: u8) -> Result<(), u64> {
     }
 }
 
-/// 3バイトマウスパケットを入力キューへ注入する（Service/Core専用）
+/// 4バイトマウスパケットを入力キューへ注入する（Service/Core専用）
 ///
 /// `buttons`: bit0=Left, bit1=Right, bit2=Middle
 #[inline]
-pub fn inject_mouse_packet(buttons: u8, dx: i8, dy: i8) -> Result<(), u64> {
+pub fn inject_mouse_packet(buttons: u8, dx: i8, dy: i8, wheel: i8) -> Result<(), u64> {
     let mut status = buttons & 0x07;
     status |= 0x08;
     if dx < 0 {
@@ -26,7 +26,10 @@ pub fn inject_mouse_packet(buttons: u8, dx: i8, dy: i8) -> Result<(), u64> {
     if dy < 0 {
         status |= 1 << 5;
     }
-    let packet = u64::from(status) | (u64::from(dx as u8) << 8) | (u64::from(dy as u8) << 16);
+    let packet = u64::from(status)
+        | (u64::from(dx as u8) << 8)
+        | (u64::from(dy as u8) << 16)
+        | (u64::from(wheel as u8) << 24);
     let ret = syscall1(SyscallNumber::MouseInject as u64, packet);
     if ret == 0 {
         Ok(())

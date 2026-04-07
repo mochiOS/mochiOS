@@ -84,6 +84,7 @@ pub extern "C" fn sched_yield() -> i32 {
     0
 }
 
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_self() -> u64 {
     1 // スレッド ID = 1 (シングルスレッド)
 }

@@ -273,8 +273,7 @@ impl FileSystem for InitFs {
         // 新しいinodeを割り当て
         let inode_num = self.allocate_inode()?;
 
-        let mut new_file = InitFsInode::new_file(inode_num, String::from(name), parent_inode);
-        new_file.used = true;
+        let new_file = InitFsInode::new_file(inode_num, String::from(name), parent_inode);
 
         self.inodes[inode_num as usize] = new_file;
 
@@ -293,8 +292,7 @@ impl FileSystem for InitFs {
         // 新しいinodeを割り当て
         let inode_num = self.allocate_inode()?;
 
-        let mut new_dir = InitFsInode::new_dir(inode_num, String::from(name), parent_inode);
-        new_dir.used = true;
+        let new_dir = InitFsInode::new_dir(inode_num, String::from(name), parent_inode);
 
         self.inodes[inode_num as usize] = new_dir;
 
@@ -337,6 +335,10 @@ impl FileSystem for InitFs {
 
         if node.file_type != FileType::RegularFile {
             return Err(VfsError::IsDirectory);
+        }
+
+        if size as usize > FILE_SIZE {
+            return Err(VfsError::FileTooBig);
         }
 
         node.data.resize(size as usize, 0);

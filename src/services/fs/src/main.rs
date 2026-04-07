@@ -37,8 +37,8 @@ struct OpenFile {
     cache_start: u64,
     cache_len: usize,
     cache_data: [u8; READ_CACHE_SIZE],
-    dir_entries_cached: bool,        // ディレクトリエントリがキャッシュ済みか
-    dir_entry_count: usize,          // キャッシュされたエントリ数
+    dir_entries_cached: bool, // ディレクトリエントリがキャッシュ済みか
+    dir_entry_count: usize,   // キャッシュされたエントリ数
 }
 
 impl OpenFile {
@@ -62,12 +62,12 @@ impl OpenFile {
 
 static mut HANDLES: [OpenFile; MAX_HANDLES] = [OpenFile::new(); MAX_HANDLES];
 
-/// ディレクトリエントリキャッシュ（ハンドル単位で最大16エントリまでキャッシュ）
+/// ディレクトリエントリキャッシュ（単一ハンドル分を最大512エントリ保持）
 const MAX_DIR_CACHE_ENTRIES: usize = 512;
 struct DirEntryCache {
     handle_id: usize,
     inode: u64,
-    entries: [([u8; 256], usize); MAX_DIR_CACHE_ENTRIES], // (name_bytes, len)
+    entries: [([u8; 256], usize, u8); MAX_DIR_CACHE_ENTRIES], // (name_bytes, len, file_type)
     count: usize,
 }
 
@@ -76,12 +76,17 @@ impl DirEntryCache {
         Self {
             handle_id: usize::MAX,
             inode: 0,
-            entries: [([0; 256], 0); MAX_DIR_CACHE_ENTRIES],
+            entries: [([0; 256], 0, 0); MAX_DIR_CACHE_ENTRIES],
             count: 0,
         }
     }
 
-    fn cache_for_handle(&mut self, handle_id: usize, inode: u64, entries: &[common::vfs::DirEntry]) {
+    fn cache_for_handle(
+        &mut self,
+        handle_id: usize,
+        inode: u64,
+        entries: &[common::vfs::DirEntry],
+    ) {
         self.handle_id = handle_id;
         self.inode = inode;
         self.count = core::cmp::min(entries.len(), MAX_DIR_CACHE_ENTRIES);
@@ -90,12 +95,24 @@ impl DirEntryCache {
             let len = core::cmp::min(name_bytes.len(), 255);
             self.entries[i].0[..len].copy_from_slice(&name_bytes[..len]);
             self.entries[i].1 = len;
+            self.entries[i].2 = match entry.file_type {
+                common::vfs::FileType::Directory => 4,
+                common::vfs::FileType::RegularFile => 8,
+                common::vfs::FileType::SymbolicLink => 7,
+                common::vfs::FileType::BlockDevice => 6,
+                common::vfs::FileType::CharDevice => 2,
+                common::vfs::FileType::Fifo => 1,
+                common::vfs::FileType::Socket => 5,
+            };
         }
     }
 
-    fn get_entry(&self, index: usize) -> Option<&[u8]> {
+    fn get_entry(&self, index: usize) -> Option<(&[u8], u8)> {
         if index < self.count {
-            Some(&self.entries[index].0[..self.entries[index].1])
+            Some((
+                &self.entries[index].0[..self.entries[index].1],
+                self.entries[index].2,
+            ))
         } else {
             None
         }
@@ -133,6 +150,7 @@ impl FsRequest {
     const OP_FSTAT: u64 = 7;
     const OP_READDIR: u64 = 8;
     const OP_EXEC_STREAM: u64 = 9;
+    const OP_READDIR_ALL: u64 = 10;
 }
 
 #[repr(C)]
@@ -170,9 +188,11 @@ fn is_fs_request_message(data: &[u8], len: usize) -> bool {
                     | FsRequest::OP_WRITE
                     | FsRequest::OP_CLOSE
                     | FsRequest::OP_EXEC
+                        | FsRequest::OP_EXEC_STREAM
                     | FsRequest::OP_STAT
                     | FsRequest::OP_FSTAT
                     | FsRequest::OP_READDIR
+                    | FsRequest::OP_READDIR_ALL
             )
         }
         None => false,
@@ -440,6 +460,9 @@ fn read_exec_image_from_inode(fs: &dyn FileSystem, inode: u64) -> Result<Vec<u8>
     if &ehdr[0..4] != b"\x7fELF" {
         return Err(VfsError::InvalidArgument);
     }
+    if ehdr[4] != 2 {
+        return Err(VfsError::InvalidArgument);
+    }
 
     let e_phoff = read_u64_le(&ehdr, 32)
         .and_then(|v| usize::try_from(v).ok())
@@ -568,19 +591,7 @@ fn exec_from_image(
     requester_tid: u64,
 ) -> Result<u64, i64> {
     let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    // Prefer mapped, zero-copy streaming path via kernel (exec_from_fs_stream).
-    match process::exec_via_fs_stream(path, &arg_refs) {
-        Ok(pid) => Ok(pid),
-        Err(_e) => {
-            // Fallback to older copy-into-kernel path
-            process::exec_from_buffer_named_with_args_and_requester(
-                path,
-                image,
-                &arg_refs,
-                requester_tid,
-            )
-        }
-    }
+    process::exec_from_buffer_named_with_args_and_requester(path, image, &arg_refs, requester_tid)
 }
 
 //noinspection ALL
@@ -907,6 +918,13 @@ fn main() {
                     let fd = req.arg1 as usize;
                     if fd >= MAX_HANDLES || unsafe { !HANDLES[fd].used } {
                         resp.status = -9; // EBADF
+                        let resp_slice = unsafe {
+                            core::slice::from_raw_parts(
+                                resp.as_ref() as *const _ as *const u8,
+                                size_of::<FsResponse>(),
+                            )
+                        };
+                        let _ = ipc::ipc_send(sender, resp_slice);
                         continue;
                     }
                     let start = (req.arg2 >> 32) as usize;
@@ -915,12 +933,19 @@ fn main() {
                     if max_len == 0 {
                         resp.status = start as i64;
                         resp.len = 0;
+                        let resp_slice = unsafe {
+                            core::slice::from_raw_parts(
+                                resp.as_ref() as *const _ as *const u8,
+                                size_of::<FsResponse>(),
+                            )
+                        };
+                        let _ = ipc::ipc_send(sender, resp_slice);
                         continue;
                     }
                     unsafe {
                         if let Some(ref fs) = MOUNTED_FS {
                             let inode = HANDLES[fd].handle.inode;
-                            
+
                             // キャッシュがない、または異なるハンドル/inodeの場合は読み直し
                             if !DIR_CACHE.matches(fd, inode) {
                                 match fs.readdir(inode) {
@@ -931,6 +956,13 @@ fn main() {
                                     }
                                     Err(e) => {
                                         resp.status = vfs_error_to_errno(e);
+                                        let resp_slice = unsafe {
+                                            core::slice::from_raw_parts(
+                                                resp.as_ref() as *const _ as *const u8,
+                                                size_of::<FsResponse>(),
+                                            )
+                                        };
+                                        let _ = ipc::ipc_send(sender, resp_slice);
                                         continue;
                                     }
                                 }
@@ -940,15 +972,15 @@ fn main() {
                             let mut offset = 0usize;
                             let mut next_index = start;
                             let cached_count = HANDLES[fd].dir_entry_count;
-                            
+
                             for idx in start..cached_count {
-                                if let Some(name_bytes) = DIR_CACHE.get_entry(idx) {
+                                if let Some((name_bytes, _dtype)) = DIR_CACHE.get_entry(idx) {
                                     // "." と ".." はスキップ
                                     if name_bytes == b"." || name_bytes == b".." {
                                         next_index += 1;
                                         continue;
                                     }
-                                    let need = name_bytes.len() + 1; // '\n'
+                                    let need = name_bytes.len() + 1; // name + '\n'
                                     if need > max_len.saturating_sub(offset) {
                                         break;
                                     }
@@ -963,6 +995,76 @@ fn main() {
                                 }
                             }
                             resp.status = next_index as i64;
+                            resp.len = offset as u64;
+                        } else {
+                            resp.status = -5; // EIO
+                        }
+                    }
+                }
+                FsRequest::OP_READDIR_ALL => {
+                    let fd = req.arg1 as usize;
+                    if fd >= MAX_HANDLES || unsafe { !HANDLES[fd].used } {
+                        resp.status = -9; // EBADF
+                        let resp_slice = unsafe {
+                            core::slice::from_raw_parts(
+                                resp.as_ref() as *const _ as *const u8,
+                                size_of::<FsResponse>(),
+                            )
+                        };
+                        let _ = ipc::ipc_send(sender, resp_slice);
+                        continue;
+                    }
+                    unsafe {
+                        if let Some(ref fs) = MOUNTED_FS {
+                            let inode = HANDLES[fd].handle.inode;
+
+                            if !DIR_CACHE.matches(fd, inode) {
+                                match fs.readdir(inode) {
+                                    Ok(entries) => {
+                                        DIR_CACHE.cache_for_handle(fd, inode, &entries);
+                                        HANDLES[fd].dir_entries_cached = true;
+                                        HANDLES[fd].dir_entry_count = DIR_CACHE.count;
+                                    }
+                                    Err(e) => {
+                                        resp.status = vfs_error_to_errno(e);
+                                        let resp_slice = unsafe {
+                                            core::slice::from_raw_parts(
+                                                resp.as_ref() as *const _ as *const u8,
+                                                size_of::<FsResponse>(),
+                                            )
+                                        };
+                                        let _ = ipc::ipc_send(sender, resp_slice);
+                                        continue;
+                                    }
+                                }
+                            }
+
+                            let mut offset = 0usize;
+                            let cached_count = HANDLES[fd].dir_entry_count;
+
+                            for idx in 0..cached_count {
+                                if let Some((name_bytes, dtype)) = DIR_CACHE.get_entry(idx) {
+                                    if name_bytes == b"." || name_bytes == b".." {
+                                        continue;
+                                    }
+                                    let need = name_bytes.len() + 1 + 1 + 1; // name + '\0' + type + '\n'
+                                    if need > FS_DATA_MAX.saturating_sub(offset) {
+                                        break;
+                                    }
+                                    resp.data[offset..offset + name_bytes.len()]
+                                        .copy_from_slice(name_bytes);
+                                    offset += name_bytes.len();
+                                    resp.data[offset] = 0u8;
+                                    offset += 1;
+                                    resp.data[offset] = dtype;
+                                    offset += 1;
+                                    resp.data[offset] = b'\n';
+                                    offset += 1;
+                                } else {
+                                    break;
+                                }
+                            }
+                            resp.status = 0;
                             resp.len = offset as u64;
                         } else {
                             resp.status = -5; // EIO
@@ -985,42 +1087,52 @@ fn main() {
                         }
                     };
                     let path_str = path_owned.as_str();
-                    let exec_ret = if let Some(image) = exec_cache.get(path_str) {
-                        exec_from_image(path_str, image, &args_owned, sender)
+
+                    let cached_exec_ret = if let Some(image) = exec_cache.get(path_str) {
+                        Some(exec_from_image(path_str, image, &args_owned, sender))
                     } else {
+                        None
+                    };
+
+                    let mut load_and_exec = || {
                         unsafe {
                             if let Some(ref fs) = MOUNTED_FS {
                                 match resolve_path(fs.as_ref(), path_str) {
-                                    Ok(inode) => {
-                                        match read_exec_image_from_inode(fs.as_ref(), inode) {
-                                            Ok(elf_data) => {
-                                                // Avoid invoking exec_via_fs_stream from fs.service itself
-                                                // because the syscall path communicates back to fs.service
-                                                // and may deadlock. Use the buffer-copy syscall that
-                                                // accepts requester TID instead.
-                                                let arg_refs: Vec<&str> = args_owned.iter().map(|s| s.as_str()).collect();
-                                                match process::exec_from_buffer_named_with_args_and_requester(
-                                                    path_str,
-                                                    &elf_data,
-                                                    &arg_refs,
-                                                    sender,
-                                                ) {
-                                                    Ok(pid) => {
-                                                        exec_cache.insert(path_str, elf_data);
-                                                        Ok(pid)
-                                                    }
-                                                    Err(errno) => Err(errno),
+                                    Ok(inode) => match read_exec_image_from_inode(fs.as_ref(), inode) {
+                                        Ok(elf_data) => {
+                                            // Avoid invoking exec_via_fs_stream from fs.service itself
+                                            // because the syscall path communicates back to fs.service
+                                            // and may deadlock. Use the buffer-copy syscall that
+                                            // accepts requester TID instead.
+                                            let arg_refs: Vec<&str> =
+                                                args_owned.iter().map(|s| s.as_str()).collect();
+                                            match process::exec_from_buffer_named_with_args_and_requester(
+                                                path_str,
+                                                &elf_data,
+                                                &arg_refs,
+                                                sender,
+                                            ) {
+                                                Ok(pid) => {
+                                                    exec_cache.insert(path_str, elf_data);
+                                                    Ok(pid)
                                                 }
+                                                Err(errno) => Err(errno),
                                             }
-                                            Err(e) => Err(vfs_error_to_errno(e)),
                                         }
-                                    }
+                                        Err(e) => Err(vfs_error_to_errno(e)),
+                                    },
                                     Err(e) => Err(vfs_error_to_errno(e)),
                                 }
                             } else {
                                 Err(-5) // EIO
                             }
                         }
+                    };
+
+                    let exec_ret = match cached_exec_ret {
+                        Some(Ok(pid)) => Ok(pid),
+                        // キャッシュ実行に失敗した場合は再読込して再実行する
+                        Some(Err(_)) | None => load_and_exec(),
                     };
                     match exec_ret {
                         Ok(pid) => resp.status = pid as i64,
@@ -1071,10 +1183,20 @@ fn main() {
                     };
 
                     // read ELF header and program headers to determine required_end
+                    let fs_ref = match MOUNTED_FS.as_ref() {
+                        Some(fs) => fs.as_ref(),
+                        None => {
+                            resp.status = -5; // EIO
+                            let resp_slice = core::slice::from_raw_parts(
+                                resp.as_ref() as *const _ as *const u8,
+                                size_of::<FsResponse>(),
+                            );
+                            let _ = ipc::ipc_send(sender, resp_slice);
+                            continue;
+                        }
+                    };
                     let mut ehdr = [0u8; ELF_HEADER_SIZE];
-                    if let Err(e) =
-                        read_exact_at(MOUNTED_FS.as_ref().unwrap().as_ref(), inode, 0, &mut ehdr)
-                    {
+                    if let Err(e) = read_exact_at(fs_ref, inode, 0, &mut ehdr) {
                         resp.status = vfs_error_to_errno(e);
                         let resp_slice = core::slice::from_raw_parts(
                             resp.as_ref() as *const _ as *const u8,
@@ -1084,6 +1206,15 @@ fn main() {
                         continue;
                     }
                     if &ehdr[0..4] != b"\x7fELF" {
+                        resp.status = -22;
+                        let resp_slice = core::slice::from_raw_parts(
+                            resp.as_ref() as *const _ as *const u8,
+                            size_of::<FsResponse>(),
+                        );
+                        let _ = ipc::ipc_send(sender, resp_slice);
+                        continue;
+                    }
+                    if ehdr[4] != 2 {
                         resp.status = -22;
                         let resp_slice = core::slice::from_raw_parts(
                             resp.as_ref() as *const _ as *const u8,
@@ -1114,12 +1245,7 @@ fn main() {
 
                     // read hdr+ph table
                     let mut hdr_and_ph = vec![0u8; ph_end];
-                    if let Err(e) = read_exact_at(
-                        MOUNTED_FS.as_ref().unwrap().as_ref(),
-                        inode,
-                        0,
-                        &mut hdr_and_ph,
-                    ) {
+                    if let Err(e) = read_exact_at(fs_ref, inode, 0, &mut hdr_and_ph) {
                         resp.status = vfs_error_to_errno(e);
                         let resp_slice = core::slice::from_raw_parts(
                             resp.as_ref() as *const _ as *const u8,
@@ -1163,47 +1289,73 @@ fn main() {
                     resp.len = required_end as u64;
                     // send header
                     let resp_slice = core::slice::from_raw_parts(
-                            resp.as_ref() as *const _ as *const u8,
-                            size_of::<FsResponse>(),
-                        );
-                        let _ = ipc::ipc_send(sender, resp_slice);
-                        // stream raw data chunks by reading from fs in chunks
-                        let mut offset = 0usize;
-                        let chunk_payload = IPC_MAX_MSG_SIZE;
-                        unsafe {
-                            let fs_ref: &dyn common::vfs::FileSystem =
-                                &*MOUNTED_FS.as_ref().unwrap().as_ref();
-                            while offset < required_end {
-                                let take = core::cmp::min(chunk_payload, required_end - offset);
-                                let mut tmp = vec![0u8; take];
-                                match fs_ref.read(inode, offset as u64, &mut tmp) {
-                                    Ok(nread) => {
-                                        if nread == 0 {
-                                            break;
-                                        }
-                                        let _ = ipc::ipc_send(sender, &tmp[..nread]);
-                                        offset += nread;
-                                    }
-                                    Err(e) => {
-                                        let err_resp = FsResponse {
-                                            status: vfs_error_to_errno(e),
-                                            len: 0,
-                                            data: [0; FS_DATA_MAX],
-                                        };
-                                        let err_slice = core::slice::from_raw_parts(
-                                            &err_resp as *const _ as *const u8,
-                                            size_of::<FsResponse>(),
-                                        );
-                                        let _ = ipc::ipc_send(sender, err_slice);
+                        resp.as_ref() as *const _ as *const u8,
+                        size_of::<FsResponse>(),
+                    );
+                    if ipc::ipc_send(sender, resp_slice) != 0 {
+                        continue;
+                    }
+                    // stream raw data chunks by reading from fs in chunks
+                    let mut offset = 0usize;
+                    let chunk_payload = FS_DATA_MAX;
+                    let mut tmp = [0u8; FS_DATA_MAX];
+                    while offset < required_end {
+                        let take = core::cmp::min(chunk_payload, required_end - offset);
+                        match fs_ref.read(inode, offset as u64, &mut tmp[..take]) {
+                            Ok(nread) => {
+                                if nread == 0 {
+                                    break;
+                                }
+                                let mut sent = false;
+                                for _ in 0..64 {
+                                    if ipc::ipc_send(sender, &tmp[..nread]) == 0 {
+                                        sent = true;
                                         break;
                                     }
+                                    task::yield_now();
                                 }
+                                if !sent {
+                                    let err_resp = FsResponse {
+                                        status: -5,
+                                        len: 0,
+                                        data: [0; FS_DATA_MAX],
+                                    };
+                                    let err_slice = core::slice::from_raw_parts(
+                                        &err_resp as *const _ as *const u8,
+                                        size_of::<FsResponse>(),
+                                    );
+                                    for _ in 0..8 {
+                                        if ipc::ipc_send(sender, err_slice) == 0 {
+                                            break;
+                                        }
+                                        task::yield_now();
+                                    }
+                                    break;
+                                }
+                                offset += nread;
+                            }
+                            Err(e) => {
+                                let err_resp = FsResponse {
+                                    status: vfs_error_to_errno(e),
+                                    len: 0,
+                                    data: [0; FS_DATA_MAX],
+                                };
+                                let err_slice = core::slice::from_raw_parts(
+                                    &err_resp as *const _ as *const u8,
+                                    size_of::<FsResponse>(),
+                                );
+                                let _ = ipc::ipc_send(sender, err_slice);
+                                break;
                             }
                         }
-                        // done
-                        continue;
+                    }
+                    // done
+                    continue;
                 },
-                0_u64 | 10_u64..=u64::MAX => todo!(),
+                0_u64 | 11_u64..=u64::MAX => {
+                    resp.status = -38; // ENOSYS
+                    resp.len = 0;
+                }
             }
 
             // 通常の応答を送信（continue していない操作用）

@@ -8,7 +8,7 @@ use crate::mem::{frame, paging};
 use crate::result::{Kernel, Memory, Result};
 
 const PAGE_SIZE: u64 = 4096;
-const USER_STACK_TOP: u64 = 0x0000_8000_0000; // 2GB
+const USER_STACK_TOP: u64 = 0x0000_8000_0000; // 2GB (2^31)
 const USER_STACK_GUARD_PAGES: u64 = 1;
 const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
 

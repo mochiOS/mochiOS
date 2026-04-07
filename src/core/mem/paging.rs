@@ -1397,20 +1397,25 @@ pub fn map_page_in_table(
         return Err(Kernel::Memory(Memory::AlignmentError));
     }
 
-    let phys_off = physical_memory_offset().ok_or(Kernel::Memory(Memory::OutOfMemory))?;
-    
+    let phys_off = physical_memory_offset().ok_or(Kernel::Memory(Memory::NotMapped))?;
+
     // ページテーブルエントリを手動で歩いてマップ
-    let l4_vaddr = table_phys.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+    let l4_vaddr = table_phys
+        .checked_add(phys_off)
+        .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
     let l4 = unsafe { &mut *(l4_vaddr as *mut PageTable) };
-    
+
     let vaddr = VirtAddr::new(virt_addr);
     let l4i = vaddr.p4_index();
     let l4e = &mut l4[l4i];
-    
+
     // L3テーブルの確保またはアクセス
     let l3_phys = if l4e.is_unused() || !l4e.flags().contains(PageTableFlags::PRESENT) {
-        let new_l3_frame = frame::allocate_frame()?; let new_l3 = new_l3_frame.start_address().as_u64();
-        let new_l3_vaddr = new_l3.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+        let new_l3_frame = frame::allocate_frame()?;
+        let new_l3 = new_l3_frame.start_address().as_u64();
+        let new_l3_vaddr = new_l3
+            .checked_add(phys_off)
+            .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
         unsafe {
             core::ptr::write_bytes(new_l3_vaddr as *mut u8, 0, 4096);
         }
@@ -1421,18 +1426,33 @@ pub fn map_page_in_table(
         l4e.set_addr(PhysAddr::new(new_l3), flags);
         new_l3
     } else {
+        if user_accessible && !l4e.flags().contains(PageTableFlags::USER_ACCESSIBLE) {
+            l4e.set_addr(l4e.addr(), l4e.flags() | PageTableFlags::USER_ACCESSIBLE);
+        }
         l4e.addr().as_u64()
     };
-    
-    let l3_vaddr = l3_phys.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+
+    let l3_vaddr = l3_phys
+        .checked_add(phys_off)
+        .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
     let l3 = unsafe { &mut *(l3_vaddr as *mut PageTable) };
     let l3i = vaddr.p3_index();
     let l3e = &mut l3[l3i];
-    
+
+    if !l3e.is_unused()
+        && l3e.flags().contains(PageTableFlags::PRESENT)
+        && l3e.flags().contains(PageTableFlags::HUGE_PAGE)
+    {
+        return Err(Kernel::Memory(Memory::AlreadyMapped));
+    }
+
     // L2テーブルの確保またはアクセス
     let l2_phys = if l3e.is_unused() || !l3e.flags().contains(PageTableFlags::PRESENT) {
-        let new_l2_frame = frame::allocate_frame()?; let new_l2 = new_l2_frame.start_address().as_u64();
-        let new_l2_vaddr = new_l2.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+        let new_l2_frame = frame::allocate_frame()?;
+        let new_l2 = new_l2_frame.start_address().as_u64();
+        let new_l2_vaddr = new_l2
+            .checked_add(phys_off)
+            .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
         unsafe {
             core::ptr::write_bytes(new_l2_vaddr as *mut u8, 0, 4096);
         }
@@ -1443,18 +1463,33 @@ pub fn map_page_in_table(
         l3e.set_addr(PhysAddr::new(new_l2), flags);
         new_l2
     } else {
+        if user_accessible && !l3e.flags().contains(PageTableFlags::USER_ACCESSIBLE) {
+            l3e.set_addr(l3e.addr(), l3e.flags() | PageTableFlags::USER_ACCESSIBLE);
+        }
         l3e.addr().as_u64()
     };
-    
-    let l2_vaddr = l2_phys.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+
+    let l2_vaddr = l2_phys
+        .checked_add(phys_off)
+        .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
     let l2 = unsafe { &mut *(l2_vaddr as *mut PageTable) };
     let l2i = vaddr.p2_index();
     let l2e = &mut l2[l2i];
-    
+
+    if !l2e.is_unused()
+        && l2e.flags().contains(PageTableFlags::PRESENT)
+        && l2e.flags().contains(PageTableFlags::HUGE_PAGE)
+    {
+        return Err(Kernel::Memory(Memory::AlreadyMapped));
+    }
+
     // L1テーブルの確保またはアクセス
     let l1_phys = if l2e.is_unused() || !l2e.flags().contains(PageTableFlags::PRESENT) {
-        let new_l1_frame = frame::allocate_frame()?; let new_l1 = new_l1_frame.start_address().as_u64();
-        let new_l1_vaddr = new_l1.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+        let new_l1_frame = frame::allocate_frame()?;
+        let new_l1 = new_l1_frame.start_address().as_u64();
+        let new_l1_vaddr = new_l1
+            .checked_add(phys_off)
+            .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
         unsafe {
             core::ptr::write_bytes(new_l1_vaddr as *mut u8, 0, 4096);
         }
@@ -1465,14 +1500,19 @@ pub fn map_page_in_table(
         l2e.set_addr(PhysAddr::new(new_l1), flags);
         new_l1
     } else {
+        if user_accessible && !l2e.flags().contains(PageTableFlags::USER_ACCESSIBLE) {
+            l2e.set_addr(l2e.addr(), l2e.flags() | PageTableFlags::USER_ACCESSIBLE);
+        }
         l2e.addr().as_u64()
     };
-    
-    let l1_vaddr = l1_phys.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+
+    let l1_vaddr = l1_phys
+        .checked_add(phys_off)
+        .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
     let l1 = unsafe { &mut *(l1_vaddr as *mut PageTable) };
     let l1i = vaddr.p1_index();
     let l1e = &mut l1[l1i];
-    
+
     // 最終マッピング
     let mut flags = PageTableFlags::PRESENT;
     if writable {
@@ -1482,7 +1522,7 @@ pub fn map_page_in_table(
         flags |= PageTableFlags::USER_ACCESSIBLE;
     }
     l1e.set_addr(PhysAddr::new(phys_addr), flags);
-    
+
     Ok(())
 }
 
@@ -1497,64 +1537,68 @@ pub fn map_page_in_table(
 /// エラー時: Err(Kernel::Memory(Memory::*)
 pub fn unmap_page_in_table(table_phys: u64, virt_addr: u64) -> Result<()> {
     if (table_phys & 0xfff) != 0 {
-        return Err(Kernel::Memory(Memory::AlignmentError))?;
+        return Err(Kernel::Memory(Memory::AlignmentError));
     }
     if (virt_addr & 0xfff) != 0 {
-        return Err(Kernel::Memory(Memory::AlignmentError))?;
+        return Err(Kernel::Memory(Memory::AlignmentError));
     }
 
-    let phys_off = physical_memory_offset().ok_or(Kernel::Memory(Memory::OutOfMemory))?;
-    let l4_vaddr = table_phys.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+    let phys_off = physical_memory_offset().ok_or(Kernel::Memory(Memory::NotMapped))?;
+    let l4_vaddr = table_phys
+        .checked_add(phys_off)
+        .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
     let l4 = unsafe { &mut *(l4_vaddr as *mut PageTable) };
-    
+
     let vaddr = VirtAddr::new(virt_addr);
     let l4i = vaddr.p4_index();
     let l4e = &mut l4[l4i];
-    
+
     if l4e.is_unused() || !l4e.flags().contains(PageTableFlags::PRESENT) {
         return Ok(()); // すでにアンマップ済み
     }
-    
+
     let l3_phys = l4e.addr().as_u64();
-    let l3_vaddr = l3_phys.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+    let l3_vaddr = l3_phys
+        .checked_add(phys_off)
+        .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
     let l3 = unsafe { &mut *(l3_vaddr as *mut PageTable) };
     let l3i = vaddr.p3_index();
     let l3e = &mut l3[l3i];
-    
+
     if l3e.is_unused() || !l3e.flags().contains(PageTableFlags::PRESENT) {
         return Ok(());
     }
-    
+
     let l2_phys = l3e.addr().as_u64();
-    let l2_vaddr = l2_phys.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+    let l2_vaddr = l2_phys
+        .checked_add(phys_off)
+        .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
     let l2 = unsafe { &mut *(l2_vaddr as *mut PageTable) };
     let l2i = vaddr.p2_index();
     let l2e = &mut l2[l2i];
-    
+
     if l2e.is_unused() || !l2e.flags().contains(PageTableFlags::PRESENT) {
         return Ok(());
     }
-    
+
     let l1_phys = l2e.addr().as_u64();
-    let l1_vaddr = l1_phys.checked_add(phys_off).ok_or(Kernel::Memory(Memory::OutOfMemory))?;
+    let l1_vaddr = l1_phys
+        .checked_add(phys_off)
+        .ok_or(Kernel::Memory(Memory::OutOfMemory))?;
     let l1 = unsafe { &mut *(l1_vaddr as *mut PageTable) };
     let l1i = vaddr.p1_index();
     let l1e = &mut l1[l1i];
-    
+
     // エントリをクリア
     l1e.set_unused();
-    
+
     // TLBフラッシュ（現在のCR3がtable_physの場合のみ）
     let (current_cr3, _) = Cr3::read();
     if current_cr3.start_address().as_u64() == table_phys {
-        use x86_64::structures::paging::Translate;
-        if let Some(page) = Page::<Size4KiB>::from_start_address(vaddr).ok() {
-            unsafe {
-                core::arch::asm!("invlpg [{}]", in(reg) virt_addr, options(nostack, preserves_flags));
-            }
+        unsafe {
+            core::arch::asm!("invlpg [{}]", in(reg) virt_addr, options(nostack, preserves_flags));
         }
     }
-    
+
     Ok(())
 }
-

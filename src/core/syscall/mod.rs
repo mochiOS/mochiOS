@@ -113,6 +113,26 @@ pub fn copy_from_user(src_ptr: u64, dst: &mut [u8]) -> Result<(), u64> {
     Ok(())
 }
 
+/// バイト列をユーザー空間へコピーする（コピー元はカーネル空間）。
+pub fn copy_to_user(dst_ptr: u64, src: &[u8]) -> Result<(), u64> {
+    if src.is_empty() {
+        return Ok(());
+    }
+    if dst_ptr == 0 {
+        return Err(EFAULT);
+    }
+    if !validate_user_ptr(dst_ptr, src.len() as u64) {
+        return Err(EFAULT);
+    }
+
+    let src_ptr = src.as_ptr();
+    let len = src.len();
+    with_user_memory_access(|| unsafe {
+        core::ptr::copy_nonoverlapping(src_ptr, dst_ptr as *mut u8, len);
+    });
+    Ok(())
+}
+
 /// ユーザーポインタを実際に参照する短い区間を、必要に応じてユーザーCR3で実行する。
 ///
 /// KPTI有効時、syscall本体はkernel CR3で実行されるため、ユーザー仮想アドレスを
@@ -215,7 +235,22 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Chdir as u64 => fs::chdir(arg0),
         x if x == SyscallNumber::KeyboardRead as u64 => keyboard::read_char(),
         x if x == SyscallNumber::KeyboardReadTap as u64 => keyboard::read_char_tap(),
-        x if x == SyscallNumber::MouseRead as u64 => mouse::read_packet(),
+        x if x == SyscallNumber::MouseRead as u64 => {
+            if arg0 == 0 {
+                EFAULT
+            } else {
+                match mouse::read_packet() {
+                    Ok(packet) => {
+                        let packet_bytes = (packet as u32).to_ne_bytes();
+                        match copy_to_user(arg0, &packet_bytes) {
+                            Ok(()) => SUCCESS,
+                            Err(errno) => errno,
+                        }
+                    }
+                    Err(errno) => errno,
+                }
+            }
+        }
         x if x == SyscallNumber::KeyboardInject as u64 => keyboard::inject_scancode(arg0),
         x if x == SyscallNumber::MouseInject as u64 => mouse::inject_packet(arg0),
         x if x == SyscallNumber::MapPhysicalRange as u64 => mmio::map_physical_range(arg0, arg1),
@@ -281,11 +316,9 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
             privileged::get_physical_addr(arg0, arg1)
         }
         x if x == SyscallNumber::AllocSharedPages as u64 => {
-            privileged::alloc_shared_pages(arg0, arg1, arg2)
+            privileged::alloc_shared_pages(arg0, arg1, arg2, arg3)
         }
-        x if x == SyscallNumber::UnmapPages as u64 => {
-            privileged::unmap_pages(arg0, arg1, arg2)
-        }
+        x if x == SyscallNumber::UnmapPages as u64 => privileged::unmap_pages(arg0, arg1, arg2),
         x if x == SyscallNumber::IpcSendPages as u64 => {
             privileged::ipc_send_pages(arg0, arg1, arg2, arg3)
         }

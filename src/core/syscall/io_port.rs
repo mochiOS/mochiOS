@@ -163,23 +163,25 @@ pub fn port_in_words(port: u64, dst_ptr: u64, count: u64) -> u64 {
     }
 
     let port = port as u16;
-    let out_base = dst_ptr as *mut u16;
-    crate::syscall::with_user_memory_access(|| {
-        for i in 0..count {
-            let mut value: u16 = 0;
-            unsafe {
-                asm!(
-                    "in ax, dx",
-                    in("dx") port,
-                    out("ax") value,
-                    options(nomem, nostack, preserves_flags)
-                );
-                core::ptr::write_unaligned(out_base.add(i as usize), value);
-            }
+    let mut tmp = alloc::vec![0u8; byte_len as usize];
+    for i in 0..count as usize {
+        let mut value: u16 = 0;
+        unsafe {
+            asm!(
+                "in ax, dx",
+                in("dx") port,
+                out("ax") value,
+                options(nomem, nostack, preserves_flags)
+            );
         }
-    });
+        let off = i * 2;
+        tmp[off..off + 2].copy_from_slice(&value.to_ne_bytes());
+    }
 
-    SUCCESS
+    match crate::syscall::copy_to_user(dst_ptr, &tmp) {
+        Ok(()) => SUCCESS,
+        Err(e) => e,
+    }
 }
 
 /// I/Oポートへ16-bitワード列を一括書き込み
@@ -208,20 +210,23 @@ pub fn port_out_words(port: u64, src_ptr: u64, count: u64) -> u64 {
     }
 
     let port = port as u16;
-    let in_base = src_ptr as *const u16;
-    crate::syscall::with_user_memory_access(|| {
-        for i in 0..count {
-            unsafe {
-                let value = core::ptr::read_unaligned(in_base.add(i as usize));
-                asm!(
-                    "out dx, ax",
-                    in("dx") port,
-                    in("ax") value,
-                    options(nomem, nostack, preserves_flags)
-                );
-            }
+    let mut tmp = alloc::vec![0u8; byte_len as usize];
+    if let Err(e) = crate::syscall::copy_from_user(src_ptr, &mut tmp) {
+        return e;
+    }
+
+    for i in 0..count as usize {
+        let off = i * 2;
+        let value = u16::from_ne_bytes([tmp[off], tmp[off + 1]]);
+        unsafe {
+            asm!(
+                "out dx, ax",
+                in("dx") port,
+                in("ax") value,
+                options(nomem, nostack, preserves_flags)
+            );
         }
-    });
+    }
 
     SUCCESS
 }

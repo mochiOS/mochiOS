@@ -204,6 +204,8 @@ pub const SUCCESS: u64 = 0;
 pub const EPERM: u64 = (-1i64) as u64;
 /// ファイルが見つからない
 pub const ENOENT: u64 = (-2i64) as u64;
+/// ディレクトリではない
+pub const ENOTDIR: u64 = (-20i64) as u64;
 /// プロセスが見つからない
 pub const ESRCH: u64 = (-3i64) as u64;
 /// I/Oエラー

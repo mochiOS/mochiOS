@@ -21,13 +21,13 @@ fn caller_has_mouse_privilege() -> bool {
 ///
 /// 返り値は `b0 | (b1 << 8) | (b2 << 16)` 形式。
 /// キューが空なら ENODATA。
-pub fn read_packet() -> u64 {
+pub fn read_packet() -> Result<u64, u64> {
     if !caller_has_mouse_privilege() {
-        return EPERM;
+        return Err(EPERM);
     }
     match crate::util::ps2mouse::pop_packet() {
-        Some(packet) => packet as u64,
-        None => ENODATA,
+        Some(packet) => Ok(packet as u64),
+        None => Err(ENODATA),
     }
 }
 
@@ -38,24 +38,25 @@ pub fn inject_packet(packet: u64) -> u64 {
     if !caller_has_mouse_privilege() {
         return EPERM;
     }
-    if packet > 0x00FF_FFFF {
+    if packet > 0xFF_FFFF {
         return EINVAL;
     }
-    let mut b0 = (packet & 0xFF) as u8;
+    let b0 = (packet & 0xFF) as u8;
     let b1 = ((packet >> 8) & 0xFF) as u8;
     let b2 = ((packet >> 16) & 0xFF) as u8;
     // caller が buttons のみ渡した場合でもパケット同期できるよう補完
+    let mut status = b0;
     if (b0 & 0x08) == 0 {
-        b0 = (b0 & 0x07) | 0x08;
+        status |= 0x08;
+        status &= !((1 << 4) | (1 << 5));
         if (b1 & 0x80) != 0 {
-            b0 |= 1 << 4;
+            status |= 1 << 4;
         }
         if (b2 & 0x80) != 0 {
-            b0 |= 1 << 5;
+            status |= 1 << 5;
         }
     }
-    crate::util::ps2mouse::push_byte(b0);
-    crate::util::ps2mouse::push_byte(b1);
-    crate::util::ps2mouse::push_byte(b2);
+    let packet32 = u32::from(status) | (u32::from(b1) << 8) | (u32::from(b2) << 16);
+    crate::util::ps2mouse::push_packet(packet32);
     SUCCESS
 }

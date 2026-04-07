@@ -376,6 +376,8 @@ pub fn fork() -> u64 {
 /// 成功時はSUCCESS
 pub fn sleep(milliseconds: u64) -> u64 {
     if milliseconds == 0 {
+        // sleep(0) は待機せず、協調的に実行権を譲る
+        crate::task::yield_now();
         return SUCCESS;
     }
     let wait_ticks = milliseconds

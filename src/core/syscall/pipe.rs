@@ -142,10 +142,10 @@ pub fn close_read_end(id: usize) {
     }
 }
 
-/// パイプに書き込む。バッファが満杯の場合は ENOSYS（簡易実装: ノンブロッキング）。
+/// パイプに書き込む。バッファが満杯の場合は EAGAIN（簡易実装: ノンブロッキング）。
 /// 書き込んだバイト数を返す。
 pub fn pipe_write(id: usize, data: &[u8]) -> Result<usize, u64> {
-    use super::types::{ENOSYS, EPIPE};
+    use super::types::{EAGAIN, EPIPE};
     let mut table = PIPE_TABLE.lock();
     match table.get_mut(id).and_then(|s| s.as_mut()) {
         None => Err(EPIPE),
@@ -154,7 +154,7 @@ pub fn pipe_write(id: usize, data: &[u8]) -> Result<usize, u64> {
                 return Err(EPIPE);
             }
             if pb.is_full() {
-                return Err(ENOSYS);
+                return Err(EAGAIN);
             }
             let n = pb.write_bytes(data);
             pb.wake_reader();
@@ -240,6 +240,7 @@ pub fn pipe2_syscall(pipefd_ptr: u64, flags: u64) -> u64 {
         dir_path: None,
         is_remote: false,
         fd_remote: 0,
+        remote_refs: None,
         pipe_id: Some(pipe_id),
         pipe_write: false,
     });
@@ -249,6 +250,7 @@ pub fn pipe2_syscall(pipefd_ptr: u64, flags: u64) -> u64 {
         dir_path: None,
         is_remote: false,
         fd_remote: 0,
+        remote_refs: None,
         pipe_id: Some(pipe_id),
         pipe_write: true,
     });

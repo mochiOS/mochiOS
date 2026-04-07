@@ -171,9 +171,6 @@ pub fn writev(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
 
 /// fd >= 3 への書き込み（パイプ書き込み端か通常ファイルへの書き込み）
 fn write_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
-    use super::types::{ENOSYS, EPIPE};
-    use crate::task::fd_table::FileHandle;
-
     let pid = match crate::task::current_thread_id()
         .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
     {
@@ -184,10 +181,7 @@ fn write_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     let idx = fd as usize;
     // パイプかどうか確認
     let pipe_info = crate::task::with_process(pid, |p| {
-        p.fd_table().get_raw(idx).map(|ptr| {
-            let fh = unsafe { &*ptr };
-            (fh.pipe_id, fh.pipe_write)
-        })
+        p.fd_table().get(idx).map(|fh| (fh.pipe_id, fh.pipe_write))
     })
     .flatten();
 
@@ -274,10 +268,7 @@ fn read_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
 
     let idx = fd as usize;
     let pipe_info = crate::task::with_process(pid, |p| {
-        p.fd_table().get_raw(idx).map(|ptr| {
-            let fh = unsafe { &*(ptr as *const crate::task::fd_table::FileHandle) };
-            (fh.pipe_id, fh.pipe_write)
-        })
+        p.fd_table().get(idx).map(|fh| (fh.pipe_id, fh.pipe_write))
     })
     .flatten();
 

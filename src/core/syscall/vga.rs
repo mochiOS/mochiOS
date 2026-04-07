@@ -65,6 +65,9 @@ pub fn map_framebuffer() -> u64 {
         Some(v) => v,
         None => return EINVAL,
     };
+    if fb_size == 0 {
+        return EINVAL;
+    }
     // 先頭の物理オフセット分も含めてページ境界まで拡張する
     let map_size = fb_size
         .checked_add(phys_offset)
@@ -104,10 +107,11 @@ pub fn map_framebuffer() -> u64 {
             None => return Err(ENOMEM),
         };
 
+        let new_end = map_start.checked_add(map_size).ok_or(ENOMEM)?;
+
         crate::mem::paging::map_physical_range_to_user(pt_phys, map_start, phys_base, map_size)
             .map_err(|_| ENOMEM)?;
 
-        let new_end = map_start.checked_add(map_size).unwrap_or(map_start);
         process.set_heap_end(new_end);
 
         Ok(map_start + phys_offset)

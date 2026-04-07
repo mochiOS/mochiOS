@@ -24,6 +24,14 @@ fn current_process_page_table() -> Option<u64> {
         .flatten()
 }
 
+fn translate_user_vaddr_to_phys(table_phys: u64, user_vaddr: u64) -> Result<u64, u64> {
+    let virt = VirtAddr::try_new(user_vaddr).map_err(|_| EFAULT)?;
+    match crate::mem::paging::translate_addr_in_table(table_phys, virt) {
+        Some((phys, _)) => Ok(phys.as_u64()),
+        None => Err(EFAULT),
+    }
+}
+
 /// 物理アドレス範囲を呼び出し元プロセスへマップする
 ///
 /// # Returns
@@ -47,6 +55,11 @@ pub fn map_physical_range(phys_addr: u64, size: u64) -> u64 {
         Some(v) if v != 0 => v,
         _ => return EINVAL,
     };
+
+    if !crate::mem::frame::is_allowed_mmio_range(aligned_phys, mapped_size) {
+        return EINVAL;
+    }
+
     if mapped_size > MAX_MMIO_MAP_SIZE {
         return EINVAL;
     }
@@ -78,6 +91,12 @@ pub fn map_physical_range(phys_addr: u64, size: u64) -> u64 {
             None => return Err(ENOMEM),
         };
 
+        let new_end = map_start.checked_add(mapped_size).ok_or(ENOMEM)?;
+        let final_addr = map_start.checked_add(page_offset).ok_or(ENOMEM)?;
+        if final_addr > 0x0000_7FFF_FFFF_FFFF {
+            return Err(ENOMEM);
+        }
+
         crate::mem::paging::map_physical_range_to_user(
             pt_phys,
             map_start,
@@ -86,10 +105,8 @@ pub fn map_physical_range(phys_addr: u64, size: u64) -> u64 {
         )
         .map_err(|_| ENOMEM)?;
 
-        let new_end = map_start.checked_add(mapped_size).unwrap_or(map_start);
         process.set_heap_end(new_end);
-
-        map_start.checked_add(page_offset).ok_or(ENOMEM)
+        Ok(final_addr)
     });
 
     match result {
@@ -102,6 +119,10 @@ pub fn map_physical_range(phys_addr: u64, size: u64) -> u64 {
 /// ユーザー仮想アドレスを物理アドレスへ変換する
 ///
 /// xHCI など DMA デバイスに渡すアドレス算出で使用する。
+///
+/// # 注意
+/// 現在はページの pin/refcount を行わないため、呼び出し側は DMA 完了まで
+/// 対象ページがアンマップされないことを保証する必要がある。
 pub fn virt_to_phys(user_vaddr: u64) -> u64 {
     if !caller_has_mmio_privilege() {
         return EPERM;
@@ -118,8 +139,8 @@ pub fn virt_to_phys(user_vaddr: u64) -> u64 {
         None => return ENOMEM,
     };
 
-    match crate::mem::paging::translate_addr_in_table(table_phys, VirtAddr::new(user_vaddr)) {
-        Some((phys, _)) => phys.as_u64(),
-        None => EFAULT,
+    match translate_user_vaddr_to_phys(table_phys, user_vaddr) {
+        Ok(phys) => phys,
+        Err(e) => e,
     }
 }

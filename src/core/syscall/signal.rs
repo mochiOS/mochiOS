@@ -5,8 +5,8 @@
 
 use super::types::{EINVAL, EPERM, ESRCH, SUCCESS};
 use crate::task::{
-    current_thread_id, default_action, with_process, with_process_mut, DefaultAction, ProcessId,
-    SigAction, SIGCHLD, SIGKILL, SIG_DFL, SIG_IGN,
+    current_thread_id, default_action, with_process, with_process_mut, DefaultAction,
+    PrivilegeLevel, ProcessId, SigAction, SIGCHLD, SIGKILL, SIG_DFL, SIG_IGN,
 };
 
 // ---- rt_sigprocmask の how 引数 ----
@@ -15,7 +15,8 @@ const SIG_UNBLOCK: u64 = 1;
 const SIG_SETMASK: u64 = 2;
 
 // ---- SIGKILL / SIGSTOP はブロック・ハンドラ変更不可 ----
-const UNCATCHABLE_MASK: u64 = (1u64 << (SIGKILL - 1)) | (1u64 << (18usize)); // SIGKILL | SIGSTOP
+const SIGSTOP: usize = 19;
+const UNCATCHABLE_MASK: u64 = (1u64 << (SIGKILL - 1)) | (1u64 << (SIGSTOP - 1)); // SIGKILL | SIGSTOP
 
 // ---- ユーザー空間の struct sigaction レイアウト (Linux x86-64 互換) ----
 // sa_handler:  [+0]  u64
@@ -150,18 +151,40 @@ pub fn kill(pid_raw: u64, sig_raw: u64) -> u64 {
 
     // sig == 0: プロセス存在確認のみ
     if sig == 0 {
-        let exists = if target_pid_raw > 0 {
+        if target_pid_raw > 0 {
             let target = ProcessId::from_u64(target_pid_raw as u64);
-            with_process(target, |_| ()).is_some()
+            let exists = with_process(target, |_| ()).is_some();
+            if !exists {
+                return ESRCH;
+            }
+            if !caller_can_signal_target(target) {
+                return EPERM;
+            }
+            return SUCCESS;
+        } else if target_pid_raw == -1 {
+            return if caller_can_broadcast_signal() {
+                SUCCESS
+            } else {
+                EPERM
+            };
         } else {
-            true
-        };
-        return if exists { SUCCESS } else { ESRCH };
+            return EINVAL;
+        }
     }
 
     if target_pid_raw > 0 {
-        deliver_signal_to_pid(ProcessId::from_u64(target_pid_raw as u64), sig)
+        let target = ProcessId::from_u64(target_pid_raw as u64);
+        if with_process(target, |_| ()).is_none() {
+            return ESRCH;
+        }
+        if !caller_can_signal_target(target) {
+            return EPERM;
+        }
+        deliver_signal_to_pid(target, sig)
     } else if target_pid_raw == -1 {
+        if !caller_can_broadcast_signal() {
+            return EPERM;
+        }
         // 全プロセス（カーネル除く）に送る
         let mut found = false;
         let current_pid = current_pid();
@@ -392,6 +415,26 @@ pub fn rt_sigreturn(kstack: *mut u64) {
 fn current_pid() -> Option<ProcessId> {
     let tid = current_thread_id()?;
     crate::task::with_thread(tid, |t| t.process_id())
+}
+
+fn current_privilege() -> Option<PrivilegeLevel> {
+    let pid = current_pid()?;
+    with_process(pid, |p| p.privilege())
+}
+
+fn caller_can_signal_target(target: ProcessId) -> bool {
+    let caller = match current_pid() {
+        Some(pid) => pid,
+        None => return false,
+    };
+    if caller == target {
+        return true;
+    }
+    matches!(current_privilege(), Some(PrivilegeLevel::Core))
+}
+
+fn caller_can_broadcast_signal() -> bool {
+    matches!(current_privilege(), Some(PrivilegeLevel::Core))
 }
 
 /// 指定プロセスの最初のスレッドを起床させる

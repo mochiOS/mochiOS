@@ -144,7 +144,7 @@ fn read_nul_args_from_user(
     if args_ptr == 0 {
         return Ok(Vec::new());
     }
-    if !crate::syscall::validate_user_ptr(args_ptr, 1) {
+    if !crate::syscall::validate_user_ptr(args_ptr, max_total_bytes as u64) {
         return Err(EFAULT);
     }
 
@@ -258,7 +258,7 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     if header.status < 0 {
-        return header.status as u64;
+        return (-header.status) as u64;
     }
     let total = header.len as usize;
     if total == 0 {
@@ -312,17 +312,33 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
             Some(p) => p,
             None => return Err(crate::syscall::types::ENOMEM),
         };
+        let mut mapped_pages = 0usize;
         for i in 0..frames.len() {
             let va = map_start + (i as u64) * 4096u64;
             if let Err(_) =
                 crate::mem::paging::map_physical_range_to_user(pt_phys, va, frames[i], 4096)
             {
+                for mapped in 0..mapped_pages {
+                    let mapped_va = map_start + (mapped as u64) * 4096u64;
+                    let _ = crate::mem::paging::unmap_page_in_table(pt_phys, mapped_va);
+                }
                 return Err(crate::syscall::types::ENOMEM);
             }
+            mapped_pages += 1;
         }
-        let new_end = map_start
-            .checked_add((frames.len() as u64) * 4096)
-            .unwrap_or(map_start);
+        let map_bytes = (frames.len() as u64)
+            .checked_mul(4096)
+            .ok_or(crate::syscall::types::ENOMEM)?;
+        let new_end = match map_start.checked_add(map_bytes) {
+            Some(v) => v,
+            None => {
+                for mapped in 0..mapped_pages {
+                    let mapped_va = map_start + (mapped as u64) * 4096u64;
+                    let _ = crate::mem::paging::unmap_page_in_table(pt_phys, mapped_va);
+                }
+                return Err(crate::syscall::types::ENOMEM);
+            }
+        };
         proc.set_heap_end(new_end);
         Ok(map_start)
     });
@@ -351,7 +367,11 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
     // For large transfers, prefer sending only a map header so the page list is not sent over IPC.
     if !crate::syscall::ipc::send_map_header_from_kernel(fs_tid, map_start, total as u64) {
         if let Some(fs_table) = crate::task::with_process(fs_pid, |p| p.page_table()).flatten() {
-            let _ = crate::mem::paging::unmap_range_in_table(fs_table, map_start, (frames.len() as u64) * 4096);
+            let _ = crate::mem::paging::unmap_range_in_table(
+                fs_table,
+                map_start,
+                (frames.len() as u64) * 4096,
+            );
         }
         for p in frames.iter() {
             let fr = PhysAddr::new(*p);
@@ -370,9 +390,32 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
     // Phase 5: wait for fs.service ack
     // Note: send_map_header_from_kernel sends only map_start+total; fs should write into mapped range and reply.
     let mut ack = [0u8; 8];
-    if crate::syscall::ipc::recv_blocking_from_sender_for_kernel(fs_tid, &mut ack).is_err() {
+    let ack_wait_result = {
+        let start_tick = crate::syscall::time::get_ticks();
+        loop {
+            if !crate::task::thread_id_exists(fs_tid) {
+                break Err(crate::syscall::types::EIO);
+            }
+            match crate::syscall::ipc::recv_from_sender_for_kernel_nonblocking(fs_tid, &mut ack) {
+                Ok(Some(_)) => break Ok(()),
+                Ok(None) => {
+                    if crate::syscall::time::get_ticks().saturating_sub(start_tick) > 500 {
+                        break Err(crate::syscall::types::EIO);
+                    }
+                    crate::task::yield_now();
+                }
+                Err(_) => break Err(crate::syscall::types::EIO),
+            }
+        }
+    };
+
+    if ack_wait_result.is_err() {
         if let Some(fs_table) = crate::task::with_process(fs_pid, |p| p.page_table()).flatten() {
-            let _ = crate::mem::paging::unmap_range_in_table(fs_table, map_start, (frames.len() as u64) * 4096);
+            let _ = crate::mem::paging::unmap_range_in_table(
+                fs_table,
+                map_start,
+                (frames.len() as u64) * 4096,
+            );
         }
         for p in frames.iter() {
             let fr = PhysAddr::new(*p);
@@ -568,6 +611,10 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
                 let file_page_off = (src_off as isize + page_index as isize * 4096) as isize;
                 let phys_frame = if file_page_off >= 0 && (file_page_off as usize) < total {
                     let idx = (file_page_off as usize) / 4096;
+                    if idx >= frames.len() {
+                        misaligned = true;
+                        break;
+                    }
                     frames[idx]
                 } else {
                     // bss -> allocate and zero
@@ -604,7 +651,13 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
                 // adjust flags for executability/writability
                 if (ph.p_flags & 0x1) != 0 {
                     // executable: clear NX on this page
-                    let phys_off_local = match crate::mem::paging::physical_memory_offset() { Some(v) => v, None => { misaligned = true; 0 } };
+                    let phys_off_local = match crate::mem::paging::physical_memory_offset() {
+                        Some(v) => v,
+                        None => {
+                            misaligned = true;
+                            0
+                        }
+                    };
                     let l4 = unsafe {
                         &mut *(((new_pt_phys) + phys_off_local)
                             as *mut x86_64::structures::paging::PageTable)
@@ -791,6 +844,7 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
     let parent_pid = delegated_parent_pid();
     let privilege = resolve_exec_privilege(path.as_str(), &path);
     let mut proc = crate::task::Process::new(path.as_str(), privilege, parent_pid, 0);
+    let proc_pid = proc.id();
     proc.set_page_table(new_pt_phys);
     proc.set_stack_bottom(stack_base_vaddr);
     proc.set_stack_top(stack_end_vaddr);
@@ -804,12 +858,12 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
     let kstack = match crate::task::thread::allocate_kernel_stack(KERNEL_THREAD_STACK_SIZE) {
         Some(a) => a,
         None => {
-            let _ = crate::task::remove_process(crate::task::ProcessId::from_u64(0));
+            let _ = crate::task::remove_process(proc_pid);
             return crate::syscall::types::ENOMEM;
         }
     };
     let mut thread = crate::task::Thread::new_usermode(
-        crate::task::ProcessId::from_u64(0),
+        proc_pid,
         path.as_str(),
         eh.e_entry,
         initial_rsp,
@@ -817,6 +871,7 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
         KERNEL_THREAD_STACK_SIZE,
     );
     if crate::task::add_thread(thread).is_none() {
+        let _ = crate::task::remove_process(proc_pid);
         let _ = crate::mem::paging::destroy_user_page_table(new_pt_phys);
         return crate::syscall::types::EINVAL;
     }
@@ -827,8 +882,10 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
 #[inline]
 fn resolve_exec_privilege(process_name: &str, exec_path: &str) -> crate::task::PrivilegeLevel {
     // .service は従来通り Service 権限で実行。
-    // 追加で Binaries/drivers 配下のドライバ ELF も Service 権限にする。
-    if process_name.ends_with(".service") || exec_path.starts_with("Binaries/drivers/") {
+    // Binaries/drivers 配下は特権呼び出し元からの起動時のみ Service 権限を付与する。
+    let is_driver_path =
+        exec_path.starts_with("Binaries/drivers/") || exec_path.starts_with("/Binaries/drivers/");
+    if process_name.ends_with(".service") || (is_driver_path && caller_can_launch_service()) {
         crate::task::PrivilegeLevel::Service
     } else {
         crate::task::PrivilegeLevel::User
@@ -1114,122 +1171,128 @@ fn exec_with_data(
             phdr_vaddr = load_base.saturating_add(eh.e_phoff);
         }
 
+        // __sinit は newlib (mochiOS サービス) 専用のシンボル。
+        // 外部バイナリ (BusyBox 等) はシンボルテーブルが巨大で探索コストが高いためスキップ。
+        let needs_sinit = exec_path.ends_with(".service");
         let mut sinit_addr: Option<u64> = None;
-        if let Some(eh_sym) = elf_loader::parse_elf_header(data) {
-            let shoff = eh_sym.e_shoff as usize;
-            let shentsz = eh_sym.e_shentsize as usize;
-            let shnum = eh_sym.e_shnum as usize;
-            if shoff > 0 && shentsz > 0 && shnum > 0 && data.len() >= shoff + shentsz * shnum {
-                let mut symtab_offset: usize = 0;
-                let mut symtab_size: usize = 0;
-                let mut symtab_entsize: usize = 0;
-                let mut strtab_offset: usize = 0;
-                let mut strtab_size: usize = 0;
-                for si in 0..shnum {
-                    let sh_off = shoff + si * shentsz;
-                    if sh_off + shentsz > data.len() {
-                        break;
-                    }
-                    let sh_type = match data[sh_off + 4..sh_off + 8].try_into() {
-                        Ok(b) => u32::from_le_bytes(b),
-                        Err(_) => {
-                            crate::warn!("ELF section header truncated");
-                            return crate::syscall::types::EINVAL;
-                        }
-                    };
-                    let sh_offset = match data[sh_off + 24..sh_off + 32].try_into() {
-                        Ok(b) => u64::from_le_bytes(b) as usize,
-                        Err(_) => {
-                            crate::warn!("ELF section header truncated");
-                            return crate::syscall::types::EINVAL;
-                        }
-                    };
-                    let sh_size = match data[sh_off + 32..sh_off + 40].try_into() {
-                        Ok(b) => u64::from_le_bytes(b) as usize,
-                        Err(_) => {
-                            crate::warn!("ELF section header truncated");
-                            return crate::syscall::types::EINVAL;
-                        }
-                    };
-                    let sh_link = match data[sh_off + 40..sh_off + 44].try_into() {
-                        Ok(b) => u32::from_le_bytes(b),
-                        Err(_) => {
-                            crate::warn!("ELF section header truncated");
-                            return crate::syscall::types::EINVAL;
-                        }
-                    };
-                    let sh_entsize = match data[sh_off + 56..sh_off + 64].try_into() {
-                        Ok(b) => u64::from_le_bytes(b) as usize,
-                        Err(_) => {
-                            crate::warn!("ELF section header truncated");
-                            return crate::syscall::types::EINVAL;
-                        }
-                    };
-
-                    // SHT_SYMTAB == 2
-                    if sh_type == 2 {
-                        symtab_offset = sh_offset;
-                        symtab_size = sh_size;
-                        symtab_entsize = sh_entsize;
-                        // linked string table
-                        let link_idx = sh_link as usize;
-                        if link_idx < shnum {
-                            let link_sh_off = shoff + link_idx * shentsz;
-                            strtab_offset =
-                                match data[link_sh_off + 24..link_sh_off + 32].try_into() {
-                                    Ok(b) => u64::from_le_bytes(b) as usize,
-                                    Err(_) => {
-                                        crate::warn!("ELF section header truncated");
-                                        return crate::syscall::types::EINVAL;
-                                    }
-                                };
-                            strtab_size = match data[link_sh_off + 32..link_sh_off + 40].try_into()
-                            {
-                                Ok(b) => u64::from_le_bytes(b) as usize,
-                                Err(_) => {
-                                    crate::warn!("ELF section header truncated");
-                                    return crate::syscall::types::EINVAL;
-                                }
-                            };
-                        }
-                        break;
-                    }
-                }
-                if symtab_offset > 0 && strtab_offset > 0 && symtab_entsize > 0 {
-                    let nsyms = symtab_size / symtab_entsize;
-                    for i_sym in 0..nsyms {
-                        let sym_off = symtab_offset + i_sym * symtab_entsize;
-                        if sym_off + symtab_entsize > data.len() {
+        if needs_sinit {
+            if let Some(eh_sym) = elf_loader::parse_elf_header(data) {
+                let shoff = eh_sym.e_shoff as usize;
+                let shentsz = eh_sym.e_shentsize as usize;
+                let shnum = eh_sym.e_shnum as usize;
+                if shoff > 0 && shentsz > 0 && shnum > 0 && data.len() >= shoff + shentsz * shnum {
+                    let mut symtab_offset: usize = 0;
+                    let mut symtab_size: usize = 0;
+                    let mut symtab_entsize: usize = 0;
+                    let mut strtab_offset: usize = 0;
+                    let mut strtab_size: usize = 0;
+                    for si in 0..shnum {
+                        let sh_off = shoff + si * shentsz;
+                        if sh_off + shentsz > data.len() {
                             break;
                         }
-                        let st_name = match data[sym_off..sym_off + 4].try_into() {
-                            Ok(b) => u32::from_le_bytes(b) as usize,
+                        let sh_type = match data[sh_off + 4..sh_off + 8].try_into() {
+                            Ok(b) => u32::from_le_bytes(b),
                             Err(_) => {
-                                crate::warn!("ELF symbol entry truncated");
-                                break;
+                                crate::warn!("ELF section header truncated");
+                                return crate::syscall::types::EINVAL;
                             }
                         };
-                        let st_value = match data[sym_off + 8..sym_off + 16].try_into() {
-                            Ok(b) => u64::from_le_bytes(b),
+                        let sh_offset = match data[sh_off + 24..sh_off + 32].try_into() {
+                            Ok(b) => u64::from_le_bytes(b) as usize,
                             Err(_) => {
-                                crate::warn!("ELF symbol entry truncated");
-                                break;
+                                crate::warn!("ELF section header truncated");
+                                return crate::syscall::types::EINVAL;
+                            }
+                        };
+                        let sh_size = match data[sh_off + 32..sh_off + 40].try_into() {
+                            Ok(b) => u64::from_le_bytes(b) as usize,
+                            Err(_) => {
+                                crate::warn!("ELF section header truncated");
+                                return crate::syscall::types::EINVAL;
+                            }
+                        };
+                        let sh_link = match data[sh_off + 40..sh_off + 44].try_into() {
+                            Ok(b) => u32::from_le_bytes(b),
+                            Err(_) => {
+                                crate::warn!("ELF section header truncated");
+                                return crate::syscall::types::EINVAL;
+                            }
+                        };
+                        let sh_entsize = match data[sh_off + 56..sh_off + 64].try_into() {
+                            Ok(b) => u64::from_le_bytes(b) as usize,
+                            Err(_) => {
+                                crate::warn!("ELF section header truncated");
+                                return crate::syscall::types::EINVAL;
                             }
                         };
 
-                        if st_name < strtab_size {
-                            let name_off = strtab_offset + st_name;
-                            if name_off < data.len() {
-                                let mut end = name_off;
-                                while end < data.len() && data[end] != 0 {
-                                    end += 1;
+                        // SHT_SYMTAB == 2
+                        if sh_type == 2 {
+                            symtab_offset = sh_offset;
+                            symtab_size = sh_size;
+                            symtab_entsize = sh_entsize;
+                            // linked string table
+                            let link_idx = sh_link as usize;
+                            if link_idx < shnum {
+                                let link_sh_off = shoff + link_idx * shentsz;
+                                strtab_offset =
+                                    match data[link_sh_off + 24..link_sh_off + 32].try_into() {
+                                        Ok(b) => u64::from_le_bytes(b) as usize,
+                                        Err(_) => {
+                                            crate::warn!("ELF section header truncated");
+                                            return crate::syscall::types::EINVAL;
+                                        }
+                                    };
+                                strtab_size =
+                                    match data[link_sh_off + 32..link_sh_off + 40].try_into() {
+                                        Ok(b) => u64::from_le_bytes(b) as usize,
+                                        Err(_) => {
+                                            crate::warn!("ELF section header truncated");
+                                            return crate::syscall::types::EINVAL;
+                                        }
+                                    };
+                            }
+                            break;
+                        }
+                    }
+                    if symtab_offset > 0 && strtab_offset > 0 && symtab_entsize > 0 {
+                        let nsyms = symtab_size / symtab_entsize;
+                        for i_sym in 0..nsyms {
+                            let sym_off = symtab_offset + i_sym * symtab_entsize;
+                            if sym_off + symtab_entsize > data.len() {
+                                break;
+                            }
+                            let st_name = match data[sym_off..sym_off + 4].try_into() {
+                                Ok(b) => u32::from_le_bytes(b) as usize,
+                                Err(_) => {
+                                    crate::warn!("ELF symbol entry truncated");
+                                    break;
                                 }
-                                if end <= data.len() {
-                                    if let Ok(name_str) = core::str::from_utf8(&data[name_off..end])
-                                    {
-                                        if name_str == "__sinit" {
-                                            sinit_addr = Some(st_value);
-                                            break;
+                            };
+                            let st_value = match data[sym_off + 8..sym_off + 16].try_into() {
+                                Ok(b) => u64::from_le_bytes(b),
+                                Err(_) => {
+                                    crate::warn!("ELF symbol entry truncated");
+                                    break;
+                                }
+                            };
+
+                            if st_name < strtab_size {
+                                let name_off = strtab_offset + st_name;
+                                if name_off < data.len() {
+                                    let mut end = name_off;
+                                    while end < data.len() && data[end] != 0 {
+                                        end += 1;
+                                    }
+                                    if end <= data.len() {
+                                        if let Ok(name_str) =
+                                            core::str::from_utf8(&data[name_off..end])
+                                        {
+                                            if name_str == "__sinit" {
+                                                sinit_addr = Some(st_value);
+                                                break;
+                                            }
                                         }
                                     }
                                 }
@@ -1238,7 +1301,7 @@ fn exec_with_data(
                     }
                 }
             }
-        }
+        } // needs_sinit
 
         let base_name = exec_path.rsplit('/').next().unwrap_or(process_name);
         let argv0 = base_name.strip_suffix(".elf").unwrap_or(base_name);
@@ -1997,8 +2060,30 @@ pub fn exec_from_buffer_named_args_with_requester_syscall(
 
     let parent_override = if requester_tid != 0 {
         let requester = crate::task::ThreadId::from_u64(requester_tid);
+        let caller_pid = match crate::task::current_thread_id()
+            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+        {
+            Some(pid) => pid,
+            None => return EPERM,
+        };
         match crate::task::with_thread(requester, |t| t.process_id()) {
-            Some(pid) => Some(pid),
+            Some(pid) => {
+                let (caller_is_core, caller_is_fs_service) =
+                    crate::task::with_process(caller_pid, |p| {
+                        (
+                            p.privilege() == crate::task::PrivilegeLevel::Core,
+                            p.name() == "fs.service",
+                        )
+                    })
+                    .unwrap_or((false, false));
+
+                // fs.service is trusted to exec on behalf of any requester that
+                // routed an OP_EXEC request through it.
+                if pid != caller_pid && !caller_is_core && !caller_is_fs_service {
+                    return EPERM;
+                }
+                Some(pid)
+            }
             None => return EINVAL,
         }
     } else {

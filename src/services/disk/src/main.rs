@@ -9,6 +9,7 @@ mod ata;
 use ata::{AtaDrive, AtaPorts, DriveType};
 
 use std::sync::{Arc, Mutex};
+use std::sync::OnceLock;
 // avoid using std::thread to keep target linking clean
 // thread primitives not needed: we use synchronous handling
 // use std::thread;
@@ -17,12 +18,37 @@ const MAX_DISKS: usize = 4;
 const MAX_BULK_READ_SECTORS: u64 = 64;
 const BULK_SECTORS_PER_MSG: usize = 4;
 
-static mut DISKS: [Option<AtaDrive>; MAX_DISKS] = [None, None, None, None];
-static mut DISK_PROBE_ATTEMPTED: [bool; MAX_DISKS] = [false; MAX_DISKS];
+static DISKS: OnceLock<Vec<Arc<Mutex<Option<AtaDrive>>>>> = OnceLock::new();
+static DISK_PROBE_ATTEMPTED: [AtomicBool; MAX_DISKS] = [
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+];
 static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 // per-disk locks to serialize hardware access while allowing parallel requests across disks
-static mut DISK_LOCKS: Option<Vec<Arc<Mutex<()>>>> = None;
+static DISK_LOCKS: OnceLock<Vec<Arc<Mutex<()>>>> = OnceLock::new();
+
+fn disk_slots() -> &'static Vec<Arc<Mutex<Option<AtaDrive>>>> {
+    DISKS.get_or_init(|| {
+        let mut v = Vec::with_capacity(MAX_DISKS);
+        for _ in 0..MAX_DISKS {
+            v.push(Arc::new(Mutex::new(None)));
+        }
+        v
+    })
+}
+
+fn disk_locks() -> &'static Vec<Arc<Mutex<()>>> {
+    DISK_LOCKS.get_or_init(|| {
+        let mut v = Vec::with_capacity(MAX_DISKS);
+        for _ in 0..MAX_DISKS {
+            v.push(Arc::new(Mutex::new(())));
+        }
+        v
+    })
+}
 
 /// ディスク操作リクエスト（書き込みデータを含む）
 #[repr(C)]
@@ -66,6 +92,10 @@ struct DiskResponse {
 struct DiskBulkResponse {
     status: i64,
     len: u64,
+    seq_no: u32,
+    total_chunks: u32,
+    eof: u8,
+    _pad: [u8; 7],
     data: [u8; BULK_SECTORS_PER_MSG * 512],
 }
 
@@ -82,19 +112,19 @@ fn try_probe_disk(disk_id: usize) {
         _ => return,
     };
 
-    unsafe {
-        if DISK_PROBE_ATTEMPTED[disk_id] {
-            return;
-        }
-        DISK_PROBE_ATTEMPTED[disk_id] = true;
+    if DISK_PROBE_ATTEMPTED[disk_id]
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        return;
     }
 
     let mut drive = AtaDrive::new(ports, drive_type);
     if drive.init().is_ok() {
         println!("[DISK] {} detected: {} sectors", label, drive.sector_count());
-        unsafe {
-            DISKS[disk_id] = Some(drive);
-        }
+        let slot = &disk_slots()[disk_id];
+        let mut guard = slot.lock().unwrap_or_else(|e| e.into_inner());
+        *guard = Some(drive);
     } else {
         println!("[DISK] {} not found", label);
     }
@@ -108,14 +138,9 @@ fn init_disks() {
     try_probe_disk(0);
     try_probe_disk(1);
 
-    // initialize per-disk locks for concurrent handling
-    unsafe {
-        let mut v: Vec<Arc<Mutex<()>>> = Vec::new();
-        for _ in 0..MAX_DISKS {
-            v.push(Arc::new(Mutex::new(())));
-        }
-        DISK_LOCKS = Some(v);
-    }
+    // initialize per-disk containers for concurrent handling
+    let _ = disk_slots();
+    let _ = disk_locks();
 
     INITIALIZED.store(true, Ordering::Release);
     println!("[DISK] ATA initialization complete");
@@ -150,13 +175,13 @@ fn notify_ready_to_core() {
 }
 
 #[inline]
-fn send_response(dest_thread: u64, resp: &DiskResponse) {
+fn send_response(dest_thread: u64, resp: &DiskResponse) -> bool {
     let resp_slice = unsafe {
         core::slice::from_raw_parts(resp as *const _ as *const u8, size_of::<DiskResponse>())
     };
     for _ in 0..100 {
         if ipc::ipc_send(dest_thread, resp_slice) == 0 {
-            return;
+            return true;
         }
         task::yield_now();
     }
@@ -164,16 +189,17 @@ fn send_response(dest_thread: u64, resp: &DiskResponse) {
         "[DISK] WARN: failed to send response to {} after retries",
         dest_thread
     );
+    false
 }
 
 #[inline]
-fn send_bulk_response(dest_thread: u64, resp: &DiskBulkResponse) {
+fn send_bulk_response(dest_thread: u64, resp: &DiskBulkResponse) -> bool {
     let resp_slice = unsafe {
         core::slice::from_raw_parts(resp as *const _ as *const u8, size_of::<DiskBulkResponse>())
     };
     for _ in 0..100 {
         if ipc::ipc_send(dest_thread, resp_slice) == 0 {
-            return;
+            return true;
         }
         task::yield_now();
     }
@@ -181,9 +207,9 @@ fn send_bulk_response(dest_thread: u64, resp: &DiskBulkResponse) {
         "[DISK] WARN: failed to send bulk response to {} after retries",
         dest_thread
     );
+    false
 }
 
-#[allow(static_mut_refs)]
 fn main() {
     println!("[DISK] Disk I/O Service Started.");
 
@@ -200,6 +226,11 @@ fn main() {
 
         // メッセージなし（エラー等で (0,0) が返る場合）
         if sender == 0 && len == 0 {
+            println!(
+                "[DISK] WARN: ipc_recv_wait returned empty tuple (sender={}, len={})",
+                sender, len
+            );
+            task::yield_now();
             continue;
         }
 
@@ -210,7 +241,9 @@ fn main() {
             if sender_privilege > 1 {
                 println!("[DISK] Rejecting request from unprivileged thread {}", sender);
                 let resp = DiskResponse { status: -1, len: 0, data: [0; 512] };
-                send_response(sender, &resp);
+                if !send_response(sender, &resp) {
+                    println!("[DISK] WARN: failed to report permission error to {}", sender);
+                }
                 continue;
             }
 
@@ -242,41 +275,93 @@ fn main() {
                         let disk_id_local = disk_id;
 
                         // clone lock Arc if available
-                        let lock_arc = unsafe { DISK_LOCKS.as_ref().and_then(|v| v.get(disk_id_local).cloned()) };
+                        let lock_arc = disk_locks().get(disk_id_local).cloned();
+                        if lock_arc.is_none() {
+                            let resp = DiskResponse {
+                                status: -5,
+                                len: 0,
+                                data: [0; 512],
+                            };
+                            if !send_response(sender_local, &resp) {
+                                println!("[DISK] WARN: lock state unavailable and error reply failed for {}", sender_local);
+                            }
+                            continue;
+                        }
+                        let _disk_guard = lock_arc
+                            .as_ref()
+                            .map(|lock| lock.lock().unwrap_or_else(|e| e.into_inner()));
 
                         // Handle synchronously to avoid spawning pthread-backed threads on custom target
                         try_probe_disk(disk_id_local);
-                        unsafe {
-                            if let Some(ref drive) = DISKS[disk_id_local] {
+                        {
+                            let disk_slot = &disk_slots()[disk_id_local];
+                            let disk_guard = disk_slot.lock().unwrap_or_else(|e| e.into_inner());
+                            if let Some(ref drive) = *disk_guard {
                                 let total_bytes = match count_local.checked_mul(512) {
                                     Some(v) => v,
-                                    None => { let resp = DiskResponse { status: -22, len: 0, data: [0;512] }; send_response(sender_local, &resp); continue; }
+                                    None => { let resp = DiskResponse { status: -22, len: 0, data: [0;512] }; if !send_response(sender_local, &resp) { println!("[DISK] WARN: failed to report invalid argument to {}", sender_local); } continue; }
                                 };
                                 let mut bulk = vec![0u8; total_bytes];
 
                                 // use AtaDrive's enqueue API (which may fallback to synchronous read)
                                 match drive.enqueue_read_sectors(lba_local, count_local as u8) {
                                     Ok(rx) => match rx.recv() {
-                                        Ok(Ok(vec)) => { bulk.copy_from_slice(&vec[..]); }
-                                        Ok(Err(_e)) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; send_response(sender_local, &resp); continue; }
-                                        Err(_) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; send_response(sender_local, &resp); continue; }
+                                        Ok(Ok(vec)) => {
+                                            if vec.len() != bulk.len() {
+                                                println!(
+                                                    "[DISK] WARN: read size mismatch disk={} lba={} expected={} got={}",
+                                                    disk_id_local,
+                                                    lba_local,
+                                                    bulk.len(),
+                                                    vec.len()
+                                                );
+                                                let resp = DiskResponse { status: -5, len: 0, data: [0;512] };
+                                                if !send_response(sender_local, &resp) {
+                                                    println!("[DISK] WARN: failed to report read size mismatch to {}", sender_local);
+                                                }
+                                                continue;
+                                            }
+                                            bulk.copy_from_slice(&vec[..]);
+                                        }
+                                        Ok(Err(_e)) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; if !send_response(sender_local, &resp) { println!("[DISK] WARN: failed to report read error to {}", sender_local); } continue; }
+                                        Err(_) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; if !send_response(sender_local, &resp) { println!("[DISK] WARN: failed to report read error to {}", sender_local); } continue; }
                                     },
-                                    Err(_) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; send_response(sender_local, &resp); continue; }
+                                    Err(_) => { let resp = DiskResponse { status: -5, len: 0, data: [0;512] }; if !send_response(sender_local, &resp) { println!("[DISK] WARN: failed to report read error to {}", sender_local); } continue; }
                                 }
 
                                 // send bulk responses in chunks
+                                let total_chunks = total_bytes.div_ceil(BULK_SECTORS_PER_MSG * 512);
+                                let mut seq_no = 0u32;
                                 let mut offset = 0usize;
                                 while offset < total_bytes {
                                     let chunk_bytes = core::cmp::min(BULK_SECTORS_PER_MSG * 512, total_bytes - offset);
-                                    let mut chunk_resp = DiskBulkResponse { status: 0, len: chunk_bytes as u64, data: [0; BULK_SECTORS_PER_MSG * 512] };
+                                    let mut chunk_resp = DiskBulkResponse {
+                                        status: 0,
+                                        len: chunk_bytes as u64,
+                                        seq_no,
+                                        total_chunks: total_chunks as u32,
+                                        eof: 0,
+                                        _pad: [0; 7],
+                                        data: [0; BULK_SECTORS_PER_MSG * 512],
+                                    };
                                     let end = offset + chunk_bytes;
                                     chunk_resp.data[..chunk_bytes].copy_from_slice(&bulk[offset..end]);
-                                    send_bulk_response(sender_local, &chunk_resp);
+                                    if end >= total_bytes {
+                                        chunk_resp.eof = 1;
+                                    }
+                                    if !send_bulk_response(sender_local, &chunk_resp) {
+                                        let err_resp = DiskResponse { status: -5, len: 0, data: [0;512] };
+                                        let _ = send_response(sender_local, &err_resp);
+                                        break;
+                                    }
                                     offset = end;
+                                    seq_no = seq_no.saturating_add(1);
                                 }
                             } else {
                                 let resp = DiskResponse { status: -6, len: 0, data: [0;512] };
-                                send_response(sender_local, &resp);
+                                if !send_response(sender_local, &resp) {
+                                    println!("[DISK] WARN: failed to report missing drive to {}", sender_local);
+                                }
                             }
                         }
                         continue;
@@ -288,8 +373,10 @@ fn main() {
                     let disk_id = req.disk_id as usize;
                     if disk_id < MAX_DISKS {
                         try_probe_disk(disk_id);
-                        unsafe {
-                            if let Some(ref mut drive) = DISKS[disk_id] {
+                        {
+                            let disk_slot = &disk_slots()[disk_id];
+                            let mut disk_guard = disk_slot.lock().unwrap_or_else(|e| e.into_inner());
+                            if let Some(ref mut drive) = *disk_guard {
                                 match drive.write_sector(req.lba, &req.data) {
                                     Ok(_) => {
                                         resp.status = 0;
@@ -311,8 +398,10 @@ fn main() {
                     let disk_id = req.disk_id as usize;
                     if disk_id < MAX_DISKS {
                         try_probe_disk(disk_id);
-                        unsafe {
-                            if let Some(ref drive) = DISKS[disk_id] {
+                        {
+                            let disk_slot = &disk_slots()[disk_id];
+                            let disk_guard = disk_slot.lock().unwrap_or_else(|e| e.into_inner());
+                            if let Some(ref drive) = *disk_guard {
                                 let sectors = drive.sector_count();
                                 // セクタ数を返す
                                 resp.data[0..8].copy_from_slice(&sectors.to_le_bytes());
@@ -332,12 +421,11 @@ fn main() {
                     try_probe_disk(2);
                     try_probe_disk(3);
                     let mut count = 0u8;
-                    unsafe {
-                        for (i, disk) in DISKS.iter().enumerate() {
-                            if disk.is_some() {
-                                resp.data[count as usize] = i as u8;
-                                count += 1;
-                            }
+                    for (i, disk_slot) in disk_slots().iter().enumerate() {
+                        let guard = disk_slot.lock().unwrap_or_else(|e| e.into_inner());
+                        if guard.is_some() {
+                            resp.data[count as usize] = i as u8;
+                            count += 1;
                         }
                     }
                     resp.status = 0;
@@ -349,7 +437,9 @@ fn main() {
                 }
             }
 
-            send_response(sender, &resp);
+            if !send_response(sender, &resp) {
+                println!("[DISK] WARN: failed to send response to {}", sender);
+            }
         }
     }
 }

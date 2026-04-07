@@ -734,14 +734,23 @@ fn read_port_speed(regs: &XhciRegs, port_id: u8) -> u8 {
     ((portsc >> 10) & 0x0F) as u8
 }
 
-fn find_first_connected_port(regs: &XhciRegs) -> Option<u8> {
-    for p in 1..=regs.max_ports {
-        let portsc = mmio_read_u32(regs.base, portsc_offset(regs, p));
-        if (portsc & 1) != 0 {
-            return Some(p);
+fn submit_next_connected_port(runtime: &mut XhciRuntime) {
+    if runtime.enumerating_port.is_some() {
+        return;
+    }
+    for port in 1..=runtime.regs.max_ports {
+        if runtime.devices.iter().any(|d| d.port_id == port) {
+            continue;
+        }
+        let portsc = mmio_read_u32(runtime.regs.base, portsc_offset(&runtime.regs, port));
+        if (portsc & 1) == 0 {
+            continue;
+        }
+        submit_enable_slot_for_port(runtime, port);
+        if runtime.enumerating_port.is_some() {
+            break;
         }
     }
-    None
 }
 
 fn submit_command(runtime: &mut XhciRuntime, trb: [u32; 4], kind: PendingCommandKind) -> u64 {
@@ -1217,6 +1226,7 @@ fn handle_command_completion_event(
                     "[xHCI] Enable Slot failed: port={} code={}",
                     port_id, completion_code
                 );
+                submit_next_connected_port(runtime);
                 return;
             }
             if let Err(err) = create_device_for_slot(runtime, port_id, slot_id_from_event) {
@@ -1225,6 +1235,7 @@ fn handle_command_completion_event(
                     slot_id_from_event, port_id, err
                 );
             }
+            submit_next_connected_port(runtime);
         }
         PendingCommandKind::AddressDevice { slot_id } => {
             if completion_code != 1 {
@@ -1639,9 +1650,7 @@ fn init_xhci_controller() -> Option<XhciRuntime> {
         [0, 0, 0, TRB_TYPE_NOOP_CMD << 10],
         PendingCommandKind::Noop,
     );
-    if let Some(port) = find_first_connected_port(&runtime.regs) {
-        submit_enable_slot_for_port(&mut runtime, port);
-    }
+    submit_next_connected_port(&mut runtime);
     println!("[xHCI] command/event ring + interrupter configured");
 
     Some(runtime)

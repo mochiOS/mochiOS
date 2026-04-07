@@ -20,8 +20,10 @@ SECTIONS
     }
 
     .bss : ALIGN(4K) {
-        *(COMMON)
+        __bss_start = .;
         *(.bss .bss.*)
+        *(COMMON)
+        __bss_end = .;
     }
 
     /DISCARD/ : {

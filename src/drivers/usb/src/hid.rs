@@ -80,48 +80,41 @@ fn inject_scancode(scancode: u8, state: &mut HidParserState) {
 }
 
 fn inject_modifier_transitions(new_mod: u8, state: &mut HidParserState) {
+    const LCTRL: u8 = 0x1D;
     const LSHIFT: u8 = 0x2A;
+    const LALT: u8 = 0x38;
+    const LGUI: u8 = 0x5B;
+    const RCTRL: u8 = 0x1D;
     const RSHIFT: u8 = 0x36;
+    const RALT: u8 = 0x38;
+    const RGUI: u8 = 0x5C;
     let old_mod = state.prev_modifiers;
-    let pairs = [(0x02u8, LSHIFT), (0x20u8, RSHIFT)];
-    for (mask, sc) in pairs {
+    let pairs = [
+        (0x01u8, false, LCTRL),
+        (0x02u8, false, LSHIFT),
+        (0x04u8, false, LALT),
+        (0x08u8, true, LGUI),
+        (0x10u8, true, RCTRL),
+        (0x20u8, false, RSHIFT),
+        (0x40u8, true, RALT),
+        (0x80u8, true, RGUI),
+    ];
+    for (mask, e0, sc) in pairs {
         let was = (old_mod & mask) != 0;
         let now = (new_mod & mask) != 0;
         if !was && now {
+            if e0 {
+                inject_scancode(0xE0, state);
+            }
             inject_scancode(sc, state);
         } else if was && !now {
+            if e0 {
+                inject_scancode(0xE0, state);
+            }
             inject_scancode(sc | SC_RELEASE, state);
         }
     }
     state.prev_modifiers = new_mod;
-}
-
-fn hid_usage_to_char(usage: u8, shift: bool) -> Option<char> {
-    match usage {
-        0x04..=0x1D => {
-            let c = (b'a' + (usage - 0x04)) as char;
-            Some(if shift { c.to_ascii_uppercase() } else { c })
-        }
-        0x1E..=0x27 => {
-            const NORMAL: [char; 10] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-            const SHIFT: [char; 10] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')'];
-            let idx = (usage - 0x1E) as usize;
-            Some(if shift { SHIFT[idx] } else { NORMAL[idx] })
-        }
-        0x2D => Some(if shift { '_' } else { '-' }),
-        0x2E => Some(if shift { '+' } else { '=' }),
-        0x2F => Some(if shift { '{' } else { '[' }),
-        0x30 => Some(if shift { '}' } else { ']' }),
-        0x31 => Some(if shift { '|' } else { '\\' }),
-        0x33 => Some(if shift { ':' } else { ';' }),
-        0x34 => Some(if shift { '"' } else { '\'' }),
-        0x35 => Some(if shift { '~' } else { '`' }),
-        0x36 => Some(if shift { '<' } else { ',' }),
-        0x37 => Some(if shift { '>' } else { '.' }),
-        0x38 => Some(if shift { '?' } else { '/' }),
-        0x2C => Some(' '),
-        _ => None,
-    }
 }
 
 fn parse_hid_keyboard_report(_slot: u8, _ep: u8, report: &[u8], state: &mut HidParserState) -> bool {
@@ -143,15 +136,12 @@ fn parse_hid_keyboard_report(_slot: u8, _ep: u8, report: &[u8], state: &mut HidP
         }
     }
 
-    let shift = (modifiers & 0x22) != 0;
     for &usage in keys {
         if usage == 0 || prev_keys.contains(&usage) {
             continue;
         }
         if let Some(scancode) = map_hid_usage_to_set1_scancode(usage) {
             inject_scancode(scancode, state);
-            if let Some(..) = hid_usage_to_char(usage, shift) {
-            }
         }
     }
 
@@ -164,13 +154,20 @@ fn parse_hid_mouse_report(_slot: u8, _ep: u8, report: &[u8], state: &mut HidPars
         return false;
     }
 
-    let (buttons_idx, data_idx) = if (report[0] & 0xF8) == 0 {
-        (0usize, 1usize)
-    } else if report.len() >= 4 && (report[1] & 0xF8) == 0 {
-        (1usize, 2usize)
-    } else {
+    // TODO: 将来は HID report descriptor を解析して厳密にボタン/X/Y位置を決定する。
+    // 現状は Report ID 有無を考慮し、offset=0/1 の双方を試す。
+    let mut chosen_offset = None;
+    for offset in [0usize, 1usize] {
+        if report.len() >= offset + 3 {
+            chosen_offset = Some(offset);
+            break;
+        }
+    }
+    let Some(offset) = chosen_offset else {
         return false;
     };
+    let buttons_idx = offset;
+    let data_idx = offset + 1;
 
     if report.len() <= data_idx + 1 {
         return false;
@@ -186,7 +183,7 @@ fn parse_hid_mouse_report(_slot: u8, _ep: u8, report: &[u8], state: &mut HidPars
     };
 
     if dx != 0 || dy != 0 || wheel != 0 || buttons != state.prev_mouse_buttons {
-        if let Err(_err) = input::inject_mouse_packet(buttons, dx, dy) {
+        if let Err(_err) = input::inject_mouse_packet(buttons, dx, dy, wheel) {
             if !state.warned_mouse_inject {
                 state.warned_mouse_inject = true;
             }

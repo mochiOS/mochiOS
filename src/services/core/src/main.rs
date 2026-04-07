@@ -1,5 +1,6 @@
 use swiftlib::ipc;
 use swiftlib::process;
+use swiftlib::task;
 use swiftlib::time;
 
 /// READY通知OPコード
@@ -51,29 +52,29 @@ fn start_background_service(service: &ServiceDef) -> Option<u64> {
     }
 }
 
-fn wait_for_ready(expected_pids: &[u64]) {
-    let mut pending = [0u64; CRITICAL_SERVICES.len()];
-    let mut pending_len = 0usize;
-    for &pid in expected_pids {
-        if pid != 0 && pending_len < pending.len() {
-            pending[pending_len] = pid;
-            pending_len += 1;
-        }
-    }
+fn wait_for_ready(expected_pids: &[u64]) -> bool {
+    let mut pending: Vec<u64> = expected_pids.iter().copied().filter(|pid| *pid != 0).collect();
 
-    if pending_len == 0 {
+    if pending.is_empty() {
         println!("[CORE] WARNING: no critical services to wait for");
-        return;
+        return true;
     }
 
-    let total = pending_len;
+    let total = pending.len();
     let mut recv_buf = [0u8; 64];
+    let timeout = std::time::Duration::from_secs(20);
+    let start = std::time::Instant::now();
 
     println!("[CORE] Waiting for {} critical service(s) to be ready...", total);
 
-    while pending_len > 0 {
-        let (sender, len) = ipc::ipc_recv_wait(&mut recv_buf);
+    while !pending.is_empty() {
+        if start.elapsed() >= timeout {
+            println!("[CORE] ERROR: timed out waiting for critical services");
+            return false;
+        }
+        let (sender, len) = ipc::ipc_recv(&mut recv_buf);
         if sender == 0 && len == 0 {
+            time::sleep_ms(0);
             continue;
         }
 
@@ -81,35 +82,49 @@ fn wait_for_ready(expected_pids: &[u64]) {
             // OP コードだけ読む
             let op = u64::from_le_bytes(recv_buf[..8].try_into().unwrap_or([0; 8]));
             if op == OP_NOTIFY_READY {
-                let mut matched = false;
-                for i in 0..pending_len {
-                    if pending[i] == sender {
-                        pending[i] = pending[pending_len - 1];
-                        pending_len -= 1;
-                        matched = true;
-                        break;
-                    }
-                }
-                if matched {
-                    let ready_count = total - pending_len;
+                if let Some(pos) = pending.iter().position(|pid| *pid == sender) {
+                    pending.swap_remove(pos);
+                    let ready_count = total - pending.len();
                     println!(
                         "[CORE] Critical service ready (PID={}, {}/{})",
                         sender, ready_count, total
                     );
-                    if pending_len == 0 {
-                        return;
+                    if pending.is_empty() {
+                        return true;
                     }
                 }
             }
         }
     }
+
+    true
 }
 
 fn exec_file_via_fs_service(path: &str) -> Result<u64, i64> {
     swiftlib::fs::exec_via_fs(path)
 }
 
+fn service_name_from_path(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or(path)
+}
+
+fn is_allowed_service_path(path: &str) -> bool {
+    if path.is_empty() || path.contains("..") {
+        return false;
+    }
+    path.starts_with("Services/") || path.starts_with("Binaries/")
+}
+
+fn service_already_running(path: &str) -> bool {
+    task::find_process_by_name(service_name_from_path(path)).is_some()
+}
+
 fn start_shell_service() {
+    if service_already_running("shell.service") {
+        println!("[CORE] shell.service already running, skip startup");
+        return;
+    }
+
     // rootfs は fs.service がマウントするため、fs.service に実行を依頼する
     println!("[CORE] Loading shell.service via fs.service...");
     match exec_file_via_fs_service("Services/shell.service") {
@@ -130,7 +145,7 @@ fn start_shell_service() {
 
 fn fs_open_read_lines(path: &str) -> Result<Vec<String>, i64> {
     match swiftlib::fs::read_file_via_fs(path, 4096) {
-        Some(bytes) => {
+        Ok(Some(bytes)) => {
             let mut lines = Vec::new();
             if let Ok(text) = core::str::from_utf8(&bytes) {
                 for line in text.lines() {
@@ -143,7 +158,8 @@ fn fs_open_read_lines(path: &str) -> Result<Vec<String>, i64> {
             }
             Ok(lines)
         }
-        None => Err(-5),
+        Ok(None) => Err(-5),
+        Err(errno) => Err(errno),
     }
 }
 
@@ -152,10 +168,20 @@ fn main() {
 
     let mut critical_pids = [0u64; CRITICAL_SERVICES.len()];
     for (idx, service) in CRITICAL_SERVICES.iter().enumerate() {
-        critical_pids[idx] = start_service(service).unwrap_or(0);
+        let Some(pid) = start_service(service) else {
+            println!(
+                "[CORE] ERROR: failed to start critical service {}, aborting startup",
+                service.name
+            );
+            return;
+        };
+        critical_pids[idx] = pid;
     }
 
-    wait_for_ready(&critical_pids);
+    if !wait_for_ready(&critical_pids) {
+        println!("[CORE] Critical services readiness failed; aborting startup");
+        return;
+    }
 
     start_shell_service();
 
@@ -164,6 +190,18 @@ fn main() {
         Ok(lines) => {
             println!("[CORE] Found services.list with {} entries", lines.len());
             for p in lines {
+                if !is_allowed_service_path(&p) {
+                    println!("[CORE] Skipping disallowed service path: {}", p);
+                    continue;
+                }
+                if service_already_running(&p) {
+                    println!(
+                        "[CORE] Skipping {} ({} already running)",
+                        p,
+                        service_name_from_path(&p)
+                    );
+                    continue;
+                }
                 println!("[CORE] Requesting exec for {}", p);
                 match exec_file_via_fs_service(&p) {
                     Ok(pid) => println!("[CORE] {} started (PID={})", p, pid),

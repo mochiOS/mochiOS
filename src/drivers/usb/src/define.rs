@@ -72,7 +72,7 @@ pub struct XhciController {
 }
 
 #[allow(unused)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct XhciRegs {
     pub(crate) base: *mut u8,
     pub(crate) cap_len: usize,
@@ -95,6 +95,12 @@ pub struct TransferRing {
     pub(crate) cycle: bool,
 }
 
+/// DMA 用に確保した1連続領域。
+///
+/// 所有権は DmaPage が保持し、Drop 時に `virt` を `size` バイト分解放する。
+/// - `virt` は PAGE_SIZE アラインで `size` バイト有効な領域を指す必要がある。
+/// - `phys` は `virt` 先頭に対応する物理アドレスである必要がある。
+/// - `virt` 参照を使うメソッドは、呼び出し元が有効ライフタイムと排他制御を保証すること。
 pub struct DmaPage {
     pub(crate) virt: *mut u8,
     pub(crate) phys: u64,

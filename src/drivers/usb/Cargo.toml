@@ -4,12 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
+# driver.service から起動されるユーザー空間ドライバー実行ファイル
 name = "xhci"
 path = "src/main.rs"
 test = false
 bench = false
 
 [dependencies]
+# ユーザー空間ドライバーのため swiftlib(std-support) を利用する
 swiftlib = { path = "../../user", features = ["std-support"] }
 
 [profile.dev]

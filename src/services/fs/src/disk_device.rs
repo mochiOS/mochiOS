@@ -3,6 +3,7 @@
 use core::mem::size_of;
 
 use swiftlib::ipc;
+use swiftlib::time;
 
 use crate::common::vfs::{VfsError, VfsResult};
 use crate::enqueue_pending_message;
@@ -12,6 +13,7 @@ use crate::IPC_MAX_MSG_SIZE;
 
 const MAX_SECTORS_PER_REQ: usize = 64;
 const BULK_SECTORS_PER_MSG: usize = 4;
+const DISK_REQ_TIMEOUT_MS: u64 = 2000;
 
 /// ディスク操作リクエスト（書き込みデータを含む）
 #[repr(C)]
@@ -38,6 +40,18 @@ struct DiskResponse {
     status: i64,
     len: u64,
     data: [u8; 512],
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct DiskBulkResponse {
+    status: i64,
+    len: u64,
+    seq_no: u32,
+    total_chunks: u32,
+    eof: u8,
+    _pad: [u8; 7],
+    data: [u8; BULK_SECTORS_PER_MSG * 512],
 }
 
 /// ディスクサービスを使用したブロックデバイス
@@ -124,12 +138,15 @@ impl DiskServiceDevice {
         let mut resp_buf = vec![0u8; IPC_MAX_MSG_SIZE];
         let chunk_count = count.div_ceil(BULK_SECTORS_PER_MSG);
         for chunk_idx in 0..chunk_count {
-            let remaining = count - chunk_idx * BULK_SECTORS_PER_MSG;
+            let remaining = count.saturating_sub(chunk_idx * BULK_SECTORS_PER_MSG);
+            if remaining == 0 {
+                break;
+            }
             let chunk_sectors = core::cmp::min(BULK_SECTORS_PER_MSG, remaining);
             let expected_chunk_bytes = chunk_sectors
                 .checked_mul(self.sector_size)
                 .ok_or(VfsError::InvalidArgument)?;
-            let expected_bulk_len = size_of::<i64>() + size_of::<u64>() + expected_chunk_bytes;
+            let expected_bulk_len = size_of::<DiskBulkResponse>();
 
             if let Some(n) = take_pending_message_for_sender(self.disk_service_pid, &mut resp_buf) {
                 if n == size_of::<DiskResponse>() && chunk_sectors == 1 {
@@ -166,12 +183,27 @@ impl DiskServiceDevice {
                 continue;
             }
 
+            let start_tick = time::get_ticks();
             let (_, len) = loop {
-                let (s, l) = ipc::ipc_recv_wait(&mut resp_buf);
+                let (s, l) = ipc::ipc_recv(&mut resp_buf);
                 if s == 0 && l == 0 {
+                    if time::get_ticks().saturating_sub(start_tick) > DISK_REQ_TIMEOUT_MS {
+                        println!("[FS] ERROR: disk read IPC timeout waiting for response");
+                        return Err(VfsError::IoError);
+                    }
+                    time::sleep_ms(0);
                     continue;
                 }
                 if s != self.disk_service_pid {
+                    if (l as usize) > resp_buf.len() {
+                        println!(
+                            "[FS] WARN: dropping oversized IPC message from {} (len={} > cap={})",
+                            s,
+                            l,
+                            resp_buf.len()
+                        );
+                        continue;
+                    }
                     let msg_len = core::cmp::min(l as usize, resp_buf.len());
                     if !enqueue_pending_message(s, &resp_buf[..msg_len]) {
                         println!(
@@ -202,20 +234,23 @@ impl DiskServiceDevice {
                 return Err(VfsError::IoError);
             }
 
-            let status =
-                i64::from_le_bytes(resp_buf[0..8].try_into().map_err(|_| VfsError::IoError)?);
-            let data_len =
-                u64::from_le_bytes(resp_buf[8..16].try_into().map_err(|_| VfsError::IoError)?)
-                    as usize;
-            if status != 0 || data_len != expected_chunk_bytes {
+            let bulk: DiskBulkResponse =
+                unsafe { core::ptr::read_unaligned(resp_buf.as_ptr() as *const DiskBulkResponse) };
+            let data_len = bulk.len as usize;
+            if bulk.status != 0 || data_len != expected_chunk_bytes {
                 return Err(VfsError::IoError);
             }
-            self.copy_bulk_chunk(
-                chunk_idx,
-                expected_chunk_bytes,
-                &resp_buf[16..16 + data_len],
-                buf,
-            )?;
+            if bulk.seq_no as usize != chunk_idx {
+                return Err(VfsError::IoError);
+            }
+            if bulk.total_chunks as usize != chunk_count {
+                return Err(VfsError::IoError);
+            }
+            let is_last = chunk_idx + 1 == chunk_count;
+            if (bulk.eof != 0) != is_last {
+                return Err(VfsError::IoError);
+            }
+            self.copy_bulk_chunk(chunk_idx, expected_chunk_bytes, &bulk.data[..data_len], buf)?;
         }
 
         Ok(())
@@ -246,18 +281,33 @@ impl DiskServiceDevice {
         }
 
         // レスポンスを受信（ブロッキング）
-        let mut resp_buf = [0u8; size_of::<DiskResponse>()];
+        let mut resp_buf = vec![0u8; IPC_MAX_MSG_SIZE];
         if let Some(n) = take_pending_message_for_sender(self.disk_service_pid, &mut resp_buf) {
             if n < size_of::<DiskResponse>() {
                 return Err(VfsError::IoError);
             }
         } else {
+            let start_tick = time::get_ticks();
             let (_, len) = loop {
-                let (s, l) = ipc::ipc_recv_wait(&mut resp_buf);
+                let (s, l) = ipc::ipc_recv(&mut resp_buf);
                 if s == 0 && l == 0 {
+                    if time::get_ticks().saturating_sub(start_tick) > DISK_REQ_TIMEOUT_MS {
+                        println!("[FS] ERROR: disk write IPC timeout waiting for response");
+                        return Err(VfsError::IoError);
+                    }
+                    time::sleep_ms(0);
                     continue;
                 }
                 if s != self.disk_service_pid {
+                    if (l as usize) > resp_buf.len() {
+                        println!(
+                            "[FS] WARN: dropping oversized IPC message from {} (len={} > cap={})",
+                            s,
+                            l,
+                            resp_buf.len()
+                        );
+                        continue;
+                    }
                     let msg_len = core::cmp::min(l as usize, resp_buf.len());
                     if !enqueue_pending_message(s, &resp_buf[..msg_len]) {
                         println!(

@@ -205,7 +205,12 @@ fn mmio_region_type_allowed(region_type: MemoryType) -> bool {
 
 /// MMIO として扱ってよい物理アドレス範囲か判定
 ///
-/// - 範囲はメモリマップ上の1つの非Usable領域に完全に含まれている必要がある。
+/// 許可条件:
+/// - 範囲が非Usable領域 (Reserved/AcpiNvs/Framebuffer) に完全に含まれる、または
+/// - 範囲が UEFI メモリマップのどの領域とも重ならない (= 高位 PCI MMIO ホール)
+///
+/// 拒否条件:
+/// - Usable RAM やカーネル所有領域と少しでも重なる
 pub fn is_allowed_mmio_range(start_phys: u64, size: u64) -> bool {
     if size == 0 {
         return false;
@@ -220,19 +225,34 @@ pub fn is_allowed_mmio_range(start_phys: u64, size: u64) -> bool {
         return false;
     };
 
-    alloc.memory_map.iter().any(|r| {
+    let mut overlaps_any = false;
+    let mut fully_contained_in_allowed = false;
+    for r in alloc.memory_map.iter() {
         if r.len == 0 {
-            return false;
+            continue;
         }
         let region_end = match r.start.checked_add(r.len - 1) {
             Some(v) => v,
-            None => return false,
+            None => continue,
         };
+        let overlaps = start_phys <= region_end && end_phys >= r.start;
+        if !overlaps {
+            continue;
+        }
+        overlaps_any = true;
+        if !mmio_region_type_allowed(r.region_type) {
+            return false;
+        }
+        if start_phys >= r.start && end_phys <= region_end {
+            fully_contained_in_allowed = true;
+        }
+    }
 
-        let region_allowed = mmio_region_type_allowed(r.region_type);
-
-        start_phys >= r.start && end_phys <= region_end && region_allowed
-    })
+    if fully_contained_in_allowed {
+        return true;
+    }
+    // メモリマップに記述のない領域 = PCI MMIO ホール (高位 BAR など) は許可
+    !overlaps_any
 }
 
 #[cfg(test)]

@@ -108,6 +108,8 @@ pub enum AtaError {
     NotReady,
     /// 無効な引数
     InvalidArgument,
+    /// 機能未サポート
+    NotSupported,
 }
 
 pub type AtaResult<T> = Result<T, AtaError>;
@@ -128,6 +130,8 @@ pub struct AtaDrive {
     initialized: AtomicBool,
     /// Optional async queue for read coalescing
     read_queue: Option<Arc<Mutex<VecDeque<QueuedRead>>>>,
+    /// ポートI/Oを直列化するロック
+    io_lock: Mutex<()>,
     /// NCQ（ネイティブコマンドキュー）対応フラグ（検出済みフラグ）
     ncq_supported: bool,
 }
@@ -154,7 +158,7 @@ impl AtaDrive {
         // to submit multiple READ DMA EXT or similar commands. That code requires PCI/AHCI support and
         // DMA memory management; it's out of scope for the legacy PIO-based driver implemented here.
         // Use NotSupported alias to maintain compatibility
-        Err(AtaError::IoError)
+        Err(AtaError::NotSupported)
     }
 
     /// 新しいATAドライブインスタンスを作成
@@ -165,6 +169,7 @@ impl AtaDrive {
             sectors: 0,
             initialized: AtomicBool::new(false),
             read_queue: None,
+            io_lock: Mutex::new(()),
             ncq_supported: false,
         }
     }
@@ -258,6 +263,12 @@ impl AtaDrive {
 
     /// 複数セクタを連続読み取りする（LBA28モード）
     pub fn read_sectors(&self, lba: u64, count: u8, buffer: &mut [u8]) -> AtaResult<()> {
+        let expected_size = (count as usize)
+            .checked_mul(512)
+            .ok_or(AtaError::InvalidArgument)?;
+        if buffer.len() < expected_size {
+            return Err(AtaError::InvalidArgument);
+        }
         // backward-compatible: enqueue and block on completion
         let rx = self.enqueue_read_sectors(lba, count)?;
         match rx.recv() {
@@ -278,11 +289,14 @@ impl AtaDrive {
         if count == 0 { return Err(AtaError::InvalidArgument); }
         let end_lba_exclusive = lba.checked_add(count as u64).ok_or(AtaError::InvalidArgument)?;
         if end_lba_exclusive > (1u64 << 28) { return Err(AtaError::InvalidArgument); }
+        if end_lba_exclusive > self.sectors {
+            return Err(AtaError::InvalidArgument);
+        }
 
         let (tx, rx) = channel();
         let qr = QueuedRead { lba, count, responder: tx };
         if let Some(ref q) = self.read_queue {
-            let mut guard = q.lock().unwrap();
+            let mut guard = q.lock().unwrap_or_else(|e| e.into_inner());
             guard.push_back(qr);
             Ok(rx)
         } else {
@@ -302,6 +316,8 @@ impl AtaDrive {
         let total_bytes = total_sectors.checked_mul(512).ok_or(AtaError::InvalidArgument)?;
         if buffer.len() < total_bytes { return Err(AtaError::InvalidArgument); }
 
+        let _io_guard = self.io_lock.lock().unwrap_or_else(|e| e.into_inner());
+
         self.select_drive();
         self.wait_400ns();
 
@@ -318,8 +334,21 @@ impl AtaDrive {
             self.wait_drq()?;
             let start = sector_idx * 512;
             let end = start + 512;
-            let word_buffer = unsafe { core::slice::from_raw_parts_mut(buffer[start..end].as_mut_ptr() as *mut u16, 256) };
-            if inw_words(self.ports.data, word_buffer).is_err() { return Err(AtaError::IoError); }
+            let chunk = &mut buffer[start..end];
+            let (prefix, words, suffix) = unsafe { chunk.align_to_mut::<u16>() };
+            if prefix.is_empty() && suffix.is_empty() {
+                if inw_words(self.ports.data, words).is_err() {
+                    return Err(AtaError::IoError);
+                }
+            } else {
+                let mut tmp_words = [0u16; 256];
+                if inw_words(self.ports.data, &mut tmp_words).is_err() {
+                    return Err(AtaError::IoError);
+                }
+                for (dst, word) in chunk.chunks_exact_mut(2).zip(tmp_words.iter()) {
+                    dst.copy_from_slice(&word.to_le_bytes());
+                }
+            }
         }
 
         self.wait_not_busy()?;
@@ -346,6 +375,8 @@ impl AtaDrive {
             return Err(AtaError::InvalidArgument);
         }
 
+        let _io_guard = self.io_lock.lock().unwrap_or_else(|e| e.into_inner());
+
         // ドライブを選択してLBAを設定
         self.select_drive();
         self.wait_400ns();
@@ -360,10 +391,12 @@ impl AtaDrive {
         self.wait_drq()?;
 
         // データを書き込む（512バイト = 256ワード）
-        let word_buffer =
-            unsafe { core::slice::from_raw_parts(buffer.as_ptr() as *const u16, 256) };
+        let mut tmp_words = [0u16; 256];
+        for (idx, chunk) in buffer[..512].chunks_exact(2).enumerate() {
+            tmp_words[idx] = u16::from_le_bytes([chunk[0], chunk[1]]);
+        }
 
-        if outw_words(self.ports.data, word_buffer).is_err() {
+        if outw_words(self.ports.data, &tmp_words).is_err() {
             return Err(AtaError::IoError);
         }
 

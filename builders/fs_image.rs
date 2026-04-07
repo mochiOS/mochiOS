@@ -43,8 +43,8 @@ fn should_skip_initfs_library(path: &Path) -> bool {
     )
 }
 
-fn copy_initfs_runtime_tree(src: &Path, dst: &Path, in_libraries: bool) -> Result<(), String> {
-    fs::create_dir_all(dst).map_err(|e| format!("Failed to create {}: {}", dst.display(), e))?;
+fn copy_initfs_runtime_tree(src: &Path, dst: &Path, in_libraries: bool) -> Result<bool, String> {
+    let mut copied_any = false;
 
     for entry in
         fs::read_dir(src).map_err(|e| format!("Failed to read {}: {}", src.display(), e))?
@@ -56,25 +56,80 @@ fn copy_initfs_runtime_tree(src: &Path, dst: &Path, in_libraries: bool) -> Resul
         let dst_path = dst.join(&name);
         let name_str = name.to_string_lossy();
         let child_in_libraries = in_libraries || name_str == "Libraries";
+        let src_meta = fs::symlink_metadata(&src_path)
+            .map_err(|e| format!("Failed to stat {}: {}", src_path.display(), e))?;
 
-        if src_path.is_dir() {
-            copy_initfs_runtime_tree(&src_path, &dst_path, child_in_libraries)?;
+        if src_meta.is_dir() {
+            let child_copied = copy_initfs_runtime_tree(&src_path, &dst_path, child_in_libraries)?;
+            if child_copied {
+                if !copied_any {
+                    fs::create_dir_all(dst)
+                        .map_err(|e| format!("Failed to create {}: {}", dst.display(), e))?;
+                }
+                copied_any = true;
+            }
         } else {
             if child_in_libraries && should_skip_initfs_library(&src_path) {
                 continue;
             }
-            fs::copy(&src_path, &dst_path).map_err(|e| {
-                format!(
-                    "Failed to copy {} to {}: {}",
-                    src_path.display(),
-                    dst_path.display(),
-                    e
-                )
-            })?;
+
+            if !copied_any {
+                fs::create_dir_all(dst)
+                    .map_err(|e| format!("Failed to create {}: {}", dst.display(), e))?;
+                copied_any = true;
+            }
+
+            if src_meta.file_type().is_symlink() {
+                let link_target = fs::read_link(&src_path)
+                    .map_err(|e| format!("Failed to read symlink {}: {}", src_path.display(), e))?;
+                #[cfg(unix)]
+                {
+                    std::os::unix::fs::symlink(&link_target, &dst_path).map_err(|e| {
+                        format!(
+                            "Failed to replicate symlink {} -> {}: {}",
+                            dst_path.display(),
+                            link_target.display(),
+                            e
+                        )
+                    })?;
+                }
+                #[cfg(not(unix))]
+                {
+                    let resolved = if link_target.is_absolute() {
+                        link_target.clone()
+                    } else {
+                        src_path
+                            .parent()
+                            .unwrap_or_else(|| Path::new("."))
+                            .join(&link_target)
+                    };
+                    fs::copy(&resolved, &dst_path).map_err(|e| {
+                        format!(
+                            "Failed to copy symlink target {} to {}: {}",
+                            resolved.display(),
+                            dst_path.display(),
+                            e
+                        )
+                    })?;
+                }
+            } else {
+                fs::copy(&src_path, &dst_path).map_err(|e| {
+                    format!(
+                        "Failed to copy {} to {}: {}",
+                        src_path.display(),
+                        dst_path.display(),
+                        e
+                    )
+                })?;
+            }
         }
     }
 
-    Ok(())
+    if !copied_any && dst.exists() {
+        let _ = fs::remove_dir(dst);
+    }
+
+    Ok(copied_any)
 }
 
 /// InitFS (ramfs) 用のext2イメージを生成
@@ -93,7 +148,11 @@ pub fn create_initfs_image(ramfs_dir: &Path, output_path: &Path) -> Result<(), S
         fs::remove_dir_all(&staging_dir)
             .map_err(|e| format!("Failed to clean {}: {}", staging_dir.display(), e))?;
     }
-    copy_initfs_runtime_tree(ramfs_dir, &staging_dir, false)?;
+    let copied_any = copy_initfs_runtime_tree(ramfs_dir, &staging_dir, false)?;
+    if !copied_any {
+        fs::create_dir_all(&staging_dir)
+            .map_err(|e| format!("Failed to create {}: {}", staging_dir.display(), e))?;
+    }
 
     let original_size = compute_content_size(ramfs_dir) / (1024 * 1024);
     let runtime_size = compute_content_size(&staging_dir) / (1024 * 1024);
@@ -227,6 +286,10 @@ pub fn setup_fs_layout(fs_dir: &Path, resources_src: &Path) -> Result<(), String
             }
             let dir_name = entry.file_name();
             let dst_path = fs_dir.join(&dir_name);
+            if dst_path.exists() {
+                fs::remove_dir_all(&dst_path)
+                    .map_err(|e| format!("Failed to clean {}: {}", dst_path.display(), e))?;
+            }
             copy_dir_recursive(&src_path, &dst_path)?;
             println!(
                 "Copied resources/{} -> {}",

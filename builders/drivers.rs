@@ -57,22 +57,23 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
         }
 
         let target_spec = find_target_spec(&path);
-        let uses_json_target = target_spec
+        let mut uses_json_target = target_spec
             .as_deref()
             .map(|t| t.ends_with(".json"))
             .unwrap_or(false);
 
         let cargo_config = path.join(".cargo/config.toml");
         let cargo_config_text = fs::read_to_string(&cargo_config).ok();
-        let has_config_target = cargo_config_text
+        let config_target = cargo_config_text
             .as_deref()
-            .map(|s| s.contains("[build]") && s.contains("target"))
-            .unwrap_or(false);
+            .and_then(parse_build_target_from_cargo_config_text);
+        let has_config_target = config_target.is_some();
         let config_uses_json_target = cargo_config_text
             .as_deref()
-            .map(|s| s.contains(".json"))
+            .and_then(parse_build_target_from_cargo_config_text)
+            .map(|target| target.ends_with(".json"))
             .unwrap_or(false);
-        let uses_json_target = uses_json_target || config_uses_json_target;
+        uses_json_target = uses_json_target || config_uses_json_target;
 
         let mut cmd = Command::new("cargo");
         cmd.args(["build", "--release"]);
@@ -113,16 +114,8 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
                 if !output.status.success() {
                     let stderr = String::from_utf8_lossy(&output.stderr);
                     let stdout = String::from_utf8_lossy(&output.stdout);
-                    let err_tail = if stderr.len() > 4000 {
-                        &stderr[stderr.len() - 4000..]
-                    } else {
-                        &stderr
-                    };
-                    let out_tail = if stdout.len() > 2000 {
-                        &stdout[stdout.len() - 2000..]
-                    } else {
-                        &stdout
-                    };
+                    let err_tail = tail_from_char_boundary(&stderr, 4000);
+                    let out_tail = tail_from_char_boundary(&stdout, 2000);
                     panic!(
                         "Failed to build driver {}: status={} STDERR={} STDOUT={}",
                         driver_dir_name, output.status, err_tail, out_tail
@@ -131,7 +124,14 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
 
                 let target_dir = path.join("target");
                 let target_name = if has_config_target {
-                    Some("x86_64-mochios".to_string())
+                    config_target
+                        .or_else(|| {
+                            target_spec
+                                .as_ref()
+                                .and_then(|p| Path::new(p).file_stem())
+                                .map(|s| s.to_string_lossy().to_string())
+                        })
+                        .or_else(|| Some("x86_64-unknown-none".to_string()))
                 } else if let Some(p) = &target_spec {
                     Path::new(p)
                         .file_stem()
@@ -180,6 +180,74 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
     autostart_entries
 }
 
+fn tail_from_char_boundary(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+
+    let target_start = s.len().saturating_sub(max_bytes);
+    let byte_index = s
+        .char_indices()
+        .rev()
+        .find(|(idx, _)| *idx <= target_start)
+        .map(|(idx, _)| idx)
+        .unwrap_or(0);
+    &s[byte_index..]
+}
+
+fn parse_build_target_from_cargo_config_text(content: &str) -> Option<String> {
+    let mut in_build = false;
+
+    for raw_line in content.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        if line.starts_with('[') && line.ends_with(']') {
+            in_build = line == "[build]";
+            continue;
+        }
+
+        if !in_build {
+            continue;
+        }
+
+        let Some((key_raw, value_raw)) = line.split_once('=') else {
+            continue;
+        };
+        if key_raw.trim() != "target" {
+            continue;
+        }
+
+        let mut comment_stripped = String::with_capacity(value_raw.len());
+        let mut in_single_quote = false;
+        let mut in_double_quote = false;
+        for ch in value_raw.chars() {
+            match ch {
+                '\'' if !in_double_quote => {
+                    in_single_quote = !in_single_quote;
+                    comment_stripped.push(ch);
+                }
+                '"' if !in_single_quote => {
+                    in_double_quote = !in_double_quote;
+                    comment_stripped.push(ch);
+                }
+                '#' if !in_single_quote && !in_double_quote => break,
+                _ => comment_stripped.push(ch),
+            }
+        }
+
+        let value_no_comment = comment_stripped.trim();
+        let value = value_no_comment.trim_matches('"').trim_matches('\'').trim();
+        if !value.is_empty() {
+            return Some(value.to_string());
+        }
+    }
+
+    None
+}
+
 fn normalize_driver_name(driver_dir_name: &str) -> String {
     // 例: usb3_0 -> usb3.0
     driver_dir_name.replace('_', ".")
@@ -199,14 +267,28 @@ fn parse_driver_binary_name(cargo_toml: &Path) -> Option<String> {
             continue;
         }
 
-        if let Some(rest) = line.strip_prefix("name = ") {
-            let name = rest.trim_matches('"').trim_matches('\'').to_string();
-            if in_bin {
-                return Some(name);
-            }
-            if in_package && package_name.is_none() {
-                package_name = Some(name);
-            }
+        let Some((lhs, rhs)) = line.split_once('=') else {
+            continue;
+        };
+        if lhs.trim() != "name" {
+            continue;
+        }
+
+        let name = rhs
+            .trim()
+            .trim_matches('"')
+            .trim_matches('\'')
+            .trim()
+            .to_string();
+        if name.is_empty() {
+            continue;
+        }
+
+        if in_bin {
+            return Some(name);
+        }
+        if in_package && package_name.is_none() {
+            package_name = Some(name);
         }
     }
 

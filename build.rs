@@ -1,5 +1,6 @@
 mod builders;
 
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -10,6 +11,7 @@ use builders::{
 };
 
 const BUSYBOX_URL: &str = "https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox";
+const BUSYBOX_SHA256: &str = "6e123e7f3202a8c1e9b1f94d8941580a25135382b99e8d3e34fb858bba311348";
 
 /// カーネル ELF をビルドして fs/System/kernel.elf にコピーする
 fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
@@ -17,7 +19,6 @@ fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
     let kernel_target_dir = manifest_dir.join("target/kernel");
     let mut cmd = std::process::Command::new("cargo");
     cmd.current_dir(&kernel_crate_dir);
-    // 再帰防止：カーネルがルートを dep としてビルドする際のフラグ
     cmd.env("MOCHIOS_BUILDING_KERNEL", "1");
     cmd.env("CARGO_TARGET_DIR", &kernel_target_dir);
     cmd.args(["build", "-Z", "build-std=core,alloc"]);
@@ -28,43 +29,29 @@ fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
     match status {
         Ok(s) if s.success() => {}
         Ok(s) => {
-            println!(
-                "cargo:warning=kernel build exited with status {}",
+            panic!(
+                "kernel build failed with exit code {}",
                 s.code().unwrap_or(-1)
             );
-            return;
         }
         Err(e) => {
-            println!("cargo:warning=failed to run kernel cargo build: {}", e);
-            return;
+            panic!("failed to run kernel cargo build: {}", e);
         }
     }
 
-    // kernel ELF を fs/System/kernel.elf にコピー
-    // CARGO_TARGET_DIR=target/kernel を使用しているのでそちらを参照する
     let kernel_bin = kernel_target_dir
         .join("x86_64-unknown-none")
         .join(profile)
         .join("kernel");
     let system_dir = fs_dir.join("System");
-    let _ = fs::create_dir_all(&system_dir);
+    fs::create_dir_all(&system_dir).expect("failed to create System directory");
     let dest = system_dir.join("kernel.elf");
-    if kernel_bin.exists() {
-        if let Err(e) = fs::copy(&kernel_bin, &dest) {
-            println!(
-                "cargo:warning=failed to copy kernel ELF to {}: {}",
-                dest.display(),
-                e
-            );
-        } else {
-            println!("Kernel ELF copied to {}", dest.display());
-        }
-    } else {
-        println!(
-            "cargo:warning=kernel binary not found at {}",
-            kernel_bin.display()
-        );
+    if !kernel_bin.exists() {
+        panic!("kernel binary not found at {}", kernel_bin.display());
     }
+    fs::copy(&kernel_bin, &dest)
+        .unwrap_or_else(|e| panic!("failed to copy kernel ELF to {}: {}", dest.display(), e));
+    println!("Kernel ELF copied to {}", dest.display());
 }
 
 fn is_elf_binary(path: &Path) -> Result<bool, String> {
@@ -78,6 +65,26 @@ fn is_elf_binary(path: &Path) -> Result<bool, String> {
     Ok(magic == [0x7F, b'E', b'L', b'F'])
 }
 
+fn compute_sha256(path: &Path) -> Result<String, String> {
+    use std::process::Command;
+
+    let output = Command::new("sha256sum")
+        .arg(path)
+        .output()
+        .map_err(|e| format!("Failed to run sha256sum: {}", e))?;
+
+    if !output.status.success() {
+        return Err("sha256sum failed".to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    stdout
+        .split_whitespace()
+        .next()
+        .map(|s| s.to_lowercase())
+        .ok_or_else(|| "No hash in sha256sum output".to_string())
+}
+
 /// BusyBoxをダウンロード
 fn ensure_busybox_binary(fs_dir: &Path) -> Result<(), String> {
     let binaries_dir = fs_dir.join("Binaries");
@@ -88,14 +95,50 @@ fn ensure_busybox_binary(fs_dir: &Path) -> Result<(), String> {
     let temp = binaries_dir.join("busybox.elf.download");
 
     if dest.exists() {
-        println!("Busybox already exists at {}", dest.display());
-        return Ok(());
+        if !is_elf_binary(&dest)? {
+            println!(
+                "cargo:warning=Existing BusyBox is not ELF, replacing: {}",
+                dest.display()
+            );
+            fs::remove_file(&dest)
+                .map_err(|e| format!("Failed to remove invalid {}: {}", dest.display(), e))?;
+        } else {
+            let existing_hash = compute_sha256(&dest)?;
+            if existing_hash == BUSYBOX_SHA256 {
+                println!(
+                    "BusyBox already exists and checksum verified at {}",
+                    dest.display()
+                );
+                return Ok(());
+            }
+            println!(
+                "cargo:warning=Existing BusyBox checksum mismatch (expected {}, got {}), replacing {}",
+                BUSYBOX_SHA256,
+                existing_hash,
+                dest.display()
+            );
+            fs::remove_file(&dest).map_err(|e| {
+                format!(
+                    "Failed to remove checksum-mismatched {}: {}",
+                    dest.display(),
+                    e
+                )
+            })?;
+        }
     }
 
     println!("Downloading busybox from {}", BUSYBOX_URL);
 
     let status = std::process::Command::new("curl")
-        .args(["-L", "--fail", "--silent", "--show-error", "--output"])
+        .args([
+            "-L",
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--max-time",
+            "30",
+            "--output",
+        ])
         .arg(&temp)
         .arg(BUSYBOX_URL)
         .status();
@@ -109,6 +152,23 @@ fn ensure_busybox_binary(fs_dir: &Path) -> Result<(), String> {
                     temp.display()
                 ));
             }
+
+            // SHA256整合性検証（既知の固定値と照合）
+            let sha256_file = binaries_dir.join("busybox.elf.sha256");
+            let actual_hash = compute_sha256(&temp)?;
+
+            if actual_hash != BUSYBOX_SHA256 {
+                let _ = fs::remove_file(&temp);
+                return Err(format!(
+                    "BusyBox SHA256 mismatch: expected {}, got {}. \
+                     上流バイナリが変更された場合は {} を削除して再ビルドしてください",
+                    BUSYBOX_SHA256,
+                    actual_hash,
+                    sha256_file.display()
+                ));
+            }
+
+            let _ = fs::write(&sha256_file, &actual_hash);
 
             if let Err(rename_err) = fs::rename(&temp, &dest) {
                 fs::copy(&temp, &dest).map_err(|copy_err| {
@@ -128,6 +188,16 @@ fn ensure_busybox_binary(fs_dir: &Path) -> Result<(), String> {
         Ok(s) => {
             let _ = fs::remove_file(&temp);
             if dest.exists() {
+                let existing_hash = compute_sha256(&dest)?;
+                if existing_hash != BUSYBOX_SHA256 {
+                    return Err(format!(
+                        "BusyBox download failed (status={}) and existing {} checksum mismatch: expected {}, got {}",
+                        s,
+                        dest.display(),
+                        BUSYBOX_SHA256,
+                        existing_hash
+                    ));
+                }
                 println!(
                     "cargo:warning=BusyBox download failed (status={}), using existing {}",
                     s,
@@ -162,28 +232,103 @@ fn ensure_busybox_binary(fs_dir: &Path) -> Result<(), String> {
     }
 }
 
+fn prune_stale_service_artifacts(
+    services: &[builders::services::ServiceEntry],
+    ramfs_dir: &Path,
+    fs_dir: &Path,
+) -> Result<(), String> {
+    let initfs_expected: HashSet<String> = services
+        .iter()
+        .filter(|s| s.fs_type == "initfs")
+        .map(|s| format!("{}.service", s.name))
+        .collect();
+    let ata_expected: HashSet<String> = services
+        .iter()
+        .filter(|s| s.fs_type != "initfs")
+        .map(|s| format!("{}.service", s.name))
+        .collect();
+
+    if let Ok(entries) = fs::read_dir(ramfs_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if name.ends_with(".service") && !initfs_expected.contains(name) {
+                fs::remove_file(&path)
+                    .map_err(|e| format!("Failed to remove stale {}: {}", path.display(), e))?;
+            }
+        }
+    }
+
+    let fs_services_dir = fs_dir.join("Services");
+    if let Ok(entries) = fs::read_dir(&fs_services_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if name.ends_with(".service") && !ata_expected.contains(name) {
+                fs::remove_file(&path)
+                    .map_err(|e| format!("Failed to remove stale {}: {}", path.display(), e))?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[allow(unused)]
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
-    // Ensure build is re-run when files under shared/ change
-    let shared_dir = manifest_dir.join("shared");
-    if shared_dir.exists() {
-        fn visit_dir(dir: &std::path::Path) {
-            if let Ok(entries) = std::fs::read_dir(dir) {
-                for e in entries.flatten() {
-                    let p = e.path();
-                    if p.is_file() {
+    // Emit rerun-if-changed for all source directories
+    fn emit_rerun_for_dir(dir: &Path) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for e in entries.flatten() {
+                let p = e.path();
+                if p.is_file() {
+                    if p.extension()
+                        .map(|e| e == "rs" || e == "toml")
+                        .unwrap_or(false)
+                    {
                         println!("cargo:rerun-if-changed={}", p.display());
-                    } else if p.is_dir() {
-                        visit_dir(&p);
+                    }
+                } else if p.is_dir() {
+                    if p.file_name()
+                        .map(|n| n != "target" && n != ".git")
+                        .unwrap_or(true)
+                    {
+                        emit_rerun_for_dir(&p);
                     }
                 }
             }
         }
-        visit_dir(&shared_dir);
     }
+
+    for dir in &[
+        "src/user",
+        "src/services",
+        "src/apps",
+        "src/drivers",
+        "src/resources",
+    ] {
+        let p = manifest_dir.join(dir);
+        if p.exists() {
+            emit_rerun_for_dir(&p);
+        }
+    }
+
+    println!("cargo:rerun-if-env-changed=PROFILE");
+    println!("cargo:rerun-if-env-changed=TARGET");
+    println!("cargo:rerun-if-env-changed=CARGO_TARGET_DIR");
 
     // カーネルビルドの再帰呼び出しの場合はプレースホルダーだけ作成して終了する
     // (initfs は埋め込まず、ブートローダーが実行時にロードして BootInfo で渡す)
@@ -234,6 +379,18 @@ fn main() {
         .join(&target)
         .join(&profile)
         .join("newlib_install");
+
+    // Verify newlib output exists before proceeding
+    let libc_path = newlib_install_dir
+        .join("x86_64-elf")
+        .join("lib")
+        .join("libc.a");
+    if !libc_path.exists() {
+        panic!(
+            "newlib build completed but libc.a not found at {}",
+            libc_path.display()
+        );
+    }
 
     let libc_dir = newlib_install_dir.join("x86_64-elf").join("lib");
 
@@ -305,6 +462,9 @@ fn main() {
 
     let services = parse_service_index(&index_path).expect("Failed to parse index.toml");
 
+    prune_stale_service_artifacts(&services, &ramfs_dir, &fs_dir)
+        .expect("Failed to prune stale service artifacts");
+
     // サービスをビルド
     let services_base_dir = manifest_dir.join("src/services");
 
@@ -315,12 +475,8 @@ fn main() {
             &fs_dir
         };
 
-        if let Err(e) = build_service(service, &services_base_dir, output_dir) {
-            println!(
-                "cargo:warning=Failed to build service {}: {}",
-                service.name, e
-            );
-        }
+        build_service(service, &services_base_dir, output_dir)
+            .unwrap_or_else(|e| panic!("Failed to build service {}: {}", service.name, e));
     }
 
     // アプリケーションをビルド
@@ -354,8 +510,8 @@ fn main() {
     let driver_autostart_path = fs_dir.join("Config").join("drivers.list");
     match fs::write(&driver_autostart_path, driver_autostart_entries.join("\n")) {
         Ok(_) => println!("Generated {}", driver_autostart_path.display()),
-        Err(e) => println!(
-            "cargo:warning=Failed to write {}: {}",
+        Err(e) => panic!(
+            "Failed to write critical config {}: {}",
             driver_autostart_path.display(),
             e
         ),
@@ -380,8 +536,8 @@ fn main() {
         services_autostart_entries.join("\n"),
     ) {
         Ok(_) => println!("Generated {}", services_autostart_path.display()),
-        Err(e) => println!(
-            "cargo:warning=Failed to write {}: {}",
+        Err(e) => panic!(
+            "Failed to write critical config {}: {}",
             services_autostart_path.display(),
             e
         ),

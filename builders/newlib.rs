@@ -281,6 +281,13 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
     } else {
         &libc_a
     };
+    if !base_src.exists() {
+        panic!(
+            "Base libc archive not found: expected {} or {}",
+            libc_base_a.display(),
+            libc_a.display()
+        );
+    }
     fs::copy(base_src, &libc_tmp).expect("Failed to copy libc base to temp");
 
     let status = Command::new("sh")
@@ -306,7 +313,14 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
     fs::rename(&libc_tmp, &libc_a).expect("Failed to rename libc_merged_tmp.a to libc.a");
 
     // libg.a (デバッグ版) も同期させる
-    let _ = fs::copy(&libc_a, &libg_a);
+    if let Err(e) = fs::copy(&libc_a, &libg_a) {
+        panic!(
+            "Failed to copy merged libc.a to libg.a ({} -> {}): {}",
+            libc_a.display(),
+            libg_a.display(),
+            e
+        );
+    }
 
     fs::remove_dir_all(&merge_dir).unwrap();
     println!("Successfully merged user glue into libc.a");

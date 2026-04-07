@@ -5,6 +5,9 @@
 
 use super::types::{EFAULT, EINVAL, EPERM};
 use crate::task::ids::PrivilegeLevel;
+use alloc::vec::Vec;
+use x86_64::instructions::tlb;
+use x86_64::VirtAddr;
 
 /// 現在スレッドのプロセス権限レベルを取得
 fn current_process_privilege() -> Option<PrivilegeLevel> {
@@ -19,6 +22,22 @@ fn require_service_privilege() -> Result<(), u64> {
         Some(PrivilegeLevel::Core) | Some(PrivilegeLevel::Service) => Ok(()),
         _ => Err(EPERM),
     }
+}
+
+fn deallocate_frames(phys_addrs: &[u64]) {
+    for &phys in phys_addrs {
+        use x86_64::{
+            structures::paging::{PhysFrame, Size4KiB},
+            PhysAddr,
+        };
+        if let Some(frame) = PhysFrame::<Size4KiB>::from_start_address(PhysAddr::new(phys)).ok() {
+            let _ = crate::mem::frame::deallocate_frame(frame);
+        }
+    }
+}
+
+fn is_allowed_phys_page(phys_addr: u64) -> bool {
+    (phys_addr & 0xfff) == 0 && crate::mem::frame::is_usable_physical_address(phys_addr)
 }
 
 /// 物理ページ配列をターゲットプロセスのアドレス空間にマップ
@@ -60,33 +79,55 @@ pub fn map_physical_pages(
         return e;
     }
 
+    for &phys_addr in phys_pages.iter() {
+        if !is_allowed_phys_page(phys_addr) {
+            return EINVAL;
+        }
+    }
+
     // ターゲットプロセスのページテーブルを取得
     let target_pid = match crate::task::thread_to_process_id(target_thread_id) {
         Some(pid) => pid,
         None => return EINVAL,
     };
 
-    let page_table = match crate::task::with_process(target_pid, |p| p.page_table()) {
-        Some(Some(pt)) => pt,
-        _ => return EINVAL,
+    let page_span = match page_count.checked_mul(0x1000) {
+        Some(v) => v,
+        None => return EINVAL,
     };
 
     // 仮想アドレス決定（ヒントがあればそれを使用、なければ自動割り当て）
-    let virt_addr = if virt_addr_hint != 0 {
+    let (virt_addr, page_table, reserved_heap_old, reserved_heap_new) = if virt_addr_hint != 0 {
         // アライメントチェック
         if virt_addr_hint & 0xfff != 0 {
             return EINVAL;
         }
-        virt_addr_hint
+        let pt = match crate::task::with_process(target_pid, |p| p.page_table()) {
+            Some(Some(v)) => v,
+            _ => return EINVAL,
+        };
+        (virt_addr_hint, pt, None, None)
     } else {
-        // 自動割り当て: ヒープ上位の領域を使用 (0x6000_0000_0000付近)
+        // 自動割り当て: map_physical_pages は「他プロセスへの共有マップ」向けに
+        // 0x6000_0000_0000 帯を使用する。
         match crate::task::with_process_mut(target_pid, |p| {
-            // TODO: プロセス構造体にmmap領域管理を追加して衝突回避
-            // 暫定: 固定アドレス + ページカウント
-            let base = 0x6000_0000_0000u64;
-            base
+            let base = if p.heap_end() == 0 {
+                0x6000_0000_0000u64
+            } else {
+                p.heap_end()
+            };
+            let virt_addr = base
+                .checked_add(0xfff)
+                .map(|v| v & !0xfffu64)
+                .ok_or(EINVAL)?;
+            let new_end = virt_addr.checked_add(page_span).ok_or(EINVAL)?;
+            let pt = p.page_table().ok_or(EINVAL)?;
+            let old_end = p.heap_end();
+            p.set_heap_end(new_end);
+            Ok((virt_addr, pt, old_end, new_end))
         }) {
-            Some(addr) => addr,
+            Some(Ok(v)) => (v.0, v.1, Some(v.2), Some(v.3)),
+            Some(Err(e)) => return e,
             None => return EINVAL,
         }
     };
@@ -101,6 +142,13 @@ pub fn map_physical_pages(
             for j in 0..i {
                 let rollback_virt = virt_addr + (j as u64 * 0x1000);
                 let _ = crate::mem::paging::unmap_page_in_table(page_table, rollback_virt);
+            }
+            if let (Some(old_end), Some(new_end)) = (reserved_heap_old, reserved_heap_new) {
+                let _ = crate::task::with_process_mut(target_pid, |p| {
+                    if p.heap_end() == new_end {
+                        p.set_heap_end(old_end);
+                    }
+                });
             }
             return EFAULT;
         }
@@ -160,12 +208,18 @@ pub fn get_physical_addr(virt_addr: u64, target_thread_id: u64) -> u64 {
 /// # Arguments
 /// * arg0: page_count - 割り当てるページ数
 /// * arg1: phys_addrs_out - 物理アドレス配列を書き込むユーザー空間バッファ (u64配列)
-/// * arg2: virt_addr_hint - 仮想アドレスのヒント (0=自動割り当て)
+/// * arg2: phys_addrs_len - arg1 バッファの要素数
+/// * arg3: virt_addr_hint - 仮想アドレスのヒント (0=自動割り当て)
 ///
 /// # Returns
 /// 成功時: マップされた仮想アドレス
 /// エラー時: 負のエラーコード
-pub fn alloc_shared_pages(page_count: u64, phys_addrs_out: u64, virt_addr_hint: u64) -> u64 {
+pub fn alloc_shared_pages(
+    page_count: u64,
+    phys_addrs_out: u64,
+    phys_addrs_len: u64,
+    virt_addr_hint: u64,
+) -> u64 {
     // 権限チェック
     if let Err(e) = require_service_privilege() {
         return e;
@@ -175,6 +229,9 @@ pub fn alloc_shared_pages(page_count: u64, phys_addrs_out: u64, virt_addr_hint: 
     if page_count == 0 || page_count > 128 {
         return EINVAL;
     }
+    if phys_addrs_out != 0 && phys_addrs_len < page_count {
+        return EINVAL;
+    }
 
     // 物理ページを割り当て
     let mut phys_pages = alloc::vec![];
@@ -182,13 +239,7 @@ pub fn alloc_shared_pages(page_count: u64, phys_addrs_out: u64, virt_addr_hint: 
         match crate::mem::frame::allocate_frame() {
             Ok(frame) => phys_pages.push(frame.start_address().as_u64()),
             Err(_) => {
-                // 割り当て失敗時は既に割り当てたページを解放
-                for &phys in phys_pages.iter() {
-                    use x86_64::{structures::paging::{PhysFrame, Size4KiB}, PhysAddr};
-                    if let Some(frame) = PhysFrame::<Size4KiB>::from_start_address(PhysAddr::new(phys)).ok() {
-                        let _ = crate::mem::frame::deallocate_frame(frame);
-                    }
-                }
+                deallocate_frames(&phys_pages);
                 return super::types::ENOMEM;
             }
         }
@@ -200,56 +251,59 @@ pub fn alloc_shared_pages(page_count: u64, phys_addrs_out: u64, virt_addr_hint: 
     {
         Some(pid) => pid,
         None => {
-            // 解放
-            for &phys in phys_pages.iter() {
-                use x86_64::{structures::paging::{PhysFrame, Size4KiB}, PhysAddr};
-                if let Some(frame) = PhysFrame::<Size4KiB>::from_start_address(PhysAddr::new(phys)).ok() {
-                    let _ = crate::mem::frame::deallocate_frame(frame);
-                }
-            }
+            deallocate_frames(&phys_pages);
             return EINVAL;
         }
     };
 
-    let page_table = match crate::task::with_process(self_pid, |p| p.page_table()) {
-        Some(Some(pt)) => pt,
-        _ => {
-            // 解放
-            for &phys in phys_pages.iter() {
-                use x86_64::{structures::paging::{PhysFrame, Size4KiB}, PhysAddr};
-                if let Some(frame) = PhysFrame::<Size4KiB>::from_start_address(PhysAddr::new(phys)).ok() {
-                    let _ = crate::mem::frame::deallocate_frame(frame);
-                }
-            }
+    let page_span = match page_count.checked_mul(0x1000) {
+        Some(v) => v,
+        None => {
+            deallocate_frames(&phys_pages);
             return EINVAL;
         }
     };
 
     // 仮想アドレス決定
-    let virt_addr = if virt_addr_hint != 0 {
+    let (virt_addr, page_table, reserved_heap_old, reserved_heap_new) = if virt_addr_hint != 0 {
         if virt_addr_hint & 0xfff != 0 {
-            // 解放
-            for &phys in phys_pages.iter() {
-                let _ = { use x86_64::{structures::paging::{PhysFrame, Size4KiB}, PhysAddr}; if let Some(frame) = PhysFrame::<Size4KiB>::from_start_address(PhysAddr::new(phys)).ok() { let _ = crate::mem::frame::deallocate_frame(frame); } };
-            }
+            deallocate_frames(&phys_pages);
             return EINVAL;
         }
-        virt_addr_hint
+        let pt = match crate::task::with_process(self_pid, |p| p.page_table()) {
+            Some(Some(v)) => v,
+            _ => {
+                deallocate_frames(&phys_pages);
+                return EINVAL;
+            }
+        };
+        (virt_addr_hint, pt, None, None)
     } else {
-        // 自動割り当て: 共有メモリ領域（0x7000_0000_0000付近）を使用
+        // 自動割り当て: alloc_shared_pages は「自己プロセス内共有ページ」向けに
+        // 0x7000_0000_0000 帯を使用する。
         match crate::task::with_process_mut(self_pid, |p| {
-            // TODO: プロセス構造体にmmap領域管理を追加して衝突回避
-            let base = 0x7000_0000_0000u64;
-            base
+            let base = if p.heap_end() == 0 {
+                0x7000_0000_0000u64
+            } else {
+                p.heap_end()
+            };
+            let virt_addr = base
+                .checked_add(0xfff)
+                .map(|v| v & !0xfffu64)
+                .ok_or(EINVAL)?;
+            let new_end = virt_addr.checked_add(page_span).ok_or(EINVAL)?;
+            let pt = p.page_table().ok_or(EINVAL)?;
+            let old_end = p.heap_end();
+            p.set_heap_end(new_end);
+            Ok((virt_addr, pt, old_end, new_end))
         }) {
-            Some(addr) => addr,
+            Some(Ok(v)) => (v.0, v.1, Some(v.2), Some(v.3)),
+            Some(Err(e)) => {
+                deallocate_frames(&phys_pages);
+                return e;
+            }
             None => {
-                for &phys in phys_pages.iter() {
-                    use x86_64::{structures::paging::{PhysFrame, Size4KiB}, PhysAddr};
-                    if let Some(frame) = PhysFrame::<Size4KiB>::from_start_address(PhysAddr::new(phys)).ok() {
-                        let _ = crate::mem::frame::deallocate_frame(frame);
-                    }
-                }
+                deallocate_frames(&phys_pages);
                 return EINVAL;
             }
         }
@@ -266,36 +320,42 @@ pub fn alloc_shared_pages(page_count: u64, phys_addrs_out: u64, virt_addr_hint: 
                 let rollback_virt = virt_addr + (j as u64 * 0x1000);
                 let _ = crate::mem::paging::unmap_page_in_table(page_table, rollback_virt);
             }
-            // 物理ページを解放
-            for &phys in phys_pages.iter() {
-                let _ = { use x86_64::{structures::paging::{PhysFrame, Size4KiB}, PhysAddr}; if let Some(frame) = PhysFrame::<Size4KiB>::from_start_address(PhysAddr::new(phys)).ok() { let _ = crate::mem::frame::deallocate_frame(frame); } };
+            if let (Some(old_end), Some(new_end)) = (reserved_heap_old, reserved_heap_new) {
+                let _ = crate::task::with_process_mut(self_pid, |p| {
+                    if p.heap_end() == new_end {
+                        p.set_heap_end(old_end);
+                    }
+                });
             }
+            deallocate_frames(&phys_pages);
             return EFAULT;
         }
     }
 
     // 物理アドレス配列をユーザー空間へ書き込み
     if phys_addrs_out != 0 {
-        let copy_size = phys_pages.len() * core::mem::size_of::<u64>();
-        if !super::validate_user_ptr(phys_addrs_out, copy_size as u64) {
+        let copy_bytes = unsafe {
+            core::slice::from_raw_parts(
+                phys_pages.as_ptr() as *const u8,
+                phys_pages.len() * core::mem::size_of::<u64>(),
+            )
+        };
+        if let Err(errno) = super::copy_to_user(phys_addrs_out, copy_bytes) {
             // ロールバック
             for i in 0..phys_pages.len() {
                 let rollback_virt = virt_addr + (i as u64 * 0x1000);
                 let _ = crate::mem::paging::unmap_page_in_table(page_table, rollback_virt);
             }
-            for &phys in phys_pages.iter() {
-                let _ = { use x86_64::{structures::paging::{PhysFrame, Size4KiB}, PhysAddr}; if let Some(frame) = PhysFrame::<Size4KiB>::from_start_address(PhysAddr::new(phys)).ok() { let _ = crate::mem::frame::deallocate_frame(frame); } };
+            if let (Some(old_end), Some(new_end)) = (reserved_heap_old, reserved_heap_new) {
+                let _ = crate::task::with_process_mut(self_pid, |p| {
+                    if p.heap_end() == new_end {
+                        p.set_heap_end(old_end);
+                    }
+                });
             }
-            return EFAULT;
+            deallocate_frames(&phys_pages);
+            return errno;
         }
-
-        super::with_user_memory_access(|| unsafe {
-            let dest_slice = core::slice::from_raw_parts_mut(
-                phys_addrs_out as *mut u64,
-                phys_pages.len(),
-            );
-            dest_slice.copy_from_slice(&phys_pages);
-        });
     }
 
     virt_addr
@@ -343,9 +403,7 @@ pub fn unmap_pages(virt_addr: u64, page_count: u64, deallocate: u64) -> u64 {
     if deallocate != 0 {
         for i in 0..page_count {
             let target_virt = virt_addr + (i * 0x1000);
-            if let Some(phys) =
-                crate::mem::paging::virt_to_phys_in_table(page_table, target_virt)
-            {
+            if let Some(phys) = crate::mem::paging::virt_to_phys_in_table(page_table, target_virt) {
                 phys_addrs.push(phys);
             }
         }
@@ -355,14 +413,27 @@ pub fn unmap_pages(virt_addr: u64, page_count: u64, deallocate: u64) -> u64 {
     for i in 0..page_count {
         let target_virt = virt_addr + (i * 0x1000);
         let _ = crate::mem::paging::unmap_page_in_table(page_table, target_virt);
+        if let Ok(vaddr) = VirtAddr::try_new(target_virt) {
+            tlb::flush(vaddr);
+        }
     }
 
     // 物理ページを解放
     if deallocate != 0 {
+        let mut freed: Vec<u64> = Vec::new();
         for phys in phys_addrs {
-            use x86_64::{structures::paging::{PhysFrame, Size4KiB}, PhysAddr};
+            use x86_64::{
+                structures::paging::{PhysFrame, Size4KiB},
+                PhysAddr,
+            };
             let phys_aligned = phys & !0xfff;
-            if let Some(frame) = PhysFrame::<Size4KiB>::from_start_address(PhysAddr::new(phys_aligned)).ok() {
+            if freed.iter().any(|p| *p == phys_aligned) {
+                continue;
+            }
+            freed.push(phys_aligned);
+            if let Some(frame) =
+                PhysFrame::<Size4KiB>::from_start_address(PhysAddr::new(phys_aligned)).ok()
+            {
                 let _ = crate::mem::frame::deallocate_frame(frame);
             }
         }
@@ -411,6 +482,12 @@ pub fn ipc_send_pages(
         core::slice::from_raw_parts_mut(phys_pages.as_mut_ptr() as *mut u8, copy_size)
     }) {
         return e;
+    }
+
+    for &phys in phys_pages.iter() {
+        if !is_allowed_phys_page(phys) {
+            return EINVAL;
+        }
     }
 
     // IPC経由で物理ページリストを送信

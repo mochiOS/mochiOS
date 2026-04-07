@@ -177,3 +177,90 @@ pub fn get_memory_info() -> Option<(u64, usize)> {
         .as_ref()
         .map(|a| (a.usable_memory(), a.usable_frames()))
 }
+
+/// 指定した物理アドレスがアロケータ管理対象の Usable フレームか判定
+pub fn is_usable_physical_address(phys_addr: u64) -> bool {
+    let guard = FRAME_ALLOCATOR.lock();
+    let Some(alloc) = guard.as_ref() else {
+        return false;
+    };
+    alloc.is_usable_frame_addr(phys_addr)
+}
+
+// ACPI reclaimable / bootloader reclaimable は将来通常RAMとして回収されうるため、
+// 既定では MMIO 許可対象から除外する（必要なら明示設定で有効化する）。
+const ALLOW_RECLAIMABLE_MMIO: bool = false;
+
+fn mmio_region_type_allowed(region_type: MemoryType) -> bool {
+    match region_type {
+        MemoryType::BadMemory => {
+            // 不良メモリへの MMIO マップは常に拒否する。
+            false
+        }
+        MemoryType::Reserved | MemoryType::AcpiNvs | MemoryType::Framebuffer => true,
+        MemoryType::AcpiReclaimable | MemoryType::BootloaderReclaimable => ALLOW_RECLAIMABLE_MMIO,
+        _ => false,
+    }
+}
+
+/// MMIO として扱ってよい物理アドレス範囲か判定
+///
+/// - 範囲はメモリマップ上の1つの非Usable領域に完全に含まれている必要がある。
+pub fn is_allowed_mmio_range(start_phys: u64, size: u64) -> bool {
+    if size == 0 {
+        return false;
+    }
+    let end_phys = match start_phys.checked_add(size - 1) {
+        Some(v) => v,
+        None => return false,
+    };
+
+    let guard = FRAME_ALLOCATOR.lock();
+    let Some(alloc) = guard.as_ref() else {
+        return false;
+    };
+
+    alloc.memory_map.iter().any(|r| {
+        if r.len == 0 {
+            return false;
+        }
+        let region_end = match r.start.checked_add(r.len - 1) {
+            Some(v) => v,
+            None => return false,
+        };
+
+        let region_allowed = mmio_region_type_allowed(r.region_type);
+
+        start_phys >= r.start && end_phys <= region_end && region_allowed
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mmio_region_type_policy_allowed_cases() {
+        for t in [
+            MemoryType::Reserved,
+            MemoryType::AcpiNvs,
+            MemoryType::Framebuffer,
+        ] {
+            assert!(mmio_region_type_allowed(t));
+        }
+    }
+
+    #[test]
+    fn mmio_region_type_policy_denied_cases() {
+        for t in [
+            MemoryType::Usable,
+            MemoryType::AcpiReclaimable,
+            MemoryType::BootloaderReclaimable,
+            MemoryType::BadMemory,
+            MemoryType::KernelStack,
+            MemoryType::PageTable,
+        ] {
+            assert!(!mmio_region_type_allowed(t));
+        }
+    }
+}

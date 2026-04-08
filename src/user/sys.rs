@@ -16,8 +16,12 @@ pub enum SyscallNumber {
     Open = 2,
     /// ファイルを閉じる
     Close = 3,
+    /// ファイル情報取得 (path)
+    Stat = 4,
     /// ファイル情報取得
     Fstat = 5,
+    /// lstat (stat のシンボリックリンク非追跡版)
+    Lstat = 6,
     /// ファイルシーク
     Lseek = 8,
     /// メモリマップ
@@ -56,6 +60,8 @@ pub enum SyscallNumber {
     Kill = 62,
     /// getcwd
     Getcwd = 79,
+    /// unlink (ファイル削除)
+    Unlink = 87,
 
     // mochiOS独自syscall (Linux未使用番号帯を使用: 512+)
     /// スケジューラへ譲る

@@ -1,0 +1,118 @@
+[package]
+name = "utils"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "ls"
+path = "src/bin/ls.rs"
+
+[[bin]]
+name = "cat"
+path = "src/bin/cat.rs"
+
+[[bin]]
+name = "pwd"
+path = "src/bin/pwd.rs"
+
+[[bin]]
+name = "echo"
+path = "src/bin/echo.rs"
+
+[[bin]]
+name = "clear"
+path = "src/bin/clear.rs"
+
+[[bin]]
+name = "mkdir"
+path = "src/bin/mkdir.rs"
+
+[[bin]]
+name = "touch"
+path = "src/bin/touch.rs"
+
+[[bin]]
+name = "rm"
+path = "src/bin/rm.rs"
+
+[[bin]]
+name = "head"
+path = "src/bin/head.rs"
+
+[[bin]]
+name = "tail"
+path = "src/bin/tail.rs"
+
+[[bin]]
+name = "wc"
+path = "src/bin/wc.rs"
+
+[[bin]]
+name = "cp"
+path = "src/bin/cp.rs"
+
+[[bin]]
+name = "true"
+path = "src/bin/true.rs"
+
+[[bin]]
+name = "false"
+path = "src/bin/false.rs"
+
+[[bin]]
+name = "yes"
+path = "src/bin/yes.rs"
+
+[[bin]]
+name = "sleep"
+path = "src/bin/sleep.rs"
+
+[[bin]]
+name = "date"
+path = "src/bin/date.rs"
+
+[[bin]]
+name = "seq"
+path = "src/bin/seq.rs"
+
+[[bin]]
+name = "basename"
+path = "src/bin/basename.rs"
+
+[[bin]]
+name = "dirname"
+path = "src/bin/dirname.rs"
+
+[[bin]]
+name = "cmp"
+path = "src/bin/cmp.rs"
+
+[[bin]]
+name = "uniq"
+path = "src/bin/uniq.rs"
+
+[[bin]]
+name = "grep"
+path = "src/bin/grep.rs"
+
+[[bin]]
+name = "cut"
+path = "src/bin/cut.rs"
+
+[[bin]]
+name = "tr"
+path = "src/bin/tr.rs"
+
+[[bin]]
+name = "which"
+path = "src/bin/which.rs"
+
+[dependencies]
+swiftlib = { path = "../user" }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

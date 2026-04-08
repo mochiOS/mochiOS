@@ -142,7 +142,8 @@ fn enqueue_pending_message(sender: u64, len: usize, bytes: &[u8]) -> bool {
     let copy_len = core::cmp::min(len, core::cmp::min(bytes.len(), size_of::<FsResponseIp>()));
     let _lock = PendingQueueGuard::lock();
     unsafe {
-        for slot in FS_PENDING_MESSAGES.iter_mut() {
+        let messages = core::ptr::addr_of_mut!(FS_PENDING_MESSAGES);
+        for slot in (*messages).iter_mut() {
             if !slot.used {
                 slot.used = true;
                 slot.sender = sender;
@@ -165,7 +166,8 @@ fn enqueue_pending_message(sender: u64, len: usize, bytes: &[u8]) -> bool {
 fn take_pending_message_for(sender: u64) -> Option<FsResponseIp> {
     let _lock = PendingQueueGuard::lock();
     unsafe {
-        for slot in FS_PENDING_MESSAGES.iter_mut() {
+        let messages = core::ptr::addr_of_mut!(FS_PENDING_MESSAGES);
+        for slot in (*messages).iter_mut() {
             if slot.used && slot.sender == sender && slot.len >= size_of::<FsResponseIp>() {
                 let resp = core::ptr::read_unaligned(slot.data.as_ptr() as *const FsResponseIp);
                 slot.used = false;

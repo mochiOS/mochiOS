@@ -122,27 +122,10 @@ fn is_allowed_service_path(path: &str) -> bool {
 }
 
 fn service_already_running(path: &str) -> bool {
-    task::find_process_by_name(service_name_from_path(path)).is_some()
-}
-
-fn start_shell_service() {
-    if service_already_running("shell.service") {
-        println!("[CORE] shell.service already running, skip startup");
-        return;
-    }
-
-    println!("[CORE] Loading shell.service...");
-    match exec_file_via_fs_service("/Services/shell.service") {
-        Ok(pid) => println!("[CORE] shell.service started (PID={})", pid),
-        Err(errno) => {
-            println!("[CORE] Failed to exec shell.service: errno={}", errno);
-            println!("[CORE] Fallback: launching shell.service from initfs...");
-            match process::exec("shell.service") {
-                Ok(pid) => println!("[CORE] shell.service started (PID={})", pid),
-                Err(_) => println!("[CORE] Failed to start shell.service"),
-            }
-        }
-    }
+    let name = service_name_from_path(path);
+    task::find_process_by_name(path).is_some()
+        || task::find_process_by_name(name).is_some()
+        || task::find_process_by_name(&format!("/Services/{}", name)).is_some()
 }
 
 fn fs_open_read_lines(path: &str) -> Result<Vec<String>, i64> {
@@ -181,8 +164,6 @@ fn main() {
         println!("[CORE] Critical services readiness failed; aborting startup");
         return;
     }
-
-    start_shell_service();
 
     // Try to read /Config/services.list and start listed services from rootfs.
     match fs_open_read_lines("/Config/services.list") {

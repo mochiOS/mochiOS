@@ -9,4 +9,6 @@ json-target-spec = true
 rustflags = [
     "-C", "link-arg=-nostdlib",
     "-C", "link-arg=--no-gc-sections",
+    "-C", "relocation-model=pic",
+    "-C", "link-arg=-pie",
 ]

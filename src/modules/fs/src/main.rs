@@ -3,6 +3,8 @@
 
 use core::arch::asm;
 use core::cmp::min;
+use core::cell::UnsafeCell;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 const ATA_DATA: u16 = 0x1F0;
 const ATA_SECTOR_COUNT: u16 = 0x1F2;
@@ -52,6 +54,55 @@ struct FsMount {
 }
 
 static mut MOUNT: Option<FsMount> = None;
+static OP_LOCK: AtomicBool = AtomicBool::new(false);
+
+struct SharedBuf(UnsafeCell<[u8; 4096]>);
+
+unsafe impl Sync for SharedBuf {}
+
+impl SharedBuf {
+    const fn new() -> Self {
+        Self(UnsafeCell::new([0u8; 4096]))
+    }
+
+    #[inline]
+    unsafe fn as_mut(&self) -> &mut [u8; 4096] {
+        &mut *self.0.get()
+    }
+
+    #[inline]
+    unsafe fn as_ref(&self) -> &[u8; 4096] {
+        &*self.0.get()
+    }
+}
+
+static READ_INODE_GDT_BLK: SharedBuf = SharedBuf::new();
+static READ_INODE_IBLK: SharedBuf = SharedBuf::new();
+static LOOKUP_BLK: SharedBuf = SharedBuf::new();
+static LOOKUP_IND: SharedBuf = SharedBuf::new();
+static READ_RANGE_BLK: SharedBuf = SharedBuf::new();
+static READ_RANGE_IND: SharedBuf = SharedBuf::new();
+static READDIR_BLK: SharedBuf = SharedBuf::new();
+static READDIR_IND: SharedBuf = SharedBuf::new();
+
+struct OpLockGuard;
+
+impl Drop for OpLockGuard {
+    fn drop(&mut self) {
+        OP_LOCK.store(false, Ordering::Release);
+    }
+}
+
+#[inline]
+fn lock_ops() -> OpLockGuard {
+    while OP_LOCK
+        .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        .is_err()
+    {
+        core::hint::spin_loop();
+    }
+    OpLockGuard
+}
 
 #[inline]
 unsafe fn inb(port: u16) -> u8 {
@@ -216,22 +267,25 @@ unsafe fn read_inode(m: &FsMount, inode_num: u32, inode_out: &mut [u8; 256]) -> 
     let gdt_entry_off = (group as usize) * 32;
     let gdt_block_off = gdt_entry_off / (m.block_size as usize);
     let gdt_inner = gdt_entry_off % (m.block_size as usize);
-    let mut gdt_blk = [0u8; 4096];
-    if !read_fs_block(m, m.gdt_block + gdt_block_off as u32, &mut gdt_blk) {
+    if !read_fs_block(
+        m,
+        m.gdt_block + gdt_block_off as u32,
+        READ_INODE_GDT_BLK.as_mut(),
+    ) {
         return false;
     }
-    let inode_table = match read_u32(&gdt_blk, gdt_inner + 8) {
+    let inode_table = match read_u32(READ_INODE_GDT_BLK.as_ref(), gdt_inner + 8) {
         Some(v) => v,
         None => return false,
     };
     let inode_off = (index as usize) * (m.inode_size as usize);
     let blk = inode_off / (m.block_size as usize);
     let off = inode_off % (m.block_size as usize);
-    let mut iblk = [0u8; 4096];
-    if !read_fs_block(m, inode_table + blk as u32, &mut iblk) {
+    if !read_fs_block(m, inode_table + blk as u32, READ_INODE_IBLK.as_mut()) {
         return false;
     }
     let isz = m.inode_size as usize;
+    let iblk = READ_INODE_IBLK.as_ref();
     if off + isz > iblk.len() || isz > inode_out.len() {
         return false;
     }
@@ -292,18 +346,17 @@ unsafe fn lookup_child(m: &FsMount, dir_inode_num: u32, name: &[u8]) -> Option<u
     }
     let dir_size = inode_size(&inode) as usize;
     let block_size = m.block_size as usize;
-    let mut blk = [0u8; 4096];
-    let mut ind = [0u8; 4096];
     let blocks = dir_size.div_ceil(block_size);
     for bi in 0..blocks {
-        let bnum = read_data_block_num(m, &inode, bi, &mut ind)?;
-        if !read_fs_block(m, bnum, &mut blk) {
+        let bnum = read_data_block_num(m, &inode, bi, LOOKUP_IND.as_mut())?;
+        if !read_fs_block(m, bnum, LOOKUP_BLK.as_mut()) {
             return None;
         }
+        let blk = LOOKUP_BLK.as_ref();
         let mut off = 0usize;
         while off + 8 <= block_size {
-            let ino = read_u32(&blk, off)?;
-            let rec_len = read_u16(&blk, off + 4)? as usize;
+            let ino = read_u32(blk, off)?;
+            let rec_len = read_u16(blk, off + 4)? as usize;
             let nlen = *blk.get(off + 6)? as usize;
             if rec_len == 0 || off + rec_len > block_size {
                 break;
@@ -360,17 +413,16 @@ unsafe fn read_inode_range(
     let to_read = min(dst.len() as u64, size - offset) as usize;
     let block_size = m.block_size as usize;
     let mut done = 0usize;
-    let mut blk = [0u8; 4096];
-    let mut ind = [0u8; 4096];
     while done < to_read {
         let file_off = offset as usize + done;
         let bi = file_off / block_size;
         let boff = file_off % block_size;
-        let bnum = read_data_block_num(m, &inode, bi, &mut ind)?;
-        if !read_fs_block(m, bnum, &mut blk) {
+        let bnum = read_data_block_num(m, &inode, bi, READ_RANGE_IND.as_mut())?;
+        if !read_fs_block(m, bnum, READ_RANGE_BLK.as_mut()) {
             return None;
         }
         let n = min(block_size - boff, to_read - done);
+        let blk = READ_RANGE_BLK.as_ref();
         dst[done..done + n].copy_from_slice(&blk[boff..boff + n]);
         done += n;
     }
@@ -390,15 +442,22 @@ unsafe fn read_path_inode(path: McxPath) -> Option<(FsMount, u32)> {
 }
 
 extern "C" fn fs_mount(_device_id: u32) -> i32 {
+    let _guard = lock_ops();
     unsafe {
-        // rootfs は qemu-runner の disk0 (IDE index=1, primary slave) を優先
-        if let Some(m) = probe_ext2_drive(1) {
-            MOUNT = Some(m);
-            return 0;
-        }
-        if let Some(m) = probe_ext2_drive(0) {
-            MOUNT = Some(m);
-            return 0;
+        // rootfs は qemu-runner の disk0 (IDE index=1, primary slave) を優先。
+        // 起動直後はデバイス準備に時間がかかるため複数回リトライする。
+        for _ in 0..16 {
+            if let Some(m) = probe_ext2_drive(1) {
+                MOUNT = Some(m);
+                return 0;
+            }
+            if let Some(m) = probe_ext2_drive(0) {
+                MOUNT = Some(m);
+                return 0;
+            }
+            for _ in 0..2_000_000 {
+                core::hint::spin_loop();
+            }
         }
     }
     -5
@@ -408,6 +467,7 @@ extern "C" fn fs_read(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut
     if path.ptr.is_null() || buf.ptr.is_null() || out_read.is_null() {
         return -22;
     }
+    let _guard = lock_ops();
     unsafe {
         let (m, inode) = match read_path_inode(path) {
             Some(v) => v,
@@ -430,6 +490,7 @@ extern "C" fn fs_stat(path: McxPath, out_mode: *mut u16, out_size: *mut u64) -> 
     if path.ptr.is_null() || out_mode.is_null() || out_size.is_null() {
         return -22;
     }
+    let _guard = lock_ops();
     unsafe {
         let (m, inode_num) = match read_path_inode(path) {
             Some(v) => v,
@@ -451,6 +512,7 @@ extern "C" fn fs_readdir(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> 
     if path.ptr.is_null() || buf.ptr.is_null() || out_len.is_null() {
         return -22;
     }
+    let _guard = lock_ops();
     unsafe {
         let (m, inode_num) = match read_path_inode(path) {
             Some(v) => v,
@@ -468,26 +530,25 @@ extern "C" fn fs_readdir(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> 
 
         let block_size = m.block_size as usize;
         let dir_size = inode_size(&inode) as usize;
-        let mut data_blk = [0u8; 4096];
-        let mut ind = [0u8; 4096];
         let mut written = 0usize;
         let out = core::slice::from_raw_parts_mut(buf.ptr, buf.len);
         let blocks = dir_size.div_ceil(block_size);
         for bi in 0..blocks {
-            let bnum = match read_data_block_num(&m, &inode, bi, &mut ind) {
+            let bnum = match read_data_block_num(&m, &inode, bi, READDIR_IND.as_mut()) {
                 Some(v) => v,
                 None => return -5,
             };
-            if !read_fs_block(&m, bnum, &mut data_blk) {
+            if !read_fs_block(&m, bnum, READDIR_BLK.as_mut()) {
                 return -5;
             }
+            let data_blk = READDIR_BLK.as_ref();
             let mut off = 0usize;
             while off + 8 <= block_size {
-                let ino = match read_u32(&data_blk, off) {
+                let ino = match read_u32(data_blk, off) {
                     Some(v) => v,
                     None => break,
                 };
-                let rec_len = match read_u16(&data_blk, off + 4) {
+                let rec_len = match read_u16(data_blk, off + 4) {
                     Some(v) => v as usize,
                     None => break,
                 };

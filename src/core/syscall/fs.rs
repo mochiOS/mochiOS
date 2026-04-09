@@ -1320,19 +1320,9 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
         match fallback_readdir(&dir_path) {
             Some(e) => e
                 .into_iter()
-                .map(|name| {
-                    let child_path = normalize_path(&alloc::format!(
-                        "{}/{}",
-                        dir_path.trim_end_matches('/'),
-                        name
-                    ));
-                    let dtype = if fallback_is_directory(&child_path) {
-                        4u8
-                    } else {
-                        8u8
-                    };
-                    (name, dtype)
-                })
+                // d_type の判定で追加 stat を打つとカーネルモジュール呼び出し回数が増え不安定化するため、
+                // ここでは DT_UNKNOWN(0) を返して利用側のフォールバックに任せる。
+                .map(|name| (name, 0u8))
                 .collect(),
             None => return EINVAL,
         }

@@ -429,16 +429,15 @@ unsafe fn read_inode_range(
     Some(done)
 }
 
-unsafe fn read_path_inode(path: McxPath) -> Option<(FsMount, u32)> {
-    let m = MOUNT?;
+unsafe fn read_path_inode(path: McxPath) -> Option<u32> {
+    let m = MOUNT.as_ref()?;
     let raw = core::slice::from_raw_parts(path.ptr, path.len);
     let p = if !raw.is_empty() && raw[0] == b'/' {
         &raw[1..]
     } else {
         raw
     };
-    let inode = resolve_path_inode(&m, p)?;
-    Some((m, inode))
+    resolve_path_inode(m, p)
 }
 
 extern "C" fn fs_mount(_device_id: u32) -> i32 {
@@ -469,14 +468,18 @@ extern "C" fn fs_read(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut
     }
     let _guard = lock_ops();
     unsafe {
-        let (m, inode) = match read_path_inode(path) {
+        let inode = match read_path_inode(path) {
             Some(v) => v,
             None => {
                 return if MOUNT.is_some() { -2 } else { -5 };
             }
         };
+        let m = match MOUNT.as_ref() {
+            Some(v) => v,
+            None => return -5,
+        };
         let dst = core::slice::from_raw_parts_mut(buf.ptr, buf.len);
-        match read_inode_range(&m, inode, offset, dst) {
+        match read_inode_range(m, inode, offset, dst) {
             Some(n) => {
                 *out_read = n;
                 0
@@ -492,14 +495,18 @@ extern "C" fn fs_stat(path: McxPath, out_mode: *mut u16, out_size: *mut u64) -> 
     }
     let _guard = lock_ops();
     unsafe {
-        let (m, inode_num) = match read_path_inode(path) {
+        let inode_num = match read_path_inode(path) {
             Some(v) => v,
             None => {
                 return if MOUNT.is_some() { -2 } else { -5 };
             }
         };
+        let m = match MOUNT.as_ref() {
+            Some(v) => v,
+            None => return -5,
+        };
         let mut inode = [0u8; 256];
-        if !read_inode(&m, inode_num, &mut inode) {
+        if !read_inode(m, inode_num, &mut inode) {
             return -5;
         }
         *out_mode = inode_mode(&inode);
@@ -514,14 +521,18 @@ extern "C" fn fs_readdir(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> 
     }
     let _guard = lock_ops();
     unsafe {
-        let (m, inode_num) = match read_path_inode(path) {
+        let inode_num = match read_path_inode(path) {
             Some(v) => v,
             None => {
                 return if MOUNT.is_some() { -2 } else { -5 };
             }
         };
+        let m = match MOUNT.as_ref() {
+            Some(v) => v,
+            None => return -5,
+        };
         let mut inode = [0u8; 256];
-        if !read_inode(&m, inode_num, &mut inode) {
+        if !read_inode(m, inode_num, &mut inode) {
             return -5;
         }
         if !is_dir(inode_mode(&inode)) {
@@ -534,11 +545,11 @@ extern "C" fn fs_readdir(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> 
         let out = core::slice::from_raw_parts_mut(buf.ptr, buf.len);
         let blocks = dir_size.div_ceil(block_size);
         for bi in 0..blocks {
-            let bnum = match read_data_block_num(&m, &inode, bi, READDIR_IND.as_mut()) {
+            let bnum = match read_data_block_num(m, &inode, bi, READDIR_IND.as_mut()) {
                 Some(v) => v,
                 None => return -5,
             };
-            if !read_fs_block(&m, bnum, READDIR_BLK.as_mut()) {
+            if !read_fs_block(m, bnum, READDIR_BLK.as_mut()) {
                 return -5;
             }
             let data_blk = READDIR_BLK.as_ref();

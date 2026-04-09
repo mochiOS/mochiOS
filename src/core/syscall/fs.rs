@@ -463,7 +463,7 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
                 if crate::init::fs::is_directory(path) {
                     (Vec::new(), Some(path.to_string()), false, 0)
                 } else {
-                    match crate::init::fs::read(path) {
+                    match crate::kmod::fs::read_all(path) {
                         Some(d) => (d, None, false, 0),
                         None => return ENOENT,
                     }

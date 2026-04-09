@@ -16,6 +16,7 @@ pub mod interrupt;
 
 /// カーネル本体
 pub mod kernel;
+pub mod kmod;
 
 /// メモリ管理、GDT、TSSを含む
 pub mod mem;

@@ -6,8 +6,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use builders::{
-    build_apps, build_drivers, build_newlib, build_service, build_user_libs, build_utils,
-    copy_newlib_libs, create_ext2_image, create_initfs_image, parse_service_index, setup_fs_layout,
+    build_apps, build_drivers, build_module, build_newlib, build_service, build_user_libs,
+    build_utils, copy_newlib_libs, create_ext2_image, create_initfs_image, default_modules,
+    parse_service_index, setup_fs_layout,
 };
 
 const BUSYBOX_URL: &str = "https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox";
@@ -284,6 +285,33 @@ fn prune_stale_service_artifacts(
     Ok(())
 }
 
+fn prune_stale_module_artifacts(
+    modules: &[builders::modules::ModuleEntry],
+    ramfs_dir: &Path,
+) -> Result<(), String> {
+    let expected: HashSet<String> = modules
+        .iter()
+        .map(|m| format!("{}.cext", m.name))
+        .collect();
+    let modules_dir = ramfs_dir.join("Modules");
+    if let Ok(entries) = fs::read_dir(&modules_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if name.ends_with(".cext") && !expected.contains(name) {
+                fs::remove_file(&path)
+                    .map_err(|e| format!("Failed to remove stale {}: {}", path.display(), e))?;
+            }
+        }
+    }
+    Ok(())
+}
+
 #[allow(unused)]
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -316,6 +344,7 @@ fn main() {
     for dir in &[
         "src/user",
         "src/services",
+        "modules",
         "src/apps",
         "src/drivers",
         "src/resources",
@@ -460,10 +489,18 @@ fn main() {
     let index_path = manifest_dir.join("src/services/index.toml");
     println!("cargo:rerun-if-changed={}", index_path.display());
 
-    let services = parse_service_index(&index_path).expect("Failed to parse index.toml");
+    let mut services = parse_service_index(&index_path).expect("Failed to parse index.toml");
+    let before = services.len();
+    services.retain(|s| s.name != "fs" && s.name != "disk");
+    if services.len() != before {
+        println!("cargo:warning=fs.service / disk.service are replaced by kernel modules (.cext)");
+    }
 
     prune_stale_service_artifacts(&services, &ramfs_dir, &fs_dir)
         .expect("Failed to prune stale service artifacts");
+
+    let modules = default_modules();
+    prune_stale_module_artifacts(&modules, &ramfs_dir).expect("Failed to prune stale module artifacts");
 
     // サービスをビルド
     let services_base_dir = manifest_dir.join("src/services");
@@ -477,6 +514,13 @@ fn main() {
 
         build_service(service, &services_base_dir, output_dir)
             .unwrap_or_else(|e| panic!("Failed to build service {}: {}", service.name, e));
+    }
+
+    // カーネルモジュールをビルド（initfs/Modules/*.cext）
+    let modules_base_dir = manifest_dir.join("modules");
+    for module in &modules {
+        build_module(module, &modules_base_dir, &ramfs_dir)
+            .unwrap_or_else(|e| panic!("Failed to build module {}: {}", module.name, e));
     }
 
     // アプリケーションをビルド

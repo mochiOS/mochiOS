@@ -40,6 +40,13 @@ pub fn kinit(boot_info: &'static BootInfo) -> Result<&'static [MemoryRegion]> {
     mem::init(boot_info);
 
     fs::init();
+    crate::kmod::load_modules();
+    if crate::kmod::fs::is_loaded() {
+        let rc = crate::kmod::fs::mount(0);
+        if rc != 0 {
+            crate::warn!("kmod: fs mount failed rc={}", rc);
+        }
+    }
 
     // MED-32修正: PIT初期化をCPU割り込み有効化より前に実行する
     // 以前は enable() が init_pit() より先だったため、PIT未初期化状態でタイマー割り込みが

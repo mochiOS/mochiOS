@@ -237,10 +237,16 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
     };
     let extra_args: Vec<&str> = extra_args_owned.iter().map(|s| s.as_str()).collect();
 
-    // Phase 1: request header (total size) from fs.service
+    // fs.service が存在しない構成では、カーネル内FSモジュール経由で直接実行する。
     let fs_tid = match crate::syscall::fs::fs_service_tid() {
         Some(t) => t,
-        None => return crate::syscall::types::ESRCH,
+        None => {
+            let data = match crate::kmod::fs::read_all(&path) {
+                Some(d) => d,
+                None => return crate::syscall::types::ENOENT,
+            };
+            return exec_with_data(&data, &path, &path, &extra_args, None);
+        }
     };
 
     let req = crate::syscall::fs::FsRequest {

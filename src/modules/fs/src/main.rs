@@ -16,6 +16,7 @@ const ATA_STATUS_CMD: u16 = 0x1F7;
 const ATA_ALT_STATUS: u16 = 0x3F6;
 
 const ATA_CMD_READ_SECTORS: u8 = 0x20;
+const ATA_CMD_READ_DMA: u8 = 0xC8;
 const ATA_STATUS_ERR: u8 = 1 << 0;
 const ATA_STATUS_DRQ: u8 = 1 << 3;
 const ATA_STATUS_DF: u8 = 1 << 5;
@@ -26,6 +27,11 @@ const BLOCK_CACHE_SLOTS: usize = 64;
 const INODE_CACHE_SLOTS: usize = 128;
 const PATH_CACHE_SLOTS: usize = 128;
 const PATH_CACHE_MAX: usize = 192;
+
+const PCI_CFG_ADDR: u16 = 0xCF8;
+const PCI_CFG_DATA: u16 = 0xCFC;
+const PCI_CLASS_MASS_STORAGE: u8 = 0x01;
+const PCI_SUBCLASS_IDE: u8 = 0x01;
 
 #[repr(C)]
 pub struct McxBuffer {
@@ -160,6 +166,31 @@ static mut INODE_CACHE_CURSOR: usize = 0;
 
 static mut PATH_CACHE: [PathCacheEntry; PATH_CACHE_SLOTS] = [PathCacheEntry::empty(); PATH_CACHE_SLOTS];
 static mut PATH_CACHE_CURSOR: usize = 0;
+static mut BMIDE_BASE: u16 = 0;
+static mut BMIDE_SCANNED: bool = false;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct PrdtEntry {
+    base_phys: u32,
+    byte_count: u16,
+    flags: u16,
+}
+
+#[repr(align(16))]
+struct PrdtAligned([PrdtEntry; 2]);
+
+#[repr(align(65536))]
+struct DmaBuf([u8; 4096]);
+
+static mut DMA_PRDT: PrdtAligned = PrdtAligned(
+    [PrdtEntry {
+        base_phys: 0,
+        byte_count: 0,
+        flags: 0x8000,
+    }; 2],
+);
+static mut DMA_BUF: DmaBuf = DmaBuf([0u8; 4096]);
 
 struct OpLockGuard;
 
@@ -297,6 +328,18 @@ unsafe fn inw(port: u16) -> u16 {
 }
 
 #[inline]
+unsafe fn inl(port: u16) -> u32 {
+    let mut value: u32;
+    asm!("in eax, dx", in("dx") port, out("eax") value, options(nomem, nostack, preserves_flags));
+    value
+}
+
+#[inline]
+unsafe fn outl(port: u16, value: u32) {
+    asm!("out dx, eax", in("dx") port, in("eax") value, options(nomem, nostack, preserves_flags));
+}
+
+#[inline]
 unsafe fn io_wait_400ns() {
     let _ = inb(ATA_ALT_STATUS);
     let _ = inb(ATA_ALT_STATUS);
@@ -363,6 +406,162 @@ unsafe fn read_sector_ata(drive: u8, lba: u32, out: &mut [u8; 512]) -> bool {
 }
 
 #[inline]
+unsafe fn pci_config_read_u32(bus: u8, dev: u8, func: u8, offset: u8) -> u32 {
+    let addr = 0x8000_0000u32
+        | ((bus as u32) << 16)
+        | ((dev as u32) << 11)
+        | ((func as u32) << 8)
+        | ((offset as u32) & 0xfc);
+    outl(PCI_CFG_ADDR, addr);
+    inl(PCI_CFG_DATA)
+}
+
+unsafe fn find_bmide_base() -> Option<u16> {
+    if BMIDE_SCANNED {
+        return if BMIDE_BASE == 0 { None } else { Some(BMIDE_BASE) };
+    }
+    BMIDE_SCANNED = true;
+    for bus in 0u16..=255 {
+        let bus = bus as u8;
+        for dev in 0u8..32 {
+            for func in 0u8..8 {
+                let vendor_device = pci_config_read_u32(bus, dev, func, 0x00);
+                if vendor_device == 0xffff_ffff || (vendor_device & 0xffff) == 0xffff {
+                    if func == 0 {
+                        break;
+                    }
+                    continue;
+                }
+                let class_reg = pci_config_read_u32(bus, dev, func, 0x08);
+                let class_code = ((class_reg >> 24) & 0xff) as u8;
+                let subclass = ((class_reg >> 16) & 0xff) as u8;
+                if class_code != PCI_CLASS_MASS_STORAGE || subclass != PCI_SUBCLASS_IDE {
+                    continue;
+                }
+                let bar4 = pci_config_read_u32(bus, dev, func, 0x20);
+                if (bar4 & 0x1) == 0 {
+                    continue;
+                }
+                let base = (bar4 & 0xfffc) as u16;
+                if base != 0 {
+                    BMIDE_BASE = base;
+                    return Some(base);
+                }
+            }
+        }
+    }
+    None
+}
+
+#[inline]
+unsafe fn virt_to_phys(vaddr: u64) -> Option<u64> {
+    let cr3: u64;
+    asm!("mov {}, cr3", out(reg) cr3, options(nomem, nostack, preserves_flags));
+    let l4 = cr3 & 0x000f_ffff_ffff_f000;
+    let l4e_ptr = (l4 + (((vaddr >> 39) & 0x1ff) * 8)) as *const u64;
+    let l4e = core::ptr::read_volatile(l4e_ptr);
+    if (l4e & 1) == 0 {
+        return None;
+    }
+    let l3 = l4e & 0x000f_ffff_ffff_f000;
+    let l3e_ptr = (l3 + (((vaddr >> 30) & 0x1ff) * 8)) as *const u64;
+    let l3e = core::ptr::read_volatile(l3e_ptr);
+    if (l3e & 1) == 0 {
+        return None;
+    }
+    if (l3e & (1 << 7)) != 0 {
+        return Some((l3e & 0x000f_ffff_c000_0000) | (vaddr & 0x3fff_ffff));
+    }
+    let l2 = l3e & 0x000f_ffff_ffff_f000;
+    let l2e_ptr = (l2 + (((vaddr >> 21) & 0x1ff) * 8)) as *const u64;
+    let l2e = core::ptr::read_volatile(l2e_ptr);
+    if (l2e & 1) == 0 {
+        return None;
+    }
+    if (l2e & (1 << 7)) != 0 {
+        return Some((l2e & 0x000f_ffff_ffe0_0000) | (vaddr & 0x1f_ffff));
+    }
+    let l1 = l2e & 0x000f_ffff_ffff_f000;
+    let l1e_ptr = (l1 + (((vaddr >> 12) & 0x1ff) * 8)) as *const u64;
+    let l1e = core::ptr::read_volatile(l1e_ptr);
+    if (l1e & 1) == 0 {
+        return None;
+    }
+    Some((l1e & 0x000f_ffff_ffff_f000) | (vaddr & 0xfff))
+}
+
+unsafe fn read_fs_block_dma(m: &FsMount, block_num: u32, out: &mut [u8], block_size: usize) -> bool {
+    if m.sectors_per_block == 0 || m.sectors_per_block > 8 {
+        return false;
+    }
+    let Some(bm_base) = find_bmide_base() else {
+        return false;
+    };
+    let lba = block_num.saturating_mul(m.sectors_per_block);
+    let dma_buf_vaddr = (&mut DMA_BUF.0 as *mut [u8; 4096]) as u64;
+    let prdt_vaddr = (&mut DMA_PRDT.0 as *mut [PrdtEntry; 2]) as u64;
+    let Some(dma_buf_phys) = virt_to_phys(dma_buf_vaddr) else {
+        return false;
+    };
+    let Some(prdt_phys) = virt_to_phys(prdt_vaddr) else {
+        return false;
+    };
+    if dma_buf_phys > u32::MAX as u64 || prdt_phys > u32::MAX as u64 {
+        return false;
+    }
+    if ((dma_buf_phys & 0xffff) + block_size as u64) > 0x10000 {
+        return false;
+    }
+
+    DMA_PRDT.0[0] = PrdtEntry {
+        base_phys: dma_buf_phys as u32,
+        byte_count: block_size as u16,
+        flags: 0x8000,
+    };
+
+    let bm_cmd = bm_base;
+    let bm_status = bm_base + 2;
+    let bm_prdt = bm_base + 4;
+
+    outb(bm_cmd, inb(bm_cmd) & !0x01);
+    outb(bm_status, inb(bm_status) | 0x06);
+    outl(bm_prdt, prdt_phys as u32);
+    outb(bm_cmd, (inb(bm_cmd) & !0x01) | 0x08); // read from disk -> memory
+
+    if !wait_not_busy(200_000) {
+        return false;
+    }
+    select_drive(m.drive, lba);
+    outb(ATA_SECTOR_COUNT, m.sectors_per_block as u8);
+    outb(ATA_LBA_LOW, (lba & 0xFF) as u8);
+    outb(ATA_LBA_MID, ((lba >> 8) & 0xFF) as u8);
+    outb(ATA_LBA_HIGH, ((lba >> 16) & 0xFF) as u8);
+    outb(ATA_STATUS_CMD, ATA_CMD_READ_DMA);
+    outb(bm_cmd, inb(bm_cmd) | 0x01);
+
+    let mut done = false;
+    for _ in 0..800_000 {
+        let s = inb(bm_status);
+        let ata = inb(ATA_STATUS_CMD);
+        if (s & 0x02) != 0 || (ata & (ATA_STATUS_ERR | ATA_STATUS_DF)) != 0 {
+            break;
+        }
+        if (s & 0x01) == 0 {
+            done = true;
+            break;
+        }
+        core::hint::spin_loop();
+    }
+    outb(bm_cmd, inb(bm_cmd) & !0x01);
+    outb(bm_status, inb(bm_status) | 0x06);
+    if !done {
+        return false;
+    }
+    out[..block_size].copy_from_slice(&DMA_BUF.0[..block_size]);
+    true
+}
+
+#[inline]
 fn read_u16(buf: &[u8], off: usize) -> Option<u16> {
     let s = buf.get(off..off + 2)?;
     Some(u16::from_le_bytes([s[0], s[1]]))
@@ -380,6 +579,10 @@ unsafe fn read_fs_block(m: &FsMount, block_num: u32, out: &mut [u8]) -> bool {
         return false;
     }
     if block_cache_lookup(m.drive, block_num, out, block_size) {
+        return true;
+    }
+    if read_fs_block_dma(m, block_num, out, block_size) {
+        block_cache_insert(m.drive, block_num, out, block_size);
         return true;
     }
     let spb = m.sectors_per_block as usize;

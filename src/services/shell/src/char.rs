@@ -525,7 +525,7 @@ impl Terminal {
         let max_cols = info.width / FONT_WIDTH as u32;
         let max_rows = info.height / FONT_HEIGHT as u32;
         let mut env = Vec::new();
-        env.push(("PATH".to_string(), "/Binaries".to_string()));
+        env.push(("PATH".to_string(), "/Binaries:/Applications".to_string()));
         let mut term = Terminal {
             fb_ptr,
             width: info.width,
@@ -591,6 +591,17 @@ impl Terminal {
                 }
                 self.cmd_cache.push((cmd.to_string(), candidate.clone()));
                 return Some(candidate);
+            }
+            if !cmd.ends_with(".elf") {
+                let app_candidate = format!("{}/{}.app/entry.elf", dir, cmd);
+                if self.command_exists(&app_candidate) {
+                    if self.cmd_cache.len() >= 16 {
+                        self.cmd_cache.remove(0);
+                    }
+                    self.cmd_cache
+                        .push((cmd.to_string(), app_candidate.clone()));
+                    return Some(app_candidate);
+                }
             }
         }
         None
@@ -1398,6 +1409,38 @@ impl Terminal {
         }
     }
 
+    /// about <app>
+    fn builtin_about(&mut self, args: &[String]) {
+        if args.len() != 1 {
+            self.write_str("usage: about <app>\n");
+            return;
+        }
+        let raw_name = args[0].trim();
+        if raw_name.is_empty() {
+            self.write_str("usage: about <app>\n");
+            return;
+        }
+        let app_name = raw_name.strip_suffix(".app").unwrap_or(raw_name);
+        let about_path = format!("/Applications/{}.app/about.toml", app_name);
+        match self.load_file_bytes(&about_path, 16 * 1024) {
+            Some(data) => {
+                if let Ok(text) = core::str::from_utf8(&data) {
+                    self.write_str(text);
+                    if !text.ends_with('\n') {
+                        self.write_byte(b'\n');
+                    }
+                } else {
+                    self.write_str("about: about.toml is not valid UTF-8\n");
+                }
+            }
+            None => {
+                self.write_str("about: app not found: ");
+                self.write_str(app_name);
+                self.write_byte(b'\n');
+            }
+        }
+    }
+
     /// env
     fn builtin_env(&mut self) {
         for (k, v) in self.env.clone().iter() {
@@ -1515,7 +1558,8 @@ impl Terminal {
                 self.write_str("  head [-n N] <f>    tail [-n N] <f>   wc [-lwc] <f>\n");
                 self.write_str("  grep <pat> <f>     which <cmd>       env\n");
                 self.write_str("  basename <p>       dirname <p>       export K=V\n");
-                self.write_str("  clear              version           true / false\n");
+                self.write_str("  clear              version           about <app>\n");
+                self.write_str("  true / false\n");
                 self.write_str("External binaries in $PATH are executed directly (no BusyBox).\n");
             }
             "clear" => {
@@ -1535,6 +1579,7 @@ impl Terminal {
                     self.write_str("mochiOS (about.txt not found)\n");
                 }
             }
+            "about" => self.builtin_about(args),
             "cd" => {
                 let target = args.first().map(|s| s.as_str()).unwrap_or("/");
                 let ret = fs::chdir(target);

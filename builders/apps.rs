@@ -5,7 +5,7 @@ use std::process::Command;
 use super::utils::{emit_rerun_if_changed, find_binary_in_dir, find_target_spec};
 
 /// アプリケーションをビルドして指定ディレクトリにコピー
-pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
+pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
     println!("cargo:rerun-if-changed={}", apps_dir.display());
 
     let entries = match fs::read_dir(apps_dir) {
@@ -24,7 +24,7 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
             continue;
         }
 
-        let app_name = path.file_name().unwrap().to_string_lossy();
+        let app_name = path.file_name().unwrap().to_string_lossy().to_string();
 
         // testsディレクトリはSTART_TEST_APP=trueの場合のみビルド
         if app_name == "tests" && !run_tests {
@@ -120,20 +120,70 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
                     };
 
                     if let Some(elf_path) = find_built_binary(&target_dir, target_name.as_deref()) {
-                        let dest_name = format!("{}.{}", app_name, extension);
-                        let dest = output_dir.join(&dest_name);
+                        let app_bundle_dir = output_dir.join(format!("{}.app", app_name));
+                        if let Err(e) = fs::create_dir_all(&app_bundle_dir) {
+                            println!(
+                                "cargo:warning=Failed to create app bundle dir for {}: {}",
+                                app_name, e
+                            );
+                            continue;
+                        }
+
+                        let dest = app_bundle_dir.join("entry.elf");
                         if let Err(e) = fs::copy(&elf_path, &dest) {
                             println!(
-                                "cargo:warning=Failed to copy {} to output: {}",
-                                dest_name, e
+                                "cargo:warning=Failed to copy app entry for {}: {}",
+                                app_name, e
                             );
                         } else {
                             println!(
-                                "Copied {} to {} (from {})",
-                                dest_name,
-                                output_dir.display(),
+                                "Copied {} entry to {} (from {})",
+                                app_name,
+                                dest.display(),
                                 elf_path.display()
                             );
+                        }
+
+                        let about_src = path.join("about.toml");
+                        let about_dest = app_bundle_dir.join("about.toml");
+                        if about_src.exists() {
+                            if let Err(e) = fs::copy(&about_src, &about_dest) {
+                                println!(
+                                    "cargo:warning=Failed to copy about.toml for {}: {}",
+                                    app_name, e
+                                );
+                            }
+                        } else {
+                            println!(
+                                "cargo:warning=about.toml not found for app {} ({})",
+                                app_name,
+                                about_src.display()
+                            );
+                        }
+
+                        for icon_file in ["icon.png", "icon.jpeg", "icon.jpg"] {
+                            let icon_src = path.join(icon_file);
+                            if icon_src.exists() {
+                                let icon_dest = app_bundle_dir.join(icon_file);
+                                if let Err(e) = fs::copy(&icon_src, &icon_dest) {
+                                    println!(
+                                        "cargo:warning=Failed to copy {} for {}: {}",
+                                        icon_file, app_name, e
+                                    );
+                                }
+                                break;
+                            }
+                        }
+
+                        if let Some(fs_root) = output_dir.parent() {
+                            let app_service_dir =
+                                fs_root.join("Libraries").join("AppService").join(&app_name);
+                            if let Err(e) = fs::create_dir_all(&app_service_dir) {
+                                println!(
+                                    "cargo:warning=Failed to create app service dir for {}: {}",
+                                    app_name, e
+                                );
+                            }
                         }
                     } else {
                         println!("cargo:warning=Built binary not found for {}", app_name);

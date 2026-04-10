@@ -520,9 +520,10 @@ fn main() {
 
     // アプリケーションをビルド
     let apps_dir = manifest_dir.join("src/apps");
+    let applications_dir = fs_dir.join("Applications");
     if apps_dir.is_dir() {
-        println!("Building test applications");
-        build_apps(&apps_dir, &fs_dir, "elf");
+        println!("Building applications");
+        build_apps(&apps_dir, &applications_dir, "elf");
     }
 
     // ユーティリティコマンドをビルド

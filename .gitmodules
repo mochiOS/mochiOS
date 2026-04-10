@@ -1,3 +1,6 @@
 [submodule "src/lib"]
 	path = src/lib
 	url = https://sourceware.org/git/newlib-cygwin.git
+[submodule "src/apps/Kagami"]
+	path = src/apps/Kagami
+	url = https://github.com/tas0dev/Kagami

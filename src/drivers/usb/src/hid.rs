@@ -189,6 +189,7 @@ fn parse_hid_keyboard_report(
     true
 }
 
+#[allow(E0061)]
 fn parse_hid_mouse_report(_slot: u8, _ep: u8, report: &[u8], state: &mut HidParserState) -> bool {
     if report.len() < 3 {
         return false;

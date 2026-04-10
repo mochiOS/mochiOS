@@ -237,7 +237,10 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::KeyboardReadTap as u64 => keyboard::read_char_tap(),
         x if x == SyscallNumber::MouseRead as u64 => {
             if arg0 == 0 {
-                EFAULT
+                match mouse::read_packet() {
+                    Ok(packet) => packet,
+                    Err(errno) => errno,
+                }
             } else {
                 match mouse::read_packet() {
                     Ok(packet) => {
@@ -253,7 +256,10 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         }
         x if x == SyscallNumber::MouseReadWait as u64 => {
             if arg0 == 0 {
-                EFAULT
+                match mouse::read_packet_blocking() {
+                    Ok(packet) => packet,
+                    Err(errno) => errno,
+                }
             } else {
                 match mouse::read_packet_blocking() {
                     Ok(packet) => {

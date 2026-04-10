@@ -200,7 +200,12 @@ fn parse_hid_mouse_report(_slot: u8, _ep: u8, report: &[u8], state: &mut HidPars
     // 現状は Report ID 有無を考慮し、offset=0/1 の双方を試す。
     let mut chosen_offset = None;
     let mut best_score = i32::MIN;
-    for offset in [0usize, 1usize] {
+    let offsets: [usize; 2] = if let Some(prev) = state.mouse_offset {
+        [prev, prev]
+    } else {
+        [0usize, 1usize]
+    };
+    for offset in offsets {
         if report.len() < offset + 3 {
             continue;
         }
@@ -289,7 +294,9 @@ pub fn parse_hid_report(
             if parse_hid_keyboard_report(slot, ep, report, state, true) {
                 return;
             }
-            let _ = parse_hid_mouse_report(slot, ep, report, state);
+            // Unknown デバイスはマウスとして扱わない。
+            // ここでマウスにフォールバックすると、非マウスHIDレポートを
+            // 誤って座標入力に変換しカーソルがランダム移動する。
         }
     }
 }

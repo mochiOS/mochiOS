@@ -1283,6 +1283,7 @@ fn handle_transfer_event(
     runtime: &mut XhciRuntime,
     transfer_ptr: u64,
     completion_code: u8,
+    transfer_len_remaining: u32,
     slot_id: u8,
     ep_id: u8,
 ) {
@@ -1299,6 +1300,9 @@ fn handle_transfer_event(
     };
 
     let pending = runtime.pending_transfers.remove(pos);
+    let actual_len = pending
+        .data_len
+        .saturating_sub(transfer_len_remaining as usize);
     let success = completion_code == CC_SUCCESS || completion_code == CC_SHORT_PACKET;
 
     match pending.kind {
@@ -1424,7 +1428,8 @@ fn handle_transfer_event(
             if success {
                 if let Some(dev_idx) = find_device_index(runtime, slot_id) {
                     if let Some(hid) = runtime.devices[dev_idx].hid_ep.as_ref() {
-                        let report = hid.report_buf.read_bytes(0, hid.report_len);
+                        let read_len = core::cmp::min(actual_len, hid.report_len);
+                        let report = hid.report_buf.read_bytes(0, read_len);
                         if !report.is_empty() {
                             parse_hid_report(
                                 slot_id,
@@ -1501,7 +1506,15 @@ fn poll_xhci_events(runtime: &mut XhciRuntime) -> bool {
             }
             TRB_TYPE_TRANSFER_EVENT => {
                 let transfer_ptr = u64::from(event[0]) | (u64::from(event[1]) << 32);
-                handle_transfer_event(runtime, transfer_ptr, completion_code, slot_id, ep_id);
+                let transfer_len_remaining = event[2] & 0x00FF_FFFF;
+                handle_transfer_event(
+                    runtime,
+                    transfer_ptr,
+                    completion_code,
+                    transfer_len_remaining,
+                    slot_id,
+                    ep_id,
+                );
             }
             _ => {
                 println!(

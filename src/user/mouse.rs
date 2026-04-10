@@ -71,3 +71,23 @@ pub fn read_packet_wait() -> Result<MousePacket, u64> {
         dy: b2 as i8,
     })
 }
+
+/// PS/2 マウスパケットを1件読み取る（非ブロッキング, 戻り値直受け）
+pub fn read_packet_raw() -> Result<Option<MousePacket>, u64> {
+    let ret = syscall1(SyscallNumber::MouseRead as u64, 0);
+    if ret == ENODATA {
+        return Ok(None);
+    }
+    if (ret as i64) < 0 {
+        return Err(ret);
+    }
+    let raw = ret as u32;
+    let b0 = (raw & 0xFF) as u8;
+    let b1 = ((raw >> 8) & 0xFF) as u8;
+    let b2 = ((raw >> 16) & 0xFF) as u8;
+    Ok(Some(MousePacket {
+        buttons: b0 & 0x07,
+        dx: b1 as i8,
+        dy: b2 as i8,
+    }))
+}

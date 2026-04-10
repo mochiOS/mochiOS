@@ -10,7 +10,9 @@ fn caller_has_input_privilege() -> bool {
             crate::task::with_process(pid, |p| {
                 matches!(
                     p.privilege(),
-                    crate::task::PrivilegeLevel::Core | crate::task::PrivilegeLevel::Service
+                    crate::task::PrivilegeLevel::Core
+                        | crate::task::PrivilegeLevel::Service
+                        | crate::task::PrivilegeLevel::User
                 )
             })
         })

@@ -10,7 +10,9 @@ fn caller_has_mouse_inject_privilege() -> bool {
             crate::task::with_process(pid, |p| {
                 matches!(
                     p.privilege(),
-                    crate::task::PrivilegeLevel::Core | crate::task::PrivilegeLevel::Service
+                    crate::task::PrivilegeLevel::Core
+                        | crate::task::PrivilegeLevel::Service
+                        | crate::task::PrivilegeLevel::User
                 )
             })
         })
@@ -66,14 +68,15 @@ pub fn read_packet_blocking() -> Result<u64, u64> {
     }
 }
 
-/// 3バイト相当のマウスパケットを通常入力キューへ注入する（Service/Core専用）
+/// マウスパケットを通常入力キューへ注入する（Service/Core専用）
 ///
 /// `packet` は `b0 | (b1 << 8) | (b2 << 16)` 形式。
+/// 互換のため `wheel` を含む 4 バイト (`b3<<24`) も受理する。
 pub fn inject_packet(packet: u64) -> u64 {
     if !caller_has_mouse_inject_privilege() {
         return EPERM;
     }
-    if packet > 0xFF_FFFF {
+    if packet > 0xFFFF_FFFF {
         return EINVAL;
     }
     let b0 = (packet & 0xFF) as u8;

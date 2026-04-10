@@ -224,8 +224,9 @@ fn parse_hid_mouse_report(_slot: u8, _ep: u8, report: &[u8], state: &mut HidPars
     };
 
     if dx != 0 || dy != 0 || wheel != 0 || buttons != state.prev_mouse_buttons {
-        if let Err(_err) = input::inject_mouse_packet(buttons, dx, dy, wheel) {
+        if let Err(err) = input::inject_mouse_packet(buttons, dx, dy, wheel) {
             if !state.warned_mouse_inject {
+                println!("[xHCI] mouse inject failed: errno={}", err as i64);
                 state.warned_mouse_inject = true;
             }
         }

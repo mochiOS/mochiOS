@@ -130,13 +130,40 @@ fn inject_modifier_transitions(new_mod: u8, state: &mut HidParserState) {
     state.prev_modifiers = new_mod;
 }
 
-fn parse_hid_keyboard_report(_slot: u8, _ep: u8, report: &[u8], state: &mut HidParserState) -> bool {
-    if report.len() < 8 {
+fn parse_hid_keyboard_report(
+    _slot: u8,
+    _ep: u8,
+    report: &[u8],
+    state: &mut HidParserState,
+    strict_usage_check: bool,
+) -> bool {
+    let mut chosen_offset = None;
+    for offset in [0usize, 1usize] {
+        if report.len() < offset + 8 {
+            continue;
+        }
+        // Boot keyboard report は [modifiers, reserved, key0..key5]。
+        // reserved が 0 でない場合はキーボードとして扱わない。
+        if report[offset + 1] != 0 {
+            continue;
+        }
+        chosen_offset = Some(offset);
+        break;
+    }
+    let Some(offset) = chosen_offset else {
+        return false;
+    };
+
+    let modifiers = report[offset];
+    let keys = &report[offset + 2..offset + 8];
+    if strict_usage_check
+        && keys
+            .iter()
+            .copied()
+            .any(|usage| usage != 0 && map_hid_usage_to_set1_scancode(usage).is_none())
+    {
         return false;
     }
-
-    let modifiers = report[0];
-    let keys = &report[2..8];
     inject_modifier_transitions(modifiers, state);
 
     let prev_keys = state.prev_keys;
@@ -215,13 +242,13 @@ pub fn parse_hid_report(
 ) {
     match kind {
         HidReportKind::Keyboard => {
-            let _ = parse_hid_keyboard_report(slot, ep, report, state);
+            let _ = parse_hid_keyboard_report(slot, ep, report, state, false);
         }
         HidReportKind::Mouse => {
             let _ = parse_hid_mouse_report(slot, ep, report, state);
         }
         HidReportKind::Unknown => {
-            if parse_hid_keyboard_report(slot, ep, report, state) {
+            if parse_hid_keyboard_report(slot, ep, report, state, true) {
                 return;
             }
             let _ = parse_hid_mouse_report(slot, ep, report, state);

@@ -7,3 +7,6 @@
 [submodule "src/apps/Binder"]
 	path = src/apps/Binder
 	url = https://github.com/tas0dev/Binder
+[submodule "src/apps/ViewKit"]
+	path = src/apps/ViewKit
+	url = https://github.com/tas0dev/ViewKit

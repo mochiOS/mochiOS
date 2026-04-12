@@ -10,3 +10,6 @@
 [submodule "src/apps/ViewKit"]
 	path = src/apps/ViewKit
 	url = https://github.com/tas0dev/ViewKit
+[submodule "src/apps/Dock"]
+	path = src/apps/Dock
+	url = https://github.com/tas0dev/dock

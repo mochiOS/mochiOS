@@ -301,9 +301,10 @@ pub fn send_pages_from_kernel(
             msg.to = dest_thread_id;
             msg.to_slot = idx as u16;
             msg.to_generation = dest_generation;
-            // serialize map_start, total, then pages into data
+            // serialize map_start, total only.
+            // 物理ページ配列は data に露出させず ext_pages 側だけに保持する。
             let mut off = 0usize;
-            if (16 + pages.len() * 8) > MAX_MSG_SIZE {
+            if 16 > MAX_MSG_SIZE {
                 mb.free_slot(slot_idx);
                 return false;
             }
@@ -311,10 +312,6 @@ pub fn send_pages_from_kernel(
             off += 8;
             msg.data[off..off + 8].copy_from_slice(&(total as u64).to_ne_bytes());
             off += 8;
-            for p in pages.iter() {
-                msg.data[off..off + 8].copy_from_slice(&p.to_ne_bytes());
-                off += 8;
-            }
             msg.len = off;
             msg.ext_pages_count = pages.len() as u16;
             for i in 0..pages.len() {
@@ -452,6 +449,108 @@ pub fn send(dest_thread_id: u64, buf_ptr: u64, len: u64) -> u64 {
     0
 }
 
+fn map_external_pages_for_receiver(
+    receiver_tid: u64,
+    map_start_hint: u64,
+    total: u64,
+    ext_pages_count: u16,
+    ext_pages: &[u64; 128],
+) -> Result<u64, u64> {
+    if ext_pages_count == 0 || ext_pages_count as usize > ext_pages.len() {
+        return Err(EINVAL);
+    }
+    if total == 0 {
+        return Err(EINVAL);
+    }
+    let max_bytes = (ext_pages_count as u64).saturating_mul(0x1000);
+    if total > max_bytes {
+        return Err(EINVAL);
+    }
+
+    let target_pid = crate::task::thread_to_process_id(receiver_tid).ok_or(EINVAL)?;
+    let page_span = (ext_pages_count as u64).saturating_mul(0x1000);
+
+    let _ = map_start_hint; // 受信側の安全のためヒントは無視して自動配置する
+    let (virt_addr, page_table, reserved_heap_old, reserved_heap_new) =
+        match crate::task::with_process_mut(target_pid, |p| {
+            let base = if p.heap_end() < 0x7100_0000_0000u64 {
+                0x7100_0000_0000u64
+            } else {
+                p.heap_end()
+            };
+            let virt_addr = base
+                .checked_add(0xfff)
+                .map(|v| v & !0xfffu64)
+                .ok_or(EINVAL)?;
+            let new_end = virt_addr.checked_add(page_span).ok_or(EINVAL)?;
+            let pt = p.page_table().ok_or(EINVAL)?;
+            let old_end = p.heap_end();
+            p.set_heap_end(new_end);
+            Ok((virt_addr, pt, old_end, new_end))
+        }) {
+            Some(Ok(v)) => (v.0, v.1, Some(v.2), Some(v.3)),
+            Some(Err(e)) => return Err(e),
+            None => return Err(EINVAL),
+        };
+
+    for i in 0..(ext_pages_count as usize) {
+        let target_virt = virt_addr + (i as u64 * 0x1000);
+        let phys_addr = ext_pages[i];
+        if crate::mem::paging::map_page_in_table(page_table, target_virt, phys_addr, true, true)
+            .is_err()
+        {
+            for j in 0..i {
+                let rollback_virt = virt_addr + (j as u64 * 0x1000);
+                let _ = crate::mem::paging::unmap_page_in_table(page_table, rollback_virt);
+            }
+            if let (Some(old_end), Some(new_end)) = (reserved_heap_old, reserved_heap_new) {
+                let _ = crate::task::with_process_mut(target_pid, |p| {
+                    if p.heap_end() == new_end {
+                        p.set_heap_end(old_end);
+                    }
+                });
+            }
+            return Err(EFAULT);
+        }
+    }
+
+    Ok(virt_addr)
+}
+
+fn prepare_external_pages_for_user(
+    receiver_tid: u64,
+    recv_buf: &mut [u8],
+    copy_len: usize,
+    ext_pages_count: u16,
+    ext_pages: &[u64; 128],
+) -> Result<usize, u64> {
+    if ext_pages_count == 0 {
+        return Ok(copy_len);
+    }
+    if copy_len < 16 || recv_buf.len() < 16 {
+        return Err(EFAULT);
+    }
+    let map_start_hint = u64::from_ne_bytes([
+        recv_buf[0], recv_buf[1], recv_buf[2], recv_buf[3], recv_buf[4], recv_buf[5], recv_buf[6],
+        recv_buf[7],
+    ]);
+    let total = u64::from_ne_bytes([
+        recv_buf[8],
+        recv_buf[9],
+        recv_buf[10],
+        recv_buf[11],
+        recv_buf[12],
+        recv_buf[13],
+        recv_buf[14],
+        recv_buf[15],
+    ]);
+    let mapped_addr =
+        map_external_pages_for_receiver(receiver_tid, map_start_hint, total, ext_pages_count, ext_pages)?;
+    recv_buf[0..8].copy_from_slice(&mapped_addr.to_ne_bytes());
+    recv_buf[8..16].copy_from_slice(&total.to_ne_bytes());
+    Ok(16)
+}
+
 /// IPC受信
 /// arg0: buf_ptr
 /// arg1: len
@@ -474,7 +573,7 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
 
     let max_copy = core::cmp::min(max_len as usize, MAX_MSG_SIZE);
     let mut recv_buf = vec![0u8; MAX_MSG_SIZE];
-    let (from, copy_len, _ext_pages_count, _ext_pages) = {
+    let (from, copy_len, ext_pages_count, ext_pages) = {
         let mut boxes = MAILBOXES.lock();
         match boxes[idx].pop_valid_for_receiver_copy(
             receiver,
@@ -486,6 +585,12 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
             None => return EAGAIN,
         }
     };
+    let copy_len =
+        match prepare_external_pages_for_user(receiver, &mut recv_buf, copy_len, ext_pages_count, &ext_pages)
+        {
+            Ok(n) => n,
+            Err(e) => return e,
+        };
 
     if copy_len > 0 && buf_ptr != 0 {
         // ユーザー空間アドレスの有効性を検証する
@@ -545,7 +650,17 @@ pub fn recv_blocking(buf_ptr: u64, max_len: u64) -> u64 {
         };
 
         match recv {
-            Some((from, copy_len, _ext_pages_count, _ext_pages)) => {
+            Some((from, copy_len, ext_pages_count, ext_pages)) => {
+                let copy_len = match prepare_external_pages_for_user(
+                    receiver_u64,
+                    &mut recv_buf,
+                    copy_len,
+                    ext_pages_count,
+                    &ext_pages,
+                ) {
+                    Ok(n) => n,
+                    Err(e) => return e,
+                };
                 if copy_len > 0 && buf_ptr != 0 {
                     if !crate::syscall::validate_user_ptr(buf_ptr, copy_len as u64) {
                         return EFAULT;

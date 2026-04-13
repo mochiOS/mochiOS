@@ -335,7 +335,7 @@ fn mode_for_stat(mode: u16) -> u32 {
 #[inline]
 fn should_fallback_to_initfs(errno: u64) -> bool {
     // Prefer ATA rootfs and fallback to initfs only when rootfs path is unavailable.
-    errno == ESRCH
+    errno == ESRCH || errno == ENOENT || errno == ENOTDIR || errno == EBADF
 }
 
 #[inline]

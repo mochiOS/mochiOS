@@ -201,6 +201,8 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::RtSigaction as u64 => signal::rt_sigaction(arg0, arg1, arg2),
         x if x == SyscallNumber::RtSigprocmask as u64 => signal::rt_sigprocmask(arg0, arg1, arg2),
         x if x == SyscallNumber::Kill as u64 => signal::kill(arg0, arg1),
+        x if x == SyscallNumber::Tkill as u64 => signal::tkill(arg0, arg1),
+        x if x == SyscallNumber::Tgkill as u64 => signal::tgkill(arg0, arg1, arg2),
         x if x == SyscallNumber::GetPid as u64 => process::getpid(),
         x if x == SyscallNumber::Clone as u64 => process::fork(),
         x if x == SyscallNumber::Fork as u64 => process::fork(),

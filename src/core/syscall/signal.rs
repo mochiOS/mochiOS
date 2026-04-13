@@ -5,7 +5,7 @@
 
 use super::types::{EINVAL, EPERM, ESRCH, SUCCESS};
 use crate::task::{
-    current_thread_id, default_action, with_process, with_process_mut, DefaultAction,
+    current_thread_id, default_action, thread_to_process_id, with_process, with_process_mut, DefaultAction,
     PrivilegeLevel, ProcessId, SigAction, SIGCHLD, SIGKILL, SIG_DFL, SIG_IGN,
 };
 
@@ -205,6 +205,56 @@ pub fn kill(pid_raw: u64, sig_raw: u64) -> u64 {
     } else {
         EINVAL
     }
+}
+
+/// tkill システムコール
+///
+/// # 引数
+/// - `tid_raw`: ターゲット TID
+/// - `sig_raw`: シグナル番号 (0=存在確認のみ)
+pub fn tkill(tid_raw: u64, sig_raw: u64) -> u64 {
+    let sig = sig_raw as usize;
+    if sig > 64 {
+        return EINVAL;
+    }
+    let target_pid = match thread_to_process_id(tid_raw) {
+        Some(pid) => pid,
+        None => return ESRCH,
+    };
+    if !caller_can_signal_target(target_pid) {
+        return EPERM;
+    }
+    if sig == 0 {
+        return SUCCESS;
+    }
+    deliver_signal_to_pid(target_pid, sig)
+}
+
+/// tgkill システムコール
+///
+/// # 引数
+/// - `tgid_raw`: ターゲットスレッドグループID (PID)
+/// - `tid_raw`: ターゲット TID
+/// - `sig_raw`: シグナル番号 (0=存在確認のみ)
+pub fn tgkill(tgid_raw: u64, tid_raw: u64, sig_raw: u64) -> u64 {
+    let sig = sig_raw as usize;
+    if sig > 64 {
+        return EINVAL;
+    }
+    let target_pid = match thread_to_process_id(tid_raw) {
+        Some(pid) => pid,
+        None => return ESRCH,
+    };
+    if tgid_raw != 0 && target_pid.as_u64() != tgid_raw {
+        return ESRCH;
+    }
+    if !caller_can_signal_target(target_pid) {
+        return EPERM;
+    }
+    if sig == 0 {
+        return SUCCESS;
+    }
+    deliver_signal_to_pid(target_pid, sig)
 }
 
 /// 指定プロセスにシグナルを送達する（カーネル内部からも呼ばれる）

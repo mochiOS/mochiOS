@@ -446,10 +446,8 @@ impl Terminal {
             if len == 0 || len > buf.len() {
                 continue;
             }
-            if let Ok(s) = core::str::from_utf8(&buf[..len]) {
-                self.write_str(s);
-                wrote = true;
-            }
+            self.write_bytes(&buf[..len]);
+            wrote = true;
         }
         wrote
     }
@@ -782,6 +780,123 @@ impl Terminal {
         self.ansi_seq_len = 0;
     }
 
+    fn csi_params(&self) -> Vec<u16> {
+        let mut params = Vec::new();
+        let mut start = 0usize;
+        let mut i = 0usize;
+        while i <= self.ansi_seq_len {
+            if i == self.ansi_seq_len || self.ansi_seq[i] == b';' {
+                if i == start {
+                    params.push(0);
+                } else if let Some(v) = Self::parse_ascii_u16(&self.ansi_seq[start..i]) {
+                    params.push(v);
+                }
+                start = i + 1;
+            }
+            i += 1;
+        }
+        params
+    }
+
+    fn erase_cell(&self, col: u32, row: u32) {
+        self.draw_char(b' ', col, row);
+    }
+
+    fn erase_line_range(&self, row: u32, start_col: u32, end_col: u32) {
+        if row >= self.max_rows {
+            return;
+        }
+        let end = core::cmp::min(end_col, self.max_cols);
+        let mut col = core::cmp::min(start_col, end);
+        while col < end {
+            self.erase_cell(col, row);
+            col += 1;
+        }
+    }
+
+    fn erase_screen_range(&self, start_row: u32, start_col: u32, end_row: u32, end_col: u32) {
+        if self.max_rows == 0 || self.max_cols == 0 {
+            return;
+        }
+        let mut row = start_row;
+        while row < end_row && row < self.max_rows {
+            let col_begin = if row == start_row { start_col } else { 0 };
+            let col_end = if row + 1 == end_row {
+                core::cmp::min(end_col, self.max_cols)
+            } else {
+                self.max_cols
+            };
+            self.erase_line_range(row, col_begin, col_end);
+            row += 1;
+        }
+    }
+
+    fn handle_csi_sequence(&mut self, final_byte: u8) {
+        let params = self.csi_params();
+        let p = |idx: usize, default: u16| -> u16 {
+            let v = params.get(idx).copied().unwrap_or(default);
+            if v == 0 {
+                default
+            } else {
+                v
+            }
+        };
+        match final_byte {
+            b'A' => {
+                let n = p(0, 1) as u32;
+                self.row = self.row.saturating_sub(n);
+            }
+            b'B' => {
+                let n = p(0, 1) as u32;
+                self.row = core::cmp::min(self.row.saturating_add(n), self.max_rows.saturating_sub(1));
+            }
+            b'C' => {
+                let n = p(0, 1) as u32;
+                self.col = core::cmp::min(self.col.saturating_add(n), self.max_cols.saturating_sub(1));
+            }
+            b'D' => {
+                let n = p(0, 1) as u32;
+                self.col = self.col.saturating_sub(n);
+            }
+            b'H' | b'f' => {
+                let row = p(0, 1).saturating_sub(1) as u32;
+                let col = p(1, 1).saturating_sub(1) as u32;
+                self.row = core::cmp::min(row, self.max_rows.saturating_sub(1));
+                self.col = core::cmp::min(col, self.max_cols.saturating_sub(1));
+            }
+            b'J' => {
+                let mode = params.get(0).copied().unwrap_or(0);
+                match mode {
+                    0 => {
+                        self.erase_screen_range(
+                            self.row,
+                            self.col,
+                            self.max_rows,
+                            self.max_cols,
+                        );
+                    }
+                    1 => {
+                        self.erase_screen_range(0, 0, self.row + 1, self.col + 1);
+                    }
+                    2 => {
+                        self.erase_screen_range(0, 0, self.max_rows, self.max_cols);
+                    }
+                    _ => {}
+                }
+            }
+            b'K' => {
+                let mode = params.get(0).copied().unwrap_or(0);
+                match mode {
+                    0 => self.erase_line_range(self.row, self.col, self.max_cols),
+                    1 => self.erase_line_range(self.row, 0, self.col + 1),
+                    2 => self.erase_line_range(self.row, 0, self.max_cols),
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn write_output_byte(&mut self, byte: u8) {
         if self.ansi_esc_pending {
             self.ansi_esc_pending = false;
@@ -803,13 +918,19 @@ impl Terminal {
                 return;
             }
 
-            if byte.is_ascii_digit() || byte == b';' {
+            if byte.is_ascii_digit() || byte == b';' || byte == b'?' {
                 if self.ansi_seq_len < self.ansi_seq.len() {
                     self.ansi_seq[self.ansi_seq_len] = byte;
                     self.ansi_seq_len += 1;
                 } else {
                     self.reset_ansi_parser();
                 }
+                return;
+            }
+
+            if (0x40..=0x7E).contains(&byte) {
+                self.handle_csi_sequence(byte);
+                self.reset_ansi_parser();
                 return;
             }
 
@@ -827,6 +948,12 @@ impl Terminal {
 
     pub fn write_str(&mut self, s: &str) {
         for b in s.bytes() {
+            self.write_output_byte(b);
+        }
+    }
+
+    fn write_bytes(&mut self, bytes: &[u8]) {
+        for &b in bytes {
             self.write_output_byte(b);
         }
     }
@@ -870,10 +997,8 @@ impl Terminal {
                 if len2 == 0 || len2 as usize > buf.len() {
                     break;
                 }
-                if let Ok(s) = core::str::from_utf8(&buf[..len2 as usize]) {
-                    self.write_str(s);
-                    wrote = true;
-                }
+                self.write_bytes(&buf[..len2 as usize]);
+                wrote = true;
             }
             if wrote {
                 self.flush();
@@ -891,18 +1016,14 @@ impl Terminal {
             // メッセージが届くまでスリープして待機（ビジーウェイトしない）
             let (_, len) = ipc::ipc_recv_wait(&mut *buf);
             if len > 0 && len as usize <= buf.len() {
-                if let Ok(s) = core::str::from_utf8(&buf[..len as usize]) {
-                    self.write_str(s);
-                }
+                self.write_bytes(&buf[..len as usize]);
                 // 続きのメッセージをノンブロッキングで掃き出す
                 loop {
                     let (_, len2) = ipc::ipc_recv(&mut *buf);
                     if len2 == 0 || len2 as usize > buf.len() {
                         break;
                     }
-                    if let Ok(s) = core::str::from_utf8(&buf[..len2 as usize]) {
-                        self.write_str(s);
-                    }
+                    self.write_bytes(&buf[..len2 as usize]);
                 }
                 // バッチ分まとめてフラッシュ
                 self.flush();
@@ -928,10 +1049,8 @@ impl Terminal {
             if len == 0 || len as usize > buf.len() {
                 break;
             }
-            if let Ok(s) = core::str::from_utf8(&buf[..len as usize]) {
-                self.write_str(s);
-                wrote = true;
-            }
+            self.write_bytes(&buf[..len as usize]);
+            wrote = true;
         }
         if wrote {
             self.flush();

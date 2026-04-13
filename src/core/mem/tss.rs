@@ -2,7 +2,7 @@
 //!
 //! TSSを管理
 
-use crate::{info, sprintln};
+use crate::info;
 use spin::Once;
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;

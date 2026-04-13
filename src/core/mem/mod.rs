@@ -2,7 +2,7 @@
 //!
 //! GDT、TSS、ページング、フレームアロケータ
 
-use crate::{debug, info, interrupt, sprintln, MemoryRegion, Result};
+use crate::{debug, info, interrupt, MemoryRegion, Result};
 
 pub mod allocator;
 pub mod frame;

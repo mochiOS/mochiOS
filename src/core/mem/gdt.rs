@@ -148,13 +148,13 @@ pub fn kernel_data_selector() -> u16 {
 /// - 呼び出し前にGDTが正しく初期化されている必要がある
 unsafe fn set_data_segments(selector: SegmentSelector) {
     asm!(
-        "mov ds, {0:x}",
-        "mov es, {0:x}",
-        "mov fs, {0:x}",
-        "mov gs, {0:x}",
-        "mov ss, {0:x}",
-        in(reg) selector.0,
-        options(nostack, preserves_flags)
+    "mov ds, {0:x}",
+    "mov es, {0:x}",
+    "mov fs, {0:x}",
+    "mov gs, {0:x}",
+    "mov ss, {0:x}",
+    in(reg) selector.0,
+    options(nostack, preserves_flags)
     );
 }
 
@@ -165,13 +165,13 @@ unsafe fn set_data_segments(selector: SegmentSelector) {
 /// - `selector`: 設定するセグメントセレクタ
 unsafe fn set_cs(selector: SegmentSelector) {
     asm!(
-        "push {sel}",
-        "lea {tmp}, [rip + 2f]",
-        "push {tmp}",
-        "retfq",
-        "2:",
-        sel = in(reg) u64::from(selector.0),
-        tmp = lateout(reg) _,
-        options(preserves_flags)
+    "push {sel}",
+    "lea {tmp}, [rip + 2f]",
+    "push {tmp}",
+    "retfq",
+    "2:",
+    sel = in(reg) u64::from(selector.0),
+    tmp = lateout(reg) _,
+    options(preserves_flags)
     );
 }

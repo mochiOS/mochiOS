@@ -44,7 +44,21 @@ pub unsafe extern "C" fn realloc(ptr: *mut u8, size: usize) -> *mut u8 {
     c_realloc(ptr, size)
 }
 
-pub unsafe extern "C" fn open(_path: *const u8, _flags: i32) -> i32 { -1 }
+pub unsafe extern "C" fn open(path: *const u8, flags: i32) -> i32 {
+    if path.is_null() {
+        return -1;
+    }
+    let ret = crate::sys::syscall2(
+        crate::sys::SyscallNumber::Open as u64,
+        path as u64,
+        flags as u64,
+    );
+    if (ret as i64) < 0 {
+        -1
+    } else {
+        ret as i32
+    }
+}
 
 pub unsafe extern "C" fn close(fd: i32) -> i32 {
     crate::io::close(fd as u64) as i32

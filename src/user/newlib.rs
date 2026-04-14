@@ -5,6 +5,20 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 static SBRK_LOCK: AtomicBool = AtomicBool::new(false);
 
+unsafe fn set_errno_from_ret(ret: i64) {
+    if ret >= 0 {
+        return;
+    }
+    unsafe extern "C" {
+        fn __errno_location() -> *mut i32;
+    }
+    let errno = (-ret) as i32;
+    let p = unsafe { __errno_location() };
+    if !p.is_null() {
+        unsafe { *p = errno };
+    }
+}
+
 struct SbrkLockGuard;
 
 impl SbrkLockGuard {
@@ -27,7 +41,13 @@ impl Drop for SbrkLockGuard {
 
 #[no_mangle]
 pub extern "C" fn _write(fd: i32, buf: *const u8, len: usize) -> isize {
-    syscall3(SyscallNumber::Write as u64, fd as u64, buf as u64, len as u64) as isize
+    let ret = syscall3(SyscallNumber::Write as u64, fd as u64, buf as u64, len as u64) as i64;
+    if ret < 0 {
+        unsafe { set_errno_from_ret(ret) };
+        -1
+    } else {
+        ret as isize
+    }
 }
 
 #[no_mangle]
@@ -37,7 +57,13 @@ pub extern "C" fn write(fd: i32, buf: *const u8, len: usize) -> isize {
 
 #[no_mangle]
 pub extern "C" fn _read(fd: i32, buf: *mut u8, len: usize) -> isize {
-    syscall3(SyscallNumber::Read as u64, fd as u64, buf as u64, len as u64) as isize
+    let ret = syscall3(SyscallNumber::Read as u64, fd as u64, buf as u64, len as u64) as i64;
+    if ret < 0 {
+        unsafe { set_errno_from_ret(ret) };
+        -1
+    } else {
+        ret as isize
+    }
 }
 
 #[no_mangle]
@@ -47,7 +73,13 @@ pub extern "C" fn read(fd: i32, buf: *mut u8, len: usize) -> isize {
 
 #[no_mangle]
 pub extern "C" fn _close(fd: i32) -> i32 {
-    syscall1(SyscallNumber::Close as u64, fd as u64) as i32
+    let ret = syscall1(SyscallNumber::Close as u64, fd as u64) as i64;
+    if ret < 0 {
+        unsafe { set_errno_from_ret(ret) };
+        -1
+    } else {
+        ret as i32
+    }
 }
 
 #[no_mangle]
@@ -56,8 +88,30 @@ pub extern "C" fn close(fd: i32) -> i32 {
 }
 
 #[no_mangle]
+pub extern "C" fn _open(path: *const u8, flags: i32, _mode: i32) -> i32 {
+    let ret = syscall2(SyscallNumber::Open as u64, path as u64, flags as u64) as i64;
+    if ret < 0 {
+        unsafe { set_errno_from_ret(ret) };
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn _lseek(fd: i32, offset: isize, whence: i32) -> isize {
-    syscall3(SyscallNumber::Lseek as u64, fd as u64, offset as u64, whence as u64) as isize
+    let ret = syscall3(
+        SyscallNumber::Lseek as u64,
+        fd as u64,
+        offset as u64,
+        whence as u64,
+    ) as i64;
+    if ret < 0 {
+        unsafe { set_errno_from_ret(ret) };
+        -1
+    } else {
+        ret as isize
+    }
 }
 
 #[no_mangle]
@@ -76,7 +130,13 @@ pub extern "C" fn _exit(code: i32) -> ! {
 
 #[no_mangle]
 pub extern "C" fn _fstat(fd: i32, stat: *mut u8) -> i32 {
-    syscall2(SyscallNumber::Fstat as u64, fd as u64, stat as u64) as i32
+    let ret = syscall2(SyscallNumber::Fstat as u64, fd as u64, stat as u64) as i64;
+    if ret < 0 {
+        unsafe { set_errno_from_ret(ret) };
+        -1
+    } else {
+        ret as i32
+    }
 }
 
 #[no_mangle]

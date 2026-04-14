@@ -3,10 +3,20 @@
 //! Rust std (build-std) がリンク時に要求する C ライブラリ関数を実装する。
 //! 各関数は最小限の実装か、成功を返すスタブ。
 
-use crate::sys::{syscall1, syscall2, syscall6, SyscallNumber};
+use crate::sys::{syscall1, syscall2, syscall4, syscall6, SyscallNumber};
 
 // errno
 static mut ERRNO_VAL: i32 = 0;
+
+#[inline]
+unsafe fn set_errno(errno: i32) {
+    ERRNO_VAL = errno;
+}
+
+#[inline]
+unsafe fn errno_from_neg_ret(ret: i64) -> i32 {
+    (-ret) as i32
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn __errno_location() -> *mut i32 {
@@ -471,7 +481,79 @@ pub unsafe extern "C" fn clock_gettime(_clk_id: i32, tp: *mut u8) -> i32 {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn open(path: *const u8, flags: i32, _mode: u32) -> i32 {
     let ret = syscall2(SyscallNumber::Open as u64, path as u64, flags as u64);
-    if (ret as i64) < 0 { -1 } else { ret as i32 }
+    let ret_i64 = ret as i64;
+    if ret_i64 < 0 {
+        set_errno(errno_from_neg_ret(ret_i64));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn open64(path: *const u8, flags: i32, mode: u32) -> i32 {
+    open(path, flags, mode)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __libc_open64(path: *const u8, flags: i32, mode: u32) -> i32 {
+    open(path, flags, mode)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn openat(dirfd: i32, path: *const u8, flags: i32, mode: u32) -> i32 {
+    const SYS_OPENAT: u64 = 257;
+    let ret = syscall4(
+        SYS_OPENAT,
+        dirfd as i64 as u64,
+        path as u64,
+        flags as u64,
+        mode as u64,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn openat64(dirfd: i32, path: *const u8, flags: i32, mode: u32) -> i32 {
+    openat(dirfd, path, flags, mode)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fstat64(fd: i32, stat: *mut u8) -> i32 {
+    let ret = syscall2(SyscallNumber::Fstat as u64, fd as u64, stat as u64) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn stat64(path: *const u8, stat: *mut u8) -> i32 {
+    let ret = syscall2(SyscallNumber::Stat as u64, path as u64, stat as u64) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn lstat64(path: *const u8, stat: *mut u8) -> i32 {
+    let ret = syscall2(SyscallNumber::Lstat as u64, path as u64, stat as u64) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
 }
 
 /// `iovec` structure for writev

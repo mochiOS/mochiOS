@@ -92,7 +92,9 @@ impl TtyState {
             iflag: 0,
             oflag: 0,
             cflag: 0x30 | 0x80 | 0x800,
-            lflag: LFLAG_ISIG | LFLAG_ICANON | LFLAG_ECHO,
+            // 対話アプリ(vim等)を優先し、既定は非canonical/非echoで開始する。
+            // shell.service は独自の行編集を行うため、この既定値でも影響しない。
+            lflag: LFLAG_ISIG,
             line: 0,
             cc,
             ws_row: 24,

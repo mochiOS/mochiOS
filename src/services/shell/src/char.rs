@@ -442,6 +442,9 @@ pub struct Terminal {
     scroll_bottom: u32,
     insert_mode: bool,
     cursor_visible: bool,
+    cursor_drawn: bool,
+    cursor_draw_col: u32,
+    cursor_draw_row: u32,
     alt_screen: Option<AltScreenState>,
     last_printable: u8,
     cells: Vec<Cell>,
@@ -563,6 +566,7 @@ impl Terminal {
         let max_rows = info.height / FONT_HEIGHT as u32;
         let mut env = Vec::new();
         env.push(("PATH".to_string(), "/Binaries:/Applications".to_string()));
+        env.push(("TERM".to_string(), "xterm-256color".to_string()));
         let mut term = Terminal {
             fb_ptr,
             width: info.width,
@@ -590,6 +594,9 @@ impl Terminal {
             scroll_bottom: max_rows.saturating_sub(1),
             insert_mode: false,
             cursor_visible: true,
+            cursor_drawn: false,
+            cursor_draw_col: 0,
+            cursor_draw_row: 0,
             alt_screen: None,
             last_printable: b' ',
             cells: vec![Cell::blank(); (max_cols as usize).saturating_mul(max_rows as usize)],
@@ -704,7 +711,7 @@ impl Terminal {
         }
     }
 
-    fn redraw_from_cells(&self) {
+    fn redraw_from_cells(&mut self) {
         for row in 0..self.max_rows {
             for col in 0..self.max_cols {
                 let c = self.get_cell(col, row);
@@ -713,7 +720,41 @@ impl Terminal {
         }
     }
 
+    fn hide_cursor_overlay(&mut self) {
+        if !self.cursor_drawn {
+            return;
+        }
+        let col = self.cursor_draw_col;
+        let row = self.cursor_draw_row;
+        self.cursor_drawn = false;
+        if col >= self.max_cols || row >= self.max_rows {
+            return;
+        }
+        let cell = self.get_cell(col, row);
+        self.draw_char_pixels(cell.ch, col, row, cell.fg, cell.bg);
+    }
+
+    fn show_cursor_overlay(&mut self) {
+        if !self.cursor_visible || self.max_cols == 0 || self.max_rows == 0 {
+            self.cursor_drawn = false;
+            return;
+        }
+        let col = core::cmp::min(self.col, self.max_cols.saturating_sub(1));
+        let row = core::cmp::min(self.row, self.max_rows.saturating_sub(1));
+        let cell = self.get_cell(col, row);
+        self.draw_char_pixels(cell.ch, col, row, cell.bg, cell.fg);
+        self.cursor_drawn = true;
+        self.cursor_draw_col = col;
+        self.cursor_draw_row = row;
+    }
+
+    fn refresh_cursor_overlay(&mut self) {
+        self.hide_cursor_overlay();
+        self.show_cursor_overlay();
+    }
+
     pub fn clear_screen(&mut self) {
+        self.hide_cursor_overlay();
         let total = (self.height * self.stride) as usize;
         for i in 0..total {
             unsafe {
@@ -728,6 +769,7 @@ impl Terminal {
         self.scroll_top = 0;
         self.scroll_bottom = self.max_rows.saturating_sub(1);
         self.insert_mode = false;
+        self.show_cursor_overlay();
     }
 
     fn normalize_scroll_region(&mut self) {
@@ -797,7 +839,9 @@ impl Terminal {
     }
 
     /// 互換性のために残す（シャドウバッファ廃止により no-op）
-    pub fn flush(&mut self) {}
+    pub fn flush(&mut self) {
+        self.refresh_cursor_overlay();
+    }
 
     fn index(&mut self) {
         self.normalize_scroll_region();
@@ -905,6 +949,7 @@ impl Terminal {
     }
 
     pub fn write_byte(&mut self, byte: u8) {
+        self.hide_cursor_overlay();
         match byte {
             b'\n' => self.new_line(),
             b'\r' => { self.col = 0; }
@@ -926,15 +971,6 @@ impl Terminal {
             0x08 => { // Backspace
                 if self.col > 0 {
                     self.col -= 1;
-                    self.set_cell(
-                        self.col,
-                        self.row,
-                        Cell {
-                            ch: b' ',
-                            fg: self.fg,
-                            bg: self.bg,
-                        },
-                    );
                 }
             }
             _ => {
@@ -960,6 +996,7 @@ impl Terminal {
                 self.last_printable = byte;
             }
         }
+        self.show_cursor_overlay();
     }
 
     fn ansi_color(index: u16, bright: bool) -> Option<u32> {
@@ -1470,15 +1507,19 @@ impl Terminal {
     }
 
     pub fn write_str(&mut self, s: &str) {
+        self.hide_cursor_overlay();
         for b in s.bytes() {
             self.write_output_byte(b);
         }
+        self.show_cursor_overlay();
     }
 
     fn write_bytes(&mut self, bytes: &[u8]) {
+        self.hide_cursor_overlay();
         for &b in bytes {
             self.write_output_byte(b);
         }
+        self.show_cursor_overlay();
     }
 
     fn write_num(&mut self, mut n: u64) {

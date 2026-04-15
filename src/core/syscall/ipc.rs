@@ -531,7 +531,13 @@ fn prepare_external_pages_for_user(
         return Err(EFAULT);
     }
     let map_start_hint = u64::from_ne_bytes([
-        recv_buf[0], recv_buf[1], recv_buf[2], recv_buf[3], recv_buf[4], recv_buf[5], recv_buf[6],
+        recv_buf[0],
+        recv_buf[1],
+        recv_buf[2],
+        recv_buf[3],
+        recv_buf[4],
+        recv_buf[5],
+        recv_buf[6],
         recv_buf[7],
     ]);
     let total = u64::from_ne_bytes([
@@ -544,8 +550,13 @@ fn prepare_external_pages_for_user(
         recv_buf[14],
         recv_buf[15],
     ]);
-    let mapped_addr =
-        map_external_pages_for_receiver(receiver_tid, map_start_hint, total, ext_pages_count, ext_pages)?;
+    let mapped_addr = map_external_pages_for_receiver(
+        receiver_tid,
+        map_start_hint,
+        total,
+        ext_pages_count,
+        ext_pages,
+    )?;
     recv_buf[0..8].copy_from_slice(&mapped_addr.to_ne_bytes());
     recv_buf[8..16].copy_from_slice(&total.to_ne_bytes());
     Ok(16)
@@ -585,12 +596,16 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
             None => return EAGAIN,
         }
     };
-    let copy_len =
-        match prepare_external_pages_for_user(receiver, &mut recv_buf, copy_len, ext_pages_count, &ext_pages)
-        {
-            Ok(n) => n,
-            Err(e) => return e,
-        };
+    let copy_len = match prepare_external_pages_for_user(
+        receiver,
+        &mut recv_buf,
+        copy_len,
+        ext_pages_count,
+        &ext_pages,
+    ) {
+        Ok(n) => n,
+        Err(e) => return e,
+    };
 
     if copy_len > 0 && buf_ptr != 0 {
         // ユーザー空間アドレスの有効性を検証する

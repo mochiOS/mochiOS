@@ -492,7 +492,8 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
     if has_write_intent(flags) {
         let exists_in_service = stat_path_via_fs_service(path).is_ok();
         let exists_in_fallback = fallback_file_metadata(path).is_some();
-        if (flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL) && (exists_in_service || exists_in_fallback)
+        if (flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)
+            && (exists_in_service || exists_in_fallback)
         {
             return EEXIST;
         }
@@ -807,15 +808,13 @@ pub fn stat(path_ptr: u64, stat_ptr: u64) -> u64 {
             write_stat_buf(stat_ptr, mode_for_stat(mode), size);
             SUCCESS
         }
-        Err(errno) if should_fallback_to_initfs(errno) => {
-            match fallback_file_metadata(&resolved) {
-                Some((inode_mode, size)) => {
-                    write_stat_buf(stat_ptr, mode_for_stat(inode_mode), size);
-                    SUCCESS
-                }
-                None => ENOENT,
+        Err(errno) if should_fallback_to_initfs(errno) => match fallback_file_metadata(&resolved) {
+            Some((inode_mode, size)) => {
+                write_stat_buf(stat_ptr, mode_for_stat(inode_mode), size);
+                SUCCESS
             }
-        }
+            None => ENOENT,
+        },
         Err(errno) => errno,
     }
 }
@@ -1440,19 +1439,17 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
             write_stat_buf(stat_ptr, mode_for_stat(mode), size);
             SUCCESS
         }
-        Err(errno) if should_fallback_to_initfs(errno) => {
-            match fallback_file_metadata(&full) {
-                Some((inode_mode, size)) => {
-                    const STAT_SIZE: u64 = 144;
-                    if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
-                        return EFAULT;
-                    }
-                    write_stat_buf(stat_ptr, mode_for_stat(inode_mode), size);
-                    SUCCESS
+        Err(errno) if should_fallback_to_initfs(errno) => match fallback_file_metadata(&full) {
+            Some((inode_mode, size)) => {
+                const STAT_SIZE: u64 = 144;
+                if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
+                    return EFAULT;
                 }
-                None => ENOENT,
+                write_stat_buf(stat_ptr, mode_for_stat(inode_mode), size);
+                SUCCESS
             }
-        }
+            None => ENOENT,
+        },
         Err(errno) => errno,
     }
 }

@@ -78,7 +78,7 @@ impl BitmapFrameAllocator {
         (self.usable_memory() / 4096) as usize
     }
 
-    fn usable_frames_iter(&self) -> impl Iterator<Item=PhysFrame> + '_ {
+    fn usable_frames_iter(&self) -> impl Iterator<Item = PhysFrame> + '_ {
         self.memory_map
             .iter()
             .filter(|r| r.region_type == MemoryType::Usable)

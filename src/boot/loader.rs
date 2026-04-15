@@ -155,7 +155,6 @@ unsafe fn load_initfs(
     (0, 0)
 }
 
-
 /// 指定ハンドルから任意ファイルをページ単位でロードし (物理アドレス, サイズ) を返す
 unsafe fn try_load_raw(
     bt: &BootServices,

@@ -15,8 +15,8 @@ pub mod process;
 pub mod signal;
 pub mod syscall_entry;
 pub mod task;
-pub mod tty;
 pub mod time;
+pub mod tty;
 pub mod vga;
 
 mod console;
@@ -345,7 +345,9 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Newfstatat as u64 => fs::newfstatat(arg0 as i64, arg1, arg2, arg3),
         x if x == SyscallNumber::Unlinkat as u64 => fs::unlinkat(arg0 as i64, arg1, arg2),
         x if x == SyscallNumber::Faccessat as u64 => fs::faccessat(arg0 as i64, arg1, arg2, arg3),
-        x if x == SyscallNumber::Pselect6 as u64 => pgroup::pselect6(arg0, arg1, arg2, arg3, arg4, 0),
+        x if x == SyscallNumber::Pselect6 as u64 => {
+            pgroup::pselect6(arg0, arg1, arg2, arg3, arg4, 0)
+        }
         x if x == SyscallNumber::Ppoll as u64 => pgroup::ppoll(arg0, arg1, arg2, arg3, arg4),
         x if x == SyscallNumber::Readlinkat as u64 => fs::readlinkat(arg0 as i64, arg1, arg2, arg3),
         x if x == SyscallNumber::Getrandom as u64 => process::getrandom(arg0, arg1, arg2),

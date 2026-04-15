@@ -5,8 +5,8 @@
 
 use super::types::{EINVAL, EPERM, ESRCH, SUCCESS};
 use crate::task::{
-    current_thread_id, default_action, thread_to_process_id, with_process, with_process_mut, DefaultAction,
-    PrivilegeLevel, ProcessId, SigAction, SIGCHLD, SIGKILL, SIG_DFL, SIG_IGN,
+    current_thread_id, default_action, thread_to_process_id, with_process, with_process_mut,
+    DefaultAction, PrivilegeLevel, ProcessId, SigAction, SIGCHLD, SIGKILL, SIG_DFL, SIG_IGN,
 };
 
 // ---- rt_sigprocmask の how 引数 ----

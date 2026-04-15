@@ -3,7 +3,7 @@
 //! Rust std (build-std) がリンク時に要求する C ライブラリ関数を実装する。
 //! 各関数は最小限の実装か、成功を返すスタブ。
 
-use crate::sys::{syscall1, syscall2, syscall4, syscall6, SyscallNumber};
+use crate::sys::{syscall1, syscall2, syscall3, syscall4, syscall6, SyscallNumber};
 
 // errno
 static mut ERRNO_VAL: i32 = 0;
@@ -425,10 +425,36 @@ pub unsafe extern "C" fn execvp(_file: *const u8, _argv: *const *const u8) -> i3
 pub unsafe extern "C" fn waitid(_which: i32, _id: u32, _infop: *mut u8, _options: i32) -> i32 { -1 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn poll(_fds: *mut u8, _nfds: u64, _timeout: i32) -> i32 { 0 }
+pub unsafe extern "C" fn poll(fds: *mut u8, nfds: u64, timeout: i32) -> i32 {
+    let ret = syscall3(
+        SyscallNumber::Poll as u64,
+        fds as u64,
+        nfds,
+        timeout as u64,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ioctl(_fd: i32, _request: u64, _arg: u64) -> i32 { -1 }
+pub unsafe extern "C" fn ioctl(fd: i32, request: u64, arg: u64) -> i32 {
+    let ret = syscall3(
+        SyscallNumber::Ioctl as u64,
+        fd as u64,
+        request,
+        arg,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn posix_spawn_file_actions_destroy(_actions: *mut u8) -> i32 { 0 }

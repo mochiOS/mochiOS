@@ -5,6 +5,16 @@ use char::{Font, Terminal};
 use keyboard::Ps2Keyboard;
 use swiftlib::{time, vga};
 
+#[repr(C)]
+struct WinSize {
+    ws_row: u16,
+    ws_col: u16,
+    ws_xpixel: u16,
+    ws_ypixel: u16,
+}
+
+const TIOCSWINSZ: u64 = 0x5414;
+
 fn main() {
     println!("[SHELL] Service Started.");
 
@@ -43,6 +53,16 @@ fn main() {
     
     let mut term = Terminal::new(fb_ptr, info, font);
     let mut kbd = Ps2Keyboard::new();
+    let (cols, rows) = term.size_chars();
+    let ws = WinSize {
+        ws_row: rows,
+        ws_col: cols,
+        ws_xpixel: 0,
+        ws_ypixel: 0,
+    };
+    unsafe {
+        let _ = swiftlib::posix_stubs::ioctl(0, TIOCSWINSZ, (&ws as *const WinSize) as u64);
+    }
 
     term.clear_screen(); // clear_screen 内で flush 済み
     term.fg = 0x00FF_FF00; // 黄色

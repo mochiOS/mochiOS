@@ -10,8 +10,14 @@ pub enum SyscallNumber {
     Read = 0,
     /// 書き込み
     Write = 1,
+    /// poll
+    Poll = 7,
+    /// ioctl
+    Ioctl = 16,
     /// ベクタ書き込み
     Writev = 20,
+    /// select
+    Select = 23,
     /// ファイルを開く
     Open = 2,
     /// ファイルを閉じる

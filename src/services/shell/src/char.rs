@@ -438,9 +438,26 @@ pub struct Terminal {
     ansi_seq_len: usize,
     ansi_saved_col: u32,
     ansi_saved_row: u32,
+    scroll_top: u32,
+    scroll_bottom: u32,
+    insert_mode: bool,
+    cursor_visible: bool,
+    alt_screen: Option<AltScreenState>,
+    last_printable: u8,
     cells: Vec<Cell>,
     // コマンドパスキャッシュ（最大16エントリ）
     cmd_cache: Vec<(String, String)>, // (cmd_name, full_path)
+}
+
+struct AltScreenState {
+    cells: Vec<Cell>,
+    col: u32,
+    row: u32,
+    fg: u32,
+    bg: u32,
+    scroll_top: u32,
+    scroll_bottom: u32,
+    insert_mode: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -569,6 +586,12 @@ impl Terminal {
             ansi_seq_len: 0,
             ansi_saved_col: 0,
             ansi_saved_row: 0,
+            scroll_top: 0,
+            scroll_bottom: max_rows.saturating_sub(1),
+            insert_mode: false,
+            cursor_visible: true,
+            alt_screen: None,
+            last_printable: b' ',
             cells: vec![Cell::blank(); (max_cols as usize).saturating_mul(max_rows as usize)],
             cmd_cache: Vec::new(),
         };
@@ -702,38 +725,164 @@ impl Terminal {
         }
         self.col = 0;
         self.row = 0;
+        self.scroll_top = 0;
+        self.scroll_bottom = self.max_rows.saturating_sub(1);
+        self.insert_mode = false;
     }
 
-    fn scroll_up(&mut self) {
-        if self.max_rows == 0 || self.max_cols == 0 {
+    fn normalize_scroll_region(&mut self) {
+        if self.max_rows == 0 {
+            self.scroll_top = 0;
+            self.scroll_bottom = 0;
             return;
         }
-        for row in 1..self.max_rows {
+        if self.scroll_top >= self.max_rows {
+            self.scroll_top = self.max_rows - 1;
+        }
+        if self.scroll_bottom >= self.max_rows {
+            self.scroll_bottom = self.max_rows - 1;
+        }
+        if self.scroll_top > self.scroll_bottom {
+            self.scroll_top = 0;
+            self.scroll_bottom = self.max_rows - 1;
+        }
+    }
+
+    fn scroll_region_up(&mut self, top: u32, bottom: u32, count: u32) {
+        if self.max_rows == 0 || self.max_cols == 0 || top >= bottom {
+            return;
+        }
+        let n = core::cmp::min(count.max(1), bottom - top + 1);
+        for row in top..=bottom.saturating_sub(n) {
             for col in 0..self.max_cols {
-                let c = self.get_cell(col, row);
-                if let Some(idx) = self.cell_index(col, row - 1) {
-                    self.cells[idx] = c;
-                }
+                let src = self.get_cell(col, row + n);
+                if let Some(idx) = self.cell_index(col, row) { self.cells[idx] = src; }
             }
         }
-        let last_row = self.max_rows - 1;
-        for col in 0..self.max_cols {
-            if let Some(idx) = self.cell_index(col, last_row) {
-                self.cells[idx] = Cell::blank();
+        for row in bottom.saturating_sub(n).saturating_add(1)..=bottom {
+            for col in 0..self.max_cols {
+                if let Some(idx) = self.cell_index(col, row) { self.cells[idx] = Cell::blank(); }
             }
         }
         self.redraw_from_cells();
-        self.row = last_row;
+    }
+
+    fn scroll_region_down(&mut self, top: u32, bottom: u32, count: u32) {
+        if self.max_rows == 0 || self.max_cols == 0 || top >= bottom {
+            return;
+        }
+        let n = core::cmp::min(count.max(1), bottom - top + 1);
+        let mut row = bottom;
+        while row >= top + n {
+            for col in 0..self.max_cols {
+                let src = self.get_cell(col, row - n);
+                if let Some(idx) = self.cell_index(col, row) { self.cells[idx] = src; }
+            }
+            if row == 0 { break; }
+            row -= 1;
+        }
+        for row in top..top + n {
+            for col in 0..self.max_cols {
+                if let Some(idx) = self.cell_index(col, row) { self.cells[idx] = Cell::blank(); }
+            }
+        }
+        self.redraw_from_cells();
+    }
+
+    fn scroll_up(&mut self) {
+        if self.max_rows == 0 {
+            return;
+        }
+        self.scroll_region_up(self.scroll_top, self.scroll_bottom, 1);
     }
 
     /// 互換性のために残す（シャドウバッファ廃止により no-op）
     pub fn flush(&mut self) {}
 
+    fn index(&mut self) {
+        self.normalize_scroll_region();
+        if self.max_rows == 0 {
+            return;
+        }
+        if self.row == self.scroll_bottom {
+            self.scroll_region_up(self.scroll_top, self.scroll_bottom, 1);
+        } else if self.row + 1 < self.max_rows {
+            self.row += 1;
+        }
+    }
+
+    fn reverse_index(&mut self) {
+        self.normalize_scroll_region();
+        if self.max_rows == 0 {
+            return;
+        }
+        if self.row == self.scroll_top {
+            self.scroll_region_down(self.scroll_top, self.scroll_bottom, 1);
+        } else {
+            self.row = self.row.saturating_sub(1);
+        }
+    }
+
     fn new_line(&mut self) {
         self.col = 0;
-        self.row += 1;
-        if self.row >= self.max_rows {
-            self.scroll_up();
+        self.index();
+    }
+
+    fn set_scroll_region(&mut self, top: u32, bottom: u32) {
+        if self.max_rows == 0 {
+            self.scroll_top = 0;
+            self.scroll_bottom = 0;
+            return;
+        }
+        if top >= self.max_rows || bottom >= self.max_rows || top >= bottom {
+            self.scroll_top = 0;
+            self.scroll_bottom = self.max_rows - 1;
+        } else {
+            self.scroll_top = top;
+            self.scroll_bottom = bottom;
+        }
+        self.col = 0;
+        self.row = self.scroll_top;
+    }
+
+    fn enter_alt_screen(&mut self) {
+        if self.alt_screen.is_some() {
+            return;
+        }
+        let saved = AltScreenState {
+            cells: self.cells.clone(),
+            col: self.col,
+            row: self.row,
+            fg: self.fg,
+            bg: self.bg,
+            scroll_top: self.scroll_top,
+            scroll_bottom: self.scroll_bottom,
+            insert_mode: self.insert_mode,
+        };
+        self.alt_screen = Some(saved);
+        for cell in &mut self.cells {
+            *cell = Cell::blank();
+        }
+        self.col = 0;
+        self.row = 0;
+        self.scroll_top = 0;
+        self.scroll_bottom = self.max_rows.saturating_sub(1);
+        self.insert_mode = false;
+        self.redraw_from_cells();
+    }
+
+    fn leave_alt_screen(&mut self) {
+        if let Some(saved) = self.alt_screen.take() {
+            self.cells = saved.cells;
+            self.col = core::cmp::min(saved.col, self.max_cols.saturating_sub(1));
+            self.row = core::cmp::min(saved.row, self.max_rows.saturating_sub(1));
+            self.fg = saved.fg;
+            self.bg = saved.bg;
+            self.scroll_top = saved.scroll_top;
+            self.scroll_bottom = saved.scroll_bottom;
+            self.insert_mode = saved.insert_mode;
+            self.normalize_scroll_region();
+            self.redraw_from_cells();
         }
     }
 
@@ -777,6 +926,9 @@ impl Terminal {
                 if self.col >= self.max_cols {
                     self.new_line();
                 }
+                if self.insert_mode {
+                    self.insert_blank_chars(1);
+                }
                 self.set_cell(
                     self.col,
                     self.row,
@@ -787,6 +939,7 @@ impl Terminal {
                     },
                 );
                 self.col += 1;
+                self.last_printable = byte;
             }
         }
     }
@@ -847,28 +1000,13 @@ impl Terminal {
     }
 
     fn apply_sgr_sequence(&mut self) {
-        if self.ansi_seq_len == 0 {
+        let params = self.csi_params_without_prefix();
+        if params.is_empty() {
             self.apply_sgr_code(0);
             return;
         }
-
-        let mut start = 0usize;
-        for i in 0..=self.ansi_seq_len {
-            if i == self.ansi_seq_len || self.ansi_seq[i] == b';' {
-                let code = if i == start {
-                    0
-                } else {
-                    match Self::parse_ascii_u16(&self.ansi_seq[start..i]) {
-                        Some(v) => v,
-                        None => {
-                            start = i + 1;
-                            continue;
-                        }
-                    }
-                };
-                self.apply_sgr_code(code);
-                start = i + 1;
-            }
+        for code in params {
+            self.apply_sgr_code(code);
         }
     }
 
@@ -880,10 +1018,23 @@ impl Terminal {
         self.ansi_seq_len = 0;
     }
 
-    fn csi_params(&self) -> Vec<u16> {
+    fn csi_private_prefix(&self) -> Option<u8> {
+        if self.ansi_seq_len == 0 {
+            return None;
+        }
+        match self.ansi_seq[0] {
+            b'?' | b'>' | b'!' => Some(self.ansi_seq[0]),
+            _ => None,
+        }
+    }
+
+    fn csi_params_from(&self, start_at: usize) -> Vec<u16> {
         let mut params = Vec::new();
-        let mut start = 0usize;
-        let mut i = 0usize;
+        if start_at > self.ansi_seq_len {
+            return params;
+        }
+        let mut start = start_at;
+        let mut i = start_at;
         while i <= self.ansi_seq_len {
             if i == self.ansi_seq_len || self.ansi_seq[i] == b';' {
                 if i == start {
@@ -896,6 +1047,11 @@ impl Terminal {
             i += 1;
         }
         params
+    }
+
+    fn csi_params_without_prefix(&self) -> Vec<u16> {
+        let start = if self.csi_private_prefix().is_some() { 1 } else { 0 };
+        self.csi_params_from(start)
     }
 
     fn erase_cell(&mut self, col: u32, row: u32) {
@@ -976,12 +1132,13 @@ impl Terminal {
     }
 
     fn insert_blank_lines(&mut self, mut count: u32) {
-        if self.row >= self.max_rows || count == 0 {
+        self.normalize_scroll_region();
+        if self.row >= self.max_rows || count == 0 || self.row < self.scroll_top || self.row > self.scroll_bottom {
             return;
         }
-        count = core::cmp::min(count, self.max_rows - self.row);
         let start = self.row;
-        let end = self.max_rows;
+        let end = self.scroll_bottom + 1;
+        count = core::cmp::min(count, end - start);
         let mut r = end;
         while r > start + count {
             let src = r - count - 1;
@@ -998,12 +1155,13 @@ impl Terminal {
     }
 
     fn delete_lines(&mut self, mut count: u32) {
-        if self.row >= self.max_rows || count == 0 {
+        self.normalize_scroll_region();
+        if self.row >= self.max_rows || count == 0 || self.row < self.scroll_top || self.row > self.scroll_bottom {
             return;
         }
-        count = core::cmp::min(count, self.max_rows - self.row);
+        count = core::cmp::min(count, self.scroll_bottom - self.row + 1);
         let start = self.row;
-        let end = self.max_rows;
+        let end = self.scroll_bottom + 1;
         let mut r = start;
         while r + count < end {
             let src = r + count;
@@ -1031,7 +1189,8 @@ impl Terminal {
     }
 
     fn handle_csi_sequence(&mut self, final_byte: u8) {
-        let params = self.csi_params();
+        let private_prefix = self.csi_private_prefix();
+        let params = self.csi_params_without_prefix();
         let p = |idx: usize, default: u16| -> u16 {
             let v = params.get(idx).copied().unwrap_or(default);
             if v == 0 {
@@ -1040,6 +1199,26 @@ impl Terminal {
                 v
             }
         };
+
+        let mut apply_mode = |mode: u16, enabled: bool| {
+            match (private_prefix, mode) {
+                (Some(b'?'), 25) => {
+                    self.cursor_visible = enabled;
+                }
+                (Some(b'?'), 47) | (Some(b'?'), 1047) | (Some(b'?'), 1049) => {
+                    if enabled {
+                        self.enter_alt_screen();
+                    } else {
+                        self.leave_alt_screen();
+                    }
+                }
+                (None, 4) => {
+                    self.insert_mode = enabled;
+                }
+                _ => {}
+            }
+        };
+
         match final_byte {
             b'A' => {
                 let n = p(0, 1) as u32;
@@ -1100,6 +1279,8 @@ impl Terminal {
                     }
                     2 => {
                         self.erase_screen_range(0, 0, self.max_rows, self.max_cols);
+                        self.col = 0;
+                        self.row = 0;
                     }
                     _ => {}
                 }
@@ -1141,6 +1322,43 @@ impl Terminal {
                 let n = p(0, 1) as u32;
                 self.erase_chars(n);
             }
+            b'r' => {
+                let top = p(0, 1).saturating_sub(1) as u32;
+                let bottom = p(1, self.max_rows as u16).saturating_sub(1) as u32;
+                self.set_scroll_region(top, bottom);
+            }
+            b'S' => {
+                let n = p(0, 1) as u32;
+                self.scroll_region_up(self.scroll_top, self.scroll_bottom, n);
+            }
+            b'T' => {
+                let n = p(0, 1) as u32;
+                self.scroll_region_down(self.scroll_top, self.scroll_bottom, n);
+            }
+            b'b' => {
+                let n = p(0, 1) as usize;
+                for _ in 0..n {
+                    self.write_byte(self.last_printable);
+                }
+            }
+            b'h' => {
+                if params.is_empty() {
+                    apply_mode(0, true);
+                } else {
+                    for &mode in &params {
+                        apply_mode(mode, true);
+                    }
+                }
+            }
+            b'l' => {
+                if params.is_empty() {
+                    apply_mode(0, false);
+                } else {
+                    for &mode in &params {
+                        apply_mode(mode, false);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -1179,16 +1397,19 @@ impl Terminal {
                 self.col = core::cmp::min(self.ansi_saved_col, self.max_cols.saturating_sub(1));
                 self.row = core::cmp::min(self.ansi_saved_row, self.max_rows.saturating_sub(1));
             } else if byte == b'D' {
-                self.new_line();
+                self.index();
             } else if byte == b'E' {
                 self.new_line();
                 self.col = 0;
             } else if byte == b'M' {
-                self.row = self.row.saturating_sub(1);
+                self.reverse_index();
             } else if byte == b'c' {
                 self.clear_screen();
                 self.fg = DEFAULT_FG;
                 self.bg = DEFAULT_BG;
+                self.cursor_visible = true;
+                self.alt_screen = None;
+                self.last_printable = b' ';
             } else if byte == 0x1B {
                 self.ansi_esc_pending = true;
             }
@@ -1266,6 +1487,10 @@ impl Terminal {
         self.write_str(cwd);
         self.write_str(" mochi> ");
         self.fg = 0x00FF_FFFF; // シアン
+    }
+
+    pub fn size_chars(&self) -> (u16, u16) {
+        (self.max_cols as u16, self.max_rows as u16)
     }
 
     /// 子プロセスのIPC出力を受け取りながら終了を待つ

@@ -27,9 +27,9 @@ fn is_tty_fd(fd: i32) -> bool {
         None => return false,
     };
     crate::task::with_process(pid, |p| {
-        p.fd_table()
-            .get(fd as usize)
-            .is_some_and(|fh| crate::syscall::fs::is_tty_like_path(fh.dir_path.as_deref().unwrap_or("")))
+        p.fd_table().get(fd as usize).is_some_and(|fh| {
+            crate::syscall::fs::is_tty_like_path(fh.dir_path.as_deref().unwrap_or(""))
+        })
     })
     .unwrap_or(false)
 }
@@ -243,13 +243,13 @@ pub fn ioctl(fd: u64, request: u64, arg: u64) -> u64 {
             SUCCESS
         }
         TIOCSPGRP => SUCCESS,
-        TIOCGWINSZ => {
-            crate::syscall::tty::get_winsize(arg)
-        }
+        TIOCGWINSZ => crate::syscall::tty::get_winsize(arg),
         TIOCSWINSZ => crate::syscall::tty::set_winsize(arg),
         TCGETS | TCGETS2 => crate::syscall::tty::tcgets(arg),
         TCGETA => crate::syscall::tty::tcgeta(arg),
-        TCSETS | TCSETSW | TCSETSF | TCSETS2 | TCSETSW2 | TCSETSF2 => crate::syscall::tty::tcsets(arg),
+        TCSETS | TCSETSW | TCSETSF | TCSETS2 | TCSETSW2 | TCSETSF2 => {
+            crate::syscall::tty::tcsets(arg)
+        }
         TCSETA | TCSETAW | TCSETAF => crate::syscall::tty::tcseta(arg),
         FIONREAD => {
             if arg == 0 || !crate::syscall::validate_user_ptr(arg, 4) {
@@ -324,7 +324,13 @@ pub fn poll(fds_ptr: u64, nfds: u64, timeout_arg: u64) -> u64 {
 /// ppoll システムコール（最小実装）
 ///
 /// timeout は timespec*。sigmask/sigsetsize は現状未使用。
-pub fn ppoll(fds_ptr: u64, nfds: u64, timeout_ptr: u64, _sigmask_ptr: u64, _sigsetsize: u64) -> u64 {
+pub fn ppoll(
+    fds_ptr: u64,
+    nfds: u64,
+    timeout_ptr: u64,
+    _sigmask_ptr: u64,
+    _sigsetsize: u64,
+) -> u64 {
     let timeout_ms_u64 = if timeout_ptr == 0 {
         u64::MAX
     } else {

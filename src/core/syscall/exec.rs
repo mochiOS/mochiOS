@@ -2093,11 +2093,10 @@ pub fn exec_from_buffer_named_args_with_requester_syscall(
         };
         match crate::task::with_thread(requester, |t| t.process_id()) {
             Some(pid) => {
-                let caller_is_core =
-                    crate::task::with_process(caller_pid, |p| {
-                        p.privilege() == crate::task::PrivilegeLevel::Core
-                    })
-                    .unwrap_or(false);
+                let caller_is_core = crate::task::with_process(caller_pid, |p| {
+                    p.privilege() == crate::task::PrivilegeLevel::Core
+                })
+                .unwrap_or(false);
 
                 if pid != caller_pid && !caller_is_core {
                     return EPERM;

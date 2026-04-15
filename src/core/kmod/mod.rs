@@ -23,7 +23,8 @@ pub struct McxPath {
 #[repr(C)]
 pub struct McxFsOps {
     pub mount: extern "C" fn(device_id: u32) -> i32,
-    pub read: extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut usize) -> i32,
+    pub read:
+        extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut usize) -> i32,
     pub stat: extern "C" fn(path: McxPath, out_mode: *mut u16, out_size: *mut u64) -> i32,
     pub readdir: extern "C" fn(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> i32,
 }

@@ -281,19 +281,20 @@ pub fn tcsets(arg: u64) -> u64 {
     if arg == 0 || !crate::syscall::validate_user_ptr(arg, TERMIOS_SIZE) {
         return EINVAL;
     }
-    let (iflag, oflag, cflag, lflag, line, cc) = crate::syscall::with_user_memory_access(|| unsafe {
-        let p = arg as *const u8;
-        let iflag = u32::from_ne_bytes([*p.add(0), *p.add(1), *p.add(2), *p.add(3)]);
-        let oflag = u32::from_ne_bytes([*p.add(4), *p.add(5), *p.add(6), *p.add(7)]);
-        let cflag = u32::from_ne_bytes([*p.add(8), *p.add(9), *p.add(10), *p.add(11)]);
-        let lflag = u32::from_ne_bytes([*p.add(12), *p.add(13), *p.add(14), *p.add(15)]);
-        let line = *p.add(16);
-        let mut cc = [0u8; 19];
-        for (i, v) in cc.iter_mut().enumerate() {
-            *v = *p.add(17 + i);
-        }
-        (iflag, oflag, cflag, lflag, line, cc)
-    });
+    let (iflag, oflag, cflag, lflag, line, cc) =
+        crate::syscall::with_user_memory_access(|| unsafe {
+            let p = arg as *const u8;
+            let iflag = u32::from_ne_bytes([*p.add(0), *p.add(1), *p.add(2), *p.add(3)]);
+            let oflag = u32::from_ne_bytes([*p.add(4), *p.add(5), *p.add(6), *p.add(7)]);
+            let cflag = u32::from_ne_bytes([*p.add(8), *p.add(9), *p.add(10), *p.add(11)]);
+            let lflag = u32::from_ne_bytes([*p.add(12), *p.add(13), *p.add(14), *p.add(15)]);
+            let line = *p.add(16);
+            let mut cc = [0u8; 19];
+            for (i, v) in cc.iter_mut().enumerate() {
+                *v = *p.add(17 + i);
+            }
+            (iflag, oflag, cflag, lflag, line, cc)
+        });
     let mut state = TTY_STATE.lock();
     state.iflag = iflag;
     state.oflag = oflag;
@@ -330,19 +331,20 @@ pub fn tcseta(arg: u64) -> u64 {
     if arg == 0 || !crate::syscall::validate_user_ptr(arg, TERMIO_SIZE) {
         return EINVAL;
     }
-    let (iflag, oflag, cflag, lflag, line, cc9) = crate::syscall::with_user_memory_access(|| unsafe {
-        let p = arg as *const u8;
-        let iflag = u16::from_ne_bytes([*p.add(0), *p.add(1)]) as u32;
-        let oflag = u16::from_ne_bytes([*p.add(2), *p.add(3)]) as u32;
-        let cflag = u16::from_ne_bytes([*p.add(4), *p.add(5)]) as u32;
-        let lflag = u16::from_ne_bytes([*p.add(6), *p.add(7)]) as u32;
-        let line = *p.add(8);
-        let mut cc9 = [0u8; 9];
-        for (i, v) in cc9.iter_mut().enumerate() {
-            *v = *p.add(9 + i);
-        }
-        (iflag, oflag, cflag, lflag, line, cc9)
-    });
+    let (iflag, oflag, cflag, lflag, line, cc9) =
+        crate::syscall::with_user_memory_access(|| unsafe {
+            let p = arg as *const u8;
+            let iflag = u16::from_ne_bytes([*p.add(0), *p.add(1)]) as u32;
+            let oflag = u16::from_ne_bytes([*p.add(2), *p.add(3)]) as u32;
+            let cflag = u16::from_ne_bytes([*p.add(4), *p.add(5)]) as u32;
+            let lflag = u16::from_ne_bytes([*p.add(6), *p.add(7)]) as u32;
+            let line = *p.add(8);
+            let mut cc9 = [0u8; 9];
+            for (i, v) in cc9.iter_mut().enumerate() {
+                *v = *p.add(9 + i);
+            }
+            (iflag, oflag, cflag, lflag, line, cc9)
+        });
     let mut state = TTY_STATE.lock();
     state.iflag = iflag;
     state.oflag = oflag;

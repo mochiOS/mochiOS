@@ -61,7 +61,9 @@ fn map_phys_pages_into_target(
     }
 
     let target_pid = crate::task::thread_to_process_id(target_thread_id).ok_or(EINVAL)?;
-    let page_span = (phys_pages.len() as u64).checked_mul(0x1000).ok_or(EINVAL)?;
+    let page_span = (phys_pages.len() as u64)
+        .checked_mul(0x1000)
+        .ok_or(EINVAL)?;
     let (virt_addr, page_table, reserved_heap_old, reserved_heap_new) = if virt_addr_hint != 0 {
         if virt_addr_hint & 0xfff != 0 {
             return Err(EINVAL);
@@ -93,7 +95,9 @@ fn map_phys_pages_into_target(
 
     for (i, &phys_addr) in phys_pages.iter().enumerate() {
         let target_virt = virt_addr + (i as u64 * 0x1000);
-        if crate::mem::paging::map_page_in_table(page_table, target_virt, phys_addr, true, true).is_err() {
+        if crate::mem::paging::map_page_in_table(page_table, target_virt, phys_addr, true, true)
+            .is_err()
+        {
             for j in 0..i {
                 let rollback_virt = virt_addr + (j as u64 * 0x1000);
                 let _ = crate::mem::paging::unmap_page_in_table(page_table, rollback_virt);

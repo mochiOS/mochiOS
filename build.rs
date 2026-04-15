@@ -289,10 +289,7 @@ fn prune_stale_module_artifacts(
     modules: &[builders::modules::ModuleEntry],
     ramfs_dir: &Path,
 ) -> Result<(), String> {
-    let expected: HashSet<String> = modules
-        .iter()
-        .map(|m| format!("{}.cext", m.name))
-        .collect();
+    let expected: HashSet<String> = modules.iter().map(|m| format!("{}.cext", m.name)).collect();
     let modules_dir = ramfs_dir.join("Modules");
     if let Ok(entries) = fs::read_dir(&modules_dir) {
         for entry in entries.flatten() {
@@ -495,7 +492,8 @@ fn main() {
         .expect("Failed to prune stale service artifacts");
 
     let modules = default_modules();
-    prune_stale_module_artifacts(&modules, &ramfs_dir).expect("Failed to prune stale module artifacts");
+    prune_stale_module_artifacts(&modules, &ramfs_dir)
+        .expect("Failed to prune stale module artifacts");
 
     // サービスをビルド
     let services_base_dir = manifest_dir.join("src/services");

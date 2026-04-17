@@ -110,6 +110,17 @@ if [ -n "$ROOTFS_IMG" ] && [ -f "$ROOTFS_IMG" ]; then
     echo "rootfs.ext2 -> esp/System/ ($(( $(stat -c%s "$ROOTFS_IMG") / 1048576 )) MB)"
 fi
 
+ATA_ROOTFS_IMG="$ROOTFS_IMG"
+if [ -z "$ATA_ROOTFS_IMG" ] || [ ! -f "$ATA_ROOTFS_IMG" ]; then
+    ATA_ROOTFS_IMG="$ROOT_DIR/target/mochiOS.img"
+fi
+if [ ! -f "$ATA_ROOTFS_IMG" ]; then
+    echo "Error: ATA rootfs image not found." >&2
+    echo "  Missing latest rootfs.ext2 and fallback $ROOT_DIR/target/mochiOS.img" >&2
+    exit 1
+fi
+echo "ATA rootfs: $ATA_ROOTFS_IMG"
+
 # KVM アクセラレーション（利用可能な場合）
 KVM_ARGS=()
 if [ -e /dev/kvm ] && [ -r /dev/kvm ]; then
@@ -123,7 +134,7 @@ exec qemu-system-x86_64 \
     "${KVM_ARGS[@]}" \
     -bios "$OVMF" \
     -drive format=raw,file="$ESP_IMG",media=disk \
-    -drive id=disk0,file=target/mochiOS.img,format=raw,if=ide,index=1,media=disk \
+    -drive id=disk0,file="$ATA_ROOTFS_IMG",format=raw,if=ide,index=1,media=disk \
     -usb \
     -device qemu-xhci,id=xhci \
     -device usb-kbd,bus=xhci.0 \

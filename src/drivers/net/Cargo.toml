@@ -5,7 +5,7 @@ edition = "2021"
 
 [[bin]]
 name = "netdrv"
-path = "src/main.rs"
+path = "src/main_refactored.rs"
 test = false
 bench = false
 

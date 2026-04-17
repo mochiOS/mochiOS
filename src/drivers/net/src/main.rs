@@ -787,7 +787,7 @@ fn handle_arp(rt: &mut VirtioNetRuntime, frame: &[u8]) {
         rt.gateway_mac = Some(sender_mac);
         rt.ping_pending = true;
         println!(
-            "[NETDRV][v2] ARP reply: gateway MAC {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            "[NETDRV] ARP reply: gateway MAC {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
             sender_mac[0], sender_mac[1], sender_mac[2], sender_mac[3], sender_mac[4], sender_mac[5]
         );
         if rt.tx_inflight {

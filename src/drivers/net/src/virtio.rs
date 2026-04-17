@@ -2,7 +2,7 @@ use crate::net_common::*;
 use crate::util::*;
 use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{compiler_fence, Ordering as AtomicOrdering};
-use swiftlib::{mmio, port, privileged, task, time};
+use swiftlib::{mmio, port, privileged, task, time, ipc};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -72,6 +72,7 @@ pub struct VirtioNetRuntime {
     pub ping_reply_seen: bool,
     pub ping_pending: bool,
     pub ticks: u64,
+    pub listeners: Vec<u64>, // thread IDs registered to receive incoming frames
 }
 
 pub fn setup_virtio_legacy_queue(base: u16, queue_index: u16) -> Option<VirtQueue> {
@@ -528,6 +529,7 @@ pub fn virtio_legacy_init_pio(dev: crate::net_common::NetDevice) -> Option<Virti
         ping_reply_seen: false,
         ping_pending: false,
         ticks: 0,
+        listeners: Vec::new(),
     };
 
     if !populate_rx_ring(&mut rt) {

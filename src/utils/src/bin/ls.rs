@@ -104,11 +104,17 @@ fn is_executable(mode: u16) -> bool {
     (mode & 0o111) != 0
 }
 
+fn is_symlink(mode: u16) -> bool {
+    (mode & 0xF000) == 0xA000
+}
+
 fn get_color_for_file(path: &str) -> &'static str {
     match stat(path) {
         Ok((mode, _)) => {
             if is_directory(mode) {
                 COLOR_BLUE
+            } else if is_symlink(mode) {
+                COLOR_CYAN
             } else if is_executable(mode) {
                 COLOR_GREEN
             } else {
@@ -176,13 +182,12 @@ pub extern "C" fn main(_argc: i32, _argv: *const *const u8) -> i32 {
                 if let Ok(name) = core::str::from_utf8(&data[start..pos]) {
                     // フルパスを構築して stat
                     let mut full_path_buf = [0u8; 256];
-                    let mut full_len = 0;
-                    
+
                     // path をコピー
                     let path_bytes = path.as_bytes();
                     let path_copy_len = path_bytes.len().min(200);
                     full_path_buf[..path_copy_len].copy_from_slice(&path_bytes[..path_copy_len]);
-                    full_len = path_copy_len;
+                    let mut full_len = path_copy_len;
                     
                     // / を追加（必要なら）
                     if needs_slash && full_len < 255 {

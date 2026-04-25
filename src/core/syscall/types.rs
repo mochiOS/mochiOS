@@ -230,6 +230,8 @@ pub enum SyscallNumber {
     IpcSendPages = 550,
     /// PS/2 マウスの3バイトパケットを読み取る（ブロッキング版）
     MouseReadWait = 551,
+    /// プロセス一覧を取得（ユーザーバッファへ書き込む）
+    ListProcesses = 552,
 }
 
 /// 成功

@@ -276,6 +276,34 @@ pub fn build_utils(utils_dir: &Path, output_dir: &Path) {
         cmd.env_remove(key);
     }
 
+    // Determine project root (look for ramfs/Libraries)
+    let mut project_root = utils_dir.to_path_buf();
+    while project_root.parent().is_some() {
+        if project_root.join("ramfs").join("Libraries").exists() {
+            break;
+        }
+        project_root.pop();
+    }
+    let libs_dir = project_root.join("ramfs").join("Libraries");
+
+    if libs_dir.exists() {
+        // Set RUSTFLAGS so that utilities are linked with the same crt0 and libs
+        let ld = libs_dir.display();
+        let rustflags = format!(
+            "-C link-arg={0}/crt0.o -C link-arg=-static -C link-arg=-no-pie -C link-arg=--allow-multiple-definition -L {0} -C link-arg={0}/libunwind.a -C link-arg={0}/libextra.a -C link-arg={0}/libc.a -C link-arg={0}/libg.a -C link-arg={0}/libm.a -C link-arg={0}/libnosys.a -C link-arg={0}/libgcc_s.a",
+            ld
+        );
+        cmd.env("RUSTFLAGS", rustflags);
+    }
+
+    // Ensure build target is set to the repository's x86_64-mochios.json so output matches expectations
+    let target_json = project_root.join("x86_64-mochios.json");
+    if target_json.exists() {
+        cmd.arg("--target").arg(target_json.to_string_lossy().to_string());
+    } else {
+        cmd.arg("--target").arg("x86_64-mochios");
+    }
+
     println!("Building utils from {}", utils_dir.display());
     let output = cmd.current_dir(utils_dir).output();
 

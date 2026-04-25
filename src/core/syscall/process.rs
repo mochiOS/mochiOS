@@ -154,6 +154,62 @@ pub fn exit(exit_code: u64) -> ! {
     exit_current_task(exit_code)
 }
 
+/// List processes into a user-supplied buffer.
+/// arg0 = user buffer ptr, arg1 = buffer length in bytes.
+pub fn list_processes(buf_ptr: u64, buf_len: u64) -> u64 {
+    use crate::task::{for_each_process, ProcessState};
+
+    const RECORD_SIZE: usize = 88;
+    if buf_ptr == 0 {
+        return 0;
+    }
+    let max_bytes = buf_len as usize;
+    let max_entries = max_bytes / RECORD_SIZE;
+    if max_entries == 0 {
+        return 0;
+    }
+
+    let mut written = 0usize;
+    let mut out_buf = [0u8; RECORD_SIZE];
+
+    crate::task::for_each_process(|proc| {
+        if written >= max_entries {
+            return;
+        }
+        // clear buffer
+        for b in out_buf.iter_mut() { *b = 0; }
+        // tid and pid: use process id for both (no separate thread id here)
+        let pid_u = proc.id().as_u64();
+        out_buf[0..8].copy_from_slice(&pid_u.to_ne_bytes());
+        out_buf[8..16].copy_from_slice(&pid_u.to_ne_bytes());
+        // state mapping
+        let state_num: u64 = match proc.state() {
+            ProcessState::Running => 1,
+            ProcessState::Sleeping => 3,
+            ProcessState::Zombie => 4,
+            ProcessState::Terminated => 4,
+            _ => 0,
+        };
+        out_buf[16..24].copy_from_slice(&state_num.to_ne_bytes());
+        // name at offset 32, max 64 bytes
+        let name = proc.name();
+        let name_bytes = name.as_bytes();
+        let copy_len = core::cmp::min(64, name_bytes.len());
+        out_buf[32..32+copy_len].copy_from_slice(&name_bytes[..copy_len]);
+
+        // copy to user
+        let dest_ptr = buf_ptr + (written * RECORD_SIZE) as u64;
+        if let Err(_) = super::copy_to_user(dest_ptr, &out_buf) {
+            // stop on error
+            written = written; // no-op
+            return;
+        }
+        written += 1;
+    });
+
+    written as u64
+}
+
 /// GetPidシステムコール
 ///
 /// 現在のプロセスIDを取得する

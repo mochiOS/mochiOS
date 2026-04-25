@@ -940,7 +940,9 @@ fn exec_with_data(
             pid
         );
 
-        if crate::task::add_thread(thread).is_none() {
+        let add_res = crate::task::add_thread(thread);
+        crate::info!("exec: add_thread returned: {:?}", add_res);
+        if add_res.is_none() {
             crate::warn!("Failed to add thread");
             let _ = crate::task::remove_process(pid);
             if is_core_service {
@@ -955,7 +957,28 @@ fn exec_with_data(
             return crate::syscall::types::EINVAL;
         }
 
-        crate::debug!(
+        // report scheduling state
+        crate::info!("exec: scheduler_enabled={} thread_count={}", crate::task::is_scheduler_enabled(), crate::task::thread_count());
+        if let Some(next) = crate::task::peek_next_thread() {
+            crate::info!("exec: peek_next_thread -> {:?}", next);
+        } else {
+            crate::info!("exec: peek_next_thread -> None");
+        }
+
+        // log current thread and thread-state counts
+        crate::info!("exec: current_thread={:?}", crate::task::current_thread_id());
+        crate::info!("exec: ready_count={} running_count={}",
+            crate::task::count_threads_by_state(crate::task::ThreadState::Ready),
+            crate::task::count_threads_by_state(crate::task::ThreadState::Running)
+        );
+        if let Some(tid) = add_res { crate::info!("exec: new_thread_id={:?}", tid); }
+
+        // Ensure newly launched user process gets CPU promptly
+        if crate::task::is_scheduler_enabled() {
+            crate::task::yield_now();
+        }
+
+        crate::info!(
             "exec: created usermode process '{}' (pid={:?}, entry={:#x})",
             process_name,
             pid,

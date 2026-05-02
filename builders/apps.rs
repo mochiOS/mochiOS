@@ -14,7 +14,7 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
     };
 
     // START_TEST_APP環境変数をチェック
-    let run_tests = std::env::var("START_TEST_APP")
+    let _run_tests = std::env::var("START_TEST_APP")
         .map(|v| v == "true" || v == "1")
         .unwrap_or(false);
 

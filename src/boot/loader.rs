@@ -522,7 +522,7 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
     }
 
     // ── GOP フレームバッファを最初に取得してコンソールを初期化 ──────────────
-    let (fb_ptr, fb_addr, fb_size, screen_w, screen_h, stride) = {
+    let (_fb_ptr, fb_addr, fb_size, screen_w, screen_h, stride) = {
         let gop_handle = match system_table
             .boot_services()
             .get_handle_for_protocol::<GraphicsOutput>()

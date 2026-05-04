@@ -1719,7 +1719,6 @@ pub fn map_page_in_table(
     }
     if user_accessible {
         flags |= PageTableFlags::USER_ACCESSIBLE;
-        flags |= PageTableFlags::NO_EXECUTE;
     }
     l1e.set_addr(PhysAddr::new(phys_addr), flags);
 

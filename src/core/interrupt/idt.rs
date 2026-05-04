@@ -829,7 +829,7 @@ fn try_grow_user_stack(fault_addr: u64) -> bool {
         None => return false,
     };
     if stack_bottom == 0 || stack_top == 0 {
-        crate::error!("[STACK_GROW] FAILED: uninitialized stack - stack_bottom={:#x}, stack_top={:#x}", stack_bottom, stack_top);
+        crate::error!("[STACK_GROW] FAILED: uninitialized stack - pid={}, stack_bottom={:#x}, stack_top={:#x}", pid.as_u64(), stack_bottom, stack_top);
         return false;
     }
     // フォルトアドレスは現在のスタック下端より下でなければならない
@@ -837,11 +837,12 @@ fn try_grow_user_stack(fault_addr: u64) -> bool {
         return false;
     }
     // 最大スタックサイズを超えて伸ばさない
-    let min_allowed = stack_top.saturating_sub(MAX_STACK_SIZE);
+    let min_allowed = stack_bottom.saturating_sub(MAX_STACK_SIZE);
     if fault_addr < min_allowed {
         crate::error!(
-            "Stack overflow: fault at {:#x}, min allowed {:#x}",
+            "Stack overflow: fault at {:#x}, stack_bottom={:#x}, min allowed {:#x}",
             fault_addr,
+            stack_bottom,
             min_allowed
         );
         return false;

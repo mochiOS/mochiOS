@@ -249,7 +249,43 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
         return exec_with_data(&data, &path, &path, &extra_args, None);
     }
 
-    crate::syscall::types::ENOENT
+    // create process and thread
+    let parent_pid = delegated_parent_pid();
+    let privilege = resolve_exec_privilege(path.as_str(), &path);
+    let mut proc = crate::task::Process::new(path.as_str(), privilege, parent_pid, 0);
+    let proc_pid = proc.id();
+    proc.set_page_table(new_pt_phys);
+    proc.set_stack_bottom(stack_base_vaddr);
+    proc.set_stack_top(stack_end_vaddr);
+    if crate::task::add_process(proc).is_none() {
+        let _ = crate::mem::paging::destroy_user_page_table(new_pt_phys);
+        return crate::syscall::types::EINVAL;
+    }
+    new_pt_guard.disarm();
+
+    const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 32; // 128KB
+    let kstack = match crate::task::thread::allocate_kernel_stack(KERNEL_THREAD_STACK_SIZE) {
+        Some(a) => a,
+        None => {
+            let _ = crate::task::remove_process(proc_pid);
+            return crate::syscall::types::ENOMEM;
+        }
+    };
+    let mut thread = crate::task::Thread::new_usermode(
+        proc_pid,
+        path.as_str(),
+        eh.e_entry,
+        initial_rsp,
+        kstack,
+        KERNEL_THREAD_STACK_SIZE,
+    );
+    if crate::task::add_thread(thread).is_none() {
+        let _ = crate::task::remove_process(proc_pid);
+        let _ = crate::mem::paging::destroy_user_page_table(new_pt_phys);
+        return crate::syscall::types::EINVAL;
+    }
+
+    crate::syscall::types::SUCCESS
 }
 
 #[inline]
@@ -859,8 +895,7 @@ fn exec_with_data(
         let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
         proc.set_page_table(new_pt_phys);
         proc.set_stack_bottom(stack_base_vaddr);
-        // stack_top should be one page above the highest mapped stack address
-        proc.set_stack_top(stack_end_vaddr + 4096);
+        proc.set_stack_top(stack_end_vaddr);
         // 親プロセスの CWD を子プロセスに継承する
         if let Some(ppid) = parent_pid {
             let parent_cwd = crate::task::with_process(ppid, |p| {

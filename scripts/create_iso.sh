@@ -19,6 +19,8 @@ require_cmd mmd
 require_cmd mcopy
 require_cmd xorriso
 
+MOCHIOS_IMG_DEFAULT="$ROOT_DIR/target/mochiOS.img"
+
 if [ -z "$BOOT_SRC" ]; then
     BOOT_SRC=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -type f \( -name "BOOTX64.EFI" -o -name "boot.efi" -o -name "boot" \) -not -path "*/kernel/*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1 || true)
 fi
@@ -51,6 +53,7 @@ fi
 
 INITFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "initfs.ext2" -not -path "*/kernel/*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1 || true)
 ROOTFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "rootfs.ext2" -not -path "*/kernel/*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1 || true)
+MOCHIOS_IMG="$MOCHIOS_IMG_DEFAULT"
 
 mkdir -p "$(dirname "$OUTPUT_ISO")"
 
@@ -58,55 +61,58 @@ TEMP_DIR=$(mktemp -d)
 # shellcheck disable=SC2064
 trap "rm -rf $TEMP_DIR" EXIT
 
-EFI_IMG="$TEMP_DIR/efiboot.img"
+ESP_IMG="$TEMP_DIR/esp.img"
 ISO_ROOT="$TEMP_DIR/isoroot"
 EFI_DIR="$ISO_ROOT/EFI/BOOT"
+SYS_DIR="$ISO_ROOT/System"
 
 mkdir -p "$EFI_DIR"
+mkdir -p "$SYS_DIR"
 cp "$BOOT_SRC" "$EFI_DIR/BOOTX64.EFI"
-
 esp_bytes=$(stat -c%s "$BOOT_SRC")
-esp_bytes=$(( esp_bytes + $(stat -c%s "$KERNEL_ELF") ))
-if [ -n "$INITFS_IMG" ] && [ -f "$INITFS_IMG" ]; then
-    esp_bytes=$(( esp_bytes + $(stat -c%s "$INITFS_IMG") ))
-fi
-if [ -n "$ROOTFS_IMG" ] && [ -f "$ROOTFS_IMG" ]; then
-    esp_bytes=$(( esp_bytes + $(stat -c%s "$ROOTFS_IMG") ))
+esp_mb=$(( (esp_bytes / 1048576) + 8 ))
+if [ "$esp_mb" -lt 16 ]; then
+    esp_mb=16
 fi
 
-# 最低 64MB、かつ内容量に +32MB 余裕を持たせる。
-esp_mb=$(( (esp_bytes / 1048576) + 32 ))
-if [ "$esp_mb" -lt 64 ]; then
-    esp_mb=64
-fi
-
-dd if=/dev/zero of="$EFI_IMG" bs=1M count="$esp_mb" status=none
-mkdosfs -F 32 -n MOCHIOS "$EFI_IMG" >/dev/null
-
-mmd -i "$EFI_IMG" ::/EFI ::/EFI/BOOT ::/System
-mcopy -i "$EFI_IMG" "$BOOT_SRC" ::/EFI/BOOT/BOOTX64.EFI
-mcopy -i "$EFI_IMG" "$KERNEL_ELF" ::/System/kernel.elf
-
-if [ -n "$INITFS_IMG" ] && [ -f "$INITFS_IMG" ]; then
-    mcopy -i "$EFI_IMG" "$INITFS_IMG" ::/System/initfs.img
+dd if=/dev/zero of="$ESP_IMG" bs=1M count="$esp_mb" status=none
+# Small ESP images are better as FAT16 to avoid firmware edge-cases.
+if [ "$esp_mb" -lt 33 ]; then
+    mkdosfs -F 16 -n MOCHIOS "$ESP_IMG" >/dev/null
 else
-    echo "Warning: initfs.ext2 not found; ISO will not include initfs.img" >&2
+    mkdosfs -F 32 -n MOCHIOS "$ESP_IMG" >/dev/null
+fi
+
+mmd -i "$ESP_IMG" ::/EFI ::/EFI/BOOT ::/System
+mcopy -i "$ESP_IMG" "$BOOT_SRC" ::/EFI/BOOT/BOOTX64.EFI
+cp "$KERNEL_ELF" "$SYS_DIR/kernel.elf"
+if [ -n "$INITFS_IMG" ] && [ -f "$INITFS_IMG" ]; then
+    cp "$INITFS_IMG" "$SYS_DIR/initfs.img"
+else
+    echo "Warning: initfs.ext2 not found; ISO will not include System/initfs.img" >&2
 fi
 
 if [ -n "$ROOTFS_IMG" ] && [ -f "$ROOTFS_IMG" ]; then
-    mcopy -i "$EFI_IMG" "$ROOTFS_IMG" ::/System/rootfs.ext2
+    cp "$ROOTFS_IMG" "$SYS_DIR/rootfs.ext2"
 else
-    echo "Warning: rootfs.ext2 not found; ISO will not include rootfs.ext2" >&2
+    echo "Warning: rootfs.ext2 not found; ISO will not include System/rootfs.ext2" >&2
 fi
 
-cp "$EFI_IMG" "$ISO_ROOT/efiboot.img"
+cp "$ESP_IMG" "$ISO_ROOT/esp.img"
+
+if [ -f "$MOCHIOS_IMG" ]; then
+    cp "$MOCHIOS_IMG" "$ISO_ROOT/mochiOS.img"
+else
+    echo "Warning: $MOCHIOS_IMG not found; ISO will not include mochiOS.img" >&2
+    echo "Hint: run scripts/make_image.sh (or cargo build if it invokes it) to generate target/mochiOS.img" >&2
+fi
 
 xorriso -as mkisofs \
     -iso-level 3 \
     -full-iso9660-filenames \
     -volid "MOCHIOS" \
     -eltorito-alt-boot \
-    -e efiboot.img \
+    -e esp.img \
     -no-emul-boot \
     -output "$OUTPUT_ISO" \
     "$ISO_ROOT" >/dev/null

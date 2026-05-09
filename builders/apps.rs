@@ -195,26 +195,15 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
                             }
                         }
 
-                        if let Some(fs_root) = output_dir.parent() {
-                            let app_service_dir =
-                                fs_root.join("lib").join("AppService").join(&app_name);
-                            if let Err(e) = fs::create_dir_all(&app_service_dir) {
+                        // ランタイム資産（テーマ等）を AppService 配下へ配置
+                        let themes_src = path.join("src").join("components");
+                        if themes_src.is_dir() {
+                            let themes_dest = app_bundle_dir.join("components");
+                            if let Err(e) = copy_dir_recursive(&themes_src, &themes_dest) {
                                 println!(
-                                    "cargo:warning=Failed to create app service dir for {}: {}",
+                                    "cargo:warning=Failed to copy components for {}: {}",
                                     app_name, e
                                 );
-                            }
-
-                            // ViewKit テーマ等のランタイム資産を AppService 配下へ配置
-                            let themes_src = path.join("src").join("components");
-                            if themes_src.is_dir() {
-                                let themes_dest = app_service_dir.join("themes");
-                                if let Err(e) = copy_dir_recursive(&themes_src, &themes_dest) {
-                                    println!(
-                                        "cargo:warning=Failed to copy themes for {}: {}",
-                                        app_name, e
-                                    );
-                                }
                             }
                         }
                     } else {

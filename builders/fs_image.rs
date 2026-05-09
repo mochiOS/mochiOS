@@ -209,6 +209,7 @@ pub fn create_ext2_image(fs_dir: &Path, output_path: &Path) -> Result<(), String
     emit_rerun_if_changed(fs_dir);
 
     let num_blocks = blocks_for_dir(fs_dir, 4096);
+    
     println!(
         "rootfs: {} 4K-blocks ({} MB)",
         num_blocks,

@@ -528,6 +528,25 @@ fn main() {
     if apps_dir.is_dir() {
         println!("Building applications");
         build_apps(&apps_dir, &applications_dir, "elf");
+        
+        // Clean up build artifacts from applications
+        for entry in fs::read_dir(&applications_dir).unwrap_or_else(|_| {
+            panic!("Failed to read applications dir")
+        }) {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.is_dir() {
+                    let target_dir = path.join("target");
+                    if target_dir.exists() {
+                        if let Err(e) = fs::remove_dir_all(&target_dir) {
+                            eprintln!("Warning: Failed to remove {}: {}", target_dir.display(), e);
+                        } else {
+                            println!("Cleaned up: {}", target_dir.display());
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // ユーティリティコマンドをビルド

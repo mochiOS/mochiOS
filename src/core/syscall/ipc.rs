@@ -324,9 +324,9 @@ pub fn send_pages_from_kernel(
                 let _ = mb.free_slot(slot_idx);
                 return false;
             }
-            msg.data[off..off + 8].copy_from_slice(&map_start.to_ne_bytes());
+            msg.data[off..off + 8].copy_from_slice(&map_start.to_le_bytes());
             off += 8;
-            msg.data[off..off + 8].copy_from_slice(&(total).to_ne_bytes());
+            msg.data[off..off + 8].copy_from_slice(&(total).to_le_bytes());
             off += 8;
             msg.len = off;
             msg.ext_pages_count = pages.len() as u16;
@@ -349,8 +349,9 @@ pub fn send_pages_from_kernel(
     })
 }
 
-// New: Kernel -> recipient: send a map header only (map_start + total) without page list
+// New: Kernel -> recipient: send a map header only (magic + map_start + total) without page list
 pub fn send_map_header_from_kernel(dest_thread_id: u64, map_start: u64, total: u64) -> bool {
+    const MAP_HEADER_MAGIC: u32 = 0xABCD_DCBAu32;
     let (idx, dest_generation) =
         match crate::task::thread_slot_index_and_generation_by_u64(dest_thread_id) {
             Some(v) => v,
@@ -370,21 +371,31 @@ pub fn send_map_header_from_kernel(dest_thread_id: u64, map_start: u64, total: u
             msg.to = dest_thread_id;
             msg.to_slot = idx as u16;
             msg.to_generation = dest_generation;
-            // serialize map_start, total into data
+            // New format: [magic:u32][map_start:u64][total:u64] (20 bytes)
             let mut off = 0usize;
-            if 16 > MAX_MSG_SIZE {
+            if 20 > MAX_MSG_SIZE {
                 let _ = mb.free_slot(slot_idx);
                 return false;
             }
+            msg.data[off..off + 4].copy_from_slice(&MAP_HEADER_MAGIC.to_le_bytes());
+            off += 4;
             msg.data[off..off + 8].copy_from_slice(&map_start.to_le_bytes());
             off += 8;
             msg.data[off..off + 8].copy_from_slice(&(total).to_le_bytes());
             off += 8;
             crate::debug!(
-                "[IPC KERN] map_header: map_start={:#x} total={} -> msg.data[0..16]={:02x?}",
+                "[IPC KERN] map_header: magic={:#x} map_start={:#x} total={} -> msg.data[0..20]={:02x?}",
+                MAP_HEADER_MAGIC,
                 map_start,
                 total,
-                &msg.data[0..16]
+                &msg.data[0..20]
+            );
+            crate::info!(
+                "[IPC KERN] send_map_header dest={} map_start=0x{:x} total={} data={:02x?}",
+                dest_thread_id,
+                map_start,
+                total,
+                &msg.data[0..20]
             );
             msg.len = off;
             msg.ext_pages_count = 0;
@@ -549,6 +560,7 @@ fn prepare_external_pages_for_user(
     if ext_pages_count == 0 {
         return Ok(copy_len);
     }
+    crate::info!("[IPC RCV] prepare_external_pages_for_user receiver={} copy_len={} ext_pages_count={} data={:02x?}", receiver_tid, copy_len, ext_pages_count, &recv_buf[0..16]);
     if copy_len < 16 || recv_buf.len() < 16 {
         return Err(EFAULT);
     }
@@ -618,6 +630,7 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
             None => return EAGAIN,
         }
     };
+    crate::info!("[IPC RCV] pop_valid_for_receiver_copy returned from={} copy_len={} ext_pages_count={} data={:02x?}", from, copy_len, ext_pages_count, &recv_buf[..core::cmp::min(copy_len, recv_buf.len())]);
     let copy_len = match prepare_external_pages_for_user(
         receiver,
         &mut recv_buf,

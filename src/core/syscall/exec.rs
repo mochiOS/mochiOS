@@ -1,9 +1,11 @@
 use crate::elf::loader as elf_loader;
 use alloc::string::String;
+use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::convert::TryInto;
 use core::sync::atomic::{AtomicU64, Ordering};
+use x86_64::structures::paging::Mapper;
 
 /// `.service` 実行を許可するサービスマネージャープロセスID
 /// 0 は未登録。
@@ -12,7 +14,7 @@ const EM_X86_64: u16 = 0x3E;
 static EXEC_ASLR_COUNTER: AtomicU64 = AtomicU64::new(0);
 const STACK_TOP_BASE: u64 = 0x0000_7FFF_FFF0_0000;
 const STACK_ASLR_MAX_PAGES: u64 = 4096; // 16MiB
-const USER_STACK_SIZE_PAGES: usize = 8; // 32KiB stack
+const USER_STACK_SIZE_PAGES: usize = 32; // 128KiB stack
 const TLS_BASE_MIN: u64 = 0x3000_0000;
 const TLS_ASLR_MAX_PAGES: u64 = 0x4000; // 64MiB
 const INITIAL_TLS_SIZE: u64 = 4096;
@@ -98,8 +100,10 @@ fn caller_can_launch_service() -> bool {
         return true;
     };
 
-    if crate::task::with_process(caller_pid, |p| p.privilege())
-        .is_some_and(|lvl| lvl == crate::task::PrivilegeLevel::Core)
+    if crate::task::with_process(caller_pid, |p| {
+        p.privilege() == crate::task::PrivilegeLevel::Core
+    })
+    .unwrap_or(false)
     {
         return true;
     }
@@ -122,6 +126,48 @@ fn caller_can_launch_service() -> bool {
     .unwrap_or(false)
 }
 
+fn caller_is_service_or_core() -> bool {
+    crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+        .and_then(|pid| crate::task::with_process(pid, |p| p.privilege()))
+        .is_some_and(|lvl| {
+            matches!(
+                lvl,
+                crate::task::PrivilegeLevel::Core | crate::task::PrivilegeLevel::Service
+            )
+        })
+}
+
+fn read_nul_args_from_user(
+    args_ptr: u64,
+    max_total_bytes: usize,
+    max_args: usize,
+) -> Result<Vec<String>, u64> {
+    use crate::syscall::types::EINVAL;
+
+    if args_ptr == 0 {
+        return Ok(Vec::new());
+    }
+    let mut storage = alloc::vec![0u8; max_total_bytes];
+    crate::syscall::copy_from_user(args_ptr, &mut storage)?;
+    if let Some(end) = storage.windows(2).position(|w| w == [0, 0]) {
+        storage.truncate(end + 2);
+    }
+
+    let mut out = Vec::new();
+    for s in storage.split(|&b| b == 0) {
+        if s.is_empty() {
+            continue;
+        }
+        let text = core::str::from_utf8(s).map_err(|_| EINVAL)?;
+        out.push(String::from(text));
+        if out.len() >= max_args {
+            break;
+        }
+    }
+    Ok(out)
+}
+
 /// カーネル内から実行可能ファイルを読み込み実行するシステムコール
 /// args_ptr: ヌル区切り引数文字列へのポインタ（"arg1\0arg2\0\0"形式）、0 なら引数なし
 pub fn exec_kernel(path_ptr: u64, args_ptr: u64) -> u64 {
@@ -140,38 +186,11 @@ pub fn exec_kernel(path_ptr: u64, args_ptr: u64) -> u64 {
         return crate::syscall::types::EPERM;
     }
 
-    // args_ptr が非 0 なら "\0" 区切り引数文字列を解析する（最大 512 バイト）
-    let mut extra_args_storage: Vec<u8> = Vec::new();
-    let extra_args: Vec<&str>;
-    if args_ptr != 0 {
-        if !crate::syscall::validate_user_ptr(args_ptr, 1) {
-            return crate::syscall::types::EFAULT;
-        }
-        // 最大 512 バイト読む
-        let max = 512usize;
-        crate::syscall::with_user_memory_access(|| unsafe {
-            let ptr = args_ptr as *const u8;
-            for i in 0..max {
-                let b = ptr.add(i).read_volatile();
-                extra_args_storage.push(b);
-                // 連続する \0\0 で終端
-                let len = extra_args_storage.len();
-                if len >= 2
-                    && extra_args_storage[len - 1] == 0
-                    && extra_args_storage[len - 2] == 0
-                {
-                    break;
-                }
-            }
-        });
-        extra_args = extra_args_storage
-            .split(|&b| b == 0)
-            .filter_map(|s| if s.is_empty() { None } else { core::str::from_utf8(s).ok() })
-            .collect();
-    } else {
-        extra_args = Vec::new();
-    }
-
+    let extra_args_owned = match read_nul_args_from_user(args_ptr, 512, 64) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let extra_args: Vec<&str> = extra_args_owned.iter().map(|s| s.as_str()).collect();
     exec_internal(path, None, &extra_args)
 }
 
@@ -181,12 +200,83 @@ pub fn exec_kernel_with_name(path: &str, name: &str) -> u64 {
 }
 
 fn exec_internal(path: &str, name_override: Option<&str>, args: &[&str]) -> u64 {
-    let process_name = name_override.unwrap_or(path);
+    let mut process_name = name_override
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path).to_string());
+    // Special-case mapping: drivers/net.elf should be exposed as "netdrv" for compatibility
+    if process_name == "net"
+        || process_name == "net.elf"
+        || path.ends_with("/bin/drivers/net.elf")
+    {
+        process_name = "netdrv".to_string();
+    }
     if let Some(data) = crate::init::fs::read(path) {
-        exec_with_data(&data, process_name, path, args)
+        exec_with_data(&data, &process_name, path, args, None)
+    } else if let Some(data) = crate::kmod::fs::read_all(path) {
+        exec_with_data(&data, &process_name, path, args, None)
     } else {
         crate::warn!("exec: file not found: {}", path);
         crate::syscall::types::ENOENT
+    }
+}
+
+/// Exec by streaming image with zero-copy frame transfer when possible.
+pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
+    let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
+        Ok(s) => s,
+        Err(_) => return crate::syscall::types::EINVAL,
+    };
+
+    if path.ends_with(".service") && !caller_can_launch_service() {
+        return crate::syscall::types::EPERM;
+    }
+
+    let extra_args_owned = match read_nul_args_from_user(args_ptr, 512, 64) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let extra_args: Vec<&str> = extra_args_owned.iter().map(|s| s.as_str()).collect();
+
+    // First try to obtain the image via FS service (streaming). If that fails, fall back to kmod::fs.
+    match crate::syscall::fs::exec_image_via_fs(&path) {
+        Ok(data) => return exec_with_data(&data, &path, &path, &extra_args, None),
+        Err(_) => {
+            // fallthrough to kmod fallback
+        }
+    }
+
+    if let Some(data) = crate::kmod::fs::read_all(&path) {
+        return exec_with_data(&data, &path, &path, &extra_args, None);
+    }
+
+    crate::syscall::types::ENOENT
+}
+
+#[inline]
+fn resolve_exec_privilege(process_name: &str, exec_path: &str) -> crate::task::PrivilegeLevel {
+    // .service は従来通り Service 権限で実行。
+    // bin/drivers 配下は Service/Core 呼び出し元からの起動時に Service 権限を付与する。
+    // Kagami / ViewKit / Binder / Dock はデスクトップ描画のため Service 権限を付与する。
+    let is_driver_path =
+        exec_path.starts_with("bin/drivers/") || exec_path.starts_with("/bin/drivers/");
+    let is_kagami_viewkit_path = matches!(
+        exec_path,
+        "/applications/Kagami.app/entry.elf"
+            | "/applications/ViewKit.app/entry.elf"
+            | "/applications/Binder.app/entry.elf"
+            | "/applications/Dock.app/entry.elf"
+            | "applications/Kagami.app/entry.elf"
+            | "applications/ViewKit.app/entry.elf"
+            | "applications/Binder.app/entry.elf"
+            | "applications/Dock.app/entry.elf"
+    );
+    if process_name.ends_with(".service")
+        || is_kagami_viewkit_path
+        || (is_driver_path && caller_is_service_or_core())
+    {
+        crate::task::PrivilegeLevel::Service
+    } else {
+        crate::task::PrivilegeLevel::User
     }
 }
 
@@ -206,7 +296,11 @@ fn map_initial_tls(table_phys: u64, aslr_seed: u64) -> Result<u64, u64> {
     ) {
         Ok(()) => Ok(tls_base),
         Err(e) => {
-            crate::warn!("Failed to map initial TLS block at {:#x}: {:?}", tls_base, e);
+            crate::warn!(
+                "Failed to map initial TLS block at {:#x}: {:?}",
+                tls_base,
+                e
+            );
             Err(crate::syscall::types::EINVAL)
         }
     }
@@ -255,12 +349,8 @@ fn build_initial_user_stack(
     string_block.push(0);
 
     let string_area_len = string_block.len();
-    let pointers_bytes = 8
-        + (argv.len() * 8)
-        + 8
-        + (envp.len() * 8)
-        + 8
-        + (auxv_entries.len() * 16);
+    let pointers_bytes =
+        8 + (argv.len() * 8) + 8 + (envp.len() * 8) + 8 + (auxv_entries.len() * 16);
     let total_data_needed = string_area_len + pointers_bytes;
     let padding_len = (16 - (total_data_needed % 16)) % 16;
     let total_size = total_data_needed + padding_len;
@@ -277,7 +367,11 @@ fn build_initial_user_stack(
 
     let mut page_data = Vec::new();
     let page_offset = total_size % 4096;
-    let unused_space = if page_offset == 0 { 0 } else { 4096 - page_offset };
+    let unused_space = if page_offset == 0 {
+        0
+    } else {
+        4096 - page_offset
+    };
     page_data.resize(unused_space, 0);
 
     page_data.extend_from_slice(&(argv.len() as u64).to_ne_bytes());
@@ -320,12 +414,28 @@ fn build_initial_user_stack(
 }
 
 /// メモリ上の ELF バッファからプロセスを生成する（内部共通実装）
-fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str]) -> u64 {
+fn delegated_parent_pid() -> Option<crate::task::ProcessId> {
+    None
+}
+
+fn exec_with_data(
+    data: &[u8],
+    process_name: &str,
+    exec_path: &str,
+    args: &[&str],
+    parent_override: Option<crate::task::ProcessId>,
+) -> u64 {
     crate::debug!("exec: name={}", process_name);
     let aslr_seed = next_aslr_seed(process_name);
 
     {
         let data: &[u8] = data;
+        // Disable SMAP/SMEP for the duration of the exec mapping operations.
+        // Many helper functions perform direct physical/HHDM accesses; re-enabling
+        // SMAP/SMEP during execution can cause page faults when touching user
+        // page tables. Hold the guard for the whole scope so it's restored on drop.
+        let _smap_guard = crate::cpu::SmapSmepGuard::new();
+
         // MED-27修正: エントリポイントが0の場合はELFが無効として拒否する
         // 以前はentry=0のままプロセスを作成し、仮想アドレス0にジャンプしていた
         let mut entry = match elf_loader::entry_point(data) {
@@ -349,6 +459,9 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
         };
         let mut new_pt_guard = UserPageTableGuard::new(new_pt_phys);
         crate::debug!("Created user page table at {:#x}", new_pt_phys);
+
+        // Note: SMAP/SMEP are already disabled globally during kernel initialization
+        // and are kept disabled for all exec operations. See src/core/mem/mod.rs:66
 
         // ELFアーキテクチャ検証 (MED-07)
         let mut phdr_vaddr: u64 = 0;
@@ -438,7 +551,9 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
                             writable,
                             executable,
                         ) {
-                            crate::warn!("Failed to map segment: {:?}", e);
+                            crate::warn!("Failed to map segment at {:#x}: {:?}", vaddr, e);
+                            crate::warn!("  new_pt_phys={:#x}, filesz={}, memsz={}, writable={}, executable={}", 
+                                new_pt_phys, filesz, memsz, writable, executable);
                             return crate::syscall::types::EINVAL;
                         }
                     }
@@ -448,122 +563,128 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
             phdr_vaddr = load_base.saturating_add(eh.e_phoff);
         }
 
+        // __sinit は newlib (mochiOS サービス) 専用のシンボル。
+        // 外部バイナリ (BusyBox 等) はシンボルテーブルが巨大で探索コストが高いためスキップ。
+        let needs_sinit = exec_path.ends_with(".service");
         let mut sinit_addr: Option<u64> = None;
-        if let Some(eh_sym) = elf_loader::parse_elf_header(data) {
-            let shoff = eh_sym.e_shoff as usize;
-            let shentsz = eh_sym.e_shentsize as usize;
-            let shnum = eh_sym.e_shnum as usize;
-            if shoff > 0 && shentsz > 0 && shnum > 0 && data.len() >= shoff + shentsz * shnum {
-                let mut symtab_offset: usize = 0;
-                let mut symtab_size: usize = 0;
-                let mut symtab_entsize: usize = 0;
-                let mut strtab_offset: usize = 0;
-                let mut strtab_size: usize = 0;
-                for si in 0..shnum {
-                    let sh_off = shoff + si * shentsz;
-                    if sh_off + shentsz > data.len() {
-                        break;
-                    }
-                    let sh_type = match data[sh_off + 4..sh_off + 8].try_into() {
-                        Ok(b) => u32::from_le_bytes(b),
-                        Err(_) => {
-                            crate::warn!("ELF section header truncated");
-                            return crate::syscall::types::EINVAL;
-                        }
-                    };
-                    let sh_offset = match data[sh_off + 24..sh_off + 32].try_into() {
-                        Ok(b) => u64::from_le_bytes(b) as usize,
-                        Err(_) => {
-                            crate::warn!("ELF section header truncated");
-                            return crate::syscall::types::EINVAL;
-                        }
-                    };
-                    let sh_size = match data[sh_off + 32..sh_off + 40].try_into() {
-                        Ok(b) => u64::from_le_bytes(b) as usize,
-                        Err(_) => {
-                            crate::warn!("ELF section header truncated");
-                            return crate::syscall::types::EINVAL;
-                        }
-                    };
-                    let sh_link = match data[sh_off + 40..sh_off + 44].try_into() {
-                        Ok(b) => u32::from_le_bytes(b),
-                        Err(_) => {
-                            crate::warn!("ELF section header truncated");
-                            return crate::syscall::types::EINVAL;
-                        }
-                    };
-                    let sh_entsize = match data[sh_off + 56..sh_off + 64].try_into() {
-                        Ok(b) => u64::from_le_bytes(b) as usize,
-                        Err(_) => {
-                            crate::warn!("ELF section header truncated");
-                            return crate::syscall::types::EINVAL;
-                        }
-                    };
-
-                    // SHT_SYMTAB == 2
-                    if sh_type == 2 {
-                        symtab_offset = sh_offset;
-                        symtab_size = sh_size;
-                        symtab_entsize = sh_entsize;
-                        // linked string table
-                        let link_idx = sh_link as usize;
-                        if link_idx < shnum {
-                            let link_sh_off = shoff + link_idx * shentsz;
-                            strtab_offset =
-                                match data[link_sh_off + 24..link_sh_off + 32].try_into() {
-                                    Ok(b) => u64::from_le_bytes(b) as usize,
-                                    Err(_) => {
-                                        crate::warn!("ELF section header truncated");
-                                        return crate::syscall::types::EINVAL;
-                                    }
-                                };
-                            strtab_size = match data[link_sh_off + 32..link_sh_off + 40].try_into()
-                            {
-                                Ok(b) => u64::from_le_bytes(b) as usize,
-                                Err(_) => {
-                                    crate::warn!("ELF section header truncated");
-                                    return crate::syscall::types::EINVAL;
-                                }
-                            };
-                        }
-                        break;
-                    }
-                }
-                if symtab_offset > 0 && strtab_offset > 0 && symtab_entsize > 0 {
-                    let nsyms = symtab_size / symtab_entsize;
-                    for i_sym in 0..nsyms {
-                        let sym_off = symtab_offset + i_sym * symtab_entsize;
-                        if sym_off + symtab_entsize > data.len() {
+        if needs_sinit {
+            if let Some(eh_sym) = elf_loader::parse_elf_header(data) {
+                let shoff = eh_sym.e_shoff as usize;
+                let shentsz = eh_sym.e_shentsize as usize;
+                let shnum = eh_sym.e_shnum as usize;
+                if shoff > 0 && shentsz > 0 && shnum > 0 && data.len() >= shoff + shentsz * shnum {
+                    let mut symtab_offset: usize = 0;
+                    let mut symtab_size: usize = 0;
+                    let mut symtab_entsize: usize = 0;
+                    let mut strtab_offset: usize = 0;
+                    let mut strtab_size: usize = 0;
+                    for si in 0..shnum {
+                        let sh_off = shoff + si * shentsz;
+                        if sh_off + shentsz > data.len() {
                             break;
                         }
-                        let st_name = match data[sym_off..sym_off + 4].try_into() {
-                            Ok(b) => u32::from_le_bytes(b) as usize,
+                        let sh_type = match data[sh_off + 4..sh_off + 8].try_into() {
+                            Ok(b) => u32::from_le_bytes(b),
                             Err(_) => {
-                                crate::warn!("ELF symbol entry truncated");
-                                break;
+                                crate::warn!("ELF section header truncated");
+                                return crate::syscall::types::EINVAL;
                             }
                         };
-                        let st_value = match data[sym_off + 8..sym_off + 16].try_into() {
-                            Ok(b) => u64::from_le_bytes(b),
+                        let sh_offset = match data[sh_off + 24..sh_off + 32].try_into() {
+                            Ok(b) => u64::from_le_bytes(b) as usize,
                             Err(_) => {
-                                crate::warn!("ELF symbol entry truncated");
-                                break;
+                                crate::warn!("ELF section header truncated");
+                                return crate::syscall::types::EINVAL;
+                            }
+                        };
+                        let sh_size = match data[sh_off + 32..sh_off + 40].try_into() {
+                            Ok(b) => u64::from_le_bytes(b) as usize,
+                            Err(_) => {
+                                crate::warn!("ELF section header truncated");
+                                return crate::syscall::types::EINVAL;
+                            }
+                        };
+                        let sh_link = match data[sh_off + 40..sh_off + 44].try_into() {
+                            Ok(b) => u32::from_le_bytes(b),
+                            Err(_) => {
+                                crate::warn!("ELF section header truncated");
+                                return crate::syscall::types::EINVAL;
+                            }
+                        };
+                        let sh_entsize = match data[sh_off + 56..sh_off + 64].try_into() {
+                            Ok(b) => u64::from_le_bytes(b) as usize,
+                            Err(_) => {
+                                crate::warn!("ELF section header truncated");
+                                return crate::syscall::types::EINVAL;
                             }
                         };
 
-                        if st_name < strtab_size {
-                            let name_off = strtab_offset + st_name;
-                            if name_off < data.len() {
-                                let mut end = name_off;
-                                while end < data.len() && data[end] != 0 {
-                                    end += 1;
+                        // SHT_SYMTAB == 2
+                        if sh_type == 2 {
+                            symtab_offset = sh_offset;
+                            symtab_size = sh_size;
+                            symtab_entsize = sh_entsize;
+                            // linked string table
+                            let link_idx = sh_link as usize;
+                            if link_idx < shnum {
+                                let link_sh_off = shoff + link_idx * shentsz;
+                                strtab_offset =
+                                    match data[link_sh_off + 24..link_sh_off + 32].try_into() {
+                                        Ok(b) => u64::from_le_bytes(b) as usize,
+                                        Err(_) => {
+                                            crate::warn!("ELF section header truncated");
+                                            return crate::syscall::types::EINVAL;
+                                        }
+                                    };
+                                strtab_size =
+                                    match data[link_sh_off + 32..link_sh_off + 40].try_into() {
+                                        Ok(b) => u64::from_le_bytes(b) as usize,
+                                        Err(_) => {
+                                            crate::warn!("ELF section header truncated");
+                                            return crate::syscall::types::EINVAL;
+                                        }
+                                    };
+                            }
+                            break;
+                        }
+                    }
+                    if symtab_offset > 0 && strtab_offset > 0 && symtab_entsize > 0 {
+                        let nsyms = symtab_size / symtab_entsize;
+                        for i_sym in 0..nsyms {
+                            let sym_off = symtab_offset + i_sym * symtab_entsize;
+                            if sym_off + symtab_entsize > data.len() {
+                                break;
+                            }
+                            let st_name = match data[sym_off..sym_off + 4].try_into() {
+                                Ok(b) => u32::from_le_bytes(b) as usize,
+                                Err(_) => {
+                                    crate::warn!("ELF symbol entry truncated");
+                                    break;
                                 }
-                                if end <= data.len() {
-                                    if let Ok(name_str) = core::str::from_utf8(&data[name_off..end])
-                                    {
-                                        if name_str == "__sinit" {
-                                            sinit_addr = Some(st_value);
-                                            break;
+                            };
+                            let st_value = match data[sym_off + 8..sym_off + 16].try_into() {
+                                Ok(b) => u64::from_le_bytes(b),
+                                Err(_) => {
+                                    crate::warn!("ELF symbol entry truncated");
+                                    break;
+                                }
+                            };
+
+                            if st_name < strtab_size {
+                                let name_off = strtab_offset + st_name;
+                                if name_off < data.len() {
+                                    let mut end = name_off;
+                                    while end < data.len() && data[end] != 0 {
+                                        end += 1;
+                                    }
+                                    if end <= data.len() {
+                                        if let Ok(name_str) =
+                                            core::str::from_utf8(&data[name_off..end])
+                                        {
+                                            if name_str == "__sinit" {
+                                                sinit_addr = Some(st_value);
+                                                break;
+                                            }
                                         }
                                     }
                                 }
@@ -572,7 +693,7 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
                     }
                 }
             }
-        }
+        } // needs_sinit
 
         let base_name = exec_path.rsplit('/').next().unwrap_or(process_name);
         let argv0 = base_name.strip_suffix(".elf").unwrap_or(base_name);
@@ -741,17 +862,22 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
         }
 
         // プロセスを作成してページテーブルをセット
-        let parent_pid = crate::task::current_thread_id()
-            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()));
-        let privilege = if process_name.ends_with(".service") {
-            crate::task::PrivilegeLevel::Service
-        } else {
-            crate::task::PrivilegeLevel::User
-        };
+        let parent_pid = parent_override.or_else(|| {
+            crate::task::current_thread_id()
+                .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+        });
+        let privilege = resolve_exec_privilege(process_name, exec_path);
         let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
         proc.set_page_table(new_pt_phys);
         proc.set_stack_bottom(stack_base_vaddr);
-        proc.set_stack_top(stack_end_vaddr);
+        proc.set_stack_top(stack_end_vaddr + 4096);
+        crate::info!(
+            "[STACK_INIT] {}: stack_base={:#x}, stack_end={:#x}, stack_top={:#x}",
+            proc.name(),
+            stack_base_vaddr,
+            stack_end_vaddr,
+            stack_end_vaddr + 4096
+        );
         // 親プロセスの CWD を子プロセスに継承する
         if let Some(ppid) = parent_pid {
             let parent_cwd = crate::task::with_process(ppid, |p| {
@@ -772,8 +898,7 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
             Err(errno) => return errno,
         };
         let pid = proc.id();
-        let is_core_service =
-            process_name.ends_with("core.service");
+        let is_core_service = process_name.ends_with("core.service");
         if is_core_service
             && SERVICE_MANAGER_PID
                 .compare_exchange(0, pid.as_u64(), Ordering::SeqCst, Ordering::SeqCst)
@@ -793,9 +918,9 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
             }
             return crate::syscall::types::EINVAL;
         }
-        new_pt_guard.disarm();
         // allocate kernel stack for the new thread
-        const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 4;
+        // unmap_guard_page() がページテーブル操作を行うため、SmapSmepGuard スコープを保持
+        const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 32; // 128KB
         let kstack = match crate::task::thread::allocate_kernel_stack(KERNEL_THREAD_STACK_SIZE) {
             Some(a) => a,
             None => {
@@ -813,6 +938,7 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
                 return crate::syscall::types::ENOMEM;
             }
         };
+        new_pt_guard.disarm();
 
         // ユーザーモードスレッドを作成
         // RSP に initial_rsp を設定
@@ -833,7 +959,9 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
             pid
         );
 
-        if crate::task::add_thread(thread).is_none() {
+        let add_res = crate::task::add_thread(thread);
+        crate::info!("exec: add_thread returned: {:?}", add_res);
+        if add_res.is_none() {
             crate::warn!("Failed to add thread");
             let _ = crate::task::remove_process(pid);
             if is_core_service {
@@ -848,7 +976,38 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
             return crate::syscall::types::EINVAL;
         }
 
-        crate::debug!(
+        // report scheduling state
+        crate::info!(
+            "exec: scheduler_enabled={} thread_count={}",
+            crate::task::is_scheduler_enabled(),
+            crate::task::thread_count()
+        );
+        if let Some(next) = crate::task::peek_next_thread() {
+            crate::info!("exec: peek_next_thread -> {:?}", next);
+        } else {
+            crate::info!("exec: peek_next_thread -> None");
+        }
+
+        // log current thread and thread-state counts
+        crate::info!(
+            "exec: current_thread={:?}",
+            crate::task::current_thread_id()
+        );
+        crate::info!(
+            "exec: ready_count={} running_count={}",
+            crate::task::count_threads_by_state(crate::task::ThreadState::Ready),
+            crate::task::count_threads_by_state(crate::task::ThreadState::Running)
+        );
+        if let Some(tid) = add_res {
+            crate::info!("exec: new_thread_id={:?}", tid);
+        }
+
+        // Ensure newly launched user process gets CPU promptly
+        if crate::task::is_scheduler_enabled() {
+            crate::task::yield_now();
+        }
+
+        crate::info!(
             "exec: created usermode process '{}' (pid={:?}, entry={:#x})",
             process_name,
             pid,
@@ -864,22 +1023,25 @@ fn exec_with_data(data: &[u8], process_name: &str, exec_path: &str, args: &[&str
 /// 各エントリは 64 ビットポインタ。NULL で終端。
 /// max_entries を超えた場合は切り捨てる。
 fn read_user_ptr_array(array_ptr: u64, max_entries: usize) -> Vec<String> {
-    use crate::syscall::types::EFAULT;
     if array_ptr == 0 {
         return Vec::new();
     }
     let mut result = Vec::new();
     for i in 0..=max_entries {
-        let ptr_addr = match (i as u64).checked_mul(8).and_then(|o| array_ptr.checked_add(o)) {
+        let ptr_addr = match (i as u64)
+            .checked_mul(8)
+            .and_then(|o| array_ptr.checked_add(o))
+        {
             Some(a) => a,
             None => break,
         };
         if !crate::syscall::validate_user_ptr(ptr_addr, 8) {
             break;
         }
-        let entry_ptr = crate::syscall::with_user_memory_access(|| unsafe {
-            core::ptr::read_unaligned(ptr_addr as *const u64)
-        });
+        let entry_ptr = match crate::syscall::read_user_u64(ptr_addr) {
+            Ok(ptr) => ptr,
+            Err(_) => break,
+        };
         if entry_ptr == 0 {
             break;
         }
@@ -954,7 +1116,7 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
             return EINVAL;
         }
         phentsize = eh.e_phentsize as u64;
-        phnum     = eh.e_phnum as u64;
+        phnum = eh.e_phnum as u64;
         let phoff = eh.e_phoff as usize;
         let phentsz = eh.e_phentsize as usize;
         // phentszが0の場合は無限ループを防ぐ (MED-08)
@@ -1042,7 +1204,7 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         (6u64, 4096u64),
         (7u64, 0u64),
         (8u64, 0u64),
-        (9u64, entry as u64),
+        (9u64, entry),
         (11u64, 0u64),
         (12u64, 0u64),
         (13u64, 0u64),
@@ -1059,8 +1221,13 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         stack_end_vaddr,
         initial_rsp,
         page_data,
-    } = match build_initial_user_stack(aslr_seed, &argv_refs, &envp_refs, &path_owned, &auxv_entries)
-    {
+    } = match build_initial_user_stack(
+        aslr_seed,
+        &argv_refs,
+        &envp_refs,
+        &path_owned,
+        &auxv_entries,
+    ) {
         Ok(stack) => stack,
         Err(errno) => return errno,
     };
@@ -1133,7 +1300,14 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         p.set_heap_start(heap_base);
         p.set_heap_end(heap_base + heap_map_size);
         p.set_stack_bottom(stack_base_vaddr);
-        p.set_stack_top(stack_end_vaddr);
+        p.set_stack_top(stack_end_vaddr + 4096);
+        crate::info!(
+            "[STACK_INIT] {}: stack_base={:#x}, stack_end={:#x}, stack_top={:#x}",
+            p.name(),
+            stack_base_vaddr,
+            stack_end_vaddr,
+            stack_end_vaddr + 4096
+        );
         prev
     })
     .flatten();
@@ -1176,14 +1350,178 @@ pub fn exec_from_buffer_syscall(buf_ptr: u64, buf_len: u64) -> u64 {
         return EFAULT;
     }
 
-    // KPTI 環境ではカーネルは kernel CR3 で動作しており、ユーザー空間の
-    // 仮想アドレスに直接アクセスできない。
-    // with_user_memory_access でユーザー CR3 に一時切替してバルクコピーする。
     let mut owned = alloc::vec![0u8; buf_len as usize];
-    let dst_ptr = owned.as_mut_ptr();
-    crate::syscall::with_user_memory_access(|| unsafe {
-        core::ptr::copy_nonoverlapping(buf_ptr as *const u8, dst_ptr, buf_len as usize);
-    });
+    if let Err(e) = crate::syscall::copy_from_user(buf_ptr, &mut owned) {
+        return e;
+    }
 
-    exec_with_data(&owned, "user_exec", "user_exec", &[])
+    exec_with_data(
+        &owned,
+        "user_exec",
+        "user_exec",
+        &[],
+        delegated_parent_pid(),
+    )
+}
+
+/// メモリ上の ELF バッファと実行パス名から新プロセスを起動するシステムコール
+///
+/// # 引数
+/// - `buf_ptr`: ユーザー空間の ELF データへのポインタ
+/// - `buf_len`: バッファのバイト数
+/// - `path_ptr`: ユーザー空間の null 終端パス文字列
+pub fn exec_from_buffer_named_syscall(buf_ptr: u64, buf_len: u64, path_ptr: u64) -> u64 {
+    use crate::syscall::types::{EFAULT, EINVAL, EPERM};
+
+    if !caller_can_launch_service() {
+        return EPERM;
+    }
+    if buf_ptr == 0 || buf_len == 0 || buf_len > 32 * 1024 * 1024 || path_ptr == 0 {
+        return EINVAL;
+    }
+    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) {
+        return EFAULT;
+    }
+
+    let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
+        Ok(s) => s,
+        Err(_) => return EINVAL,
+    };
+    let process_name = path.rsplit('/').next().unwrap_or(path.as_str());
+
+    let mut owned = alloc::vec![0u8; buf_len as usize];
+    if let Err(e) = crate::syscall::copy_from_user(buf_ptr, &mut owned) {
+        return e;
+    }
+
+    exec_with_data(
+        &owned,
+        process_name,
+        path.as_str(),
+        &[],
+        delegated_parent_pid(),
+    )
+}
+
+/// メモリ上の ELF バッファと実行パス名・引数から新プロセスを起動するシステムコール
+///
+/// # 引数
+/// - `buf_ptr`: ユーザー空間の ELF データへのポインタ
+/// - `buf_len`: バッファのバイト数
+/// - `path_ptr`: ユーザー空間の null 終端パス文字列
+/// - `args_ptr`: ユーザー空間の null 区切り引数列（"arg1\0arg2\0\0"）
+pub fn exec_from_buffer_named_args_syscall(
+    buf_ptr: u64,
+    buf_len: u64,
+    path_ptr: u64,
+    args_ptr: u64,
+) -> u64 {
+    use crate::syscall::types::{EFAULT, EINVAL, EPERM};
+
+    if !caller_can_launch_service() {
+        return EPERM;
+    }
+    if buf_ptr == 0 || buf_len == 0 || buf_len > 32 * 1024 * 1024 || path_ptr == 0 {
+        return EINVAL;
+    }
+    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) {
+        return EFAULT;
+    }
+
+    let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
+        Ok(s) => s,
+        Err(_) => return EINVAL,
+    };
+    let process_name = path.rsplit('/').next().unwrap_or(path.as_str());
+
+    let args_owned = match read_nul_args_from_user(args_ptr, 512, 64) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let args_refs: Vec<&str> = args_owned.iter().map(|s| s.as_str()).collect();
+
+    let mut owned = alloc::vec![0u8; buf_len as usize];
+    if let Err(e) = crate::syscall::copy_from_user(buf_ptr, &mut owned) {
+        return e;
+    }
+
+    exec_with_data(
+        &owned,
+        process_name,
+        path.as_str(),
+        &args_refs,
+        delegated_parent_pid(),
+    )
+}
+
+/// メモリ上の ELF バッファと実行パス名・引数・要求元スレッドIDから新プロセスを起動するシステムコール
+pub fn exec_from_buffer_named_args_with_requester_syscall(
+    buf_ptr: u64,
+    buf_len: u64,
+    path_ptr: u64,
+    args_ptr: u64,
+    requester_tid: u64,
+) -> u64 {
+    use crate::syscall::types::{EFAULT, EINVAL, EPERM};
+
+    if !caller_can_launch_service() {
+        return EPERM;
+    }
+    if buf_ptr == 0 || buf_len == 0 || buf_len > 32 * 1024 * 1024 || path_ptr == 0 {
+        return EINVAL;
+    }
+    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) {
+        return EFAULT;
+    }
+
+    let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
+        Ok(s) => s,
+        Err(_) => return EINVAL,
+    };
+    let process_name = path.rsplit('/').next().unwrap_or(path.as_str());
+
+    let args_owned = match read_nul_args_from_user(args_ptr, 512, 64) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let args_refs: Vec<&str> = args_owned.iter().map(|s| s.as_str()).collect();
+
+    let mut owned = alloc::vec![0u8; buf_len as usize];
+    if let Err(e) = crate::syscall::copy_from_user(buf_ptr, &mut owned) {
+        return e;
+    }
+
+    let parent_override = if requester_tid != 0 {
+        let requester = crate::task::ThreadId::from_u64(requester_tid);
+        let caller_pid = match crate::task::current_thread_id()
+            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+        {
+            Some(pid) => pid,
+            None => return EPERM,
+        };
+        match crate::task::with_thread(requester, |t| t.process_id()) {
+            Some(pid) => {
+                let caller_is_core = crate::task::with_process(caller_pid, |p| {
+                    p.privilege() == crate::task::PrivilegeLevel::Core
+                })
+                .unwrap_or(false);
+
+                if pid != caller_pid && !caller_is_core {
+                    return EPERM;
+                }
+                Some(pid)
+            }
+            None => return EINVAL,
+        }
+    } else {
+        None
+    };
+
+    exec_with_data(
+        &owned,
+        process_name,
+        path.as_str(),
+        &args_refs,
+        parent_override.or_else(delegated_parent_pid),
+    )
 }

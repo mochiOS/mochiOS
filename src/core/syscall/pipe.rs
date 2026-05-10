@@ -65,8 +65,12 @@ impl PipeBuffer {
         to_read
     }
 
-    pub fn available(&self) -> usize { self.len }
-    pub fn is_full(&self)  -> bool { self.len == PIPE_BUF_SIZE }
+    pub fn available(&self) -> usize {
+        self.len
+    }
+    pub fn is_full(&self) -> bool {
+        self.len == PIPE_BUF_SIZE
+    }
 
     /// 読み込み待ちスレッドを登録する
     pub fn set_waiter(&self, tid: u64) {
@@ -113,7 +117,9 @@ pub fn alloc_pipe() -> Option<usize> {
 pub fn close_write_end(id: usize) {
     let mut table = PIPE_TABLE.lock();
     if let Some(Some(pb)) = table.get_mut(id) {
-        if pb.write_refs > 0 { pb.write_refs -= 1; }
+        if pb.write_refs > 0 {
+            pb.write_refs -= 1;
+        }
         if pb.write_refs == 0 {
             pb.wake_reader();
         }
@@ -127,23 +133,29 @@ pub fn close_write_end(id: usize) {
 pub fn close_read_end(id: usize) {
     let mut table = PIPE_TABLE.lock();
     if let Some(Some(pb)) = table.get_mut(id) {
-        if pb.read_refs > 0 { pb.read_refs -= 1; }
+        if pb.read_refs > 0 {
+            pb.read_refs -= 1;
+        }
         if pb.read_refs == 0 && pb.write_refs == 0 {
             table[id] = None;
         }
     }
 }
 
-/// パイプに書き込む。バッファが満杯の場合は ENOSYS（簡易実装: ノンブロッキング）。
+/// パイプに書き込む。バッファが満杯の場合は EAGAIN（簡易実装: ノンブロッキング）。
 /// 書き込んだバイト数を返す。
 pub fn pipe_write(id: usize, data: &[u8]) -> Result<usize, u64> {
-    use super::types::{EPIPE, ENOSYS};
+    use super::types::{EAGAIN, EPIPE};
     let mut table = PIPE_TABLE.lock();
     match table.get_mut(id).and_then(|s| s.as_mut()) {
         None => Err(EPIPE),
         Some(pb) => {
-            if pb.read_refs == 0 { return Err(EPIPE); }
-            if pb.is_full() { return Err(ENOSYS); }
+            if pb.read_refs == 0 {
+                return Err(EPIPE);
+            }
+            if pb.is_full() {
+                return Err(EAGAIN);
+            }
             let n = pb.write_bytes(data);
             pb.wake_reader();
             Ok(n)
@@ -226,34 +238,41 @@ pub fn pipe2_syscall(pipefd_ptr: u64, flags: u64) -> u64 {
         data: alloc::boxed::Box::new([]),
         pos: 0,
         dir_path: None,
+        is_remote: false,
+        fd_remote: 0,
+        remote_refs: None,
         pipe_id: Some(pipe_id),
         pipe_write: false,
+        open_flags: 0,
     });
     let write_handle = alloc::boxed::Box::new(FileHandle {
         data: alloc::boxed::Box::new([]),
         pos: 0,
         dir_path: None,
+        is_remote: false,
+        fd_remote: 0,
+        remote_refs: None,
         pipe_id: Some(pipe_id),
         pipe_write: true,
+        open_flags: 1,
     });
 
     let pid_id = crate::task::ids::ProcessId::from_u64(pid);
-    let read_fd = crate::task::with_process_mut(pid_id, |p| {
-        p.fd_table_mut().alloc(read_handle, cloexec)
-    })
-    .flatten();
-    let write_fd = crate::task::with_process_mut(pid_id, |p| {
-        p.fd_table_mut().alloc(write_handle, cloexec)
-    })
-    .flatten();
+    let read_fd =
+        crate::task::with_process_mut(pid_id, |p| p.fd_table_mut().alloc(read_handle, cloexec))
+            .flatten();
+    let write_fd =
+        crate::task::with_process_mut(pid_id, |p| p.fd_table_mut().alloc(write_handle, cloexec))
+            .flatten();
 
     match (read_fd, write_fd) {
         (Some(rfd), Some(wfd)) => {
-            crate::syscall::with_user_memory_access(|| unsafe {
-                core::ptr::write_unaligned(pipefd_ptr as *mut u32, rfd as u32);
-                core::ptr::write_unaligned((pipefd_ptr + 4) as *mut u32, wfd as u32);
-            });
-            super::types::SUCCESS
+            let mut fds = [0u8; 8];
+            fds[..4].copy_from_slice(&(rfd as u32).to_ne_bytes());
+            fds[4..].copy_from_slice(&(wfd as u32).to_ne_bytes());
+            crate::syscall::copy_to_user(pipefd_ptr, &fds)
+                .map(|_| super::types::SUCCESS)
+                .unwrap_or_else(|e| e)
         }
         _ => {
             close_read_end(pipe_id);

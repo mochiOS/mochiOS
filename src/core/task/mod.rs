@@ -3,6 +3,7 @@
 //! マルチタスク機能を提供（プロセスとスレッドの管理）
 
 pub mod context;
+mod elf;
 pub mod fd_table;
 pub mod ids;
 pub mod process;
@@ -10,9 +11,9 @@ pub mod scheduler;
 pub mod signal;
 pub mod thread;
 pub mod usermode;
-mod elf;
 
 pub use context::{switch_context, switch_to_thread, Context};
+pub use fd_table::{FdTable, FileHandle, FD_BASE, PROCESS_MAX_FDS};
 pub use ids::{PrivilegeLevel, ProcessId, ProcessState, ThreadId, ThreadState};
 pub use process::{
     add_process, find_process_id_by_name, for_each_process, has_child_process, mark_process_exited,
@@ -25,14 +26,16 @@ pub use scheduler::{
     sleep_thread, sleep_thread_unless_woken, start_scheduling, terminate_thread, wake_thread,
     yield_now, Scheduler,
 };
+pub use signal::{
+    default_action, sigreturn_stub_addr, DefaultAction, SigAction, SignalState, SA_RESTORER,
+    SIGCHLD, SIGINT, SIGKILL, SIGNAL_FRAME_MAGIC, SIGTERM, SIG_DFL, SIG_IGN,
+    USER_SIGRETURN_STUB_OFFSET,
+};
 pub use thread::{
     add_thread, allocate_kernel_stack, count_threads_by_state, current_thread_id, for_each_thread,
     free_kernel_stack, peek_next_thread, remove_thread, set_current_thread, thread_count,
     thread_id_exists, thread_slot_index, thread_slot_index_and_generation,
-    thread_slot_index_and_generation_by_u64, thread_slot_index_by_u64, with_thread,
-    with_thread_mut, Thread, ThreadQueue,
+    thread_slot_index_and_generation_by_u64, thread_slot_index_by_u64, thread_to_process_id,
+    with_thread, with_thread_mut, Thread, ThreadQueue,
 };
 pub use usermode::{jump_to_usermode, jump_to_usermode_fork_child};
-pub use signal::{DefaultAction, SigAction, SignalState, default_action,
-                 SIG_DFL, SIG_IGN, SIGCHLD, SIGINT, SIGKILL, SIGTERM};
-pub use fd_table::{FdTable, FileHandle, FD_BASE, PROCESS_MAX_FDS};

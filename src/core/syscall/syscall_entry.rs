@@ -135,6 +135,25 @@ pub fn kpti_leave_for_current_thread() {
     restore_page_table(restore);
 }
 
+/// 例外/IRQ 入口で、ユーザー文脈から入った場合のみ kernel CR3 と hardening 状態をそろえる。
+pub fn kpti_enter_for_trap(from_user: bool) -> bool {
+    if !from_user {
+        return false;
+    }
+    let previous = switch_to_kernel_page_table();
+    if previous != 0 {
+        crate::cpu::reassert_runtime_hardening();
+    }
+    previous != 0
+}
+
+/// 例外/IRQ からの復帰で、ユーザー文脈へ戻る場合は復帰先スレッドの user CR3 を再設定する。
+pub fn kpti_leave_after_trap(entered_from_user: bool) {
+    if entered_from_user {
+        switch_to_current_thread_user_page_table();
+    }
+}
+
 /// SYSCALL エントリポイント (naked function)
 ///
 /// 呼ばれた時点:
@@ -199,7 +218,7 @@ pub unsafe extern "C" fn syscall_entry() {
         // 割り込みを再有効化 (カーネルスタックに切り替え済みなので安全)
         "sti",
 
-        // syscall 引数を System V ABI に並べ替えて dispatch を呼ぶ
+        // syscall 引数を system V ABI に並べ替えて dispatch を呼ぶ
         // dispatch(num, arg0, arg1, arg2, arg3, arg4)
         // align slot ありレイアウト:
         // [rsp+128]=num, [rsp+120]=arg0, [rsp+112]=arg1, [rsp+104]=arg2, [rsp+96]=arg3, [rsp+88]=arg4

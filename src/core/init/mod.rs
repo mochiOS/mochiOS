@@ -23,6 +23,7 @@ pub fn kinit(boot_info: &'static BootInfo) -> Result<&'static [MemoryRegion]> {
         )
     };
 
+    crate::info!("Memory map has {} regions", memory_map.len());
     for (i, region) in memory_map.iter().enumerate() {
         debug!(
             "  Region {}: {:#x} - {:#x} ({:?})",
@@ -31,21 +32,40 @@ pub fn kinit(boot_info: &'static BootInfo) -> Result<&'static [MemoryRegion]> {
             region.start + region.len,
             region.region_type
         );
+        if i < 5 {
+            crate::info!(
+                "  Region {}: {:#x} - {:#x} ({:?})",
+                i,
+                region.start,
+                region.start + region.len,
+                region.region_type
+            );
+        }
     }
 
     // 先にフレームアロケータを初期化
     mem::init_frame_allocator(memory_map)?;
 
     // メモリ管理の初期化
-    mem::init(boot_info);
+    mem::init(boot_info)?;
 
     fs::init();
+    crate::kmod::load_modules();
+    if crate::kmod::fs::is_loaded() {
+        let rc = crate::kmod::fs::mount(0);
+        if rc != 0 {
+            crate::warn!("kmod: fs mount failed rc={}", rc);
+        }
+    }
 
     // MED-32修正: PIT初期化をCPU割り込み有効化より前に実行する
     // 以前は enable() が init_pit() より先だったため、PIT未初期化状態でタイマー割り込みが
     // 発生する可能性があった。正しい初期化順序: PIT→スケジューラ→タイマー→割り込み有効化
     interrupt::init_pit();
     task::init_scheduler();
+    if !util::ps2mouse::init() {
+        crate::warn!("PS/2 mouse initialization failed");
+    }
     interrupt::enable_timer_interrupt();
 
     unsafe {

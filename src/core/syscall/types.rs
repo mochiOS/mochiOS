@@ -6,6 +6,8 @@ pub enum SyscallNumber {
     Read = 0,
     /// 書き込み
     Write = 1,
+    /// ベクタ読み込み
+    Readv = 19,
     /// ベクタ書き込み
     Writev = 20,
     /// ファイルを開く
@@ -16,6 +18,8 @@ pub enum SyscallNumber {
     Stat = 4,
     /// ファイル情報取得
     Fstat = 5,
+    /// poll
+    Poll = 7,
     /// ファイルシーク
     Lseek = 8,
     /// メモリマップ
@@ -54,10 +58,22 @@ pub enum SyscallNumber {
     ExitGroup = 231,
     /// kill (シグナルを送る)
     Kill = 62,
+    /// tkill (スレッドID宛てシグナル)
+    Tkill = 200,
+    /// tgkill (スレッドグループ+スレッドID宛てシグナル)
+    Tgkill = 234,
     /// getcwd
     Getcwd = 79,
+    /// truncate
+    Truncate = 76,
+    /// ftruncate
+    Ftruncate = 77,
     /// getppid
     GetPpid = 110,
+    /// sigaltstack
+    Sigaltstack = 131,
+    /// statfs
+    Statfs = 137,
     /// setpgid
     Setpgid = 109,
     /// getpgid
@@ -70,6 +86,8 @@ pub enum SyscallNumber {
     Ioctl = 16,
     /// access
     Access = 21,
+    /// select
+    Select = 23,
     /// getuid
     Getuid = 102,
     /// getgid
@@ -82,8 +100,14 @@ pub enum SyscallNumber {
     Lstat = 6,
     /// readlink (スタブ)
     Readlink = 89,
+    /// unlink
+    Unlink = 87,
     /// fcntl (FD フラグ操作)
     Fcntl = 72,
+    /// fsync
+    Fsync = 74,
+    /// fdatasync
+    Fdatasync = 75,
     /// pipe
     Pipe = 22,
     /// dup
@@ -110,10 +134,20 @@ pub enum SyscallNumber {
     Pipe2 = 293,
     /// newfstatat (fstatat)
     Newfstatat = 262,
+    /// unlinkat
+    Unlinkat = 263,
     /// faccessat
     Faccessat = 269,
+    /// pselect6
+    Pselect6 = 270,
+    /// ppoll
+    Ppoll = 271,
+    /// set_robust_list
+    SetRobustList = 273,
     /// readlinkat
     Readlinkat = 267,
+    /// getrandom
+    Getrandom = 318,
 
     // mochiOS独自syscall (Linux未使用番号帯: 512+)
     /// スケジューラへ譲る
@@ -160,6 +194,44 @@ pub enum SyscallNumber {
     GetConsoleCursor = 532,
     /// IPC受信（ブロッキング版）：メッセージが届くまでスリープして待機
     IpcRecvWait = 533,
+    /// キーボード入力の監視用タップ（通常入力を消費しない）
+    KeyboardReadTap = 534,
+    /// PS/2 マウスの3バイトパケットを読み取る（b0 | b1<<8 | b2<<16）
+    MouseRead = 535,
+    /// 物理アドレス範囲をユーザー空間にマップ
+    MapPhysicalRange = 536,
+    /// ユーザー仮想アドレスを物理アドレスへ変換
+    VirtToPhys = 537,
+    /// I/Oポートから 16-bit ワード列を一括読み取り
+    PortInWords = 538,
+    /// I/Oポートへ 16-bit ワード列を一括書き込み
+    PortOutWords = 539,
+    /// キーボード入力キューへ raw スキャンコードを注入（Service/Core専用）
+    KeyboardInject = 540,
+    /// マウス入力キューへ 3バイトパケットを注入（Service/Core専用）
+    MouseInject = 541,
+    /// メモリ上の ELF バッファと実行パス名から新プロセスを起動
+    ExecFromBufferNamed = 542,
+    /// メモリ上の ELF バッファと実行パス名＋引数から新プロセスを起動
+    ExecFromBufferNamedArgs = 543,
+    /// メモリ上の ELF バッファと実行パス名＋引数＋要求元スレッドIDから新プロセスを起動
+    ExecFromBufferNamedArgsWithRequester = 544,
+    /// Execute by streaming ELF image into kernel (path_ptr, args_ptr)
+    ExecFromFsStream = 545,
+    /// 物理ページ配列をターゲットプロセスのアドレス空間にマップ（Service権限専用）
+    MapPhysicalPages = 546,
+    /// 仮想アドレスから物理アドレスを取得（Service権限専用）
+    GetPhysicalAddr = 547,
+    /// 共有用物理ページを割り当て、自プロセスにマップして物理アドレスを返す（Service権限専用）
+    AllocSharedPages = 548,
+    /// 物理ページをアンマップして解放（Service権限専用）
+    UnmapPages = 549,
+    /// IPC経由で物理ページをターゲットプロセスへ送信（Service権限専用）
+    IpcSendPages = 550,
+    /// PS/2 マウスの3バイトパケットを読み取る（ブロッキング版）
+    MouseReadWait = 551,
+    /// プロセス一覧を取得（ユーザーバッファへ書き込む）
+    ListProcesses = 552,
 }
 
 /// 成功
@@ -170,6 +242,8 @@ pub const SUCCESS: u64 = 0;
 pub const EPERM: u64 = (-1i64) as u64;
 /// ファイルが見つからない
 pub const ENOENT: u64 = (-2i64) as u64;
+/// ディレクトリではない
+pub const ENOTDIR: u64 = (-20i64) as u64;
 /// プロセスが見つからない
 pub const ESRCH: u64 = (-3i64) as u64;
 /// I/Oエラー

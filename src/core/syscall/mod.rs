@@ -6,18 +6,22 @@ pub mod io;
 pub mod io_port;
 pub mod ipc;
 pub mod keyboard;
+pub mod mmio;
+pub mod mouse;
 pub mod pgroup;
 pub mod pipe;
+pub mod privileged;
 pub mod process;
 pub mod signal;
 pub mod syscall_entry;
 pub mod task;
 pub mod time;
+pub mod tty;
 pub mod vga;
 
-mod types;
 mod console;
 mod linux;
+mod types;
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -61,27 +65,33 @@ pub fn validate_user_ptr(ptr: u64, len: u64) -> bool {
     crate::mem::paging::is_user_range_mapped_in_table(user_pt, ptr, len)
 }
 
+#[inline]
+pub fn with_user_memory_access<R>(f: impl FnOnce() -> R) -> R {
+    // Legacy no-op shim kept for old internal call sites outside the hardened
+    // syscall copy path. New user-memory access must use copy_from_user/
+    // copy_to_user so permission checks happen through the page-table walker.
+    f()
+}
+
+fn current_user_page_table() -> Option<u64> {
+    crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+        .and_then(|pid| crate::task::with_process(pid, |p| p.page_table()))
+        .flatten()
+}
+
 /// ユーザー空間の null 終端文字列を最大長付きで読み取り、カーネル所有の `String` を返す。
 pub fn read_user_cstring(ptr: u64, max_len: usize) -> Result<String, u64> {
     if ptr == 0 || max_len == 0 {
         return Err(EINVAL);
     }
-    if !validate_user_ptr(ptr, 1) {
-        return Err(EFAULT);
-    }
 
     let mut bytes = Vec::with_capacity(max_len);
-    let mut checked_page = u64::MAX;
     for i in 0..max_len {
         let addr = ptr.checked_add(i as u64).ok_or(EFAULT)?;
-        let page_base = addr & !0xfffu64;
-        if page_base != checked_page {
-            if !validate_user_ptr(addr, 1) {
-                return Err(EFAULT);
-            }
-            checked_page = page_base;
-        }
-        let b = with_user_memory_access(|| unsafe { core::ptr::read(addr as *const u8) });
+        let mut one = [0u8; 1];
+        copy_from_user(addr, &mut one)?;
+        let b = one[0];
         if b == 0 {
             return String::from_utf8(bytes).map_err(|_| EINVAL);
         }
@@ -95,78 +105,113 @@ pub fn copy_from_user(src_ptr: u64, dst: &mut [u8]) -> Result<(), u64> {
     if dst.is_empty() {
         return Ok(());
     }
+    let user_pt = match current_user_page_table() {
+        Some(pt) => pt,
+        None => return Err(EFAULT),
+    };
     if src_ptr == 0 {
         return Err(EFAULT);
     }
-    if !validate_user_ptr(src_ptr, dst.len() as u64) {
-        return Err(EFAULT);
-    }
-
-    for (i, out) in dst.iter_mut().enumerate() {
-        let addr = src_ptr.checked_add(i as u64).ok_or(EFAULT)?;
-        *out = with_user_memory_access(|| unsafe { core::ptr::read(addr as *const u8) });
-    }
-    Ok(())
+    crate::mem::paging::copy_from_user_in_table(user_pt, src_ptr, dst).map_err(|err| {
+        crate::audit::log(
+            crate::audit::AuditEventKind::Usercopy,
+            "copy_from_user rejected unmapped or unreadable range",
+        );
+        match err {
+            crate::Kernel::Memory(crate::result::Memory::OutOfMemory) => EFAULT,
+            crate::Kernel::Memory(crate::result::Memory::PermissionDenied) => EFAULT,
+            crate::Kernel::Memory(crate::result::Memory::InvalidAddress) => EFAULT,
+            _ => EFAULT,
+        }
+    })
 }
 
-/// ユーザーポインタを実際に参照する短い区間を、必要に応じてユーザーCR3で実行する。
-///
-/// KPTI有効時、syscall本体はkernel CR3で実行されるため、ユーザー仮想アドレスを
-/// 直接参照する区間だけ一時的にuser CR3へ切り替える。
-pub fn with_user_memory_access<R>(f: impl FnOnce() -> R) -> R {
-    use x86_64::registers::control::Cr3;
-    x86_64::instructions::interrupts::without_interrupts(|| {
-        let kernel_cr3 = crate::percpu::kernel_cr3();
-        if kernel_cr3 == 0 {
-            return f();
+/// バイト列をユーザー空間へコピーする（コピー元はカーネル空間）。
+pub fn copy_to_user(dst_ptr: u64, src: &[u8]) -> Result<(), u64> {
+    if src.is_empty() {
+        return Ok(());
+    }
+    let user_pt = match current_user_page_table() {
+        Some(pt) => pt,
+        None => return Err(EFAULT),
+    };
+    if dst_ptr == 0 {
+        return Err(EFAULT);
+    }
+    crate::mem::paging::copy_to_user_in_table(user_pt, dst_ptr, src).map_err(|err| {
+        crate::audit::log(
+            crate::audit::AuditEventKind::Usercopy,
+            "copy_to_user rejected unmapped or unwritable range",
+        );
+        match err {
+            crate::Kernel::Memory(crate::result::Memory::OutOfMemory) => EFAULT,
+            crate::Kernel::Memory(crate::result::Memory::PermissionDenied) => EFAULT,
+            crate::Kernel::Memory(crate::result::Memory::InvalidAddress) => EFAULT,
+            _ => EFAULT,
         }
-
-        let (cur, _) = Cr3::read();
-        let current_cr3 = cur.start_address().as_u64();
-        if current_cr3 != kernel_cr3 {
-            return f();
-        }
-
-        let user_pt = crate::task::current_thread_id()
-            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-            .and_then(|pid| crate::task::with_process(pid, |p| p.page_table()))
-            .flatten()
-            .unwrap_or(0);
-        if user_pt == 0 {
-            return f();
-        }
-
-        if crate::cpu::is_smap_enabled() {
-            unsafe {
-                asm!("stac", options(nostack, preserves_flags));
-            }
-        }
-        crate::mem::paging::switch_page_table(user_pt);
-        let out = f();
-        crate::mem::paging::switch_page_table(kernel_cr3);
-        if crate::cpu::is_smap_enabled() {
-            unsafe {
-                asm!("clac", options(nostack, preserves_flags));
-            }
-        }
-        out
     })
+}
+
+pub fn read_user_u64(ptr: u64) -> Result<u64, u64> {
+    let mut buf = [0u8; 8];
+    copy_from_user(ptr, &mut buf)?;
+    Ok(u64::from_ne_bytes(buf))
+}
+
+pub fn read_user_u32(ptr: u64) -> Result<u32, u64> {
+    let mut buf = [0u8; 4];
+    copy_from_user(ptr, &mut buf)?;
+    Ok(u32::from_ne_bytes(buf))
+}
+
+pub fn read_user_i64(ptr: u64) -> Result<i64, u64> {
+    let mut buf = [0u8; 8];
+    copy_from_user(ptr, &mut buf)?;
+    Ok(i64::from_ne_bytes(buf))
+}
+
+pub fn read_user_i32(ptr: u64) -> Result<i32, u64> {
+    let mut buf = [0u8; 4];
+    copy_from_user(ptr, &mut buf)?;
+    Ok(i32::from_ne_bytes(buf))
+}
+
+pub fn read_user_u16(ptr: u64) -> Result<u16, u64> {
+    let mut buf = [0u8; 2];
+    copy_from_user(ptr, &mut buf)?;
+    Ok(u16::from_ne_bytes(buf))
+}
+
+pub fn write_user_u64(ptr: u64, value: u64) -> Result<(), u64> {
+    copy_to_user(ptr, &value.to_ne_bytes())
+}
+
+pub fn write_user_u32(ptr: u64, value: u32) -> Result<(), u64> {
+    copy_to_user(ptr, &value.to_ne_bytes())
+}
+
+pub fn write_user_i32(ptr: u64, value: i32) -> Result<(), u64> {
+    copy_to_user(ptr, &value.to_ne_bytes())
+}
+
+pub fn write_user_u16(ptr: u64, value: u16) -> Result<(), u64> {
+    copy_to_user(ptr, &value.to_ne_bytes())
 }
 
 pub use types::{
     SyscallNumber, EAGAIN, EBADF, EFAULT, EINVAL, ENODATA, ENOENT, ENOSYS, EPERM, ESRCH, SUCCESS,
 };
 
-use core::arch::asm;
 use x86_64::structures::idt::InterruptStackFrame;
 
 /// システムコールのディスパッチ
 pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64) -> u64 {
     match num {
-        // Linux互換syscall
         x if x == SyscallNumber::Read as u64 => io::read(arg0, arg1, arg2),
+        x if x == SyscallNumber::Readv as u64 => io::readv(arg0, arg1, arg2),
         x if x == SyscallNumber::Write as u64 => io::write(arg0, arg1, arg2),
         x if x == SyscallNumber::Writev as u64 => io::writev(arg0, arg1, arg2),
+        x if x == SyscallNumber::Poll as u64 => pgroup::poll(arg0, arg1, arg2),
         x if x == SyscallNumber::Open as u64 => fs::open(arg0, arg1),
         x if x == SyscallNumber::Close as u64 => fs::close(arg0),
         x if x == SyscallNumber::Stat as u64 => fs::stat(arg0, arg1),
@@ -178,6 +223,10 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::RtSigaction as u64 => signal::rt_sigaction(arg0, arg1, arg2),
         x if x == SyscallNumber::RtSigprocmask as u64 => signal::rt_sigprocmask(arg0, arg1, arg2),
         x if x == SyscallNumber::Kill as u64 => signal::kill(arg0, arg1),
+        x if x == SyscallNumber::Tkill as u64 => signal::tkill(arg0, arg1),
+        x if x == SyscallNumber::Tgkill as u64 => signal::tgkill(arg0, arg1, arg2),
+        x if x == SyscallNumber::Sigaltstack as u64 => process::sigaltstack(arg0, arg1),
+        x if x == SyscallNumber::Statfs as u64 => fs::statfs(arg0, arg1),
         x if x == SyscallNumber::GetPid as u64 => process::getpid(),
         x if x == SyscallNumber::Clone as u64 => process::fork(),
         x if x == SyscallNumber::Fork as u64 => process::fork(),
@@ -188,10 +237,10 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::ArchPrctl as u64 => process::arch_prctl(arg0, arg1),
         x if x == SyscallNumber::ClockGettime as u64 => time::clock_gettime(arg0, arg1),
         x if x == SyscallNumber::Getcwd as u64 => fs::getcwd(arg0, arg1),
+        x if x == SyscallNumber::Truncate as u64 => fs::truncate(arg0, arg1),
+        x if x == SyscallNumber::Ftruncate as u64 => fs::ftruncate(arg0, arg1),
         x if x == SyscallNumber::Exit as u64 => process::exit(arg0),
         x if x == SyscallNumber::ExitGroup as u64 => process::exit(arg0),
-
-        // mochiOS独自syscall
         x if x == SyscallNumber::Yield as u64 => {
             task::yield_now();
             SUCCESS
@@ -201,22 +250,80 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::IpcRecv as u64 => ipc::recv(arg0, arg1),
         x if x == SyscallNumber::IpcRecvWait as u64 => ipc::recv_blocking(arg0, arg1),
         x if x == SyscallNumber::Exec as u64 => exec::exec_kernel(arg0, arg1),
+        x if x == SyscallNumber::ExecFromFsStream as u64 => exec::exec_from_fs_stream(arg0, arg1),
         x if x == SyscallNumber::Sleep as u64 => process::sleep(arg0),
         x if x == SyscallNumber::Log as u64 => io::log(arg0, arg1, arg2),
         x if x == SyscallNumber::PortIn as u64 => io_port::port_in(arg0, arg1),
         x if x == SyscallNumber::PortOut as u64 => io_port::port_out(arg0, arg1, arg2),
+        x if x == SyscallNumber::PortInWords as u64 => io_port::port_in_words(arg0, arg1, arg2),
+        x if x == SyscallNumber::PortOutWords as u64 => io_port::port_out_words(arg0, arg1, arg2),
         x if x == SyscallNumber::Mkdir as u64 => fs::mkdir(arg0, arg1),
         x if x == SyscallNumber::Rmdir as u64 => fs::rmdir(arg0),
         x if x == SyscallNumber::Readdir as u64 => fs::readdir(arg0, arg1, arg2),
         x if x == SyscallNumber::Chdir as u64 => fs::chdir(arg0),
         x if x == SyscallNumber::KeyboardRead as u64 => keyboard::read_char(),
+        x if x == SyscallNumber::KeyboardReadTap as u64 => keyboard::read_char_tap(),
+        x if x == SyscallNumber::MouseRead as u64 => {
+            if arg0 == 0 {
+                match mouse::read_packet() {
+                    Ok(packet) => packet,
+                    Err(errno) => errno,
+                }
+            } else {
+                match mouse::read_packet() {
+                    Ok(packet) => {
+                        let packet_bytes = (packet as u32).to_ne_bytes();
+                        match copy_to_user(arg0, &packet_bytes) {
+                            Ok(()) => SUCCESS,
+                            Err(errno) => errno,
+                        }
+                    }
+                    Err(errno) => errno,
+                }
+            }
+        }
+        x if x == SyscallNumber::MouseReadWait as u64 => {
+            if arg0 == 0 {
+                match mouse::read_packet_blocking() {
+                    Ok(packet) => packet,
+                    Err(errno) => errno,
+                }
+            } else {
+                match mouse::read_packet_blocking() {
+                    Ok(packet) => {
+                        let packet_bytes = (packet as u32).to_ne_bytes();
+                        match copy_to_user(arg0, &packet_bytes) {
+                            Ok(()) => SUCCESS,
+                            Err(errno) => errno,
+                        }
+                    }
+                    Err(errno) => errno,
+                }
+            }
+        }
+        x if x == SyscallNumber::KeyboardInject as u64 => keyboard::inject_scancode(arg0),
+        x if x == SyscallNumber::MouseInject as u64 => mouse::inject_packet(arg0),
+        x if x == SyscallNumber::MapPhysicalRange as u64 => mmio::map_physical_range(arg0, arg1),
+        x if x == SyscallNumber::VirtToPhys as u64 => mmio::virt_to_phys(arg0),
         x if x == SyscallNumber::FindProcessByName as u64 => {
             process::find_process_by_name(arg0, arg1)
         }
+        x if x == SyscallNumber::ListProcesses as u64 => process::list_processes(arg0, arg1),
         x if x == SyscallNumber::GetThreadPrivilege as u64 => task::get_thread_privilege(arg0),
         x if x == SyscallNumber::GetFramebufferInfo as u64 => vga::get_framebuffer_info(arg0),
         x if x == SyscallNumber::MapFramebuffer as u64 => vga::map_framebuffer(),
-        x if x == SyscallNumber::ExecFromBuffer as u64 => exec::exec_from_buffer_syscall(arg0, arg1),
+        x if x == SyscallNumber::ExecFromBuffer as u64 => {
+            exec::exec_from_buffer_syscall(arg0, arg1)
+        }
+        x if x == SyscallNumber::ExecFromBufferNamed as u64 => {
+            exec::exec_from_buffer_named_syscall(arg0, arg1, arg2)
+        }
+        x if x == SyscallNumber::ExecFromBufferNamedArgs as u64 => {
+            exec::exec_from_buffer_named_args_syscall(arg0, arg1, arg2, arg3)
+        }
+        x if x == SyscallNumber::ExecFromBufferNamedArgsWithRequester as u64 => {
+            exec::exec_from_buffer_named_args_with_requester_syscall(arg0, arg1, arg2, arg3, arg4)
+        }
         x if x == SyscallNumber::SetConsoleCursor as u64 => {
             crate::util::vga::set_cursor_pixel_y(arg0 as usize);
             0
@@ -224,49 +331,60 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::GetConsoleCursor as u64 => {
             crate::util::vga::get_cursor_pixel_y() as u64
         }
-        // プロセスグループ・セッション・ユーティリティ
-        x if x == SyscallNumber::GetPpid as u64   => pgroup::getppid(),
-        x if x == SyscallNumber::Setpgid as u64   => pgroup::setpgid(arg0, arg1),
-        x if x == SyscallNumber::Getpgid as u64   => pgroup::getpgid(arg0),
-        x if x == SyscallNumber::Setsid as u64    => pgroup::setsid(),
-        x if x == SyscallNumber::Getsid as u64    => pgroup::getsid(arg0),
-        x if x == SyscallNumber::Ioctl as u64     => pgroup::ioctl(arg0, arg1, arg2),
-        x if x == SyscallNumber::Access as u64    => pgroup::access(arg0, arg1),
-        x if x == SyscallNumber::Getuid as u64    => pgroup::getuid(),
-        x if x == SyscallNumber::Getgid as u64    => pgroup::getgid(),
-        x if x == SyscallNumber::Geteuid as u64   => pgroup::geteuid(),
-        x if x == SyscallNumber::Getegid as u64   => pgroup::getegid(),
-        x if x == SyscallNumber::Lstat as u64     => fs::stat(arg0, arg1),
-        x if x == SyscallNumber::Readlink as u64  => types::EINVAL, // スタブ: シンボリックリンク非対応
-        x if x == SyscallNumber::Fcntl as u64     => fs::fcntl(arg0, arg1, arg2),
-        x if x == SyscallNumber::Pipe as u64      => pipe::pipe_syscall(arg0),
-        x if x == SyscallNumber::Dup as u64       => fs::dup(arg0),
-        x if x == SyscallNumber::Dup2 as u64      => fs::dup2(arg0, arg1),
-        // 追加: BusyBox 互換 syscall
-        x if x == SyscallNumber::Mprotect as u64      => pgroup::mprotect(arg0, arg1, arg2),
-        x if x == SyscallNumber::Nanosleep as u64     => pgroup::nanosleep(arg0, arg1),
-        x if x == SyscallNumber::Uname as u64         => pgroup::uname(arg0),
-        x if x == SyscallNumber::Getrlimit as u64     => pgroup::getrlimit(arg0, arg1),
+        x if x == SyscallNumber::GetPpid as u64 => pgroup::getppid(),
+        x if x == SyscallNumber::Setpgid as u64 => pgroup::setpgid(arg0, arg1),
+        x if x == SyscallNumber::Getpgid as u64 => pgroup::getpgid(arg0),
+        x if x == SyscallNumber::Setsid as u64 => pgroup::setsid(),
+        x if x == SyscallNumber::Getsid as u64 => pgroup::getsid(arg0),
+        x if x == SyscallNumber::Ioctl as u64 => pgroup::ioctl(arg0, arg1, arg2),
+        x if x == SyscallNumber::Access as u64 => pgroup::access(arg0, arg1),
+        x if x == SyscallNumber::Select as u64 => pgroup::pselect6(arg0, arg1, arg2, arg3, arg4, 0),
+        x if x == SyscallNumber::Getuid as u64 => pgroup::getuid(),
+        x if x == SyscallNumber::Getgid as u64 => pgroup::getgid(),
+        x if x == SyscallNumber::Geteuid as u64 => pgroup::geteuid(),
+        x if x == SyscallNumber::Getegid as u64 => pgroup::getegid(),
+        x if x == SyscallNumber::Lstat as u64 => fs::stat(arg0, arg1),
+        x if x == SyscallNumber::Readlink as u64 => types::EINVAL,
+        x if x == SyscallNumber::Unlink as u64 => fs::unlink(arg0),
+        x if x == SyscallNumber::Fcntl as u64 => fs::fcntl(arg0, arg1, arg2),
+        x if x == SyscallNumber::Fsync as u64 => fs::fsync(arg0),
+        x if x == SyscallNumber::Fdatasync as u64 => fs::fsync(arg0),
+        x if x == SyscallNumber::Pipe as u64 => pipe::pipe_syscall(arg0),
+        x if x == SyscallNumber::Dup as u64 => fs::dup(arg0),
+        x if x == SyscallNumber::Dup2 as u64 => fs::dup2(arg0, arg1),
+        x if x == SyscallNumber::Mprotect as u64 => pgroup::mprotect(arg0, arg1, arg2),
+        x if x == SyscallNumber::Nanosleep as u64 => pgroup::nanosleep(arg0, arg1),
+        x if x == SyscallNumber::Uname as u64 => pgroup::uname(arg0),
+        x if x == SyscallNumber::Getrlimit as u64 => pgroup::getrlimit(arg0, arg1),
         x if x == SyscallNumber::SetTidAddress as u64 => pgroup::set_tid_address(arg0),
-        x if x == SyscallNumber::Prlimit64 as u64     => pgroup::prlimit64(arg0, arg1, arg2, arg3),
-        x if x == SyscallNumber::Pipe2 as u64         => pipe::pipe2_syscall(arg0, arg1),
-        x if x == SyscallNumber::Openat as u64        => fs::openat(arg0 as i64, arg1, arg2, arg3),
-        x if x == SyscallNumber::Getdents64 as u64    => fs::getdents64(arg0, arg1, arg2),
-        x if x == SyscallNumber::Newfstatat as u64    => fs::newfstatat(arg0 as i64, arg1, arg2, arg3),
-        x if x == SyscallNumber::Faccessat as u64     => fs::faccessat(arg0 as i64, arg1, arg2, arg3),
-        x if x == SyscallNumber::Readlinkat as u64    => types::EINVAL, // スタブ
-        _ => {
-            if let Some(tid) = crate::task::current_thread_id()
-                .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-            {
-                if crate::task::with_process(tid, |p| p.name().ends_with("busybox.elf"))
-                    .unwrap_or(false)
-                {
-                    crate::warn!("busybox ENOSYS syscall: num={}", num);
-                }
-            }
-            ENOSYS
-        },
+        x if x == SyscallNumber::Prlimit64 as u64 => pgroup::prlimit64(arg0, arg1, arg2, arg3),
+        x if x == SyscallNumber::SetRobustList as u64 => process::set_robust_list(arg0, arg1),
+        x if x == SyscallNumber::Pipe2 as u64 => pipe::pipe2_syscall(arg0, arg1),
+        x if x == SyscallNumber::Openat as u64 => fs::openat(arg0 as i64, arg1, arg2, arg3),
+        x if x == SyscallNumber::Getdents64 as u64 => fs::getdents64(arg0, arg1, arg2),
+        x if x == SyscallNumber::Newfstatat as u64 => fs::newfstatat(arg0 as i64, arg1, arg2, arg3),
+        x if x == SyscallNumber::Unlinkat as u64 => fs::unlinkat(arg0 as i64, arg1, arg2),
+        x if x == SyscallNumber::Faccessat as u64 => fs::faccessat(arg0 as i64, arg1, arg2, arg3),
+        x if x == SyscallNumber::Pselect6 as u64 => {
+            pgroup::pselect6(arg0, arg1, arg2, arg3, arg4, 0)
+        }
+        x if x == SyscallNumber::Ppoll as u64 => pgroup::ppoll(arg0, arg1, arg2, arg3, arg4),
+        x if x == SyscallNumber::Readlinkat as u64 => fs::readlinkat(arg0 as i64, arg1, arg2, arg3),
+        x if x == SyscallNumber::Getrandom as u64 => process::getrandom(arg0, arg1, arg2),
+        x if x == SyscallNumber::MapPhysicalPages as u64 => {
+            privileged::map_physical_pages(arg0, arg1, arg2, arg3)
+        }
+        x if x == SyscallNumber::GetPhysicalAddr as u64 => {
+            privileged::get_physical_addr(arg0, arg1)
+        }
+        x if x == SyscallNumber::AllocSharedPages as u64 => {
+            privileged::alloc_shared_pages(arg0, arg1, arg2, arg3)
+        }
+        x if x == SyscallNumber::UnmapPages as u64 => privileged::unmap_pages(arg0, arg1, arg2),
+        x if x == SyscallNumber::IpcSendPages as u64 => {
+            privileged::ipc_send_pages(arg0, arg1, arg2, arg3)
+        }
+        _ => ENOSYS,
     }
 }
 
@@ -313,50 +431,17 @@ pub unsafe extern "C" fn syscall_interrupt_handler() {
         "push r14",
         "push r15",
 
-        // fork/clone のときだけ、ユーザーコンテキストを現在スレッドへ保存
-        // saved stack layout:
-        // [rsp+112]=num(rax), [rsp+120]=user RIP, [rsp+136]=user RFLAGS, [rsp+144]=user RSP
-        "mov rax, [rsp + 112]",
-        "cmp rax, 56",
-        "je 2f",
-        "cmp rax, 57",
-        "jne 3f",
-        "2:",
-        "mov rdi, rax",
-        "mov rsi, [rsp + 120]",
-        "mov rdx, [rsp + 144]",
-        "mov rcx, [rsp + 136]",
-        "call {save_ctx_fn}",
-        "3:",
-
         // カーネルデータセグメントをロード
         // （ds/esはスタックに保存しない。復元時にユーザーセグメントを再設定）
         "mov ax, 0x10",    // カーネルデータセグメント (index=2)
         "mov ds, ax",
         "mov es, ax",
 
-        // System V AMD64 ABI: rdi=num, rsi=arg0, rdx=arg1, rcx=arg2, r8=arg3, r9=arg4
-        // スタック上のオフセット (15 pushes × 8 bytes, sub rsp なし):
-        //   [rsp+0]=r15, [rsp+8]=r14, [rsp+16]=r13, [rsp+24]=r12, [rsp+32]=r11,
-        //   [rsp+40]=r10(arg3), [rsp+48]=r9, [rsp+56]=r8(arg4),
-        //   [rsp+64]=rdi(arg0), [rsp+72]=rsi(arg1), [rsp+80]=rbp, [rsp+88]=rbx,
-        //   [rsp+96]=rdx(arg2), [rsp+104]=rcx, [rsp+112]=rax(num)
-        "mov rdi, [rsp + 112]", // rax (syscall number)
-        "mov rsi, [rsp + 64]",  // rdi (arg0)
-        "mov rdx, [rsp + 72]",  // rsi (arg1)
-        "mov rcx, [rsp + 96]",  // rdx (arg2)
-        "mov r8,  [rsp + 40]",  // r10 (arg3)
-        "mov r9,  [rsp + 56]",  // r8  (arg4)
-
-        // Rust 関数を呼び出し (16バイトアライン済み: 160バイトオフセット)
-        "call {syscall_handler}",
-
-        // シグナル送達チェック + rt_sigreturn 処理
-        // signal_and_return(kstack=rsp, syscall_ret=rax) → 最終的な戻り値
-        // kstack[14] (=[rsp+112]) には元の syscall 番号が残っている
-        "mov rsi, rax",               // arg1 = syscall 戻り値
+        // int 0x80 経路は、kernel CR3 に切り替えたまま dispatch と signal return を完結させる。
+        // KPTI で user CR3 から kernel heap を完全に外しているため、signal 配送や
+        // プロセス/スレッド metadata 参照を user CR3 上で行うと kernel-mode page fault になる。
         "mov rdi, rsp",               // arg0 = kstack（saved registers 先頭）
-        "call {signal_and_return}",   // signal 送達 or rt_sigreturn を処理、最終 rax を返す
+        "call {int80_handler}",       // 最終的な戻り値を rax で返す
 
         // 戻り値 (rax) をスタック上の保存された rax の位置に書き込む
         "mov [rsp + 112], rax",
@@ -386,10 +471,50 @@ pub unsafe extern "C" fn syscall_interrupt_handler() {
         // 割り込みから戻る
         "iretq",
 
-        save_ctx_fn = sym save_user_context_for_fork,
-        syscall_handler = sym syscall_handler_rust,
-        signal_and_return = sym signal::signal_and_return,
+        int80_handler = sym syscall_interrupt_handler_rust,
     );
+}
+
+/// int 0x80 経路専用の Rust wrapper。
+///
+/// dispatch 本体だけでなく signal 配送/rt_sigreturn まで kernel CR3 上で完結させる。
+/// これにより、KPTI で user CR3 から外した kernel heap / task metadata へ
+/// user CR3 のまま触れてしまう事故を防ぐ。
+extern "sysv64" fn syscall_interrupt_handler_rust(kstack: *mut u64) -> u64 {
+    crate::percpu::install_current_cpu_gs_base();
+
+    let prev_cr3 = syscall_entry::switch_to_kernel_page_table();
+    crate::cpu::reassert_runtime_hardening();
+
+    let syscall_num = unsafe { kstack.add(14).read() };
+    if syscall_num == SyscallNumber::Clone as u64 || syscall_num == SyscallNumber::Fork as u64 {
+        let user_rip = unsafe { kstack.add(15).read() };
+        let user_rflags = unsafe { kstack.add(17).read() };
+        let user_rsp = unsafe { kstack.add(18).read() };
+        save_user_context_for_fork(syscall_num, user_rip, user_rsp, user_rflags);
+    }
+
+    let current_tid = crate::task::current_thread_id();
+    if let Some(tid) = current_tid {
+        crate::task::with_thread_mut(tid, |t| t.set_in_syscall(true));
+    }
+
+    let ret = dispatch(
+        syscall_num,
+        unsafe { kstack.add(8).read() },  // saved rdi = arg0
+        unsafe { kstack.add(9).read() },  // saved rsi = arg1
+        unsafe { kstack.add(12).read() }, // saved rdx = arg2
+        unsafe { kstack.add(5).read() },  // saved r10 = arg3
+        unsafe { kstack.add(7).read() },  // saved r8  = arg4
+    );
+
+    if let Some(tid) = current_tid {
+        crate::task::with_thread_mut(tid, |t| t.set_in_syscall(false));
+    }
+
+    let ret = signal::signal_and_return(kstack, ret);
+    syscall_entry::restore_page_table(prev_cr3);
+    ret
 }
 
 /// システムコールハンドラの Rust 実装
@@ -401,19 +526,16 @@ extern "C" fn syscall_handler_rust(
     arg3: u64,
     arg4: u64,
 ) -> u64 {
+    crate::percpu::install_current_cpu_gs_base();
     let current_tid = crate::task::current_thread_id();
-    let is_busybox = current_tid
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .and_then(|pid| crate::task::with_process(pid, |p| p.name().ends_with("busybox.elf")))
-        .unwrap_or(false);
     let prev_cr3 = syscall_entry::switch_to_kernel_page_table();
+    crate::cpu::reassert_runtime_hardening();
     if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(true));
     }
+
     let ret = dispatch(num, arg0, arg1, arg2, arg3, arg4);
-    if is_busybox {
-        crate::info!("busybox syscall: num={}, ret={:#x}", num, ret);
-    }
+
     if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(false));
     }
@@ -421,10 +543,10 @@ extern "C" fn syscall_handler_rust(
     ret
 }
 
-/// SYSCALL 命令エントリから呼ばれる System V ABI ディスパッチ関数
+/// SYSCALL 命令エントリから呼ばれる system V ABI ディスパッチ関数
 ///
 /// syscall_entry.rs の naked asm から `call {dispatch}` で呼ばれる。
-/// System V ABI: 引数は rdi, rsi, rdx, rcx, r8, r9 の順。
+/// system V ABI: 引数は rdi, rsi, rdx, rcx, r8, r9 の順。
 #[no_mangle]
 pub extern "sysv64" fn syscall_dispatch_sysv(
     num: u64,

@@ -14,6 +14,15 @@ pub const DOUBLE_FAULT_IST_INDEX: u16 = tss::DOUBLE_FAULT_IST_INDEX;
 
 static GDT: Once<(GlobalDescriptorTable, Selectors)> = Once::new();
 
+fn halt_on_missing_gdt(which: &'static str) -> ! {
+    crate::audit::log(crate::audit::AuditEventKind::Fault, which);
+    crate::warn!("GDT not initialized");
+    x86_64::instructions::interrupts::disable();
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
+
 /// GDTセレクタ
 #[allow(unused)]
 struct Selectors {
@@ -32,12 +41,15 @@ struct Selectors {
 /// カーネルのコードセグメントセレクタを取得 (GDT初期化に内部使用)
 pub fn init() {
     info!("Initializing GDT...");
+    crate::debug!("About to init TSS");
 
     // TSSを初期化
     let tss = tss::init();
+    crate::debug!("TSS initialized");
 
     // GDTを初期化
     let (gdt, selectors) = GDT.call_once(|| {
+        crate::debug!("Creating GDT table");
         let mut gdt = GlobalDescriptorTable::new();
         let code_selector = gdt.append(Descriptor::kernel_code_segment());
         let data_selector = gdt.append(Descriptor::kernel_data_segment());
@@ -63,20 +75,30 @@ pub fn init() {
             },
         )
     });
+    crate::debug!("GDT created");
 
     unsafe {
         // GDTをロード
+        crate::debug!("Loading GDT");
         gdt.load();
+        crate::debug!("GDT loaded");
 
-        // Boot Services終了後はカーネルのセグメントに切り替え
+        // Boot services終了後はカーネルのセグメントに切り替え
+        crate::debug!("Setting CS");
         set_cs(selectors.code_selector);
+        crate::debug!("CS set, setting data segments");
         set_data_segments(selectors.data_selector);
+        crate::debug!("Data segments set");
 
         // TSSをロード
+        crate::debug!("Loading TSS");
         load_tss(selectors.tss_selector);
+        crate::debug!("TSS loaded");
         // Ensure user data descriptor has D/B cleared for long mode (avoid GPF on iretq)
         // We modify the loaded GDT in-place: clear bit 54 (D/B) of the descriptor.
-        {
+        // ただし、SMAP有効環境ではこのメモリアクセスが違反になるため、スキップする。
+        if !crate::cpu::is_smap_enabled() {
+            crate::debug!("Modifying GDT descriptor for user data segment");
             let mut gdtr: [u8; 10] = [0; 10];
             asm!("sgdt [{}]", in(reg) &mut gdtr, options(nostack));
             let base = u64::from_le_bytes([
@@ -88,6 +110,9 @@ pub fn init() {
             // clear D/B bit (bit 54)
             let new = old & !(1u64 << 54);
             core::ptr::write_volatile(desc_ptr, new);
+            crate::debug!("GDT descriptor modified");
+        } else {
+            crate::debug!("Skipping GDT descriptor modification (SMAP enabled)");
         }
     }
 
@@ -98,44 +123,28 @@ pub fn init() {
 pub fn user_code_selector() -> u16 {
     GDT.get()
         .map(|g| g.1.user_code_selector.0)
-        .unwrap_or_else(|| {
-            crate::warn!("GDT not initialized");
-            loop {
-                x86_64::instructions::hlt();
-            }
-        })
+        .unwrap_or_else(|| halt_on_missing_gdt("gdt user_code_selector unavailable"))
 }
 
 /// ユーザーモード用データセレクタ（RPL=3）を返す
 pub fn user_data_selector() -> u16 {
     GDT.get()
         .map(|g| g.1.user_data_selector.0)
-        .unwrap_or_else(|| {
-            crate::warn!("GDT not initialized");
-            loop {
-                x86_64::instructions::hlt();
-            }
-        })
+        .unwrap_or_else(|| halt_on_missing_gdt("gdt user_data_selector unavailable"))
 }
 
 /// カーネル用コードセレクタを返す
 pub fn kernel_code_selector() -> u16 {
-    GDT.get().map(|g| g.1.code_selector.0).unwrap_or_else(|| {
-        crate::warn!("GDT not initialized");
-        loop {
-            x86_64::instructions::hlt();
-        }
-    })
+    GDT.get()
+        .map(|g| g.1.code_selector.0)
+        .unwrap_or_else(|| halt_on_missing_gdt("gdt kernel_code_selector unavailable"))
 }
 
 /// カーネル用データセレクタを返す
 pub fn kernel_data_selector() -> u16 {
-    GDT.get().map(|g| g.1.data_selector.0).unwrap_or_else(|| {
-        crate::warn!("GDT not initialized");
-        loop {
-            x86_64::instructions::hlt();
-        }
-    })
+    GDT.get()
+        .map(|g| g.1.data_selector.0)
+        .unwrap_or_else(|| halt_on_missing_gdt("gdt kernel_data_selector unavailable"))
 }
 
 #[allow(unused)]
@@ -148,13 +157,13 @@ pub fn kernel_data_selector() -> u16 {
 /// - 呼び出し前にGDTが正しく初期化されている必要がある
 unsafe fn set_data_segments(selector: SegmentSelector) {
     asm!(
-        "mov ds, {0:x}",
-        "mov es, {0:x}",
-        "mov fs, {0:x}",
-        "mov gs, {0:x}",
-        "mov ss, {0:x}",
-        in(reg) selector.0,
-        options(nostack, preserves_flags)
+    "mov ds, {0:x}",
+    "mov es, {0:x}",
+    "mov fs, {0:x}",
+    "mov gs, {0:x}",
+    "mov ss, {0:x}",
+    in(reg) selector.0,
+    options(nostack, preserves_flags)
     );
 }
 
@@ -165,13 +174,13 @@ unsafe fn set_data_segments(selector: SegmentSelector) {
 /// - `selector`: 設定するセグメントセレクタ
 unsafe fn set_cs(selector: SegmentSelector) {
     asm!(
-        "push {sel}",
-        "lea {tmp}, [rip + 2f]",
-        "push {tmp}",
-        "retfq",
-        "2:",
-        sel = in(reg) u64::from(selector.0),
-        tmp = lateout(reg) _,
-        options(preserves_flags)
+    "push {sel}",
+    "lea {tmp}, [rip + 2f]",
+    "push {tmp}",
+    "retfq",
+    "2:",
+    sel = in(reg) u64::from(selector.0),
+    tmp = lateout(reg) _,
+    options(preserves_flags)
     );
 }

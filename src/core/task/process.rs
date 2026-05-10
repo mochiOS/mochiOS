@@ -1,8 +1,11 @@
 use crate::interrupt::spinlock::SpinLock;
+use alloc::format;
+use alloc::string::String;
+use alloc::string::ToString;
 
+use super::fd_table::FdTable;
 use super::ids::{PrivilegeLevel, ProcessId, ProcessState};
 use super::signal::SignalState;
-use super::fd_table::FdTable;
 
 /// プロセス構造体
 ///
@@ -174,10 +177,18 @@ impl Process {
         self.heap_start = addr;
     }
 
-    pub fn stack_bottom(&self) -> u64 { self.stack_bottom }
-    pub fn stack_top(&self) -> u64 { self.stack_top }
-    pub fn set_stack_bottom(&mut self, addr: u64) { self.stack_bottom = addr; }
-    pub fn set_stack_top(&mut self, addr: u64) { self.stack_top = addr; }
+    pub fn stack_bottom(&self) -> u64 {
+        self.stack_bottom
+    }
+    pub fn stack_top(&self) -> u64 {
+        self.stack_top
+    }
+    pub fn set_stack_bottom(&mut self, addr: u64) {
+        self.stack_bottom = addr;
+    }
+    pub fn set_stack_top(&mut self, addr: u64) {
+        self.stack_top = addr;
+    }
 
     pub fn cwd(&self) -> &str {
         core::str::from_utf8(&self.cwd[..self.cwd_len]).unwrap_or("/")
@@ -222,7 +233,11 @@ impl Process {
 
     /// プロセスグループ ID を取得（0 は自身の PID を意味する）
     pub fn pgid(&self) -> u64 {
-        if self.pgid == 0 { self.id.as_u64() } else { self.pgid }
+        if self.pgid == 0 {
+            self.id.as_u64()
+        } else {
+            self.pgid
+        }
     }
 
     /// プロセスグループ ID を設定
@@ -232,7 +247,11 @@ impl Process {
 
     /// セッション ID を取得（0 は自身の PID を意味する）
     pub fn sid(&self) -> u64 {
-        if self.sid == 0 { self.id.as_u64() } else { self.sid }
+        if self.sid == 0 {
+            self.id.as_u64()
+        } else {
+            self.sid
+        }
     }
 
     /// セッション ID を設定
@@ -351,13 +370,91 @@ impl ProcessTable {
 
     /// 名前でプロセスを検索
     pub fn find_by_name(&self, name: &str) -> Option<&Process> {
-        // 名前比較（簡易実装: 完全一致のみ考慮）
-        // 注: Processの名前に .service などの拡張子を含む場合があるため
-        // ここでは前方一致などで緩和するのも手だが、厳密には完全一致で。
+        // 名前比較: まず完全一致を試し、それでも見つからない場合はいくつかの互換候補を試す。
+        // 目的: バイナリ名 (net.elf -> net) とクレート名 (netdrv) の食い違いに耐性を持たせる。
+        // マッチ順序:
+        // 1. 完全一致
+        // 2. stored_name without ".elf" == name
+        // 3. stored_name == name + ".elf"
+        // 4. stored_name == "/bin/drivers/" + name + ".elf"
+        // 5. stored_name contains name as substring (fallback)
+
+        // 1) 完全一致
+        if let Some(p) = self
+            .processes
+            .iter()
+            .filter_map(|s| s.as_ref())
+            .find(|p| p.name() == name)
+        {
+            return Some(p);
+        }
+
+        // 2) stored without .elf
+        if let Some(p) = self.processes.iter().filter_map(|s| s.as_ref()).find(|p| {
+            p.name()
+                .strip_suffix(".elf")
+                .map(|s| s == name)
+                .unwrap_or(false)
+        }) {
+            return Some(p);
+        }
+
+        // 3) stored == name + .elf
+        let mut name_elf = String::new();
+        name_elf.push_str(name);
+        name_elf.push_str(".elf");
+        if let Some(p) = self
+            .processes
+            .iter()
+            .filter_map(|s| s.as_ref())
+            .find(|p| p.name() == name_elf)
+        {
+            return Some(p);
+        }
+
+        // 4) drivers path variant
+        let mut drivers_path = String::from("/bin/drivers/");
+        drivers_path.push_str(name);
+        drivers_path.push_str(".elf");
+        if let Some(p) = self
+            .processes
+            .iter()
+            .filter_map(|s| s.as_ref())
+            .find(|p| p.name() == drivers_path)
+        {
+            return Some(p);
+        }
+
+        // 5) Try drv -> base mapping (e.g., netdrv -> net)
+        if name.ends_with("drv") && name.len() > 3 {
+            let base = &name[..name.len() - 3];
+            // try base, base.elf, drivers path
+            if let Some(p) = self
+                .processes
+                .iter()
+                .filter_map(|s| s.as_ref())
+                .find(|p| p.name() == base || p.name() == format!("{}.elf", base))
+            {
+                return Some(p);
+            }
+            let mut drivers_path = String::from("/bin/drivers/");
+            drivers_path.push_str(base);
+            drivers_path.push_str(".elf");
+            if let Some(p) = self
+                .processes
+                .iter()
+                .filter_map(|s| s.as_ref())
+                .find(|p| p.name() == drivers_path)
+            {
+                return Some(p);
+            }
+        }
+
+        // 6) fallback: substring match
         self.processes
             .iter()
-            .filter_map(|slot| slot.as_ref())
-            .find(|p| p.name() == name)
+            .filter_map(|s| s.as_ref())
+            .find(|p| p.name().contains(name))
     }
 
     fn is_child_match(process: &Process, parent: ProcessId, target: Option<ProcessId>) -> bool {

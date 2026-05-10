@@ -1,5 +1,4 @@
 extern crate alloc;
-use crate::result::{Kernel, Process};
 use alloc::vec::Vec;
 use core::convert::TryInto;
 

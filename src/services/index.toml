@@ -4,34 +4,27 @@
 # [service.サービス名]
 # description = サービスの説明
 # dir = サービスのディレクトリ
-# fs_type = サービスをどのファイルシステムに配置するか（initfs または ext2）
-# autostart = カーネル起動時に自動起動するか（core.serviceのみtrue、他はfalse）
+# fs = サービスをどのファイルシステムに配置するか（initfs または ata）
+# autostart = カーネル起動時に自動起動するか（initfsに含まれている奴は勝手に起動するやつだけにしようね）
 # order = 起動順序（数値が小さいほど先に起動、core.serviceが他を起動）
 
 [core.service]
 description = "Core service / system manager"
 dir = "core"
 fs = "initfs"
-autostart = true
+autostart = false
 order = 0
 
-[core.service.disk]
-description = "Disk I/O driver - ATA/IDE support"
-dir = "disk"
-fs = "initfs"
-autostart = false
+[core.service.driver]
+description = "Driver manager - launches hardware drivers"
+dir = "driver"
+fs = "ata"
+autostart = true
 order = 5
-
-[core.service.fs]
-description = "Filesystem manager - handles VFS, initfs, ext2"
-dir = "fs"
-fs = "initfs"
-autostart = false
-order = 10
 
 [core.service.shell]
 description = "Draw video output and shell interface"
 dir = "shell"
 fs = "ata"
 autostart = true
-order = 15
+order = 10

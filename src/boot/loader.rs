@@ -9,10 +9,12 @@ use core::ptr::addr_of_mut;
 use mochios::{BootInfo, MemoryRegion, MemoryType};
 use uefi::prelude::*;
 use uefi::proto::console::gop::GraphicsOutput;
-use uefi::proto::media::file::{File, FileAttribute, FileMode, FileInfo, FileType};
-use uefi::proto::media::fs::SimpleFileSystem;
 use uefi::proto::loaded_image::LoadedImage;
-use uefi::table::boot::{AllocateType, MemoryType as UefiMemType, OpenProtocolAttributes, OpenProtocolParams};
+use uefi::proto::media::file::{File, FileAttribute, FileInfo, FileMode, FileType};
+use uefi::proto::media::fs::SimpleFileSystem;
+use uefi::table::boot::{
+    AllocateType, MemoryType as UefiMemType, OpenProtocolAttributes, OpenProtocolParams,
+};
 
 /// VGA フレームバッファへ書き出す print マクロ
 macro_rules! vga_print {
@@ -104,55 +106,36 @@ const DT_NULL: i64 = 0;
 const DT_RELA: i64 = 7;
 const DT_RELASZ: i64 = 8;
 const DT_RELAENT: i64 = 9;
+const READ_CHUNK_BYTES: usize = 64 * 1024;
 
-/// `\System\initfs.img` を読み込んで物理アドレスとサイズを返す
+#[inline]
+fn tick_booting_gif() {}
+
+/// `\system\initfs.img` を読み込んで物理アドレスとサイズを返す
 unsafe fn load_initfs(bt: &BootServices, image_handle: Handle) -> (u64, usize) {
-    let initfs_path = cstr16!(r"\System\initfs.img");
+    let initfs_path = cstr16!(r"\system\initfs.img");
 
     // LoadedImage デバイスを優先
-    let handles: alloc::vec::Vec<Handle> = if let Ok(li) = bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
-        if let Some(dev) = li.device() {
-            drop(li);
-            alloc::vec![dev]
+    let handles: alloc::vec::Vec<Handle> =
+        if let Ok(li) = bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
+            if let Some(dev) = li.device() {
+                drop(li);
+                alloc::vec![dev]
+            } else {
+                bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
+            }
         } else {
             bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
-        }
-    } else {
-        bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
-    };
+        };
 
     for handle in handles {
-        if let Some((addr, size)) = try_load_raw(bt, image_handle, handle, initfs_path) {
+        tick_booting_gif();
+        if let Some((addr, size)) = try_load_raw(bt, image_handle, handle, initfs_path, "initfs") {
             vga_println!("initfs loaded at {:#x} ({} bytes)", addr, size);
             return (addr, size);
         }
     }
     vga_println!("[WARN] initfs.img not found, initfs will be empty");
-    (0, 0)
-}
-
-/// `\System\rootfs.ext2` を読み込んで物理アドレスとサイズを返す
-unsafe fn load_rootfs(bt: &BootServices, image_handle: Handle) -> (u64, usize) {
-    let rootfs_path = cstr16!(r"\System\rootfs.ext2");
-
-    let handles: alloc::vec::Vec<Handle> = if let Ok(li) = bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
-        if let Some(dev) = li.device() {
-            drop(li);
-            alloc::vec![dev]
-        } else {
-            bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
-        }
-    } else {
-        bt.find_handles::<SimpleFileSystem>().unwrap_or_default()
-    };
-
-    for handle in handles {
-        if let Some((addr, size)) = try_load_raw(bt, image_handle, handle, rootfs_path) {
-            vga_println!("rootfs loaded at {:#x} ({} bytes)", addr, size);
-            return (addr, size);
-        }
-    }
-    vga_println!("[WARN] rootfs.ext2 not found");
     (0, 0)
 }
 
@@ -162,13 +145,22 @@ unsafe fn try_load_raw(
     agent: Handle,
     handle: Handle,
     path: &uefi::CStr16,
+    label: &str,
 ) -> Option<(u64, usize)> {
-    let mut sfs = bt.open_protocol::<SimpleFileSystem>(
-        OpenProtocolParams { handle, agent, controller: None },
-        OpenProtocolAttributes::GetProtocol,
-    ).ok()?;
+    let mut sfs = bt
+        .open_protocol::<SimpleFileSystem>(
+            OpenProtocolParams {
+                handle,
+                agent,
+                controller: None,
+            },
+            OpenProtocolAttributes::GetProtocol,
+        )
+        .ok()?;
     let mut root = sfs.open_volume().ok()?;
-    let fh = root.open(path, FileMode::Read, FileAttribute::empty()).ok()?;
+    let fh = root
+        .open(path, FileMode::Read, FileAttribute::empty())
+        .ok()?;
     let mut file = match fh.into_type().ok()? {
         FileType::Regular(f) => f,
         _ => return None,
@@ -176,15 +168,21 @@ unsafe fn try_load_raw(
     let mut info_buf = [0u8; 512];
     let info = file.get_info::<FileInfo>(&mut info_buf).ok()?;
     let size = info.file_size() as usize;
-    if size == 0 { return None; }
-    vga_println!("initfs size: {} bytes, reading...", size);
+    if size == 0 {
+        return None;
+    }
+    vga_println!("{} size: {} bytes, reading...", label, size);
     let pages = (size + 0xFFF) / 0x1000;
-    let addr = bt.allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages).ok()?;
+    let addr = bt
+        .allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages)
+        .ok()?;
     let buf = core::slice::from_raw_parts_mut(addr as *mut u8, size);
     // 大きなファイルは UEFI Read() の上限があるためチャンク単位で読む
     let mut read_total = 0usize;
     while read_total < size {
-        let chunk = &mut buf[read_total..];
+        tick_booting_gif();
+        let read_end = core::cmp::min(read_total + READ_CHUNK_BYTES, size);
+        let chunk = &mut buf[read_total..read_end];
         match file.read(chunk) {
             Ok(0) => break, // EOF
             Ok(n) => read_total += n,
@@ -192,14 +190,16 @@ unsafe fn try_load_raw(
         }
     }
     if read_total != size {
-        vga_println!("[WARN] initfs: read {} / {} bytes", read_total, size);
+        vga_println!("[WARN] {}: read {} / {} bytes", label, read_total, size);
+        return None;
     }
+    tick_booting_gif();
     Some((addr, size))
 }
 
-/// `\System\kernel.elf` を読み込み、PT_LOAD セグメントを物理アドレスに展開してエントリアドレスを返す
+/// `\system\kernel.elf` を読み込み、PT_LOAD セグメントを物理アドレスに展開してエントリアドレスを返す
 unsafe fn load_kernel(bt: &BootServices, image_handle: Handle) -> Option<u64> {
-    let kernel_path = cstr16!(r"\System\kernel.elf");
+    let kernel_path = cstr16!(r"\system\kernel.elf");
 
     // LoadedImage からブートローダー自身のデバイスハンドルを取得して優先的に試みる
     match bt.open_protocol_exclusive::<LoadedImage>(image_handle) {
@@ -208,6 +208,7 @@ unsafe fn load_kernel(bt: &BootServices, image_handle: Handle) -> Option<u64> {
             None => vga_println!("LoadedImage.device() = None"),
             Some(dev) => {
                 drop(loaded_image);
+                tick_booting_gif();
                 if let Some(entry) = try_load_from(bt, image_handle, dev, kernel_path) {
                     return Some(entry);
                 }
@@ -225,6 +226,7 @@ unsafe fn load_kernel(bt: &BootServices, image_handle: Handle) -> Option<u64> {
         Ok(sfs_handles) => {
             vga_println!("SFS handle count: {}", sfs_handles.len());
             for handle in sfs_handles {
+                tick_booting_gif();
                 if let Some(entry) = try_load_from(bt, image_handle, handle, kernel_path) {
                     return Some(entry);
                 }
@@ -244,7 +246,11 @@ unsafe fn try_load_from(
 ) -> Option<u64> {
     // GetProtocol で非排他的に開く（ファームウェアが既に開いていても失敗しない）
     let mut sfs = match bt.open_protocol::<SimpleFileSystem>(
-        OpenProtocolParams { handle, agent, controller: None },
+        OpenProtocolParams {
+            handle,
+            agent,
+            controller: None,
+        },
         OpenProtocolAttributes::GetProtocol,
     ) {
         Ok(s) => s,
@@ -306,7 +312,11 @@ unsafe fn try_load_from(
     // ELF マジック / クラス / アーキテクチャを検証
     let hdr = &*(hdr_buf.as_ptr() as *const Elf64Header);
     if &hdr.e_ident[0..4] != b"\x7fELF" || hdr.e_ident[4] != 2 || hdr.e_machine != 0x3E {
-        vga_println!("ELF check failed: ident={:?} machine={:#x}", &hdr.e_ident[0..4], hdr.e_machine);
+        vga_println!(
+            "ELF check failed: ident={:?} machine={:#x}",
+            &hdr.e_ident[0..4],
+            hdr.e_machine
+        );
         return None;
     }
 
@@ -334,8 +344,17 @@ unsafe fn try_load_from(
     // カーネルページをフルバッファより先に確保することで、
     // 後の AnyPages 確保が同アドレスに重ならないようにする
     let kernel_pages = ((load_max - load_min) as usize) / 0x1000;
-    vga_println!("kernel range {:#x}..{:#x} ({} pages)", load_min, load_max, kernel_pages);
-    match bt.allocate_pages(AllocateType::Address(load_min), UefiMemType::LOADER_DATA, kernel_pages) {
+    vga_println!(
+        "kernel range {:#x}..{:#x} ({} pages)",
+        load_min,
+        load_max,
+        kernel_pages
+    );
+    match bt.allocate_pages(
+        AllocateType::Address(load_min),
+        UefiMemType::LOADER_DATA,
+        kernel_pages,
+    ) {
         Ok(_) => {}
         Err(e) => {
             vga_println!("allocate_pages kernel failed: {:?}", e.status());
@@ -349,7 +368,9 @@ unsafe fn try_load_from(
                     {
                         vga_println!(
                             "  [{:#010x}..{:#010x}] type={:?}",
-                            desc.phys_start, end, desc.ty
+                            desc.phys_start,
+                            end,
+                            desc.ty
                         );
                     }
                 }
@@ -367,7 +388,8 @@ unsafe fn try_load_from(
         return None;
     }
     let pages = (file_size + 0xFFF) / 0x1000;
-    let buf_phys = match bt.allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages) {
+    let buf_phys = match bt.allocate_pages(AllocateType::AnyPages, UefiMemType::LOADER_DATA, pages)
+    {
         Ok(p) => p,
         Err(e) => {
             vga_println!("allocate_pages (buf) failed: {:?}", e.status());
@@ -375,13 +397,30 @@ unsafe fn try_load_from(
         }
     };
     let buf = core::slice::from_raw_parts_mut(buf_phys as *mut u8, file_size);
-    match file.read(buf) {
-        Ok(n) => vga_println!("read {} / {} bytes", n, file_size),
-        Err(e) => {
-            vga_println!("file read failed: {:?}", e.status());
-            return None;
+    let mut read_total = 0usize;
+    while read_total < file_size {
+        tick_booting_gif();
+        let read_end = core::cmp::min(read_total + READ_CHUNK_BYTES, file_size);
+        let chunk = &mut buf[read_total..read_end];
+        match file.read(chunk) {
+            Ok(0) => break,
+            Ok(n) => read_total += n,
+            Err(e) => {
+                vga_println!("file read failed: {:?}", e.status());
+                return None;
+            }
         }
     }
+    vga_println!("read {} / {} bytes", read_total, file_size);
+    if read_total != file_size {
+        vga_println!(
+            "[WARN] kernel.elf: read {} / {} bytes",
+            read_total,
+            file_size
+        );
+        return None;
+    }
+    tick_booting_gif();
 
     // 以降のコピー・再配置処理は buf を参照するため、hdr を buf から再取得する
     let hdr = &*(buf.as_ptr() as *const Elf64Header);
@@ -389,12 +428,43 @@ unsafe fn try_load_from(
     // 各 PT_LOAD セグメントのデータをコピー
     for i in 0..hdr.e_phnum as usize {
         let phdr_offset = hdr.e_phoff as usize + i * hdr.e_phentsize as usize;
+        if phdr_offset + size_of::<Elf64Phdr>() > buf.len() {
+            vga_println!("phdr OOB: offset={:#x}", phdr_offset);
+            return None;
+        }
         let phdr = &*(buf.as_ptr().add(phdr_offset) as *const Elf64Phdr);
         if phdr.p_type != PT_LOAD || phdr.p_filesz == 0 {
             continue;
         }
+        if phdr.p_filesz > phdr.p_memsz {
+            vga_println!("segment filesz>memsz: idx={}", i);
+            return None;
+        }
+        let dst_end = match phdr.p_paddr.checked_add(phdr.p_memsz) {
+            Some(v) => v,
+            None => {
+                vga_println!("segment paddr overflow: idx={}", i);
+                return None;
+            }
+        };
+        if phdr.p_paddr < load_min || dst_end > load_max {
+            vga_println!("segment outside load range: idx={}", i);
+            return None;
+        }
+        let src_start = phdr.p_offset as usize;
+        let src_end = match src_start.checked_add(phdr.p_filesz as usize) {
+            Some(v) => v,
+            None => {
+                vga_println!("segment offset overflow: idx={}", i);
+                return None;
+            }
+        };
+        if src_end > buf.len() {
+            vga_println!("segment exceeds file: idx={} end={:#x}", i, src_end);
+            return None;
+        }
         let dst = core::slice::from_raw_parts_mut(phdr.p_paddr as *mut u8, phdr.p_filesz as usize);
-        let src = &buf[phdr.p_offset as usize..phdr.p_offset as usize + phdr.p_filesz as usize];
+        let src = &buf[src_start..src_end];
         dst.copy_from_slice(src);
     }
 
@@ -446,7 +516,7 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
     }
 
     // ── GOP フレームバッファを最初に取得してコンソールを初期化 ──────────────
-    let (fb_addr, fb_size, screen_w, screen_h, stride) = {
+    let (_fb_ptr, fb_addr, fb_size, screen_w, screen_h, stride) = {
         let gop_handle = match system_table
             .boot_services()
             .get_handle_for_protocol::<GraphicsOutput>()
@@ -463,16 +533,17 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         };
         let mode_info = gop.current_mode_info();
         let mut fb = gop.frame_buffer();
-        let fb_ptr  = fb.as_mut_ptr() as *mut u32;
-        let fb_sz   = fb.size();
-        let (w, h)  = mode_info.resolution();
-        let st      = mode_info.stride();
+        let fb_ptr = fb.as_mut_ptr() as *mut u32;
+        let fb_sz = fb.size();
+        let (w, h) = mode_info.resolution();
+        let st = mode_info.stride();
         vga_console::CONSOLE.lock().init(fb_ptr, w, h, st);
-        (fb_ptr as u64, fb_sz, w, h, st)
+        (fb_ptr, fb_ptr as u64, fb_sz, w, h, st)
     };
 
     vga_println!("mochiOS bootloader");
     vga_println!("Framebuffer: {}x{} stride={}", screen_w, screen_h, stride);
+    // booting.gif disabled; proceed without animation
 
     // カーネルをロード (boot_services の借用をスコープで切る)
     let kernel_entry_addr = {
@@ -493,13 +564,11 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         unsafe { load_initfs(bt, image_handle) }
     };
 
-    // rootfs を ESP から読み込む
-    let (rootfs_addr, rootfs_size) = {
-        let bt = system_table.boot_services();
-        unsafe { load_rootfs(bt, image_handle) }
-    };
+    // rootfs は起動後にFS層がマウントして利用するため、
+    // ブートローダーではプリロードしない（起動時間短縮）
+    let (rootfs_addr, rootfs_size) = (0u64, 0usize);
 
-    // Boot Services を終了してメモリマップを取得
+    // Boot services を終了してメモリマップを取得
     let (_system_table, memory_map_iter) =
         unsafe { system_table.exit_boot_services(UefiMemType::LOADER_DATA) };
 
@@ -548,9 +617,8 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         BOOT_INFO.rootfs_size = rootfs_size;
     }
 
-    // カーネルへジャンプ (System V AMD64 ABI)
+    // カーネルへジャンプ (system V AMD64 ABI)
     let kernel_entry: unsafe extern "sysv64" fn(*mut BootInfo) -> ! =
         core::mem::transmute(kernel_entry_addr);
     unsafe { kernel_entry(addr_of_mut!(BOOT_INFO)) }
 }
-

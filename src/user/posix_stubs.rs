@@ -3,10 +3,20 @@
 //! Rust std (build-std) がリンク時に要求する C ライブラリ関数を実装する。
 //! 各関数は最小限の実装か、成功を返すスタブ。
 
-use crate::sys::{syscall1, syscall2, syscall6, SyscallNumber};
+use crate::sys::{syscall1, syscall2, syscall3, syscall4, syscall6, SyscallNumber};
 
 // errno
 static mut ERRNO_VAL: i32 = 0;
+
+#[inline]
+unsafe fn set_errno(errno: i32) {
+    ERRNO_VAL = errno;
+}
+
+#[inline]
+unsafe fn errno_from_neg_ret(ret: i64) -> i32 {
+    (-ret) as i32
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn __errno_location() -> *mut i32 {
@@ -76,6 +86,13 @@ static mut TLS_VALUES: [*mut u8; MAX_TLS_KEYS] = [core::ptr::null_mut(); MAX_TLS
 static mut TLS_DESTRUCTORS: [Option<unsafe extern "C" fn(*mut u8)>; MAX_TLS_KEYS] =
     [None; MAX_TLS_KEYS];
 static mut TLS_NEXT_KEY: usize = 1; // 0 は無効なキー
+
+#[unsafe(no_mangle)]
+// Provide minimal stubs to satisfy libstd linking on custom target (no real pthread support)
+// sched_yield is required by std::sys::thread::unix::yield_now
+pub extern "C" fn sched_yield() -> i32 {
+    0
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_self() -> u64 {
@@ -209,8 +226,19 @@ pub unsafe extern "C" fn pause() -> i32 {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fcntl(_fd: i32, _cmd: i32, _arg: i64) -> i32 {
-    0
+pub unsafe extern "C" fn fcntl(fd: i32, cmd: i32, arg: i64) -> i32 {
+    let ret = syscall3(
+        SyscallNumber::Fcntl as u64,
+        fd as u64,
+        cmd as u64,
+        arg as u64,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -327,7 +355,8 @@ pub unsafe extern "C" fn posix_spawn(
     _envp: *const *const u8,
 ) -> i32 {
     // カーネルの Exec syscall (516) を使って新しいプロセスを生成する
-    let ret = syscall1(SyscallNumber::Exec as u64, path as u64);
+    // 第2引数(args_ptr)は未使用でも0を明示してABIを安定化させる
+    let ret = syscall2(SyscallNumber::Exec as u64, path as u64, 0);
     let ret_i64 = ret as i64;
     if ret_i64 < 0 {
         return (-ret_i64) as i32; // posix_spawn は正のerror numberを返す
@@ -407,10 +436,36 @@ pub unsafe extern "C" fn execvp(_file: *const u8, _argv: *const *const u8) -> i3
 pub unsafe extern "C" fn waitid(_which: i32, _id: u32, _infop: *mut u8, _options: i32) -> i32 { -1 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn poll(_fds: *mut u8, _nfds: u64, _timeout: i32) -> i32 { 0 }
+pub unsafe extern "C" fn poll(fds: *mut u8, nfds: u64, timeout: i32) -> i32 {
+    let ret = syscall3(
+        SyscallNumber::Poll as u64,
+        fds as u64,
+        nfds,
+        timeout as u64,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ioctl(_fd: i32, _request: u64, _arg: u64) -> i32 { -1 }
+pub unsafe extern "C" fn ioctl(fd: i32, request: u64, arg: u64) -> i32 {
+    let ret = syscall3(
+        SyscallNumber::Ioctl as u64,
+        fd as u64,
+        request,
+        arg,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn posix_spawn_file_actions_destroy(_actions: *mut u8) -> i32 { 0 }
@@ -427,12 +482,20 @@ pub unsafe extern "C" fn posix_spawnattr_destroy(_attr: *mut u8) -> i32 { 0 }
 pub unsafe extern "C" fn posix_memalign(
     memptr: *mut *mut u8, alignment: usize, size: usize,
 ) -> i32 {
-    extern "C" { fn malloc(size: usize) -> *mut u8; }
-    let ptr = malloc(size + alignment);
-    if ptr.is_null() { return 12; } // ENOMEM
-    let addr = ptr as usize;
-    let aligned = (addr + alignment - 1) & !(alignment - 1);
-    *memptr = aligned as *mut u8;
+    // POSIX: alignment は 2 のべき乗かつ sizeof(void*) の倍数である必要がある。
+    if memptr.is_null()
+        || alignment == 0
+        || !alignment.is_power_of_two()
+        || (alignment % core::mem::size_of::<*mut u8>()) != 0
+    {
+        return 22; // EINVAL
+    }
+
+    let ptr = crate::libc::memalign(alignment, size);
+    if ptr.is_null() {
+        return 12; // ENOMEM
+    }
+    *memptr = ptr;
     0
 }
 
@@ -455,7 +518,79 @@ pub unsafe extern "C" fn clock_gettime(_clk_id: i32, tp: *mut u8) -> i32 {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn open(path: *const u8, flags: i32, _mode: u32) -> i32 {
     let ret = syscall2(SyscallNumber::Open as u64, path as u64, flags as u64);
-    if (ret as i64) < 0 { -1 } else { ret as i32 }
+    let ret_i64 = ret as i64;
+    if ret_i64 < 0 {
+        set_errno(errno_from_neg_ret(ret_i64));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn open64(path: *const u8, flags: i32, mode: u32) -> i32 {
+    open(path, flags, mode)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __libc_open64(path: *const u8, flags: i32, mode: u32) -> i32 {
+    open(path, flags, mode)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn openat(dirfd: i32, path: *const u8, flags: i32, mode: u32) -> i32 {
+    const SYS_OPENAT: u64 = 257;
+    let ret = syscall4(
+        SYS_OPENAT,
+        dirfd as i64 as u64,
+        path as u64,
+        flags as u64,
+        mode as u64,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn openat64(dirfd: i32, path: *const u8, flags: i32, mode: u32) -> i32 {
+    openat(dirfd, path, flags, mode)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fstat64(fd: i32, stat: *mut u8) -> i32 {
+    let ret = syscall2(SyscallNumber::Fstat as u64, fd as u64, stat as u64) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn stat64(path: *const u8, stat: *mut u8) -> i32 {
+    let ret = syscall2(SyscallNumber::Stat as u64, path as u64, stat as u64) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn lstat64(path: *const u8, stat: *mut u8) -> i32 {
+    let ret = syscall2(SyscallNumber::Lstat as u64, path as u64, stat as u64) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
 }
 
 /// `iovec` structure for writev

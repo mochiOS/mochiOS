@@ -7,11 +7,11 @@ use super::ids::{ProcessId, ThreadId, ThreadState};
 /// スレッド終了時に呼ばれるハンドラ
 /// この関数から戻ることはない
 extern "C" fn thread_exit_handler() -> ! {
-    // スレッドが終了した場合の処理
-    // 通常はここに到達することはない
-    loop {
-        x86_64::instructions::hlt();
-    }
+    crate::audit::log(
+        crate::audit::AuditEventKind::Fault,
+        "thread returned into thread_exit_handler",
+    );
+    crate::task::exit_current_task(0)
 }
 
 /// スレッド構造体
@@ -60,7 +60,7 @@ pub struct Thread {
 }
 
 // Simple kernel stack pool for creating kernel stacks for threads
-const KSTACK_POOL_SIZE: usize = 4096 * 64; // 256 KiB（最大約12スレッド分、フリーリストで再利用）
+const KSTACK_POOL_SIZE: usize = 4096 * 512; // 2 MiB（128KB/スレッドで約15スレッド分、フリーリストで再利用）
 const KSTACK_PAGE_BYTES: usize = 4096;
 const KSTACK_GUARD_BYTES: usize = KSTACK_PAGE_BYTES;
 
@@ -87,23 +87,64 @@ fn unmap_guard_page(guard_addr: u64) -> bool {
     let mut page_table_lock = crate::mem::paging::PAGE_TABLE.lock();
     let page_table = match page_table_lock.as_mut() {
         Some(pt) => pt,
-        None => return false,
+        None => {
+            crate::debug!(
+                "unmap_guard_page: PAGE_TABLE not initialized at {:#x}",
+                guard_addr
+            );
+            return false;
+        }
     };
 
     match page_table.translate_page(page) {
-        Ok(_) => {}
-        Err(TranslateError::PageNotMapped) => return true,
-        Err(_) => return false,
+        Ok(_) => {
+            crate::debug!(
+                "unmap_guard_page: page mapped at {:#x}, attempting unmap",
+                guard_addr
+            );
+        }
+        Err(TranslateError::PageNotMapped) => {
+            crate::debug!(
+                "unmap_guard_page: page not mapped at {:#x}, returning true",
+                guard_addr
+            );
+            return true;
+        }
+        Err(TranslateError::ParentEntryHugePage) => {
+            // Huge page region - can't unmap individual 4KB pages within huge pages
+            // This is expected for bootloader-mapped regions. Skip guard page unmapping.
+            crate::debug!(
+                "unmap_guard_page: page in huge page region at {:#x}, skipping unmap",
+                guard_addr
+            );
+            return true;
+        }
+        Err(e) => {
+            crate::debug!(
+                "unmap_guard_page: translate error at {:#x}: {:?}",
+                guard_addr,
+                e
+            );
+            return false;
+        }
     }
 
     unsafe {
-        page_table
-            .unmap(page)
-            .map(|(_frame, flush)| {
+        match page_table.unmap(page) {
+            Ok((_frame, flush)) => {
                 flush.flush();
+                crate::debug!("unmap_guard_page: successfully unmapped {:#x}", guard_addr);
                 true
-            })
-            .unwrap_or(false)
+            }
+            Err(e) => {
+                crate::debug!(
+                    "unmap_guard_page: unmap error at {:#x}: {:?}",
+                    guard_addr,
+                    e
+                );
+                false
+            }
+        }
     }
 }
 
@@ -126,6 +167,10 @@ pub fn allocate_kernel_stack(size: usize) -> Option<u64> {
             if *slot != 0 {
                 let guard_addr = *slot;
                 *slot = 0;
+                crate::debug!(
+                    "allocate_kernel_stack: reused from free list at {:#x}",
+                    guard_addr
+                );
                 return guard_addr.checked_add(KSTACK_GUARD_BYTES as u64);
             }
         }
@@ -135,6 +180,11 @@ pub fn allocate_kernel_stack(size: usize) -> Option<u64> {
     let alloc_size = size_pages.checked_add(KSTACK_GUARD_BYTES)?;
     let off = NEXT_KSTACK_OFFSET.fetch_add(alloc_size, core::sync::atomic::Ordering::SeqCst);
     if off + alloc_size > KSTACK_POOL_SIZE {
+        crate::debug!(
+            "allocate_kernel_stack: pool exhausted, need {}, have {}",
+            off + alloc_size,
+            KSTACK_POOL_SIZE
+        );
         return None;
     }
 
@@ -143,10 +193,22 @@ pub fn allocate_kernel_stack(size: usize) -> Option<u64> {
         pool.0.as_ptr() as u64
     };
     let guard_addr = pool_base.checked_add(off as u64)?;
+    crate::debug!(
+        "allocate_kernel_stack: allocated from pool at {:#x}, calling unmap_guard_page",
+        guard_addr
+    );
     if !unmap_guard_page(guard_addr) {
+        crate::debug!(
+            "allocate_kernel_stack: unmap_guard_page failed at {:#x}",
+            guard_addr
+        );
         return None;
     }
 
+    crate::debug!(
+        "allocate_kernel_stack: returning stack top {:#x}",
+        guard_addr + KSTACK_GUARD_BYTES as u64
+    );
     guard_addr.checked_add(KSTACK_GUARD_BYTES as u64)
 }
 
@@ -290,9 +352,11 @@ impl Thread {
                 Some(t) => t,
                 None => {
                     crate::warn!("usermode_entry_trampoline: No current thread");
-                    loop {
-                        x86_64::instructions::hlt();
-                    }
+                    crate::audit::log(
+                        crate::audit::AuditEventKind::Fault,
+                        "usermode_entry_trampoline without current thread",
+                    );
+                    crate::task::exit_current_task(crate::syscall::EINVAL);
                 }
             };
             let (entry, stack) =
@@ -300,9 +364,11 @@ impl Thread {
                     Some(v) => v,
                     None => {
                         crate::warn!("usermode_entry_trampoline: Thread not found");
-                        loop {
-                            x86_64::instructions::hlt();
-                        }
+                        crate::audit::log(
+                            crate::audit::AuditEventKind::Fault,
+                            "usermode_entry_trampoline missing thread metadata",
+                        );
+                        crate::task::exit_current_task(crate::syscall::EINVAL);
                     }
                 };
 
@@ -404,9 +470,11 @@ impl Thread {
                 Some(t) => t,
                 None => {
                     crate::warn!("fork_child_trampoline: No current thread");
-                    loop {
-                        x86_64::instructions::hlt();
-                    }
+                    crate::audit::log(
+                        crate::audit::AuditEventKind::Fault,
+                        "fork_child_trampoline without current thread",
+                    );
+                    crate::task::exit_current_task(crate::syscall::EINVAL);
                 }
             };
             let (entry, stack, rflags, fs) = match with_thread(tid, |thread| {
@@ -420,9 +488,11 @@ impl Thread {
                 Some(v) => v,
                 None => {
                     crate::warn!("fork_child_trampoline: Thread not found");
-                    loop {
-                        x86_64::instructions::hlt();
-                    }
+                    crate::audit::log(
+                        crate::audit::AuditEventKind::Fault,
+                        "fork_child_trampoline missing thread metadata",
+                    );
+                    crate::task::exit_current_task(crate::syscall::EINVAL);
                 }
             };
             unsafe {
@@ -561,6 +631,10 @@ impl Thread {
     }
 
     pub fn is_kernel_stack_guard_intact(&self) -> bool {
+        use x86_64::structures::paging::mapper::TranslateError;
+        use x86_64::structures::paging::Mapper;
+        use x86_64::structures::paging::{Page, Size4KiB};
+
         let (pool_start, pool_end) = {
             let pool = KSTACK_POOL.lock();
             let start = pool.0.as_ptr() as u64;
@@ -577,7 +651,19 @@ impl Thread {
             return true;
         }
         let guard_start = self.kernel_stack - KSTACK_GUARD_BYTES as u64;
-        crate::mem::paging::translate_addr(VirtAddr::new(guard_start)).is_none()
+        let guard_page = Page::<Size4KiB>::containing_address(VirtAddr::new(guard_start));
+        let mut page_table_lock = crate::mem::paging::PAGE_TABLE.lock();
+        let Some(page_table) = page_table_lock.as_mut() else {
+            return true;
+        };
+        match page_table.translate_page(guard_page) {
+            Ok(_) => false,
+            Err(TranslateError::PageNotMapped) => true,
+            // 現状の early kernel 領域は bootloader の huge page に載ることがある。
+            // その場合は 4KiB guard を作れていないので、破損として扱わない。
+            Err(TranslateError::ParentEntryHugePage) => true,
+            Err(_) => false,
+        }
     }
 
     /// カーネルスタックのベースアドレス（フリーリスト返却用）
@@ -901,4 +987,9 @@ pub fn set_current_thread(id: Option<ThreadId>) {
     x86_64::instructions::interrupts::without_interrupts(|| {
         crate::percpu::set_current_thread_raw_id(raw);
     });
+}
+
+/// スレッドIDからプロセスIDを取得
+pub fn thread_to_process_id(thread_id: u64) -> Option<ProcessId> {
+    with_thread(ThreadId::from_u64(thread_id), |t| t.process_id())
 }

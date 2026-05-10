@@ -1,6 +1,6 @@
 [package]
 name = "mochiOS"
-version = "0.0.1-dev.1"
+version = "0.0.1-dev"
 edition = "2021"
 authors = ["tas0dev"]
 default-run = "boot"
@@ -22,6 +22,9 @@ bench = false
 [features]
 default = ["uefi-dep"]
 uefi-dep = ["dep:uefi"]
+kcfi = []
+cet-ibt = []
+cet-shadow-stack = []
 
 [dependencies]
 uefi = { version = "0.30", features = ["alloc", "logger", "global_allocator"], optional = true }

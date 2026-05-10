@@ -1,6 +1,7 @@
 //! I/O関連のシステムコール
 
 use super::types::{EBADF, EFAULT, EINVAL, SUCCESS};
+use crate::syscall::types;
 use crate::util::console;
 use crate::{debug, error, info, warn};
 
@@ -12,11 +13,11 @@ const IOVEC_SIZE: u64 = 16;
 const IOV_MAX: u64 = 1024;
 
 #[inline]
-fn is_current_process_busybox() -> bool {
-    crate::task::current_thread_id()
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .and_then(|pid| crate::task::with_process(pid, |p| p.name().ends_with("busybox.elf")))
-        .unwrap_or(false)
+fn is_tty_path(path: Option<&str>) -> bool {
+    match path {
+        Some(p) => crate::syscall::fs::is_tty_like_path(p),
+        None => false,
+    }
 }
 
 /// 現在のプロセスの親プロセスのメインスレッドIDを返す
@@ -75,34 +76,23 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
         }
     });
 
+    // TTY 出力を追跡し、必要な端末応答(DSR/DAなど)を stdin 側へ注入する
+    crate::syscall::tty::process_output(&buf);
+
     // 親プロセス（シェル）が存在すればIPCで転送して描画させる
-    let mut sent_chunks: usize = 0;
-    let mut failed_chunks: usize = 0;
+    // 対話アプリ(vim等)では描画欠落が致命的なので、キューが空くまで待って必ず送る。
     let parent_tid = get_parent_thread_id();
     if let Some(parent_tid) = parent_tid {
         const CHUNK: usize = 512;
         let mut offset = 0;
         while offset < buf.len() {
             let end = core::cmp::min(offset + CHUNK, buf.len());
-            if crate::syscall::ipc::send_from_kernel(parent_tid, &buf[offset..end]) {
-                sent_chunks += 1;
-            } else {
-                failed_chunks += 1;
+            while !crate::syscall::ipc::send_from_kernel(parent_tid, &buf[offset..end]) {
+                crate::task::yield_now();
             }
             offset = end;
         }
     }
-    if is_current_process_busybox() && (fd == STDOUT_FD || fd == STDERR_FD) {
-        info!(
-            "busybox write: fd={}, len={}, parent_tid={:?}, sent_chunks={}, failed_chunks={}",
-            fd,
-            len,
-            parent_tid,
-            sent_chunks,
-            failed_chunks
-        );
-    }
-
     len
 }
 
@@ -141,7 +131,11 @@ pub fn writev(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
 
         let mut entry = [0u8; IOVEC_SIZE as usize];
         if let Err(err) = crate::syscall::copy_from_user(entry_ptr, &mut entry) {
-            return if total_written > 0 { total_written } else { err };
+            return if total_written > 0 {
+                total_written
+            } else {
+                err
+            };
         }
 
         let mut base_bytes = [0u8; 8];
@@ -181,22 +175,78 @@ pub fn writev(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
         }
     }
 
-    if is_current_process_busybox() {
-        info!(
-            "busybox writev: fd={}, iovcnt={}, total_written={}",
-            fd,
-            iovcnt,
-            total_written
-        );
-    }
     total_written
+}
+
+/// Readvシステムコール
+///
+/// iov 配列を順に処理し、内部的に `read` を呼び出す。
+pub fn readv(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
+    if iovcnt == 0 {
+        return SUCCESS;
+    }
+    if iov_ptr == 0 {
+        return EFAULT;
+    }
+    if iovcnt > IOV_MAX {
+        return EINVAL;
+    }
+
+    let table_bytes = match iovcnt.checked_mul(IOVEC_SIZE) {
+        Some(n) => n,
+        None => return EINVAL,
+    };
+    if !super::validate_user_ptr(iov_ptr, table_bytes) {
+        return EFAULT;
+    }
+
+    let mut total_read: u64 = 0;
+    for i in 0..iovcnt {
+        let off = match i.checked_mul(IOVEC_SIZE) {
+            Some(v) => v,
+            None => return EINVAL,
+        };
+        let entry_ptr = match iov_ptr.checked_add(off) {
+            Some(v) => v,
+            None => return EFAULT,
+        };
+
+        let mut entry = [0u8; IOVEC_SIZE as usize];
+        if let Err(err) = crate::syscall::copy_from_user(entry_ptr, &mut entry) {
+            return if total_read > 0 { total_read } else { err };
+        }
+
+        let mut base_bytes = [0u8; 8];
+        let mut len_bytes = [0u8; 8];
+        base_bytes.copy_from_slice(&entry[0..8]);
+        len_bytes.copy_from_slice(&entry[8..16]);
+        let base = u64::from_ne_bytes(base_bytes);
+        let len = u64::from_ne_bytes(len_bytes);
+
+        if len == 0 {
+            continue;
+        }
+        if base == 0 {
+            return if total_read > 0 { total_read } else { EFAULT };
+        }
+
+        let n = read(fd, base, len);
+        if (n as i64) < 0 {
+            return if total_read > 0 { total_read } else { n };
+        }
+        total_read = match total_read.checked_add(n) {
+            Some(v) => v,
+            None => return EINVAL,
+        };
+        if n < len {
+            break;
+        }
+    }
+    total_read
 }
 
 /// fd >= 3 への書き込み（パイプ書き込み端か通常ファイルへの書き込み）
 fn write_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
-    use crate::task::fd_table::FileHandle;
-    use super::types::{EPIPE, ENOSYS};
-
     let pid = match crate::task::current_thread_id()
         .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
     {
@@ -205,16 +255,21 @@ fn write_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     };
 
     let idx = fd as usize;
-    // パイプかどうか確認
-    let pipe_info = crate::task::with_process(pid, |p| {
-        p.fd_table().get_raw(idx).map(|ptr| {
-            let fh = unsafe { &*ptr };
-            (fh.pipe_id, fh.pipe_write)
+    // パイプ/TTY かどうか確認
+    let fd_info = crate::task::with_process(pid, |p| {
+        p.fd_table().get(idx).map(|fh| {
+            (
+                fh.pipe_id,
+                fh.pipe_write,
+                is_tty_path(fh.dir_path.as_deref()),
+            )
         })
-    }).flatten();
+    })
+    .flatten();
 
-    match pipe_info {
-        Some((Some(pipe_id), true)) => {
+    match fd_info {
+        Some((_, _, true)) => write(STDOUT_FD, buf_ptr, len),
+        Some((Some(pipe_id), true, false)) => {
             // パイプ書き込み端
             if !super::validate_user_ptr(buf_ptr, len) {
                 return EFAULT;
@@ -228,10 +283,8 @@ fn write_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
                 Err(e) => e,
             }
         }
-        Some((None, _)) | Some((Some(_), false)) => {
-            // 通常ファイル or 読み込み端への write: EBADF（書き込みサポートなし）
-            EBADF
-        }
+        Some((None, _, false)) => crate::syscall::fs::write(fd, buf_ptr, len),
+        Some((Some(_), false, false)) => EBADF,
         None => EBADF,
     }
 }
@@ -250,31 +303,7 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     }
 
     if fd == 0 {
-        if !super::validate_user_ptr(buf_ptr, len) {
-            return EFAULT;
-        }
-
-        // 少なくとも1バイト届くまでブロックする
-        let first = crate::syscall::keyboard::read_char_blocking();
-        crate::syscall::with_user_memory_access(|| unsafe {
-            (buf_ptr as *mut u8).write(first);
-        });
-
-        // バッファに残っているスキャンコードを len-1 バイトまで追加で読む（ノンブロッキング）
-        let mut read_count: u64 = 1;
-        while read_count < len {
-            match crate::util::ps2kbd::pop_scancode() {
-                Some(sc) => {
-                    crate::syscall::with_user_memory_access(|| unsafe {
-                        (buf_ptr as *mut u8).add(read_count as usize).write(sc);
-                    });
-                    read_count += 1;
-                }
-                None => break,
-            }
-        }
-
-        return read_count;
+        return crate::syscall::tty::read_stdin(buf_ptr, len);
     }
 
     if fd >= 3 {
@@ -295,15 +324,20 @@ fn read_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     };
 
     let idx = fd as usize;
-    let pipe_info = crate::task::with_process(pid, |p| {
-        p.fd_table().get_raw(idx).map(|ptr| {
-            let fh = unsafe { &*(ptr as *const crate::task::fd_table::FileHandle) };
-            (fh.pipe_id, fh.pipe_write)
+    let fd_info = crate::task::with_process(pid, |p| {
+        p.fd_table().get(idx).map(|fh| {
+            (
+                fh.pipe_id,
+                fh.pipe_write,
+                is_tty_path(fh.dir_path.as_deref()),
+            )
         })
-    }).flatten();
+    })
+    .flatten();
 
-    match pipe_info {
-        Some((Some(pipe_id), false)) => {
+    match fd_info {
+        Some((_, _, true)) => crate::syscall::tty::read_stdin(buf_ptr, len),
+        Some((Some(pipe_id), false, false)) => {
             // パイプ読み込み端: ブロッキング読み取り
             if !super::validate_user_ptr(buf_ptr, len) {
                 return EFAULT;
@@ -311,16 +345,17 @@ fn read_fd(fd: u64, buf_ptr: u64, len: u64) -> u64 {
             let mut buf = alloc::vec![0u8; len as usize];
             let n = crate::syscall::pipe::pipe_read_blocking(pipe_id, &mut buf);
             if n > 0 {
-                crate::syscall::with_user_memory_access(|| unsafe {
-                    core::ptr::copy_nonoverlapping(buf.as_ptr(), buf_ptr as *mut u8, n);
-                });
+                if let Err(e) = crate::syscall::copy_to_user(buf_ptr, &buf[..n]) {
+                    return e;
+                }
             }
             n as u64
         }
-        _ => {
+        Some(_) => {
             // 通常ファイル
             crate::syscall::fs::read(fd, buf_ptr, len)
         }
+        None => EBADF,
     }
 }
 
@@ -354,7 +389,18 @@ pub fn log(msg: u64, len: u64, level: u64) -> u64 {
         1 => warn!("{}", msg),
         2 => info!("{}", msg),
         3 => debug!("{}", msg),
-        _ => return super::types::EINVAL,
+        _ => return EINVAL,
     }
+    SUCCESS
+}
+
+/// 重力があるかを確認します。
+///
+/// ### Return
+/// SUCCESS: 重力は存在しています。
+/// それ以外が返された場合、このPCは重力下にありません。
+///
+/// 宇宙空間で使用することは想定していません。
+pub fn check_gravity_exist() -> u64 {
     SUCCESS
 }

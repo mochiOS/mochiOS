@@ -1,6 +1,6 @@
 //! I/Oポートアクセス用のシステムコール
 
-use crate::syscall::{EINVAL, EPERM, SUCCESS};
+use crate::syscall::{EFAULT, EINVAL, EPERM, SUCCESS};
 use core::arch::asm;
 
 /// 呼び出し元プロセスがI/Oポートアクセス権限を持つか確認する
@@ -131,6 +131,100 @@ pub fn port_out(port: u64, value: u64, size: u64) -> u64 {
                 );
             }
             _ => return EINVAL,
+        }
+    }
+
+    SUCCESS
+}
+
+/// I/Oポートから16-bitワード列を一括読み取り
+///
+/// # Arguments
+/// * `port` - ポート番号 (0-65535)
+/// * `dst_ptr` - ユーザー空間の出力バッファ（u16配列）
+/// * `count` - ワード数
+///
+/// # Returns
+/// SUCCESS、またはエラー時は EINVAL / EFAULT / EPERM
+pub fn port_in_words(port: u64, dst_ptr: u64, count: u64) -> u64 {
+    if !caller_has_port_privilege() {
+        return EPERM;
+    }
+    if port > 0xFFFF || count == 0 {
+        return EINVAL;
+    }
+
+    let byte_len = match count.checked_mul(2) {
+        Some(v) => v,
+        None => return EINVAL,
+    };
+    if !crate::syscall::validate_user_ptr(dst_ptr, byte_len) {
+        return EFAULT;
+    }
+
+    let port = port as u16;
+    let mut tmp = alloc::vec![0u8; byte_len as usize];
+    for i in 0..count as usize {
+        let mut value: u16 = 0;
+        unsafe {
+            asm!(
+                "in ax, dx",
+                in("dx") port,
+                out("ax") value,
+                options(nomem, nostack, preserves_flags)
+            );
+        }
+        let off = i * 2;
+        tmp[off..off + 2].copy_from_slice(&value.to_ne_bytes());
+    }
+
+    match crate::syscall::copy_to_user(dst_ptr, &tmp) {
+        Ok(()) => SUCCESS,
+        Err(e) => e,
+    }
+}
+
+/// I/Oポートへ16-bitワード列を一括書き込み
+///
+/// # Arguments
+/// * `port` - ポート番号 (0-65535)
+/// * `src_ptr` - ユーザー空間の入力バッファ（u16配列）
+/// * `count` - ワード数
+///
+/// # Returns
+/// SUCCESS、またはエラー時は EINVAL / EFAULT / EPERM
+pub fn port_out_words(port: u64, src_ptr: u64, count: u64) -> u64 {
+    if !caller_has_port_privilege() {
+        return EPERM;
+    }
+    if port > 0xFFFF || count == 0 {
+        return EINVAL;
+    }
+
+    let byte_len = match count.checked_mul(2) {
+        Some(v) => v,
+        None => return EINVAL,
+    };
+    if !crate::syscall::validate_user_ptr(src_ptr, byte_len) {
+        return EFAULT;
+    }
+
+    let port = port as u16;
+    let mut tmp = alloc::vec![0u8; byte_len as usize];
+    if let Err(e) = crate::syscall::copy_from_user(src_ptr, &mut tmp) {
+        return e;
+    }
+
+    for i in 0..count as usize {
+        let off = i * 2;
+        let value = u16::from_ne_bytes([tmp[off], tmp[off + 1]]);
+        unsafe {
+            asm!(
+                "out dx, ax",
+                in("dx") port,
+                in("ax") value,
+                options(nomem, nostack, preserves_flags)
+            );
         }
     }
 

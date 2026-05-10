@@ -9,6 +9,18 @@ use x86_64::PrivilegeLevel;
 
 static IDT: Once<InterruptDescriptorTable> = Once::new();
 
+#[inline]
+fn enter_from_user(stack_frame: &InterruptStackFrame) -> bool {
+    crate::syscall::syscall_entry::kpti_enter_for_trap(
+        stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3,
+    )
+}
+
+#[inline]
+fn leave_to_user(entered_from_user: bool) {
+    crate::syscall::syscall_entry::kpti_leave_after_trap(entered_from_user);
+}
+
 /// IDTを初期化
 pub fn init() {
     debug!("Initializing IDT...");
@@ -54,9 +66,13 @@ pub fn init() {
         // ハードウェア割り込みハンドラ（32-47番）
         idt[32].set_handler_fn(super::timer::timer_interrupt_handler); // Timer IRQ0
         idt[33].set_handler_fn(keyboard_interrupt_handler); // Keyboard IRQ1 (C-2修正)
+        idt[44].set_handler_fn(mouse_interrupt_handler); // Mouse IRQ12 (PS/2 AUX)
 
         // それ以外のハードウェア割り込みはとりあえずスタブ
         for i in 34..48 {
+            if i == 44 {
+                continue;
+            }
             idt[i].set_handler_fn(generic_interrupt_handler);
         }
 
@@ -99,6 +115,7 @@ pub fn init() {
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn divide_error_handler(stack_frame: InterruptStackFrame) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
     error!(
         "EXCEPTION: DIVIDE ERROR ({})",
@@ -124,8 +141,10 @@ extern "x86-interrupt" fn divide_error_handler(stack_frame: InterruptStackFrame)
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn debug_handler(stack_frame: InterruptStackFrame) {
+    let entered_from_user = enter_from_user(&stack_frame);
     debug!("EXCEPTION: DEBUG");
     debug!("{:#?}", stack_frame);
+    leave_to_user(entered_from_user);
 }
 
 /// NMI (Non-Maskable Interrupt) ハンドラ
@@ -135,6 +154,7 @@ extern "x86-interrupt" fn debug_handler(stack_frame: InterruptStackFrame) {
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn nmi_handler(stack_frame: InterruptStackFrame) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     error!("EXCEPTION: NON-MASKABLE INTERRUPT");
     warn!("{:#?}", stack_frame);
     halt_cpu();
@@ -147,8 +167,10 @@ extern "x86-interrupt" fn nmi_handler(stack_frame: InterruptStackFrame) {
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
+    let entered_from_user = enter_from_user(&stack_frame);
     warn!("EXCEPTION: BREAKPOINT");
     debug!("{:#?}", stack_frame);
+    leave_to_user(entered_from_user);
 }
 
 /// オーバーフロー例外ハンドラ
@@ -158,6 +180,7 @@ extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn overflow_handler(stack_frame: InterruptStackFrame) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
     error!(
         "EXCEPTION: OVERFLOW ({})",
@@ -183,6 +206,7 @@ extern "x86-interrupt" fn overflow_handler(stack_frame: InterruptStackFrame) {
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn bound_range_exceeded_handler(stack_frame: InterruptStackFrame) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
     error!(
         "EXCEPTION: BOUND RANGE EXCEEDED ({})",
@@ -466,6 +490,7 @@ fn dump_invalid_opcode_diagnostics(stack_frame: &InterruptStackFrame) {
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFrame) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     // ユーザーモードかチェック（code_segmentのRPLビットを確認）
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
 
@@ -477,7 +502,11 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFram
             "KERNEL MODE"
         }
     );
-    dump_invalid_opcode_diagnostics(&stack_frame);
+    if is_user_mode {
+        error!("User-mode invalid opcode diagnostics are redacted in this path");
+    } else {
+        dump_invalid_opcode_diagnostics(&stack_frame);
+    }
 
     if is_user_mode {
         error!("Terminating faulting user process");
@@ -494,6 +523,7 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFram
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn device_not_available_handler(stack_frame: InterruptStackFrame) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
     error!(
         "EXCEPTION: DEVICE NOT AVAILABLE ({})",
@@ -537,6 +567,7 @@ extern "x86-interrupt" fn double_fault_handler(
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 /// - `error_code`: TSS無効例外のエラーコード（通常は0だが、特定の条件下で値が設定されることがある）
 extern "x86-interrupt" fn invalid_tss_handler(stack_frame: InterruptStackFrame, error_code: u64) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
     error!(
         "EXCEPTION: INVALID TSS ({})",
@@ -567,6 +598,7 @@ extern "x86-interrupt" fn segment_not_present_handler(
     stack_frame: InterruptStackFrame,
     error_code: u64,
 ) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
     error!(
         "EXCEPTION: SEGMENT NOT PRESENT ({})",
@@ -597,6 +629,7 @@ extern "x86-interrupt" fn stack_segment_fault_handler(
     stack_frame: InterruptStackFrame,
     error_code: u64,
 ) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
 
     error!(
@@ -629,6 +662,7 @@ extern "x86-interrupt" fn general_protection_fault_handler(
     stack_frame: InterruptStackFrame,
     error_code: u64,
 ) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
 
     error!(
@@ -662,12 +696,15 @@ extern "x86-interrupt" fn general_protection_fault_handler(
     warn!("{:#?}", stack_frame);
 
     if is_user_mode {
+        // Dump detailed virtual->physical diagnostics using the active CR3
+        dump_invalid_opcode_diagnostics(&stack_frame);
         error!("Terminating faulting user process");
         crate::task::scheduler::exit_current_process(-1);
     } else {
         halt_cpu();
     }
 }
+
 
 /// ページフォルト例外ハンドラ
 ///
@@ -685,6 +722,7 @@ extern "x86-interrupt" fn page_fault_handler(
 
     let faulting_addr = Cr2::read().unwrap_or(VirtAddr::new(0));
     let is_user_mode = error_code.contains(x86_64::structures::idt::PageFaultErrorCode::USER_MODE);
+    let entered_from_user = crate::syscall::syscall_entry::kpti_enter_for_trap(is_user_mode);
 
     error!(
         "EXCEPTION: PAGE FAULT ({})",
@@ -705,7 +743,16 @@ extern "x86-interrupt" fn page_fault_handler(
         error_code.contains(x86_64::structures::idt::PageFaultErrorCode::INSTRUCTION_FETCH)
     );
 
-    if let Some(phys) = crate::mem::paging::translate_addr(faulting_addr) {
+    let translated = if is_user_mode {
+        crate::task::current_thread_id()
+            .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
+            .and_then(|pid| crate::task::with_process(pid, |p| p.page_table()).flatten())
+            .and_then(|pt| crate::mem::paging::virt_to_phys_in_table(pt, faulting_addr.as_u64()))
+            .map(x86_64::PhysAddr::new)
+    } else {
+        crate::mem::paging::translate_addr(faulting_addr)
+    };
+    if let Some(phys) = translated {
         error!(
             "  Virtual {:#x} is mapped to physical {:#x}",
             faulting_addr.as_u64(),
@@ -739,10 +786,11 @@ extern "x86-interrupt" fn page_fault_handler(
         }
 
         // 保護違反（既マップページへの不正アクセス）でなければスタック拡張を試みる
-        let is_protection_violation = error_code
-            .contains(x86_64::structures::idt::PageFaultErrorCode::PROTECTION_VIOLATION);
+        let is_protection_violation =
+            error_code.contains(x86_64::structures::idt::PageFaultErrorCode::PROTECTION_VIOLATION);
         if !is_protection_violation {
             if try_grow_user_stack(faulting_addr.as_u64()) {
+                leave_to_user(entered_from_user);
                 return; // スタック拡張成功 → 命令を再試行
             }
         }
@@ -784,6 +832,7 @@ fn try_grow_user_stack(fault_addr: u64) -> bool {
         None => return false,
     };
     if stack_bottom == 0 || stack_top == 0 {
+        crate::error!("[STACK_GROW] FAILED: uninitialized stack - pid={}, stack_bottom={:#x}, stack_top={:#x}", pid.as_u64(), stack_bottom, stack_top);
         return false;
     }
     // フォルトアドレスは現在のスタック下端より下でなければならない
@@ -791,11 +840,12 @@ fn try_grow_user_stack(fault_addr: u64) -> bool {
         return false;
     }
     // 最大スタックサイズを超えて伸ばさない
-    let min_allowed = stack_top.saturating_sub(MAX_STACK_SIZE);
+    let min_allowed = stack_bottom.saturating_sub(MAX_STACK_SIZE);
     if fault_addr < min_allowed {
         crate::error!(
-            "Stack overflow: fault at {:#x}, min allowed {:#x}",
+            "Stack overflow: fault at {:#x}, stack_bottom={:#x}, min allowed {:#x}",
             fault_addr,
+            stack_bottom,
             min_allowed
         );
         return false;
@@ -803,8 +853,16 @@ fn try_grow_user_stack(fault_addr: u64) -> bool {
     // フォルトページから現在の下端まで一括マップ（通常は1ページだけ）
     let new_page = (fault_addr / 4096) * 4096;
     let map_size = stack_bottom - new_page;
-    if crate::mem::paging::map_and_copy_segment_to(page_table, new_page, 0, map_size, &[], true, false)
-        .is_ok()
+    if crate::mem::paging::map_and_copy_segment_to(
+        page_table,
+        new_page,
+        0,
+        map_size,
+        &[],
+        true,
+        false,
+    )
+    .is_ok()
     {
         crate::task::with_process_mut(pid, |p| p.set_stack_bottom(new_page));
         crate::debug!("Stack grown: {:#x} -> {:#x}", stack_bottom, new_page);
@@ -822,6 +880,7 @@ fn try_grow_user_stack(fault_addr: u64) -> bool {
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn x87_floating_point_handler(stack_frame: InterruptStackFrame) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
     error!(
         "EXCEPTION: X87 FLOATING POINT ({})",
@@ -852,6 +911,7 @@ extern "x86-interrupt" fn alignment_check_handler(
     stack_frame: InterruptStackFrame,
     error_code: u64,
 ) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
     error!(
         "EXCEPTION: ALIGNMENT CHECK ({})",
@@ -890,6 +950,7 @@ extern "x86-interrupt" fn machine_check_handler(stack_frame: InterruptStackFrame
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn simd_floating_point_handler(stack_frame: InterruptStackFrame) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
     error!(
         "EXCEPTION: SIMD FLOATING POINT ({})",
@@ -915,6 +976,7 @@ extern "x86-interrupt" fn simd_floating_point_handler(stack_frame: InterruptStac
 /// ## Arguments
 /// - `stack_frame`: 割り込み発生時のCPU状態を表す構造体
 extern "x86-interrupt" fn virtualization_handler(stack_frame: InterruptStackFrame) {
+    let _entered_from_user = enter_from_user(&stack_frame);
     let is_user_mode = stack_frame.code_segment.rpl() == PrivilegeLevel::Ring3;
     error!(
         "EXCEPTION: VIRTUALIZATION ({})",
@@ -938,6 +1000,7 @@ extern "x86-interrupt" fn virtualization_handler(stack_frame: InterruptStackFram
 /// IRQ1 をIDTに登録せずに放置するとキーストロークのたびに #GP が発生し
 /// OS全体が停止する (C-2修正)。このハンドラはスキャンコードを読み捨て EOI を送る。
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    let entered_from_user = enter_from_user(&_stack_frame);
     let scancode: u8 = unsafe {
         let mut port = x86_64::instructions::port::Port::<u8>::new(0x60);
         port.read()
@@ -947,6 +1010,20 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     unsafe {
         super::pic::PIC_MASTER.end_of_interrupt();
     }
+    leave_to_user(entered_from_user);
+}
+
+/// マウス割り込みハンドラ (IRQ12 / ベクタ 44)
+extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    let entered_from_user = enter_from_user(&_stack_frame);
+    let byte: u8 = unsafe {
+        let mut port = x86_64::instructions::port::Port::<u8>::new(0x60);
+        port.read()
+    };
+    crate::util::ps2mouse::push_byte(byte);
+    // IRQ12 はスレーブPIC配下なので、スレーブ→マスターの順でEOIを送る
+    super::send_eoi(44);
+    leave_to_user(entered_from_user);
 }
 
 /// 一般的な割り込みハンドラ（スタブ）
@@ -959,6 +1036,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 ///
 /// このハンドラは、将来的に各デバイスに対応した具体的な処理を実装するためのプレースホルダとして使用される予定
 extern "x86-interrupt" fn generic_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    let entered_from_user = enter_from_user(&_stack_frame);
     debug!("INTERRUPT: GENERIC");
     // マスターPICのみにEOIを送信する (LOW-01)
     // このハンドラはどのIRQから呼ばれるか不明のため、IRQ 0-7 (マスターのみ) を想定して
@@ -967,6 +1045,7 @@ extern "x86-interrupt" fn generic_interrupt_handler(_stack_frame: InterruptStack
     unsafe {
         super::pic::PIC_MASTER.end_of_interrupt();
     }
+    leave_to_user(entered_from_user);
 }
 
 /// CPU割り込みを無効化してシステムを停止

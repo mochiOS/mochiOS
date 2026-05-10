@@ -1,10 +1,13 @@
 //! ファイルシステム関連のシステムコール
 
-use super::types::{EBADF, EFAULT, EINVAL, ENOENT, ENOSYS, SUCCESS};
+use super::types::{EBADF, EEXIST, EFAULT, EINVAL, EIO, ENOENT, ENOSYS, ENOTDIR, ESRCH, SUCCESS};
+use crate::task::fd_table::{FdTable, FileHandle, FD_BASE, O_CLOEXEC, PROCESS_MAX_FDS};
 use alloc::string::String;
 use alloc::string::ToString;
+use alloc::sync::Arc;
+use alloc::vec;
 use alloc::vec::Vec;
-use crate::task::fd_table::{FdTable, FileHandle, FD_BASE, O_CLOEXEC, PROCESS_MAX_FDS};
+use core::sync::atomic::AtomicUsize;
 
 // グローバル FD テーブルは廃止。各プロセスの Process::fd_table を使用する。
 
@@ -32,8 +35,395 @@ where
     crate::task::with_process_mut(pid, |p| f(p.fd_table_mut()))
 }
 
+// ファイルシステムIPC定数（swiftlib::fs_constsと同一の値を維持）
+const FS_PATH_MAX: usize = 512;
+const FS_DATA_MAX: usize = 4096;
+const IPC_MAX_MSG_SIZE: usize = 65536;
+const FS_RECV_TIMEOUT_TICKS: u64 = 500;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub(crate) struct FsRequest {
+    pub(crate) op: u64,
+    pub(crate) arg1: u64,
+    pub(crate) arg2: u64,
+    pub(crate) path: [u8; FS_PATH_MAX],
+}
+
+impl FsRequest {
+    pub(crate) const OP_OPEN: u64 = 1;
+    pub(crate) const OP_READ: u64 = 2;
+    pub(crate) const OP_CLOSE: u64 = 4;
+    pub(crate) const OP_STAT: u64 = 6;
+    pub(crate) const OP_FSTAT: u64 = 7;
+    pub(crate) const OP_READDIR: u64 = 8;
+    pub(crate) const OP_EXEC_STREAM: u64 = 9;
+    pub(crate) const OP_READDIR_ALL: u64 = 10;
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub(crate) struct FsResponse {
+    pub(crate) status: i64,
+    pub(crate) len: u64,
+    pub(crate) data: [u8; FS_DATA_MAX],
+}
+
+static CACHED_FS_SERVICE_TID: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
+
+#[inline]
+pub(crate) fn fs_service_tid() -> Option<u64> {
+    let cached = CACHED_FS_SERVICE_TID.load(core::sync::atomic::Ordering::Acquire);
+    if cached != 0 && crate::task::thread_id_exists(cached) {
+        return Some(cached);
+    }
+
+    let pid = crate::task::find_process_id_by_name("fs.service")
+        .or_else(|| crate::task::find_process_id_by_name("fs"))?;
+
+    let mut found_tid = None;
+    crate::task::for_each_thread(|t| {
+        if found_tid.is_none() && t.process_id() == pid {
+            found_tid = Some(t.id().as_u64());
+        }
+    });
+
+    if let Some(tid) = found_tid {
+        CACHED_FS_SERVICE_TID.store(tid, core::sync::atomic::Ordering::Release);
+        Some(tid)
+    } else {
+        None
+    }
+}
+
+fn recv_from_fs_with_timeout(fs_tid: u64, buf: &mut [u8]) -> Result<usize, u64> {
+    let start_tick = crate::syscall::time::get_ticks();
+    loop {
+        if !crate::task::thread_id_exists(fs_tid) {
+            return Err(EIO);
+        }
+
+        if let Some(n) = crate::syscall::ipc::recv_from_sender_for_kernel_nonblocking(fs_tid, buf)?
+        {
+            return Ok(n);
+        }
+
+        if crate::syscall::time::get_ticks().saturating_sub(start_tick) > FS_RECV_TIMEOUT_TICKS {
+            return Err(EIO);
+        }
+        crate::task::yield_now();
+    }
+}
+
+pub(crate) fn fs_service_request(fs_tid: u64, req: &FsRequest) -> Result<FsResponse, u64> {
+    let req_slice = unsafe {
+        core::slice::from_raw_parts(
+            req as *const _ as *const u8,
+            core::mem::size_of::<FsRequest>(),
+        )
+    };
+    if crate::syscall::ipc::send_from_kernel(fs_tid, req_slice) {
+        let mut resp_buf = [0u8; core::mem::size_of::<FsResponse>()];
+        let n = recv_from_fs_with_timeout(fs_tid, &mut resp_buf)?;
+        if n < core::mem::size_of::<FsResponse>() {
+            return Err(EIO);
+        }
+        let resp: FsResponse =
+            unsafe { core::ptr::read_unaligned(resp_buf.as_ptr() as *const FsResponse) };
+        Ok(resp)
+    } else {
+        Err(EIO)
+    }
+}
+
+// Internal: send request then receive a streamed image from stream backend. Protocol:
+// 1) send FsRequest with OP_EXEC_STREAM
+// 2) receive initial FsResponse (status,len) where len == total image size
+// 3) receive raw data chunks (no per-chunk header) until total bytes received == initial len
+fn fs_service_request_stream(fs_tid: u64, req: &FsRequest) -> Result<Vec<u8>, u64> {
+    let req_slice = unsafe {
+        core::slice::from_raw_parts(
+            req as *const _ as *const u8,
+            core::mem::size_of::<FsRequest>(),
+        )
+    };
+    if !crate::syscall::ipc::send_from_kernel(fs_tid, req_slice) {
+        return Err(EIO);
+    }
+    // receive initial FsResponse header
+    let mut header_buf = [0u8; core::mem::size_of::<FsResponse>()];
+    let n = recv_from_fs_with_timeout(fs_tid, &mut header_buf)?;
+    if n < core::mem::size_of::<FsResponse>() {
+        return Err(EIO);
+    }
+    let header: FsResponse =
+        unsafe { core::ptr::read_unaligned(header_buf.as_ptr() as *const FsResponse) };
+    if header.status < 0 {
+        return Err((-header.status) as u64);
+    }
+    let total = header.len as usize;
+    if total == 0 {
+        return Ok(Vec::new());
+    }
+    if total > 8 * 1024 * 1024 {
+        return Err(EINVAL);
+    }
+    // allocate destination buffer once; receive directly into it to avoid intermediate copies
+    let mut out = vec![0u8; total];
+    let mut received = 0usize;
+    while received < total {
+        let remaining = total - received;
+        let recv_len = core::cmp::min(remaining, IPC_MAX_MSG_SIZE);
+        let dst = &mut out[received..received + recv_len];
+        let n = recv_from_fs_with_timeout(fs_tid, dst)?;
+        if n == 0 {
+            return Err(EIO);
+        }
+        received += n;
+    }
+    if received != total {
+        return Err(EIO);
+    }
+    Ok(out)
+}
+
+pub(crate) fn exec_image_via_fs(path: &str) -> Result<Vec<u8>, u64> {
+    let fs_tid = fs_service_tid().ok_or(ESRCH)?;
+    let req = FsRequest {
+        op: FsRequest::OP_EXEC_STREAM,
+        arg1: 0,
+        arg2: 0,
+        path: encode_fs_path(path)?,
+    };
+    fs_service_request_stream(fs_tid, &req)
+}
+
+pub(crate) fn encode_fs_path(path: &str) -> Result<[u8; FS_PATH_MAX], u64> {
+    let mut out = [0u8; FS_PATH_MAX];
+    let bytes = path.as_bytes();
+    if bytes.is_empty() || bytes.len() >= FS_PATH_MAX {
+        crate::warn!(
+            "fs: rejected path length {} (max {})",
+            bytes.len(),
+            FS_PATH_MAX - 1
+        );
+        return Err(EINVAL);
+    }
+    if bytes.iter().any(|&b| b == 0) {
+        return Err(EINVAL);
+    }
+    out[..bytes.len()].copy_from_slice(bytes);
+    Ok(out)
+}
+
+fn open_via_fs_service(path: &str, flags: u64) -> Result<u64, u64> {
+    let fs_tid = fs_service_tid().ok_or(ESRCH)?;
+    let req = FsRequest {
+        op: FsRequest::OP_OPEN,
+        arg1: 0,
+        arg2: flags,
+        path: encode_fs_path(path)?,
+    };
+    let resp = fs_service_request(fs_tid, &req)?;
+    if resp.status < 0 {
+        return Err((-resp.status) as u64);
+    }
+    Ok(resp.status as u64)
+}
+
+fn read_via_fs_service(fd_remote: u64, out: &mut [u8]) -> Result<usize, u64> {
+    let fs_tid = fs_service_tid().ok_or(ESRCH)?;
+    let req = FsRequest {
+        op: FsRequest::OP_READ,
+        arg1: fd_remote,
+        arg2: out.len() as u64,
+        path: [0; FS_PATH_MAX],
+    };
+    let resp = fs_service_request(fs_tid, &req)?;
+    if resp.status < 0 {
+        return Err((-resp.status) as u64);
+    }
+    let n = core::cmp::min(
+        resp.len as usize,
+        core::cmp::min(out.len(), resp.data.len()),
+    );
+    out[..n].copy_from_slice(&resp.data[..n]);
+    Ok(n)
+}
+
+fn close_via_fs_service(fd_remote: u64) -> u64 {
+    let fs_tid = match fs_service_tid() {
+        Some(t) => t,
+        None => return ESRCH,
+    };
+    let req = FsRequest {
+        op: FsRequest::OP_CLOSE,
+        arg1: fd_remote,
+        arg2: 0,
+        path: [0; FS_PATH_MAX],
+    };
+    match fs_service_request(fs_tid, &req) {
+        Ok(resp) => {
+            if resp.status < 0 {
+                (-resp.status) as u64
+            } else {
+                SUCCESS
+            }
+        }
+        Err(e) => e,
+    }
+}
+
+pub(crate) fn close_remote_fd_from_kernel(fd_remote: u64) {
+    let _ = close_via_fs_service(fd_remote);
+}
+
+fn stat_path_via_fs_service(path: &str) -> Result<(u16, u64), u64> {
+    let fs_tid = fs_service_tid().ok_or(ESRCH)?;
+    let req = FsRequest {
+        op: FsRequest::OP_STAT,
+        arg1: 0,
+        arg2: 0,
+        path: encode_fs_path(path)?,
+    };
+    let resp = fs_service_request(fs_tid, &req)?;
+    if resp.status < 0 {
+        return Err((-resp.status) as u64);
+    }
+    Ok((resp.status as u16, resp.len))
+}
+
+fn fstat_via_fs_service(fd_remote: u64) -> Result<(u16, u64), u64> {
+    let fs_tid = fs_service_tid().ok_or(ESRCH)?;
+    let req = FsRequest {
+        op: FsRequest::OP_FSTAT,
+        arg1: fd_remote,
+        arg2: 0,
+        path: [0; FS_PATH_MAX],
+    };
+    let resp = fs_service_request(fs_tid, &req)?;
+    if resp.status < 0 {
+        return Err((-resp.status) as u64);
+    }
+    Ok((resp.status as u16, resp.len))
+}
+
+fn readdir_chunk_via_fs_service(
+    fd_remote: u64,
+    start_index: usize,
+    out: &mut [u8],
+) -> Result<(usize, usize), u64> {
+    let fs_tid = fs_service_tid().ok_or(ESRCH)?;
+    let max_bytes = out.len().min(FS_DATA_MAX).min(u32::MAX as usize);
+    let start = start_index.min(u32::MAX as usize);
+    let req = FsRequest {
+        op: FsRequest::OP_READDIR,
+        arg1: fd_remote,
+        arg2: ((start as u64) << 32) | (max_bytes as u64),
+        path: [0; FS_PATH_MAX],
+    };
+    let resp = fs_service_request(fs_tid, &req)?;
+    if resp.status < 0 {
+        return Err((-resp.status) as u64);
+    }
+    let next_index = usize::try_from(resp.status).map_err(|_| EIO)?;
+    let n = core::cmp::min(
+        resp.len as usize,
+        core::cmp::min(out.len(), resp.data.len()),
+    );
+    out[..n].copy_from_slice(&resp.data[..n]);
+    Ok((n, next_index))
+}
+
 fn read_cstring(ptr: u64) -> Result<String, u64> {
     crate::syscall::read_user_cstring(ptr, 1024)
+}
+
+#[inline]
+fn mode_is_directory(mode: u16) -> bool {
+    (mode & 0xF000) == 0x4000
+}
+
+#[inline]
+fn mode_for_stat(mode: u16) -> u32 {
+    let mut out = mode as u32;
+    if (out & 0xF000) == 0 {
+        out |= 0x8000;
+    }
+    if (out & 0o777) == 0 {
+        out |= 0o755;
+    }
+    out
+}
+
+#[inline]
+fn should_fallback_to_initfs(errno: u64) -> bool {
+    // Prefer ATA rootfs and fallback to initfs only when rootfs path is unavailable.
+    errno == ESRCH || errno == ENOENT || errno == ENOTDIR || errno == EBADF
+}
+
+#[inline]
+fn fallback_file_metadata(path: &str) -> Option<(u16, u64)> {
+    if crate::kmod::fs::is_mounted() {
+        crate::kmod::fs::file_metadata(path)
+    } else {
+        crate::kmod::fs::file_metadata(path).or_else(|| crate::init::fs::file_metadata(path))
+    }
+}
+
+#[inline]
+fn fallback_is_directory(path: &str) -> bool {
+    if crate::kmod::fs::is_mounted() {
+        crate::kmod::fs::is_directory(path)
+    } else {
+        crate::kmod::fs::is_directory(path) || crate::init::fs::is_directory(path)
+    }
+}
+
+#[inline]
+fn fallback_readdir(path: &str) -> Option<Vec<String>> {
+    if crate::kmod::fs::is_mounted() {
+        crate::kmod::fs::readdir_path(path)
+    } else {
+        crate::kmod::fs::readdir_path(path).or_else(|| crate::init::fs::readdir_path(path))
+    }
+}
+
+fn parse_readdir_names(bytes: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for raw in bytes.split(|&b| b == b'\n') {
+        if raw.is_empty() {
+            continue;
+        }
+        if let Ok(name) = core::str::from_utf8(raw) {
+            if !name.is_empty() {
+                out.push(name.to_string());
+            }
+        }
+    }
+    out
+}
+
+fn parse_readdir_typed(bytes: &[u8]) -> Vec<(String, u8)> {
+    let mut out = Vec::new();
+    for record in bytes.split(|&b| b == b'\n') {
+        if record.len() < 2 {
+            continue;
+        }
+        let dtype = record[record.len() - 1];
+        if !(1..=8).contains(&dtype) {
+            continue;
+        }
+        if record.len() >= 2 && record[record.len() - 2] == 0 {
+            let name_bytes = &record[..record.len() - 2];
+            if let Ok(name) = core::str::from_utf8(name_bytes) {
+                if !name.is_empty() {
+                    out.push((name.to_string(), dtype));
+                }
+            }
+        }
+    }
+    out
 }
 
 /// パスを正規化する（`.` / `..` を解決し重複スラッシュを除去）
@@ -42,7 +432,9 @@ fn normalize_path(path: &str) -> String {
     for seg in path.split('/') {
         match seg {
             "" | "." => {}
-            ".." => { parts.pop(); }
+            ".." => {
+                parts.pop();
+            }
             other => parts.push(other),
         }
     }
@@ -69,10 +461,171 @@ fn resolve_path(pid_raw: u64, path: &str) -> String {
     }
 }
 
-#[inline]
-fn is_process_busybox(pid_raw: u64) -> bool {
-    let pid = crate::task::ids::ProcessId::from_u64(pid_raw);
-    crate::task::with_process(pid, |p| p.name().ends_with("busybox.elf")).unwrap_or(false)
+const FS_SERVICE_RETRY_COUNT: usize = 3;
+const FS_SERVICE_RETRY_MS: u64 = 10;
+const O_ACCMODE: u64 = 0o3;
+const O_WRONLY: u64 = 0o1;
+const O_RDWR: u64 = 0o2;
+const O_CREAT: u64 = 0o100;
+const O_EXCL: u64 = 0o200;
+const O_TRUNC: u64 = 0o1000;
+const O_APPEND: u64 = 0o2000;
+
+pub(crate) fn is_tty_like_path(path: &str) -> bool {
+    path == "/dev/tty"
+        || path == "/dev/console"
+        || path == "/dev/stdin"
+        || path == "/dev/stdout"
+        || path == "/dev/stderr"
+        || path.starts_with("/dev/pts/")
+}
+
+fn make_tty_handle(path: &str) -> alloc::boxed::Box<FileHandle> {
+    let tty_path = if is_tty_like_path(path) {
+        path
+    } else {
+        "/dev/tty"
+    };
+    alloc::boxed::Box::new(FileHandle {
+        data: alloc::boxed::Box::new([]),
+        pos: 0,
+        dir_path: Some(tty_path.to_string()),
+        is_remote: false,
+        fd_remote: 0,
+        remote_refs: None,
+        pipe_id: None,
+        pipe_write: false,
+        open_flags: O_RDWR,
+    })
+}
+
+fn has_write_intent(flags: u64) -> bool {
+    let acc = flags & O_ACCMODE;
+    acc == O_WRONLY || acc == O_RDWR || (flags & (O_CREAT | O_TRUNC)) != 0
+}
+
+fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
+    if is_tty_like_path(path) {
+        let cloexec = (flags & O_CLOEXEC) != 0;
+        return match with_fd_table_mut(owner_pid, |t| t.alloc(make_tty_handle(path), cloexec)) {
+            Some(Some(fd)) => fd as u64,
+            _ => ENOSYS,
+        };
+    }
+
+    if has_write_intent(flags) {
+        let exists_in_service = stat_path_via_fs_service(path).is_ok();
+        let exists_in_fallback = fallback_file_metadata(path).is_some();
+        if (flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)
+            && (exists_in_service || exists_in_fallback)
+        {
+            return EEXIST;
+        }
+
+        let mut data_vec = Vec::new();
+        if (flags & O_TRUNC) == 0 && exists_in_fallback {
+            if let Some(d) = crate::kmod::fs::read_all(path) {
+                data_vec = d;
+            }
+        }
+        let start_pos = if (flags & O_APPEND) != 0 {
+            data_vec.len()
+        } else {
+            0
+        };
+        let cloexec = (flags & O_CLOEXEC) != 0;
+        let handle = alloc::boxed::Box::new(FileHandle {
+            data: data_vec.into_boxed_slice(),
+            pos: start_pos,
+            dir_path: None,
+            is_remote: false,
+            fd_remote: 0,
+            remote_refs: None,
+            pipe_id: None,
+            pipe_write: false,
+            open_flags: flags,
+        });
+        return match with_fd_table_mut(owner_pid, |t| t.alloc(handle, cloexec)) {
+            Some(Some(fd)) => fd as u64,
+            _ => ENOSYS,
+        };
+    }
+
+    // カーネル内で管理する FD_CLOEXEC は fs.service へ渡さない。
+    let backend_flags = flags & !O_CLOEXEC;
+    let mut last_err = 0u64;
+    let mut opened = None;
+    for _ in 0..FS_SERVICE_RETRY_COUNT {
+        match open_via_fs_service(path, backend_flags) {
+            Ok(remote_fd) => {
+                opened = Some(remote_fd);
+                break;
+            }
+            Err(e) => {
+                last_err = e;
+                if e == EIO {
+                    crate::task::yield_now();
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    let (data_vec, dir_path, is_remote, fd_remote) = match opened {
+        Some(remote_fd) => {
+            // ディレクトリFD経由の openat 相対解決で必要になるため、
+            // リモートでもディレクトリは dir_path を保持する。
+            let dir_path = match stat_path_via_fs_service(path) {
+                Ok((mode, _)) if (mode as u64 & 0xF000) == 0x4000 => Some(path.to_string()),
+                _ => None,
+            };
+            (Vec::new(), dir_path, true, remote_fd)
+        }
+        None => {
+            let errno = if last_err != 0 { last_err } else { EIO };
+            if should_fallback_to_initfs(errno) {
+                if fallback_is_directory(path) {
+                    (Vec::new(), Some(path.to_string()), false, 0)
+                } else {
+                    match crate::kmod::fs::read_all(path) {
+                        Some(d) => (d, None, false, 0),
+                        None => return ENOENT,
+                    }
+                }
+            } else {
+                return errno;
+            }
+        }
+    };
+
+    let cloexec = (flags & O_CLOEXEC) != 0;
+    let handle = alloc::boxed::Box::new(FileHandle {
+        data: data_vec.into_boxed_slice(),
+        pos: 0,
+        dir_path,
+        is_remote,
+        fd_remote,
+        remote_refs: if is_remote {
+            Some(Arc::new(AtomicUsize::new(1)))
+        } else {
+            None
+        },
+        pipe_id: None,
+        pipe_write: false,
+        open_flags: flags,
+    });
+
+    match with_fd_table_mut(owner_pid, |t| t.alloc(handle, cloexec)) {
+        Some(Some(fd)) => fd as u64,
+        _ => {
+            if is_remote {
+                let _ = close_via_fs_service(fd_remote);
+            }
+            ENOSYS
+        }
+    }
 }
 
 /// Openシステムコール (initfs の読み取り専用をサポートする簡易実装)
@@ -88,37 +641,7 @@ pub fn open(path_ptr: u64, flags: u64) -> u64 {
     };
 
     let path = resolve_path(owner_pid, &path);
-    let busybox = is_process_busybox(owner_pid);
-    if busybox {
-        crate::info!("busybox open: path='{}', flags={:#x}", path, flags);
-    }
-
-    let (data_vec, dir_path) = if crate::init::fs::is_directory(&path) {
-        (Vec::new(), Some(path.clone()))
-    } else {
-        match crate::init::fs::read(&path) {
-            Some(d) => (d, None),
-            None => return ENOENT,
-        }
-    };
-
-    let cloexec = (flags & O_CLOEXEC) != 0;
-    let handle = alloc::boxed::Box::new(FileHandle {
-        data: data_vec.into_boxed_slice(),
-        pos: 0,
-        dir_path,
-        pipe_id: None,
-        pipe_write: false,
-    });
-
-    let ret = match with_fd_table_mut(owner_pid, |t| t.alloc(handle, cloexec)) {
-        Some(Some(fd)) => fd as u64,
-        _ => ENOSYS,
-    };
-    if busybox {
-        crate::info!("busybox open -> {}", ret);
-    }
-    ret
+    open_resolved_for_pid(owner_pid, &path, flags)
 }
 
 /// Closeシステムコール
@@ -134,14 +657,11 @@ pub fn close(fd: u64) -> u64 {
         Some(p) => p,
         None => return EBADF,
     };
-    let ret = match with_fd_table_mut(pid, |t| t.close_fd(idx)) {
-        Some(true) => SUCCESS,
+    let handle = with_fd_table_mut(pid, |t| t.take(idx));
+    match handle {
+        Some(Some(_h)) => SUCCESS,
         _ => EBADF,
-    };
-    if is_process_busybox(pid) {
-        crate::info!("busybox close: fd={}, ret={:#x}", fd, ret);
     }
-    ret
 }
 
 /// Seekシステムコール
@@ -158,24 +678,38 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
         None => return EBADF,
     };
 
-    let fh_ptr = match with_fd_table(pid, |t| t.get_raw(idx)) {
-        Some(Some(ptr)) => ptr,
-        _ => return EBADF,
-    };
-    let fh = unsafe { &mut *fh_ptr };
-    let len = fh.data.len() as i64;
-    let new_pos = match whence {
-        0 => offset,
-        1 => fh.pos as i64 + offset,
-        2 => len + offset,
-        _ => return EINVAL,
-    };
-    if new_pos < 0 {
-        return EINVAL;
+    match with_fd_table_mut(pid, |t| {
+        let fh = t.get_mut(idx).ok_or(EBADF)?;
+        let remote_len = if fh.is_remote {
+            let (_, size) = fstat_via_fs_service(fh.fd_remote)?;
+            Some(i64::try_from(size).map_err(|_| EINVAL)?)
+        } else {
+            None
+        };
+        let new_pos = match whence {
+            0 => offset,
+            1 => fh.pos as i64 + offset,
+            2 => {
+                let len = remote_len.unwrap_or(fh.data.len() as i64);
+                len + offset
+            }
+            _ => return Err(EINVAL),
+        };
+        if new_pos < 0 {
+            return Err(EINVAL);
+        }
+        let new_pos = if fh.is_remote {
+            new_pos as usize
+        } else {
+            core::cmp::min(new_pos as usize, fh.data.len())
+        };
+        fh.pos = new_pos;
+        Ok(fh.pos as u64)
+    }) {
+        Some(Ok(pos)) => pos,
+        Some(Err(e)) => e,
+        None => EBADF,
     }
-    let new_pos = core::cmp::min(new_pos as usize, fh.data.len());
-    fh.pos = new_pos;
-    fh.pos as u64
 }
 
 /// Linux x86_64 struct stat をユーザーバッファに書き込む
@@ -196,24 +730,15 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
 fn write_stat_buf(stat_ptr: u64, mode: u32, size: u64) {
     const STAT_SIZE: usize = 144;
     let blocks = size.div_ceil(512);
-    crate::syscall::with_user_memory_access(|| unsafe {
-        let buf = core::slice::from_raw_parts_mut(stat_ptr as *mut u8, STAT_SIZE);
-        buf.fill(0);
-        // st_dev = 1 (仮のデバイス番号)
-        buf[0..8].copy_from_slice(&1u64.to_ne_bytes());
-        // st_ino = 1 (inode 番号は省略)
-        buf[8..16].copy_from_slice(&1u64.to_ne_bytes());
-        // st_nlink = 1
-        buf[16..24].copy_from_slice(&1u64.to_ne_bytes());
-        // st_mode
-        buf[24..28].copy_from_slice(&mode.to_ne_bytes());
-        // st_size
-        buf[48..56].copy_from_slice(&size.to_ne_bytes());
-        // st_blksize = 4096
-        buf[56..64].copy_from_slice(&4096u64.to_ne_bytes());
-        // st_blocks
-        buf[64..72].copy_from_slice(&blocks.to_ne_bytes());
-    });
+    let mut buf = [0u8; STAT_SIZE];
+    buf[0..8].copy_from_slice(&1u64.to_ne_bytes());
+    buf[8..16].copy_from_slice(&1u64.to_ne_bytes());
+    buf[16..24].copy_from_slice(&1u64.to_ne_bytes());
+    buf[24..28].copy_from_slice(&mode.to_ne_bytes());
+    buf[48..56].copy_from_slice(&size.to_ne_bytes());
+    buf[56..64].copy_from_slice(&4096u64.to_ne_bytes());
+    buf[64..72].copy_from_slice(&blocks.to_ne_bytes());
+    let _ = crate::syscall::copy_to_user(stat_ptr, &buf);
 }
 
 /// Fstatシステムコール
@@ -241,19 +766,43 @@ pub fn fstat(fd: u64, stat_ptr: u64) -> u64 {
         return EBADF;
     }
 
-    // FileHandle から (size, is_dir) を取得する
+    // FileHandle からメタデータを取得する
     let file_info = with_fd_table(pid, |t| {
-        t.get_raw(idx).map(|ptr| {
-            let fh = unsafe { &*ptr };
-            (fh.data.len() as u64, fh.dir_path.is_some())
+        t.get(idx).map(|fh| {
+            let is_tty = fh
+                .dir_path
+                .as_deref()
+                .map(is_tty_like_path)
+                .unwrap_or(false);
+            (
+                fh.data.len() as u64,
+                fh.dir_path.is_some(),
+                is_tty,
+                fh.is_remote,
+                fh.fd_remote,
+            )
         })
     });
-    let (size, is_dir) = match file_info {
+    let (size, is_dir, is_tty, is_remote, fd_remote) = match file_info {
         Some(Some(v)) => v,
         _ => return EBADF,
     };
-    // S_IFREG = 0x8000, S_IFDIR = 0x4000
-    let mode = if is_dir { 0x4000u32 | 0o755 } else { 0x8000u32 | 0o755 };
+    if is_remote {
+        let (mode, size) = match fstat_via_fs_service(fd_remote) {
+            Ok(v) => v,
+            Err(e) => return e,
+        };
+        write_stat_buf(stat_ptr, mode_for_stat(mode), size);
+        return SUCCESS;
+    }
+    // S_IFCHR = 0x2000, S_IFREG = 0x8000, S_IFDIR = 0x4000
+    let mode = if is_tty {
+        0x2000u32 | 0o666
+    } else if is_dir {
+        0x4000u32 | 0o755
+    } else {
+        0x8000u32 | 0o755
+    };
     write_stat_buf(stat_ptr, mode, size);
     SUCCESS
 }
@@ -267,40 +816,29 @@ pub fn stat(path_ptr: u64, stat_ptr: u64) -> u64 {
     if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
         return EFAULT;
     }
+    let owner_pid = match current_process_id_raw() {
+        Some(pid) => pid,
+        None => return EBADF,
+    };
     let path = match read_cstring(path_ptr) {
         Ok(s) => s,
         Err(e) => return e,
     };
-    let pid_raw = current_process_id_raw();
-    let resolved = if let Some(p) = pid_raw {
-        if path.starts_with('/') {
-            path
-        } else {
-            let pid = crate::task::ids::ProcessId::from_u64(p);
-            let cwd = crate::task::with_process(pid, |proc| {
-                let mut s = alloc::string::String::new();
-                s.push_str(proc.cwd());
-                s
-            }).unwrap_or_else(|| "/".to_string());
-            let joined = alloc::format!("{}/{}", cwd.trim_end_matches('/'), path);
-            // 正規化は簡易: 連続スラッシュのみ処理
-            joined
-        }
-    } else {
-        path
-    };
+    let resolved = resolve_path(owner_pid, &path);
 
-    match crate::init::fs::file_metadata(&resolved) {
-        Some((inode_mode, size)) => {
-            // ext2 inode mode をそのまま使用（S_IFREG/S_IFDIR ビットを保持）
-            let mode = inode_mode as u32;
-            // パーミッションビットが 0 の場合はデフォルト値を設定
-            let perm = mode & 0o777;
-            let mode = if perm == 0 { mode | 0o755 } else { mode };
-            write_stat_buf(stat_ptr, mode, size);
+    match stat_path_via_fs_service(&resolved) {
+        Ok((mode, size)) => {
+            write_stat_buf(stat_ptr, mode_for_stat(mode), size);
             SUCCESS
         }
-        None => ENOENT,
+        Err(errno) if should_fallback_to_initfs(errno) => match fallback_file_metadata(&resolved) {
+            Some((inode_mode, size)) => {
+                write_stat_buf(stat_ptr, mode_for_stat(inode_mode), size);
+                SUCCESS
+            }
+            None => ENOENT,
+        },
+        Err(errno) => errno,
     }
 }
 
@@ -334,27 +872,55 @@ pub fn readdir(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
         None => return EBADF,
     };
 
-    let dir_path = match with_fd_table(pid, |t| {
-        t.get_raw(idx).and_then(|ptr| {
-            let fh = unsafe { &*ptr };
-            fh.dir_path.clone()
-        })
+    let (dir_path, start_pos, is_remote, fd_remote) = match with_fd_table(pid, |t| {
+        t.get(idx)
+            .map(|fh| (fh.dir_path.clone(), fh.pos, fh.is_remote, fh.fd_remote))
     }) {
-        Some(Some(p)) => p,
+        Some(Some((Some(p), pos, is_remote, fd_remote))) => (p, pos, is_remote, fd_remote),
         _ => return EBADF,
     };
 
-    let names = match crate::init::fs::readdir_path(&dir_path) {
+    if is_remote {
+        let mut offset = start_pos;
+        let mut copied = 0usize;
+        let mut chunk = [0u8; FS_DATA_MAX];
+        while copied < buf_len as usize {
+            let want = core::cmp::min(chunk.len(), buf_len as usize - copied);
+            let (n, next_index) =
+                match readdir_chunk_via_fs_service(fd_remote, offset, &mut chunk[..want]) {
+                    Ok(v) => v,
+                    Err(e) => return e,
+                };
+            if n == 0 {
+                break;
+            }
+            if crate::syscall::copy_to_user(buf_ptr + copied as u64, &chunk[..n]).is_err() {
+                return EFAULT;
+            }
+            copied += n;
+            offset = next_index;
+            if n < want {
+                break;
+            }
+        }
+        let _ = with_fd_table_mut(pid, |t| {
+            if let Some(fh) = t.get_mut(idx) {
+                fh.pos = offset;
+            }
+        });
+        return copied as u64;
+    }
+
+    let names = match fallback_readdir(&dir_path) {
         Some(n) => n,
         None => return EINVAL,
     };
     let joined = names.join("\n");
     let bytes = joined.as_bytes();
     let to_copy = core::cmp::min(bytes.len(), buf_len as usize);
-    crate::syscall::with_user_memory_access(|| unsafe {
-        let dst = core::slice::from_raw_parts_mut(buf_ptr as *mut u8, to_copy);
-        dst.copy_from_slice(&bytes[..to_copy]);
-    });
+    if crate::syscall::copy_to_user(buf_ptr, &bytes[..to_copy]).is_err() {
+        return EFAULT;
+    }
     to_copy as u64
 }
 
@@ -372,8 +938,18 @@ pub fn chdir(path_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let resolved = resolve_path(pid_raw, &path);
-    if !crate::init::fs::is_directory(&resolved) {
-        return ENOENT;
+    match stat_path_via_fs_service(&resolved) {
+        Ok((mode, _)) => {
+            if !mode_is_directory(mode) {
+                return ENOTDIR;
+            }
+        }
+        Err(errno) if should_fallback_to_initfs(errno) => {
+            if !fallback_is_directory(&resolved) {
+                return ENOTDIR;
+            }
+        }
+        Err(errno) => return errno,
     }
     let pid = crate::task::ids::ProcessId::from_u64(pid_raw);
     crate::task::with_process_mut(pid, |p| p.set_cwd(&resolved));
@@ -405,10 +981,12 @@ pub fn getcwd(buf_ptr: u64, size: u64) -> u64 {
     if (size as usize) < needed {
         return EINVAL;
     }
-    crate::syscall::with_user_memory_access(|| unsafe {
-        core::ptr::copy_nonoverlapping(tmp.as_ptr(), buf_ptr as *mut u8, cwd_len);
-        *(buf_ptr as *mut u8).add(cwd_len) = 0;
-    });
+    if crate::syscall::copy_to_user(buf_ptr, &tmp[..cwd_len]).is_err() {
+        return EFAULT;
+    }
+    if crate::syscall::copy_to_user(buf_ptr + cwd_len as u64, &[0]).is_err() {
+        return EFAULT;
+    }
     buf_ptr
 }
 
@@ -435,25 +1013,100 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
         None => return EBADF,
     };
 
-    // PROCESS_TABLE ロックを短く保持して生ポインタを取得する。
-    // int 0x80 ハンドラ内では割り込み無効かつ同一プロセス単一スレッドなので
-    // ロック解放後もポインタは安全に使用できる。
-    let fh_ptr = match with_fd_table(pid, |t| t.get_raw(idx)) {
-        Some(Some(ptr)) => ptr,
+    let (is_remote, fd_remote) =
+        match with_fd_table(pid, |t| t.get(idx).map(|fh| (fh.is_remote, fh.fd_remote))) {
+            Some(Some(v)) => v,
+            _ => return EBADF,
+        };
+
+    if is_remote {
+        let mut tmp = alloc::vec![0u8; len as usize];
+        let n = match read_via_fs_service(fd_remote, &mut tmp) {
+            Ok(v) => v,
+            Err(e) => return e,
+        };
+        if n > 0 {
+            if crate::syscall::copy_to_user(buf_ptr, &tmp[..n]).is_err() {
+                return EFAULT;
+            }
+        }
+        return n as u64;
+    }
+
+    let local = match with_fd_table_mut(pid, |t| {
+        let fh = t.get_mut(idx)?;
+        let avail = fh.data.len().saturating_sub(fh.pos);
+        if avail == 0 {
+            return Some(Vec::new());
+        }
+        let to_read = core::cmp::min(avail, len as usize);
+        let mut data = Vec::with_capacity(to_read);
+        data.extend_from_slice(&fh.data[fh.pos..fh.pos + to_read]);
+        fh.pos += to_read;
+        Some(data)
+    }) {
+        Some(Some(v)) => v,
         _ => return EBADF,
     };
-    let fh = unsafe { &mut *fh_ptr };
-    let avail = fh.data.len().saturating_sub(fh.pos);
-    if avail == 0 {
+
+    if local.is_empty() {
         return 0;
     }
-    let to_read = core::cmp::min(avail, len as usize);
-    crate::syscall::with_user_memory_access(|| unsafe {
-        let dst = core::slice::from_raw_parts_mut(buf_ptr as *mut u8, to_read);
-        dst.copy_from_slice(&fh.data[fh.pos..fh.pos + to_read]);
+
+    if crate::syscall::copy_to_user(buf_ptr, &local).is_err() {
+        return EFAULT;
+    }
+    local.len() as u64
+}
+
+/// Write: 開かれたファイルへデータを書き込む（ローカル一時FDのみ）
+pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
+    if buf_ptr == 0 {
+        return EFAULT;
+    }
+    if len == 0 {
+        return 0;
+    }
+    if !crate::syscall::validate_user_ptr(buf_ptr, len) {
+        return EFAULT;
+    }
+    if fd < FD_BASE as u64 {
+        return EBADF;
+    }
+    let idx = fd as usize;
+    if idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+
+    let mut buf = alloc::vec![0u8; len as usize];
+    if let Err(errno) = crate::syscall::copy_from_user(buf_ptr, &mut buf) {
+        return errno;
+    }
+
+    let wrote = with_fd_table_mut(pid, |t| {
+        let fh = t.get_mut(idx).ok_or(EBADF)?;
+        if fh.is_remote {
+            return Err(ENOSYS);
+        }
+        let end = fh.pos.checked_add(buf.len()).ok_or(EINVAL)?;
+        let mut data = fh.data.to_vec();
+        if end > data.len() {
+            data.resize(end, 0);
+        }
+        data[fh.pos..end].copy_from_slice(&buf);
+        fh.data = data.into_boxed_slice();
+        fh.pos = end;
+        Ok(buf.len() as u64)
     });
-    fh.pos += to_read;
-    to_read as u64
+    match wrote {
+        Some(Ok(n)) => n,
+        Some(Err(errno)) => errno,
+        None => EBADF,
+    }
 }
 
 /// Fcntl システムコール（FD フラグ操作）
@@ -468,12 +1121,15 @@ pub fn fcntl(fd: u64, cmd: u64, arg: u64) -> u64 {
     const F_SETFD: u64 = 2;
     const F_GETFL: u64 = 3;
     const F_SETFL: u64 = 4;
+    const F_GETLK: u64 = 5;
+    const F_SETLK: u64 = 6;
+    const F_SETLKW: u64 = 7;
 
     if fd < FD_BASE as u64 {
         // stdin/stdout/stderr: FD フラグは 0
         return match cmd {
-            F_GETFD | F_GETFL => 0,
-            F_SETFD | F_SETFL => SUCCESS,
+            F_GETFD | F_GETFL | F_GETLK => 0,
+            F_SETFD | F_SETFL | F_SETLK | F_SETLKW => SUCCESS,
             _ => EINVAL,
         };
     }
@@ -487,12 +1143,10 @@ pub fn fcntl(fd: u64, cmd: u64, arg: u64) -> u64 {
     };
 
     match cmd {
-        F_GETFD => {
-            match with_fd_table(pid, |t| t.get_flags(idx)) {
-                Some(Some(flags)) => flags as u64,
-                _ => EBADF,
-            }
-        }
+        F_GETFD => match with_fd_table(pid, |t| t.get_flags(idx)) {
+            Some(Some(flags)) => flags as u64,
+            _ => EBADF,
+        },
         F_SETFD => {
             let cloexec = (arg & 1) != 0;
             let new_flags = if cloexec { FD_CLOEXEC } else { 0 };
@@ -501,17 +1155,99 @@ pub fn fcntl(fd: u64, cmd: u64, arg: u64) -> u64 {
                 _ => EBADF,
             }
         }
-        F_GETFL => 0,    // O_RDONLY スタブ
-        F_SETFL => SUCCESS,
+        F_GETFL => match with_fd_table(pid, |t| t.get(idx).map(|fh| fh.open_flags)) {
+            Some(Some(v)) => v,
+            _ => EBADF,
+        },
+        F_SETFL => {
+            match with_fd_table_mut(pid, |t| {
+                let fh = t.get_mut(idx).ok_or(EBADF)?;
+                fh.open_flags = (fh.open_flags & O_ACCMODE) | (arg & !O_ACCMODE);
+                Ok::<(), u64>(())
+            }) {
+                Some(Ok(())) => SUCCESS,
+                Some(Err(errno)) => errno,
+                None => EBADF,
+            }
+        }
+        F_GETLK => SUCCESS,
+        F_SETLK | F_SETLKW => SUCCESS,
         _ => EINVAL,
+    }
+}
+
+/// fsync/fdatasync システムコール（最小実装）
+pub fn fsync(fd: u64) -> u64 {
+    if fd < FD_BASE as u64 {
+        return SUCCESS;
+    }
+    let idx = fd as usize;
+    if idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+    match with_fd_table(pid, |t| t.get(idx).is_some()) {
+        Some(true) => SUCCESS,
+        _ => EBADF,
+    }
+}
+
+/// truncate システムコール（最小実装）
+pub fn truncate(_path_ptr: u64, _len: u64) -> u64 {
+    SUCCESS
+}
+
+/// ftruncate システムコール（ローカル一時FDのみ）
+pub fn ftruncate(fd: u64, len: u64) -> u64 {
+    if fd < FD_BASE as u64 {
+        return EBADF;
+    }
+    let idx = fd as usize;
+    if idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+    let new_len = match usize::try_from(len) {
+        Ok(v) => v,
+        Err(_) => return EINVAL,
+    };
+    let res = with_fd_table_mut(pid, |t| {
+        let fh = t.get_mut(idx).ok_or(EBADF)?;
+        if fh.is_remote {
+            return Err(ENOSYS);
+        }
+        let mut data = fh.data.to_vec();
+        data.resize(new_len, 0);
+        fh.data = data.into_boxed_slice();
+        if fh.pos > new_len {
+            fh.pos = new_len;
+        }
+        Ok(())
+    });
+    match res {
+        Some(Ok(())) => SUCCESS,
+        Some(Err(errno)) => errno,
+        None => EBADF,
     }
 }
 
 /// Dup システムコール: FD を複製して最小の空き番号に割り当てる
 pub fn dup(fd: u64) -> u64 {
     if fd < FD_BASE as u64 {
-        // stdin/stdout/stderr の複製は対応しない（スタブ: EBADF）
-        return EBADF;
+        let pid = match current_process_id_raw() {
+            Some(p) => p,
+            None => return EBADF,
+        };
+        return match with_fd_table_mut(pid, |t| t.alloc(make_tty_handle("/dev/tty"), false)) {
+            Some(Some(new_fd)) => new_fd as u64,
+            _ => ENOSYS,
+        };
     }
     let idx = fd as usize;
     if idx >= PROCESS_MAX_FDS {
@@ -524,14 +1260,17 @@ pub fn dup(fd: u64) -> u64 {
 
     // 既存エントリをクローンして新しい FD を割り当てる
     let cloned = with_fd_table(pid, |t| {
-        t.get_raw(idx).map(|ptr| {
-            let fh = unsafe { &*ptr };
+        t.get(idx).map(|fh| {
             alloc::boxed::Box::new(FileHandle {
                 data: fh.data.clone(),
                 pos: fh.pos,
                 dir_path: fh.dir_path.clone(),
+                is_remote: fh.is_remote,
+                fd_remote: fh.fd_remote,
+                remote_refs: fh.clone_remote_refs(),
                 pipe_id: fh.pipe_id,
                 pipe_write: fh.pipe_write,
+                open_flags: fh.open_flags,
             })
         })
     });
@@ -560,38 +1299,44 @@ pub fn dup2(old_fd: u64, new_fd: u64) -> u64 {
             Some(p) => p,
             None => return EBADF,
         };
-        return match with_fd_table(pid, |t| t.get_raw(old_fd as usize)) {
-            Some(Some(_)) => old_fd,
+        return match with_fd_table(pid, |t| t.get(old_fd as usize).is_some()) {
+            Some(true) => old_fd,
             _ => EBADF,
         };
     }
 
-    let old_idx = old_fd as usize;
-    if old_idx >= PROCESS_MAX_FDS {
-        return EBADF;
-    }
     let new_idx = new_fd as usize;
     let pid = match current_process_id_raw() {
         Some(p) => p,
         None => return EBADF,
     };
 
-    // old_fd のクローンを作成
-    let cloned = with_fd_table(pid, |t| {
-        t.get_raw(old_idx).map(|ptr| {
-            let fh = unsafe { &*ptr };
-            alloc::boxed::Box::new(FileHandle {
-                data: fh.data.clone(),
-                pos: fh.pos,
-                dir_path: fh.dir_path.clone(),
-                pipe_id: fh.pipe_id,
-                pipe_write: fh.pipe_write,
+    let new_handle = if old_fd < FD_BASE as u64 {
+        make_tty_handle("/dev/tty")
+    } else {
+        let old_idx = old_fd as usize;
+        if old_idx >= PROCESS_MAX_FDS {
+            return EBADF;
+        }
+        let cloned = with_fd_table(pid, |t| {
+            t.get(old_idx).map(|fh| {
+                alloc::boxed::Box::new(FileHandle {
+                    data: fh.data.clone(),
+                    pos: fh.pos,
+                    dir_path: fh.dir_path.clone(),
+                    is_remote: fh.is_remote,
+                    fd_remote: fh.fd_remote,
+                    remote_refs: fh.clone_remote_refs(),
+                    pipe_id: fh.pipe_id,
+                    pipe_write: fh.pipe_write,
+                    open_flags: fh.open_flags,
+                })
             })
-        })
-    });
-    let new_handle = match cloned {
-        Some(Some(h)) => h,
-        _ => return EBADF,
+        });
+        match cloned {
+            Some(Some(h)) => h,
+            _ => return EBADF,
+        }
     };
 
     // new_fd が使用中なら閉じる
@@ -603,6 +1348,22 @@ pub fn dup2(old_fd: u64, new_fd: u64) -> u64 {
     });
 
     new_fd
+}
+
+/// unlink システムコール（最小実装）
+pub fn unlink(path_ptr: u64) -> u64 {
+    if path_ptr == 0 {
+        return EINVAL;
+    }
+    match read_cstring(path_ptr) {
+        Ok(_) => SUCCESS,
+        Err(errno) => errno,
+    }
+}
+
+/// unlinkat システムコール（最小実装）
+pub fn unlinkat(_dirfd: i64, path_ptr: u64, _flags: u64) -> u64 {
+    unlink(path_ptr)
 }
 
 /// Openat システムコール
@@ -626,12 +1387,7 @@ pub fn openat(dirfd: i64, path_ptr: u64, flags: u64, _mode: u64) -> u64 {
     if idx >= PROCESS_MAX_FDS {
         return EBADF;
     }
-    let dir_path = match with_fd_table(pid, |t| {
-        t.get_raw(idx).and_then(|ptr| {
-            let fh = unsafe { &*ptr };
-            fh.dir_path.clone()
-        })
-    }) {
+    let dir_path = match with_fd_table(pid, |t| t.get(idx).and_then(|fh| fh.dir_path.clone())) {
         Some(Some(p)) => p,
         _ => return EBADF,
     };
@@ -647,28 +1403,7 @@ pub fn openat(dirfd: i64, path_ptr: u64, flags: u64, _mode: u64) -> u64 {
         alloc::format!("{}/{}", dir_path.trim_end_matches('/'), path)
     };
 
-    // full_path を持つ一時ポインタを使って open する代わりに直接処理
-    let (data_vec, final_dir_path) = if crate::init::fs::is_directory(&full_path) {
-        (Vec::new(), Some(full_path.clone()))
-    } else {
-        match crate::init::fs::read(&full_path) {
-            Some(d) => (d, None),
-            None => return ENOENT,
-        }
-    };
-
-    let cloexec = (flags & O_CLOEXEC) != 0;
-    let handle = alloc::boxed::Box::new(FileHandle {
-        data: data_vec.into_boxed_slice(),
-        pos: 0,
-        dir_path: final_dir_path,
-        pipe_id: None,
-        pipe_write: false,
-    });
-    match with_fd_table_mut(pid, |t| t.alloc(handle, cloexec)) {
-        Some(Some(fd)) => fd as u64,
-        _ => ENOSYS,
-    }
+    open_resolved_for_pid(pid, &normalize_path(&full_path), flags)
 }
 
 /// Newfstatat (fstatat) システムコール
@@ -696,10 +1431,10 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
         None => return EBADF,
     };
     let idx = dirfd as usize;
-    if idx >= PROCESS_MAX_FDS { return EBADF; }
-    let dir_path = match with_fd_table(pid, |t| {
-        t.get_raw(idx).and_then(|ptr| unsafe { (*ptr).dir_path.clone() })
-    }) {
+    if idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
+    let dir_path = match with_fd_table(pid, |t| t.get(idx).and_then(|fh| fh.dir_path.clone())) {
         Some(Some(p)) => p,
         _ => return EBADF,
     };
@@ -707,19 +1442,36 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
         Ok(s) => s,
         Err(e) => return e,
     };
-    let full = if path.starts_with('/') { path } else {
-        alloc::format!("{}/{}", dir_path.trim_end_matches('/'), path)
+    let full = if path.starts_with('/') {
+        normalize_path(&path)
+    } else {
+        normalize_path(&alloc::format!(
+            "{}/{}",
+            dir_path.trim_end_matches('/'),
+            path
+        ))
     };
-    match crate::init::fs::file_metadata(&full) {
-        Some((inode_mode, size)) => {
+    match stat_path_via_fs_service(&full) {
+        Ok((mode, size)) => {
             const STAT_SIZE: u64 = 144;
-            if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) { return EFAULT; }
-            let perm = (inode_mode as u32) & 0o777;
-            let mode = if perm == 0 { inode_mode as u32 | 0o755 } else { inode_mode as u32 };
-            write_stat_buf(stat_ptr, mode, size);
+            if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
+                return EFAULT;
+            }
+            write_stat_buf(stat_ptr, mode_for_stat(mode), size);
             SUCCESS
         }
-        None => ENOENT,
+        Err(errno) if should_fallback_to_initfs(errno) => match fallback_file_metadata(&full) {
+            Some((inode_mode, size)) => {
+                const STAT_SIZE: u64 = 144;
+                if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
+                    return EFAULT;
+                }
+                write_stat_buf(stat_ptr, mode_for_stat(inode_mode), size);
+                SUCCESS
+            }
+            None => ENOENT,
+        },
+        Err(errno) => errno,
     }
 }
 
@@ -727,28 +1479,132 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
 pub fn faccessat(dirfd: i64, path_ptr: u64, _mode: u64, _flags: u64) -> u64 {
     use super::types::ENOENT;
     const AT_FDCWD: i64 = -100;
-    if path_ptr == 0 { return EINVAL; }
+    if path_ptr == 0 {
+        return EINVAL;
+    }
     let path = match read_cstring(path_ptr) {
         Ok(s) => s,
         Err(e) => return e,
     };
     let resolved = if dirfd == AT_FDCWD || path.starts_with('/') {
-        path
+        normalize_path(&path)
     } else {
         let pid = match current_process_id_raw() {
             Some(p) => p,
             None => return EBADF,
         };
         let idx = dirfd as usize;
-        if idx >= PROCESS_MAX_FDS { return EBADF; }
+        if idx >= PROCESS_MAX_FDS {
+            return EBADF;
+        }
         match with_fd_table(current_process_id_raw().unwrap_or(0), |t| {
-            t.get_raw(idx).and_then(|ptr| unsafe { (*ptr).dir_path.clone() })
+            t.get(idx).and_then(|fh| fh.dir_path.clone())
         }) {
-            Some(Some(d)) => alloc::format!("{}/{}", d.trim_end_matches('/'), path),
+            Some(Some(d)) => {
+                normalize_path(&alloc::format!("{}/{}", d.trim_end_matches('/'), path))
+            }
             _ => return EBADF,
         }
     };
-    if crate::init::fs::file_metadata(&resolved).is_some() { SUCCESS } else { ENOENT }
+    match stat_path_via_fs_service(&resolved) {
+        Ok(_) => SUCCESS,
+        Err(errno) if should_fallback_to_initfs(errno) => {
+            if fallback_file_metadata(&resolved).is_some() {
+                SUCCESS
+            } else {
+                ENOENT
+            }
+        }
+        Err(errno) => errno,
+    }
+}
+
+/// statfs システムコール（最小実装）
+///
+/// Linux x86_64 の `struct statfs` (120 bytes) を埋めて返す。
+pub fn statfs(path_ptr: u64, buf_ptr: u64) -> u64 {
+    const STATFS_SIZE: u64 = 120;
+    if path_ptr == 0 || buf_ptr == 0 {
+        return EINVAL;
+    }
+    if !crate::syscall::validate_user_ptr(buf_ptr, STATFS_SIZE) {
+        return EFAULT;
+    }
+
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+    let path = match read_cstring(path_ptr) {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let resolved = resolve_path(pid, &path);
+    if stat_path_via_fs_service(&resolved).is_err() && fallback_file_metadata(&resolved).is_none() {
+        return ENOENT;
+    }
+
+    // struct statfs {
+    //   long f_type, f_bsize, f_blocks, f_bfree, f_bavail, f_files, f_ffree;
+    //   fsid_t f_fsid; long f_namelen, f_frsize, f_flags, f_spare[4];
+    // }
+    let mut buf = [0u8; STATFS_SIZE as usize];
+    buf[0..8].copy_from_slice(&0xEF53u64.to_ne_bytes()); // ext2 magic
+    buf[8..16].copy_from_slice(&4096u64.to_ne_bytes()); // f_bsize
+    buf[64..72].copy_from_slice(&255u64.to_ne_bytes()); // f_namelen
+    buf[72..80].copy_from_slice(&4096u64.to_ne_bytes()); // f_frsize
+    crate::syscall::copy_to_user(buf_ptr, &buf)
+        .map(|_| SUCCESS)
+        .unwrap_or_else(|e| e)
+}
+
+/// readlinkat システムコール（最小実装）
+///
+/// `/proc/self/exe` と `/proc/self/cwd` のみをサポートする。
+pub fn readlinkat(dirfd: i64, path_ptr: u64, buf_ptr: u64, buf_len: u64) -> u64 {
+    const AT_FDCWD: i64 = -100;
+    if path_ptr == 0 || buf_ptr == 0 || buf_len == 0 {
+        return EINVAL;
+    }
+    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) {
+        return EFAULT;
+    }
+    let raw = match read_cstring(path_ptr) {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let path = if raw.starts_with('/') || dirfd == AT_FDCWD {
+        normalize_path(&raw)
+    } else {
+        // 最小実装: dirfd 相対は未対応
+        return EBADF;
+    };
+
+    let pid = match current_process_id_raw() {
+        Some(p) => crate::task::ids::ProcessId::from_u64(p),
+        None => return EBADF,
+    };
+    let target = if path == "/proc/self/exe" {
+        match crate::task::with_process(pid, |p| String::from(p.name())) {
+            Some(name) if name.starts_with('/') => name,
+            Some(name) => alloc::format!("/{}", name),
+            None => return ESRCH,
+        }
+    } else if path == "/proc/self/cwd" {
+        match crate::task::with_process(pid, |p| String::from(p.cwd())) {
+            Some(cwd) => cwd,
+            None => return ESRCH,
+        }
+    } else {
+        return ENOENT;
+    };
+
+    let bytes = target.as_bytes();
+    let copy_len = core::cmp::min(bytes.len(), buf_len as usize);
+    if let Err(errno) = crate::syscall::copy_to_user(buf_ptr, &bytes[..copy_len]) {
+        return errno;
+    }
+    copy_len as u64
 }
 
 /// Getdents64 システムコール
@@ -758,35 +1614,73 @@ pub fn faccessat(dirfd: i64, path_ptr: u64, _mode: u64, _flags: u64) -> u64 {
 /// - レコードは 8 バイトアラインメント
 /// FD の `pos` をエントリインデックスとして使用する。
 pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
-    if buf_ptr == 0 || buf_len == 0 { return EINVAL; }
-    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) { return EFAULT; }
-    if fd < FD_BASE as u64 { return EBADF; }
+    if buf_ptr == 0 || buf_len == 0 {
+        return EINVAL;
+    }
+    if !crate::syscall::validate_user_ptr(buf_ptr, buf_len) {
+        return EFAULT;
+    }
+    if fd < FD_BASE as u64 {
+        return EBADF;
+    }
     let idx = fd as usize;
-    if idx >= PROCESS_MAX_FDS { return EBADF; }
+    if idx >= PROCESS_MAX_FDS {
+        return EBADF;
+    }
     let pid = match current_process_id_raw() {
         Some(p) => p,
         None => return EBADF,
     };
 
     // ディレクトリパスと現在の読み取り位置を取得
-    let (dir_path, start_pos) = match with_fd_table(pid, |t| {
-        t.get_raw(idx).map(|ptr| {
-            let fh = unsafe { &*ptr };
-            (fh.dir_path.clone(), fh.pos)
-        })
+    let (dir_path, start_pos, is_remote, fd_remote) = match with_fd_table(pid, |t| {
+        t.get(idx)
+            .map(|fh| (fh.dir_path.clone(), fh.pos, fh.is_remote, fh.fd_remote))
     }) {
-        Some(Some((Some(p), pos))) => (p, pos),
-        _ => {
-            if is_process_busybox(pid) {
-                crate::info!("busybox getdents64: fd={} is invalid or not a directory", fd);
-            }
-            return EBADF;
-        }
+        Some(Some((Some(p), pos, is_remote, fd_remote))) => (p, pos, is_remote, fd_remote),
+        // リモート fd は dir_path が None でも fd_remote で readdir できる
+        Some(Some((None, pos, true, fd_remote))) => (String::new(), pos, true, fd_remote),
+        _ => return EBADF,
     };
 
-    let entries = match crate::init::fs::readdir_path(&dir_path) {
-        Some(e) => e,
-        None => return EINVAL,
+    let entries = if is_remote {
+        // 大きなディレクトリでの切り詰めを避けるため、オフセット付きで分割取得する。
+        let mut all: Vec<(String, u8)> = Vec::new();
+        let mut chunk = [0u8; FS_DATA_MAX];
+        let mut cursor = 0usize;
+        let mut safety = 0usize;
+        loop {
+            safety = safety.saturating_add(1);
+            if safety > 4096 {
+                return EIO;
+            }
+            let (n, next) = match readdir_chunk_via_fs_service(fd_remote, cursor, &mut chunk) {
+                Ok(v) => v,
+                Err(e) => return e,
+            };
+            if n == 0 {
+                break;
+            }
+            let parsed = parse_readdir_typed(&chunk[..n]);
+            for entry in parsed {
+                all.push(entry);
+            }
+            if next <= cursor {
+                break;
+            }
+            cursor = next;
+        }
+        all
+    } else {
+        match fallback_readdir(&dir_path) {
+            Some(e) => e
+                .into_iter()
+                // d_type の判定で追加 stat を打つとカーネルモジュール呼び出し回数が増え不安定化するため、
+                // ここでは DT_UNKNOWN(0) を返して利用側のフォールバックに任せる。
+                .map(|name| (name, 0u8))
+                .collect(),
+            None => return EINVAL,
+        }
     };
 
     let mut written: usize = 0;
@@ -799,63 +1693,43 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
             .iter()
             .map(|(n, t)| (alloc::string::String::from(*n), *t))
             .collect();
-        for name in &entries {
-            // ディレクトリかファイルかを判定
-            let child_path = alloc::format!("{}/{}", dir_path.trim_end_matches('/'), name);
-            let dtype = if crate::init::fs::is_directory(&child_path) { 4u8 } else { 8u8 };
-            v.push((name.clone(), dtype));
+        for (name, dtype) in &entries {
+            v.push((name.clone(), *dtype));
         }
         v
     };
 
-    crate::syscall::with_user_memory_access(|| {
-        for (i, (name, dtype)) in all_entries.iter().enumerate().skip(start_pos) {
-            let name_bytes = name.as_bytes();
-            let name_len = name_bytes.len() + 1; // null 終端含む
-            // d_ino(8) + d_off(8) + d_reclen(2) + d_type(1) + d_name
-            let raw_size = 8 + 8 + 2 + 1 + name_len;
-            let reclen = (raw_size + 7) & !7usize; // 8 バイトアライン
-            if written + reclen > buf_len as usize {
-                break;
-            }
-            let entry_ptr = (buf_ptr + written as u64) as *mut u8;
-            unsafe {
-                let buf = core::slice::from_raw_parts_mut(entry_ptr, reclen);
-                buf.fill(0);
-                // d_ino = i+1
-                buf[0..8].copy_from_slice(&((i as u64 + 1).to_ne_bytes()));
-                // d_off = next position
-                let next_off = (i + 1) as u64;
-                buf[8..16].copy_from_slice(&next_off.to_ne_bytes());
-                // d_reclen
-                buf[16..18].copy_from_slice(&(reclen as u16).to_ne_bytes());
-                // d_type
-                buf[18] = *dtype;
-                // d_name (null terminated)
-                buf[19..19 + name_bytes.len()].copy_from_slice(name_bytes);
-                buf[19 + name_bytes.len()] = 0;
-            }
-            written += reclen;
-            new_pos = i + 1;
+    let mut out = alloc::vec![0u8; buf_len as usize];
+    for (i, (name, dtype)) in all_entries.iter().enumerate().skip(start_pos) {
+        let name_bytes = name.as_bytes();
+        let name_len = name_bytes.len() + 1;
+        let raw_size = 8 + 8 + 2 + 1 + name_len;
+        let reclen = (raw_size + 7) & !7usize;
+        if written + reclen > buf_len as usize {
+            break;
         }
-    });
+        let buf = &mut out[written..written + reclen];
+        buf.fill(0);
+        buf[0..8].copy_from_slice(&((i as u64 + 1).to_ne_bytes()));
+        let next_off = (i + 1) as u64;
+        buf[8..16].copy_from_slice(&next_off.to_ne_bytes());
+        buf[16..18].copy_from_slice(&(reclen as u16).to_ne_bytes());
+        buf[18] = *dtype;
+        buf[19..19 + name_bytes.len()].copy_from_slice(name_bytes);
+        buf[19 + name_bytes.len()] = 0;
+        written += reclen;
+        new_pos = i + 1;
+    }
+    if written > 0 && crate::syscall::copy_to_user(buf_ptr, &out[..written]).is_err() {
+        return EFAULT;
+    }
 
     // FD の pos を更新する
     with_fd_table_mut(pid, |t| {
-        if let Some(ptr) = t.get_raw(idx) {
-            unsafe { (*ptr).pos = new_pos; }
+        if let Some(fh) = t.get_mut(idx) {
+            fh.pos = new_pos;
         }
     });
-
-    if is_process_busybox(pid) {
-        crate::info!(
-            "busybox getdents64: fd={}, start_pos={}, entries={}, written={}",
-            fd,
-            start_pos,
-            all_entries.len(),
-            written
-        );
-    }
 
     written as u64
 }

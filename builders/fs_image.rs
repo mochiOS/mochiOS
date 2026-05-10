@@ -28,23 +28,165 @@ fn blocks_for_dir(dir: &Path, block_size: u64) -> u64 {
     (needed + block_size - 1) / block_size
 }
 
+/// InitFS 用のブロック数を計算する
+/// 実行時最低限の内容だけを格納するため、rootfs より小さめの余裕にする
+fn blocks_for_initfs_dir(dir: &Path, block_size: u64) -> u64 {
+    let content = compute_content_size(dir);
+    let needed = ((content.saturating_mul(11) / 10) + 4 * 1024 * 1024).max(16 * 1024 * 1024);
+    (needed + block_size - 1) / block_size
+}
+
+fn should_skip_initfs_library(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|e| e.to_str()),
+        Some("a") | Some("o")
+    )
+}
+
+fn copy_initfs_runtime_tree(src: &Path, dst: &Path, in_libraries: bool) -> Result<bool, String> {
+    let mut copied_any = false;
+
+    for entry in
+        fs::read_dir(src).map_err(|e| format!("Failed to read {}: {}", src.display(), e))?
+    {
+        let entry =
+            entry.map_err(|e| format!("Failed to read entry in {}: {}", src.display(), e))?;
+        let src_path = entry.path();
+        let name = entry.file_name();
+        let dst_path = dst.join(&name);
+        let name_str = name.to_string_lossy();
+        let child_in_libraries = in_libraries || name_str == "lib";
+        let src_meta = fs::symlink_metadata(&src_path)
+            .map_err(|e| format!("Failed to stat {}: {}", src_path.display(), e))?;
+
+        if src_meta.is_dir() {
+            let child_copied = copy_initfs_runtime_tree(&src_path, &dst_path, child_in_libraries)?;
+            if child_copied {
+                if !copied_any {
+                    fs::create_dir_all(dst)
+                        .map_err(|e| format!("Failed to create {}: {}", dst.display(), e))?;
+                }
+                copied_any = true;
+            }
+        } else {
+            if child_in_libraries && should_skip_initfs_library(&src_path) {
+                continue;
+            }
+
+            if !copied_any {
+                fs::create_dir_all(dst)
+                    .map_err(|e| format!("Failed to create {}: {}", dst.display(), e))?;
+                copied_any = true;
+            }
+
+            if src_meta.file_type().is_symlink() {
+                let link_target = fs::read_link(&src_path)
+                    .map_err(|e| format!("Failed to read symlink {}: {}", src_path.display(), e))?;
+                #[cfg(unix)]
+                {
+                    std::os::unix::fs::symlink(&link_target, &dst_path).map_err(|e| {
+                        format!(
+                            "Failed to replicate symlink {} -> {}: {}",
+                            dst_path.display(),
+                            link_target.display(),
+                            e
+                        )
+                    })?;
+                }
+                #[cfg(not(unix))]
+                {
+                    let resolved = if link_target.is_absolute() {
+                        link_target.clone()
+                    } else {
+                        src_path
+                            .parent()
+                            .unwrap_or_else(|| Path::new("."))
+                            .join(&link_target)
+                    };
+                    fs::copy(&resolved, &dst_path).map_err(|e| {
+                        format!(
+                            "Failed to copy symlink target {} to {}: {}",
+                            resolved.display(),
+                            dst_path.display(),
+                            e
+                        )
+                    })?;
+                }
+            } else {
+                fs::copy(&src_path, &dst_path).map_err(|e| {
+                    format!(
+                        "Failed to copy {} to {}: {}",
+                        src_path.display(),
+                        dst_path.display(),
+                        e
+                    )
+                })?;
+            }
+        }
+    }
+
+    if !copied_any && dst.exists() {
+        let _ = fs::remove_dir(dst);
+    }
+
+    Ok(copied_any)
+}
+
 /// InitFS (ramfs) 用のext2イメージを生成
 pub fn create_initfs_image(ramfs_dir: &Path, output_path: &Path) -> Result<(), String> {
     println!("Creating initfs ext2 image from {}", ramfs_dir.display());
 
     emit_rerun_if_changed(ramfs_dir);
 
-    let num_blocks = blocks_for_dir(ramfs_dir, 4096);
-    println!("initfs: {} 4K-blocks ({} MB)", num_blocks, num_blocks * 4 / 1024);
+    // サービスのビルドでは ramfs/lib が必要だが、InitFS 本体には
+    // 実行時に不要な静的成果物 (.a/.o) を含めない
+    let staging_dir = output_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("initfs-runtime");
+    if staging_dir.exists() {
+        fs::remove_dir_all(&staging_dir)
+            .map_err(|e| format!("Failed to clean {}: {}", staging_dir.display(), e))?;
+    }
+    let copied_any = copy_initfs_runtime_tree(ramfs_dir, &staging_dir, false)?;
+    if !copied_any {
+        fs::create_dir_all(&staging_dir)
+            .map_err(|e| format!("Failed to create {}: {}", staging_dir.display(), e))?;
+    }
+
+    let original_size = compute_content_size(ramfs_dir) / (1024 * 1024);
+    let runtime_size = compute_content_size(&staging_dir) / (1024 * 1024);
+    println!(
+        "initfs runtime payload: {} MB (from {} MB)",
+        runtime_size, original_size
+    );
+
+    let num_blocks = blocks_for_initfs_dir(&staging_dir, 4096);
+    println!(
+        "initfs: {} 4K-blocks ({} MB)",
+        num_blocks,
+        num_blocks * 4 / 1024
+    );
+
+    // 既存ファイルを使い回すとサイズが縮まらない場合があるため、毎回作り直す
+    if output_path.exists() {
+        fs::remove_file(output_path).map_err(|e| {
+            format!(
+                "Failed to remove existing image {}: {}",
+                output_path.display(),
+                e
+            )
+        })?;
+    }
 
     let status = Command::new("mke2fs")
         .args(["-t", "ext2", "-b", "4096", "-m", "0", "-L", "initfs", "-d"])
-        .arg(ramfs_dir)
+        .arg(&staging_dir)
         .arg(output_path)
         .arg(num_blocks.to_string())
         .status();
 
-    match status {
+    let result = match status {
         Ok(s) if s.success() => {
             println!("Created initfs image at {}", output_path.display());
             Ok(())
@@ -54,7 +196,10 @@ pub fn create_initfs_image(ramfs_dir: &Path, output_path: &Path) -> Result<(), S
             "Failed to execute mke2fs: {}. Please install e2fsprogs (mke2fs).",
             e
         )),
-    }
+    };
+
+    let _ = fs::remove_dir_all(&staging_dir);
+    result
 }
 
 /// EXT2 ファイルシステムイメージを生成
@@ -64,7 +209,23 @@ pub fn create_ext2_image(fs_dir: &Path, output_path: &Path) -> Result<(), String
     emit_rerun_if_changed(fs_dir);
 
     let num_blocks = blocks_for_dir(fs_dir, 4096);
-    println!("rootfs: {} 4K-blocks ({} MB)", num_blocks, num_blocks * 4 / 1024);
+    
+    println!(
+        "rootfs: {} 4K-blocks ({} MB)",
+        num_blocks,
+        num_blocks * 4 / 1024
+    );
+
+    // 既存ファイルを使い回すとサイズが縮まらない場合があるため、毎回作り直す
+    if output_path.exists() {
+        fs::remove_file(output_path).map_err(|e| {
+            format!(
+                "Failed to remove existing image {}: {}",
+                output_path.display(),
+                e
+            )
+        })?;
+    }
 
     let status = Command::new("mke2fs")
         .args(["-t", "ext2", "-b", "4096", "-m", "0", "-L", "rootfs", "-d"])
@@ -89,22 +250,19 @@ pub fn create_ext2_image(fs_dir: &Path, output_path: &Path) -> Result<(), String
 /// fsディレクトリの標準レイアウトを作成
 pub fn setup_fs_layout(fs_dir: &Path, resources_src: &Path) -> Result<(), String> {
     let dirs = [
-        "System",           // システム（カーネルやカーネルに関連するファイルを配置）
-        "Applications",     // ユーザーアプリケーションを配置
-        "Binaries",         // コマンドやユーティリティを配置
-        "Libraries",        // ライブラリ（libc.aなど）を配置
-        "Mount",            // マウントしたやつ配置
-        "Boot",             // ブートローダー関連のファイルを配置
-        "Resources",        // アイコンやUIリソースを配置（ユーザーアプリのリソースはここに置く）
-        "Services",         // サービスを配置
-        "Logs",             // ログを配置
-        "Home",             // ユーザーディレクトリを配置
-        "Device",           // デバイスファイル（nullやttyなど）を配置
-        "Config",           // 設定ファイルを配置
-        "Variables",        // 環境変数や一時ファイルを配置
-        "Temp",             // 一時ファイルを配置
+        "system",       // システム（カーネルやカーネルに関連するファイルを配置）
+        "applications", // ユーザーアプリケーションを配置
+        "bin",          // コマンドやユーティリティを配置
+        "lib",          // ライブラリを配置
+        "mount",        // マウントしたやつ配置
+        "boot",         // ブートローダー関連のファイルを配置
+        "log",          // ログを配置
+        "home",         // ユーザーディレクトリを配置
+        "config",       // 設定ファイルを配置
+        "tmp",          // 一時ファイルを配置
+        "var",          // 変動するデータを配置
     ];
-    
+
     for dir in &dirs {
         let path = fs_dir.join(dir);
         fs::create_dir_all(&path)
@@ -113,8 +271,8 @@ pub fn setup_fs_layout(fs_dir: &Path, resources_src: &Path) -> Result<(), String
     }
 
     // src/resources/ の各サブディレクトリを対応する fs/ ディレクトリにコピー
-    // 例: src/resources/System/ → fs/System/
-    //     src/resources/Config/ → fs/Config/
+    // 例: src/resources/system/ → fs/system/
+    //     src/resources/config/ → fs/config/
     if resources_src.is_dir() {
         for entry in fs::read_dir(resources_src)
             .map_err(|e| format!("Failed to read resources dir: {}", e))?
@@ -126,6 +284,10 @@ pub fn setup_fs_layout(fs_dir: &Path, resources_src: &Path) -> Result<(), String
             }
             let dir_name = entry.file_name();
             let dst_path = fs_dir.join(&dir_name);
+            if dst_path.exists() {
+                fs::remove_dir_all(&dst_path)
+                    .map_err(|e| format!("Failed to clean {}: {}", dst_path.display(), e))?;
+            }
             copy_dir_recursive(&src_path, &dst_path)?;
             println!(
                 "Copied resources/{} -> {}",
@@ -140,11 +302,10 @@ pub fn setup_fs_layout(fs_dir: &Path, resources_src: &Path) -> Result<(), String
 
 /// ディレクトリを再帰的にコピーする
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
-    fs::create_dir_all(dst)
-        .map_err(|e| format!("Failed to create {}: {}", dst.display(), e))?;
+    fs::create_dir_all(dst).map_err(|e| format!("Failed to create {}: {}", dst.display(), e))?;
 
-    for entry in fs::read_dir(src)
-        .map_err(|e| format!("Failed to read {}: {}", src.display(), e))?
+    for entry in
+        fs::read_dir(src).map_err(|e| format!("Failed to read {}: {}", src.display(), e))?
     {
         let entry =
             entry.map_err(|e| format!("Failed to read entry in {}: {}", src.display(), e))?;
@@ -181,9 +342,9 @@ pub fn copy_newlib_libs(libc_dir: &Path, dest_dir: &Path) -> Result<(), String> 
         .map_err(|e| format!("Failed to copy crt0.o to {}: {}", dest_dir.display(), e))?;
     println!("Copied crt0.o to {}", dest_dir.display());
 
-    // ライブラリをコピー
-    let libs = ["libc.a", "libg.a", "libm.a", "libnosys.a"];
-    for lib in &libs {
+    // 必須のライブラリ
+    let required_libs = ["libc.a", "libg.a", "libm.a", "libnosys.a"];
+    for lib in &required_libs {
         let src = libc_dir.join(lib);
         let dest = dest_dir.join(lib);
         fs::copy(&src, &dest).map_err(|e| {
@@ -200,6 +361,35 @@ pub fn copy_newlib_libs(libc_dir: &Path, dest_dir: &Path) -> Result<(), String> 
             dest_dir.display(),
             src.display()
         );
+    }
+
+    // オプショナルなライブラリ（存在しない場合は空のアーカイブを作成）
+    let optional_libs = ["libgcc_s.a", "libunwind.a", "libextra.a"];
+    for lib in &optional_libs {
+        let dest = dest_dir.join(lib);
+        let src = libc_dir.join(lib);
+
+        if src.exists() {
+            // ソースが存在する場合はコピー
+            fs::copy(&src, &dest)
+                .map_err(|e| format!("Failed to copy {} to {}: {}", lib, dest_dir.display(), e))?;
+            println!("Copied {} to {}", lib, dest_dir.display());
+        } else if !dest.exists() {
+            // ソースが存在しない場合は空のアーカイブを作成
+            use std::process::Command;
+            let status = Command::new("ar")
+                .args(&["rcs", dest.to_str().unwrap()])
+                .status()
+                .map_err(|e| format!("Failed to create empty archive for {}: {}", lib, e))?;
+            if !status.success() {
+                return Err(format!("Failed to create empty archive for {}", lib));
+            }
+            println!(
+                "Created empty archive for {} at {}",
+                lib,
+                dest_dir.display()
+            );
+        }
     }
 
     Ok(())

@@ -158,7 +158,8 @@ pub fn build_service(
 
     // cargoでサービスをビルド
     let mut cmd = Command::new("cargo");
-    cmd.args(["build"]);
+    // 起動時ロード時間を抑えるため、サービスは常に release でビルドする
+    cmd.args(["build", "--release"]);
     if uses_json_target {
         cmd.args(["-Z", "json-target-spec"]);
         println!("  Enabling -Z json-target-spec");
@@ -236,12 +237,11 @@ pub fn build_service(
 
     if let Some(binary_path) = find_built_binary(&target_dir, target_name.as_deref()) {
         let dest_name = format!("{}.service", service.name);
-        // ATA/ext2 サービスは Services/ サブディレクトリに配置
+        // ATA/ext2 サービスは services/ サブディレクトリに配置
         let effective_output_dir = if service.fs_type != "initfs" {
-            let services_subdir = output_dir.join("Services");
-            fs::create_dir_all(&services_subdir).map_err(|e| {
-                format!("Failed to create Services dir: {}", e)
-            })?;
+            let services_subdir = output_dir.join("system/services");
+            fs::create_dir_all(&services_subdir)
+                .map_err(|e| format!("Failed to create services dir: {}", e))?;
             services_subdir
         } else {
             output_dir.to_path_buf()
@@ -268,7 +268,7 @@ pub fn build_service(
 }
 
 fn find_built_binary(target_dir: &Path, target_name: Option<&str>) -> Option<PathBuf> {
-    for profile in &["debug", "release"] {
+    for profile in &["release", "debug"] {
         if let Some(target) = target_name {
             let dir = target_dir.join(format!("{}/{}", target, profile));
             if dir.is_dir() {

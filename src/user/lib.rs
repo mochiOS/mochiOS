@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "hosted-vga"), no_std)]
 
 extern crate alloc;
 
@@ -39,9 +39,23 @@ pub mod posix_stubs;
 
 /// フレームバッファアクセス
 pub mod vga;
+/// 描画ラッパー（mochiOS / Linux host 共通）
+pub mod gfx;
 
 /// キーボード入力
 pub mod keyboard;
+/// マウス入力
+pub mod mouse;
+/// 入力注入
+pub mod input;
+/// MMIO/物理メモリマップ
+pub mod mmio;
+
+/// ファイルシステムIPC定数
+pub mod fs_consts;
+
+/// 特権システムコール（Service権限専用）
+pub mod privileged;
 
 #[cfg(not(feature = "std-support"))]
 use core::panic::PanicInfo;
@@ -79,4 +93,3 @@ unsafe impl GlobalAlloc for NewlibAllocator {
 
 #[global_allocator]
 static ALLOCATOR: NewlibAllocator = NewlibAllocator;
-

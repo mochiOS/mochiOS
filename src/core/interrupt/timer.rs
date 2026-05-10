@@ -14,8 +14,9 @@ static TIMER_TICKS: AtomicU64 = AtomicU64::new(0);
 /// ## Arguments
 /// - `_stack_frame`: 割り込み発生時のスタックフレーム
 pub extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    // KPTI: ユーザーCR3で割り込みに入った場合、先にカーネルCR3へ切り替える
-    let entered_from_user = crate::syscall::syscall_entry::switch_to_kernel_page_table() != 0;
+    let entered_from_user = crate::syscall::syscall_entry::kpti_enter_for_trap(
+        _stack_frame.code_segment.rpl() == x86_64::PrivilegeLevel::Ring3,
+    );
 
     // タイマーカウンタを増加
     let ticks = TIMER_TICKS
@@ -38,9 +39,7 @@ pub extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptSta
     }
 
     // ユーザーから入ってきた場合は、復帰先スレッドに応じたユーザーCR3へ戻す
-    if entered_from_user {
-        crate::syscall::syscall_entry::switch_to_current_thread_user_page_table();
-    }
+    crate::syscall::syscall_entry::kpti_leave_after_trap(entered_from_user);
 }
 
 /// 現在のタイマーティック数を取得
@@ -117,9 +116,12 @@ pub fn enable_timer_interrupt() {
     unsafe {
         use x86_64::instructions::port::Port;
 
-        // PIC master のIRQ0とIRQ1のマスクを解除（ビット0/1を0にする）
-        // タイマ（IRQ0）とキーボード（IRQ1）を許可するため 0b11111100 (0xfc)
-        Port::<u8>::new(0x21).write(0xfc);
+        // Master: IRQ0(timer), IRQ1(keyboard), IRQ2(cascade) を許可
+        // 1111_1000 = 0xF8
+        Port::<u8>::new(0x21).write(0xf8);
+        // Slave: IRQ12(PS/2 mouse) を許可（スレーブ内ではIRQ4）
+        // 1110_1111 = 0xEF
+        Port::<u8>::new(0xa1).write(0xef);
 
         // IO待機
         for _ in 0..1000 {

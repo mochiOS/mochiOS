@@ -27,6 +27,23 @@ static FUTEX_WAIT_QUEUE: SpinLock<[Option<FutexWaitEntry>; MAX_FUTEX_WAITERS]> =
     SpinLock::new([None; MAX_FUTEX_WAITERS]);
 
 #[inline]
+fn aslr_mix64(mut x: u64) -> u64 {
+    x ^= x >> 30;
+    x = x.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    x ^= x >> 27;
+    x = x.wrapping_mul(0x94d0_49bb_1331_11eb);
+    x ^ (x >> 31)
+}
+
+fn randomized_heap_base(pid: crate::task::ProcessId, floor: u64, max_pages: u64) -> u64 {
+    let seed = crate::cpu::boot_entropy_u64()
+        ^ crate::interrupt::timer::get_ticks().rotate_left(17)
+        ^ pid.as_u64().rotate_left(9)
+        ^ floor.rotate_left(3);
+    floor.saturating_add((aslr_mix64(seed) % max_pages) * 4096)
+}
+
+#[inline]
 fn page_align_up(addr: u64) -> Option<u64> {
     addr.checked_add(4095).map(|v| v & !4095)
 }
@@ -101,9 +118,15 @@ pub fn wake_due_futex_waiters(now_tick: u64) {
             if let Some(entry) = *slot {
                 if entry.wake_tick != NO_TIMEOUT_WAKE_TICK && now_tick >= entry.wake_tick {
                     *slot = None;
-                    debug_assert!(wake_count < wake_list.len());
-                    wake_list[wake_count] = Some(entry.tid);
-                    wake_count += 1;
+                    if wake_count < wake_list.len() {
+                        wake_list[wake_count] = Some(entry.tid);
+                        wake_count += 1;
+                    } else {
+                        crate::audit::log(
+                            crate::audit::AuditEventKind::Fault,
+                            "futex wake list overflow; dropping excess wake event",
+                        );
+                    }
                 }
             }
         }
@@ -129,6 +152,64 @@ pub fn exit(exit_code: u64) -> ! {
 
     // スケジューラから現在のタスクを削除して終了
     exit_current_task(exit_code)
+}
+
+/// List processes into a user-supplied buffer.
+/// arg0 = user buffer ptr, arg1 = buffer length in bytes.
+pub fn list_processes(buf_ptr: u64, buf_len: u64) -> u64 {
+    use crate::task::{for_each_process, ProcessState};
+
+    const RECORD_SIZE: usize = 88;
+    if buf_ptr == 0 {
+        return 0;
+    }
+    let max_bytes = buf_len as usize;
+    let max_entries = max_bytes / RECORD_SIZE;
+    if max_entries == 0 {
+        return 0;
+    }
+
+    let mut written = 0usize;
+    let mut out_buf = [0u8; RECORD_SIZE];
+
+    crate::task::for_each_process(|proc| {
+        if written >= max_entries {
+            return;
+        }
+        // clear buffer
+        for b in out_buf.iter_mut() {
+            *b = 0;
+        }
+        // tid and pid: use process id for both (no separate thread id here)
+        let pid_u = proc.id().as_u64();
+        out_buf[0..8].copy_from_slice(&pid_u.to_ne_bytes());
+        out_buf[8..16].copy_from_slice(&pid_u.to_ne_bytes());
+        // state mapping
+        let state_num: u64 = match proc.state() {
+            ProcessState::Running => 1,
+            ProcessState::Sleeping => 3,
+            ProcessState::Zombie => 4,
+            ProcessState::Terminated => 4,
+            _ => 0,
+        };
+        out_buf[16..24].copy_from_slice(&state_num.to_ne_bytes());
+        // name at offset 32, max 64 bytes
+        let name = proc.name();
+        let name_bytes = name.as_bytes();
+        let copy_len = core::cmp::min(64, name_bytes.len());
+        out_buf[32..32 + copy_len].copy_from_slice(&name_bytes[..copy_len]);
+
+        // copy to user
+        let dest_ptr = buf_ptr + (written * RECORD_SIZE) as u64;
+        if let Err(_) = super::copy_to_user(dest_ptr, &out_buf) {
+            // stop on error
+            written = written; // no-op
+            return;
+        }
+        written += 1;
+    });
+
+    written as u64
 }
 
 /// GetPidシステムコール
@@ -176,7 +257,7 @@ pub fn brk(addr: u64) -> u64 {
     };
 
     let result = crate::task::with_process_mut(pid, |process| {
-        crate::info!(
+        crate::debug!(
             "brk(pid={:?}, process='{}'): req={:#x}, heap_start={:#x}, heap_end={:#x}",
             pid,
             process.name(),
@@ -185,7 +266,7 @@ pub fn brk(addr: u64) -> u64 {
             process.heap_end()
         );
         if process.heap_start() == 0 {
-            let default_heap_base = 0x4000_0000;
+            let default_heap_base = randomized_heap_base(pid, 0x4000_0000, 0x8000);
             process.set_heap_start(default_heap_base);
             process.set_heap_end(default_heap_base);
         }
@@ -260,15 +341,15 @@ pub fn brk(addr: u64) -> u64 {
 
     match result {
         Some(Ok(addr)) => {
-            crate::info!("brk(pid={:?}) -> {:#x}", pid, addr);
+            crate::debug!("brk(pid={:?}) -> {:#x}", pid, addr);
             addr
         }
         Some(Err(err)) => {
-            crate::info!("brk(pid={:?}) -> err {:#x}", pid, err);
+            crate::debug!("brk(pid={:?}) -> err {:#x}", pid, err);
             err
         }
         None => {
-            crate::info!("brk(pid={:?}) -> ENOSYS", pid);
+            crate::debug!("brk(pid={:?}) -> ENOSYS", pid);
             ENOSYS
         }
     }
@@ -287,7 +368,7 @@ pub fn fork() -> u64 {
         None => return ENOSYS,
     };
 
-    let (parent_priv, parent_priority, parent_pt, heap_start, heap_end) =
+    let (parent_priv, parent_priority, parent_pt, heap_start, heap_end, stack_bottom, stack_top) =
         match crate::task::with_process(parent_pid, |p| {
             (
                 p.privilege(),
@@ -295,6 +376,8 @@ pub fn fork() -> u64 {
                 p.page_table(),
                 p.heap_start(),
                 p.heap_end(),
+                p.stack_bottom(),
+                p.stack_top(),
             )
         }) {
             Some(v) => v,
@@ -328,6 +411,13 @@ pub fn fork() -> u64 {
     child_proc.set_page_table(child_pt);
     child_proc.set_heap_start(heap_start);
     child_proc.set_heap_end(heap_end);
+    child_proc.set_stack_bottom(stack_bottom);
+    child_proc.set_stack_top(stack_top);
+    crate::info!(
+        "[STACK_INIT] FORK child: stack_bottom={:#x}, stack_top={:#x}",
+        stack_bottom,
+        stack_top
+    );
     // 親の FD テーブルを子に継承する
     if let Some(table) = child_fd_table {
         child_proc.set_fd_table(table);
@@ -376,6 +466,8 @@ pub fn fork() -> u64 {
 /// 成功時はSUCCESS
 pub fn sleep(milliseconds: u64) -> u64 {
     if milliseconds == 0 {
+        // sleep(0) は待機せず、協調的に実行権を譲る
+        crate::task::yield_now();
         return SUCCESS;
     }
     let wait_ticks = milliseconds
@@ -428,9 +520,9 @@ pub fn wait(_pid: u64, status_ptr: u64, options: u64) -> u64 {
         {
             if status_ptr != 0 {
                 let status = ((exit_code & 0xff) << 8) as i32;
-                crate::syscall::with_user_memory_access(|| unsafe {
-                    core::ptr::write_unaligned(status_ptr as *mut i32, status);
-                });
+                if crate::syscall::write_user_i32(status_ptr, status).is_err() {
+                    return EFAULT;
+                }
             }
             return reaped_pid.as_u64();
         }
@@ -502,7 +594,7 @@ pub fn mmap(addr: u64, length: u64, _prot: u64, flags: u64, _fd: u64) -> u64 {
         // mmap用のヒープ領域を現在のbrk以降に割り当てる
         // (簡易実装: brkと同じ領域を使う)
         if process.heap_start() == 0 {
-            let default_heap_base = 0x5000_0000u64;
+            let default_heap_base = randomized_heap_base(pid, 0x5000_0000, 0x10000);
             process.set_heap_start(default_heap_base);
             process.set_heap_end(default_heap_base);
         }
@@ -653,9 +745,10 @@ pub fn futex(uaddr: u64, op: u32, val: u64, timeout: u64) -> u64 {
             // yield_now() 内部の switch_to_thread も CLI を実行するため、
             // without_interrupts をネストしても安全に動作する。
             let queued = x86_64::instructions::interrupts::without_interrupts(|| {
-                let current_val = crate::syscall::with_user_memory_access(|| unsafe {
-                    core::ptr::read_volatile(uaddr as *const u32)
-                });
+                let current_val = match crate::syscall::read_user_u32(uaddr) {
+                    Ok(v) => v,
+                    Err(_) => return Err(EFAULT),
+                };
                 if current_val != val as u32 {
                     return Err(EAGAIN);
                 }
@@ -775,6 +868,25 @@ pub fn arch_prctl(code: u64, addr: u64) -> u64 {
             if addr > USER_SPACE_END {
                 return EINVAL;
             }
+            // glibc の起動シーケンスでは FS を切り替える最中に stack protector が
+            // 動くことがあるため、旧FS上のガード値を新FSへ引き継ぐ。
+            // （mapped かつユーザー範囲内の場合のみ）
+            let old_fs = if let Some(tid) = current_thread_id() {
+                crate::task::with_thread(tid, |t| t.fs_base()).unwrap_or(0)
+            } else {
+                unsafe { crate::cpu::read_fs_base() }
+            };
+            if old_fs >= 0x1000 && addr >= 0x1000 && old_fs != addr {
+                for off in [0x28u64, 0x30u64] {
+                    let src = old_fs.saturating_add(off);
+                    let dst = addr.saturating_add(off);
+                    if super::validate_user_ptr(src, 8) && super::validate_user_ptr(dst, 8) {
+                        if let Ok(val) = crate::syscall::read_user_u64(src) {
+                            let _ = crate::syscall::write_user_u64(dst, val);
+                        }
+                    }
+                }
+            }
             // FS ベースレジスタを設定 (WRFSBASE または IA32_FS_BASE MSR)
             unsafe {
                 crate::cpu::write_fs_base(addr);
@@ -795,25 +907,66 @@ pub fn arch_prctl(code: u64, addr: u64) -> u64 {
             if !super::validate_user_ptr(addr, 8) {
                 return EFAULT;
             }
-            crate::syscall::with_user_memory_access(|| unsafe {
-                core::ptr::write_unaligned(addr as *mut u64, val)
-            });
-            SUCCESS
+            match crate::syscall::write_user_u64(addr, val) {
+                Ok(()) => SUCCESS,
+                Err(e) => e,
+            }
         }
         _ => EINVAL,
     }
 }
 
+/// sigaltstack システムコール（最小実装）
+///
+/// 互換目的で成功を返す。現状 alt stack の切り替えは行わない。
+pub fn sigaltstack(_ss: u64, _old_ss: u64) -> u64 {
+    SUCCESS
+}
+
+/// set_robust_list システムコール（最小実装）
+///
+/// glibc 初期化互換のため成功を返す。
+pub fn set_robust_list(_head: u64, _len: u64) -> u64 {
+    SUCCESS
+}
+
+/// getrandom システムコール（最小実装）
+///
+/// カーネル内の軽量PRNGでバイト列を生成して返す。
+pub fn getrandom(buf_ptr: u64, len: u64, _flags: u64) -> u64 {
+    if len == 0 {
+        return 0;
+    }
+    if buf_ptr == 0 || !super::validate_user_ptr(buf_ptr, len) {
+        return EFAULT;
+    }
+    let mut state = crate::syscall::time::get_ticks()
+        ^ buf_ptr.rotate_left(17)
+        ^ len.rotate_left(7)
+        ^ 0x9E37_79B9_7F4A_7C15;
+    let mut out = alloc::vec![0u8; len as usize];
+    for b in out.iter_mut() {
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        *b = (state >> 24) as u8;
+    }
+    match crate::syscall::copy_to_user(buf_ptr, &out) {
+        Ok(()) => len,
+        Err(e) => e,
+    }
+}
+
 /// FindProcessByNameシステムコール
 ///
-/// プロセス名からPIDを検索する
+/// プロセス名から、IPC送信先として使えるスレッドIDを検索する
 ///
 /// # 引数
 /// - `name_ptr`: プロセス名のポインタ
 /// - `len`: プロセス名の長さ
 ///
 /// # 戻り値
-/// 見つかった場合はPID、見つからない場合は0
+/// 見つかった場合はスレッドID、見つからない場合は0
 pub fn find_process_by_name(name_ptr: u64, len: u64) -> u64 {
     use crate::task;
     use core::str;
@@ -831,10 +984,22 @@ pub fn find_process_by_name(name_ptr: u64, len: u64) -> u64 {
         Err(_) => return 0,
     };
 
-    // プロセスリストを検索
-    // TODO: 直接タスク管理モジュールにアクセスするのはリスキーなのでロックをかける
-    // taskモジュールに検索関数を追加するのが望ましい
-    task::find_process_id_by_name(name)
-        .map(|pid| pid.as_u64())
-        .unwrap_or(0)
+    let pid = match task::find_process_id_by_name(name) {
+        Some(pid) => pid,
+        None => return 0,
+    };
+
+    // IPCの宛先はプロセスIDではなくスレッドIDなので、
+    // 対象プロセスに属する先頭スレッドIDを返す。
+    let mut thread_id: Option<u64> = None;
+    task::for_each_thread(|thread| {
+        if thread_id.is_none()
+            && thread.process_id() == pid
+            && thread.state() != task::ThreadState::Terminated
+        {
+            thread_id = Some(thread.id().as_u64());
+        }
+    });
+
+    thread_id.unwrap_or(0)
 }

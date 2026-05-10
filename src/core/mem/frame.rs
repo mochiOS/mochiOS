@@ -35,7 +35,7 @@ impl BitmapFrameAllocator {
     pub fn new(memory_map: &'static [MemoryRegion], phys_offset: u64) -> Self {
         Self {
             memory_map,
-            next_frame: 0,
+            next_frame: 0x100000 / 4096, // 1MB から開始（低位メモリ予約領域をスキップ）
             free_list_head: 0,
             phys_offset,
         }
@@ -176,4 +176,111 @@ pub fn get_memory_info() -> Option<(u64, usize)> {
         .lock()
         .as_ref()
         .map(|a| (a.usable_memory(), a.usable_frames()))
+}
+
+/// 指定した物理アドレスがアロケータ管理対象の Usable フレームか判定
+pub fn is_usable_physical_address(phys_addr: u64) -> bool {
+    let guard = FRAME_ALLOCATOR.lock();
+    let Some(alloc) = guard.as_ref() else {
+        return false;
+    };
+    alloc.is_usable_frame_addr(phys_addr)
+}
+
+// ACPI reclaimable / bootloader reclaimable は将来通常RAMとして回収されうるため、
+// 既定では MMIO 許可対象から除外する（必要なら明示設定で有効化する）。
+const ALLOW_RECLAIMABLE_MMIO: bool = false;
+
+fn mmio_region_type_allowed(region_type: MemoryType) -> bool {
+    match region_type {
+        MemoryType::BadMemory => {
+            // 不良メモリへの MMIO マップは常に拒否する。
+            false
+        }
+        MemoryType::Reserved | MemoryType::AcpiNvs | MemoryType::Framebuffer => true,
+        MemoryType::AcpiReclaimable | MemoryType::BootloaderReclaimable => ALLOW_RECLAIMABLE_MMIO,
+        _ => false,
+    }
+}
+
+/// MMIO として扱ってよい物理アドレス範囲か判定
+///
+/// 許可条件:
+/// - 範囲が非Usable領域 (Reserved/AcpiNvs/Framebuffer) に完全に含まれる、または
+/// - 範囲が UEFI メモリマップのどの領域とも重ならない (= 高位 PCI MMIO ホール)
+///
+/// 拒否条件:
+/// - Usable RAM やカーネル所有領域と少しでも重なる
+pub fn is_allowed_mmio_range(start_phys: u64, size: u64) -> bool {
+    if size == 0 {
+        return false;
+    }
+    let end_phys = match start_phys.checked_add(size - 1) {
+        Some(v) => v,
+        None => return false,
+    };
+
+    let guard = FRAME_ALLOCATOR.lock();
+    let Some(alloc) = guard.as_ref() else {
+        return false;
+    };
+
+    let mut overlaps_any = false;
+    let mut fully_contained_in_allowed = false;
+    for r in alloc.memory_map.iter() {
+        if r.len == 0 {
+            continue;
+        }
+        let region_end = match r.start.checked_add(r.len - 1) {
+            Some(v) => v,
+            None => continue,
+        };
+        let overlaps = start_phys <= region_end && end_phys >= r.start;
+        if !overlaps {
+            continue;
+        }
+        overlaps_any = true;
+        if !mmio_region_type_allowed(r.region_type) {
+            return false;
+        }
+        if start_phys >= r.start && end_phys <= region_end {
+            fully_contained_in_allowed = true;
+        }
+    }
+
+    if fully_contained_in_allowed {
+        return true;
+    }
+    // メモリマップに記述のない領域 = PCI MMIO ホール (高位 BAR など) は許可
+    !overlaps_any
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mmio_region_type_policy_allowed_cases() {
+        for t in [
+            MemoryType::Reserved,
+            MemoryType::AcpiNvs,
+            MemoryType::Framebuffer,
+        ] {
+            assert!(mmio_region_type_allowed(t));
+        }
+    }
+
+    #[test]
+    fn mmio_region_type_policy_denied_cases() {
+        for t in [
+            MemoryType::Usable,
+            MemoryType::AcpiReclaimable,
+            MemoryType::BootloaderReclaimable,
+            MemoryType::BadMemory,
+            MemoryType::KernelStack,
+            MemoryType::PageTable,
+        ] {
+            assert!(!mmio_region_type_allowed(t));
+        }
+    }
 }

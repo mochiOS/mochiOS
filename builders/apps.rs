@@ -5,7 +5,7 @@ use std::process::Command;
 use super::utils::{emit_rerun_if_changed, find_binary_in_dir, find_target_spec};
 
 /// アプリケーションをビルドして指定ディレクトリにコピー
-pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
+pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
     println!("cargo:rerun-if-changed={}", apps_dir.display());
 
     let entries = match fs::read_dir(apps_dir) {
@@ -14,7 +14,7 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
     };
 
     // START_TEST_APP環境変数をチェック
-    let run_tests = std::env::var("START_TEST_APP")
+    let _run_tests = std::env::var("START_TEST_APP")
         .map(|v| v == "true" || v == "1")
         .unwrap_or(false);
 
@@ -24,13 +24,15 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
             continue;
         }
 
-        let app_name = path.file_name().unwrap().to_string_lossy();
+        let app_name = path.file_name().unwrap().to_string_lossy().to_string();
 
+        /*
         // testsディレクトリはSTART_TEST_APP=trueの場合のみビルド
-        if app_name == "tests" && !run_tests {
+        if app_name == "ViewKit" && !run_tests {
             println!("Skipping tests app (START_TEST_APP not enabled)");
             continue;
         }
+        */
 
         let cargo_toml = path.join("Cargo.toml");
         if !cargo_toml.exists() {
@@ -44,6 +46,10 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
         let src_dir = path.join("src");
         if src_dir.is_dir() {
             emit_rerun_if_changed(&src_dir);
+        }
+        let resources_dir = path.join("resources");
+        if resources_dir.is_dir() {
+            emit_rerun_if_changed(&resources_dir);
         }
 
         // カスタムターゲットファイルを探す（アプリディレクトリ内の .json を優先）
@@ -120,20 +126,85 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, extension: &str) {
                     };
 
                     if let Some(elf_path) = find_built_binary(&target_dir, target_name.as_deref()) {
-                        let dest_name = format!("{}.{}", app_name, extension);
-                        let dest = output_dir.join(&dest_name);
+                        let app_bundle_dir = output_dir.join(format!("{}.app", app_name));
+                        if let Err(e) = fs::create_dir_all(&app_bundle_dir) {
+                            println!(
+                                "cargo:warning=Failed to create app bundle dir for {}: {}",
+                                app_name, e
+                            );
+                            continue;
+                        }
+
+                        let dest = app_bundle_dir.join("entry.elf");
                         if let Err(e) = fs::copy(&elf_path, &dest) {
                             println!(
-                                "cargo:warning=Failed to copy {} to output: {}",
-                                dest_name, e
+                                "cargo:warning=Failed to copy app entry for {}: {}",
+                                app_name, e
                             );
                         } else {
                             println!(
-                                "Copied {} to {} (from {})",
-                                dest_name,
-                                output_dir.display(),
+                                "Copied {} entry to {} (from {})",
+                                app_name,
+                                dest.display(),
                                 elf_path.display()
                             );
+                        }
+
+                        let about_src = path.join("about.toml");
+                        let about_dest = app_bundle_dir.join("about.toml");
+                        if about_src.exists() {
+                            if let Err(e) = fs::copy(&about_src, &about_dest) {
+                                println!(
+                                    "cargo:warning=Failed to copy about.toml for {}: {}",
+                                    app_name, e
+                                );
+                            }
+                        } else {
+                            println!(
+                                "cargo:warning=about.toml not found for app {} ({})",
+                                app_name,
+                                about_src.display()
+                            );
+                        }
+
+                        for icon_file in ["icon.png", "icon.jpeg", "icon.jpg"] {
+                            let icon_src = path.join(icon_file);
+                            if icon_src.exists() {
+                                let icon_dest = app_bundle_dir.join(icon_file);
+                                if let Err(e) = fs::copy(&icon_src, &icon_dest) {
+                                    println!(
+                                        "cargo:warning=Failed to copy {} for {}: {}",
+                                        icon_file, app_name, e
+                                    );
+                                }
+                                break;
+                            }
+                        }
+
+                        for res_dir_name in ["resources", "resource"] {
+                            let res_src = path.join(res_dir_name);
+                            if res_src.is_dir() {
+                                let res_dest = app_bundle_dir.join("resources");
+                                if let Err(e) = copy_dir_recursive(&res_src, &res_dest) {
+                                    println!(
+                                        "cargo:warning=Failed to copy resources for {}: {}",
+                                        app_name, e
+                                    );
+                                }
+                                break;
+                            }
+                        }
+
+                        // ランタイム資産（テーマ等）を AppService 配下へ配置
+                        let themes_src = path.join("src").join("components");
+                        if themes_src.is_dir() {
+                            let themes_dest = app_bundle_dir.join("components");
+                            if let Err(e) = copy_dir_recursive(&themes_src, &themes_dest) {
+                                println!(
+                                    "cargo:warning=Failed to copy components for {}: {}",
+                                    app_name, e
+                                );
+                            }
                         }
                     } else {
                         println!("cargo:warning=Built binary not found for {}", app_name);
@@ -174,7 +245,7 @@ pub fn build_utils(utils_dir: &Path, output_dir: &Path) {
     }
 
     if let Err(e) = fs::create_dir_all(output_dir) {
-        println!("cargo:warning=Failed to create Binaries dir: {}", e);
+        println!("cargo:warning=Failed to create bin dir: {}", e);
         return;
     }
 
@@ -196,6 +267,35 @@ pub fn build_utils(utils_dir: &Path, output_dir: &Path) {
         cmd.env_remove(key);
     }
 
+    // Determine project root (look for ramfs/lib)
+    let mut project_root = utils_dir.to_path_buf();
+    while project_root.parent().is_some() {
+        if project_root.join("ramfs").join("lib").exists() {
+            break;
+        }
+        project_root.pop();
+    }
+    let libs_dir = project_root.join("ramfs").join("lib");
+
+    if libs_dir.exists() {
+        // Set RUSTFLAGS so that utilities are linked with the same crt0 and libs
+        let ld = libs_dir.display();
+        let rustflags = format!(
+            "-C link-arg={0}/crt0.o -C link-arg=-static -C link-arg=-no-pie -C link-arg=--allow-multiple-definition -L {0} -C link-arg={0}/libunwind.a -C link-arg={0}/libextra.a -C link-arg={0}/libc.a -C link-arg={0}/libg.a -C link-arg={0}/libm.a -C link-arg={0}/libnosys.a -C link-arg={0}/libgcc_s.a",
+            ld
+        );
+        cmd.env("RUSTFLAGS", rustflags);
+    }
+
+    // Ensure build target is set to the repository's x86_64-mochios.json so output matches expectations
+    let target_json = project_root.join("x86_64-mochios.json");
+    if target_json.exists() {
+        cmd.arg("--target")
+            .arg(target_json.to_string_lossy().to_string());
+    } else {
+        cmd.arg("--target").arg("x86_64-mochios");
+    }
+
     println!("Building utils from {}", utils_dir.display());
     let output = cmd.current_dir(utils_dir).output();
 
@@ -213,7 +313,10 @@ pub fn build_utils(utils_dir: &Path, output_dir: &Path) {
             let release_dir = utils_dir.join("target/x86_64-mochios/release");
             let binaries = find_all_binaries(&release_dir);
             if binaries.is_empty() {
-                println!("cargo:warning=No binaries found in {}", release_dir.display());
+                println!(
+                    "cargo:warning=No binaries found in {}",
+                    release_dir.display()
+                );
             }
             for elf_path in binaries {
                 let name = elf_path.file_name().unwrap().to_string_lossy();
@@ -297,4 +400,29 @@ fn find_built_binary(target_dir: &Path, target_name: Option<&str>) -> Option<Pat
     }
 
     None
+}
+
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+    fs::create_dir_all(dst).map_err(|e| format!("Failed to create {}: {}", dst.display(), e))?;
+    for entry in
+        fs::read_dir(src).map_err(|e| format!("Failed to read {}: {}", src.display(), e))?
+    {
+        let entry =
+            entry.map_err(|e| format!("Failed to read entry in {}: {}", src.display(), e))?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        if src_path.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path).map_err(|e| {
+                format!(
+                    "Failed to copy {} to {}: {}",
+                    src_path.display(),
+                    dst_path.display(),
+                    e
+                )
+            })?;
+        }
+    }
+    Ok(())
 }

@@ -10,14 +10,24 @@ pub enum SyscallNumber {
     Read = 0,
     /// 書き込み
     Write = 1,
+    /// poll
+    Poll = 7,
+    /// ioctl
+    Ioctl = 16,
     /// ベクタ書き込み
     Writev = 20,
+    /// select
+    Select = 23,
     /// ファイルを開く
     Open = 2,
     /// ファイルを閉じる
     Close = 3,
+    /// ファイル情報取得 (path)
+    Stat = 4,
     /// ファイル情報取得
     Fstat = 5,
+    /// lstat (stat のシンボリックリンク非追跡版)
+    Lstat = 6,
     /// ファイルシーク
     Lseek = 8,
     /// メモリマップ
@@ -54,8 +64,16 @@ pub enum SyscallNumber {
     ExitGroup = 231,
     /// kill (シグナルを送る)
     Kill = 62,
+    /// fcntl
+    Fcntl = 72,
+    /// tkill (スレッドID宛てシグナル)
+    Tkill = 200,
+    /// tgkill (スレッドグループ+スレッドID宛てシグナル)
+    Tgkill = 234,
     /// getcwd
     Getcwd = 79,
+    /// unlink (ファイル削除)
+    Unlink = 87,
 
     // mochiOS独自syscall (Linux未使用番号帯を使用: 512+)
     /// スケジューラへ譲る
@@ -100,10 +118,54 @@ pub enum SyscallNumber {
     SetConsoleCursor = 531,
     /// コンソールカーソルのピクセルY位置を取得
     GetConsoleCursor = 532,
-    /// IPC受信（ブロッキング版）
+    /// IPC受信（ブロッキング版）：メッセージが届くまでスリープして待機
     IpcRecvWait = 533,
+    /// キーボード入力の監視用タップ（通常入力を消費しない）
+    KeyboardReadTap = 534,
+    /// PS/2 マウスの3バイトパケットを読み取る（b0 | b1<<8 | b2<<16）
+    MouseRead = 535,
+    /// 物理アドレス範囲をユーザー空間にマップ
+    MapPhysicalRange = 536,
+    /// ユーザー仮想アドレスを物理アドレスへ変換
+    VirtToPhys = 537,
+    /// I/Oポートから 16-bit ワード列を一括読み取り
+    PortInWords = 538,
+    /// I/Oポートへ 16-bit ワード列を一括書き込み
+    PortOutWords = 539,
+    /// キーボード入力キューへ raw スキャンコードを注入
+    KeyboardInject = 540,
+    /// マウス入力キューへ 3バイトパケットを注入
+    MouseInject = 541,
+    /// メモリ上の ELF バッファと実行パス名から新プロセスを起動
+    ExecFromBufferNamed = 542,
+    /// メモリ上の ELF バッファと実行パス名＋引数から新プロセスを起動
+    ExecFromBufferNamedArgs = 543,
+    /// メモリ上の ELF バッファと実行パス名＋引数＋要求元スレッドIDから新プロセスを起動
+    ExecFromBufferNamedArgsWithRequester = 544,
+    /// FS 経由のストリーム exec（マップ書き込みを試行）
+    ExecFromFsStream = 545,
+    /// 物理ページ配列をターゲットプロセスのアドレス空間にマップ（Service権限専用）
+    MapPhysicalPages = 546,
+    /// 仮想アドレスから物理アドレスを取得（Service権限専用）
+    GetPhysicalAddr = 547,
+    /// 共有用物理ページを割り当て、自プロセスにマップして物理アドレスを返す（Service権限専用）
+    AllocSharedPages = 548,
+    /// 物理ページをアンマップして解放（Service権限専用）
+    UnmapPages = 549,
+    /// IPC経由で物理ページをターゲットプロセスへ送信（Service権限専用）
+    IpcSendPages = 550,
+    /// PS/2 マウスの3バイトパケットを読み取る（ブロッキング版）
+    MouseReadWait = 551,
+    /// プロセス一覧を取得（ユーザーバッファへ書き込む）
+    ListProcesses = 552,
+    /// 重力が存在するか
+    CheckGravityExist = 999,
 }
 
+/// 操作が許可されていない
+pub const EPERM: u64 = (-1i64) as u64;
+/// 無効な引数
+pub const EINVAL: u64 = (-22i64) as u64;
 /// 入力が空
 pub const ENODATA: u64 = (-61i64) as u64;
 

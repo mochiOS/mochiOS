@@ -871,7 +871,7 @@ fn exec_with_data(
         proc.set_page_table(new_pt_phys);
         proc.set_stack_bottom(stack_base_vaddr);
         proc.set_stack_top(stack_end_vaddr + 4096);
-        crate::info!(
+        crate::debug!(
             "[STACK_INIT] {}: stack_base={:#x}, stack_end={:#x}, stack_top={:#x}",
             proc.name(),
             stack_base_vaddr,
@@ -952,7 +952,7 @@ fn exec_with_data(
         );
         thread.set_fs_base(initial_fs_base);
 
-        crate::info!(
+        crate::debug!(
             "exec: loaded '{}', entry={:#x}, pid={:?}",
             process_name,
             entry,
@@ -960,7 +960,7 @@ fn exec_with_data(
         );
 
         let add_res = crate::task::add_thread(thread);
-        crate::info!("exec: add_thread returned: {:?}", add_res);
+        crate::debug!("exec: add_thread returned: {:?}", add_res);
         if add_res.is_none() {
             crate::warn!("Failed to add thread");
             let _ = crate::task::remove_process(pid);
@@ -977,29 +977,29 @@ fn exec_with_data(
         }
 
         // report scheduling state
-        crate::info!(
+        crate::debug!(
             "exec: scheduler_enabled={} thread_count={}",
             crate::task::is_scheduler_enabled(),
             crate::task::thread_count()
         );
         if let Some(next) = crate::task::peek_next_thread() {
-            crate::info!("exec: peek_next_thread -> {:?}", next);
+            crate::debug!("exec: peek_next_thread -> {:?}", next);
         } else {
-            crate::info!("exec: peek_next_thread -> None");
+            crate::debug!("exec: peek_next_thread -> None");
         }
 
         // log current thread and thread-state counts
-        crate::info!(
+        crate::debug!(
             "exec: current_thread={:?}",
             crate::task::current_thread_id()
         );
-        crate::info!(
+        crate::debug!(
             "exec: ready_count={} running_count={}",
             crate::task::count_threads_by_state(crate::task::ThreadState::Ready),
             crate::task::count_threads_by_state(crate::task::ThreadState::Running)
         );
         if let Some(tid) = add_res {
-            crate::info!("exec: new_thread_id={:?}", tid);
+            crate::debug!("exec: new_thread_id={:?}", tid);
         }
 
         // Ensure newly launched user process gets CPU promptly
@@ -1007,7 +1007,7 @@ fn exec_with_data(
             crate::task::yield_now();
         }
 
-        crate::info!(
+        crate::debug!(
             "exec: created usermode process '{}' (pid={:?}, entry={:#x})",
             process_name,
             pid,
@@ -1301,7 +1301,7 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         p.set_heap_end(heap_base + heap_map_size);
         p.set_stack_bottom(stack_base_vaddr);
         p.set_stack_top(stack_end_vaddr + 4096);
-        crate::info!(
+        crate::debug!(
             "[STACK_INIT] {}: stack_base={:#x}, stack_end={:#x}, stack_top={:#x}",
             p.name(),
             stack_base_vaddr,

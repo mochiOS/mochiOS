@@ -560,7 +560,7 @@ fn prepare_external_pages_for_user(
     if ext_pages_count == 0 {
         return Ok(copy_len);
     }
-    crate::info!("[IPC RCV] prepare_external_pages_for_user receiver={} copy_len={} ext_pages_count={} data={:02x?}", receiver_tid, copy_len, ext_pages_count, &recv_buf[0..16]);
+    crate::debug!("[IPC RCV] prepare_external_pages_for_user receiver={} copy_len={} ext_pages_count={} data={:02x?}", receiver_tid, copy_len, ext_pages_count, &recv_buf[0..16]);
     if copy_len < 16 || recv_buf.len() < 16 {
         return Err(EFAULT);
     }
@@ -630,7 +630,7 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
             None => return EAGAIN,
         }
     };
-    crate::info!("[IPC RCV] pop_valid_for_receiver_copy returned from={} copy_len={} ext_pages_count={} data={:02x?}", from, copy_len, ext_pages_count, &recv_buf[..core::cmp::min(copy_len, recv_buf.len())]);
+    crate::debug!("[IPC RCV] pop_valid_for_receiver_copy returned from={} copy_len={} ext_pages_count={} data={:02x?}", from, copy_len, ext_pages_count, &recv_buf[..core::cmp::min(copy_len, recv_buf.len())]);
     let copy_len = match prepare_external_pages_for_user(
         receiver,
         &mut recv_buf,

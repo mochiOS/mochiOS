@@ -513,6 +513,15 @@ extern "sysv64" fn syscall_interrupt_handler_rust(kstack: *mut u64) -> u64 {
     }
 
     let ret = signal::signal_and_return(kstack, ret);
+    // int 0x80 復帰フレームの CS/SS を GDT 実値で正規化する。
+    // 一部環境で固定値と実際の GDT 割当がずれると iretq で #GP(index=3/4) を起こすため、
+    // 毎回ここで明示的に揃える。
+    let user_cs = (crate::mem::gdt::user_code_selector() as u64) | 0x3;
+    let user_ss = (crate::mem::gdt::user_data_selector() as u64) | 0x3;
+    unsafe {
+        kstack.add(16).write(user_cs);
+        kstack.add(19).write(user_ss);
+    }
     syscall_entry::restore_page_table(prev_cr3);
     ret
 }

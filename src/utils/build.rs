@@ -8,7 +8,15 @@ fn main() {
         .nth(2)
         .expect("failed to determine project root");
 
-    let libs_dir = project_root.join("fs").join("Libraries");
+    let libs_dir = [
+        project_root.join("ramfs").join("lib"),
+        project_root.join("fs").join("lib"),
+        project_root.join("ramfs").join("Libraries"),
+        project_root.join("fs").join("Libraries"),
+    ]
+    .into_iter()
+    .find(|dir| dir.join("crt0.o").exists() && dir.join("libc.a").exists())
+    .unwrap_or_else(|| project_root.join("ramfs").join("lib"));
 
     println!("cargo:rustc-link-search=native={}", libs_dir.display());
     println!("cargo:rustc-link-arg={}/crt0.o", libs_dir.display());
@@ -29,5 +37,8 @@ fn main() {
     println!("cargo:rustc-link-arg=--allow-multiple-definition");
 
     println!("cargo:rerun-if-changed=linker.ld");
+    println!("cargo:rerun-if-changed=../../ramfs/lib/libc.a");
+    println!("cargo:rerun-if-changed=../../fs/lib/libc.a");
+    println!("cargo:rerun-if-changed=../../ramfs/Libraries/libc.a");
     println!("cargo:rerun-if-changed=../../fs/Libraries/libc.a");
 }

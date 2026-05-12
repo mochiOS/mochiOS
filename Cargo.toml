@@ -34,6 +34,7 @@ linked_list_allocator = "0.10.5"
 
 [build-dependencies]
 num_cpus = "1.17.0"
+toml = "0.8"
 
 [profile.dev]
 panic = "abort"

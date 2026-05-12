@@ -158,6 +158,37 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
                                     "cargo:warning=Failed to copy about.toml for {}: {}",
                                     app_name, e
                                 );
+                            } else {
+                                // Parse about.toml and copy resources
+                                if let Ok(content) = fs::read_to_string(&about_src) {
+                                    if let Ok(table) = content.parse::<toml::Table>() {
+                                        if let Some(resources) = table.get("resources").and_then(|v| v.as_array()) {
+                                            for resource in resources {
+                                                if let Some(resource_path) = resource.as_str() {
+                                                    let src_file = path.join(resource_path);
+                                                    if src_file.exists() {
+                                                        let dest_file = app_bundle_dir.join(resource_path);
+                                                        if let Some(parent) = dest_file.parent() {
+                                                            if let Err(e) = fs::create_dir_all(parent) {
+                                                                println!(
+                                                                    "cargo:warning=Failed to create directory for {}: {}",
+                                                                    resource_path, e
+                                                                );
+                                                                continue;
+                                                            }
+                                                        }
+                                                        if let Err(e) = fs::copy(&src_file, &dest_file) {
+                                                            println!(
+                                                                "cargo:warning=Failed to copy resource {} for {}: {}",
+                                                                resource_path, app_name, e
+                                                            );
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         } else {
                             println!(

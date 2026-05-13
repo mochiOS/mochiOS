@@ -622,3 +622,144 @@ pub unsafe extern "C" fn writev(fd: i32, iov: *const IoVec, iovcnt: i32) -> isiz
     }
     total
 }
+
+// Additional pthread functions required by std library threading
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_attr_setstacksize(_attr: *mut u8, _stacksize: usize) -> i32 {
+    // Stub: just accept any size for now
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_create(
+    _thread: *mut u64,
+    _attr: *const u8,
+    _start_routine: extern "C" fn(*mut u8) -> *mut u8,
+    _arg: *mut u8,
+) -> i32 {
+    // Stub: threading not actually supported; return failure
+    1
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_join(_thread: u64, _retval: *mut *mut u8) -> i32 {
+    // Stub
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_detach(_thread: u64) -> i32 {
+    // Stub
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_init(_mutex: *mut u8, _attr: *const u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_destroy(_mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_lock(_mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_unlock(_mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_init(_cond: *mut u8, _attr: *const u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_destroy(_cond: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_wait(_cond: *mut u8, _mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_signal(_cond: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_broadcast(_cond: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_once(
+    once_control: *mut u32,
+    init_routine: extern "C" fn(),
+) -> i32 {
+    // Stub: just call the routine
+    if !once_control.is_null() && *once_control == 0 {
+        *once_control = 1;
+        (init_routine)();
+    }
+    0
+}
+
+// Unwind support functions required by std library
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_GetIP(_context: *mut u8) -> u64 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_GetCFA(_context: *mut u8) -> u64 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_Resume(_ex_obj: *mut u8) {
+    // Should never return
+    loop {}
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_Backtrace(
+    _trace: extern "C" fn(*mut u8, *mut u8) -> i32,
+    _trace_argument: *mut u8,
+) -> i32 {
+    // Stub: backtrace not available
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_setname_np(_thread: u64, _name: *const u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn getcwd(buf: *mut u8, size: usize) -> *mut u8 {
+    if buf.is_null() || size == 0 {
+        return core::ptr::null_mut();
+    }
+    // Stub: return "/" as current directory
+    let root = b"/\0";
+    if size >= root.len() {
+        core::ptr::copy_nonoverlapping(root.as_ptr(), buf, root.len());
+        buf
+    } else {
+        core::ptr::null_mut()
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sched_getaffinity(_pid: i32, _cpusetsize: usize, _mask: *mut u8) -> i32 {
+    // Stub: return success with single CPU
+    0
+}

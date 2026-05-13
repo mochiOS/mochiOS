@@ -51,6 +51,11 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
         if resources_dir.is_dir() {
             emit_rerun_if_changed(&resources_dir);
         }
+        
+        let about_file = path.join("about.toml");
+        if about_file.exists() {
+            println!("cargo:rerun-if-changed={}", about_file.display());
+        }
 
         // カスタムターゲットファイルを探す（アプリディレクトリ内の .json を優先）
         let target_spec = find_target_spec(&path);

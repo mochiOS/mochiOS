@@ -22,7 +22,15 @@ fn main() {
         println!("cargo:rerun-if-changed={}", linker_script.display());
     }
 
-    let libs_dir = root_dir.join("ramfs").join("lib");
+    let libs_dir = [
+        root_dir.join("ramfs").join("lib"),
+        root_dir.join("fs").join("lib"),
+        root_dir.join("ramfs").join("Libraries"),
+        root_dir.join("fs").join("Libraries"),
+    ]
+    .into_iter()
+    .find(|dir| dir.join("crt0.o").exists() && dir.join("libc.a").exists())
+    .unwrap_or_else(|| root_dir.join("ramfs").join("lib"));
 
     if libs_dir.exists() {
         println!("cargo:rustc-link-search=native={}", libs_dir.display());
@@ -44,5 +52,8 @@ fn main() {
     }
 
     println!("cargo:rerun-if-changed=../../../ramfs/lib/libc.a");
+    println!("cargo:rerun-if-changed=../../../fs/lib/libc.a");
+    println!("cargo:rerun-if-changed=../../../ramfs/Libraries/libc.a");
+    println!("cargo:rerun-if-changed=../../../fs/Libraries/libc.a");
 }
 

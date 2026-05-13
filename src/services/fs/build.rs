@@ -8,7 +8,15 @@ fn main() {
         .nth(3)
         .expect("failed to determine project root");
 
-    let libs_dir = project_root.join("ramfs").join("Libraries");
+    let libs_dir = [
+        project_root.join("ramfs").join("lib"),
+        project_root.join("fs").join("lib"),
+        project_root.join("ramfs").join("Libraries"),
+        project_root.join("fs").join("Libraries"),
+    ]
+    .into_iter()
+    .find(|dir| dir.join("crt0.o").exists() && dir.join("libc.a").exists())
+    .unwrap_or_else(|| project_root.join("ramfs").join("lib"));
 
     // ライブラリ検索パスを追加
     println!("cargo:rustc-link-search=native={}", libs_dir.display());
@@ -40,6 +48,9 @@ fn main() {
     }
     println!("cargo:rustc-link-lib=static=gcc_s");
 
+    println!("cargo:rerun-if-changed=../../../ramfs/lib/libc.a");
+    println!("cargo:rerun-if-changed=../../../fs/lib/libc.a");
     println!("cargo:rerun-if-changed=../../../ramfs/Libraries/libc.a");
+    println!("cargo:rerun-if-changed=../../../fs/Libraries/libc.a");
 }
 

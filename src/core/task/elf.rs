@@ -229,7 +229,9 @@ pub fn load_elf_into(table_phys: u64, data: &[u8]) -> Result<LoadedElf> {
 }
 
 pub fn spawn_service(path: &str, name: &'static str) -> Result<()> {
-    let data = init::fs::read(path).ok_or(Kernel::InvalidParam)?;
+    let data = crate::kmod::fs::read_all(path)
+        .or_else(|| init::fs::read(path))
+        .ok_or(Kernel::InvalidParam)?;
     let new_pt_phys = paging::create_user_page_table()?;
 
     let mut process = TaskProcess::new(name, PrivilegeLevel::Service, None, 1);

@@ -371,12 +371,11 @@ impl ProcessTable {
     /// 名前でプロセスを検索
     pub fn find_by_name(&self, name: &str) -> Option<&Process> {
         // 名前比較: まず完全一致を試し、それでも見つからない場合はいくつかの互換候補を試す。
-        // 目的: バイナリ名 (net.elf -> net) とクレート名 (netdrv) の食い違いに耐性を持たせる。
         // マッチ順序:
         // 1. 完全一致
         // 2. stored_name without ".elf" == name
         // 3. stored_name == name + ".elf"
-        // 4. stored_name == "/bin/drivers/" + name + ".elf"
+        // 4. drivers.list に定義された alias == name
         // 5. stored_name contains name as substring (fallback)
 
         // 1) 完全一致
@@ -412,45 +411,19 @@ impl ProcessTable {
             return Some(p);
         }
 
-        // 4) drivers path variant
-        let mut drivers_path = String::from("/bin/drivers/");
-        drivers_path.push_str(name);
-        drivers_path.push_str(".elf");
-        if let Some(p) = self
-            .processes
-            .iter()
-            .filter_map(|s| s.as_ref())
-            .find(|p| p.name() == drivers_path)
-        {
-            return Some(p);
-        }
-
-        // 5) Try drv -> base mapping (e.g., netdrv -> net)
-        if name.ends_with("drv") && name.len() > 3 {
-            let base = &name[..name.len() - 3];
-            // try base, base.elf, drivers path
+        // 4) drivers.list alias lookup (path -> alias)
+        if let Some(alias) = driver_alias_for_path(name) {
             if let Some(p) = self
                 .processes
                 .iter()
                 .filter_map(|s| s.as_ref())
-                .find(|p| p.name() == base || p.name() == format!("{}.elf", base))
-            {
-                return Some(p);
-            }
-            let mut drivers_path = String::from("/bin/drivers/");
-            drivers_path.push_str(base);
-            drivers_path.push_str(".elf");
-            if let Some(p) = self
-                .processes
-                .iter()
-                .filter_map(|s| s.as_ref())
-                .find(|p| p.name() == drivers_path)
+                .find(|p| p.name() == alias || p.name() == format!("{}.elf", alias))
             {
                 return Some(p);
             }
         }
 
-        // 6) fallback: substring match
+        // 5) fallback: substring match
         self.processes
             .iter()
             .filter_map(|s| s.as_ref())
@@ -505,6 +478,27 @@ impl ProcessTable {
     pub fn count(&self) -> usize {
         self.count
     }
+}
+
+pub(crate) fn driver_alias_for_path(path: &str) -> Option<String> {
+    let data = crate::kmod::fs::read_all("/config/drivers.list")?;
+    let text = core::str::from_utf8(&data).ok()?;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((alias, driver_path)) = line.split_once('=') else {
+            continue;
+        };
+        if driver_path.trim() == path {
+            let alias = alias.trim();
+            if !alias.is_empty() {
+                return Some(alias.to_string());
+            }
+        }
+    }
+    None
 }
 
 impl Default for ProcessTable {

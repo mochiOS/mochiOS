@@ -58,6 +58,7 @@ impl FsRequest {
     const OP_READ: u64 = 2;
     const OP_WRITE: u64 = 3;
     const OP_CLOSE: u64 = 4;
+    const OP_EXEC_STREAM: u64 = 9;
 }
 
 #[repr(C)]
@@ -253,6 +254,85 @@ fn main() {
                         resp.status = 0;
                     } else {
                         resp.status = -9; // EBADF
+                    }
+                }
+                FsRequest::OP_EXEC_STREAM => {
+                    let mut path_len = 0;
+                    while path_len < 128 && req.path[path_len] != 0 {
+                        path_len += 1;
+                    }
+
+                    if let Ok(path_str) = core::str::from_utf8(&req.path[..path_len]) {
+                        println!("[FS] OP_EXEC_STREAM: path={}", path_str);
+                        unsafe {
+                            if let Some(ref fs) = MOUNTED_FS {
+                                match resolve_path(fs.as_ref(), path_str) {
+                                    Ok(inode) => {
+                                        // ファイルサイズを取得
+                                        match fs.stat(inode) {
+                                            Ok(stat) => {
+                                                let file_size = stat.size;
+                                                resp.status = 0; // OK
+                                                resp.len = file_size;
+                                                
+                                                println!("[FS] OP_EXEC_STREAM: file_size={}", file_size);
+                                                
+                                                // ヘッダーをまず送信
+                                                let resp_slice = core::slice::from_raw_parts(
+                                                    &resp as *const _ as *const u8,
+                                                    size_of::<FsResponse>()
+                                                );
+                                                let _ = ipc::ipc_send(sender, resp_slice);
+                                                println!("[FS] OP_EXEC_STREAM: sent header (len={})", file_size);
+                                                
+                                                // ファイルコンテンツを複数メッセージで送信
+                                                // MAX_MSG_SIZE = 4128 のため、小さなチャンクで送信
+                                                const CHUNK_SIZE: usize = 4000; // 安全マージン確保
+                                                let mut offset: u64 = 0;
+                                                let mut chunk_count = 0u32;
+                                                while offset < file_size {
+                                                    let chunk_len = core::cmp::min(
+                                                        CHUNK_SIZE,
+                                                        (file_size - offset) as usize
+                                                    );
+                                                    let mut chunk_buf = vec![0u8; chunk_len];
+                                                    match fs.read(inode, offset, &mut chunk_buf) {
+                                                        Ok(bytes_read) => {
+                                                            if bytes_read > 0 {
+                                                                let _ = ipc::ipc_send(sender, &chunk_buf[..bytes_read]);
+                                                                offset += bytes_read as u64;
+                                                                chunk_count += 1;
+                                                                if chunk_count % 100 == 0 {
+                                                                    println!("[FS] OP_EXEC_STREAM: sent {} chunks, {} bytes", chunk_count, offset);
+                                                                }
+                                                            } else {
+                                                                break;
+                                                            }
+                                                        }
+                                                        Err(e) => {
+                                                            println!("[FS] OP_EXEC_STREAM: read error {:?} at offset {}", e, offset);
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                println!("[FS] OP_EXEC_STREAM: done, total chunks={}, total bytes={}", chunk_count, offset);
+                                                
+                                                // ヘッダーレスポンス送信済みなので以下のコードをスキップ
+                                                continue;
+                                            }
+                                            Err(e) => {
+                                                resp.status = vfs_error_to_errno(e);
+                                                println!("[FS] OP_EXEC_STREAM: stat error {:?}", e);
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        resp.status = vfs_error_to_errno(e);
+                                        println!("[FS] OP_EXEC_STREAM: resolve error {:?}", e);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 _ => {

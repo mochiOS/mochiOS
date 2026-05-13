@@ -6,7 +6,7 @@ use super::utils::{emit_rerun_if_changed, find_binary_in_dir, find_target_spec};
 
 /// ドライバクレート (`src/drivers/*`) をビルドして `fs/bin/drivers/*.elf` に配置する。
 ///
-/// 戻り値は `driver.service` が起動するドライバパス（例: `bin/drivers/usb3.0.elf`）。
+/// 戻り値は `driver.service` が読む `drivers.list` の行（`alias=path` 形式）。
 pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
     println!("cargo:rerun-if-changed={}", drivers_dir.display());
 
@@ -161,7 +161,13 @@ pub fn build_drivers(drivers_dir: &Path, output_dir: &Path) -> Vec<String> {
                             output_dir.display(),
                             elf_path.display()
                         );
-                        autostart_entries.push(format!("/bin/drivers/{}", dest_name));
+                        let alias = expected_bin_name
+                            .as_deref()
+                            .unwrap_or(&driver_output_name);
+                        autostart_entries.push(format!(
+                            "{}=/bin/drivers/{}",
+                            alias, dest_name
+                        ));
                     }
                 } else {
                     panic!("Built driver binary not found for {}", driver_dir_name);

@@ -10,17 +10,30 @@ const OP_NOTIFY_READY: u64 = 0xFF;
 const DRIVER_CONFIG_PATH: &str = "/config/drivers.list";
 const DEFAULT_DRIVERS: &[&str] = &["/bin/drivers/usb.elf"];
 
+fn normalize_driver_entry(line: &str) -> Option<String> {
+    let line = line.trim();
+    if line.is_empty() || line.starts_with('#') {
+        return None;
+    }
+    if let Some((_, path)) = line.split_once('=') {
+        let path = path.trim();
+        if !path.is_empty() {
+            return Some(path.to_string());
+        }
+        return None;
+    }
+    Some(line.to_string())
+}
+
 fn load_driver_list() -> Vec<String> {
     let mut drivers = Vec::new();
 
     match std::fs::read_to_string(DRIVER_CONFIG_PATH) {
         Ok(text) => {
             for line in text.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
+                if let Some(path) = normalize_driver_entry(line) {
+                    drivers.push(path);
                 }
-                drivers.push(line.to_string());
             }
         }
         Err(_) => {

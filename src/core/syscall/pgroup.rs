@@ -562,7 +562,7 @@ pub fn access(path_ptr: u64, _mode: u64) -> u64 {
         Ok(s) => s,
         Err(e) => return e,
     };
-    if crate::init::fs::file_metadata(&path).is_some() {
+    if crate::syscall::fs::metadata_rootfs_first(&path).is_some() {
         SUCCESS
     } else {
         ENOENT

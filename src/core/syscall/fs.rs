@@ -38,8 +38,8 @@ where
 // ファイルシステムIPC定数（swiftlib::fs_constsと同一の値を維持）
 const FS_PATH_MAX: usize = 512;
 const FS_DATA_MAX: usize = 4096;
-const IPC_MAX_MSG_SIZE: usize = 65536;
-const FS_RECV_TIMEOUT_TICKS: u64 = 500;
+const IPC_MAX_MSG_SIZE: usize = 4128;  // kernel ipc.rs MAX_MSG_SIZE と同じに
+const FS_RECV_TIMEOUT_TICKS: u64 = 10000;  // 500 から 10000 に増加（20倍）
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -136,10 +136,6 @@ pub(crate) fn fs_service_request(fs_tid: u64, req: &FsRequest) -> Result<FsRespo
     }
 }
 
-// Internal: send request then receive a streamed image from stream backend. Protocol:
-// 1) send FsRequest with OP_EXEC_STREAM
-// 2) receive initial FsResponse (status,len) where len == total image size
-// 3) receive raw data chunks (no per-chunk header) until total bytes received == initial len
 fn fs_service_request_stream(fs_tid: u64, req: &FsRequest) -> Result<Vec<u8>, u64> {
     let req_slice = unsafe {
         core::slice::from_raw_parts(
@@ -154,6 +150,7 @@ fn fs_service_request_stream(fs_tid: u64, req: &FsRequest) -> Result<Vec<u8>, u6
     let mut header_buf = [0u8; core::mem::size_of::<FsResponse>()];
     let n = recv_from_fs_with_timeout(fs_tid, &mut header_buf)?;
     if n < core::mem::size_of::<FsResponse>() {
+        crate::warn!("fs: header recv incomplete: got {} bytes, need {}", n, core::mem::size_of::<FsResponse>());
         return Err(EIO);
     }
     let header: FsResponse =
@@ -166,24 +163,31 @@ fn fs_service_request_stream(fs_tid: u64, req: &FsRequest) -> Result<Vec<u8>, u6
         return Ok(Vec::new());
     }
     if total > 8 * 1024 * 1024 {
+        crate::warn!("fs: file too large: {} bytes (max 8MB)", total);
         return Err(EINVAL);
     }
-    // allocate destination buffer once; receive directly into it to avoid intermediate copies
+    crate::debug!("fs: streaming file, total {} bytes, chunk size {}", total, IPC_MAX_MSG_SIZE);
     let mut out = vec![0u8; total];
     let mut received = 0usize;
+    let mut chunk_count = 0u32;
     while received < total {
         let remaining = total - received;
         let recv_len = core::cmp::min(remaining, IPC_MAX_MSG_SIZE);
         let dst = &mut out[received..received + recv_len];
         let n = recv_from_fs_with_timeout(fs_tid, dst)?;
         if n == 0 {
+            crate::warn!("fs: recv timeout or zero bytes at offset {}/{}", received, total);
             return Err(EIO);
         }
         received += n;
+        chunk_count += 1;
+        crate::debug!("fs: chunk {} received {} bytes (offset {}/{})", chunk_count, n, received, total);
     }
     if received != total {
+        crate::warn!("fs: recv mismatch: got {} bytes, expected {}", received, total);
         return Err(EIO);
     }
+    crate::debug!("fs: stream complete: {} chunks, {} bytes total", chunk_count, received);
     Ok(out)
 }
 
@@ -363,30 +367,18 @@ fn should_fallback_to_initfs(errno: u64) -> bool {
 }
 
 #[inline]
-fn fallback_file_metadata(path: &str) -> Option<(u16, u64)> {
-    if crate::kmod::fs::is_mounted() {
-        crate::kmod::fs::file_metadata(path)
-    } else {
-        crate::kmod::fs::file_metadata(path).or_else(|| crate::init::fs::file_metadata(path))
-    }
+pub(crate) fn metadata_rootfs_first(path: &str) -> Option<(u16, u64)> {
+    crate::kmod::fs::file_metadata(path).or_else(|| crate::init::fs::file_metadata(path))
 }
 
 #[inline]
-fn fallback_is_directory(path: &str) -> bool {
-    if crate::kmod::fs::is_mounted() {
-        crate::kmod::fs::is_directory(path)
-    } else {
-        crate::kmod::fs::is_directory(path) || crate::init::fs::is_directory(path)
-    }
+pub(crate) fn is_directory_rootfs_first(path: &str) -> bool {
+    crate::kmod::fs::is_directory(path) || crate::init::fs::is_directory(path)
 }
 
 #[inline]
-fn fallback_readdir(path: &str) -> Option<Vec<String>> {
-    if crate::kmod::fs::is_mounted() {
-        crate::kmod::fs::readdir_path(path)
-    } else {
-        crate::kmod::fs::readdir_path(path).or_else(|| crate::init::fs::readdir_path(path))
-    }
+pub(crate) fn readdir_rootfs_first(path: &str) -> Option<Vec<String>> {
+    crate::kmod::fs::readdir_path(path).or_else(|| crate::init::fs::readdir_path(path))
 }
 
 fn parse_readdir_names(bytes: &[u8]) -> Vec<String> {
@@ -515,7 +507,7 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
 
     if has_write_intent(flags) {
         let exists_in_service = stat_path_via_fs_service(path).is_ok();
-        let exists_in_fallback = fallback_file_metadata(path).is_some();
+        let exists_in_fallback = metadata_rootfs_first(path).is_some();
         if (flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)
             && (exists_in_service || exists_in_fallback)
         {
@@ -586,7 +578,7 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
         None => {
             let errno = if last_err != 0 { last_err } else { EIO };
             if should_fallback_to_initfs(errno) {
-                if fallback_is_directory(path) {
+                if is_directory_rootfs_first(path) {
                     (Vec::new(), Some(path.to_string()), false, 0)
                 } else {
                     match crate::kmod::fs::read_all(path) {
@@ -831,7 +823,7 @@ pub fn stat(path_ptr: u64, stat_ptr: u64) -> u64 {
             write_stat_buf(stat_ptr, mode_for_stat(mode), size);
             SUCCESS
         }
-        Err(errno) if should_fallback_to_initfs(errno) => match fallback_file_metadata(&resolved) {
+        Err(errno) if should_fallback_to_initfs(errno) => match metadata_rootfs_first(&resolved) {
             Some((inode_mode, size)) => {
                 write_stat_buf(stat_ptr, mode_for_stat(inode_mode), size);
                 SUCCESS
@@ -911,7 +903,7 @@ pub fn readdir(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
         return copied as u64;
     }
 
-    let names = match fallback_readdir(&dir_path) {
+    let names = match readdir_rootfs_first(&dir_path) {
         Some(n) => n,
         None => return EINVAL,
     };
@@ -945,7 +937,7 @@ pub fn chdir(path_ptr: u64) -> u64 {
             }
         }
         Err(errno) if should_fallback_to_initfs(errno) => {
-            if !fallback_is_directory(&resolved) {
+            if !is_directory_rootfs_first(&resolved) {
                 return ENOTDIR;
             }
         }
@@ -1460,7 +1452,7 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
             write_stat_buf(stat_ptr, mode_for_stat(mode), size);
             SUCCESS
         }
-        Err(errno) if should_fallback_to_initfs(errno) => match fallback_file_metadata(&full) {
+        Err(errno) if should_fallback_to_initfs(errno) => match metadata_rootfs_first(&full) {
             Some((inode_mode, size)) => {
                 const STAT_SIZE: u64 = 144;
                 if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
@@ -1509,7 +1501,7 @@ pub fn faccessat(dirfd: i64, path_ptr: u64, _mode: u64, _flags: u64) -> u64 {
     match stat_path_via_fs_service(&resolved) {
         Ok(_) => SUCCESS,
         Err(errno) if should_fallback_to_initfs(errno) => {
-            if fallback_file_metadata(&resolved).is_some() {
+            if metadata_rootfs_first(&resolved).is_some() {
                 SUCCESS
             } else {
                 ENOENT
@@ -1540,7 +1532,7 @@ pub fn statfs(path_ptr: u64, buf_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let resolved = resolve_path(pid, &path);
-    if stat_path_via_fs_service(&resolved).is_err() && fallback_file_metadata(&resolved).is_none() {
+    if stat_path_via_fs_service(&resolved).is_err() && metadata_rootfs_first(&resolved).is_none() {
         return ENOENT;
     }
 
@@ -1672,7 +1664,7 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
         }
         all
     } else {
-        match fallback_readdir(&dir_path) {
+        match readdir_rootfs_first(&dir_path) {
             Some(e) => e
                 .into_iter()
                 // d_type の判定で追加 stat を打つとカーネルモジュール呼び出し回数が増え不安定化するため、

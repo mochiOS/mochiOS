@@ -203,16 +203,11 @@ fn exec_internal(path: &str, name_override: Option<&str>, args: &[&str]) -> u64 
     let mut process_name = name_override
         .map(|s| s.to_string())
         .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path).to_string());
-    // Special-case mapping: drivers/net.elf should be exposed as "netdrv" for compatibility
-    if process_name == "net"
-        || process_name == "net.elf"
-        || path.ends_with("/bin/drivers/net.elf")
-    {
-        process_name = "netdrv".to_string();
+    if let Some(alias) = crate::task::process::driver_alias_for_path(path) {
+        process_name = alias;
     }
-    if let Some(data) = crate::init::fs::read(path) {
-        exec_with_data(&data, &process_name, path, args, None)
-    } else if let Some(data) = crate::kmod::fs::read_all(path) {
+    let loaded = crate::kmod::fs::read_all(path).or_else(|| crate::init::fs::read(path));
+    if let Some(data) = loaded {
         exec_with_data(&data, &process_name, path, args, None)
     } else {
         crate::warn!("exec: file not found: {}", path);
@@ -523,7 +518,10 @@ fn exec_with_data(
                         let src_end = match src_off.checked_add(filesz as usize) {
                             Some(e) if e <= data.len() => e,
                             _ => {
-                                crate::warn!("ELF segment src offset+filesz out of bounds");
+                                crate::warn!(
+                                    "ELF segment src offset+filesz out of bounds: seg={} src_off={} filesz={} data.len()={}",
+                                    i, src_off, filesz, data.len()
+                                );
                                 return crate::syscall::types::EINVAL;
                             }
                         };

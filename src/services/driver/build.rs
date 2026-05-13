@@ -32,7 +32,15 @@ fn main() {
     let manifest_path = Path::new(&manifest_dir);
     let project_root = find_project_root(manifest_path);
 
-    let libs_dir = project_root.join("ramfs").join("lib");
+    let libs_dir = [
+        project_root.join("ramfs").join("lib"),
+        project_root.join("fs").join("lib"),
+        project_root.join("ramfs").join("Libraries"),
+        project_root.join("fs").join("Libraries"),
+    ]
+    .into_iter()
+    .find(|dir| dir.join("crt0.o").exists() && dir.join("libc.a").exists())
+    .unwrap_or_else(|| project_root.join("ramfs").join("lib"));
 
     // ライブラリ検索パスを追加
     println!("cargo:rustc-link-search=native={}", libs_dir.display());

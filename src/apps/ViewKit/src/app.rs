@@ -1,7 +1,4 @@
 use crate::components::VComponent;
-use crate::pipeline;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 pub type UIBuilder = Box<dyn Fn() -> VComponent + Send + Sync>;
 

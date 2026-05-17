@@ -1,0 +1,16 @@
+[package]
+name = "kagami"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+swiftlib = { path = "../../user", features = ["std-support"] }
+
+[build-dependencies]
+resvg = { version = "0.45", default-features = false }
+
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"

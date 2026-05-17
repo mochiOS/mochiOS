@@ -1,0 +1,6 @@
+name = "Terminal"
+bundle_id = "com.mochi.terminal"
+version = "0.1.0"
+developer = "tas0dev"
+entry = "entry.elf"
+description = "Terminal emulator app bootstrap"

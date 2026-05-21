@@ -1577,7 +1577,14 @@ pub fn readlinkat(dirfd: i64, path_ptr: u64, buf_ptr: u64, buf_len: u64) -> u64 
         None => return EBADF,
     };
     let target = if path == "/proc/self/exe" {
-        match crate::task::with_process(pid, |p| String::from(p.name())) {
+        match crate::task::with_process(pid, |p| {
+            let exe = p.exe_path();
+            if exe.is_empty() {
+                String::from(p.name())
+            } else {
+                String::from(exe)
+            }
+        }) {
             Some(name) if name.starts_with('/') => name,
             Some(name) => alloc::format!("/{}", name),
             None => return ESRCH,

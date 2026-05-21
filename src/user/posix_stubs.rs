@@ -292,6 +292,22 @@ pub unsafe extern "C" fn chdir(_path: *const u8) -> i32 {
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn readlink(path: *const u8, buf: *mut u8, bufsiz: usize) -> isize {
+    let ret = syscall3(
+        SyscallNumber::Readlink as u64,
+        path as u64,
+        buf as u64,
+        bufsiz as u64,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as isize
+    }
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn chroot(_path: *const u8) -> i32 {
     -1
 }

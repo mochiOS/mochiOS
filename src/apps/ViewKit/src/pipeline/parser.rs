@@ -109,15 +109,66 @@ fn push_child(stack: &mut [DomNode], child: DomNode) {
 }
 
 fn parse_attributes(raw_tag: &str, node: &mut DomNode) {
-    let mut parts = raw_tag.split_whitespace();
-    let _tag_name = parts.next();
     if let DomNodeKind::Element(element) = &mut node.kind {
-        for attr in parts {
-            if let Some((key, value)) = attr.split_once('=') {
-                let value = value.trim_matches('"').trim_matches('\'').to_string();
-                element
-                    .attributes
-                    .insert(key.to_ascii_lowercase(), value);
+        let mut i = 0usize;
+        let bytes = raw_tag.as_bytes();
+
+        while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+
+        while i < bytes.len() {
+            while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if i >= bytes.len() {
+                break;
+            }
+
+            let key_start = i;
+            while i < bytes.len() && !bytes[i].is_ascii_whitespace() && bytes[i] != b'=' {
+                i += 1;
+            }
+            let key = raw_tag[key_start..i].trim();
+            while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if i >= bytes.len() || bytes[i] != b'=' {
+                while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
+                    i += 1;
+                }
+                continue;
+            }
+            i += 1;
+            while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if i >= bytes.len() {
+                break;
+            }
+
+            let value = if bytes[i] == b'"' || bytes[i] == b'\'' {
+                let quote = bytes[i];
+                i += 1;
+                let value_start = i;
+                while i < bytes.len() && bytes[i] != quote {
+                    i += 1;
+                }
+                let value = raw_tag[value_start..i].to_string();
+                if i < bytes.len() {
+                    i += 1;
+                }
+                value
+            } else {
+                let value_start = i;
+                while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
+                    i += 1;
+                }
+                raw_tag[value_start..i].trim_end_matches('/').to_string()
+            };
+
+            if !key.is_empty() {
+                element.attributes.insert(key.to_ascii_lowercase(), value);
             }
         }
     }

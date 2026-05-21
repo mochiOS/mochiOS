@@ -140,6 +140,10 @@ fn to_layout_tree(ui: &UiLayoutNode, meta: &MetaNode, parent_content_abs: (f32, 
 fn style_from_css(styles: &StyleMap) -> UiStyle {
     let mut style = UiStyle::default();
 
+    if let Some(flex) = styles.get("flex") {
+        apply_flex_shorthand(&mut style, flex);
+    }
+
     if let Some(display) = styles.get("display") {
         style.display = match display.trim() {
             "flex" => Display::Flex {
@@ -170,10 +174,22 @@ fn style_from_css(styles: &StyleMap) -> UiStyle {
         max_height: parse_length(styles.get("max-height"), Length::Auto),
     };
 
+    let current_flex_grow = style.item_style.flex_grow;
+    let current_flex_shrink = style.item_style.flex_shrink;
+    let current_flex_basis = style.item_style.flex_basis.clone();
     style.item_style = ItemStyle {
-        flex_grow: parse_f32(styles.get("flex-grow"), 0.0),
-        flex_shrink: parse_f32(styles.get("flex-shrink"), 1.0),
-        flex_basis: parse_length(styles.get("flex-basis"), Length::Auto),
+        flex_grow: styles
+            .get("flex-grow")
+            .and_then(|s| s.trim().parse::<f32>().ok())
+            .unwrap_or(current_flex_grow),
+        flex_shrink: styles
+            .get("flex-shrink")
+            .and_then(|s| s.trim().parse::<f32>().ok())
+            .unwrap_or(current_flex_shrink),
+        flex_basis: styles
+            .get("flex-basis")
+            .map(|s| parse_length_token(s).unwrap_or(current_flex_basis.clone()))
+            .unwrap_or(current_flex_basis),
         align_self: parse_align_self(styles.get("align-self")),
     };
 
@@ -239,8 +255,52 @@ fn parse_length_token(raw: &str) -> Option<Length> {
     s.parse::<f32>().map(Length::Px).ok()
 }
 
-fn parse_f32(v: Option<&String>, default: f32) -> f32 {
-    v.and_then(|s| s.trim().parse::<f32>().ok()).unwrap_or(default)
+fn apply_flex_shorthand(style: &mut UiStyle, raw: &str) {
+    let value = raw.trim();
+    match value {
+        "none" => {
+            style.item_style.flex_grow = 0.0;
+            style.item_style.flex_shrink = 0.0;
+            style.item_style.flex_basis = Length::Auto;
+        }
+        "auto" => {
+            style.item_style.flex_grow = 1.0;
+            style.item_style.flex_shrink = 1.0;
+            style.item_style.flex_basis = Length::Auto;
+        }
+        "initial" => {
+            style.item_style.flex_grow = 0.0;
+            style.item_style.flex_shrink = 1.0;
+            style.item_style.flex_basis = Length::Auto;
+        }
+        _ => {
+            let parts: Vec<_> = value.split_whitespace().collect();
+            match parts.as_slice() {
+                [grow] => {
+                    if let Ok(grow) = grow.parse::<f32>() {
+                        style.item_style.flex_grow = grow;
+                        style.item_style.flex_shrink = 1.0;
+                        style.item_style.flex_basis = Length::Percent(0.0);
+                    }
+                }
+                [grow, shrink] => {
+                    if let (Ok(grow), Ok(shrink)) = (grow.parse::<f32>(), shrink.parse::<f32>()) {
+                        style.item_style.flex_grow = grow;
+                        style.item_style.flex_shrink = shrink;
+                        style.item_style.flex_basis = Length::Percent(0.0);
+                    }
+                }
+                [grow, shrink, basis] => {
+                    if let (Ok(grow), Ok(shrink)) = (grow.parse::<f32>(), shrink.parse::<f32>()) {
+                        style.item_style.flex_grow = grow;
+                        style.item_style.flex_shrink = shrink;
+                        style.item_style.flex_basis = parse_length_token(basis).unwrap_or(Length::Percent(0.0));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
 fn parse_justify_content(value: Option<&String>) -> JustifyContent {

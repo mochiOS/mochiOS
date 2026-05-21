@@ -24,6 +24,7 @@ pub struct VContent {
 }
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 enum ImageFit {
     Contain,
     Cover,
@@ -262,21 +263,23 @@ fn replace_first_content_image(
         let attrs = extract_content_tag_attrs(tag);
         let tag_type = attrs.get("type").map(|v| v.to_ascii_lowercase());
         if tag_type.as_deref() == Some("image") {
-            let mut img = String::from("<img class=\"vk-img\" src=\"");
-            img.push_str(&escape_attr_value(path));
             let wants_cover = matches!(fit, Some(ImageFit::Cover))
                 || matches!(attrs.get("fit").map(String::as_str), Some("cover"));
+            let radius = clip_radius.or_else(|| attrs.get("clip-radius").and_then(|v| v.parse::<i32>().ok()));
+
+            let mut img = String::from("<img class=\"vk-img\"");
+            img.push_str(" src=\"");
+            img.push_str(&escape_attr_value(path));
+            img.push('"');
             if wants_cover {
-                img.push_str("\" data-vk-fit=\"cover");
-            } else {
+                img.push_str(" data-vk-fit=\"cover\"");
+            }
+            if let Some(radius) = radius {
+                img.push_str(" data-vk-clip-radius=\"");
+                img.push_str(&radius.to_string());
                 img.push('"');
             }
-
-            if let Some(radius) = clip_radius.or_else(|| attrs.get("clip-radius").and_then(|v| v.parse::<i32>().ok())) {
-                img.push_str("\" data-vk-clip-radius=\"");
-                img.push_str(&radius.to_string());
-            }
-            img.push_str("\" />");
+            img.push_str(" />");
 
             let mut out = String::with_capacity(input.len() - (end - start) + img.len());
             out.push_str(&input[..start]);
@@ -319,6 +322,18 @@ fn replace_first_content_text(input: &str, replacement: &str) -> String {
         "<Content type=\"text\"/>",
         "<Content type='text' />",
         "<Content type='text'/>",
+        "<content type=\"String\" />",
+        "<content type=\"String\"/>",
+        "<content type='String' />",
+        "<content type='String'/>",
+        "<content type=\"Text\" />",
+        "<content type=\"Text\"/>",
+        "<content type='Text' />",
+        "<content type='Text'/>",
+        "<content type=\"text\" />",
+        "<content type=\"text\"/>",
+        "<content type='text' />",
+        "<content type='text'/>",
     ] {
         if let Some(pos) = input.find(pat) {
             let mut out = String::with_capacity(input.len() - pat.len() + replacement.len());

@@ -12,6 +12,7 @@ use crate::ipc_proto::{
     IPC_BUF_SIZE, OP_REQ_ATTACH_SHARED, OP_REQ_CREATE_WINDOW, OP_REQ_PRESENT_SHARED,
     OP_RES_SHARED_ATTACHED, OP_RES_WINDOW_CREATED,
 };
+use crate::{render_component_to_pixmap, VComponent};
 
 struct SharedSurface {
     virt_addr: u64,
@@ -84,6 +85,18 @@ impl Window {
             yield_now();
         }
         Ok(())
+    }
+
+    pub fn present_component(&mut self, component: VComponent) -> Result<(), &'static str> {
+        let window_template = include_str!("../resources/components/window.html");
+        let mut wrapped = VComponent::from_str(window_template);
+        wrapped = wrapped.width(self.width as u32).height(self.height as u32);
+        if let Some(title) = component.get_attributes().get("label").cloned() {
+            wrapped = wrapped.label(title);
+        }
+        let decorated = wrapped.child(component);
+        let pixels = render_component_to_pixmap(&decorated, self.width as u32, self.height as u32);
+        self.present(&pixels)
     }
 }
 

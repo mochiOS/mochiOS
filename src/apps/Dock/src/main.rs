@@ -4,7 +4,7 @@ use swiftlib::{
     process,
     task::yield_now,
 };
-use viewkit::{ipc_proto, Window};
+use viewkit::{ipc_proto, render_component_to_pixmap, Window, VComponent};
 
 fn main() {
     println!("[Dock] start");
@@ -26,10 +26,9 @@ fn main() {
     let mut sel = 0usize;
 
     println!("[Dock] rendering...");
-    let pixels = render_dock_component(&apps, sel, width as usize, height as usize);
-    println!("[Dock] render done (pixels={})", pixels.len());
-
+    let dock = render_dock_component(&apps, sel);
     println!("[Dock] presenting...");
+    let pixels = render_component_to_pixmap(&dock, width as u32, height as u32);
     if let Err(e) = window.present(&pixels) {
         eprintln!("[Dock] present failed: {}", e);
         return;
@@ -53,7 +52,8 @@ fn main() {
                 if sel > 0 {
                     sel -= 1;
                 }
-                let pixels = render_dock_component(&apps, sel, width as usize, height as usize);
+                let dock = render_dock_component(&apps, sel);
+                let pixels = render_component_to_pixmap(&dock, width as u32, height as u32);
                 let _ = window.present(&pixels);
             }
             // Right arrow (press)
@@ -61,7 +61,8 @@ fn main() {
                 if sel + 1 < apps.len() {
                     sel += 1;
                 }
-                let pixels = render_dock_component(&apps, sel, width as usize, height as usize);
+                let dock = render_dock_component(&apps, sel);
+                let pixels = render_component_to_pixmap(&dock, width as u32, height as u32);
                 let _ = window.present(&pixels);
             }
             // Enter (press)
@@ -82,11 +83,7 @@ fn main() {
 fn render_dock_component(
     apps: &Vec<(String, Option<String>)>,
     selected: usize,
-    width: usize,
-    height: usize,
-) -> Vec<u32> {
-    use viewkit::VComponent;
-    
+) -> VComponent {
     let appicon_template = include_str!("components/appicon.html");
 
     let mut icons = Vec::new();
@@ -110,10 +107,7 @@ fn render_dock_component(
     }
 
     let dock_template = include_str!("components/dock.html");
-    let dock = VComponent::from_str(dock_template)
-        .children(icons);
-
-    viewkit::render_component_to_pixmap(&dock, width as u32, height as u32)
+    VComponent::from_str(dock_template).children(icons)
 }
 
 fn dock_window_size(app_count: usize) -> (u16, u16) {

@@ -11,7 +11,7 @@ use swiftlib::{
     task::yield_now,
 };
 
-use crate::{ipc_proto, render_component_to_pixmap, VComponent, Window};
+use crate::{ipc_proto, VComponent, Window};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppEvent {
@@ -89,10 +89,6 @@ impl AppRunner {
         ViewFn: Fn(&M) -> VComponent,
         UpdateFn: FnMut(&mut M, AppEvent) -> (AppControl, Redraw),
     {
-        let (w, h) = self.window.size();
-        let width = w as usize;
-        let height = h as usize;
-
         loop {
             // Drain input queue quickly; update may request redraw.
             while let Some(ev) = Self::poll_event() {
@@ -106,13 +102,11 @@ impl AppRunner {
             }
 
             if self.dirty.swap(false, Ordering::SeqCst) {
-                let ui = view(&model);
-                let pixels = render_component_to_pixmap(&ui, width as u32, height as u32);
-                self.window.present(&pixels)?;
+                let raw_ui = view(&model);
+                self.window.present_component(raw_ui)?;
             }
 
             yield_now();
         }
     }
 }
-

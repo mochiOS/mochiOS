@@ -72,6 +72,8 @@ pub enum SyscallNumber {
     Tgkill = 234,
     /// getcwd
     Getcwd = 79,
+    /// readlink
+    Readlink = 89,
     /// unlink (ファイル削除)
     Unlink = 87,
 

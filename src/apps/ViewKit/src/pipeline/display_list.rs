@@ -13,11 +13,29 @@ pub enum DisplayCommand {
         radius: i32,
         opacity: f32,
     },
+    FillGradient {
+        rect: Rect,
+        from_color: u32,
+        to_color: u32,
+        radius: i32,
+        opacity: f32,
+        vertical: bool,
+    },
+    DrawShadow {
+        rect: Rect,
+        color: u32,
+        radius: i32,
+        opacity: f32,
+        offset_x: i32,
+        offset_y: i32,
+        blur: i32,
+    },
     DrawText {
         x: i32,
         y: i32,
         color: u32,
         opacity: f32,
+        size: f32,
         text: String,
     },
     DrawImage {
@@ -46,14 +64,40 @@ fn build_for_node(
 
     match &node.kind {
         LayoutNodeKind::Element { tag_name, attributes } => {
-            if let Some(color) = background_color_from_styles(&node.styles) {
-                let radius = parse_border_radius_px(node.styles.get("border-radius"));
-                out.push(DisplayCommand::FillRect {
+            if let Some(shadow) = box_shadow_from_styles(&node.styles) {
+                out.push(DisplayCommand::DrawShadow {
                     rect: node.rect,
-                    color,
-                    radius,
-                    opacity: effective_opacity,
+                    color: shadow.color,
+                    radius: parse_border_radius_px(node.styles.get("border-radius")),
+                    opacity: effective_opacity * shadow.opacity,
+                    offset_x: shadow.offset_x,
+                    offset_y: shadow.offset_y,
+                    blur: shadow.blur,
                 });
+            }
+
+            if let Some(background) = background_paint_from_styles(&node.styles) {
+                let radius = parse_border_radius_px(node.styles.get("border-radius"));
+                match background {
+                    BackgroundPaint::Solid(color) => out.push(DisplayCommand::FillRect {
+                        rect: node.rect,
+                        color,
+                        radius,
+                        opacity: effective_opacity,
+                    }),
+                    BackgroundPaint::Gradient {
+                        from_color,
+                        to_color,
+                        vertical,
+                    } => out.push(DisplayCommand::FillGradient {
+                        rect: node.rect,
+                        from_color,
+                        to_color,
+                        radius,
+                        opacity: effective_opacity,
+                        vertical,
+                    }),
+                }
             }
 
             if tag_name == "img" {
@@ -76,11 +120,13 @@ fn build_for_node(
         }
         LayoutNodeKind::Text { content } => {
             let color = text_color_from_styles(&node.styles).unwrap_or(inherited_text_color);
+            let size = parse_font_size(&node.styles).unwrap_or(14.0);
             out.push(DisplayCommand::DrawText {
                 x: node.rect.x,
                 y: node.rect.y,
                 color,
                 opacity: effective_opacity,
+                size,
                 text: content.clone(),
             });
         }
@@ -92,22 +138,83 @@ fn build_for_node(
     }
 }
 
-fn background_color_from_styles(styles: &std::collections::BTreeMap<String, String>) -> Option<u32> {
-    if let Some(v) = styles.get("background-color") {
-        return parse_css_color(v);
+enum BackgroundPaint {
+    Solid(u32),
+    Gradient {
+        from_color: u32,
+        to_color: u32,
+        vertical: bool,
+    },
+}
+
+fn text_color_from_styles(styles: &std::collections::BTreeMap<String, String>) -> Option<u32> {
+    styles.get("color").and_then(|v| parse_css_color(v))
+}
+
+struct BoxShadow {
+    color: u32,
+    opacity: f32,
+    offset_x: i32,
+    offset_y: i32,
+    blur: i32,
+}
+
+fn background_paint_from_styles(
+    styles: &std::collections::BTreeMap<String, String>,
+) -> Option<BackgroundPaint> {
+    if let Some(v) = styles.get("background-color").and_then(|v| parse_css_color(v)) {
+        return Some(BackgroundPaint::Solid(v));
     }
     if let Some(v) = styles.get("background") {
+        if let Some((from_color, to_color, vertical)) = parse_linear_gradient(v) {
+            return Some(BackgroundPaint::Gradient {
+                from_color,
+                to_color,
+                vertical,
+            });
+        }
         for token in v.split_whitespace() {
             if let Some(c) = parse_css_color(token) {
-                return Some(c);
+                return Some(BackgroundPaint::Solid(c));
             }
         }
     }
     None
 }
 
-fn text_color_from_styles(styles: &std::collections::BTreeMap<String, String>) -> Option<u32> {
-    styles.get("color").and_then(|v| parse_css_color(v))
+fn box_shadow_from_styles(styles: &std::collections::BTreeMap<String, String>) -> Option<BoxShadow> {
+    let raw = styles.get("box-shadow")?;
+    let mut parts = raw.split_whitespace().collect::<Vec<_>>();
+    if parts.len() < 4 {
+        return None;
+    }
+    let offset_x = parse_length_px(parts[0])?;
+    let offset_y = parse_length_px(parts[1])?;
+    let blur = parse_length_px(parts[2])?.max(0);
+    let color_raw = parts.split_off(3).join(" ");
+    let color = parse_css_color(&color_raw)?;
+    Some(BoxShadow {
+        color,
+        opacity: 1.0,
+        offset_x,
+        offset_y,
+        blur,
+    })
+}
+
+fn parse_linear_gradient(raw: &str) -> Option<(u32, u32, bool)> {
+    let body = raw.trim();
+    let lower = body.to_ascii_lowercase();
+    let inner = lower.strip_prefix("linear-gradient(")?.strip_suffix(')')?;
+    let parts: Vec<_> = inner.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    match parts.as_slice() {
+        [from, to] => Some((parse_css_color(from)?, parse_css_color(to)?, true)),
+        [dir, from, to] if dir.starts_with("to ") => {
+            let vertical = !dir.contains("left") && !dir.contains("right");
+            Some((parse_css_color(from)?, parse_css_color(to)?, vertical))
+        }
+        _ => None,
+    }
 }
 
 fn parse_css_color(raw: &str) -> Option<u32> {
@@ -121,6 +228,7 @@ fn parse_css_color(raw: &str) -> Option<u32> {
     match s.as_str() {
         "white" => Some(0xFFFFFFFF),
         "black" => Some(0xFF000000),
+        "transparent" => Some(0x00000000),
         "red" => Some(0xFFFF0000),
         "green" => Some(0xFF00FF00),
         "blue" => Some(0xFF0000FF),
@@ -195,4 +303,18 @@ fn parse_border_radius_px(value: Option<&String>) -> i32 {
     let token = raw.split_whitespace().next().unwrap_or("");
     let num = token.strip_suffix("px").unwrap_or(token).trim();
     num.parse::<f32>().ok().unwrap_or(0.0).max(0.0).round() as i32
+}
+
+fn parse_font_size(styles: &std::collections::BTreeMap<String, String>) -> Option<f32> {
+    styles.get("font-size").and_then(|raw| parse_length_px_f32(raw))
+}
+
+fn parse_length_px(raw: &str) -> Option<i32> {
+    parse_length_px_f32(raw).map(|v| v.round() as i32)
+}
+
+fn parse_length_px_f32(raw: &str) -> Option<f32> {
+    let token = raw.split_whitespace().next().unwrap_or("").trim();
+    let token = token.strip_suffix("px").unwrap_or(token);
+    token.parse::<f32>().ok()
 }

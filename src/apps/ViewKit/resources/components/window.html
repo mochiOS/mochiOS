@@ -1,0 +1,51 @@
+<style>
+    .vk-window {
+        border-radius: 10px;
+        width: CONTENT_W;
+        height: CONTENT_H;
+        background: #ffffff;
+        box-shadow: 6px 6px 20px rgba(0,0,0,0.2);
+        overflow: hidden;
+    }
+    .vk-titlebar {
+        height: 28px;
+        background: linear-gradient(#f4f7fa,#eef3f7);
+        border-bottom: 1px solid #e0e5ee;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        font-weight: 600;
+        color: #303030;
+    }
+    .vk-title {
+        flex: 1;
+        font-size: 12px;
+    }
+    .vk-controls {
+        display: flex;
+        gap: 6px;
+    }
+    .vk-control {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+    }
+    .vk-close { background: #e57373 }
+    .vk-min { background: #ffc387 }
+    .vk-max { background: #8fd3e8 }
+    .vk-content { padding: 12px }
+</style>
+
+<div class="vk-window">
+    <div class="vk-titlebar">
+        <div class="vk-title">{{ label }}</div>
+        <div class="vk-controls">
+            <div class="vk-control vk-min"></div>
+            <div class="vk-control vk-max"></div>
+            <div class="vk-control vk-close"></div>
+        </div>
+    </div>
+    <div class="vk-content">
+        <Children />
+    </div>
+</div>

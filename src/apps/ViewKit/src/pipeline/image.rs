@@ -1,5 +1,6 @@
 use image::{DynamicImage, ImageReader};
 use std::io::Cursor;
+use std::path::{Path, PathBuf};
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 use swiftlib::fs;
 
@@ -14,17 +15,45 @@ pub fn load_image_from_bytes(data: &[u8]) -> Option<(Vec<u32>, u32, u32)> {
 
 /// ファイルパスから画像を読み込み ARGB32 ピクセル配列に変換
 pub fn load_image_from_path(path: &str) -> Option<(Vec<u32>, u32, u32)> {
+    let resolved = resolve_image_path(path);
     #[cfg(all(target_os = "linux", target_env = "musl"))]
     {
-        let data = fs::read_file_via_fs(path, 512 * 1024).ok()??;
+        let data = fs::read_file_via_fs(&resolved, 512 * 1024).ok()??;
         return load_image_from_bytes(&data);
     }
 
     #[cfg(not(all(target_os = "linux", target_env = "musl")))]
     {
-        let data = std::fs::read(path).ok()?;
+        let data = std::fs::read(&resolved).ok()?;
         return load_image_from_bytes(&data);
     }
+}
+
+fn resolve_image_path(path: &str) -> String {
+    if Path::new(path).is_absolute() {
+        return path.to_string();
+    }
+
+    let mut candidates = Vec::new();
+    candidates.push(PathBuf::from(path));
+
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join(path));
+    }
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(bundle_dir) = exe.parent() {
+            candidates.push(bundle_dir.join(path));
+        }
+    }
+
+    for candidate in candidates {
+        if candidate.exists() {
+            return candidate.to_string_lossy().into_owned();
+        }
+    }
+
+    path.to_string()
 }
 
 /// DynamicImage を ARGB32 ピクセル配列に変換

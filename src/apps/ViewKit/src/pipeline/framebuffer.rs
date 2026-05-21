@@ -71,6 +71,78 @@ impl Framebuffer {
         }
     }
 
+    pub fn fill_linear_gradient_rounded_rect(
+        &mut self,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+        radius: i32,
+        from_color: u32,
+        to_color: u32,
+        opacity: f32,
+        vertical: bool,
+    ) {
+        if width <= 0 || height <= 0 {
+            return;
+        }
+        let r = radius.max(0).min(width / 2).min(height / 2);
+        let rf = r as f32;
+        let denom = if vertical {
+            (height - 1).max(1) as f32
+        } else {
+            (width - 1).max(1) as f32
+        };
+        for yy in y..(y + height) {
+            for xx in x..(x + width) {
+                let lx = (xx - x) as f32;
+                let ly = (yy - y) as f32;
+                let coverage = rounded_rect_coverage(lx, ly, width as f32, height as f32, rf);
+                if coverage <= 0.0 {
+                    continue;
+                }
+                let t = if vertical {
+                    (yy - y) as f32 / denom
+                } else {
+                    (xx - x) as f32 / denom
+                }
+                .clamp(0.0, 1.0);
+                let color = lerp_argb(from_color, to_color, t);
+                self.blend_pixel(xx, yy, color, opacity * coverage);
+            }
+        }
+    }
+
+    pub fn draw_box_shadow(
+        &mut self,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+        radius: i32,
+        color: u32,
+        opacity: f32,
+        offset_x: i32,
+        offset_y: i32,
+        blur: i32,
+    ) {
+        if width <= 0 || height <= 0 {
+            return;
+        }
+        let blur = blur.max(0);
+        let layers = blur.max(1).min(24);
+        for step in 0..=layers {
+            let spread = step;
+            let layer_opacity = opacity * (1.0 - step as f32 / (layers as f32 + 1.0)).powf(1.8);
+            let rx = x + offset_x - spread;
+            let ry = y + offset_y - spread;
+            let rw = width + spread * 2;
+            let rh = height + spread * 2;
+            let rr = (radius + spread).min(rw / 2).min(rh / 2);
+            self.fill_rounded_rect(rx, ry, rw, rh, rr, color, layer_opacity);
+        }
+    }
+
     pub fn blit_image_pixels(
         &mut self,
         src_pixels: &[u32],
@@ -230,6 +302,23 @@ fn rounded_rect_coverage(px: f32, py: f32, width: f32, height: f32, radius: f32)
         }
     }
     inside as f32 / OFFSETS.len() as f32
+}
+
+fn lerp_argb(from: u32, to: u32, t: f32) -> u32 {
+    let t = t.clamp(0.0, 1.0);
+    let a0 = ((from >> 24) & 0xff) as f32;
+    let r0 = ((from >> 16) & 0xff) as f32;
+    let g0 = ((from >> 8) & 0xff) as f32;
+    let b0 = (from & 0xff) as f32;
+    let a1 = ((to >> 24) & 0xff) as f32;
+    let r1 = ((to >> 16) & 0xff) as f32;
+    let g1 = ((to >> 8) & 0xff) as f32;
+    let b1 = (to & 0xff) as f32;
+    let a = (a0 + (a1 - a0) * t).round().clamp(0.0, 255.0) as u32;
+    let r = (r0 + (r1 - r0) * t).round().clamp(0.0, 255.0) as u32;
+    let g = (g0 + (g1 - g0) * t).round().clamp(0.0, 255.0) as u32;
+    let b = (b0 + (b1 - b0) * t).round().clamp(0.0, 255.0) as u32;
+    (a << 24) | (r << 16) | (g << 8) | b
 }
 
 fn is_inside_rounded_rect_at(x: f32, y: f32, w: f32, h: f32, radius: f32) -> bool {

@@ -37,6 +37,8 @@ pub struct Process {
     /// カレントワーキングディレクトリ（固定バッファ、ヒープ確保不要）
     cwd: [u8; 256],
     cwd_len: usize,
+    /// 実行ファイルのパス
+    exe_path: String,
     /// 優先度（0が最高、値が大きいほど低い）
     priority: u8,
     /// 終了コード（生存中はNone）
@@ -92,6 +94,7 @@ impl Process {
                 b
             },
             cwd_len: 1,
+            exe_path: String::new(),
             priority,
             exit_code: None,
             pgid: 0,
@@ -199,6 +202,15 @@ impl Process {
         let len = bytes.len().min(255);
         self.cwd[..len].copy_from_slice(&bytes[..len]);
         self.cwd_len = len;
+    }
+
+    pub fn exe_path(&self) -> &str {
+        &self.exe_path
+    }
+
+    pub fn set_exe_path(&mut self, path: &str) {
+        self.exe_path.clear();
+        self.exe_path.push_str(path);
     }
 
     /// シグナル状態への読み取りアクセス

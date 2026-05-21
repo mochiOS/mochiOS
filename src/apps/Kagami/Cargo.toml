@@ -3,17 +3,37 @@ name = "kagami"
 version = "0.1.0"
 edition = "2024"
 
+
+[lib]
+name = "wayland_compositor"
+path = "src/lib.rs"
+
+[[bin]]
+name = "compositor"
+path = "src/compositor/main.rs"
+
+[[bin]]
+name = "test-client"
+path = "examples/test_client.rs"
+
 [dependencies]
-wayland-server = "0.31.13"
-wayland-protocols = "0.32.12"
-wayland-backend = "0.3.15"
-swiftlib = { path = "../../user", features = ["std-support"] }
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+log = "0.4"
+env_logger = "0.11.10"
+thiserror = "2.0.18"
+libc = "0.2.186"
+
+[dev-dependencies]
+
+[features]
+default = ["backend-linux-fb"]
+
+backend-linux-fb = []       # Linux フレームバッファドライバ
+backend-generic-memory = [] # 汎用メモリバッファ
+backend-custom = []         # カスタムバックエンド用（デフォルトパニック）
+
+debug-logging = []
+performance-metrics = []
 
 [build-dependencies]
-resvg = { version = "0.47.0", default-features = false }
-
-[profile.release]
-panic = "abort"
-
-[profile.dev]
-panic = "abort"

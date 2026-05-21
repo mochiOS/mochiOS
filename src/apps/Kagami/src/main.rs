@@ -1,4 +1,3 @@
-mod backend;
-mod renderer;
+fn main() {
 
-fn main() {}
+}

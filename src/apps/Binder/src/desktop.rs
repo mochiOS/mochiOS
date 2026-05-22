@@ -8,7 +8,7 @@ use swiftlib::{
     task::{find_process_by_name, yield_now},
     vga,
 };
-use viewkit::{render_component_to_pixmap, VComponent};
+use viewkit::{render_component_to_pixmap_with_asset_root, VComponent};
 
 const IPC_BUF_SIZE: usize = 4128;
 const KAGAMI_PROCESS_CANDIDATES: [&str; 3] =
@@ -62,9 +62,9 @@ impl Font {
     }
 
     fn load() -> Self {
-        let data = include_bytes!("../../../../resources/system/fonts/ter-u12b.bdf");
+        let data = include_bytes!("../../../../src/resources/system/fonts/ter-u12b.bdf");
         let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
-        parse_bdf(&data, &mut glyphs);
+        parse_bdf(data, &mut glyphs);
         Self { glyphs }
     }
 
@@ -191,7 +191,15 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
 
     // Window body is left blank for Binder; the template supplies the frame.
     let component = component.child(VComponent::from_str("<div></div>"));
-    render_component_to_pixmap(&component, win.width as u32, win.height as u32)
+    let asset_root = std::env::args()
+        .next()
+        .and_then(|p| p.rsplit_once("/entry.elf").map(|(d, _)| d.to_string()));
+    render_component_to_pixmap_with_asset_root(
+        &component,
+        win.width as u32,
+        win.height as u32,
+        asset_root.as_deref(),
+    )
 }
 
 fn blit_pixmap(

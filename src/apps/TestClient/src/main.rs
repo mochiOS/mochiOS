@@ -18,24 +18,22 @@ const CARD_TEMPLATE: &str = r#"
         background-color: #f8f9fb;
         display: flex;
         flex-direction: column;
-        justify-content: center;
-        padding: 24px;
+        padding: 18px;
+        gap: 12px;
     }
-    .title {
-        text-align: center;
-        color: #111827;
+    .accent {
+        height: 48px;
+        border-radius: 14px;
+        background-color: #4f46e5;
     }
     .body {
-        text-align: center;
-        color: #4b5563;
-        margin-left: 0px;
+        flex: 1;
+        border-radius: 14px;
+        background-color: #e5e7eb;
     }
 </style>
 <div class="screen">
     <div class="card">
-        <div class="title">
-            <Content type="String" />
-        </div>
         <div class="body">
             <Children />
         </div>
@@ -45,13 +43,14 @@ const CARD_TEMPLATE: &str = r#"
 
 const BODY_TEMPLATE: &str = r#"
 <style>
-    .copy {
-        color: #4b5563;
-        text-align: center;
+    .sample {
+        width: 100%;
+        height: 100%;
+        border-radius: 10px;
+        background-color: #d1d5db;
     }
 </style>
-<div class="copy">
-    <Content type="String" />
+<div class="sample">
 </div>
 "#;
 
@@ -73,16 +72,15 @@ fn main() {
         }
     };
 
+    println!("[TestClient] building ViewKit card");
     let card = VComponent::from_str(CARD_TEMPLATE)
         .width(info.width)
         .height(info.height)
-        .label("ViewKit HTML Card".to_string())
-        .child(
-            VComponent::from_str(BODY_TEMPLATE)
-                .label("Rendered from TestClient using ViewKit.".to_string()),
-        );
+        .child(VComponent::from_str(BODY_TEMPLATE));
 
+    println!("[TestClient] rendering ViewKit card");
     let pixels = render_component_to_pixmap(&card, info.width, info.height);
+    println!("[TestClient] blitting framebuffer");
     let stride = info.stride as usize;
     unsafe {
         let fb =

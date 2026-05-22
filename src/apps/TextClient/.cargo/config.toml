@@ -10,3 +10,4 @@ rustflags = [
     "-C", "link-arg=-nostdlib",
     "-C", "panic=abort",
 ]
+

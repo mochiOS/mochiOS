@@ -165,8 +165,8 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "env_logger",
- "libc",
  "log",
+ "swiftlib",
  "thiserror",
  "tokio",
 ]
@@ -366,6 +366,10 @@ dependencies = [
  "libc",
  "windows-sys",
 ]
+
+[[package]]
+name = "swiftlib"
+version = "0.1.0"
 
 [[package]]
 name = "syn"

@@ -51,12 +51,23 @@ mod tests {
         }
 
         let listener = UnixListener::bind(test_socket_path).ok();
-        if let Ok(_listener) = listener {
+        if let Some(_listener) = listener {
             fs::remove_file(test_socket_path).ok();
         }
     }
 
-    #[test]
-    fn test_client_surface_tracking() {
+    #[tokio::test]
+    async fn test_client_surface_tracking() {
+        let (s1, _s2) = std::os::unix::net::UnixStream::pair().expect("pair");
+        s1.set_nonblocking(true).expect("nonblocking");
+        let s1 = UnixStream::from_std(s1).expect("tokio stream");
+        let mut client = Client::new(1, s1);
+
+        assert_eq!(client.surface_count(), 0);
+        client.add_surface(10, 20);
+        assert_eq!(client.surface_count(), 1);
+        assert_eq!(client.get_surface(10), Some(20));
+        assert_eq!(client.remove_surface(10), Some(20));
+        assert_eq!(client.get_surface(10), None);
     }
 }

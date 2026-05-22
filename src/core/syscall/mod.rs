@@ -384,6 +384,7 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::IpcSendPages as u64 => {
             privileged::ipc_send_pages(arg0, arg1, arg2, arg3)
         }
+        x if x == SyscallNumber::ThreadSpawn as u64 => process::thread_spawn(arg0, arg1, arg2),
         _ => ENOSYS,
     }
 }

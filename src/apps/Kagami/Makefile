@@ -1,14 +1,17 @@
-.PHONY = build run test clean
-.DEFAULT_GOAL := build
+.PHONY = build run clean test
 
 build:
 	@echo "Building Kagami..."
-	@cargo build --target x86_64-unknown-linux-gnu -Z build-std=
+	@cargo build --release
 
 run: build
 	@echo "Running Kagami..."
-	@sudo ~/.cargo/bin/cargo run --bin=compositor --target x86_64-unknown-linux-gnu -Z build-std=std=
+	@sudo env "PATH=$$PATH" cargo run --bin compositor
 
-test:
-	@echo "Running tests for Kagami..."
-	@~/.cargo/bin/cargo run --bin=test-client --target x86_64-unknown-linux-gnu -Z build-std=std=
+test: build
+	@echo "Testing Kagami..."
+	@sudo env "PATH=$$PATH" cargo run --bin test-client
+
+clean:
+	@echo "Cleaning Kagami... (bytheway, why dont use cargo clean? lol)"
+	@cargo clean

@@ -3,7 +3,6 @@ name = "kagami"
 version = "0.1.0"
 edition = "2024"
 
-
 [lib]
 name = "wayland_compositor"
 path = "src/lib.rs"
@@ -16,20 +15,29 @@ path = "src/compositor/main.rs"
 name = "test-client"
 path = "examples/test_client.rs"
 
+[[bin]]
+name = "kagamid"
+path = "src/kagamid/main.rs"
+
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-async-trait = "0.1"
-log = "0.4"
-env_logger = "0.11.10"
-thiserror = "2.0.18"
-libc = "0.2.186"
+tokio = { version = "1", features = ["full"], optional = true }
+async-trait = { version = "0.1", optional = true }
+log = { version = "0.4", optional = true }
+env_logger = { version = "0.11.10", optional = true }
+thiserror = { version = "2.0.18", optional = true }
+swiftlib = { path = "../../user", default-features = false, features = ["std-support"], optional = true }
 
 [dev-dependencies]
 
 [features]
-default = ["backend-linux-fb"]
+default = ["wayland-host", "backend-linux-fb"]
+
+wayland-host = ["dep:tokio", "dep:async-trait", "dep:log", "dep:env_logger", "dep:thiserror"]
+mochios = ["dep:swiftlib"]
 
 backend-linux-fb = []       # Linux フレームバッファドライバ
+backend-mochios-vga = ["mochios"] # mochiOS VGA/VRAM (swiftlib::vga) 向け
+backend-mochios-vga-hosted = ["backend-mochios-vga", "swiftlib/hosted-vga"] # Linuxホストでswiftlib vgaを模擬
 backend-generic-memory = [] # 汎用メモリバッファ
 backend-custom = []         # カスタムバックエンド用（デフォルトパニック）
 

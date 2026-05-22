@@ -1,11 +1,9 @@
 use super::{BackendError, FramebufferBackend, FramebufferInfo, PixelFormat};
 use async_trait::async_trait;
 use std::fs::OpenOptions;
-use std::os::unix::io::AsRawFd;
-use std::ptr;
+use std::io::{Read, Seek, SeekFrom, Write};
 
 const FB_DEVICE: &str = "/dev/fb0";
-const MMAP_OFFSET: u64 = 0;
 
 /// Linux フレームバッファドライババックエンド
 pub struct LinuxFramebufferBackend {
@@ -84,7 +82,7 @@ impl FramebufferBackend for LinuxFramebufferBackend {
         self.info = self.get_fb_info()?;
 
         // フレームバッファファイルを開く
-        let file = OpenOptions::new()
+        let mut file = OpenOptions::new()
             .read(true)
             .write(true)
             .open(FB_DEVICE)
@@ -92,31 +90,12 @@ impl FramebufferBackend for LinuxFramebufferBackend {
                 format!("Failed to open {}: {}", FB_DEVICE, e),
             ))?;
 
-        // メモリマップ
-        let mmap_size = self.info.total_size();
+        let size = self.info.total_size();
+        self.fb_data.resize(size, 0);
 
-        unsafe {
-            let mmap_addr = libc::mmap(
-                ptr::null_mut(),
-                mmap_size,
-                libc::PROT_READ | libc::PROT_WRITE,
-                libc::MAP_SHARED,
-                file.as_raw_fd(),
-                MMAP_OFFSET as libc::off_t,
-            );
-
-            if mmap_addr == libc::MAP_FAILED {
-                return Err(BackendError::MemoryMapFailed(
-                    "Failed to mmap framebuffer".to_string(),
-                ));
-            }
-
-            let mapped_data = std::slice::from_raw_parts(mmap_addr as *const u8, mmap_size);
-            self.fb_data = mapped_data.to_vec();
-
-            // アンマップ（Vec が管理するようになったので）
-            libc::munmap(mmap_addr, mmap_size);
-        }
+        // 初期状態を読み込める場合は読み込む
+        let _ = file.seek(SeekFrom::Start(0));
+        let _ = file.read_exact(&mut self.fb_data);
 
         self.fb_file = Some(file);
 
@@ -143,6 +122,18 @@ impl FramebufferBackend for LinuxFramebufferBackend {
     }
 
     async fn flush(&mut self) -> Result<(), BackendError> {
+        let Some(file) = self.fb_file.as_mut() else {
+            return Err(BackendError::WriteFailed(
+                "Framebuffer device is not initialized".to_string(),
+            ));
+        };
+
+        file.seek(SeekFrom::Start(0))
+            .map_err(|e| BackendError::WriteFailed(format!("Seek failed: {}", e)))?;
+        file.write_all(&self.fb_data)
+            .map_err(|e| BackendError::WriteFailed(format!("Write failed: {}", e)))?;
+        file.flush()
+            .map_err(|e| BackendError::WriteFailed(format!("Flush failed: {}", e)))?;
         Ok(())
     }
 
@@ -157,9 +148,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_linux_fb_init() {
+        if !std::path::Path::new("/dev/fb0").exists() {
+            return;
+        }
         let mut backend = LinuxFramebufferBackend::default();
-        let info = backend.init().await.expect("Failed to initialize Linux framebuffer");
-        assert_eq!(info.width, 1024);
-        assert_eq!(info.height, 768);
+        let info = backend
+            .init()
+            .await
+            .expect("Failed to initialize Linux framebuffer");
+        assert!(info.width > 0);
+        assert!(info.height > 0);
     }
 }

@@ -4,6 +4,45 @@ use std::process::Command;
 
 use super::utils::{emit_rerun_if_changed, find_binary_in_dir, find_target_spec};
 
+#[derive(Default, Debug)]
+struct AppCargoConfig {
+    cargo_bin: Option<String>,
+    cargo_features: Vec<String>,
+    cargo_no_default_features: bool,
+}
+
+fn read_app_cargo_config(about_path: &Path) -> AppCargoConfig {
+    let mut cfg = AppCargoConfig::default();
+    let content = match fs::read_to_string(about_path) {
+        Ok(c) => c,
+        Err(_) => return cfg,
+    };
+    let table = match content.parse::<toml::Table>() {
+        Ok(t) => t,
+        Err(_) => return cfg,
+    };
+
+    cfg.cargo_bin = table
+        .get("cargo_bin")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    cfg.cargo_no_default_features = table
+        .get("cargo_no_default_features")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    if let Some(arr) = table.get("cargo_features").and_then(|v| v.as_array()) {
+        for v in arr {
+            if let Some(s) = v.as_str() {
+                cfg.cargo_features.push(s.to_string());
+            }
+        }
+    }
+
+    cfg
+}
+
 /// アプリケーションをビルドして指定ディレクトリにコピー
 pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
     println!("cargo:rerun-if-changed={}", apps_dir.display());
@@ -57,6 +96,12 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
             println!("cargo:rerun-if-changed={}", about_file.display());
         }
 
+        let app_cargo = if about_file.exists() {
+            read_app_cargo_config(&about_file)
+        } else {
+            AppCargoConfig::default()
+        };
+
         // カスタムターゲットファイルを探す（アプリディレクトリ内の .json を優先）
         let target_spec = find_target_spec(&path);
         let uses_json_target = target_spec
@@ -80,6 +125,19 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
         // cargoでアプリをビルド
         let mut cmd = Command::new("cargo");
         cmd.args(["build", "--release"]);
+
+        if let Some(bin) = &app_cargo.cargo_bin {
+            cmd.args(["--bin", bin]);
+        }
+
+        if app_cargo.cargo_no_default_features {
+            cmd.arg("--no-default-features");
+        }
+        if !app_cargo.cargo_features.is_empty() {
+            cmd.arg("--features")
+                .arg(app_cargo.cargo_features.join(","));
+        }
+
         if uses_json_target {
             cmd.args(["-Z", "json-target-spec"]);
         }
@@ -98,6 +156,24 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
             "RUSTC_WORKSPACE_WRAPPER",
         ] {
             cmd.env_remove(key);
+        }
+
+        // Determine project root (look for ramfs/lib) and configure link flags for mochiOS apps.
+        let mut project_root = path.clone();
+        while project_root.parent().is_some() {
+            if project_root.join("ramfs").join("lib").exists() {
+                break;
+            }
+            project_root.pop();
+        }
+        let libs_dir = project_root.join("ramfs").join("lib");
+        if libs_dir.exists() {
+            let ld = libs_dir.display();
+            let rustflags = format!(
+                "-C link-arg={0}/crt0.o -C link-arg=-static -C link-arg=-no-pie -C link-arg=--allow-multiple-definition -L {0} -C link-arg={0}/libunwind.a -C link-arg={0}/libextra.a -C link-arg={0}/libc.a -C link-arg={0}/libg.a -C link-arg={0}/libm.a -C link-arg={0}/libnosys.a -C link-arg={0}/libgcc_s.a",
+                ld
+            );
+            cmd.env("RUSTFLAGS", rustflags);
         }
 
         // .cargo/config.toml にtargetがある場合は --target を渡さない
@@ -130,7 +206,13 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
                         Some("x86_64-unknown-none".to_string())
                     };
 
-                    if let Some(elf_path) = find_built_binary(&target_dir, target_name.as_deref()) {
+                    let elf_path = if let Some(bin) = &app_cargo.cargo_bin {
+                        find_built_bin_by_name(&target_dir, target_name.as_deref(), bin)
+                    } else {
+                        find_built_binary(&target_dir, target_name.as_deref())
+                    };
+
+                    if let Some(elf_path) = elf_path {
                         let app_bundle_dir = output_dir.join(format!("{}.app", app_name));
                         if let Err(e) = fs::create_dir_all(&app_bundle_dir) {
                             println!(
@@ -264,6 +346,28 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
             }
         }
     }
+}
+
+fn find_built_bin_by_name(
+    target_dir: &Path,
+    target_name: Option<&str>,
+    bin_name: &str,
+) -> Option<PathBuf> {
+    let mut candidates = Vec::new();
+
+    if let Some(target) = target_name {
+        candidates.push(target_dir.join(format!("{}/release", target)));
+    }
+    candidates.push(target_dir.join("release"));
+
+    for dir in candidates {
+        let path = dir.join(bin_name);
+        if path.is_file() {
+            return Some(path);
+        }
+    }
+
+    None
 }
 
 /// ユーティリティコマンド (`src/utils/`) をビルドして `output_dir` に `{name}.elf` としてコピー

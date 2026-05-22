@@ -17,5 +17,9 @@
   "features": "-mmx,-avx",
   "relocation-model": "static",
   "code-model": "small",
-  "no-default-libraries": true
+  "no-default-libraries": true,
+  "pre-link-args": {
+    "ld.lld": ["-e", "_start"]
+  }
 }
+

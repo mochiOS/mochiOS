@@ -479,6 +479,59 @@ pub fn sleep(milliseconds: u64) -> u64 {
     SUCCESS
 }
 
+/// ThreadSpawn (mochiOS)
+///
+/// 現在のプロセス内に新しいユーザースレッドを生成する。
+///
+/// # Arguments
+/// - `entry`: ユーザー空間のエントリポイント
+/// - `user_stack`: ユーザースタックポインタ（トップ）
+/// - `fs_base`: TLS 用の FS ベース
+///
+/// # Returns
+/// 成功時: 新しいスレッドID(u64)、失敗時: 負のerrno(u64)
+pub fn thread_spawn(entry: u64, user_stack: u64, fs_base: u64) -> u64 {
+    if entry == 0 || user_stack == 0 {
+        return EINVAL;
+    }
+    if entry > USER_SPACE_END || user_stack > USER_SPACE_END {
+        return EINVAL;
+    }
+
+    let parent_tid = match current_thread_id() {
+        Some(tid) => tid,
+        None => return ENOSYS,
+    };
+    let pid = match crate::task::with_thread(parent_tid, |t| t.process_id()) {
+        Some(p) => p,
+        None => return ENOSYS,
+    };
+
+    const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 4;
+    let kstack = match crate::task::thread::allocate_kernel_stack(KERNEL_THREAD_STACK_SIZE) {
+        Some(s) => s,
+        None => return ENOMEM,
+    };
+
+    let mut thread = crate::task::Thread::new_usermode(
+        pid,
+        "pthread",
+        entry,
+        user_stack,
+        kstack,
+        KERNEL_THREAD_STACK_SIZE,
+    );
+    thread.set_fs_base(fs_base);
+
+    match crate::task::add_thread(thread) {
+        Some(tid) => tid.as_u64(),
+        None => {
+            crate::task::free_kernel_stack(kstack);
+            ENOMEM
+        }
+    }
+}
+
 /// Waitシステムコール (wait4)
 ///
 /// # 引数

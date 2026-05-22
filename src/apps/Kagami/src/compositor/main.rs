@@ -6,12 +6,27 @@ fn create_backend() -> Box<dyn backend::FramebufferBackend> {
     Box::new(backend::LinuxFramebufferBackend::new())
 }
 
-#[cfg(all(feature = "backend-generic-memory", not(feature = "backend-linux-fb")))]
+#[cfg(all(feature = "backend-mochios-vga", not(feature = "backend-linux-fb")))]
+fn create_backend() -> Box<dyn backend::FramebufferBackend> {
+    Box::new(backend::MochiVgaBackend::new())
+}
+
+#[cfg(all(
+    feature = "backend-generic-memory",
+    not(any(feature = "backend-linux-fb", feature = "backend-mochios-vga"))
+))]
 fn create_backend() -> Box<dyn backend::FramebufferBackend> {
     Box::new(backend::MemoryFramebufferBackend::from_env())
 }
 
-#[cfg(all(feature = "backend-custom", not(any(feature = "backend-linux-fb", feature = "backend-generic-memory"))))]
+#[cfg(all(
+    feature = "backend-custom",
+    not(any(
+        feature = "backend-linux-fb",
+        feature = "backend-mochios-vga",
+        feature = "backend-generic-memory"
+    ))
+))]
 fn create_backend() -> Box<dyn backend::FramebufferBackend> {
     Box::new(backend::CustomFramebufferBackend::new())
 }

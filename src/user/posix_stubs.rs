@@ -4,6 +4,7 @@
 //! 各関数は最小限の実装か、成功を返すスタブ。
 
 use crate::sys::{syscall1, syscall2, syscall3, syscall4, syscall6, SyscallNumber};
+use core::sync::atomic::{AtomicU32, Ordering};
 
 // errno
 static mut ERRNO_VAL: i32 = 0;
@@ -96,7 +97,8 @@ pub extern "C" fn sched_yield() -> i32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_self() -> u64 {
-    1 // スレッド ID = 1 (シングルスレッド)
+    // pthread_t としてカーネルのTIDを返す（最小実装）
+    crate::sys::syscall0(SyscallNumber::GetTid as u64)
 }
 
 #[unsafe(no_mangle)]
@@ -647,31 +649,172 @@ pub unsafe extern "C" fn pthread_attr_setstacksize(_attr: *mut u8, _stacksize: u
     0
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn pthread_create(
-    _thread: *mut u64,
-    _attr: *const u8,
-    _start_routine: extern "C" fn(*mut u8) -> *mut u8,
-    _arg: *mut u8,
-) -> i32 {
-    // Stub: threading not actually supported; return failure
-    1
+#[repr(C)]
+struct PthreadHandle {
+    tid: u64,
+    join_word: AtomicU32,
+    retval: *mut u8,
+    stack: *mut u8,
+    stack_size: usize,
+    tls: *mut u8,
+}
+
+#[repr(C)]
+struct ThreadStart {
+    start_routine: extern "C" fn(*mut u8) -> *mut u8,
+    arg: *mut u8,
+    handle: *mut PthreadHandle,
+}
+
+extern "C" fn pthread_trampoline() -> ! {
+    unsafe {
+        // 16-byte aligned stack. The first slot holds a pointer to ThreadStart.
+        let mut start_ptr: *const ThreadStart;
+        core::arch::asm!("mov {}, rsp", out(reg) start_ptr, options(nostack, preserves_flags));
+        // ThreadStart is placed at rsp
+        let ts = &*(start_ptr as *const ThreadStart);
+        let ret = (ts.start_routine)(ts.arg);
+        if !ts.handle.is_null() {
+            (*ts.handle).retval = ret;
+            (*ts.handle).join_word.store(1, Ordering::Release);
+            let _ = syscall4(
+                SyscallNumber::Futex as u64,
+                (&raw mut (*ts.handle).join_word) as u64,
+                1, // FUTEX_WAKE
+                1,
+                0,
+            );
+        }
+        // Exit current thread (does not necessarily terminate whole process if others exist)
+        let _ = syscall1(SyscallNumber::Exit as u64, 0);
+        loop {}
+    }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn pthread_join(_thread: u64, _retval: *mut *mut u8) -> i32 {
-    // Stub
+pub unsafe extern "C" fn pthread_create(
+    thread_out: *mut u64,
+    _attr: *const u8,
+    start_routine: extern "C" fn(*mut u8) -> *mut u8,
+    arg: *mut u8,
+) -> i32 {
+    if thread_out.is_null() {
+        return 22; // EINVAL
+    }
+
+    // Allocate handle.
+    let handle = crate::libc::memalign(
+        core::mem::align_of::<PthreadHandle>(),
+        core::mem::size_of::<PthreadHandle>(),
+    ) as *mut PthreadHandle;
+    if handle.is_null() {
+        return 12; // ENOMEM
+    }
+
+    // Allocate a small TLS block for the new thread and pass it as FS base.
+    let tls_size: usize = 4096;
+    let tls = crate::libc::memalign(16, tls_size) as *mut u8;
+    if tls.is_null() {
+        crate::libc::free(handle as *mut u8);
+        return 12;
+    }
+    core::ptr::write_bytes(tls, 0, tls_size);
+    // Kernel expects the TLS base written at offset 0.
+    core::ptr::write(tls as *mut u64, tls as u64);
+
+    // Allocate stack.
+    let stack_size: usize = 1024 * 1024; // 1MiB default
+    let stack = crate::libc::memalign(16, stack_size) as *mut u8;
+    if stack.is_null() {
+        crate::libc::free(tls);
+        crate::libc::free(handle as *mut u8);
+        return 12;
+    }
+
+    core::ptr::write(
+        handle,
+        PthreadHandle {
+            tid: 0,
+            join_word: AtomicU32::new(0),
+            retval: core::ptr::null_mut(),
+            stack,
+            stack_size,
+            tls,
+        },
+    );
+
+    let mut sp = (stack as usize + stack_size) & !0xF;
+    // Place ThreadStart at top of stack.
+    sp -= core::mem::size_of::<ThreadStart>();
+    let ts_ptr = sp as *mut ThreadStart;
+    core::ptr::write(
+        ts_ptr,
+        ThreadStart {
+            start_routine,
+            arg,
+            handle,
+        },
+    );
+
+    // Ask kernel to spawn a new thread in this process.
+    let tid = syscall3(
+        SyscallNumber::ThreadSpawn as u64,
+        pthread_trampoline as *const () as u64,
+        sp as u64,
+        tls as u64,
+    ) as i64;
+    if tid < 0 {
+        crate::libc::free(stack);
+        crate::libc::free(tls);
+        crate::libc::free(handle as *mut u8);
+        return (-tid) as i32;
+    }
+    (*handle).tid = tid as u64;
+    core::ptr::write(thread_out, handle as u64);
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_join(thread: u64, retval: *mut *mut u8) -> i32 {
+    let handle = thread as *mut PthreadHandle;
+    if handle.is_null() {
+        return 22; // EINVAL
+    }
+
+    // Wait until join_word becomes 1.
+    while (*handle).join_word.load(Ordering::Acquire) == 0 {
+        let _ = syscall4(
+            SyscallNumber::Futex as u64,
+            (&raw mut (*handle).join_word) as u64,
+            0, // FUTEX_WAIT
+            0,
+            0, // no timeout
+        );
+    }
+
+    if !retval.is_null() {
+        core::ptr::write(retval, (*handle).retval);
+    }
+
+    crate::libc::free((*handle).stack);
+    crate::libc::free((*handle).tls);
+    crate::libc::free(handle as *mut u8);
     0
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_detach(_thread: u64) -> i32 {
-    // Stub
+    // Detach is treated as best-effort; resources are currently freed only by pthread_join.
     0
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_mutex_init(_mutex: *mut u8, _attr: *const u8) -> i32 {
+    if _mutex.is_null() {
+        return 22; // EINVAL
+    }
+    let word = _mutex as *mut AtomicU32;
+    core::ptr::write(word, AtomicU32::new(0));
     0
 }
 
@@ -682,16 +825,52 @@ pub unsafe extern "C" fn pthread_mutex_destroy(_mutex: *mut u8) -> i32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_mutex_lock(_mutex: *mut u8) -> i32 {
-    0
+    if _mutex.is_null() {
+        return 22;
+    }
+    let word = _mutex as *mut AtomicU32;
+    loop {
+        if (*word)
+            .compare_exchange(0, 1, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
+        {
+            return 0;
+        }
+        // Wait while locked (value == 1)
+        let _ = syscall4(
+            SyscallNumber::Futex as u64,
+            word as u64,
+            0, // FUTEX_WAIT
+            1,
+            0,
+        );
+    }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_mutex_unlock(_mutex: *mut u8) -> i32 {
+    if _mutex.is_null() {
+        return 22;
+    }
+    let word = _mutex as *mut AtomicU32;
+    (*word).store(0, Ordering::Release);
+    let _ = syscall4(
+        SyscallNumber::Futex as u64,
+        word as u64,
+        1, // FUTEX_WAKE
+        1,
+        0,
+    );
     0
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_cond_init(_cond: *mut u8, _attr: *const u8) -> i32 {
+    if _cond.is_null() {
+        return 22;
+    }
+    let word = _cond as *mut AtomicU32;
+    core::ptr::write(word, AtomicU32::new(0));
     0
 }
 
@@ -702,16 +881,54 @@ pub unsafe extern "C" fn pthread_cond_destroy(_cond: *mut u8) -> i32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_cond_wait(_cond: *mut u8, _mutex: *mut u8) -> i32 {
-    0
+    if _cond.is_null() || _mutex.is_null() {
+        return 22;
+    }
+    let cword = _cond as *mut AtomicU32;
+    let seq = (*cword).load(Ordering::Acquire);
+    // Unlock mutex, wait, then relock.
+    let _ = pthread_mutex_unlock(_mutex);
+    let _ = syscall4(
+        SyscallNumber::Futex as u64,
+        cword as u64,
+        0, // FUTEX_WAIT
+        seq as u64,
+        0,
+    );
+    pthread_mutex_lock(_mutex)
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_cond_signal(_cond: *mut u8) -> i32 {
+    if _cond.is_null() {
+        return 22;
+    }
+    let cword = _cond as *mut AtomicU32;
+    (*cword).fetch_add(1, Ordering::Release);
+    let _ = syscall4(
+        SyscallNumber::Futex as u64,
+        cword as u64,
+        1, // FUTEX_WAKE
+        1,
+        0,
+    );
     0
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_cond_broadcast(_cond: *mut u8) -> i32 {
+    if _cond.is_null() {
+        return 22;
+    }
+    let cword = _cond as *mut AtomicU32;
+    (*cword).fetch_add(1, Ordering::Release);
+    let _ = syscall4(
+        SyscallNumber::Futex as u64,
+        cword as u64,
+        1, // FUTEX_WAKE
+        u64::MAX,
+        0,
+    );
     0
 }
 

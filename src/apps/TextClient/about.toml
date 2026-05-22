@@ -1,0 +1,6 @@
+name = "TextClient"
+bundle_id = "com.mochi.textclient"
+version = "0.1.0"
+developer = "tas0dev"
+entry = "entry.elf"
+description = "Kagami example text client"

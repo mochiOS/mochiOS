@@ -177,7 +177,14 @@ impl<T: FramebufferBackend + ?Sized> FramebufferBackend for Box<T> {
     fn framebuffer_mut(&mut self) -> &mut [u8] {
         (**self).framebuffer_mut()
     }
-    fn write_region(&mut self, x: u32, y: u32, width: u32, height: u32, data: &[u8]) -> Result<(), BackendError> {
+    fn write_region(
+        &mut self,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        data: &[u8],
+    ) -> Result<(), BackendError> {
         (**self).write_region(x, y, width, height, data)
     }
 
@@ -201,7 +208,10 @@ impl<T: FramebufferBackend + ?Sized> FramebufferBackend for Box<T> {
 #[cfg(feature = "backend-linux-fb")]
 pub mod linux_fb;
 
-#[cfg(feature = "backend-generic-memory")]
+#[cfg(feature = "backend-mochios-vga")]
+pub mod vga;
+
+#[cfg(any(feature = "backend-generic-memory", test))]
 pub mod memory;
 
 #[cfg(feature = "backend-custom")]
@@ -210,8 +220,21 @@ pub mod custom;
 #[cfg(feature = "backend-linux-fb")]
 pub use linux_fb::LinuxFramebufferBackend;
 
-#[cfg(all(feature = "backend-generic-memory", not(feature = "backend-linux-fb")))]
+#[cfg(all(feature = "backend-mochios-vga", not(feature = "backend-linux-fb")))]
+pub use vga::MochiVgaBackend;
+
+#[cfg(all(
+    any(feature = "backend-generic-memory", test),
+    not(any(feature = "backend-linux-fb", feature = "backend-mochios-vga"))
+))]
 pub use memory::MemoryFramebufferBackend;
 
-#[cfg(all(feature = "backend-custom", not(any(feature = "backend-linux-fb", feature = "backend-generic-memory"))))]
+#[cfg(all(
+    feature = "backend-custom",
+    not(any(
+        feature = "backend-linux-fb",
+        feature = "backend-mochios-vga",
+        feature = "backend-generic-memory"
+    ))
+))]
 pub use custom::CustomFramebufferBackend;

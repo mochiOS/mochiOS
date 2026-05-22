@@ -232,6 +232,8 @@ pub enum SyscallNumber {
     MouseReadWait = 551,
     /// プロセス一覧を取得（ユーザーバッファへ書き込む）
     ListProcesses = 552,
+    /// スレッドを同一プロセス内で生成 (entry, user_stack, fs_base)
+    ThreadSpawn = 553,
 }
 
 /// 成功

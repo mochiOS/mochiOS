@@ -9,6 +9,8 @@ edition = "2024"
 autoexamples = false
 
 [dependencies]
+html5ever = "0.25"
+markup5ever_rcdom = "0.1"
 wayland-client = { version = "0.31.14", features = ["dlopen"] }
 wayland-protocols = { version = "0.32", features = ["client"] }
 memmap2 = "0.9.10"

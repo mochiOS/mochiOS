@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 
 use fontdue::Font;
+use html5ever::driver::parse_document;
+use html5ever::tendril::TendrilSink;
+use markup5ever_rcdom::{Handle, NodeData, RcDom};
 use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Rect, Transform};
 use ui_layout::{
-    AlignItems, Display, FlexDirection, ItemStyle, JustifyContent, LayoutEngine, LayoutNode, Length,
-    Style,
+    AlignItems, Display, FlexDirection, ItemStyle, JustifyContent, LayoutEngine, LayoutNode,
+    Length, Style,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -59,7 +62,15 @@ pub fn render_component_to_pixmap_with_asset_root(
     pixmap.fill(Color::from_rgba8(0, 0, 0, 0));
 
     let ctx = RenderContext::new(asset_root);
-    render_component_impl(&ctx, &mut pixmap, component, 0.0, 0.0, width as f32, height as f32);
+    render_component_impl(
+        &ctx,
+        &mut pixmap,
+        component,
+        0.0,
+        0.0,
+        width as f32,
+        height as f32,
+    );
 
     // Convert RGBA bytes -> ARGB u32 for Binder/Kagami
     let mut out = vec![0u32; (width as usize).saturating_mul(height as usize)];
@@ -129,19 +140,20 @@ fn render_component_impl(
 ) {
     let (css, html) = split_style_and_html(&component.template);
     let css = css
-        .replace("CONTENT_W", &format!("{}px", component.width.unwrap_or(w as u32)))
-        .replace("CONTENT_H", &format!("{}px", component.height.unwrap_or(h as u32)));
+        .replace(
+            "CONTENT_W",
+            &format!("{}px", component.width.unwrap_or(w as u32)),
+        )
+        .replace(
+            "CONTENT_H",
+            &format!("{}px", component.height.unwrap_or(h as u32)),
+        );
 
     let class_styles = parse_class_css_rules(&css);
 
-    let root = parse_html_fragment_simple(&html);
+    let root = parse_html_fragment(&html);
 
-    let render_tree = build_render_tree(
-        ctx,
-        &class_styles,
-        &root,
-        component,
-    );
+    let render_tree = build_render_tree(ctx, &class_styles, &root, component);
 
     layout_and_paint(ctx, pixmap, &render_tree, x, y, w, h);
 }
@@ -189,172 +201,89 @@ fn split_style_and_html(template: &str) -> (String, String) {
     (css, html)
 }
 
-fn parse_html_fragment_simple(html: &str) -> HtmlNode {
-    // Minimal HTML-ish parser for ViewKit templates:
-    // - elements: <tag ...>, </tag>, <tag ... />
-    // - attrs: key="value" / key='value' / key=value / key
-    // - ignores comments/doctype
-    // - produces a synthetic root <div> wrapping top-level nodes
-    let mut root = HtmlElement {
-        tag: "div".to_string(),
-        ..Default::default()
-    };
-    let mut stack: Vec<HtmlElement> = Vec::new();
-    stack.push(root);
+fn parse_html_fragment(html: &str) -> HtmlNode {
+    let dom = parse_document(RcDom::default(), Default::default()).one(html);
+    let body = find_body(&dom.document).unwrap_or_else(|| dom.document.clone());
+    let mut children = collect_html_children(&body);
 
-    let mut text_buf = String::new();
-    let mut i = 0usize;
-    let bytes = html.as_bytes();
-    while i < bytes.len() {
-        if bytes[i] != b'<' {
-            text_buf.push(bytes[i] as char);
-            i += 1;
-            continue;
-        }
-
-        if !text_buf.trim().is_empty() {
-            let txt = text_buf.clone();
-            if let Some(top) = stack.last_mut() {
-                top.children.push(HtmlNode::Text(txt));
-            }
-        }
-        text_buf.clear();
-
-        let Some(gt_rel) = html[i..].find('>') else { break };
-        let gt = i + gt_rel;
-        let mut inner = html[i + 1..gt].trim().to_string();
-        i = gt + 1;
-
-        if inner.starts_with("!--") {
-            continue;
-        }
-        if inner.starts_with('!') || inner.starts_with('?') {
-            continue;
-        }
-
-        let is_close = inner.starts_with('/');
-        if is_close {
-            inner = inner[1..].trim().to_string();
-            let close_tag = inner
-                .split_whitespace()
-                .next()
-                .unwrap_or("")
-                .to_ascii_lowercase();
-            if close_tag.is_empty() {
-                continue;
-            }
-            if stack.len() > 1 {
-                let popped = stack.pop().unwrap();
-                let node = HtmlNode::Element(popped);
-                if let Some(top) = stack.last_mut() {
-                    top.children.push(node);
-                }
-            }
-            continue;
-        }
-
-        let self_close = inner.ends_with('/');
-        if self_close {
-            inner.pop();
-            inner = inner.trim().to_string();
-        }
-
-        let (tag, attrs) = parse_tag_and_attrs(&inner);
-        if tag.is_empty() {
-            continue;
-        }
-        let el = HtmlElement {
-            tag,
-            attrs,
-            children: Vec::new(),
-        };
-
-        if self_close {
-            if let Some(top) = stack.last_mut() {
-                top.children.push(HtmlNode::Element(el));
-            }
-        } else {
-            stack.push(el);
-        }
+    if children.len() == 1 {
+        children.remove(0)
+    } else {
+        HtmlNode::Element(HtmlElement {
+            tag: "div".to_string(),
+            attrs: HashMap::new(),
+            children,
+        })
     }
-
-    if !text_buf.trim().is_empty() {
-        if let Some(top) = stack.last_mut() {
-            top.children.push(HtmlNode::Text(text_buf));
-        }
-    }
-
-    while stack.len() > 1 {
-        let popped = stack.pop().unwrap();
-        if let Some(top) = stack.last_mut() {
-            top.children.push(HtmlNode::Element(popped));
-        }
-    }
-    root = stack.pop().unwrap();
-    HtmlNode::Element(root)
 }
 
-fn parse_tag_and_attrs(inner: &str) -> (String, HashMap<String, String>) {
-    let mut s = inner.trim();
-    let mut tag = String::new();
-    while let Some(ch) = s.chars().next() {
-        if ch.is_whitespace() {
-            break;
+fn find_body(handle: &Handle) -> Option<Handle> {
+    match &handle.data {
+        NodeData::Element { name, .. } if name.local.as_ref().eq_ignore_ascii_case("body") => {
+            return Some(handle.clone());
         }
-        tag.push(ch);
-        s = &s[ch.len_utf8()..];
+        _ => {}
     }
-    let tag = tag.to_ascii_lowercase();
-    let mut attrs = HashMap::new();
-    let mut rest = s.trim();
-    while !rest.is_empty() {
-        // key
-        let mut key = String::new();
-        let mut j = 0usize;
-        for (idx, ch) in rest.char_indices() {
-            if ch.is_whitespace() || ch == '=' {
-                j = idx;
-                break;
+
+    for child in handle.children.borrow().iter() {
+        if let Some(found) = find_body(child) {
+            return Some(found);
+        }
+    }
+
+    None
+}
+
+fn collect_html_children(handle: &Handle) -> Vec<HtmlNode> {
+    handle
+        .children
+        .borrow()
+        .iter()
+        .filter_map(html_node_from_handle)
+        .collect()
+}
+
+fn html_node_from_handle(handle: &Handle) -> Option<HtmlNode> {
+    match &handle.data {
+        NodeData::Element { name, attrs, .. } => {
+            let mut map = HashMap::new();
+            for attr in attrs.borrow().iter() {
+                map.insert(
+                    attr.name.local.to_string().to_ascii_lowercase(),
+                    attr.value.to_string(),
+                );
             }
-            key.push(ch);
-            j = idx + ch.len_utf8();
+
+            Some(HtmlNode::Element(HtmlElement {
+                tag: name.local.to_string().to_ascii_lowercase(),
+                attrs: map,
+                children: collect_html_children(handle),
+            }))
         }
-        if key.is_empty() {
-            break;
-        }
-        rest = rest[j..].trim_start();
-        let key_l = key.to_ascii_lowercase();
-        if rest.starts_with('=') {
-            rest = rest[1..].trim_start();
-            if rest.starts_with('"') || rest.starts_with('\'') {
-                let q = rest.chars().next().unwrap();
-                rest = &rest[q.len_utf8()..];
-                if let Some(end) = rest.find(q) {
-                    let val = rest[..end].to_string();
-                    attrs.insert(key_l, val);
-                    rest = rest[end + q.len_utf8()..].trim_start();
-                } else {
-                    attrs.insert(key_l, rest.to_string());
-                    break;
-                }
+        NodeData::Text { contents } => {
+            let text = contents.borrow().to_string();
+            if text.trim().is_empty() {
+                None
             } else {
-                let mut end = rest.len();
-                for (idx, ch) in rest.char_indices() {
-                    if ch.is_whitespace() {
-                        end = idx;
-                        break;
-                    }
-                }
-                let val = rest[..end].to_string();
-                attrs.insert(key_l, val);
-                rest = rest[end..].trim_start();
+                Some(HtmlNode::Text(text))
             }
-        } else {
-            // boolean attr
-            attrs.insert(key_l, String::new());
         }
+        NodeData::Document => {
+            let children = collect_html_children(handle);
+            if children.is_empty() {
+                None
+            } else if children.len() == 1 {
+                children.into_iter().next()
+            } else {
+                Some(HtmlNode::Element(HtmlElement {
+                    tag: "div".to_string(),
+                    attrs: HashMap::new(),
+                    children,
+                }))
+            }
+        }
+        _ => None,
     }
-    (tag, attrs)
 }
 
 fn get_attr(el: &HtmlElement, name: &str) -> Option<String> {
@@ -379,7 +308,7 @@ fn build_render_tree(
                     .replace("CONTENT_W", &format!("{}px", ch.width.unwrap_or(0)))
                     .replace("CONTENT_H", &format!("{}px", ch.height.unwrap_or(0)));
                 let class_styles_child = parse_class_css_rules(&css);
-                let root = parse_html_fragment_simple(&html);
+                let root = parse_html_fragment(&html);
                 kids.push(build_render_tree(ctx, &class_styles_child, &root, ch));
             }
             return RenderNode {
@@ -435,11 +364,7 @@ fn build_render_tree(
     let (tag, class, style) = match node {
         HtmlNode::Element(el) => {
             let style = compute_style_for_node(el, class_styles);
-            (
-                el.tag.clone(),
-                get_attr(el, "class"),
-                style,
-            )
+            (el.tag.clone(), get_attr(el, "class"), style)
         }
         HtmlNode::Text(_) => ("div".to_string(), None, ComputedStyle::default()),
     };
@@ -450,10 +375,7 @@ fn build_render_tree(
     }
 
     RenderNode {
-        kind: RenderNodeKind::Element {
-            tag,
-            class,
-        },
+        kind: RenderNodeKind::Element { tag, class },
         style,
         children,
     }
@@ -473,7 +395,12 @@ fn parse_class_css_rules(css: &str) -> HashMap<String, HashMap<String, String>> 
             Some(i) => i,
             None => break,
         };
-        let class = rest[..brace].trim().split_whitespace().next().unwrap_or("").to_string();
+        let class = rest[..brace]
+            .trim()
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .to_string();
         rest = &rest[brace + 1..];
         let end = match rest.find('}') {
             Some(i) => i,
@@ -574,8 +501,7 @@ fn compute_style_for_node(
                 padding = parse_box_1_2(v);
             }
             "margin-left" => {
-                style.spacing.margin_left =
-                    parse_px(v).map(Length::Px).unwrap_or(Length::Px(0.0));
+                style.spacing.margin_left = parse_px(v).map(Length::Px).unwrap_or(Length::Px(0.0));
             }
             "text-align" => {
                 out.text_align_center = v.trim().eq_ignore_ascii_case("center");
@@ -682,7 +608,12 @@ fn paint_from_layout(
     oy: f32,
 ) {
     let (bx, by, bw, bh) = match &layout.layout_boxes {
-        ui_layout::LayoutBoxes::Single(b) => (b.border_box.x, b.border_box.y, b.border_box.width, b.border_box.height),
+        ui_layout::LayoutBoxes::Single(b) => (
+            b.border_box.x,
+            b.border_box.y,
+            b.border_box.width,
+            b.border_box.height,
+        ),
         _ => (0.0, 0.0, 0.0, 0.0),
     };
     let x = ox + bx;
@@ -697,7 +628,13 @@ fn paint_from_layout(
         paint.set_color(Color::from_rgba8(r, g, b, 255));
         if node.style.border_radius > 0.0 {
             if let Some(path) = rounded_rect_path(x, y, bw, bh, node.style.border_radius) {
-                pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+                pixmap.fill_path(
+                    &path,
+                    &paint,
+                    tiny_skia::FillRule::Winding,
+                    Transform::identity(),
+                    None,
+                );
             }
         } else if let Some(rect) = Rect::from_xywh(x, y, bw, bh) {
             pixmap.fill_rect(rect, &paint, Transform::identity(), None);
@@ -707,7 +644,16 @@ fn paint_from_layout(
     // Paint leaf content
     match &node.kind {
         RenderNodeKind::Text { text } => {
-            paint_text(ctx, pixmap, text, x, y, bw, bh, node.style.text_align_center);
+            paint_text(
+                ctx,
+                pixmap,
+                text,
+                x,
+                y,
+                bw,
+                bh,
+                node.style.text_align_center,
+            );
         }
         RenderNodeKind::Image { src } => {
             paint_image(ctx, pixmap, src, x, y, bw, bh);
@@ -797,7 +743,15 @@ fn paint_text(
     }
 }
 
-fn paint_image(ctx: &RenderContext, pixmap: &mut Pixmap, src: &str, x: f32, y: f32, w: f32, h: f32) {
+fn paint_image(
+    ctx: &RenderContext,
+    pixmap: &mut Pixmap,
+    src: &str,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+) {
     let img = {
         let mut cache = ctx.image_cache.borrow_mut();
         if let Some(i) = cache.get(src) {

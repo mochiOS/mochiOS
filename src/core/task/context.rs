@@ -238,8 +238,8 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
 /// # Safety
 /// `ctx` はユーザーモード復帰に必要な有効なレジスタ値/セグメント値を含んでいる必要がある。
 pub unsafe fn enter_user_from_kernel(ctx: &Context) -> ! {
-    let user_cs = crate::mem::gdt::user_code_selector() as u64;
-    let user_ds = crate::mem::gdt::user_data_selector() as u64;
+    let user_cs = crate::mem::gdt::user_code_selector() as u64 | 3;
+    let user_ds = crate::mem::gdt::user_data_selector() as u64 | 3;
 
     core::arch::asm!(
         "cli",
@@ -400,8 +400,8 @@ pub unsafe fn switch_to_thread_from_isr(
         );
     } else {
         // ユーザーモードへ iretq で遷移するための準備
-        let user_cs = crate::mem::gdt::user_code_selector() as u64;
-        let user_ds = crate::mem::gdt::user_data_selector() as u64;
+        let user_cs = crate::mem::gdt::user_code_selector() as u64 | 3;
+        let user_ds = crate::mem::gdt::user_data_selector() as u64 | 3;
 
         core::arch::asm!(
             "cli",

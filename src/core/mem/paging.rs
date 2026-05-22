@@ -1300,7 +1300,6 @@ pub fn map_and_copy_segment_to(
         }
 
         // 直接ページテーブルにエントリを作成（テンポラリマッピング経由で）
-        
 
         crate::debug!(
             "Mapping page {:#x} (L4[{}]->L3[{}]->L2[{}]->L1[{}])",
@@ -1388,6 +1387,9 @@ pub fn map_and_copy_segment_to(
 
         page_addr += 4096;
     }
+
+    // 最終的なleaf属性を明示的に再適用し、既存マッピングのNX継承を避ける。
+    protect_user_range_in_table(table_phys, start, end - start, true, writable, executable)?;
 
     // テンポラリマッピングをアンマップしてTLBフラッシュ
     let temp_page = Page::<Size4KiB>::containing_address(VirtAddr::new(0xFFFF_8000_0000_0000u64));

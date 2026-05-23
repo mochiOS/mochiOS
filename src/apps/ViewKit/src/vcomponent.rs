@@ -94,13 +94,30 @@ struct RenderContext {
 
 impl RenderContext {
     fn new(asset_root: Option<&str>) -> Self {
-        let font = std::fs::read("/system/fonts/NotoSansJP-Regular.ttf")
-            .ok()
-            .and_then(|data| Font::from_bytes(data, fontdue::FontSettings::default()).ok());
+        // Avoid runtime filesystem access here; std::fs goes through POSIX stubs and
+        // has been a source of kernel faults in mochiOS. Embed the system font.
+        let font_bytes =
+            include_bytes!("../../../../src/resources/system/fonts/NotoSansJP-Regular.ttf");
+        let font = Font::from_bytes(font_bytes.as_slice(), fontdue::FontSettings::default()).ok();
         Self {
             asset_root: asset_root.map(|s| s.to_string()),
             font,
             image_cache: std::cell::RefCell::new(HashMap::new()),
+        }
+    }
+
+    fn read_file(&self, path: &str) -> Option<Vec<u8>> {
+        #[cfg(all(target_os = "linux", target_env = "musl"))]
+        {
+            // mochiOS target: use swiftlib fs syscalls directly.
+            match swiftlib::fs::read_file_via_fs(path, 16 * 1024 * 1024) {
+                Ok(Some(v)) => Some(v),
+                _ => None,
+            }
+        }
+        #[cfg(not(all(target_os = "linux", target_env = "musl")))]
+        {
+            std::fs::read(path).ok()
         }
     }
 
@@ -757,9 +774,9 @@ fn paint_image(
         if let Some(i) = cache.get(src) {
             i.clone()
         } else {
-            let data = match std::fs::read(src) {
-                Ok(d) => d,
-                Err(_) => return,
+            let data = match ctx.read_file(src) {
+                Some(d) => d,
+                None => return,
             };
             let decoded = match image::load_from_memory(&data) {
                 Ok(d) => d.to_rgba8(),

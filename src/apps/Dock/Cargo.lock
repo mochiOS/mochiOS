@@ -2232,6 +2232,7 @@ dependencies = [
  "markup5ever_rcdom",
  "memmap2",
  "serde_json",
+ "swiftlib",
  "tempfile",
  "tiny-skia",
  "ui_layout",

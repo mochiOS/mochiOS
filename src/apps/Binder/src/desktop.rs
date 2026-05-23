@@ -8,7 +8,7 @@ use swiftlib::{
     task::{find_process_by_name, yield_now},
     vga,
 };
-use viewkit::{render_component_to_pixmap_with_asset_root, VComponent};
+use viewkit::{render_component_to_pixmap_with_asset_root_and_boxes, VComponent};
 
 const IPC_BUF_SIZE: usize = 4128;
 const KAGAMI_PROCESS_CANDIDATES: [&str; 3] =
@@ -194,12 +194,28 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
     let asset_root = std::env::args()
         .next()
         .and_then(|p| p.rsplit_once("/entry.elf").map(|(d, _)| d.to_string()));
-    render_component_to_pixmap_with_asset_root(
+    let (mut pixels, boxes) = render_component_to_pixmap_with_asset_root_and_boxes(
         &component,
         win.width as u32,
         win.height as u32,
         asset_root.as_deref(),
-    )
+        &["appwindow-content"],
+    );
+
+    if let Some((x, y, w, h)) = boxes.get("appwindow-content").copied() {
+        // Placeholder "client content" until real surface composition is wired.
+        fill_rect(
+            &mut pixels,
+            win.width as usize,
+            x as i32 + 8,
+            y as i32 + 8,
+            (w as i32 - 16).max(0),
+            (h as i32 - 16).max(0),
+            0xFFCC_D3DD,
+        );
+    }
+
+    pixels
 }
 
 fn blit_pixmap(

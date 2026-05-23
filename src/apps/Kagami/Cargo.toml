@@ -2,6 +2,7 @@
 name = "kagami"
 version = "0.1.0"
 edition = "2024"
+build = "build.rs"
 
 [lib]
 name = "wayland_compositor"
@@ -10,14 +11,22 @@ path = "src/lib.rs"
 [[bin]]
 name = "compositor"
 path = "src/compositor/main.rs"
+required-features = ["wayland-host"]
 
 [[bin]]
 name = "test-client"
 path = "examples/test_client.rs"
+required-features = ["wayland-host"]
+
+[[example]]
+name = "test_client"
+path = "examples/test_client.rs"
+required-features = ["wayland-host"]
 
 [[bin]]
 name = "kagamid"
 path = "src/kagamid/main.rs"
+required-features = ["mochios"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"], optional = true }
@@ -25,7 +34,6 @@ async-trait = { version = "0.1", optional = true }
 log = { version = "0.4", optional = true }
 env_logger = { version = "0.11.10", optional = true }
 thiserror = { version = "2.0.18", optional = true }
-swiftlib = { path = "../../user", default-features = false, features = ["std-support"], optional = true }
 
 [dev-dependencies]
 
@@ -33,7 +41,7 @@ swiftlib = { path = "../../user", default-features = false, features = ["std-sup
 default = ["wayland-host", "backend-linux-fb"]
 
 wayland-host = ["dep:tokio", "dep:async-trait", "dep:log", "dep:env_logger", "dep:thiserror"]
-mochios = ["dep:swiftlib"]
+mochios = []
 
 backend-linux-fb = []       # Linux フレームバッファドライバ
 backend-mochios-vga = ["mochios"] # mochiOS VGA/VRAM (swiftlib::vga) 向け
@@ -45,3 +53,6 @@ debug-logging = []
 performance-metrics = []
 
 [build-dependencies]
+
+[target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
+swiftlib = { path = "../../user", features = ["std-support"] }

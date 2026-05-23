@@ -42,6 +42,13 @@ fn main() {
         }
     }
 
+    // Launch Binder (desktop shell) automatically.
+    let binder_path = "/applications/Binder.app/entry.elf";
+    match process::exec(binder_path) {
+        Ok(pid) => println!("[Kagami] launched Binder pid={}", pid),
+        Err(()) => println!("[Kagami] failed to exec {}", binder_path),
+    }
+
     println!("[Kagami] ready (press 'e' to launch test_client)");
 
     let mut e_down = false;

@@ -132,11 +132,22 @@ pub fn render_component_to_pixmap_with_asset_root(
     height: u32,
     asset_root: Option<&str>,
 ) -> Vec<u32> {
+    render_component_to_pixmap_with_asset_root_and_boxes(component, width, height, asset_root, &[])
+        .0
+}
+
+pub fn render_component_to_pixmap_with_asset_root_and_boxes(
+    component: &VComponent,
+    width: u32,
+    height: u32,
+    asset_root: Option<&str>,
+    capture_classes: &[&str],
+) -> (Vec<u32>, HashMap<String, (u32, u32, u32, u32)>) {
     let mut pixmap = Pixmap::new(width, height).expect("pixmap");
     pixmap.fill(Color::from_rgba8(0, 0, 0, 0));
 
     let ctx = RenderContext::new(asset_root);
-    render_component_impl(
+    let boxes = render_component_impl(
         &ctx,
         &mut pixmap,
         component,
@@ -144,6 +155,7 @@ pub fn render_component_to_pixmap_with_asset_root(
         0.0,
         width as f32,
         height as f32,
+        capture_classes,
     );
 
     // Convert RGBA bytes -> ARGB u32 for Binder/Kagami
@@ -157,7 +169,7 @@ pub fn render_component_to_pixmap_with_asset_root(
         let a = data[off + 3] as u32;
         out[i] = (a << 24) | (r << 16) | (g << 8) | b;
     }
-    out
+    (out, boxes)
 }
 
 struct RenderContext {
@@ -287,7 +299,8 @@ fn render_component_impl(
     y: f32,
     w: f32,
     h: f32,
-) {
+    capture_classes: &[&str],
+) -> HashMap<String, (u32, u32, u32, u32)> {
     let (css, html) = split_style_and_html(&component.template);
     let css = css
         .replace(
@@ -305,7 +318,7 @@ fn render_component_impl(
 
     let render_tree = build_render_tree(ctx, &class_styles, &root, component);
 
-    layout_and_paint(ctx, pixmap, &render_tree, x, y, w, h);
+    layout_and_paint(ctx, pixmap, &render_tree, x, y, w, h, capture_classes)
 }
 
 #[derive(Clone, Debug)]
@@ -739,10 +752,55 @@ fn layout_and_paint(
     y: f32,
     w: f32,
     h: f32,
-) {
+    capture_classes: &[&str],
+) -> HashMap<String, (u32, u32, u32, u32)> {
     let mut layout_root = to_layout_node(node);
     LayoutEngine::layout(&mut layout_root, w, h);
+    let mut boxes = HashMap::new();
+    if !capture_classes.is_empty() {
+        capture_boxes(node, &layout_root, x, y, capture_classes, &mut boxes);
+    }
     paint_from_layout(ctx, pixmap, node, &layout_root, x, y);
+    boxes
+}
+
+fn capture_boxes(
+    node: &RenderNode,
+    layout: &LayoutNode,
+    ox: f32,
+    oy: f32,
+    capture_classes: &[&str],
+    out: &mut HashMap<String, (u32, u32, u32, u32)>,
+) {
+    if let RenderNodeKind::Element { class: Some(class), .. } = &node.kind {
+        if capture_classes.iter().any(|t| *t == class.as_str()) && !out.contains_key(class) {
+            let (bx, by, bw, bh) = match &layout.layout_boxes {
+                ui_layout::LayoutBoxes::Single(b) => {
+                    (b.border_box.x, b.border_box.y, b.border_box.width, b.border_box.height)
+                }
+                _ => (0.0, 0.0, 0.0, 0.0),
+            };
+            let x = (ox + bx).max(0.0) as u32;
+            let y = (oy + by).max(0.0) as u32;
+            let w = bw.max(0.0) as u32;
+            let h = bh.max(0.0) as u32;
+            out.insert(class.clone(), (x, y, w, h));
+        }
+    }
+
+    for (idx, child_layout) in layout.children.iter().enumerate() {
+        if idx >= node.children.len() {
+            break;
+        }
+        capture_boxes(
+            &node.children[idx],
+            child_layout,
+            ox,
+            oy,
+            capture_classes,
+            out,
+        );
+    }
 }
 
 fn to_layout_node(node: &RenderNode) -> LayoutNode {

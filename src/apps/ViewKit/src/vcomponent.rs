@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use fontdue::Font;
 use html5ever::driver::parse_document;
 use html5ever::tendril::TendrilSink;
 use markup5ever_rcdom::{Handle, NodeData, RcDom};
@@ -88,17 +87,14 @@ pub fn render_component_to_pixmap_with_asset_root(
 
 struct RenderContext {
     asset_root: Option<String>,
-    font: Option<Font>,
+    font: BitmapFont,
     image_cache: std::cell::RefCell<HashMap<String, image::RgbaImage>>,
 }
 
 impl RenderContext {
     fn new(asset_root: Option<&str>) -> Self {
-        // Avoid runtime filesystem access here; std::fs goes through POSIX stubs and
-        // has been a source of kernel faults in mochiOS. Embed the system font.
-        let font_bytes =
-            include_bytes!("../../../../src/resources/system/fonts/NotoSansJP-Regular.ttf");
-        let font = Font::from_bytes(font_bytes.as_slice(), fontdue::FontSettings::default()).ok();
+        let font_bytes = include_bytes!("../../../../src/resources/system/fonts/ter-u12b.bdf");
+        let font = BitmapFont::from_bdf(font_bytes);
         Self {
             asset_root: asset_root.map(|s| s.to_string()),
             font,
@@ -134,6 +130,68 @@ impl RenderContext {
         }
         // best-effort fallback: interpret relative to root
         Some(format!("/{}", src))
+    }
+}
+
+const FONT_HEIGHT: usize = 12;
+const GLYPH_COUNT: usize = 96;
+const ASCII_START: usize = 32;
+const ASCII_END: usize = ASCII_START + GLYPH_COUNT;
+
+struct BitmapFont {
+    glyphs: [[u8; FONT_HEIGHT]; GLYPH_COUNT],
+}
+
+impl BitmapFont {
+    fn from_bdf(data: &[u8]) -> Self {
+        let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
+        parse_bdf(data, &mut glyphs);
+        Self { glyphs }
+    }
+
+    fn glyph(&self, ch: u8) -> &[u8; FONT_HEIGHT] {
+        let idx = if (ASCII_START as u8..ASCII_END as u8).contains(&ch) {
+            (ch as usize) - ASCII_START
+        } else {
+            (b'?' as usize) - ASCII_START
+        };
+        &self.glyphs[idx]
+    }
+}
+
+fn parse_bdf(data: &[u8], glyphs: &mut [[u8; FONT_HEIGHT]; GLYPH_COUNT]) {
+    let text = core::str::from_utf8(data).unwrap_or("");
+    let mut lines = text.lines();
+    let mut encoding: Option<usize> = None;
+    let mut in_bitmap = false;
+    let mut row = 0usize;
+
+    loop {
+        let line = match lines.next() {
+            Some(l) => l.trim(),
+            None => break,
+        };
+        if line.starts_with("ENCODING ") {
+            encoding = line[9..].trim().parse::<usize>().ok();
+            in_bitmap = false;
+            row = 0;
+        } else if line == "BITMAP" {
+            in_bitmap = true;
+            row = 0;
+        } else if line == "ENDCHAR" {
+            in_bitmap = false;
+            encoding = None;
+            row = 0;
+        } else if in_bitmap {
+            if let Some(enc) = encoding {
+                if (ASCII_START..ASCII_END).contains(&enc) && row < FONT_HEIGHT {
+                    if let Ok(byte) = u8::from_str_radix(line, 16) {
+                        glyphs[enc - ASCII_START][row] = byte;
+                    }
+                    row += 1;
+                }
+            }
+        }
     }
 }
 
@@ -715,48 +773,45 @@ fn paint_text(
     h: f32,
     center: bool,
 ) {
-    let Some(font) = &ctx.font else {
-        return;
-    };
-    let font_size = 16.0f32;
     let mut cursor_x = x + 8.0;
-    let baseline = y + (h * 0.5);
-    // naive centering
+    let baseline = y + (h * 0.5) - (FONT_HEIGHT as f32 * 0.5);
     if center {
-        let est_w = (text.chars().count() as f32) * (font_size * 0.6);
+        let est_w = (text.bytes().len() as f32) * 8.0;
         cursor_x = x + (w - est_w).max(0.0) * 0.5;
     }
 
-    for ch in text.chars() {
-        let (metrics, bitmap) = font.rasterize(ch, font_size);
-        let gx = cursor_x + metrics.xmin as f32;
-        let gy = baseline + metrics.ymin as f32;
-        for yy in 0..metrics.height {
-            for xx in 0..metrics.width {
-                let a = bitmap[yy * metrics.width + xx];
-                if a == 0 {
+    for ch in text.bytes() {
+        let glyph = ctx.font.glyph(ch);
+        for (row_idx, row_byte) in glyph.iter().enumerate() {
+            let py = (baseline as i32) + row_idx as i32;
+            if py < 0 {
+                continue;
+            }
+            let py = py as u32;
+            if py >= pixmap.height() {
+                continue;
+            }
+            for bit in 0..8 {
+                if (row_byte >> (7 - bit)) & 1 == 0 {
                     continue;
                 }
-                let px = gx as i32 + xx as i32;
-                let py = gy as i32 + yy as i32;
-                if px < 0 || py < 0 {
+                let px_i = cursor_x as i32 + bit as i32;
+                if px_i < 0 {
                     continue;
                 }
-                let px = px as u32;
-                let py = py as u32;
-                if px >= pixmap.width() || py >= pixmap.height() {
+                let px_u = px_i as u32;
+                if px_u >= pixmap.width() {
                     continue;
                 }
-                let off = ((py * pixmap.width() + px) * 4) as usize;
+                let off = ((py * pixmap.width() + px_u) * 4) as usize;
                 let data = pixmap.data_mut();
-                // paint solid dark text with alpha
                 data[off] = 0x11;
                 data[off + 1] = 0x11;
                 data[off + 2] = 0x11;
-                data[off + 3] = a;
+                data[off + 3] = 0xFF;
             }
         }
-        cursor_x += metrics.advance_width;
+        cursor_x += 8.0;
     }
 }
 

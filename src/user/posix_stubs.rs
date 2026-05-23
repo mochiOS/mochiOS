@@ -3,7 +3,7 @@
 //! Rust std (build-std) がリンク時に要求する C ライブラリ関数を実装する。
 //! 各関数は最小限の実装か、成功を返すスタブ。
 
-use crate::sys::{syscall1, syscall2, syscall3, syscall4, syscall6, SyscallNumber};
+use crate::sys::{syscall1, syscall2, syscall3, syscall6, SyscallNumber};
 
 // errno
 static mut ERRNO_VAL: i32 = 0;
@@ -555,20 +555,14 @@ pub unsafe extern "C" fn __libc_open64(path: *const u8, flags: i32, mode: u32) -
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn openat(dirfd: i32, path: *const u8, flags: i32, mode: u32) -> i32 {
-    const SYS_OPENAT: u64 = 257;
-    let ret = syscall4(
-        SYS_OPENAT,
-        dirfd as i64 as u64,
-        path as u64,
-        flags as u64,
-        mode as u64,
-    ) as i64;
-    if ret < 0 {
-        set_errno(errno_from_neg_ret(ret));
-        -1
-    } else {
-        ret as i32
+    // mochiOS does not implement Linux's openat(2) syscall ABI.
+    // Rust std uses openat mostly with AT_FDCWD; bridge that to our Open syscall.
+    const AT_FDCWD: i32 = -100;
+    if dirfd != AT_FDCWD {
+        set_errno(38); // ENOSYS
+        return -1;
     }
+    open(path, flags, mode)
 }
 
 #[unsafe(no_mangle)]
@@ -599,6 +593,11 @@ pub unsafe extern "C" fn stat64(path: *const u8, stat: *mut u8) -> i32 {
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn stat(path: *const u8, stat: *mut u8) -> i32 {
+    stat64(path, stat)
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn lstat64(path: *const u8, stat: *mut u8) -> i32 {
     let ret = syscall2(SyscallNumber::Lstat as u64, path as u64, stat as u64) as i64;
     if ret < 0 {
@@ -607,6 +606,11 @@ pub unsafe extern "C" fn lstat64(path: *const u8, stat: *mut u8) -> i32 {
     } else {
         ret as i32
     }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn lstat(path: *const u8, stat: *mut u8) -> i32 {
+    lstat64(path, stat)
 }
 
 /// `iovec` structure for writev

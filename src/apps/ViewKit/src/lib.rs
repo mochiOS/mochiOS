@@ -6,9 +6,10 @@ mod ffi;
 pub mod pipeline;
 pub mod ui;
 pub mod vcomponent;
-// re-export proc-macro so crate users can call `components!{ ... }` without prefix
+pub mod components;
 pub use viewkit_macros::components;
 
 pub use vcomponent::{
-    render_component_to_pixmap, render_component_to_pixmap_with_asset_root, VComponent,
+    render_component_to_pixmap, render_component_to_pixmap_with_asset_root,
+    render_ui_element_to_pixmap, render_ui_element_to_pixmap_with_asset_root, VComponent,
 };

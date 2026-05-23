@@ -15,6 +15,7 @@ pub struct VComponent {
     width: Option<u32>,
     height: Option<u32>,
     label: Option<String>,
+    image: Option<String>,
     children: Vec<VComponent>,
 }
 
@@ -41,9 +42,83 @@ impl VComponent {
         self
     }
 
+    pub fn image<T: Into<String>>(mut self, path: T) -> Self {
+        self.image = Some(path.into());
+        self
+    }
+
     pub fn child(mut self, c: VComponent) -> Self {
         self.children.push(c);
         self
+    }
+}
+
+pub fn render_ui_element_to_pixmap(ui: &crate::ui::UIElement, width: u32, height: u32) -> Vec<u32> {
+    render_ui_element_to_pixmap_with_asset_root(ui, width, height, None)
+}
+
+pub fn render_ui_element_to_pixmap_with_asset_root(
+    ui: &crate::ui::UIElement,
+    width: u32,
+    height: u32,
+    asset_root: Option<&str>,
+) -> Vec<u32> {
+    let vc = ui_to_vcomponent(ui);
+    render_component_to_pixmap_with_asset_root(&vc, width, height, asset_root)
+}
+
+fn ui_to_vcomponent(ui: &crate::ui::UIElement) -> VComponent {
+    use crate::ui::{ComponentContent, UIElement};
+
+    match ui {
+        UIElement::Custom(c) => {
+            let tpl = crate::components::template_for(&c.name).unwrap_or("<div><Children /></div>");
+            let mut vc = VComponent::from_str(tpl);
+            if let Some(content) = &c.content {
+                match content {
+                    ComponentContent::String(s) => vc = vc.label(s.clone()),
+                    ComponentContent::Image(p) => vc = vc.image(p.clone()),
+                    ComponentContent::Typed { ty, value } => {
+                        if ty.eq_ignore_ascii_case("string") {
+                            vc = vc.label(value.clone());
+                        } else if ty.eq_ignore_ascii_case("image") {
+                            vc = vc.image(value.clone());
+                        }
+                    }
+                }
+            }
+            for child in &c.children {
+                vc = vc.child(ui_to_vcomponent(child));
+            }
+            vc
+        }
+        UIElement::Bundle(items) => {
+            let mut vc = VComponent::from_str("<Children />");
+            for child in items {
+                vc = vc.child(ui_to_vcomponent(child));
+            }
+            vc
+        }
+        UIElement::Card(card) => {
+            let mut vc =
+                VComponent::from_str(crate::components::template_for("card").unwrap_or("<div><Children /></div>"));
+            for child in &card.children {
+                vc = vc.child(ui_to_vcomponent(child));
+            }
+            vc
+        }
+        UIElement::Text(t) => {
+            let tpl = crate::components::template_for("text").unwrap_or("<div><content type=\"String\" /></div>");
+            VComponent::from_str(tpl).label(t.text.clone())
+        }
+        UIElement::Button(b) => {
+            let mut vc =
+                VComponent::from_str(crate::components::template_for("button").unwrap_or("<div><Children /></div>"));
+            vc = vc.child(VComponent::from_str(
+                crate::components::template_for("text").unwrap_or("<div><content type=\"String\" /></div>"),
+            ).label(b.label.clone()));
+            vc
+        }
     }
 }
 
@@ -405,6 +480,18 @@ fn build_render_tree(
                     style: ComputedStyle::default(),
                     children: vec![],
                 };
+            }
+            if ty.eq_ignore_ascii_case("image") {
+                if let Some(path) = component.image.clone() {
+                    if let Some(resolved) = ctx.resolve_asset_path(&path) {
+                        let style = compute_style_for_node(el, class_styles);
+                        return RenderNode {
+                            kind: RenderNodeKind::Image { src: resolved },
+                            style,
+                            children: vec![],
+                        };
+                    }
+                }
             }
         }
         if tag_lower == "img" {

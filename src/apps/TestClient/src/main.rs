@@ -1,58 +1,5 @@
 use swiftlib::{time, vga};
-use viewkit::{render_component_to_pixmap, VComponent};
-
-const CARD_TEMPLATE: &str = r#"
-<style>
-    .screen {
-        width: CONTENT_W;
-        height: CONTENT_H;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background-color: #1d2330;
-    }
-    .card {
-        width: 360px;
-        height: 200px;
-        border-radius: 18px;
-        background-color: #f8f9fb;
-        display: flex;
-        flex-direction: column;
-        padding: 18px;
-        gap: 12px;
-    }
-    .accent {
-        height: 48px;
-        border-radius: 14px;
-        background-color: #4f46e5;
-    }
-    .body {
-        flex: 1;
-        border-radius: 14px;
-        background-color: #e5e7eb;
-    }
-</style>
-<div class="screen">
-    <div class="card">
-        <div class="body">
-            <Children />
-        </div>
-    </div>
-</div>
-"#;
-
-const BODY_TEMPLATE: &str = r#"
-<style>
-    .sample {
-        width: 100%;
-        height: 100%;
-        border-radius: 10px;
-        background-color: #d1d5db;
-    }
-</style>
-<div class="sample">
-</div>
-"#;
+use viewkit::{components, render_ui_element_to_pixmap};
 
 fn main() {
     println!("[TestClient] starting");
@@ -72,14 +19,18 @@ fn main() {
         }
     };
 
-    println!("[TestClient] building ViewKit card");
-    let card = VComponent::from_str(CARD_TEMPLATE)
-        .width(info.width)
-        .height(info.height)
-        .child(VComponent::from_str(BODY_TEMPLATE));
+    println!("[TestClient] building ViewKit UI");
+    let ui = components::card()
+        .children([
+            components::text().text("Hello from ViewKit components").into_elem(),
+            components::card()
+                .children([components::text().label("Nested card").into_elem()])
+                .into_elem(),
+        ])
+        .into_elem();
 
-    println!("[TestClient] rendering ViewKit card");
-    let pixels = render_component_to_pixmap(&card, info.width, info.height);
+    println!("[TestClient] rendering ViewKit UI");
+    let pixels = render_ui_element_to_pixmap(&ui, info.width, info.height);
     println!("[TestClient] blitting framebuffer");
     let stride = info.stride as usize;
     unsafe {
@@ -97,6 +48,6 @@ fn main() {
         }
     }
 
-    println!("[TestClient] rendered ViewKit card");
+    println!("[TestClient] rendered ViewKit UI");
     time::sleep_ms(300);
 }

@@ -13,3 +13,5 @@ pub use vcomponent::{
     render_component_to_pixmap, render_component_to_pixmap_with_asset_root,
     render_ui_element_to_pixmap, render_ui_element_to_pixmap_with_asset_root, VComponent,
 };
+
+pub use app::App;

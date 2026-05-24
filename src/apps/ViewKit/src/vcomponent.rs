@@ -619,6 +619,8 @@ fn compute_style_for_node(
     let mut style = Style::default();
     let mut padding = (0f32, 0f32, 0f32, 0f32);
     let mut saw_align_items = false;
+    let mut saw_display_flex = false;
+    let mut pending_flex_direction: Option<FlexDirection> = None;
 
     for (k, v) in decls {
         match k.as_str() {
@@ -626,23 +628,15 @@ fn compute_style_for_node(
             "border-radius" => out.border_radius = parse_border_radius(v),
             "display" => {
                 if v.trim().eq_ignore_ascii_case("flex") {
-                    style.display = Display::Flex {
-                        flex_direction: FlexDirection::Row,
-                    };
+                    saw_display_flex = true;
                 }
             }
             "flex-direction" => {
-                if let Display::Flex { flex_direction } = &mut style.display {
-                    *flex_direction = if v.trim().eq_ignore_ascii_case("column") {
-                        FlexDirection::Column
-                    } else {
-                        FlexDirection::Row
-                    };
-                } else if v.trim().eq_ignore_ascii_case("column") {
-                    style.display = Display::Flex {
-                        flex_direction: FlexDirection::Column,
-                    };
-                }
+                pending_flex_direction = Some(if v.trim().eq_ignore_ascii_case("column") {
+                    FlexDirection::Column
+                } else {
+                    FlexDirection::Row
+                });
             }
             "justify-content" => {
                 style.justify_content = match v.trim() {
@@ -662,9 +656,15 @@ fn compute_style_for_node(
                 };
             }
             "flex" => {
-                if v.trim() == "1" {
+                // Support a small subset of CSS flex shorthand.
+                // - `flex: 1` in CSS means `flex: 1 1 0%`.
+                // - `flex: 0` means no growth.
+                // We only implement numeric single-value form for now.
+                if let Ok(n) = v.trim().parse::<f32>() {
                     style.item_style = ItemStyle {
-                        flex_grow: 1.0,
+                        flex_grow: n,
+                        flex_shrink: 1.0,
+                        flex_basis: Length::Percent(0.0),
                         ..Default::default()
                     };
                 }
@@ -679,13 +679,33 @@ fn compute_style_for_node(
                 padding = parse_box_1_2(v);
             }
             "margin-left" => {
-                style.spacing.margin_left = parse_px(v).map(Length::Px).unwrap_or(Length::Px(0.0));
+                let vt = v.trim();
+                style.spacing.margin_left = if vt.eq_ignore_ascii_case("auto") {
+                    Length::Auto
+                } else {
+                    parse_px(v).map(Length::Px).unwrap_or(Length::Px(0.0))
+                };
+            }
+            "margin-right" => {
+                let vt = v.trim();
+                style.spacing.margin_right = if vt.eq_ignore_ascii_case("auto") {
+                    Length::Auto
+                } else {
+                    parse_px(v).map(Length::Px).unwrap_or(Length::Px(0.0))
+                };
             }
             "text-align" => {
                 out.text_align_center = v.trim().eq_ignore_ascii_case("center");
             }
             _ => {}
         }
+    }
+
+    // Resolve `display:flex` + `flex-direction` regardless of HashMap iteration order.
+    if saw_display_flex || pending_flex_direction.is_some() {
+        style.display = Display::Flex {
+            flex_direction: pending_flex_direction.unwrap_or(FlexDirection::Row),
+        };
     }
 
     // CSS flexbox default is `align-items: stretch`.
@@ -999,14 +1019,41 @@ fn paint_image(
     if iw == 0 || ih == 0 {
         return;
     }
-    // very simple nearest scaling to fit
+    // Bilinear scaling (helps keep AA on downscaled UI icons).
     let tw = w.max(1.0) as u32;
     let th = h.max(1.0) as u32;
     for yy in 0..th {
         for xx in 0..tw {
-            let sx = (xx as f32 / tw as f32 * iw as f32) as u32;
-            let sy = (yy as f32 / th as f32 * ih as f32) as u32;
-            let p = img.get_pixel(sx.min(iw - 1), sy.min(ih - 1)).0;
+            let sx_f = (xx as f32 + 0.5) * (iw as f32) / (tw as f32) - 0.5;
+            let sy_f = (yy as f32 + 0.5) * (ih as f32) / (th as f32) - 0.5;
+            let sx0 = sx_f.floor() as i32;
+            let sy0 = sy_f.floor() as i32;
+            let fx = (sx_f - sx0 as f32).clamp(0.0, 1.0);
+            let fy = (sy_f - sy0 as f32).clamp(0.0, 1.0);
+
+            let sx0u = sx0.clamp(0, (iw as i32) - 1) as u32;
+            let sy0u = sy0.clamp(0, (ih as i32) - 1) as u32;
+            let sx1u = (sx0 + 1).clamp(0, (iw as i32) - 1) as u32;
+            let sy1u = (sy0 + 1).clamp(0, (ih as i32) - 1) as u32;
+
+            let p00 = img.get_pixel(sx0u, sy0u).0;
+            let p10 = img.get_pixel(sx1u, sy0u).0;
+            let p01 = img.get_pixel(sx0u, sy1u).0;
+            let p11 = img.get_pixel(sx1u, sy1u).0;
+
+            let w00 = (1.0 - fx) * (1.0 - fy);
+            let w10 = fx * (1.0 - fy);
+            let w01 = (1.0 - fx) * fy;
+            let w11 = fx * fy;
+
+            let mut p = [0u8; 4];
+            for c in 0..4 {
+                let v = (p00[c] as f32) * w00
+                    + (p10[c] as f32) * w10
+                    + (p01[c] as f32) * w01
+                    + (p11[c] as f32) * w11;
+                p[c] = v.round().clamp(0.0, 255.0) as u8;
+            }
             let dx = x as i32 + xx as i32;
             let dy = y as i32 + yy as i32;
             if dx < 0 || dy < 0 {

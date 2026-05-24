@@ -14,12 +14,13 @@
         border-radius: 10px 10px 0px 0px;
         background-color: #f0f0f0;
         display: flex;
-        justify-content: center;
+        justify-content: flex-start;
         align-items: center;
-        padding: 5px;
+        height: 28px;
+        padding: 6px 10px;
     }
-    .appwindow-spacer {
-        flex: 1;
+    .appwindow-left {
+        width: 60px;
     }
     .appwindow-title {
         flex: 1;
@@ -28,12 +29,11 @@
     .appwindow-control-buttons {
         display: flex;
         justify-content: flex-end;
-        flex: 1;
-        margin-left: 10px;
+        gap: 6px;
     }
     .appwindow-control-button {
-        width: 20px;
-        height: 20px;
+        width: 14px;
+        height: 14px;
     }
 
     .appwindow-content {
@@ -46,7 +46,7 @@
 </style>
 <div class="appwindow">
     <div class="appwindow-control">
-        <div class="appwindow-spacer"></div>
+        <div class="appwindow-left"></div>
         <div class="appwindow-title">
             <content type="String" />
         </div>

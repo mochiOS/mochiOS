@@ -622,8 +622,8 @@ fn compute_style_for_node(
     let mut saw_display_flex = false;
     let mut pending_flex_direction: Option<FlexDirection> = None;
 
-    for (k, v) in decls {
-        match k.as_str() {
+        for (k, v) in decls {
+            match k.as_str() {
             "background-color" => out.bg = Some(parse_color_hex(v)),
             "border-radius" => out.border_radius = parse_border_radius(v),
             "display" => {
@@ -694,6 +694,22 @@ fn compute_style_for_node(
                     parse_px(v).map(Length::Px).unwrap_or(Length::Px(0.0))
                 };
             }
+            "margin-top" => {
+                let vt = v.trim();
+                style.spacing.margin_top = if vt.eq_ignore_ascii_case("auto") {
+                    Length::Auto
+                } else {
+                    parse_px(v).map(Length::Px).unwrap_or(Length::Px(0.0))
+                };
+            }
+            "margin-bottom" => {
+                let vt = v.trim();
+                style.spacing.margin_bottom = if vt.eq_ignore_ascii_case("auto") {
+                    Length::Auto
+                } else {
+                    parse_px(v).map(Length::Px).unwrap_or(Length::Px(0.0))
+                };
+            }
             "text-align" => {
                 out.text_align_center = v.trim().eq_ignore_ascii_case("center");
             }
@@ -711,6 +727,11 @@ fn compute_style_for_node(
     // CSS flexbox default is `align-items: stretch`.
     if matches!(style.display, Display::Flex { .. }) && !saw_align_items {
         style.align_items = AlignItems::Stretch;
+    }
+
+    // If a node is not flex, `justify-content` does nothing in CSS.
+    if !matches!(style.display, Display::Flex { .. }) {
+        style.justify_content = JustifyContent::Start;
     }
 
     out.padding = padding;

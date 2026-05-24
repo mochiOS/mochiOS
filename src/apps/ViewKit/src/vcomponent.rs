@@ -618,6 +618,7 @@ fn compute_style_for_node(
 
     let mut style = Style::default();
     let mut padding = (0f32, 0f32, 0f32, 0f32);
+    let mut saw_align_items = false;
 
     for (k, v) in decls {
         match k.as_str() {
@@ -652,6 +653,7 @@ fn compute_style_for_node(
                 };
             }
             "align-items" => {
+                saw_align_items = true;
                 style.align_items = match v.trim() {
                     "center" => AlignItems::Center,
                     "flex-end" | "end" => AlignItems::End,
@@ -684,6 +686,11 @@ fn compute_style_for_node(
             }
             _ => {}
         }
+    }
+
+    // CSS flexbox default is `align-items: stretch`.
+    if matches!(style.display, Display::Flex { .. }) && !saw_align_items {
+        style.align_items = AlignItems::Stretch;
     }
 
     out.padding = padding;
@@ -1012,11 +1019,38 @@ fn paint_image(
             }
             let off = ((dy * pixmap.width() + dx) * 4) as usize;
             let data = pixmap.data_mut();
-            // Pixmap is BGRA.
-            data[off] = p[2];
-            data[off + 1] = p[1];
-            data[off + 2] = p[0];
-            data[off + 3] = p[3];
+            // `image` gives RGBA; Pixmap is BGRA. Alpha-blend over existing pixels
+            // so that transparent parts of icons don't punch holes through.
+            let a = p[3] as u32;
+            if a == 0 {
+                continue;
+            }
+            let sb = p[2] as u32;
+            let sg = p[1] as u32;
+            let sr = p[0] as u32;
+            if a == 255 {
+                data[off] = sb as u8;
+                data[off + 1] = sg as u8;
+                data[off + 2] = sr as u8;
+                data[off + 3] = 255;
+                continue;
+            }
+            let db = data[off] as u32;
+            let dg = data[off + 1] as u32;
+            let dr = data[off + 2] as u32;
+            let da = data[off + 3] as u32;
+
+            // Porter-Duff "source over" with 8-bit alpha.
+            let inv_a = 255 - a;
+            let out_a = a + (da * inv_a + 127) / 255;
+            let out_b = (sb * a + db * inv_a + 127) / 255;
+            let out_g = (sg * a + dg * inv_a + 127) / 255;
+            let out_r = (sr * a + dr * inv_a + 127) / 255;
+
+            data[off] = out_b as u8;
+            data[off + 1] = out_g as u8;
+            data[off + 2] = out_r as u8;
+            data[off + 3] = out_a.min(255) as u8;
         }
     }
 }

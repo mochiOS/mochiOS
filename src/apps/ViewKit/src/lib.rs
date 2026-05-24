@@ -5,7 +5,7 @@ pub mod backend;
 mod ffi;
 pub mod pipeline;
 pub mod ui;
-pub mod vcomponent;
+pub mod vcompon
 pub mod components;
 pub use viewkit_macros::components;
 

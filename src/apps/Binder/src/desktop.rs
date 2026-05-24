@@ -195,7 +195,7 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
         win.width as u32,
         win.height as u32,
         asset_root.as_deref(),
-        &["appwindow-content"],
+        &["appwindow-content", "appwindow-control-buttons", "appwindow-title"],
     );
 
     // Kagami currently does not alpha blend.
@@ -223,7 +223,45 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
         );
     }
 
+    // Debug layout: draw outlines for title/buttons boxes.
+    if std::env::var("VIEWKIT_DEBUG_LAYOUT").ok().as_deref() == Some("1") {
+        if let Some((x, y, w, h)) = boxes.get("appwindow-control-buttons").copied() {
+            stroke_rect(&mut pixels, win.width as usize, x as i32, y as i32, w as i32, h as i32, 0xFFFF0000);
+        }
+        if let Some((x, y, w, h)) = boxes.get("appwindow-title").copied() {
+            stroke_rect(&mut pixels, win.width as usize, x as i32, y as i32, w as i32, h as i32, 0xFF00FF00);
+        }
+    }
+
     pixels
+}
+
+fn stroke_rect(pixels: &mut [u32], stride: usize, x: i32, y: i32, w: i32, h: i32, color: u32) {
+    if w <= 0 || h <= 0 {
+        return;
+    }
+    // top/bottom
+    for dx in 0..w {
+        put_pixel(pixels, stride, x + dx, y, color);
+        put_pixel(pixels, stride, x + dx, y + h - 1, color);
+    }
+    // left/right
+    for dy in 0..h {
+        put_pixel(pixels, stride, x, y + dy, color);
+        put_pixel(pixels, stride, x + w - 1, y + dy, color);
+    }
+}
+
+fn put_pixel(pixels: &mut [u32], stride: usize, x: i32, y: i32, color: u32) {
+    if x < 0 || y < 0 {
+        return;
+    }
+    let x = x as usize;
+    let y = y as usize;
+    let idx = y.saturating_mul(stride).saturating_add(x);
+    if idx < pixels.len() {
+        pixels[idx] = color;
+    }
 }
 
 fn detect_asset_root() -> Option<String> {

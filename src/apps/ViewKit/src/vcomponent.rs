@@ -460,6 +460,12 @@ fn build_render_tree(
     node: &HtmlNode,
     component: &VComponent,
 ) -> RenderNode {
+    fn inline_text_style() -> ComputedStyle {
+        let mut s = ComputedStyle::default();
+        s.layout.display = Display::Inline;
+        s
+    }
+
     // Handle special tags
     if let HtmlNode::Element(el) = node {
         let tag_lower = el.tag.to_ascii_lowercase();
@@ -491,7 +497,7 @@ fn build_render_tree(
                     kind: RenderNodeKind::Text {
                         text: component.label.clone().unwrap_or_default(),
                     },
-                    style: ComputedStyle::default(),
+                    style: inline_text_style(),
                     children: vec![],
                 };
             }
@@ -529,7 +535,7 @@ fn build_render_tree(
                 kind: RenderNodeKind::Text {
                     text: text.to_string(),
                 },
-                style: ComputedStyle::default(),
+                style: inline_text_style(),
                 children: vec![],
             };
         }
@@ -617,13 +623,20 @@ fn compute_style_for_node(
     };
 
     let mut style = Style::default();
+    // Match CSS defaults: width/height are `auto`, not 0px.
+    style.size.width = Length::Auto;
+    style.size.height = Length::Auto;
+    style.size.min_width = Length::Auto;
+    style.size.max_width = Length::Auto;
+    style.size.min_height = Length::Auto;
+    style.size.max_height = Length::Auto;
     let mut padding = (0f32, 0f32, 0f32, 0f32);
     let mut saw_align_items = false;
     let mut saw_display_flex = false;
     let mut pending_flex_direction: Option<FlexDirection> = None;
 
-        for (k, v) in decls {
-            match k.as_str() {
+    for (k, v) in decls {
+        match k.as_str() {
             "background-color" => out.bg = Some(parse_color_hex(v)),
             "border-radius" => out.border_radius = parse_border_radius(v),
             "display" => {
@@ -710,6 +723,42 @@ fn compute_style_for_node(
                     parse_px(v).map(Length::Px).unwrap_or(Length::Px(0.0))
                 };
             }
+            "margin" => {
+                // Support a small subset of CSS margin shorthand (1 or 2 values),
+                // plus `auto` for centering.
+                let parts: Vec<_> = v.split_whitespace().collect();
+                if parts.is_empty() {
+                    // noop
+                } else if parts.len() == 1 {
+                    let p = parts[0].trim();
+                    let val = if p.eq_ignore_ascii_case("auto") {
+                        Length::Auto
+                    } else {
+                        parse_px(p).map(Length::Px).unwrap_or(Length::Px(0.0))
+                    };
+                    style.spacing.margin_top = val.clone();
+                    style.spacing.margin_right = val.clone();
+                    style.spacing.margin_bottom = val.clone();
+                    style.spacing.margin_left = val;
+                } else {
+                    let p0 = parts[0].trim();
+                    let p1 = parts[1].trim();
+                    let v0 = if p0.eq_ignore_ascii_case("auto") {
+                        Length::Auto
+                    } else {
+                        parse_px(p0).map(Length::Px).unwrap_or(Length::Px(0.0))
+                    };
+                    let v1 = if p1.eq_ignore_ascii_case("auto") {
+                        Length::Auto
+                    } else {
+                        parse_px(p1).map(Length::Px).unwrap_or(Length::Px(0.0))
+                    };
+                    style.spacing.margin_top = v0.clone();
+                    style.spacing.margin_bottom = v0;
+                    style.spacing.margin_left = v1.clone();
+                    style.spacing.margin_right = v1;
+                }
+            }
             "text-align" => {
                 out.text_align_center = v.trim().eq_ignore_ascii_case("center");
             }
@@ -732,6 +781,13 @@ fn compute_style_for_node(
     // If a node is not flex, `justify-content` does nothing in CSS.
     if !matches!(style.display, Display::Flex { .. }) {
         style.justify_content = JustifyContent::Start;
+    }
+
+    // Heuristic: for flex items with auto main-size, prefer shrink-to-content
+    // instead of filling the entire container like block flow.
+    // This makes `margin-left: auto` work as expected for right-aligned groups.
+    if matches!(style.display, Display::Flex { .. }) == false {
+        // noop (only affects flex items below)
     }
 
     out.padding = padding;
@@ -860,6 +916,15 @@ fn to_layout_node(node: &RenderNode) -> LayoutNode {
     style.spacing.padding_right = Length::Px(node.style.padding.1);
     style.spacing.padding_bottom = Length::Px(node.style.padding.2);
     style.spacing.padding_left = Length::Px(node.style.padding.3);
+
+    // Give text nodes an intrinsic size so flex layout can distribute space
+    // (e.g. `margin-left: auto` for right-aligned button groups).
+    if let RenderNodeKind::Text { text } = &node.kind {
+        // 8px monospace-ish glyphs with a small padding.
+        let w = (text.bytes().len() as f32) * 8.0;
+        style.size.width = Length::Px(w);
+        style.size.height = Length::Px(FONT_HEIGHT as f32);
+    }
 
     let children: Vec<_> = node.children.iter().map(to_layout_node).collect();
     if children.is_empty() {

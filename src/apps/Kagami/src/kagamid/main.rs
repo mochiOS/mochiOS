@@ -1,4 +1,25 @@
-use swiftlib::{keyboard, process, time, vga};
+use swiftlib::{ipc::ipc_recv, keyboard, process, time, vga};
+
+const IPC_BUF_SIZE: usize = 4128;
+const OP_REQ_CREATE_WINDOW: u32 = 1;
+const OP_RES_WINDOW_CREATED: u32 = 2;
+const OP_REQ_FLUSH_CHUNK: u32 = 4;
+const OP_REQ_ATTACH_SHARED: u32 = 5;
+const OP_REQ_PRESENT_SHARED: u32 = 6;
+const OP_RES_SHARED_ATTACHED: u32 = 7;
+const MAP_HEADER_MAGIC: u32 = 0xABCD_DCBA;
+
+struct Window {
+    id: u32,
+    x: i32,
+    y: i32,
+    width: u16,
+    height: u16,
+    layer: u8,
+    pixels: Vec<u32>,
+    shared_addr: Option<u64>,
+    shared_bytes: usize,
+}
 
 fn is_e_make(scancode: u8) -> bool {
     // PS/2 Set 1 make code: 'e' = 0x12
@@ -51,9 +72,187 @@ fn main() {
 
     println!("[Kagami] ready (press 'e' to launch test_client)");
 
+    let mut next_window_id: u32 = 1;
+    let mut windows: Vec<Window> = Vec::new();
+    let mut pending_shared: Option<(u64, u32, u16, u16)> = None; // (sender_tid, window_id, w, h)
+
     let mut e_down = false;
     loop {
         time::sleep_ms(10);
+
+        // Handle window server IPC.
+        let mut recv = [0u8; IPC_BUF_SIZE];
+        loop {
+            let (sender, len) = ipc_recv(&mut recv);
+            if sender == 0 || len == 0 {
+                break;
+            }
+            let len = len as usize;
+            // Handle shared-page map header (kernel format).
+            if len == 20 {
+                let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
+                if magic == MAP_HEADER_MAGIC {
+                    let map_start = u64::from_le_bytes([
+                        recv[4], recv[5], recv[6], recv[7], recv[8], recv[9], recv[10], recv[11],
+                    ]);
+                    let total = u64::from_le_bytes([
+                        recv[12], recv[13], recv[14], recv[15], recv[16], recv[17], recv[18],
+                        recv[19],
+                    ]);
+                    if let Some((psender, window_id, w, h)) = pending_shared.take() {
+                        if psender == sender {
+                            if let Some(win) = windows.iter_mut().find(|w0| w0.id == window_id) {
+                                win.shared_addr = Some(map_start);
+                                win.shared_bytes = total as usize;
+                                win.width = w;
+                                win.height = h;
+                                // Ack attach.
+                                let mut res = [0u8; 8];
+                                res[0..4].copy_from_slice(&OP_RES_SHARED_ATTACHED.to_le_bytes());
+                                res[4..8].copy_from_slice(&window_id.to_le_bytes());
+                                let _ = swiftlib::ipc::ipc_send(sender, &res);
+                            }
+                        }
+                    }
+                    continue;
+                }
+            }
+
+            if len < 4 {
+                continue;
+            }
+            let op = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
+            match op {
+                OP_REQ_CREATE_WINDOW => {
+                    if len < 9 {
+                        continue;
+                    }
+                    let width = u16::from_le_bytes([recv[4], recv[5]]);
+                    let height = u16::from_le_bytes([recv[6], recv[7]]);
+                    let layer = recv[8];
+                    let id = next_window_id;
+                    next_window_id = next_window_id.wrapping_add(1).max(1);
+
+                    // Simple placement: cascade.
+                    let x = 40 + (id as i32 * 24) % 200;
+                    let y = 60 + (id as i32 * 18) % 160;
+                    let pixels = vec![0u32; (width as usize).saturating_mul(height as usize)];
+                    windows.push(Window {
+                        id,
+                        x,
+                        y,
+                        width,
+                        height,
+                        layer,
+                        pixels,
+                        shared_addr: None,
+                        shared_bytes: 0,
+                    });
+
+                    let mut res = [0u8; 8];
+                    res[0..4].copy_from_slice(&OP_RES_WINDOW_CREATED.to_le_bytes());
+                    res[4..8].copy_from_slice(&id.to_le_bytes());
+                    let _ = swiftlib::ipc::ipc_send(sender, &res);
+                }
+                OP_REQ_FLUSH_CHUNK => {
+                    if len < 20 {
+                        continue;
+                    }
+                    let window_id = u32::from_le_bytes([recv[4], recv[5], recv[6], recv[7]]);
+                    let x0 = u16::from_le_bytes([recv[12], recv[13]]) as usize;
+                    let y0 = u16::from_le_bytes([recv[14], recv[15]]) as usize;
+                    let w0 = u16::from_le_bytes([recv[16], recv[17]]) as usize;
+                    let h0 = u16::from_le_bytes([recv[18], recv[19]]) as usize;
+                    let payload = &recv[20..len];
+                    if payload.len() < w0.saturating_mul(h0).saturating_mul(4) {
+                        continue;
+                    }
+
+                    if let Some(win) = windows.iter_mut().find(|w| w.id == window_id) {
+                        let ww = win.width as usize;
+                        let hh = win.height as usize;
+                        for row in 0..h0 {
+                            let dy = y0 + row;
+                            if dy >= hh {
+                                continue;
+                            }
+                            for col in 0..w0 {
+                                let dx = x0 + col;
+                                if dx >= ww {
+                                    continue;
+                                }
+                                let off = (row * w0 + col) * 4;
+                                let argb = u32::from_le_bytes([
+                                    payload[off],
+                                    payload[off + 1],
+                                    payload[off + 2],
+                                    payload[off + 3],
+                                ]);
+                                win.pixels[dy * ww + dx] = argb | 0xFF00_0000;
+                            }
+                        }
+
+                        // Composite whole scene (simple + slow, fine for now).
+                        unsafe {
+                            let fb = core::slice::from_raw_parts_mut(fb_ptr, pixel_count);
+                            for px in fb.iter_mut() {
+                                core::ptr::write_volatile(px, background);
+                            }
+                        }
+                        windows.sort_by_key(|w| w.layer);
+                        for w in windows.iter() {
+                            blit_window(
+                                fb_ptr,
+                                info.stride as usize,
+                                info.height as usize,
+                                w.x,
+                                w.y,
+                                w.width as usize,
+                                w.height as usize,
+                                window_pixels(w),
+                            );
+                        }
+                    }
+                }
+                OP_REQ_ATTACH_SHARED => {
+                    if len < 12 {
+                        continue;
+                    }
+                    let window_id = u32::from_le_bytes([recv[4], recv[5], recv[6], recv[7]]);
+                    let w = u16::from_le_bytes([recv[8], recv[9]]);
+                    let h = u16::from_le_bytes([recv[10], recv[11]]);
+                    pending_shared = Some((sender, window_id, w, h));
+                }
+                OP_REQ_PRESENT_SHARED => {
+                    if len < 8 {
+                        continue;
+                    }
+                    let window_id = u32::from_le_bytes([recv[4], recv[5], recv[6], recv[7]]);
+                    if windows.iter().any(|w| w.id == window_id) {
+                        unsafe {
+                            let fb = core::slice::from_raw_parts_mut(fb_ptr, pixel_count);
+                            for px in fb.iter_mut() {
+                                core::ptr::write_volatile(px, background);
+                            }
+                        }
+                        windows.sort_by_key(|w| w.layer);
+                        for w in windows.iter() {
+                            blit_window(
+                                fb_ptr,
+                                info.stride as usize,
+                                info.height as usize,
+                                w.x,
+                                w.y,
+                                w.width as usize,
+                                w.height as usize,
+                                window_pixels(w),
+                            );
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
 
         let sc = match keyboard::read_scancode_tap() {
             Ok(Some(s)) => s,
@@ -77,6 +276,67 @@ fn main() {
             match process::exec(path) {
                 Ok(pid) => println!("[Kagami] launched TestClient pid={}", pid),
                 Err(()) => println!("[Kagami] failed to exec {}", path),
+            }
+        }
+    }
+}
+
+fn window_pixels(win: &Window) -> &[u32] {
+    if let Some(addr) = win.shared_addr {
+        let needed = (win.width as usize).saturating_mul(win.height as usize).saturating_mul(4);
+        if needed == 0 || needed > win.shared_bytes {
+            return &win.pixels;
+        }
+        // Safety: kernel mapped shared pages into our address space.
+        unsafe {
+            core::slice::from_raw_parts(addr as *const u32, needed / 4)
+        }
+    } else {
+        &win.pixels
+    }
+}
+
+fn blit_window(
+    fb_ptr: *mut u32,
+    stride: usize,
+    fb_h: usize,
+    x: i32,
+    y: i32,
+    w: usize,
+    h: usize,
+    pixels: &[u32],
+) {
+    if fb_ptr.is_null() {
+        return;
+    }
+    unsafe {
+        let fb = core::slice::from_raw_parts_mut(fb_ptr, stride.saturating_mul(fb_h));
+        for sy in 0..h {
+            let dy = y + sy as i32;
+            if dy < 0 {
+                continue;
+            }
+            let dy = dy as usize;
+            if dy >= fb_h {
+                continue;
+            }
+            for sx in 0..w {
+                let dx = x + sx as i32;
+                if dx < 0 {
+                    continue;
+                }
+                let dx = dx as usize;
+                if dx >= stride {
+                    continue;
+                }
+                let src_idx = sy * w + sx;
+                if src_idx >= pixels.len() {
+                    continue;
+                }
+                let dst_idx = dy * stride + dx;
+                if dst_idx < fb.len() {
+                    core::ptr::write_volatile(&mut fb[dst_idx], pixels[src_idx]);
+                }
             }
         }
     }

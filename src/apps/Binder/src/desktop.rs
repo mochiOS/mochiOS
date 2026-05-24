@@ -20,7 +20,7 @@ const OP_REQ_FLUSH_CHUNK: u32 = 4;
 const OP_REQ_ATTACH_SHARED: u32 = 5;
 const OP_REQ_PRESENT_SHARED: u32 = 6;
 const OP_RES_SHARED_ATTACHED: u32 = 7;
-const LAYER_WALLPAPER: u8 = 0;
+const LAYER_APP: u8 = 2;
 const FONT_HEIGHT: usize = 12;
 const GLYPH_COUNT: usize = 96;
 const ASCII_START: usize = 32;
@@ -109,12 +109,21 @@ pub fn draw() {
         }
     };
 
-    // Build some example windows so decorations can be seen.
+    // Build a single example window (no dock / no desktop UI).
     let mut desktop_windows = Vec::new();
     let width = width_u16 as i32;
     let height = height_u16 as i32;
-    desktop_windows.push(DesktopWindow { x: 80, y: 80, width: (width - 160).max(100), height: (height - 160).max(80), title: "Welcome to mochiOS".to_string() });
-    desktop_windows.push(DesktopWindow { x: 160, y: 140, width: 420, height: 280, title: "Documents".to_string() });
+    let win_w = (width * 2 / 3).clamp(320, width.max(320) - 40);
+    let win_h = (height * 2 / 3).clamp(240, height.max(240) - 40);
+    let win_x = ((width - win_w) / 2).max(0);
+    let win_y = ((height - win_h) / 2).max(0);
+    desktop_windows.push(DesktopWindow {
+        x: win_x,
+        y: win_y,
+        width: win_w,
+        height: win_h,
+        title: "Window".to_string(),
+    });
 
     let pixels = render_desktop(width as usize, height as usize, 0, &desktop_windows);
 
@@ -135,8 +144,7 @@ pub fn draw() {
         return;
     }
 
-    println!("[Binder] desktop shown");
-    launch_dock(kagami_tid);
+    println!("[Binder] window shown");
 
     loop {
         let sc_opt = read_scancode_tap().ok().flatten();
@@ -152,18 +160,8 @@ pub fn draw() {
 
 // Integrate decorations into render flow
 fn render_desktop(width: usize, height: usize, _dock_offset: i32, windows: &[DesktopWindow]) -> Vec<u32> {
-    let mut px: Vec<u32> = (0..height)
-        .flat_map(|y| {
-            let r = (198 * (height - y) + 137 * y) / height;
-            let g = (222 * (height - y) + 180 * y) / height;
-            let b = (234 * (height - y) + 204 * y) / height;
-
-            let color = 0xFF00_0000 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
-            std::iter::repeat(color).take(width)
-        })
-        .collect();
-
-    draw_info_bar(&mut px, width);
+    // Plain background; keep demo focused on window rendering.
+    let mut px: Vec<u32> = vec![0xFF0B_0E14; width.saturating_mul(height)];
 
     // Draw each window with decorations
     for win in windows {
@@ -201,6 +199,18 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
         asset_root.as_deref(),
         &["appwindow-content"],
     );
+
+    // Kagami currently does not alpha blend.
+    // Replace fully-transparent pixels with the desktop background color, and clamp others to opaque.
+    const DESKTOP_BG: u32 = 0xFF0B_0E14;
+    for p in pixels.iter_mut() {
+        let a = (*p >> 24) as u8;
+        if a == 0 {
+            *p = DESKTOP_BG;
+        } else {
+            *p = (*p & 0x00FF_FFFF) | 0xFF00_0000;
+        }
+    }
 
     if let Some((x, y, w, h)) = boxes.get("appwindow-content").copied() {
         // Placeholder "client content" until real surface composition is wired.
@@ -283,7 +293,7 @@ fn create_app_window(kagami_tid: u64, width: u16, height: u16) -> Result<u32, &'
     req[0..4].copy_from_slice(&OP_REQ_CREATE_WINDOW.to_le_bytes());
     req[4..6].copy_from_slice(&width.to_le_bytes());
     req[6..8].copy_from_slice(&height.to_le_bytes());
-    req[8] = LAYER_WALLPAPER;
+    req[8] = LAYER_APP;
     if (ipc_send(kagami_tid, &req) as i64) < 0 {
         return Err("send create_window failed");
     }

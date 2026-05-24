@@ -158,14 +158,15 @@ pub fn render_component_to_pixmap_with_asset_root_and_boxes(
         capture_classes,
     );
 
-    // Convert RGBA bytes -> ARGB u32 for Binder/Kagami
+    // Convert Pixmap bytes -> ARGB u32 for Binder/Kagami.
+    // tiny-skia Pixmap stores pixels in BGRA byte order.
     let mut out = vec![0u32; (width as usize).saturating_mul(height as usize)];
     let data = pixmap.data();
     for i in 0..out.len() {
         let off = i * 4;
-        let r = data[off] as u32;
+        let b = data[off] as u32;
         let g = data[off + 1] as u32;
-        let b = data[off + 2] as u32;
+        let r = data[off + 2] as u32;
         let a = data[off + 3] as u32;
         out[i] = (a << 24) | (r << 16) | (g << 8) | b;
     }
@@ -700,7 +701,8 @@ fn parse_length(v: &str) -> Length {
     }
     if let Some(pct) = v.strip_suffix('%') {
         if let Ok(f) = pct.trim().parse::<f32>() {
-            return Length::Percent(f / 100.0);
+            // ui_layout expects percent values like 100.0 for "100%".
+            return Length::Percent(f);
         }
     }
     Length::Auto

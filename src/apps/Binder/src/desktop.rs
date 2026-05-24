@@ -189,9 +189,7 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
 
     // Window body is left blank for Binder; the template supplies the frame.
     let component = component.child(VComponent::from_str("<div></div>"));
-    let asset_root = std::env::args()
-        .next()
-        .and_then(|p| p.rsplit_once("/entry.elf").map(|(d, _)| d.to_string()));
+    let asset_root = detect_asset_root();
     let (mut pixels, boxes) = render_component_to_pixmap_with_asset_root_and_boxes(
         &component,
         win.width as u32,
@@ -226,6 +224,24 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
     }
 
     pixels
+}
+
+fn detect_asset_root() -> Option<String> {
+    let argv0_root = std::env::args()
+        .next()
+        .and_then(|p| p.rsplit_once("/entry.elf").map(|(d, _)| d.to_string()));
+    let candidates = [
+        argv0_root.as_deref(),
+        Some("/applications/Binder.app"),
+    ];
+    for c in candidates.into_iter().flatten() {
+        let test = format!("{}/components/icons/CloseButton.png", c.trim_end_matches('/'));
+        match swiftlib::fs::read_file_via_fs(&test, 1024 * 1024) {
+            Ok(Some(_)) => return Some(c.to_string()),
+            _ => {}
+        }
+    }
+    argv0_root
 }
 
 fn blit_pixmap(

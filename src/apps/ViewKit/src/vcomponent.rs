@@ -1012,9 +1012,10 @@ fn paint_image(
             }
             let off = ((dy * pixmap.width() + dx) * 4) as usize;
             let data = pixmap.data_mut();
-            data[off] = p[0];
+            // Pixmap is BGRA.
+            data[off] = p[2];
             data[off + 1] = p[1];
-            data[off + 2] = p[2];
+            data[off + 2] = p[0];
             data[off + 3] = p[3];
         }
     }

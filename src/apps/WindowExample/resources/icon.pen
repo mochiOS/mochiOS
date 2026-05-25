@@ -1,0 +1,148 @@
+{
+  "version": "2.11",
+  "children": [
+    {
+      "type": "frame",
+      "id": "gykDe",
+      "x": -14,
+      "y": 12,
+      "name": "Icon",
+      "clip": true,
+      "width": 40,
+      "height": 40,
+      "layout": "none",
+      "children": [
+        {
+          "type": "rectangle",
+          "cornerRadius": 15,
+          "id": "Ox4dx",
+          "x": 0,
+          "y": 0,
+          "name": "AppIcon",
+          "fill": "#fbfbfbff",
+          "width": 40,
+          "height": 40,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1
+          }
+        },
+        {
+          "type": "frame",
+          "id": "EDPAD",
+          "x": 5,
+          "y": 5,
+          "name": "Card",
+          "clip": true,
+          "width": "fill_container(30)",
+          "height": "fill_container(30)",
+          "fill": "#fdfdfd",
+          "cornerRadius": 5,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1
+          },
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#00000040",
+            "offset": {
+              "x": 0,
+              "y": 2
+            },
+            "blur": 7
+          },
+          "layout": "none",
+          "children": [
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "dMebZ",
+              "x": 15,
+              "y": 5,
+              "fill": "#e1e1e1ff",
+              "width": 10,
+              "height": 10
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "eqeRG",
+          "x": 25,
+          "y": 25,
+          "name": "Button",
+          "clip": true,
+          "width": 7,
+          "height": 7,
+          "fill": "#ffc387ff",
+          "cornerRadius": 20,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1
+          },
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#00000040",
+            "offset": {
+              "x": 0,
+              "y": 2
+            },
+            "blur": 7
+          },
+          "layout": "vertical",
+          "gap": 10,
+          "padding": [
+            25,
+            20
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "group",
+              "id": "YRCqU",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 10,
+                  "id": "DbtaH",
+                  "x": 0,
+                  "y": 2,
+                  "fill": "#ffffffff",
+                  "width": 5,
+                  "height": 1
+                },
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 10,
+                  "id": "T9G1VM",
+                  "x": 2,
+                  "y": 0,
+                  "fill": "#ffffffff",
+                  "width": 1,
+                  "height": 5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "lwm2M",
+          "x": 8,
+          "y": 7,
+          "fill": "#323232ff",
+          "textGrowth": "fixed-width-height",
+          "width": 12,
+          "height": 25,
+          "content": "aaaaaaa\naaaa\naaaaaaaa\naaa\naaaaa\naaaaaaaa\naaaa\naaaaaa\naa\naaaaaaaaa\naaaaaa\naaa",
+          "fontFamily": "Flow Block",
+          "fontSize": 2,
+          "fontWeight": "normal"
+        }
+      ]
+    }
+  ]
+}

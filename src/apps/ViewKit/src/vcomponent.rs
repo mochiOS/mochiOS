@@ -287,7 +287,7 @@ fn parse_bdf(data: &[u8], glyphs: &mut [[u8; FONT_HEIGHT]; GLYPH_COUNT]) {
 struct ComputedStyle {
     layout: Style,
     bg: Option<u32>,
-    border_radius: f32,
+    border_radius: (f32, f32, f32, f32),
     text_align_center: bool,
     text_align_explicit: bool,
     padding: (f32, f32, f32, f32),
@@ -867,10 +867,40 @@ fn parse_box_1_2(v: &str) -> (f32, f32, f32, f32) {
     (v0, v1, v0, v1)
 }
 
-fn parse_border_radius(v: &str) -> f32 {
-    // For now, approximate multi-value border-radius by using the first value.
-    let first = v.split_whitespace().next().unwrap_or("");
-    parse_px(first).unwrap_or(0.0)
+fn parse_border_radius(v: &str) -> (f32, f32, f32, f32) {
+    // Minimal CSS `border-radius` shorthand (no `/` elliptical radii):
+    // 1 value: all corners
+    // 2 values: tl+br, tr+bl
+    // 3 values: tl, tr+bl, br
+    // 4 values: tl, tr, br, bl
+    let parts: Vec<_> = v.split_whitespace().collect();
+    let mut r = [0.0f32; 4];
+    match parts.len() {
+        0 => {}
+        1 => {
+            let a = parse_px(parts[0]).unwrap_or(0.0);
+            r = [a, a, a, a];
+        }
+        2 => {
+            let a = parse_px(parts[0]).unwrap_or(0.0);
+            let b = parse_px(parts[1]).unwrap_or(0.0);
+            r = [a, b, a, b];
+        }
+        3 => {
+            let a = parse_px(parts[0]).unwrap_or(0.0);
+            let b = parse_px(parts[1]).unwrap_or(0.0);
+            let c = parse_px(parts[2]).unwrap_or(0.0);
+            r = [a, b, c, b];
+        }
+        _ => {
+            let a = parse_px(parts[0]).unwrap_or(0.0);
+            let b = parse_px(parts[1]).unwrap_or(0.0);
+            let c = parse_px(parts[2]).unwrap_or(0.0);
+            let d = parse_px(parts[3]).unwrap_or(0.0);
+            r = [a, b, c, d];
+        }
+    }
+    (r[0], r[1], r[2], r[3])
 }
 
 fn parse_color_hex(s: &str) -> u32 {
@@ -1008,7 +1038,11 @@ fn paint_from_layout(
         let g = ((argb >> 8) & 0xFF) as u8;
         let b = (argb & 0xFF) as u8;
         paint.set_color(Color::from_rgba8(r, g, b, 255));
-        if node.style.border_radius > 0.0 {
+        if node.style.border_radius.0 > 0.0
+            || node.style.border_radius.1 > 0.0
+            || node.style.border_radius.2 > 0.0
+            || node.style.border_radius.3 > 0.0
+        {
             if let Some(path) = rounded_rect_path(x, y, bw, bh, node.style.border_radius) {
                 pixmap.fill_path(
                     &path,
@@ -1054,21 +1088,30 @@ fn paint_from_layout(
     }
 }
 
-fn rounded_rect_path(x: f32, y: f32, w: f32, h: f32, r: f32) -> Option<tiny_skia::Path> {
-    let r = r.min(w * 0.5).min(h * 0.5);
-    let mut pb = PathBuilder::new();
-    pb.move_to(x + r, y);
-    pb.line_to(x + w - r, y);
-    pb.quad_to(x + w, y, x + w, y + r);
-    pb.line_to(x + w, y + h - r);
-    pb.quad_to(x + w, y + h, x + w - r, y + h);
-    pb.line_to(x + r, y + h);
-    pb.quad_to(x, y + h, x, y + h - r);
-    pb.line_to(x, y + r);
-    pb.quad_to(x, y, x + r, y);
-    pb.close();
-    pb.finish()
-}
+    fn rounded_rect_path(
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        (rtl, rtr, rbr, rbl): (f32, f32, f32, f32),
+    ) -> Option<tiny_skia::Path> {
+        let rtl = rtl.max(0.0).min(w * 0.5).min(h * 0.5);
+        let rtr = rtr.max(0.0).min(w * 0.5).min(h * 0.5);
+        let rbr = rbr.max(0.0).min(w * 0.5).min(h * 0.5);
+        let rbl = rbl.max(0.0).min(w * 0.5).min(h * 0.5);
+        let mut pb = PathBuilder::new();
+        pb.move_to(x + rtl, y);
+        pb.line_to(x + w - rtr, y);
+        pb.quad_to(x + w, y, x + w, y + rtr);
+        pb.line_to(x + w, y + h - rbr);
+        pb.quad_to(x + w, y + h, x + w - rbr, y + h);
+        pb.line_to(x + rbl, y + h);
+        pb.quad_to(x, y + h, x, y + h - rbl);
+        pb.line_to(x, y + rtl);
+        pb.quad_to(x, y, x + rtl, y);
+        pb.close();
+        pb.finish()
+    }
 
 fn paint_text(
     ctx: &RenderContext,

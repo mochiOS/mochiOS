@@ -59,6 +59,10 @@ impl ViewKitApp {
 pub struct App {
     ui: UIElement,
     asset_root: Option<String>,
+    title: String,
+    width: Option<u32>,
+    height: Option<u32>,
+    decoration: bool,
 }
 
 impl App {
@@ -66,7 +70,14 @@ impl App {
         let asset_root = std::env::args()
             .next()
             .and_then(|p| p.rsplit_once("/entry.elf").map(|(d, _)| d.to_string()));
-        Self { ui, asset_root }
+        Self {
+            ui,
+            asset_root,
+            title: "Window".to_string(),
+            width: None,
+            height: None,
+            decoration: true,
+        }
     }
 
     pub fn asset_root(mut self, root: impl Into<String>) -> Self {
@@ -74,52 +85,270 @@ impl App {
         self
     }
 
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+
+    pub fn size(mut self, width: u32, height: u32) -> Self {
+        self.width = Some(width);
+        self.height = Some(height);
+        self
+    }
+
+    pub fn decoration(mut self, enable: bool) -> Self {
+        self.decoration = enable;
+        self
+    }
+
     pub fn run(self) {
         #[cfg(all(target_os = "linux", target_env = "musl"))]
         {
-            use swiftlib::{time, vga};
-
-            let info = match vga::get_info() {
-                Some(i) => i,
-                None => return,
-            };
-            let fb_ptr = match vga::map_framebuffer() {
-                Some(p) => p,
-                None => return,
-            };
-
-            let pixels = crate::render_ui_element_to_pixmap_with_asset_root(
-                &self.ui,
-                info.width,
-                info.height,
-                self.asset_root.as_deref(),
-            );
-
-            let stride = info.stride as usize;
-            unsafe {
-                let fb = core::slice::from_raw_parts_mut(
-                    fb_ptr,
-                    stride.saturating_mul(info.height as usize),
-                );
-                for y in 0..info.height as usize {
-                    let row = y * stride;
-                    let src_row = y * info.width as usize;
-                    for x in 0..info.width as usize {
-                        let idx = row + x;
-                        if idx < fb.len() {
-                            core::ptr::write_volatile(&mut fb[idx], pixels[src_row + x]);
-                        }
-                    }
-                }
-            }
-
-            // Keep the frame visible briefly for smoke tests.
-            time::sleep_ms(300);
+            kagami_present_loop(self);
         }
         #[cfg(not(all(target_os = "linux", target_env = "musl")))]
         {
             // Host-side runner is not provided yet.
             let _ = self;
         }
+    }
+}
+
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+fn kagami_present_loop(app: App) {
+    use swiftlib::{
+        ipc::{ipc_recv, ipc_send},
+        privileged,
+        task::{find_process_by_name, yield_now},
+        time, vga,
+    };
+
+    const IPC_BUF_SIZE: usize = 4128;
+    const KAGAMI_PROCESS_CANDIDATES: [&str; 3] =
+        ["/applications/Kagami.app/entry.elf", "Kagami.app", "entry.elf"];
+
+    const OP_REQ_CREATE_WINDOW: u32 = 1;
+    const OP_RES_WINDOW_CREATED: u32 = 2;
+    const OP_REQ_FLUSH_CHUNK: u32 = 4;
+    const OP_REQ_ATTACH_SHARED: u32 = 5;
+    const OP_REQ_PRESENT_SHARED: u32 = 6;
+    const OP_RES_SHARED_ATTACHED: u32 = 7;
+    const LAYER_APP: u8 = 2;
+
+    fn find_kagami_tid() -> Option<u64> {
+        for name in KAGAMI_PROCESS_CANDIDATES {
+            if let Some(pid) = find_process_by_name(name) {
+                if pid != 0 {
+                    return Some(pid);
+                }
+            }
+        }
+        None
+    }
+
+    fn create_window(kagami_tid: u64, width: u16, height: u16) -> Result<u32, &'static str> {
+        let mut req = [0u8; 9];
+        req[0..4].copy_from_slice(&OP_REQ_CREATE_WINDOW.to_le_bytes());
+        req[4..6].copy_from_slice(&width.to_le_bytes());
+        req[6..8].copy_from_slice(&height.to_le_bytes());
+        req[8] = LAYER_APP;
+        if (ipc_send(kagami_tid, &req) as i64) < 0 {
+            return Err("send create_window failed");
+        }
+        let mut recv = [0u8; IPC_BUF_SIZE];
+        for _ in 0..256 {
+            let (sender, len) = ipc_recv(&mut recv);
+            if sender != kagami_tid || len < 8 {
+                yield_now();
+                continue;
+            }
+            let op = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
+            if op != OP_RES_WINDOW_CREATED {
+                continue;
+            }
+            return Ok(u32::from_le_bytes([recv[4], recv[5], recv[6], recv[7]]));
+        }
+        Err("window create timeout")
+    }
+
+    struct SharedSurface {
+        virt_addr: u64,
+        total_pixels: usize,
+    }
+
+    fn wait_shared_attach_ack(kagami_tid: u64, window_id: u32) -> Result<(), &'static str> {
+        let mut recv = [0u8; IPC_BUF_SIZE];
+        for _ in 0..256 {
+            let (sender, len) = ipc_recv(&mut recv);
+            if sender != kagami_tid || len < 8 {
+                yield_now();
+                continue;
+            }
+            let op = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
+            if op != OP_RES_SHARED_ATTACHED {
+                continue;
+            }
+            let ack_window = u32::from_le_bytes([recv[4], recv[5], recv[6], recv[7]]);
+            if ack_window == window_id {
+                return Ok(());
+            }
+        }
+        Err("shared attach ack timeout")
+    }
+
+    fn setup_shared_surface(
+        kagami_tid: u64,
+        window_id: u32,
+        width: u16,
+        height: u16,
+    ) -> Result<SharedSurface, &'static str> {
+        let total = width as usize * height as usize;
+        let total_bytes = total.checked_mul(4).ok_or("size overflow")?;
+        let page_count = total_bytes.div_ceil(4096);
+        if page_count == 0 {
+            return Err("shared surface page count out of range");
+        }
+
+        let mut phys_pages = vec![0u64; page_count];
+        let virt_addr = unsafe {
+            privileged::alloc_shared_pages(page_count as u64, Some(phys_pages.as_mut_slice()), 0)
+        };
+        if (virt_addr as i64) < 0 || virt_addr == 0 {
+            return Err("alloc_shared_pages failed");
+        }
+        if phys_pages.iter().all(|&x| x == 0) {
+            return Err("alloc_shared_pages returned zeroed phys pages");
+        }
+
+        let mut attach = [0u8; 12];
+        attach[0..4].copy_from_slice(&OP_REQ_ATTACH_SHARED.to_le_bytes());
+        attach[4..8].copy_from_slice(&window_id.to_le_bytes());
+        attach[8..10].copy_from_slice(&width.to_le_bytes());
+        attach[10..12].copy_from_slice(&height.to_le_bytes());
+        if (ipc_send(kagami_tid, &attach) as i64) < 0 {
+            return Err("failed to send shared attach");
+        }
+        let send_pages_ret =
+            unsafe { privileged::ipc_send_pages(kagami_tid, phys_pages.as_slice(), 0) };
+        if (send_pages_ret as i64) < 0 {
+            return Err("failed to send shared pages");
+        }
+        wait_shared_attach_ack(kagami_tid, window_id)?;
+        Ok(SharedSurface {
+            virt_addr,
+            total_pixels: total,
+        })
+    }
+
+    fn blit_shared_surface(shared: &SharedSurface, pixels: &[u32]) {
+        let total = shared.total_pixels.min(pixels.len());
+        unsafe {
+            let dst = core::slice::from_raw_parts_mut(shared.virt_addr as *mut u32, total);
+            for i in 0..total {
+                core::ptr::write_volatile(&mut dst[i], pixels[i] | 0xFF00_0000);
+            }
+        }
+    }
+
+    fn present_shared(kagami_tid: u64, window_id: u32) -> Result<(), &'static str> {
+        let mut present = [0u8; 8];
+        present[0..4].copy_from_slice(&OP_REQ_PRESENT_SHARED.to_le_bytes());
+        present[4..8].copy_from_slice(&window_id.to_le_bytes());
+        if (ipc_send(kagami_tid, &present) as i64) < 0 {
+            return Err("send present_shared failed");
+        }
+        Ok(())
+    }
+
+    fn flush_window_chunked(
+        kagami_tid: u64,
+        window_id: u32,
+        width: u16,
+        height: u16,
+        pixels: &[u32],
+    ) -> Result<(), &'static str> {
+        let total = width as usize * height as usize;
+        if pixels.len() < total {
+            return Err("pixel buffer too small");
+        }
+        let chunk_header = 20usize;
+        let max_chunk_pixels = (IPC_BUF_SIZE - chunk_header) / 4;
+        let width_usize = width as usize;
+        let height_usize = height as usize;
+        let chunk_w = width_usize.min(96).max(1);
+        let chunk_h = (max_chunk_pixels / chunk_w).max(1);
+
+        let mut y0 = 0usize;
+        while y0 < height_usize {
+            let h = (height_usize - y0).min(chunk_h);
+            let mut x0 = 0usize;
+            while x0 < width_usize {
+                let w = (width_usize - x0).min(chunk_w);
+                let mut msg = vec![0u8; chunk_header + (w * h * 4)];
+                msg[0..4].copy_from_slice(&OP_REQ_FLUSH_CHUNK.to_le_bytes());
+                msg[4..8].copy_from_slice(&window_id.to_le_bytes());
+                msg[8..10].copy_from_slice(&width.to_le_bytes());
+                msg[10..12].copy_from_slice(&height.to_le_bytes());
+                msg[12..14].copy_from_slice(&(x0 as u16).to_le_bytes());
+                msg[14..16].copy_from_slice(&(y0 as u16).to_le_bytes());
+                msg[16..18].copy_from_slice(&(w as u16).to_le_bytes());
+                msg[18..20].copy_from_slice(&(h as u16).to_le_bytes());
+                let mut off = chunk_header;
+                for row in 0..h {
+                    let src_row = (y0 + row) * width_usize;
+                    for col in 0..w {
+                        msg[off..off + 4].copy_from_slice(
+                            &(pixels[src_row + x0 + col] | 0xFF00_0000).to_le_bytes(),
+                        );
+                        off += 4;
+                    }
+                }
+                if (ipc_send(kagami_tid, &msg) as i64) < 0 {
+                    return Err("send flush chunk failed");
+                }
+                x0 += w;
+            }
+            y0 += h;
+        }
+        Ok(())
+    }
+
+    let kagami_tid = match find_kagami_tid() {
+        Some(tid) => tid,
+        None => return,
+    };
+
+    let (screen_w, screen_h) = match vga::get_info() {
+        Some(info) => (info.width, info.height),
+        None => (800, 600),
+    };
+    let w = app.width.unwrap_or(screen_w.min(720).max(200));
+    let h = app.height.unwrap_or(screen_h.min(520).max(160));
+
+    let window_id = match create_window(kagami_tid, w as u16, h as u16) {
+        Ok(id) => id,
+        Err(_) => return,
+    };
+
+    let shared = setup_shared_surface(kagami_tid, window_id, w as u16, h as u16).ok();
+
+    // Render once (for now). When input/events are wired, this can be re-rendered on demand.
+    let pixels = crate::render_ui_element_to_pixmap_with_asset_root(
+        &app.ui,
+        w,
+        h,
+        app.asset_root.as_deref(),
+    );
+
+    if let Some(shared) = &shared {
+        blit_shared_surface(shared, &pixels);
+        let _ = present_shared(kagami_tid, window_id);
+    } else {
+        let _ = flush_window_chunked(kagami_tid, window_id, w as u16, h as u16, &pixels);
+    }
+
+    // Keep process alive so the window remains visible.
+    loop {
+        time::sleep_ms(16);
     }
 }

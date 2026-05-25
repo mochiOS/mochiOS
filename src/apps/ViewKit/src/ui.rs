@@ -206,28 +206,28 @@ impl From<ComponentBuilder> for UIElement {
 #[macro_export]
 macro_rules! card {
     () => {
-        crate::ui::Card::new()
+        $crate::ui::Card::new()
     };
 }
 
 #[macro_export]
 macro_rules! text {
     ($s:expr) => {
-        crate::ui::Text::new($s)
+        $crate::ui::Text::new($s)
     };
 }
 
 #[macro_export]
 macro_rules! button {
     ($s:expr) => {
-        crate::ui::Button::new($s)
+        $crate::ui::Button::new($s)
     };
 }
 
 #[macro_export]
 macro_rules! bundle {
      ( [ $( $e:expr ),* $(,)? ] ) => {
-         crate::ui::UIElement::Bundle(vec![ $( $e.into() ),* ])
+         $crate::ui::UIElement::Bundle(vec![ $( $e.into() ),* ])
      };
  }
 

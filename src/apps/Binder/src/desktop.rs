@@ -4,9 +4,9 @@ use swiftlib::{
     ipc::{ipc_recv, ipc_send},
     keyboard::read_scancode_tap,
     privileged,
-    process,
     task::{find_process_by_name, yield_now},
     vga,
+    fs,
 };
 use viewkit::{render_component_to_pixmap_with_asset_root_and_boxes, VComponent};
 
@@ -109,8 +109,8 @@ pub fn draw() {
         }
     };
 
-    // Launch Dock (separate app, status layer).
-    launch_dock(kagami_tid);
+    // Build Dock model once (rendered by Binder).
+    let dock_apps = list_app_bundles();
 
     // Build a single example window (no dock / no desktop UI).
     let mut desktop_windows = Vec::new();
@@ -128,7 +128,7 @@ pub fn draw() {
         title: "Window".to_string(),
     });
 
-    let pixels = render_desktop(width as usize, height as usize, 0, &desktop_windows);
+    let pixels = render_desktop(width as usize, height as usize, &dock_apps, &desktop_windows);
 
     let render_res = if let Some(shared) = shared_surface.as_ref() {
         blit_shared_surface(shared, &pixels);
@@ -162,7 +162,12 @@ pub fn draw() {
 }
 
 // Integrate decorations into render flow
-fn render_desktop(width: usize, height: usize, _dock_offset: i32, windows: &[DesktopWindow]) -> Vec<u32> {
+fn render_desktop(
+    width: usize,
+    height: usize,
+    dock_apps: &[(String, Option<String>)],
+    windows: &[DesktopWindow],
+) -> Vec<u32> {
     let mut px: Vec<u32> = render_wallpaper(width, height);
 
     // Draw each window with decorations
@@ -179,7 +184,113 @@ fn render_desktop(width: usize, height: usize, _dock_offset: i32, windows: &[Des
         );
     }
 
+    // Draw dock last (always on top).
+    draw_dock(&mut px, width, height, dock_apps);
+
     px
+}
+
+fn draw_dock(px: &mut [u32], stride: usize, height: usize, apps: &[(String, Option<String>)]) {
+    // Match Dock.app sizing.
+    let icon_w = 40i32;
+    let icon_h = 40i32;
+    let gap = 10i32;
+    let padding = 18i32;
+    let dock_h = 75i32;
+    let content_w = if apps.is_empty() {
+        0
+    } else {
+        (apps.len() as i32) * icon_w + (apps.len() as i32 - 1) * gap
+    };
+    let dock_w = (content_w + padding * 2).max(120);
+    let x = ((stride as i32 - dock_w) / 2).max(0);
+    let y = (height as i32 - dock_h - 16).max(0);
+
+    // semi-transparent white bg over wallpaper
+    fill_rounded_rect(
+        px,
+        stride,
+        x,
+        y,
+        dock_w,
+        dock_h,
+        30,
+        0xE6FF_FFFF, // 90% white
+    );
+    stroke_rounded_rect(px, stride, x, y, dock_w, dock_h, 30, 0x66C8_C8C8);
+
+    let mut ix = x + padding;
+    let iy = y + (dock_h - icon_h) / 2;
+    for (name, _icon) in apps.iter() {
+        fill_rounded_rect(px, stride, ix, iy, icon_w, icon_h, 15, 0xFFD9_D9D9);
+        // Simple label hint: first letter
+        if let Some(ch) = name.trim_end_matches(".app").bytes().next() {
+            draw_text(px, stride, (ix + 14) as usize, (iy + 14) as usize, &String::from_utf8_lossy(&[ch]), 0xFF3A_3F4B);
+        }
+        ix += icon_w + gap;
+    }
+}
+
+fn read_file(path: &str, max_size: usize) -> Option<Vec<u8>> {
+    match fs::read_file_via_fs(path, max_size) {
+        Ok(Some(data)) => Some(data),
+        _ => None,
+    }
+}
+
+fn list_app_bundles() -> Vec<(String, Option<String>)> {
+    let mut apps = Vec::new();
+    let dir_path = "/applications/";
+    match fs::open_via_fs(dir_path) {
+        Ok(fd) => {
+            let mut buf = vec![0u8; 16 * 1024];
+            let n = fs::readdir(fd, &mut buf);
+            fs::close_via_fs(fd);
+            if n == 0 || n > buf.len() as u64 {
+                return apps;
+            }
+            let text = match core::str::from_utf8(&buf[..n as usize]) {
+                Ok(t) => t,
+                Err(_) => return apps,
+            };
+            for line in text.lines() {
+                let name_str = line.trim();
+                if name_str.is_empty() || !name_str.ends_with(".app") {
+                    continue;
+                }
+                let app_path = format!("{}{}", dir_path, name_str);
+                let about_toml_path = format!("{}/about.toml", app_path);
+                let icon = read_icon_from_about_toml(&about_toml_path);
+                apps.push((name_str.to_string(), icon));
+            }
+        }
+        Err(_) => {}
+    }
+    apps.sort_by(|a, b| a.0.cmp(&b.0));
+    apps
+}
+
+fn read_icon_from_about_toml(path: &str) -> Option<String> {
+    let contents = read_file(path, 8192)?;
+    let text = String::from_utf8(contents).ok()?;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with("icon") && line.contains('=') {
+            if let Some(value) = line.split('=').nth(1) {
+                let value = value.trim().trim_matches(|c| c == '"' || c == '\'' || c == ' ');
+                if !value.is_empty() {
+                    if value.starts_with('/') {
+                        return Some(value.to_string());
+                    }
+                    if let Some((base, _)) = path.rsplit_once('/') {
+                        return Some(format!("{}/{}", base, value));
+                    }
+                    return Some(value.to_string());
+                }
+            }
+        }
+    }
+    None
 }
 
 fn render_wallpaper(width: usize, height: usize) -> Vec<u32> {
@@ -403,9 +514,10 @@ fn redraw_desktop(
     width: u16,
     height: u16,
     shared_surface: Option<&SharedSurface>,
+    dock_apps: &[(String, Option<String>)],
     windows: &[DesktopWindow],
 ) {
-    let pixels = render_desktop(width as usize, height as usize, 0, windows);
+    let pixels = render_desktop(width as usize, height as usize, dock_apps, windows);
 
     if let Some(shared) = shared_surface {
         blit_shared_surface(shared, &pixels);
@@ -807,13 +919,4 @@ fn find_kagami_tid() -> Option<u64> {
     None
 }
 
-fn launch_dock(kagami_tid: u64) {
-    let arg_tid = format!("--kagami-tid={}", kagami_tid);
-    let args = [arg_tid.as_str()];
-    match process::exec_with_args("/applications/Dock.app/entry.elf", &args) {
-        Ok(pid) => println!("[Binder] launched Dock pid={}", pid),
-        Err(_) => {
-            eprintln!("[Binder] failed to launch Dock");
-        }
-    }
-}
+// Dock is rendered by Binder directly for now.

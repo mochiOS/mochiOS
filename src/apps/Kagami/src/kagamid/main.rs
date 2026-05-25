@@ -21,6 +21,12 @@ struct Window {
     shared_bytes: usize,
 }
 
+fn is_status_like_window(w: &Window) -> bool {
+    // Heuristic: Dock/status bars are short.
+    // Keep this in the compositor until a richer windowing protocol exists.
+    w.height <= 90
+}
+
 fn is_e_make(scancode: u8) -> bool {
     // PS/2 Set 1 make code: 'e' = 0x12
     scancode == 0x12
@@ -133,9 +139,22 @@ fn main() {
                     let id = next_window_id;
                     next_window_id = next_window_id.wrapping_add(1).max(1);
 
-                    // Simple placement: cascade.
-                    let x = 40 + (id as i32 * 24) % 200;
-                    let y = 60 + (id as i32 * 18) % 160;
+                    // Placement:
+                    // - Fullscreen clients (Binder desktop) go to (0, 0).
+                    // - Status-like short windows (Dock) go bottom-center.
+                    // - Others: simple cascade.
+                    let (x, y) = if width as u32 == info.width && height as u32 == info.height {
+                        (0, 0)
+                    } else if height <= 90 {
+                        let cx = ((info.width as i32 - width as i32) / 2).max(0);
+                        let cy = (info.height as i32 - height as i32 - 16).max(0);
+                        (cx, cy)
+                    } else {
+                        (
+                            40 + (id as i32 * 24) % 200,
+                            60 + (id as i32 * 18) % 160,
+                        )
+                    };
                     let pixels = vec![0u32; (width as usize).saturating_mul(height as usize)];
                     windows.push(Window {
                         id,
@@ -199,7 +218,7 @@ fn main() {
                                 core::ptr::write_volatile(px, background);
                             }
                         }
-                        windows.sort_by_key(|w| w.layer);
+                        windows.sort_by_key(|w| (is_status_like_window(w) as u8, w.layer));
                         for w in windows.iter() {
                             blit_window(
                                 fb_ptr,
@@ -235,7 +254,7 @@ fn main() {
                                 core::ptr::write_volatile(px, background);
                             }
                         }
-                        windows.sort_by_key(|w| w.layer);
+                        windows.sort_by_key(|w| (is_status_like_window(w) as u8, w.layer));
                         for w in windows.iter() {
                             blit_window(
                                 fb_ptr,

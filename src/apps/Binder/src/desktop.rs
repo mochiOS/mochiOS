@@ -109,6 +109,9 @@ pub fn draw() {
         }
     };
 
+    // Launch Dock (separate app, status layer).
+    launch_dock(kagami_tid);
+
     // Build a single example window (no dock / no desktop UI).
     let mut desktop_windows = Vec::new();
     let width = width_u16 as i32;
@@ -160,8 +163,7 @@ pub fn draw() {
 
 // Integrate decorations into render flow
 fn render_desktop(width: usize, height: usize, _dock_offset: i32, windows: &[DesktopWindow]) -> Vec<u32> {
-    // Plain background; keep demo focused on window rendering.
-    let mut px: Vec<u32> = vec![0xFF0B_0E14; width.saturating_mul(height)];
+    let mut px: Vec<u32> = render_wallpaper(width, height);
 
     // Draw each window with decorations
     for win in windows {
@@ -178,6 +180,51 @@ fn render_desktop(width: usize, height: usize, _dock_offset: i32, windows: &[Des
     }
 
     px
+}
+
+fn render_wallpaper(width: usize, height: usize) -> Vec<u32> {
+    static WALLPAPER_RGBA: OnceLock<(Vec<u8>, u32, u32)> = OnceLock::new();
+    let (src_rgba, sw, sh) = WALLPAPER_RGBA.get_or_init(|| {
+        let data = include_bytes!("../assets/wallpapers/Light-Default.png");
+        let img = image::load_from_memory(data)
+            .unwrap_or_else(|_| image::DynamicImage::new_rgba8(1, 1))
+            .to_rgba8();
+        let (w, h) = img.dimensions();
+        (img.into_raw(), w.max(1), h.max(1))
+    });
+
+    let mut dst = vec![0u32; width.saturating_mul(height)];
+    if width == 0 || height == 0 {
+        return dst;
+    }
+
+    // Cover scale: fill the entire screen, cropping as needed.
+    let scale = (width as f32 / *sw as f32).max(height as f32 / *sh as f32);
+    let scaled_w = *sw as f32 * scale;
+    let scaled_h = *sh as f32 * scale;
+    let off_x = (width as f32 - scaled_w) * 0.5;
+    let off_y = (height as f32 - scaled_h) * 0.5;
+
+    for dy in 0..height {
+        for dx in 0..width {
+            let sx_f = (dx as f32 - off_x) / scale;
+            let sy_f = (dy as f32 - off_y) / scale;
+            let sx = sx_f.floor() as i32;
+            let sy = sy_f.floor() as i32;
+            let sx = sx.clamp(0, *sw as i32 - 1) as u32;
+            let sy = sy.clamp(0, *sh as i32 - 1) as u32;
+            let si = (sy as usize * *sw as usize + sx as usize) * 4;
+            let di = dy * width + dx;
+            if si + 3 < src_rgba.len() && di < dst.len() {
+                let r = src_rgba[si] as u32;
+                let g = src_rgba[si + 1] as u32;
+                let b = src_rgba[si + 2] as u32;
+                // wallpaper is treated as opaque in compositor path
+                dst[di] = 0xFF00_0000 | (r << 16) | (g << 8) | b;
+            }
+        }
+    }
+    dst
 }
 
 fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
@@ -203,17 +250,8 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
         ],
     );
 
-    // Kagami currently does not alpha blend.
-    // Replace fully-transparent pixels with the desktop background color, and clamp others to opaque.
-    const DESKTOP_BG: u32 = 0xFF0B_0E14;
-    for p in pixels.iter_mut() {
-        let a = (*p >> 24) as u8;
-        if a == 0 {
-            *p = DESKTOP_BG;
-        } else {
-            *p = (*p & 0x00FF_FFFF) | 0xFF00_0000;
-        }
-    }
+    // Keep alpha so the desktop compositor (Binder) can blend rounded corners
+    // over the wallpaper. (Kagami does not alpha blend, so Binder must.)
 
     if let Some((x, y, w, h)) = boxes.get("appwindow-content").copied() {
         // Placeholder "client content" until real surface composition is wired.
@@ -315,7 +353,32 @@ fn blit_pixmap(
             if src_idx >= src.len() {
                 continue;
             }
-            dst[dy * dst_stride + dx] = src[src_idx];
+            let spx = src[src_idx];
+            let sa = (spx >> 24) as u8;
+            if sa == 0 {
+                continue;
+            }
+            let di = dy * dst_stride + dx;
+            if di >= dst.len() {
+                continue;
+            }
+            if sa == 255 {
+                dst[di] = spx | 0xFF00_0000;
+                continue;
+            }
+            // tiny-skia outputs premultiplied alpha.
+            let dpx = dst[di];
+            let inv = 255u32 - sa as u32;
+            let sr = ((spx >> 16) & 0xFF) as u32;
+            let sg = ((spx >> 8) & 0xFF) as u32;
+            let sb = (spx & 0xFF) as u32;
+            let dr = ((dpx >> 16) & 0xFF) as u32;
+            let dg = ((dpx >> 8) & 0xFF) as u32;
+            let db = (dpx & 0xFF) as u32;
+            let r = (sr + (dr * inv) / 255).min(255);
+            let g = (sg + (dg * inv) / 255).min(255);
+            let b = (sb + (db * inv) / 255).min(255);
+            dst[di] = 0xFF00_0000 | (r << 16) | (g << 8) | b;
         }
     }
 }

@@ -156,6 +156,7 @@ dependencies = [
 name = "binder"
 version = "0.1.0"
 dependencies = [
+ "image",
  "memmap2",
  "swiftlib",
  "tempfile",

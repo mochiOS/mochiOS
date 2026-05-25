@@ -2,10 +2,12 @@
 
 pub mod app;
 pub mod backend;
+pub mod ipc_proto;
 mod ffi;
 pub mod pipeline;
 pub mod ui;
 pub mod vcomponent;
+pub mod window;
 pub mod components;
 pub use viewkit_macros::components;
 
@@ -16,3 +18,4 @@ pub use vcomponent::{
 };
 
 pub use app::App;
+pub use window::Window;

@@ -16,6 +16,7 @@ pub struct VComponent {
     height: Option<u32>,
     label: Option<String>,
     image: Option<String>,
+    root_class: Option<String>,
     children: Vec<VComponent>,
 }
 
@@ -47,8 +48,25 @@ impl VComponent {
         self
     }
 
+    pub fn text<T: Into<String>>(self, s: T) -> Self {
+        self.label(s.into())
+    }
+
+    pub fn class<T: Into<String>>(mut self, class: T) -> Self {
+        self.root_class = Some(class.into());
+        self
+    }
+
     pub fn child(mut self, c: VComponent) -> Self {
         self.children.push(c);
+        self
+    }
+
+    pub fn children<I>(mut self, children: I) -> Self
+    where
+        I: IntoIterator<Item = VComponent>,
+    {
+        self.children.extend(children);
         self
     }
 }
@@ -316,11 +334,39 @@ fn render_component_impl(
 
     let class_styles = parse_class_css_rules(&css);
 
-    let root = parse_html_fragment(&html);
+    let mut root = parse_html_fragment(&html);
+    if let Some(cls) = component.root_class.as_deref() {
+        apply_root_class(&mut root, cls);
+    }
 
     let render_tree = build_render_tree(ctx, &class_styles, &root, component);
 
     layout_and_paint(ctx, pixmap, &render_tree, x, y, w, h, capture_classes)
+}
+
+fn apply_root_class(node: &mut HtmlNode, extra_class: &str) {
+    let Some(extra_class) = extra_class.split_whitespace().next() else {
+        return;
+    };
+    if extra_class.is_empty() {
+        return;
+    }
+    match node {
+        HtmlNode::Element(el) => {
+            let key = "class".to_string();
+            let cur = el.attrs.get("class").cloned().unwrap_or_default();
+            if cur.split_whitespace().any(|c| c == extra_class) {
+                return;
+            }
+            let next = if cur.is_empty() {
+                extra_class.to_string()
+            } else {
+                format!("{} {}", cur, extra_class)
+            };
+            el.attrs.insert(key, next);
+        }
+        HtmlNode::Text(_) => {}
+    }
 }
 
 #[derive(Clone, Debug)]

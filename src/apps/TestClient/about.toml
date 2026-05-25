@@ -1,7 +1,0 @@
-name = "TestClient"
-bundle_id = "com.mochi.testclient"
-version = "0.1.0"
-developer = "tas0dev"
-entry = "entry.elf"
-description = "Kagami example test client"
-

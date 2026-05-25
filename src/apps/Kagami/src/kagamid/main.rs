@@ -133,9 +133,30 @@ fn main() {
                     let id = next_window_id;
                     next_window_id = next_window_id.wrapping_add(1).max(1);
 
-                    // Simple placement: cascade.
-                    let x = 40 + (id as i32 * 24) % 200;
-                    let y = 60 + (id as i32 * 18) % 160;
+                    // Placement:
+                    // - Fullscreen clients (Binder desktop) go to (0, 0).
+                    //   Some clients may use framebuffer stride as width, so accept that too.
+                    // - Status layer (Dock) goes bottom-center.
+                    // - Others: simple cascade.
+                    let is_fullscreen = (width as u32 == info.width || width as u32 == info.stride)
+                        && height as u32 == info.height;
+                    let is_dock = layer >= 3 || (layer >= 2 && height == 75);
+                    let (x, y) = if is_fullscreen {
+                        (0, 0)
+                    } else if is_dock {
+                        let cx = ((info.width as i32 - width as i32) / 2).max(0);
+                        let cy = (info.height as i32 - height as i32 - 16).max(0);
+                        (cx, cy)
+                    } else {
+                        (
+                            40 + (id as i32 * 24) % 200,
+                            60 + (id as i32 * 18) % 160,
+                        )
+                    };
+                    println!(
+                        "[Kagami] create_window id={} w={} h={} layer={} -> ({},{})",
+                        id, width, height, layer, x, y
+                    );
                     let pixels = vec![0u32; (width as usize).saturating_mul(height as usize)];
                     windows.push(Window {
                         id,

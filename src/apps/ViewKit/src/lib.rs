@@ -14,7 +14,7 @@ pub use viewkit_macros::components;
 pub use vcomponent::{
     render_component_to_pixmap, render_component_to_pixmap_with_asset_root,
     render_component_to_pixmap_with_asset_root_and_boxes, render_ui_element_to_pixmap,
-    render_ui_element_to_pixmap_with_asset_root, VComponent,
+    render_ui_element_to_pixmap_with_asset_root, measure_component_boxes, VComponent,
 };
 
 pub use app::App;

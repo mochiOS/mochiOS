@@ -191,6 +191,29 @@ pub fn render_component_to_pixmap_with_asset_root_and_boxes(
     (out, boxes)
 }
 
+pub fn measure_component_boxes(
+    component: &VComponent,
+    width: u32,
+    height: u32,
+    asset_root: Option<&str>,
+    capture_classes: &[&str],
+) -> HashMap<String, (u32, u32, u32, u32)> {
+    let mut pixmap = Pixmap::new(width, height).expect("pixmap");
+    pixmap.fill(Color::from_rgba8(0, 0, 0, 0));
+
+    let ctx = RenderContext::new(asset_root);
+    render_component_impl(
+        &ctx,
+        &mut pixmap,
+        component,
+        0.0,
+        0.0,
+        width as f32,
+        height as f32,
+        capture_classes,
+    )
+}
+
 struct RenderContext {
     asset_root: Option<String>,
     font: BitmapFont,
@@ -351,21 +374,18 @@ fn apply_root_class(node: &mut HtmlNode, extra_class: &str) {
     if extra_class.is_empty() {
         return;
     }
-    match node {
-        HtmlNode::Element(el) => {
-            let key = "class".to_string();
-            let cur = el.attrs.get("class").cloned().unwrap_or_default();
-            if cur.split_whitespace().any(|c| c == extra_class) {
-                return;
-            }
-            let next = if cur.is_empty() {
-                extra_class.to_string()
-            } else {
-                format!("{} {}", cur, extra_class)
-            };
-            el.attrs.insert(key, next);
+    if let HtmlNode::Element(el) = node {
+        let key = "class".to_string();
+        let cur = el.attrs.get("class").cloned().unwrap_or_default();
+        if cur.split_whitespace().any(|c| c == extra_class) {
+            return;
         }
-        HtmlNode::Text(_) => {}
+        let next = if cur.is_empty() {
+            extra_class.to_string()
+        } else {
+            format!("{} {}", cur, extra_class)
+        };
+        el.attrs.insert(key, next);
     }
 }
 

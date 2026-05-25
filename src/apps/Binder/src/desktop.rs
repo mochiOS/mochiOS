@@ -195,7 +195,12 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
         win.width as u32,
         win.height as u32,
         asset_root.as_deref(),
-        &["appwindow-content", "appwindow-control-buttons", "appwindow-title"],
+        &[
+            "appwindow-content",
+            "appwindow-control-buttons",
+            "appwindow-title",
+            "appwindow-control-button",
+        ],
     );
 
     // Kagami currently does not alpha blend.
@@ -230,6 +235,9 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
         }
         if let Some((x, y, w, h)) = boxes.get("appwindow-title").copied() {
             stroke_rect(&mut pixels, win.width as usize, x as i32, y as i32, w as i32, h as i32, 0xFF00FF00);
+        }
+        if let Some((x, y, w, h)) = boxes.get("appwindow-control-button").copied() {
+            stroke_rect(&mut pixels, win.width as usize, x as i32, y as i32, w as i32, h as i32, 0xFF3399FF);
         }
     }
 

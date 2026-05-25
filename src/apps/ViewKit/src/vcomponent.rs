@@ -878,16 +878,23 @@ fn capture_boxes(
     capture_classes: &[&str],
     out: &mut HashMap<String, (u32, u32, u32, u32)>,
 ) {
+    let (bx, by, _bw, _bh) = match &layout.layout_boxes {
+        ui_layout::LayoutBoxes::Single(b) => (b.border_box.x, b.border_box.y, b.border_box.width, b.border_box.height),
+        _ => (0.0, 0.0, 0.0, 0.0),
+    };
+    let ox = ox + bx;
+    let oy = oy + by;
+
     if let RenderNodeKind::Element { class: Some(class), .. } = &node.kind {
         if capture_classes.iter().any(|t| *t == class.as_str()) && !out.contains_key(class) {
-            let (bx, by, bw, bh) = match &layout.layout_boxes {
+            let (_bx, _by, bw, bh) = match &layout.layout_boxes {
                 ui_layout::LayoutBoxes::Single(b) => {
                     (b.border_box.x, b.border_box.y, b.border_box.width, b.border_box.height)
                 }
                 _ => (0.0, 0.0, 0.0, 0.0),
             };
-            let x = (ox + bx).max(0.0) as u32;
-            let y = (oy + by).max(0.0) as u32;
+            let x = ox.max(0.0) as u32;
+            let y = oy.max(0.0) as u32;
             let w = bw.max(0.0) as u32;
             let h = bh.max(0.0) as u32;
             out.insert(class.clone(), (x, y, w, h));
@@ -1002,7 +1009,7 @@ fn paint_from_layout(
         if idx >= node.children.len() {
             break;
         }
-        paint_from_layout(ctx, pixmap, &node.children[idx], child_layout, ox, oy);
+        paint_from_layout(ctx, pixmap, &node.children[idx], child_layout, x, y);
         idx += 1;
     }
 }

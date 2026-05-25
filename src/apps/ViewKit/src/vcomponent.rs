@@ -289,6 +289,7 @@ struct ComputedStyle {
     bg: Option<u32>,
     border_radius: f32,
     text_align_center: bool,
+    text_align_explicit: bool,
     padding: (f32, f32, f32, f32),
 }
 
@@ -460,107 +461,139 @@ fn build_render_tree(
     node: &HtmlNode,
     component: &VComponent,
 ) -> RenderNode {
-    fn inline_text_style() -> ComputedStyle {
+    fn inline_text_style(inherited_text_align_center: bool) -> ComputedStyle {
         let mut s = ComputedStyle::default();
-        s.layout.display = Display::Inline;
+        // Treat text nodes as block-level boxes so `text-align` can be emulated
+        // by centering within the text node's own layout width.
+        s.layout.display = Display::Block;
+        s.text_align_center = inherited_text_align_center;
         s
     }
 
-    // Handle special tags
-    if let HtmlNode::Element(el) = node {
-        let tag_lower = el.tag.to_ascii_lowercase();
-        if tag_lower == "children" {
-            // expand component children
-            let mut kids = Vec::new();
-            for ch in &component.children {
-                let (css, html) = split_style_and_html(&ch.template);
-                let css = css
-                    .replace("CONTENT_W", &format!("{}px", ch.width.unwrap_or(0)))
-                    .replace("CONTENT_H", &format!("{}px", ch.height.unwrap_or(0)));
-                let class_styles_child = parse_class_css_rules(&css);
-                let root = parse_html_fragment(&html);
-                kids.push(build_render_tree(ctx, &class_styles_child, &root, ch));
-            }
-            return RenderNode {
-                kind: RenderNodeKind::Element {
-                    tag: "div".to_string(),
-                    class: None,
-                },
-                style: ComputedStyle::default(),
-                children: kids,
-            };
-        }
-        if tag_lower == "content" {
-            let ty = get_attr(el, "type").unwrap_or_default();
-            if ty.eq_ignore_ascii_case("string") {
+    fn inner(
+        ctx: &RenderContext,
+        class_styles: &HashMap<String, HashMap<String, String>>,
+        node: &HtmlNode,
+        component: &VComponent,
+        inherited_text_align_center: bool,
+    ) -> RenderNode {
+        // Handle special tags
+        if let HtmlNode::Element(el) = node {
+            let tag_lower = el.tag.to_ascii_lowercase();
+            if tag_lower == "children" {
+                // expand component children
+                let mut kids = Vec::new();
+                for ch in &component.children {
+                    let (css, html) = split_style_and_html(&ch.template);
+                    let css = css
+                        .replace("CONTENT_W", &format!("{}px", ch.width.unwrap_or(0)))
+                        .replace("CONTENT_H", &format!("{}px", ch.height.unwrap_or(0)));
+                    let class_styles_child = parse_class_css_rules(&css);
+                    let root = parse_html_fragment(&html);
+                    kids.push(inner(
+                        ctx,
+                        &class_styles_child,
+                        &root,
+                        ch,
+                        inherited_text_align_center,
+                    ));
+                }
                 return RenderNode {
-                    kind: RenderNodeKind::Text {
-                        text: component.label.clone().unwrap_or_default(),
+                    kind: RenderNodeKind::Element {
+                        tag: "div".to_string(),
+                        class: None,
                     },
-                    style: inline_text_style(),
-                    children: vec![],
+                    style: ComputedStyle::default(),
+                    children: kids,
                 };
             }
-            if ty.eq_ignore_ascii_case("image") {
-                if let Some(path) = component.image.clone() {
-                    if let Some(resolved) = ctx.resolve_asset_path(&path) {
-                        let style = compute_style_for_node(el, class_styles);
-                        return RenderNode {
-                            kind: RenderNodeKind::Image { src: resolved },
-                            style,
-                            children: vec![],
-                        };
+            if tag_lower == "content" {
+                let ty = get_attr(el, "type").unwrap_or_default();
+                if ty.eq_ignore_ascii_case("string") {
+                    return RenderNode {
+                        kind: RenderNodeKind::Text {
+                            text: component.label.clone().unwrap_or_default(),
+                        },
+                        style: inline_text_style(inherited_text_align_center),
+                        children: vec![],
+                    };
+                }
+                if ty.eq_ignore_ascii_case("image") {
+                    if let Some(path) = component.image.clone() {
+                        if let Some(resolved) = ctx.resolve_asset_path(&path) {
+                            let style = compute_style_for_node(el, class_styles);
+                            return RenderNode {
+                                kind: RenderNodeKind::Image { src: resolved },
+                                style,
+                                children: vec![],
+                            };
+                        }
                     }
                 }
             }
+            if tag_lower == "img" {
+                let src = get_attr(el, "src").unwrap_or_default();
+                if let Some(resolved) = ctx.resolve_asset_path(&src) {
+                    let style = compute_style_for_node(el, class_styles);
+                    return RenderNode {
+                        kind: RenderNodeKind::Image { src: resolved },
+                        style,
+                        children: vec![],
+                    };
+                }
+            }
         }
-        if tag_lower == "img" {
-            let src = get_attr(el, "src").unwrap_or_default();
-            if let Some(resolved) = ctx.resolve_asset_path(&src) {
-                let style = compute_style_for_node(el, class_styles);
+
+        // Text nodes
+        if let HtmlNode::Text(text) = node {
+            let text = text.trim();
+            if !text.is_empty() {
                 return RenderNode {
-                    kind: RenderNodeKind::Image { src: resolved },
-                    style,
+                    kind: RenderNodeKind::Text {
+                        text: text.to_string(),
+                    },
+                    style: inline_text_style(inherited_text_align_center),
                     children: vec![],
                 };
             }
         }
-    }
 
-    // Text nodes
-    if let HtmlNode::Text(text) = node {
-        let text = text.trim();
-        if !text.is_empty() {
-            return RenderNode {
-                kind: RenderNodeKind::Text {
-                    text: text.to_string(),
-                },
-                style: inline_text_style(),
-                children: vec![],
-            };
+        // Generic element
+        let mut children = Vec::new();
+        let (tag, class, mut style) = match node {
+            HtmlNode::Element(el) => {
+                let style = compute_style_for_node(el, class_styles);
+                (el.tag.clone(), get_attr(el, "class"), style)
+            }
+            HtmlNode::Text(_) => ("div".to_string(), None, ComputedStyle::default()),
+        };
+
+        // Inherit `text-align` like CSS.
+        if !style.text_align_explicit {
+            style.text_align_center = inherited_text_align_center;
+        }
+        let next_inherited_center = style.text_align_center;
+
+        if let HtmlNode::Element(el) = node {
+            for child in &el.children {
+                children.push(inner(
+                    ctx,
+                    class_styles,
+                    child,
+                    component,
+                    next_inherited_center,
+                ));
+            }
+        }
+
+        RenderNode {
+            kind: RenderNodeKind::Element { tag, class },
+            style,
+            children,
         }
     }
 
-    // Generic element
-    let mut children = Vec::new();
-    let (tag, class, style) = match node {
-        HtmlNode::Element(el) => {
-            let style = compute_style_for_node(el, class_styles);
-            (el.tag.clone(), get_attr(el, "class"), style)
-        }
-        HtmlNode::Text(_) => ("div".to_string(), None, ComputedStyle::default()),
-    };
-    if let HtmlNode::Element(el) = node {
-        for child in &el.children {
-            children.push(build_render_tree(ctx, class_styles, child, component));
-        }
-    }
-
-    RenderNode {
-        kind: RenderNodeKind::Element { tag, class },
-        style,
-        children,
-    }
+    inner(ctx, class_styles, node, component, false)
 }
 
 fn parse_class_css_rules(css: &str) -> HashMap<String, HashMap<String, String>> {
@@ -760,6 +793,7 @@ fn compute_style_for_node(
                 }
             }
             "text-align" => {
+                out.text_align_explicit = true;
                 out.text_align_center = v.trim().eq_ignore_ascii_case("center");
             }
             _ => {}
@@ -929,7 +963,13 @@ fn to_layout_node(node: &RenderNode) -> LayoutNode {
     if let RenderNodeKind::Text { text } = &node.kind {
         // 8px monospace-ish glyphs with a small padding.
         let w = (text.bytes().len() as f32) * 8.0;
-        style.size.width = Length::Px(w);
+        // Keep width as `auto` so block layout can stretch it (needed for `text-align: center`),
+        // but provide an intrinsic minimum so flex sizing doesn't collapse it.
+        if matches!(style.size.width, Length::Auto) {
+            style.size.min_width = Length::Px(w);
+        } else {
+            style.size.width = Length::Px(w);
+        }
         style.size.height = Length::Px(FONT_HEIGHT as f32);
     }
 

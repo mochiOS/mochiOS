@@ -736,7 +736,7 @@ fn compute_style_for_node(
 
     for (k, v) in decls {
         match k.as_str() {
-            "background-color" => out.bg = Some(parse_color_hex(v)),
+            "background-color" => out.bg = Some(parse_color(v)),
             "border-radius" => out.border_radius = parse_border_radius(v),
             "display" => {
                 if v.trim().eq_ignore_ascii_case("flex") {
@@ -980,6 +980,62 @@ fn parse_color_hex(s: &str) -> u32 {
     0xFF00_0000u32
 }
 
+fn parse_color(s: &str) -> u32 {
+    let s = s.trim();
+    if let Some(hex) = s.strip_prefix('#') {
+        return parse_color_hex(hex);
+    }
+    let lower = s.to_ascii_lowercase();
+    if let Some(args) = lower.strip_prefix("rgba(").and_then(|x| x.strip_suffix(')')) {
+        return parse_color_rgba_args(args).unwrap_or(0xFF00_0000u32);
+    }
+    if let Some(args) = lower.strip_prefix("rgb(").and_then(|x| x.strip_suffix(')')) {
+        return parse_color_rgb_args(args).unwrap_or(0xFF00_0000u32);
+    }
+    0xFF00_0000u32
+}
+
+fn parse_color_rgb_args(args: &str) -> Option<u32> {
+    let parts: Vec<_> = args.split(',').map(|p| p.trim()).collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    let r = parse_color_u8(parts[0])?;
+    let g = parse_color_u8(parts[1])?;
+    let b = parse_color_u8(parts[2])?;
+    Some(((0xFFu32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32))
+}
+
+fn parse_color_rgba_args(args: &str) -> Option<u32> {
+    let parts: Vec<_> = args.split(',').map(|p| p.trim()).collect();
+    if parts.len() != 4 {
+        return None;
+    }
+    let r = parse_color_u8(parts[0])?;
+    let g = parse_color_u8(parts[1])?;
+    let b = parse_color_u8(parts[2])?;
+    let a = parse_color_alpha(parts[3])?;
+    Some(((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32))
+}
+
+fn parse_color_u8(s: &str) -> Option<u8> {
+    let v = s.trim().parse::<i32>().ok()?;
+    Some(v.clamp(0, 255) as u8)
+}
+
+fn parse_color_alpha(s: &str) -> Option<u8> {
+    let s = s.trim();
+    if let Ok(f) = s.parse::<f32>() {
+        if (0.0..=1.0).contains(&f) {
+            return Some((f * 255.0).round().clamp(0.0, 255.0) as u8);
+        }
+        if (1.0..=255.0).contains(&f) {
+            return Some(f.round().clamp(0.0, 255.0) as u8);
+        }
+    }
+    None
+}
+
 fn layout_and_paint(
     ctx: &RenderContext,
     pixmap: &mut Pixmap,
@@ -1100,10 +1156,11 @@ fn paint_from_layout(
     // Paint background
     if let Some(argb) = node.style.bg {
         let mut paint = Paint::default();
+        let a = ((argb >> 24) & 0xFF) as u8;
         let r = ((argb >> 16) & 0xFF) as u8;
         let g = ((argb >> 8) & 0xFF) as u8;
         let b = (argb & 0xFF) as u8;
-        paint.set_color(Color::from_rgba8(r, g, b, 255));
+        paint.set_color(Color::from_rgba8(r, g, b, a));
         if node.style.border_radius.0 > 0.0
             || node.style.border_radius.1 > 0.0
             || node.style.border_radius.2 > 0.0

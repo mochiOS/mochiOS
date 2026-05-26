@@ -390,7 +390,29 @@ fn blit_window(
                 }
                 let dst_idx = dy * stride + dx;
                 if dst_idx < fb.len() {
-                    core::ptr::write_volatile(&mut fb[dst_idx], pixels[src_idx]);
+                    let spx = pixels[src_idx];
+                    let a = ((spx >> 24) & 0xFF) as u32;
+                    if a == 0 {
+                        continue;
+                    }
+                    if a >= 255 {
+                        core::ptr::write_volatile(&mut fb[dst_idx], spx);
+                        continue;
+                    }
+                    // Alpha blend over current framebuffer pixel.
+                    // Note: tiny-skia outputs premultiplied alpha, so RGB is already scaled by A.
+                    let dpx = fb[dst_idx];
+                    let inv = 255u32 - a;
+                    let sr = ((spx >> 16) & 0xFF) as u32;
+                    let sg = ((spx >> 8) & 0xFF) as u32;
+                    let sb = (spx & 0xFF) as u32;
+                    let dr = ((dpx >> 16) & 0xFF) as u32;
+                    let dg = ((dpx >> 8) & 0xFF) as u32;
+                    let db = (dpx & 0xFF) as u32;
+                    let r = (sr + (dr * inv) / 255).min(255);
+                    let g = (sg + (dg * inv) / 255).min(255);
+                    let b = (sb + (db * inv) / 255).min(255);
+                    core::ptr::write_volatile(&mut fb[dst_idx], 0xFF00_0000 | (r << 16) | (g << 8) | b);
                 }
             }
         }

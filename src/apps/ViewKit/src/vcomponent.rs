@@ -405,6 +405,9 @@ struct HtmlElement {
 #[derive(Clone)]
 enum RenderNodeKind {
     Element { tag: String, class: Option<String> },
+    // A non-rendering node that exists only to splice multiple children into a parent.
+    // Used for `<Children />` expansion so flex containers treat each child as a flex item.
+    Fragment,
     Text { text: String },
     Image { src: String },
 }
@@ -564,12 +567,13 @@ fn build_render_tree(
                         inherited_text_align_center,
                     ));
                 }
+                let mut fragment_style = ComputedStyle::default();
+                fragment_style.layout.display = Display::Block;
+                fragment_style.layout.size.width = Length::Auto;
+                fragment_style.layout.size.height = Length::Auto;
                 return RenderNode {
-                    kind: RenderNodeKind::Element {
-                        tag: "div".to_string(),
-                        class: None,
-                    },
-                    style: ComputedStyle::default(),
+                    kind: RenderNodeKind::Fragment,
+                    style: fragment_style,
                     children: kids,
                 };
             }
@@ -642,13 +646,17 @@ fn build_render_tree(
 
         if let HtmlNode::Element(el) = node {
             for child in &el.children {
-                children.push(inner(
+                let rendered = inner(
                     ctx,
                     class_styles,
                     child,
                     component,
                     next_inherited_center,
-                ));
+                );
+                match rendered.kind {
+                    RenderNodeKind::Fragment => children.extend(rendered.children),
+                    _ => children.push(rendered),
+                }
             }
         }
 
@@ -743,6 +751,12 @@ fn compute_style_for_node(
                     saw_display_flex = true;
                 }
             }
+            "gap" => {
+                if let Some(px) = parse_px(v) {
+                    style.column_gap = Length::Px(px);
+                    style.row_gap = Length::Px(px);
+                }
+            }
             "flex-direction" => {
                 pending_flex_direction = Some(if v.trim().eq_ignore_ascii_case("column") {
                     FlexDirection::Column
@@ -789,6 +803,13 @@ fn compute_style_for_node(
             }
             "padding" => {
                 padding = parse_box_1_2(v);
+            }
+            "box-sizing" => {
+                if v.trim().eq_ignore_ascii_case("border-box") {
+                    style.box_sizing = ui_layout::BoxSizing::BorderBox;
+                } else {
+                    style.box_sizing = ui_layout::BoxSizing::ContentBox;
+                }
             }
             "margin-left" => {
                 let vt = v.trim();

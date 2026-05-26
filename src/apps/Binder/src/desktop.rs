@@ -576,28 +576,6 @@ fn setup_shared_surface(
         return Err("shared surface page count out of range");
     }
 
-    println!("[Binder] setup_shared_surface: requesting {} pages", page_count);
-    let mut phys_pages = vec![0u64; page_count];
-    let virt_addr = unsafe {
-        privileged::alloc_shared_pages(page_count as u64, Some(phys_pages.as_mut_slice()), 0)
-    };
-    println!("[Binder] alloc_shared_pages -> virt={:#x}", virt_addr);
-    if (virt_addr as i64) < 0 || virt_addr == 0 {
-        println!("[Binder] alloc_shared_pages failed -> {}", virt_addr as i64);
-        return Err("alloc_shared_pages failed");
-    }
-
-    // Log physical pages allocated
-    println!("[Binder] phys_pages (first 8):");
-    for i in 0..(phys_pages.len().min(8)) {
-        println!("  [{}] = {:#x}", i, phys_pages[i]);
-    }
-    let all_zero = phys_pages.iter().all(|&x| x == 0);
-    if all_zero {
-        println!("[Binder] Warning: phys_pages all zero after alloc_shared_pages");
-        return Err("alloc_shared_pages returned zeroed phys pages");
-    }
-
     let mut attach = [0u8; 12];
     attach[0..4].copy_from_slice(&OP_REQ_ATTACH_SHARED.to_le_bytes());
     attach[4..8].copy_from_slice(&window_id.to_le_bytes());
@@ -609,13 +587,10 @@ fn setup_shared_surface(
         return Err("failed to send shared attach");
     }
     println!("[Binder] ipc_send attach ok");
-    println!("[Binder] sending pages to kagami tid={}", kagami_tid);
-    let send_pages_ret = unsafe { privileged::ipc_send_pages(kagami_tid, phys_pages.as_slice(), 0) };
-    println!("[Binder] ipc_send_pages ret {}", send_pages_ret as i64);
-    if (send_pages_ret as i64) < 0 {
-        println!("[Binder] ipc_send_pages failed");
-        return Err("failed to send shared pages");
-    }
+    // Kagami allocates pages and sends them to us (wl_shm-like).
+    // The kernel will deliver a 20-byte MAP_HEADER_MAGIC message with the mapped address.
+    let virt_addr = wait_shared_map_header(kagami_tid)?;
+    println!("[Binder] shared map header received virt={:#x}", virt_addr);
     println!("[Binder] waiting for shared attach ack");
     wait_shared_attach_ack(kagami_tid, window_id)?;
     println!("[Binder] shared attach ack received");
@@ -647,6 +622,28 @@ fn blit_shared_surface(surface: &SharedSurface, pixels: &[u32]) {
             *d = *s | 0xFF00_0000;
         }
     }
+}
+
+fn wait_shared_map_header(kagami_tid: u64) -> Result<u64, &'static str> {
+    const MAP_HEADER_MAGIC: u32 = 0xABCD_DCBA;
+    let mut recv = [0u8; IPC_BUF_SIZE];
+    for _ in 0..512 {
+        let (sender, len) = ipc_recv(&mut recv);
+        if sender != kagami_tid || len != 20 {
+            yield_now();
+            continue;
+        }
+        let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
+        if magic != MAP_HEADER_MAGIC {
+            continue;
+        }
+        let map_start = u64::from_le_bytes([
+            recv[4], recv[5], recv[6], recv[7], recv[8], recv[9], recv[10], recv[11],
+        ]);
+        // total bytes in recv[12..20] is ignored here; we already sized our blit by page_count.
+        return Ok(map_start);
+    }
+    Err("shared map header timeout")
 }
 
 fn wait_shared_attach_ack(kagami_tid: u64, window_id: u32) -> Result<(), &'static str> {

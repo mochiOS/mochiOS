@@ -10,6 +10,9 @@ use swiftlib::{
 const KAGAMI_PROCESS_CANDIDATES: [&str; 3] =
     ["/applications/Kagami.app/entry.elf", "Kagami.app", "entry.elf"];
 
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+const IPC_BUF_SIZE: usize = 4128;
+
 /// A small Kagami window client for UI apps.
 pub struct Window {
     #[cfg(all(target_os = "linux", target_env = "musl"))]
@@ -20,6 +23,8 @@ pub struct Window {
     width: u16,
     #[cfg(all(target_os = "linux", target_env = "musl"))]
     height: u16,
+    #[cfg(all(target_os = "linux", target_env = "musl"))]
+    shared: Option<SharedSurface>,
 }
 
 impl Window {
@@ -28,11 +33,13 @@ impl Window {
         {
             let kagami_tid = find_kagami_tid().ok_or("Kagami not found")?;
             let window_id = create_window(kagami_tid, width, height, layer)?;
+            let shared = setup_shared_surface(kagami_tid, window_id, width, height).ok();
             Ok(Self {
                 kagami_tid,
                 window_id,
                 width,
                 height,
+                shared,
             })
         }
         #[cfg(not(all(target_os = "linux", target_env = "musl")))]
@@ -60,13 +67,19 @@ impl Window {
             if pixels.len() < total {
                 return Err("pixel buffer too small");
             }
-            flush_window_chunked(
-                self.kagami_tid,
-                self.window_id,
-                self.width,
-                self.height,
-                pixels,
-            )
+            // Prefer shared-memory present when available; fall back to chunked IPC.
+            if let Some(shared) = self.shared.as_mut() {
+                blit_shared(shared, pixels);
+                present_shared(self.kagami_tid, self.window_id)
+            } else {
+                flush_window_chunked(
+                    self.kagami_tid,
+                    self.window_id,
+                    self.width,
+                    self.height,
+                    pixels,
+                )
+            }
         }
         #[cfg(not(all(target_os = "linux", target_env = "musl")))]
         {
@@ -74,6 +87,15 @@ impl Window {
             Err("Window is only supported on mochiOS target")
         }
     }
+}
+
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+const MAP_HEADER_MAGIC: u32 = 0xABCD_DCBA;
+
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+struct SharedSurface {
+    virt_addr: u64,
+    mapped_bytes: usize,
 }
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
@@ -115,6 +137,97 @@ fn create_window(kagami_tid: u64, width: u16, height: u16, layer: u8) -> Result<
 }
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
+fn setup_shared_surface(
+    kagami_tid: u64,
+    window_id: u32,
+    width: u16,
+    height: u16,
+) -> Result<SharedSurface, &'static str> {
+    let mut req = [0u8; 12];
+    req[0..4].copy_from_slice(&OP_REQ_ATTACH_SHARED.to_le_bytes());
+    req[4..8].copy_from_slice(&window_id.to_le_bytes());
+    req[8..10].copy_from_slice(&width.to_le_bytes());
+    req[10..12].copy_from_slice(&height.to_le_bytes());
+    if (ipc_send(kagami_tid, &req) as i64) < 0 {
+        return Err("send attach_shared failed");
+    }
+
+    // Wait for kernel map header delivering the mapped address.
+    let mut recv = [0u8; 64];
+    for _ in 0..512 {
+        let (sender, len) = ipc_recv(&mut recv);
+        if sender == 0 || len == 0 {
+            yield_now();
+            continue;
+        }
+        if len as usize != 20 {
+            continue;
+        }
+        let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
+        if magic != MAP_HEADER_MAGIC {
+            continue;
+        }
+        if sender != kagami_tid {
+            // Pages should come from Kagami.
+            continue;
+        }
+        let map_start = u64::from_le_bytes([
+            recv[4], recv[5], recv[6], recv[7], recv[8], recv[9], recv[10], recv[11],
+        ]);
+        let total = u64::from_le_bytes([
+            recv[12], recv[13], recv[14], recv[15], recv[16], recv[17], recv[18], recv[19],
+        ]) as usize;
+
+        // Wait for Kagami's explicit attach ack so we know it recorded the mapping.
+        let mut ack_buf = [0u8; 64];
+        for _ in 0..256 {
+            let (s2, l2) = ipc_recv(&mut ack_buf);
+            if s2 != kagami_tid || l2 < 8 {
+                yield_now();
+                continue;
+            }
+            let op = u32::from_le_bytes([ack_buf[0], ack_buf[1], ack_buf[2], ack_buf[3]]);
+            if op != OP_RES_SHARED_ATTACHED {
+                continue;
+            }
+            let ack_window = u32::from_le_bytes([ack_buf[4], ack_buf[5], ack_buf[6], ack_buf[7]]);
+            if ack_window == window_id {
+                return Ok(SharedSurface {
+                    virt_addr: map_start,
+                    mapped_bytes: total,
+                });
+            }
+        }
+        return Err("shared attach ack timeout");
+    }
+    Err("shared map header timeout")
+}
+
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+fn blit_shared(shared: &mut SharedSurface, pixels: &[u32]) {
+    let max = shared.mapped_bytes / 4;
+    let count = max.min(pixels.len());
+    if count == 0 {
+        return;
+    }
+    unsafe {
+        let dst = core::slice::from_raw_parts_mut(shared.virt_addr as *mut u32, count);
+        dst.copy_from_slice(&pixels[..count]);
+    }
+}
+
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+fn present_shared(kagami_tid: u64, window_id: u32) -> Result<(), &'static str> {
+    let mut req = [0u8; 8];
+    req[0..4].copy_from_slice(&OP_REQ_PRESENT_SHARED.to_le_bytes());
+    req[4..8].copy_from_slice(&window_id.to_le_bytes());
+    if (ipc_send(kagami_tid, &req) as i64) < 0 {
+        return Err("send present_shared failed");
+    }
+    Ok(())
+}
+
+#[cfg(all(target_os = "linux", target_env = "musl"))]
 fn flush_window_chunked(
     kagami_tid: u64,
     window_id: u32,
@@ -122,11 +235,19 @@ fn flush_window_chunked(
     height: u16,
     pixels: &[u32],
 ) -> Result<(), &'static str> {
-    // Use modest chunks to keep IPC messages under size limit.
-    let chunk_w = 64usize;
-    let chunk_h = 64usize;
+    let total = width as usize * height as usize;
+    if pixels.len() < total {
+        return Err("pixel buffer too small");
+    }
+
+    // Keep IPC messages under Kagami's fixed buffer size.
+    let chunk_header = 20usize;
+    let max_chunk_pixels = (IPC_BUF_SIZE - chunk_header) / 4;
     let w = width as usize;
     let h = height as usize;
+    let chunk_w = w.min(96).max(1);
+    let chunk_h = (max_chunk_pixels / chunk_w).max(1);
+
     let mut y0 = 0usize;
     while y0 < h {
         let hh = (h - y0).min(chunk_h);
@@ -134,9 +255,11 @@ fn flush_window_chunked(
         while x0 < w {
             let ww = (w - x0).min(chunk_w);
 
-            let mut msg = vec![0u8; 20 + ww * hh * 4];
+            let mut msg = vec![0u8; chunk_header + ww * hh * 4];
             msg[0..4].copy_from_slice(&OP_REQ_FLUSH_CHUNK.to_le_bytes());
             msg[4..8].copy_from_slice(&window_id.to_le_bytes());
+            msg[8..10].copy_from_slice(&width.to_le_bytes());
+            msg[10..12].copy_from_slice(&height.to_le_bytes());
             msg[12..14].copy_from_slice(&(x0 as u16).to_le_bytes());
             msg[14..16].copy_from_slice(&(y0 as u16).to_le_bytes());
             msg[16..18].copy_from_slice(&(ww as u16).to_le_bytes());
@@ -144,7 +267,7 @@ fn flush_window_chunked(
 
             for row in 0..hh {
                 let src_row = (y0 + row) * w;
-                let dst_row = 20 + row * ww * 4;
+                let dst_row = chunk_header + row * ww * 4;
                 for col in 0..ww {
                     let p = pixels[src_row + x0 + col].to_le_bytes();
                     let off = dst_row + col * 4;

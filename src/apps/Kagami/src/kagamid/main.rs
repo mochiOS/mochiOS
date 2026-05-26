@@ -1,4 +1,4 @@
-use swiftlib::{ipc::ipc_recv, keyboard, process, time, vga};
+use swiftlib::{ipc::ipc_recv, keyboard, privileged, process, time, vga};
 
 const IPC_BUF_SIZE: usize = 4128;
 const OP_REQ_CREATE_WINDOW: u32 = 1;
@@ -242,7 +242,41 @@ fn main() {
                     let window_id = u32::from_le_bytes([recv[4], recv[5], recv[6], recv[7]]);
                     let w = u16::from_le_bytes([recv[8], recv[9]]);
                     let h = u16::from_le_bytes([recv[10], recv[11]]);
-                    pending_shared = Some((sender, window_id, w, h));
+                    // Preferred path (Wayland-like): Kagami allocates the shared pages and sends
+                    // them to the client; kernel maps them into the client and delivers a 20-byte
+                    // MAP_HEADER_MAGIC message with the mapped address.
+                    let total_bytes = (w as usize)
+                        .saturating_mul(h as usize)
+                        .saturating_mul(4);
+                    let page_count = total_bytes.div_ceil(4096).max(1);
+
+                    let mut attached = false;
+                    if let Some(win) = windows.iter_mut().find(|ww| ww.id == window_id) {
+                        let mut phys_pages = vec![0u64; page_count];
+                        let virt_addr = unsafe {
+                            privileged::alloc_shared_pages(page_count as u64, Some(phys_pages.as_mut_slice()), 0)
+                        };
+                        if (virt_addr as i64) >= 0 && virt_addr != 0 {
+                            let send_ret =
+                                unsafe { privileged::ipc_send_pages(sender, phys_pages.as_slice(), 0) };
+                            if (send_ret as i64) >= 0 {
+                                win.shared_addr = Some(virt_addr);
+                                win.shared_bytes = page_count * 4096;
+                                win.width = w;
+                                win.height = h;
+                                attached = true;
+                                let mut res = [0u8; 8];
+                                res[0..4].copy_from_slice(&OP_RES_SHARED_ATTACHED.to_le_bytes());
+                                res[4..8].copy_from_slice(&window_id.to_le_bytes());
+                                let _ = swiftlib::ipc::ipc_send(sender, &res);
+                            }
+                        }
+                    }
+
+                    // Fallback: allow privileged clients (Binder) to allocate and send pages.
+                    if !attached {
+                        pending_shared = Some((sender, window_id, w, h));
+                    }
                 }
                 OP_REQ_PRESENT_SHARED => {
                     if len < 8 {

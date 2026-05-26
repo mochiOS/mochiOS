@@ -152,55 +152,59 @@ fn setup_shared_surface(
         return Err("send attach_shared failed");
     }
 
-    // Wait for kernel map header delivering the mapped address.
+    // Wait for both:
+    // - Kernel map header delivering the mapped address (magic+map_start+total).
+    // - Kagami's explicit attach ack so we know it recorded the mapping.
+    //
+    // These can arrive in either order, so accept both while polling.
+    let mut map_start: Option<u64> = None;
+    let mut mapped_bytes: Option<usize> = None;
+    let mut saw_ack = false;
+
     let mut recv = [0u8; 64];
-    for _ in 0..512 {
+    for _ in 0..768 {
         let (sender, len) = ipc_recv(&mut recv);
         if sender == 0 || len == 0 {
             yield_now();
             continue;
         }
-        if len as usize != 20 {
-            continue;
-        }
-        let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
-        if magic != MAP_HEADER_MAGIC {
-            continue;
-        }
-        if sender != kagami_tid {
-            // Pages should come from Kagami.
-            continue;
-        }
-        let map_start = u64::from_le_bytes([
-            recv[4], recv[5], recv[6], recv[7], recv[8], recv[9], recv[10], recv[11],
-        ]);
-        let total = u64::from_le_bytes([
-            recv[12], recv[13], recv[14], recv[15], recv[16], recv[17], recv[18], recv[19],
-        ]) as usize;
 
-        // Wait for Kagami's explicit attach ack so we know it recorded the mapping.
-        let mut ack_buf = [0u8; 64];
-        for _ in 0..256 {
-            let (s2, l2) = ipc_recv(&mut ack_buf);
-            if s2 != kagami_tid || l2 < 8 {
-                yield_now();
-                continue;
+        // MAP_HEADER_MAGIC: [magic:u32][map_start:u64][total:u64] (20 bytes)
+        if sender == kagami_tid && (len as usize) == 20 {
+            let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
+            if magic == MAP_HEADER_MAGIC {
+                map_start = Some(u64::from_le_bytes([
+                    recv[4], recv[5], recv[6], recv[7], recv[8], recv[9], recv[10], recv[11],
+                ]));
+                mapped_bytes = Some(u64::from_le_bytes([
+                    recv[12], recv[13], recv[14], recv[15], recv[16], recv[17], recv[18], recv[19],
+                ]) as usize);
             }
-            let op = u32::from_le_bytes([ack_buf[0], ack_buf[1], ack_buf[2], ack_buf[3]]);
-            if op != OP_RES_SHARED_ATTACHED {
-                continue;
+        }
+
+        // OP_RES_SHARED_ATTACHED: [op:u32][window_id:u32]
+        if sender == kagami_tid && (len as usize) >= 8 {
+            let op = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
+            if op == OP_RES_SHARED_ATTACHED {
+                let ack_window =
+                    u32::from_le_bytes([recv[4], recv[5], recv[6], recv[7]]);
+                if ack_window == window_id {
+                    saw_ack = true;
+                }
             }
-            let ack_window = u32::from_le_bytes([ack_buf[4], ack_buf[5], ack_buf[6], ack_buf[7]]);
-            if ack_window == window_id {
+        }
+
+        if saw_ack {
+            if let (Some(addr), Some(total)) = (map_start, mapped_bytes) {
                 return Ok(SharedSurface {
-                    virt_addr: map_start,
+                    virt_addr: addr,
                     mapped_bytes: total,
                 });
             }
         }
-        return Err("shared attach ack timeout");
+        yield_now();
     }
-    Err("shared map header timeout")
+    Err("shared attach timeout")
 }
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]

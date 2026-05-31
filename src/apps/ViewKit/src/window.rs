@@ -33,7 +33,19 @@ impl Window {
         {
             let kagami_tid = find_kagami_tid().ok_or("Kagami not found")?;
             let window_id = create_window(kagami_tid, width, height, layer)?;
-            let shared = setup_shared_surface(kagami_tid, window_id, width, height).ok();
+            let shared = match setup_shared_surface(kagami_tid, window_id, width, height) {
+                Ok(s) => {
+                    println!(
+                        "[ViewKit] shared mapped: window={} addr=0x{:x} bytes={}",
+                        window_id, s.virt_addr, s.mapped_bytes
+                    );
+                    Some(s)
+                }
+                Err(e) => {
+                    println!("[ViewKit] shared disabled: {}", e);
+                    None
+                }
+            };
             Ok(Self {
                 kagami_tid,
                 window_id,
@@ -69,17 +81,23 @@ impl Window {
             }
             // Prefer shared-memory present when available; fall back to chunked IPC.
             if let Some(shared) = self.shared.as_mut() {
-                blit_shared(shared, pixels);
-                present_shared(self.kagami_tid, self.window_id)
+                // If shared mapping looks wrong, disable it and fall back to chunked IPC.
+                if !looks_like_user_mapping(shared.virt_addr, shared.mapped_bytes) {
+                    self.shared = None;
+                } else {
+                    blit_shared(shared, pixels);
+                    return present_shared(self.kagami_tid, self.window_id);
+                }
             } else {
-                flush_window_chunked(
-                    self.kagami_tid,
-                    self.window_id,
-                    self.width,
-                    self.height,
-                    pixels,
-                )
+                // continue below
             }
+            flush_window_chunked(
+                self.kagami_tid,
+                self.window_id,
+                self.width,
+                self.height,
+                pixels,
+            )
         }
         #[cfg(not(all(target_os = "linux", target_env = "musl")))]
         {
@@ -91,11 +109,44 @@ impl Window {
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 const MAP_HEADER_MAGIC: u32 = 0xABCD_DCBA;
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+// Kernel IPC page mapping places external pages at/above this floor (see `map_external_pages_for_receiver`).
+const USER_MAP_FLOOR: u64 = 0x7100_0000_0000;
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 struct SharedSurface {
     virt_addr: u64,
     mapped_bytes: usize,
+}
+
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+fn looks_like_user_mapping(addr: u64, bytes: usize) -> bool {
+    if addr == 0 {
+        return false;
+    }
+    if addr < USER_MAP_FLOOR {
+        return false;
+    }
+    // must be canonical low-half user space
+    if addr > USER_SPACE_END {
+        return false;
+    }
+    // page-aligned mapping start is expected
+    if (addr & 0xFFF) != 0 {
+        return false;
+    }
+    // sanity: require at least one page
+    if bytes < 4096 {
+        return false;
+    }
+    // avoid overflow and ensure end is also in user range
+    let end = match addr.checked_add(bytes.saturating_sub(1) as u64) {
+        Some(e) => e,
+        None => return false,
+    };
+    end <= USER_SPACE_END
 }
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
@@ -196,10 +247,13 @@ fn setup_shared_surface(
 
         if saw_ack {
             if let (Some(addr), Some(total)) = (map_start, mapped_bytes) {
-                return Ok(SharedSurface {
-                    virt_addr: addr,
-                    mapped_bytes: total,
-                });
+                if looks_like_user_mapping(addr, total) {
+                    return Ok(SharedSurface {
+                        virt_addr: addr,
+                        mapped_bytes: total,
+                    });
+                }
+                return Err("shared mapping address invalid");
             }
         }
         yield_now();

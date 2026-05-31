@@ -1,0 +1,17 @@
+[service]
+id = "fs.service"
+name = "Filesystem Service"
+entry = "entry"
+type = "system"
+autostart = true
+order = 10
+
+[capabilities]
+required = [
+  "ipc.server",
+  "device.storage",
+  "fs.read.all",
+  "fs.write.all"
+]
+
+optional = []

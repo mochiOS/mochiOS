@@ -160,6 +160,10 @@ pub enum SyscallNumber {
     MouseReadWait = 551,
     /// プロセス一覧を取得（ユーザーバッファへ書き込む）
     ListProcesses = 552,
+    /// 指定スレッドが capability を持つか確認（thread_id, cap_ptr, cap_len）
+    CheckThreadCapability = 553,
+    /// exec 時に capability を付与する（path_ptr, args_ptr, caps_ptr, caps_total_len）
+    ExecWithCapabilities = 554,
     /// 重力が存在するか
     CheckGravityExist = 999,
 }

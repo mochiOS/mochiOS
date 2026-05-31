@@ -4,7 +4,9 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use super::sys::{syscall2, SyscallNumber};
+use super::ipc;
+use super::sys::{syscall2, syscall4, SyscallNumber};
+use super::task;
 
 /// 実行可能ファイルを起動する
 /// パスから新しいプロセスを起動し、そのPIDを返す
@@ -68,6 +70,132 @@ pub fn exec_with_args(path: &str, args: &[&str]) -> Result<u64, ()> {
     } else {
         Ok(result)
     }
+}
+
+/// capability 付きで実行可能ファイルを起動する（信頼済み起動経路専用）
+///
+/// `caps` は capability 名の配列（例: `"fs.read.user.documents"`）。
+/// カーネルへは NUL 区切りで渡す。
+pub fn exec_with_capabilities(path: &str, args: &[&str], caps: &[&str]) -> Result<u64, i64> {
+    let mut path_buf = [0u8; 256];
+    let path_bytes = path.as_bytes();
+    if path_bytes.is_empty() || path_bytes.len() >= 255 {
+        return Err(-22);
+    }
+    path_buf[..path_bytes.len()].copy_from_slice(path_bytes);
+    path_buf[path_bytes.len()] = 0;
+
+    // ヌル区切り引数文字列: "arg1\0arg2\0\0"
+    let mut args_buf = [0u8; 512];
+    let mut pos = 0usize;
+    for arg in args {
+        let b = arg.as_bytes();
+        if pos + b.len() + 2 > args_buf.len() {
+            return Err(-22);
+        }
+        args_buf[pos..pos + b.len()].copy_from_slice(b);
+        pos += b.len();
+        args_buf[pos] = 0;
+        pos += 1;
+    }
+    args_buf[pos] = 0;
+    let args_ptr = if args.is_empty() { 0 } else { args_buf.as_ptr() as u64 };
+
+    // capability 名も NUL 区切りで渡す（末尾 NUL は不要）
+    let mut caps_buf = [0u8; 1024];
+    let mut cpos = 0usize;
+    for cap in caps {
+        let b = cap.as_bytes();
+        if b.is_empty() {
+            continue;
+        }
+        if cpos + b.len() + 1 > caps_buf.len() {
+            return Err(-22);
+        }
+        caps_buf[cpos..cpos + b.len()].copy_from_slice(b);
+        cpos += b.len();
+        caps_buf[cpos] = 0;
+        cpos += 1;
+    }
+    let caps_ptr = if cpos == 0 { 0 } else { caps_buf.as_ptr() as u64 };
+    let caps_len = cpos as u64;
+
+    let result = syscall4(
+        SyscallNumber::ExecWithCapabilities as u64,
+        path_buf.as_ptr() as u64,
+        args_ptr,
+        caps_ptr,
+        caps_len,
+    );
+    let result_i64 = result as i64;
+    if result_i64 < 0 {
+        Err(result_i64)
+    } else {
+        Ok(result)
+    }
+}
+
+/// process.service 経由でアプリを起動する
+///
+/// `app_bundle_path` は `/applications/Foo.app` のような bundle ルートを指す。
+pub fn exec_app_via_process_service(app_bundle_path: &str) -> Result<u64, i64> {
+    // process.service は IPC で受け付ける
+    let proc_pid = task::find_process_by_name("process.service").ok_or(-3)?;
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct ProcessRequestMsg {
+        op: u64,
+        len0: u64,
+        data: [u8; 512],
+    }
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct ProcessResponseMsg {
+        status: i64,
+        pid: u64,
+    }
+
+    let bytes = app_bundle_path.as_bytes();
+    if bytes.is_empty() || bytes.len() > 512 {
+        return Err(-22);
+    }
+
+    let mut msg = ProcessRequestMsg {
+        op: 1, // OP_EXEC_APP
+        len0: bytes.len() as u64,
+        data: [0u8; 512],
+    };
+    msg.data[..bytes.len()].copy_from_slice(bytes);
+
+    let req_slice = unsafe {
+        core::slice::from_raw_parts(
+            &msg as *const _ as *const u8,
+            core::mem::size_of::<ProcessRequestMsg>(),
+        )
+    };
+    let _ = ipc::ipc_send(proc_pid, req_slice);
+
+    let mut buf = [0u8; 32];
+    // タイムアウトは固定回数のポーリングで近似する（tick 周波数に依存しないようにする）
+    for _ in 0..4000 {
+        let (sender, len) = ipc::ipc_recv(&mut buf);
+        if sender == 0 && len == 0 {
+            task::yield_now();
+            continue;
+        }
+        if sender != proc_pid || (len as usize) < core::mem::size_of::<ProcessResponseMsg>() {
+            continue;
+        }
+        let resp: ProcessResponseMsg =
+            unsafe { core::ptr::read(buf.as_ptr() as *const ProcessResponseMsg) };
+        if resp.status != 0 {
+            return Err(resp.status);
+        }
+        return Ok(resp.pid);
+    }
+    Err(-110) // ETIMEDOUT
 }
 
 /// メモリ上の ELF データから新プロセスを起動する

@@ -1,0 +1,15 @@
+[service]
+id = "capability.service"
+name = "Capability Service"
+entry = "entry"
+type = "system"
+autostart = true
+order = 1
+
+[capabilities]
+required = [
+  "ipc.server",
+  "system.info.read"
+]
+
+optional = []

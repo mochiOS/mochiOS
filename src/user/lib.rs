@@ -57,6 +57,9 @@ pub mod fs_consts;
 /// 特権システムコール（Service権限専用）
 pub mod privileged;
 
+/// capability（権限）照会
+pub mod capability;
+
 #[cfg(not(feature = "std-support"))]
 use core::panic::PanicInfo;
 #[cfg(not(feature = "std-support"))]

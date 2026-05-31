@@ -3,6 +3,9 @@ use alloc::format;
 use alloc::string::String;
 use alloc::string::ToString;
 
+use crate::capability::CapabilitySet;
+use crate::result::{Kernel, Process as ProcessError, Result};
+
 use super::fd_table::FdTable;
 use super::ids::{PrivilegeLevel, ProcessId, ProcessState};
 use super::signal::SignalState;
@@ -14,6 +17,10 @@ use super::signal::SignalState;
 pub struct Process {
     /// プロセスID
     id: ProcessId,
+    /// アプリID（アプリの場合のみ設定）
+    app_id: Option<String>,
+    /// サービスID（サービスの場合のみ設定）
+    service_id: Option<String>,
     /// プロセス名 (固定長バッファ)
     name: [u8; 32],
     /// 有効な名前の長さ
@@ -22,6 +29,11 @@ pub struct Process {
     state: ProcessState,
     /// 権限レベル
     privilege: PrivilegeLevel,
+    /// プロセスに付与された capability（カーネルが保持）
+    ///
+    /// ユーザープロセスが自分で capability を増やせると sandbox を回避できるため、
+    /// 変更は信頼済みの起動経路（init/core/process.service 等）からのみ行う。
+    capabilities: CapabilitySet,
     /// 親プロセスID（存在する場合）
     parent_id: Option<ProcessId>,
     /// ページテーブルのアドレス（メモリ空間）。Noneの場合はカーネル空間を共有。
@@ -78,10 +90,13 @@ impl Process {
 
         Self {
             id: ProcessId::new(),
+            app_id: None,
+            service_id: None,
             name: name_buf,
             name_len: len,
             state: ProcessState::Running,
             privilege,
+            capabilities: CapabilitySet::empty(),
             parent_id,
             page_table: None, // TODO: ページテーブル実装後に設定
             heap_start,
@@ -107,6 +122,21 @@ impl Process {
     /// プロセスIDを取得
     pub fn id(&self) -> ProcessId {
         self.id
+    }
+
+    /// アプリIDを取得
+    pub fn app_id(&self) -> Option<&str> {
+        self.app_id.as_deref()
+    }
+
+    /// サービスIDを取得
+    pub fn service_id(&self) -> Option<&str> {
+        self.service_id.as_deref()
+    }
+
+    /// capability 集合を取得（読み取り専用）
+    pub fn capabilities(&self) -> &CapabilitySet {
+        &self.capabilities
     }
 
     /// プロセス名を取得
@@ -277,10 +307,13 @@ impl core::fmt::Debug for Process {
         let mut debug_struct = f.debug_struct("Process");
         debug_struct
             .field("id", &self.id)
+            .field("app_id", &self.app_id)
+            .field("service_id", &self.service_id)
             .field("name", &self.name())
             .field("state", &self.state)
             .field("privilege", &self.privilege)
             .field("parent_id", &self.parent_id)
+            .field("capabilities", &self.capabilities)
             .field("priority", &self.priority)
             .field("exit_code", &self.exit_code);
 
@@ -601,4 +634,26 @@ pub fn reap_zombie_child_process(
 /// 現在のプロセス数を取得
 pub fn process_count() -> usize {
     PROCESS_TABLE.lock().count()
+}
+
+/// プロセス生成時に capability を設定する（カーネル内部用）
+///
+/// これは syscall として公開してはいけない。
+/// ユーザープロセスがこれを呼べると、自己昇格で sandbox を回避できるため。
+pub fn set_process_capabilities(pid: ProcessId, caps: CapabilitySet) -> Result<()> {
+    let updated = with_process_mut(pid, |proc| {
+        proc.capabilities = caps;
+    })
+    .is_some();
+
+    if updated {
+        Ok(())
+    } else {
+        Err(Kernel::Process(ProcessError::ProcessNotFound))
+    }
+}
+
+/// プロセスが指定 capability を持つか（階層継承を含む）
+pub fn process_has_capability(pid: ProcessId, cap: crate::capability::Capability) -> bool {
+    with_process(pid, |proc| proc.capabilities.contains(cap)).unwrap_or(false)
 }

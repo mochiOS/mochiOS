@@ -1,0 +1,17 @@
+[service]
+id = "core.service"
+name = "Core Service"
+entry = "entry"
+type = "system"
+autostart = false
+order = 0
+
+[capabilities]
+required = [
+  "ipc.server",
+  "service.control",
+  "process.spawn",
+  "system.info.read"
+]
+
+optional = []

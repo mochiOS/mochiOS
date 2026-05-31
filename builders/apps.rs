@@ -285,6 +285,45 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
                             );
                         }
 
+                        // manifest.toml が存在すればコピーし、無ければ about.toml から最小 manifest を生成する
+                        let manifest_src = path.join("manifest.toml");
+                        let manifest_dest = app_bundle_dir.join("manifest.toml");
+                        if manifest_src.exists() {
+                            if let Err(e) = fs::copy(&manifest_src, &manifest_dest) {
+                                println!(
+                                    "cargo:warning=Failed to copy manifest.toml for {}: {}",
+                                    app_name, e
+                                );
+                            }
+                        } else if about_src.exists() {
+                            let mut app_id = format!("app.{}", app_name.to_lowercase());
+                            let mut app_display_name = app_name.clone();
+                            if let Ok(content) = fs::read_to_string(&about_src) {
+                                if let Ok(table) = content.parse::<toml::Table>() {
+                                    if let Some(id) = table.get("bundle_id").and_then(|v| v.as_str()) {
+                                        app_id = id.to_string();
+                                    }
+                                    if let Some(n) = table.get("name").and_then(|v| v.as_str()) {
+                                        app_display_name = n.to_string();
+                                    }
+                                }
+                            }
+
+                            let entry_path = format!("/applications/{}.app/entry.elf", app_name);
+                            let manifest_text = format!(
+                                "[app]\nid = \"{}\"\nname = \"{}\"\nentry = \"{}\"\n\n[capabilities]\nrequired = []\noptional = []\n",
+                                app_id,
+                                app_display_name,
+                                entry_path
+                            );
+                            if let Err(e) = fs::write(&manifest_dest, manifest_text) {
+                                println!(
+                                    "cargo:warning=Failed to write generated manifest.toml for {}: {}",
+                                    app_name, e
+                                );
+                            }
+                        }
+
                         for icon_file in ["icon.png", "icon.jpeg", "icon.jpg"] {
                             let icon_src = path.join(icon_file);
                             if icon_src.exists() {

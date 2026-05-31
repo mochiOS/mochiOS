@@ -1,0 +1,17 @@
+[service]
+id = "process.service"
+name = "Process Service"
+entry = "entry"
+type = "system"
+autostart = true
+order = 12
+
+[capabilities]
+required = [
+  "ipc.server",
+  "process.spawn",
+  "process.inspect",
+  "process.kill"
+]
+
+optional = []

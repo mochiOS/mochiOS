@@ -138,6 +138,47 @@ fn caller_is_service_or_core() -> bool {
         })
 }
 
+fn caller_can_grant_capabilities_on_exec() -> bool {
+    let caller_pid = crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()));
+    let Some(caller_pid) = caller_pid else {
+        // カーネルコンテキストは許可
+        return true;
+    };
+
+    // Core 権限は許可
+    if crate::task::with_process(caller_pid, |p| {
+        p.privilege() == crate::task::PrivilegeLevel::Core
+    })
+    .unwrap_or(false)
+    {
+        return true;
+    }
+
+    // Service 権限でも、信頼済みの実行パスに限定する。
+    // 「名前」だけで判定すると、ユーザープロセスが同名バイナリを用意して自己昇格できるため、
+    // ここは必ず「カーネルが管理する exec_path」を参照して絞り込む。
+    //
+    // 許可する主体:
+    // - service manager として登録された core.service
+    // - /system/services/process.service（アプリ起動経路）
+    let manager_pid_raw = SERVICE_MANAGER_PID.load(Ordering::SeqCst);
+    if manager_pid_raw != 0 && caller_pid.as_u64() == manager_pid_raw {
+        return true;
+    }
+
+    crate::task::with_process(caller_pid, |p| {
+        if p.privilege() != crate::task::PrivilegeLevel::Service {
+            return false;
+        }
+        matches!(
+            p.exe_path(),
+            "/system/services/process.service" | "system/services/process.service"
+        )
+    })
+    .unwrap_or(false)
+}
+
 fn read_nul_args_from_user(
     args_ptr: u64,
     max_total_bytes: usize,
@@ -168,6 +209,37 @@ fn read_nul_args_from_user(
     Ok(out)
 }
 
+fn read_nul_caps_from_user(caps_ptr: u64, caps_total_len: u64) -> Result<Vec<String>, u64> {
+    use crate::syscall::types::EINVAL;
+
+    if caps_ptr == 0 {
+        return Ok(Vec::new());
+    }
+    let Ok(len) = usize::try_from(caps_total_len) else {
+        return Err(EINVAL);
+    };
+    if len == 0 || len > 1024 {
+        return Err(EINVAL);
+    }
+
+    let mut storage = alloc::vec![0u8; len];
+    crate::syscall::copy_from_user(caps_ptr, &mut storage)?;
+
+    // cap 名は NUL 区切りで渡す。末尾の NUL は任意だが、無くても split が動くようにする。
+    let mut out = Vec::new();
+    for s in storage.split(|&b| b == 0) {
+        if s.is_empty() {
+            continue;
+        }
+        let text = core::str::from_utf8(s).map_err(|_| EINVAL)?;
+        out.push(text.to_string());
+        if out.len() >= 128 {
+            break;
+        }
+    }
+    Ok(out)
+}
+
 /// カーネル内から実行可能ファイルを読み込み実行するシステムコール
 /// args_ptr: ヌル区切り引数文字列へのポインタ（"arg1\0arg2\0\0"形式）、0 なら引数なし
 pub fn exec_kernel(path_ptr: u64, args_ptr: u64) -> u64 {
@@ -192,6 +264,66 @@ pub fn exec_kernel(path_ptr: u64, args_ptr: u64) -> u64 {
     };
     let extra_args: Vec<&str> = extra_args_owned.iter().map(|s| s.as_str()).collect();
     exec_internal(path, None, &extra_args)
+}
+
+/// exec 時に capability を付与して起動する
+///
+/// この syscall は「プロセスの capability を外部から設定できる経路」になるため、
+/// 呼び出し元は信頼済みの起動経路（core.service / process.service など）に限定する。
+///
+/// `caps_ptr` は NUL 区切りの capability 名列（例: `b"fs.read.user\\0window.create\\0"`）を指す。
+pub fn exec_with_capabilities_syscall(
+    path_ptr: u64,
+    args_ptr: u64,
+    caps_ptr: u64,
+    caps_total_len: u64,
+) -> u64 {
+    use crate::syscall::types::{EINVAL, EPERM};
+
+    if !caller_can_grant_capabilities_on_exec() {
+        return EPERM;
+    }
+
+    let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
+        Ok(s) => s,
+        Err(_) => return EINVAL,
+    };
+
+    // 引数は通常 exec と同じ形式
+    let extra_args_owned = match read_nul_args_from_user(args_ptr, 512, 64) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let extra_args: Vec<&str> = extra_args_owned.iter().map(|s| s.as_str()).collect();
+
+    // capability リストを読み取り、カーネル内の enum へ変換する
+    let caps_list = match read_nul_caps_from_user(caps_ptr, caps_total_len) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let mut caps = crate::capability::CapabilitySet::empty();
+    for s in &caps_list {
+        let Some(cap) = crate::capability::Capability::from_str(s.as_str()) else {
+            return EINVAL;
+        };
+        caps.insert(cap);
+    }
+
+    let pid_or_errno = exec_internal(path.as_str(), None, &extra_args);
+    let pid_i64 = pid_or_errno as i64;
+    if pid_i64 < 0 {
+        return pid_or_errno;
+    }
+
+    // 生成されたプロセスへ capability を付与する（カーネル内部用 API）
+    let pid = crate::task::ProcessId::from_u64(pid_or_errno);
+    if crate::task::process::set_process_capabilities(pid, caps).is_err() {
+        // 付与に失敗した場合は安全側（起動を失敗扱い）に倒す。
+        // ここで起動だけ成功にすると、想定した sandbox が掛からない可能性がある。
+        return EINVAL;
+    }
+
+    pid_or_errno
 }
 
 /// 名前を指定してカーネル内から実行可能ファイルを実行する（カーネル内部用）

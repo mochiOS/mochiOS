@@ -61,6 +61,9 @@ pub mod init;
 /// ユーティリティモジュール
 pub mod util;
 
+/// capability（権限）管理
+pub mod capability;
+
 /// CPU機能の初期化
 pub mod cpu;
 /// per-CPU状態管理

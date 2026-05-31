@@ -1,0 +1,24 @@
+[service]
+id = "device.service"
+name = "Device Service"
+entry = "entry"
+type = "system"
+autostart = true
+order = 18
+
+[capabilities]
+required = [
+  "ipc.server"
+]
+
+optional = [
+  "device.gpu",
+  "device.audio",
+  "device.input",
+  "device.storage",
+  "device.net",
+  "usb.access",
+  "serial.access",
+  "bluetooth.access"
+]
+

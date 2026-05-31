@@ -6,6 +6,7 @@ pub mod io;
 pub mod io_port;
 pub mod ipc;
 pub mod keyboard;
+pub mod capability;
 pub mod mmio;
 pub mod mouse;
 pub mod pgroup;
@@ -309,6 +310,12 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
             process::find_process_by_name(arg0, arg1)
         }
         x if x == SyscallNumber::ListProcesses as u64 => process::list_processes(arg0, arg1),
+        x if x == SyscallNumber::CheckThreadCapability as u64 => {
+            capability::check_thread_capability(arg0, arg1, arg2)
+        }
+        x if x == SyscallNumber::ExecWithCapabilities as u64 => {
+            exec::exec_with_capabilities_syscall(arg0, arg1, arg2, arg3)
+        }
         x if x == SyscallNumber::GetThreadPrivilege as u64 => task::get_thread_privilege(arg0),
         x if x == SyscallNumber::GetFramebufferInfo as u64 => vga::get_framebuffer_info(arg0),
         x if x == SyscallNumber::MapFramebuffer as u64 => vga::map_framebuffer(),

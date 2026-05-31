@@ -1,0 +1,21 @@
+[service]
+id = "shell.service"
+name = "Shell Service"
+entry = "entry"
+type = "system"
+autostart = true
+order = 20
+
+[capabilities]
+required = [
+  "ipc.server",
+  "display.read",
+  "input.keyboard",
+  "input.pointer",
+  "window.create"
+]
+
+optional = [
+  "clipboard.read",
+  "clipboard.write"
+]

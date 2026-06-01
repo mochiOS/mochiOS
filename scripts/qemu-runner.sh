@@ -95,7 +95,20 @@ if [ -n "${MOCHIOS_QEMU_DISK_COPY:-}" ]; then
     DISK_IMG="$DISK_COPY"
 fi
 
-exec qemu-system-x86_64 \
+cleanup() {
+    if [ -n "${QEMU_PID:-}" ]; then
+        kill -TERM "$QEMU_PID" 2>/dev/null || true
+        wait "$QEMU_PID" 2>/dev/null || true
+    fi
+
+    if [ -n "${DISK_COPY:-}" ] && [ -f "$DISK_COPY" ]; then
+        rm -f "$DISK_COPY"
+    fi
+}
+
+trap cleanup INT TERM EXIT
+
+qemu-system-x86_64 \
     "${KVM_ARGS[@]}" \
     "${DISPLAY_ARGS[@]}" \
     -bios "$OVMF" \
@@ -110,4 +123,8 @@ exec qemu-system-x86_64 \
     -m 512M \
     -no-reboot \
     -serial stdio \
-    -vga std
+    -vga std &
+
+QEMU_PID=$!
+
+wait "$QEMU_PID"

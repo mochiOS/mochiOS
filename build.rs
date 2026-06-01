@@ -320,11 +320,6 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
-    // 起動しているqemuを止める（これまでずっとqemu起動しっぱなしだったってこと...？嘘...？？？）
-    let _ = std::process::Command::new("pkill")
-        .args(["-f", "qemu-system-x86_64"])
-        .status();
-
     // Emit rerun-if-changed for all source directories
     fn emit_rerun_for_dir(dir: &Path) {
         if let Ok(entries) = std::fs::read_dir(dir) {

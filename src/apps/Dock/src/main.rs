@@ -1,4 +1,4 @@
-use swiftlib::{
+use mochi_syscall::{
     fs,
     keyboard::{read_scancode, read_scancode_tap},
     process,

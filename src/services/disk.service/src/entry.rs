@@ -1,11 +1,12 @@
 use core::mem::size_of;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use swiftlib::ipc;
-use swiftlib::task;
+use mochi_syscall::ipc;
+use mochi_syscall::task;
 
 mod ata;
 
+// NOTE: ATA 実装は一旦使わない（cext に寄せる）
 use ata::{AtaDrive, AtaPorts, DriveType};
 
 const MAX_DISKS: usize = 4;
@@ -54,60 +55,15 @@ struct AlignedBuffer([u8; 544]); // DiskRequest は 544 バイト
 
 /// ディスクドライバを初期化
 fn init_disks() {
-    println!("[DISK] Initializing ATA drives...");
-
-    unsafe {
-        // Primary Master
-        let mut drive0 = AtaDrive::new(AtaPorts::PRIMARY, DriveType::Master);
-        if drive0.init().is_ok() {
-            println!(
-                "[DISK] Primary Master detected: {} sectors",
-                drive0.sector_count()
-            );
-            DISKS[0] = Some(drive0);
-        } else {
-            println!("[DISK] Primary Master not found");
-        }
-
-        // Primary Slave
-        let mut drive1 = AtaDrive::new(AtaPorts::PRIMARY, DriveType::Slave);
-        if drive1.init().is_ok() {
-            println!(
-                "[DISK] Primary Slave detected: {} sectors",
-                drive1.sector_count()
-            );
-            DISKS[1] = Some(drive1);
-        } else {
-            println!("[DISK] Primary Slave not found");
-        }
-
-        // Secondary Master
-        let mut drive2 = AtaDrive::new(AtaPorts::SECONDARY, DriveType::Master);
-        if drive2.init().is_ok() {
-            println!(
-                "[DISK] Secondary Master detected: {} sectors",
-                drive2.sector_count()
-            );
-            DISKS[2] = Some(drive2);
-        } else {
-            println!("[DISK] Secondary Master not found");
-        }
-
-        // Secondary Slave
-        let mut drive3 = AtaDrive::new(AtaPorts::SECONDARY, DriveType::Slave);
-        if drive3.init().is_ok() {
-            println!(
-                "[DISK] Secondary Slave detected: {} sectors",
-                drive3.sector_count()
-            );
-            DISKS[3] = Some(drive3);
-        } else {
-            println!("[DISK] Secondary Slave not found");
-        }
-    }
-
+    // NOTE:
+    // raw ブロックI/O は IPC 経由だと遅すぎるため、現在のデータプレーンは disk.cext
+    // (カーネル内) に寄せている。
+    //
+    // disk.service は「特殊ファイル/高レイヤ」のための場所にする予定なので、
+    // ここでは ATA への直接アクセスを行わない（cext と競合すると不安定になる）。
+    println!("[DISK] NOTE: low-level ATA is handled by disk.cext; skipping ATA init in disk.service");
     INITIALIZED.store(true, Ordering::Release);
-    println!("[DISK] ATA initialization complete");
+    println!("[DISK] disk.service initialized (no raw ATA)");
 }
 
 /// core.service に準備完了を通知する
@@ -154,7 +110,7 @@ fn main() {
         let (sender, len) = ipc::ipc_recv(&mut recv_buf.0);
 
         // EAGAIN (メッセージなし) の場合はCPUを譲る
-        if sender == 0xFFFFFFFF || len == 0xFFFFFFFD {
+        if sender == 0 && len == 0 {
             task::yield_now();
             continue;
         }
@@ -164,7 +120,7 @@ fn main() {
             // disk.service はストレージへ直接アクセスできるため、呼び出し元が `device.storage`
             // を持たない場合は拒否する。サービス側で必ず強制しないと、capability.service を
             // 迂回して raw ブロックアクセスができてしまう。
-            let has_storage_cap = swiftlib::capability::check_thread_capability(sender, "device.storage")
+            let has_storage_cap = mochi_syscall::capability::check_thread_capability(sender, "device.storage")
                 .ok()
                 .unwrap_or(false);
             if !has_storage_cap {
@@ -308,7 +264,6 @@ fn main() {
                     size_of::<DiskResponse>(),
                 )
             };
-
             let _ = ipc::ipc_send(sender, resp_slice);
         }
     }

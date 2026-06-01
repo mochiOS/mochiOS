@@ -8,7 +8,7 @@ viewkit = { path = "../ViewKit" }
 image = "0.25.10"
 
 [target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
-swiftlib = { path = "../../user", features = ["std-support"] }
+mochi_syscall = { path = "../../user", features = ["std-support"] }
 
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
 wayland-client = { version = "0.31.14", features = ["dlopen"] }

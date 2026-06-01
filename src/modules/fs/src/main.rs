@@ -48,14 +48,23 @@ pub struct McxPath {
 #[repr(C)]
 pub struct McxFsOps {
     pub mount: extern "C" fn(device_id: u32) -> i32,
+    pub set_disk_ops: extern "C" fn(ops: *const McxDiskOps) -> i32,
     pub read: extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut usize) -> i32,
     pub stat: extern "C" fn(path: McxPath, out_mode: *mut u16, out_size: *mut u64) -> i32,
     pub readdir: extern "C" fn(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> i32,
 }
 
+#[repr(C)]
+pub struct McxDiskOps {
+    pub probe: extern "C" fn() -> i32,
+    pub read_sector: extern "C" fn(disk_id: u32, lba: u64, buf: *mut u8, buf_len: usize) -> i32,
+    pub write_sector:
+        extern "C" fn(disk_id: u32, lba: u64, buf: *const u8, buf_len: usize) -> i32,
+}
+
 #[derive(Clone, Copy)]
 struct FsMount {
-    drive: u8, // 0=master, 1=slave
+    disk_id: u32,
     block_size: u32,
     sectors_per_block: u32,
     inode_size: u16,
@@ -66,7 +75,7 @@ struct FsMount {
 #[derive(Clone, Copy)]
 struct BlockCacheEntry {
     valid: bool,
-    drive: u8,
+    disk_id: u32,
     block_num: u32,
     data: [u8; 4096],
 }
@@ -75,7 +84,7 @@ impl BlockCacheEntry {
     const fn empty() -> Self {
         Self {
             valid: false,
-            drive: 0,
+            disk_id: 0,
             block_num: 0,
             data: [0u8; 4096],
         }
@@ -85,7 +94,7 @@ impl BlockCacheEntry {
 #[derive(Clone, Copy)]
 struct InodeCacheEntry {
     valid: bool,
-    drive: u8,
+    disk_id: u32,
     inode_num: u32,
     inode: [u8; 256],
 }
@@ -94,7 +103,7 @@ impl InodeCacheEntry {
     const fn empty() -> Self {
         Self {
             valid: false,
-            drive: 0,
+            disk_id: 0,
             inode_num: 0,
             inode: [0u8; 256],
         }
@@ -104,7 +113,7 @@ impl InodeCacheEntry {
 #[derive(Clone, Copy)]
 struct PathCacheEntry {
     valid: bool,
-    drive: u8,
+    disk_id: u32,
     path_len: u16,
     path_hash: u64,
     inode_num: u32,
@@ -115,7 +124,7 @@ impl PathCacheEntry {
     const fn empty() -> Self {
         Self {
             valid: false,
-            drive: 0,
+            disk_id: 0,
             path_len: 0,
             path_hash: 0,
             inode_num: 0,
@@ -125,6 +134,7 @@ impl PathCacheEntry {
 }
 
 static mut MOUNT: Option<FsMount> = None;
+static mut DISK_OPS_PTR: *const McxDiskOps = core::ptr::null();
 static OP_LOCK: AtomicBool = AtomicBool::new(false);
 
 struct SharedBuf(UnsafeCell<[u8; 4096]>);
@@ -221,6 +231,26 @@ fn path_hash(bytes: &[u8]) -> u64 {
     h
 }
 
+extern "C" fn fs_set_disk_ops(ops: *const McxDiskOps) -> i32 {
+    if ops.is_null() {
+        return -22; // EINVAL
+    }
+    unsafe {
+        DISK_OPS_PTR = ops;
+    }
+    0
+}
+
+#[inline]
+unsafe fn read_sector_disk(disk_id: u32, lba: u32, out: &mut [u8; 512]) -> bool {
+    let ops = DISK_OPS_PTR;
+    if ops.is_null() {
+        return false;
+    }
+    let rc = ((*ops).read_sector)(disk_id, lba as u64, out.as_mut_ptr(), out.len());
+    rc == 0
+}
+
 unsafe fn reset_caches() {
     for e in &mut BLOCK_CACHE {
         e.valid = false;
@@ -236,9 +266,9 @@ unsafe fn reset_caches() {
     PATH_CACHE_CURSOR = 0;
 }
 
-unsafe fn block_cache_lookup(drive: u8, block_num: u32, out: &mut [u8], block_size: usize) -> bool {
+unsafe fn block_cache_lookup(disk_id: u32, block_num: u32, out: &mut [u8], block_size: usize) -> bool {
     for e in &BLOCK_CACHE {
-        if e.valid && e.drive == drive && e.block_num == block_num {
+        if e.valid && e.disk_id == disk_id && e.block_num == block_num {
             out[..block_size].copy_from_slice(&e.data[..block_size]);
             return true;
         }
@@ -246,19 +276,19 @@ unsafe fn block_cache_lookup(drive: u8, block_num: u32, out: &mut [u8], block_si
     false
 }
 
-unsafe fn block_cache_insert(drive: u8, block_num: u32, data: &[u8], block_size: usize) {
+unsafe fn block_cache_insert(disk_id: u32, block_num: u32, data: &[u8], block_size: usize) {
     let slot = BLOCK_CACHE_CURSOR % BLOCK_CACHE_SLOTS;
     BLOCK_CACHE_CURSOR = (BLOCK_CACHE_CURSOR + 1) % BLOCK_CACHE_SLOTS;
     let ent = &mut BLOCK_CACHE[slot];
     ent.valid = true;
-    ent.drive = drive;
+    ent.disk_id = disk_id;
     ent.block_num = block_num;
     ent.data[..block_size].copy_from_slice(&data[..block_size]);
 }
 
-unsafe fn inode_cache_lookup(drive: u8, inode_num: u32, out: &mut [u8; 256], isz: usize) -> bool {
+unsafe fn inode_cache_lookup(disk_id: u32, inode_num: u32, out: &mut [u8; 256], isz: usize) -> bool {
     for e in &INODE_CACHE {
-        if e.valid && e.drive == drive && e.inode_num == inode_num {
+        if e.valid && e.disk_id == disk_id && e.inode_num == inode_num {
             out[..isz].copy_from_slice(&e.inode[..isz]);
             return true;
         }
@@ -266,23 +296,23 @@ unsafe fn inode_cache_lookup(drive: u8, inode_num: u32, out: &mut [u8; 256], isz
     false
 }
 
-unsafe fn inode_cache_insert(drive: u8, inode_num: u32, inode: &[u8; 256], isz: usize) {
+unsafe fn inode_cache_insert(disk_id: u32, inode_num: u32, inode: &[u8; 256], isz: usize) {
     let slot = INODE_CACHE_CURSOR % INODE_CACHE_SLOTS;
     INODE_CACHE_CURSOR = (INODE_CACHE_CURSOR + 1) % INODE_CACHE_SLOTS;
     let ent = &mut INODE_CACHE[slot];
     ent.valid = true;
-    ent.drive = drive;
+    ent.disk_id = disk_id;
     ent.inode_num = inode_num;
     ent.inode[..isz].copy_from_slice(&inode[..isz]);
 }
 
-unsafe fn path_cache_lookup(drive: u8, path: &[u8]) -> Option<u32> {
+unsafe fn path_cache_lookup(disk_id: u32, path: &[u8]) -> Option<u32> {
     if path.len() > PATH_CACHE_MAX {
         return None;
     }
     let h = path_hash(path);
     for e in &PATH_CACHE {
-        if !e.valid || e.drive != drive || e.path_hash != h {
+        if !e.valid || e.disk_id != disk_id || e.path_hash != h {
             continue;
         }
         let n = e.path_len as usize;
@@ -293,7 +323,7 @@ unsafe fn path_cache_lookup(drive: u8, path: &[u8]) -> Option<u32> {
     None
 }
 
-unsafe fn path_cache_insert(drive: u8, path: &[u8], inode_num: u32) {
+unsafe fn path_cache_insert(disk_id: u32, path: &[u8], inode_num: u32) {
     if path.len() > PATH_CACHE_MAX {
         return;
     }
@@ -301,7 +331,7 @@ unsafe fn path_cache_insert(drive: u8, path: &[u8], inode_num: u32) {
     PATH_CACHE_CURSOR = (PATH_CACHE_CURSOR + 1) % PATH_CACHE_SLOTS;
     let ent = &mut PATH_CACHE[slot];
     ent.valid = true;
-    ent.drive = drive;
+    ent.disk_id = disk_id;
     ent.path_len = path.len() as u16;
     ent.path_hash = path_hash(path);
     ent.inode_num = inode_num;
@@ -491,74 +521,8 @@ unsafe fn virt_to_phys(vaddr: u64) -> Option<u64> {
 }
 
 unsafe fn read_fs_block_dma(m: &FsMount, block_num: u32, out: &mut [u8], block_size: usize) -> bool {
-    if m.sectors_per_block == 0 || m.sectors_per_block > 8 {
-        return false;
-    }
-    let Some(bm_base) = find_bmide_base() else {
-        return false;
-    };
-    let lba = block_num.saturating_mul(m.sectors_per_block);
-    let dma_buf_vaddr = (&mut DMA_BUF.0 as *mut [u8; 4096]) as u64;
-    let prdt_vaddr = (&mut DMA_PRDT.0 as *mut [PrdtEntry; 2]) as u64;
-    let Some(dma_buf_phys) = virt_to_phys(dma_buf_vaddr) else {
-        return false;
-    };
-    let Some(prdt_phys) = virt_to_phys(prdt_vaddr) else {
-        return false;
-    };
-    if dma_buf_phys > u32::MAX as u64 || prdt_phys > u32::MAX as u64 {
-        return false;
-    }
-    if ((dma_buf_phys & 0xffff) + block_size as u64) > 0x10000 {
-        return false;
-    }
-
-    DMA_PRDT.0[0] = PrdtEntry {
-        base_phys: dma_buf_phys as u32,
-        byte_count: block_size as u16,
-        flags: 0x8000,
-    };
-
-    let bm_cmd = bm_base;
-    let bm_status = bm_base + 2;
-    let bm_prdt = bm_base + 4;
-
-    outb(bm_cmd, inb(bm_cmd) & !0x01);
-    outb(bm_status, inb(bm_status) | 0x06);
-    outl(bm_prdt, prdt_phys as u32);
-    outb(bm_cmd, (inb(bm_cmd) & !0x01) | 0x08); // read from disk -> memory
-
-    if !wait_not_busy(200_000) {
-        return false;
-    }
-    select_drive(m.drive, lba);
-    outb(ATA_SECTOR_COUNT, m.sectors_per_block as u8);
-    outb(ATA_LBA_LOW, (lba & 0xFF) as u8);
-    outb(ATA_LBA_MID, ((lba >> 8) & 0xFF) as u8);
-    outb(ATA_LBA_HIGH, ((lba >> 16) & 0xFF) as u8);
-    outb(ATA_STATUS_CMD, ATA_CMD_READ_DMA);
-    outb(bm_cmd, inb(bm_cmd) | 0x01);
-
-    let mut done = false;
-    for _ in 0..800_000 {
-        let s = inb(bm_status);
-        let ata = inb(ATA_STATUS_CMD);
-        if (s & 0x02) != 0 || (ata & (ATA_STATUS_ERR | ATA_STATUS_DF)) != 0 {
-            break;
-        }
-        if (s & 0x01) == 0 {
-            done = true;
-            break;
-        }
-        core::hint::spin_loop();
-    }
-    outb(bm_cmd, inb(bm_cmd) & !0x01);
-    outb(bm_status, inb(bm_status) | 0x06);
-    if !done {
-        return false;
-    }
-    out[..block_size].copy_from_slice(&DMA_BUF.0[..block_size]);
-    true
+    let _ = (m, block_num, out, block_size);
+    false
 }
 
 #[inline]
@@ -578,33 +542,31 @@ unsafe fn read_fs_block(m: &FsMount, block_num: u32, out: &mut [u8]) -> bool {
     if out.len() < block_size {
         return false;
     }
-    if block_cache_lookup(m.drive, block_num, out, block_size) {
+    if block_cache_lookup(m.disk_id, block_num, out, block_size) {
         return true;
     }
-    if read_fs_block_dma(m, block_num, out, block_size) {
-        block_cache_insert(m.drive, block_num, out, block_size);
-        return true;
-    }
+    // NOTE: ここでは ATA PIO を直接叩かず、disk.cext の read_sector を使う。
+    // DMA 経路は最適化だが安定性優先で無効化している。
     let spb = m.sectors_per_block as usize;
     for i in 0..spb {
         let lba = block_num
             .saturating_mul(m.sectors_per_block)
             .saturating_add(i as u32);
         let mut sec = [0u8; 512];
-        if !read_sector_ata(m.drive, lba, &mut sec) {
+        if !read_sector_disk(m.disk_id, lba, &mut sec) {
             return false;
         }
         let dst = i * 512;
         out[dst..dst + 512].copy_from_slice(&sec);
     }
-    block_cache_insert(m.drive, block_num, out, block_size);
+    block_cache_insert(m.disk_id, block_num, out, block_size);
     true
 }
 
-unsafe fn probe_ext2_drive(drive: u8) -> Option<FsMount> {
+unsafe fn probe_ext2_drive(disk_id: u32) -> Option<FsMount> {
     let mut s2 = [0u8; 512];
     let mut s3 = [0u8; 512];
-    if !read_sector_ata(drive, 2, &mut s2) || !read_sector_ata(drive, 3, &mut s3) {
+    if !read_sector_disk(disk_id, 2, &mut s2) || !read_sector_disk(disk_id, 3, &mut s3) {
         return None;
     }
     let mut sb = [0u8; 1024];
@@ -628,7 +590,7 @@ unsafe fn probe_ext2_drive(drive: u8) -> Option<FsMount> {
     }
     let gdt_block = if block_size == 1024 { 2 } else { 1 };
     Some(FsMount {
-        drive,
+        disk_id,
         block_size,
         sectors_per_block: block_size / 512,
         inode_size,
@@ -642,7 +604,7 @@ unsafe fn read_inode(m: &FsMount, inode_num: u32, inode_out: &mut [u8; 256]) -> 
         return false;
     }
     let isz = m.inode_size as usize;
-    if inode_cache_lookup(m.drive, inode_num, inode_out, isz) {
+    if inode_cache_lookup(m.disk_id, inode_num, inode_out, isz) {
         return true;
     }
     let group = (inode_num - 1) / m.inodes_per_group;
@@ -673,7 +635,7 @@ unsafe fn read_inode(m: &FsMount, inode_num: u32, inode_out: &mut [u8; 256]) -> 
         return false;
     }
     inode_out[..isz].copy_from_slice(&iblk[off..off + isz]);
-    inode_cache_insert(m.drive, inode_num, inode_out, isz);
+    inode_cache_insert(m.disk_id, inode_num, inode_out, isz);
     true
 }
 
@@ -758,7 +720,7 @@ unsafe fn lookup_child(m: &FsMount, dir_inode_num: u32, name: &[u8]) -> Option<u
 }
 
 unsafe fn resolve_path_inode(m: &FsMount, path: &[u8]) -> Option<u32> {
-    if let Some(inode) = path_cache_lookup(m.drive, path) {
+    if let Some(inode) = path_cache_lookup(m.disk_id, path) {
         return Some(inode);
     }
     let mut cur = 2u32;
@@ -780,7 +742,7 @@ unsafe fn resolve_path_inode(m: &FsMount, path: &[u8]) -> Option<u32> {
         }
         cur = lookup_child(m, cur, seg)?;
     }
-    path_cache_insert(m.drive, path, cur);
+    path_cache_insert(m.disk_id, path, cur);
     Some(cur)
 }
 
@@ -835,6 +797,9 @@ unsafe fn read_path_inode(path: McxPath) -> Option<u32> {
 extern "C" fn fs_mount(_device_id: u32) -> i32 {
     let _guard = lock_ops();
     unsafe {
+        if DISK_OPS_PTR.is_null() {
+            return -5;
+        }
         // rootfs は qemu-runner の disk0 (IDE index=1, primary slave) を優先。
         // 起動直後はデバイス準備に時間がかかるため複数回リトライする。
         for _ in 0..16 {
@@ -990,6 +955,7 @@ extern "C" fn fs_readdir(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> 
 
 static FS_OPS: McxFsOps = McxFsOps {
     mount: fs_mount,
+    set_disk_ops: fs_set_disk_ops,
     read: fs_read,
     stat: fs_stat,
     readdir: fs_readdir,

@@ -1,10 +1,10 @@
 use std::vec::Vec;
 
-use swiftlib::process;
-use swiftlib::time;
-use swiftlib::task;
-use swiftlib::ipc;
-use swiftlib::io;
+use mochi_syscall::process;
+use mochi_syscall::time;
+use mochi_syscall::task;
+use mochi_syscall::ipc;
+use mochi_syscall::io;
 
 const OP_NOTIFY_READY: u64 = 0xFF;
 const DRIVER_CONFIG_PATH: &str = "/config/drivers.list";

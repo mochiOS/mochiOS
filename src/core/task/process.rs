@@ -139,6 +139,14 @@ impl Process {
         &self.capabilities
     }
 
+    /// exec 経路でプロセス生成時に capability を設定する（カーネル内部用）
+    ///
+    /// # 注意
+    /// capability は sandbox の根幹なので、ユーザー空間へ公開しないこと。
+    pub(crate) fn set_capabilities_for_exec(&mut self, caps: CapabilitySet) {
+        self.capabilities = caps;
+    }
+
     /// プロセス名を取得
     pub fn name(&self) -> &str {
         core::str::from_utf8(&self.name[..self.name_len]).unwrap_or("???")

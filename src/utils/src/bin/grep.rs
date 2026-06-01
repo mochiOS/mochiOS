@@ -3,7 +3,7 @@
 
 extern crate alloc;
 use alloc::vec::Vec;
-use swiftlib::{io, sys::SyscallNumber};
+use mochi_syscall::{io, sys::SyscallNumber};
 
 fn syscall1(num: u64, arg1: u64) -> u64 {
     let result: u64;

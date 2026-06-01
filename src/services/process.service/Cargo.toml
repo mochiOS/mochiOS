@@ -8,7 +8,7 @@ name = "entry"
 path = "src/entry.rs"
 
 [dependencies]
-swiftlib = { path = "../../user", features = ["std-support"] }
+mochi_syscall = { path = "../../user", features = ["std-support"] }
 
 [profile.release]
 panic = "abort"

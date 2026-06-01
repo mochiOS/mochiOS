@@ -320,6 +320,11 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
+    // 起動しているqemuを止める（これまでずっとqemu起動しっぱなしだったってこと...？嘘...？？？）
+    let _ = std::process::Command::new("pkill")
+        .args(["-f", "qemu-system-x86_64"])
+        .status();
+
     // Emit rerun-if-changed for all source directories
     fn emit_rerun_for_dir(dir: &Path) {
         if let Ok(entries) = std::fs::read_dir(dir) {
@@ -426,9 +431,8 @@ fn main() {
 
     let libc_dir = newlib_install_dir.join("x86_64-elf").join("lib");
 
-    // ユーザーライブラリをビルド
-    let user_src_dir = manifest_dir.join("src/user");
-    build_user_libs(&user_src_dir, &libc_dir);
+    let glue_src_dir = manifest_dir.join("src/runtime_glue");
+    build_user_libs(&glue_src_dir, &libc_dir);
 
     // newlibライブラリをramfsとfsにコピー
     copy_newlib_libs(&libc_dir, &ramfs_dir.join("lib"))

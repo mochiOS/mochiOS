@@ -1,7 +1,7 @@
-use swiftlib::ipc;
-use swiftlib::process;
-use swiftlib::task;
-use swiftlib::time;
+use mochi_syscall::ipc;
+use mochi_syscall::process;
+use mochi_syscall::task;
+use mochi_syscall::time;
 
 /// READY通知OPコード
 const OP_NOTIFY_READY: u64 = 0xFF;
@@ -24,6 +24,7 @@ struct CapabilityRequestMsg {
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct CapabilityResponseMsg {
+    op: u64,
     status: i64,
     len: u64,
     data: [u8; 512],
@@ -192,6 +193,9 @@ fn request_grant_for_app(
         }
         let resp: CapabilityResponseMsg =
             unsafe { core::ptr::read(buf.as_ptr() as *const CapabilityResponseMsg) };
+        if resp.op != OP_CAP_GRANT_FOR_EXEC {
+            continue;
+        }
         if resp.status != 0 {
             return None;
         }
@@ -253,7 +257,7 @@ fn main() {
         }
 
         // spawn は process.spawn を要求する
-        if swiftlib::capability::check_thread_capability(sender, "process.spawn")
+        if mochi_syscall::capability::check_thread_capability(sender, "process.spawn")
             .ok()
             .unwrap_or(false)
             == false

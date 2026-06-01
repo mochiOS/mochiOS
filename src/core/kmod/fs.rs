@@ -17,6 +17,7 @@ pub fn register(ops: *const McxFsOps, version: u16) -> bool {
     let _smap_guard = crate::cpu::SmapSmepGuard::new();
     let ops_ref = unsafe { &*ops };
     if (ops_ref.mount as usize) == 0
+        || (ops_ref.set_disk_ops as usize) == 0
         || (ops_ref.read as usize) == 0
         || (ops_ref.stat as usize) == 0
         || (ops_ref.readdir as usize) == 0
@@ -53,6 +54,15 @@ pub fn mount(device_id: u32) -> i32 {
         MOUNTED.store(true, Ordering::Release);
     }
     rc
+}
+
+pub fn set_disk_ops(disk_ops: *const crate::kmod::disk::McxDiskOps) -> i32 {
+    let ops = FS_OPS_PTR.load(Ordering::Acquire);
+    if ops.is_null() {
+        return -38;
+    }
+    let _smap_guard = crate::cpu::SmapSmepGuard::new();
+    unsafe { ((*ops).set_disk_ops)(disk_ops) }
 }
 
 pub fn read_all(path: &str) -> Option<Vec<u8>> {

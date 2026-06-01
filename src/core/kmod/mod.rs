@@ -5,6 +5,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 
 pub mod disk;
 pub mod fs;
+mod registry;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -23,6 +24,8 @@ pub struct McxPath {
 #[repr(C)]
 pub struct McxFsOps {
     pub mount: extern "C" fn(device_id: u32) -> i32,
+    /// disk.cext の ops を渡す（fs.cext から ATA を直接叩かないため）
+    pub set_disk_ops: extern "C" fn(ops: *const disk::McxDiskOps) -> i32,
     pub read:
         extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut usize) -> i32,
     pub stat: extern "C" fn(path: McxPath, out_mode: *mut u16, out_size: *mut u64) -> i32,
@@ -46,6 +49,18 @@ static NEXT_MODULE_LOAD_BASE: AtomicU64 = AtomicU64::new(MODULE_LOAD_BASE_START)
 
 type FsInitFn = unsafe extern "C" fn() -> *const McxFsOps;
 type DiskInitFn = unsafe extern "C" fn() -> *const disk::McxDiskOps;
+
+fn register_disk_module(init_addr: u64, module_version: u16) -> bool {
+    let init: DiskInitFn = unsafe { core::mem::transmute(init_addr) };
+    let ops = unsafe { init() };
+    disk::register(ops, module_version)
+}
+
+fn register_fs_module(init_addr: u64, module_version: u16) -> bool {
+    let init: FsInitFn = unsafe { core::mem::transmute(init_addr) };
+    let ops = unsafe { init() };
+    fs::register(ops, module_version)
+}
 
 struct CextHeader {
     module_version: u16,
@@ -75,6 +90,8 @@ pub fn load_modules() {
         .collect();
     module_paths.sort();
 
+    let registrations = registry::registrations();
+
     for path in module_paths {
         let Some(bytes) = crate::init::fs::read(&path) else {
             crate::warn!("kmod: failed to read {}", path);
@@ -97,36 +114,20 @@ pub fn load_modules() {
             continue;
         }
 
-        match meta.name.as_str() {
-            "disk" => {
-                if let Some(addr) = load_elf_symbol(&meta.elf, "mochi_module_init") {
-                    let init: DiskInitFn = unsafe { core::mem::transmute(addr) };
-                    let ops = unsafe { init() };
-                    if disk::register(ops, meta.module_version) {
-                        crate::info!("kmod: loaded disk.cext v{}", meta.module_version);
-                    } else {
-                        crate::warn!("kmod: disk init returned null ops");
-                    }
-                } else {
-                    crate::warn!("kmod: mochi_module_init not found in disk.cext");
-                }
-            }
-            "fs" => {
-                if let Some(addr) = load_elf_symbol(&meta.elf, "mochi_module_init") {
-                    let init: FsInitFn = unsafe { core::mem::transmute(addr) };
-                    let ops = unsafe { init() };
-                    if fs::register(ops, meta.module_version) {
-                        crate::info!("kmod: loaded fs.cext v{}", meta.module_version);
-                    } else {
-                        crate::warn!("kmod: fs init returned null ops");
-                    }
-                } else {
-                    crate::warn!("kmod: mochi_module_init not found in fs.cext");
-                }
-            }
-            other => {
-                crate::warn!("kmod: unknown module {}", other);
-            }
+        let Some(reg) = registrations.iter().find(|r| r.name == meta.name) else {
+            crate::warn!("kmod: unknown module {}", meta.name);
+            continue;
+        };
+
+        let Some(addr) = load_elf_symbol(&meta.elf, "mochi_module_init") else {
+            crate::warn!("kmod: mochi_module_init not found in {}.cext", meta.name);
+            continue;
+        };
+
+        if (reg.register)(addr, meta.module_version) {
+            crate::info!("kmod: loaded {}.cext v{}", meta.name, meta.module_version);
+        } else {
+            crate::warn!("kmod: {} init returned null ops", meta.name);
         }
     }
 }

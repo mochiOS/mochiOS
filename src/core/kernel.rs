@@ -23,6 +23,25 @@ fn kernel_main() -> ! {
     if manager_pid != 0
         && task::with_process(task::ProcessId::from_u64(manager_pid), |_| ()).is_some()
     {
+        // ブートストラップ:
+        // core.service は capability.service 起動・サービス管理の起点になる。
+        // capability.service が未起動の段階では付与判定を委譲できないため、
+        // 最低限の capability はカーネルが固定で与える。
+        let mut caps = crate::capability::CapabilitySet::empty();
+        caps.insert(crate::capability::Capability::IpcServer);
+        caps.insert(crate::capability::Capability::IpcClient);
+        caps.insert(crate::capability::Capability::ProcessSpawn);
+        caps.insert(crate::capability::Capability::ServiceControl);
+        caps.insert(crate::capability::Capability::SystemInfoRead);
+        // core.service はサービス起動のため /system/services/*.manifest.toml を読む必要がある。
+        // 起動初期は fs.service が InitFs を返すことがあり、通常の権限チェックだと詰まるため、
+        // ブートストラップとして読み取り専用の全体権限を与える。
+        caps.insert(crate::capability::Capability::FsReadAll);
+        let _ = crate::task::process::set_process_capabilities(
+            task::ProcessId::from_u64(manager_pid),
+            caps,
+        );
+
         crate::syscall::exec::register_service_manager_pid(manager_pid);
     } else {
         crate::warn!(

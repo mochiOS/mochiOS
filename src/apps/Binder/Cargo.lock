@@ -158,7 +158,7 @@ version = "0.1.0"
 dependencies = [
  "image",
  "memmap2",
- "swiftlib",
+ "mochi_syscall",
  "tempfile",
  "viewkit",
  "wayland-client",
@@ -1079,6 +1079,10 @@ dependencies = [
  "adler2",
  "simd-adler32",
 ]
+
+[[package]]
+name = "mochi_syscall"
+version = "0.1.0"
 
 [[package]]
 name = "moxcms"
@@ -2045,10 +2049,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "swiftlib"
-version = "0.1.0"
-
-[[package]]
 name = "syn"
 version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2264,8 +2264,8 @@ dependencies = [
  "lightningcss",
  "markup5ever_rcdom",
  "memmap2",
+ "mochi_syscall",
  "serde_json",
- "swiftlib",
  "tempfile",
  "tiny-skia",
  "ui_layout",

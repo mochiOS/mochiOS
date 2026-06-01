@@ -166,7 +166,7 @@ dependencies = [
  "async-trait",
  "env_logger",
  "log",
- "swiftlib",
+ "mochi_syscall",
  "thiserror",
  "tokio",
 ]
@@ -208,6 +208,10 @@ dependencies = [
  "wasi",
  "windows-sys",
 ]
+
+[[package]]
+name = "mochi_syscall"
+version = "0.1.0"
 
 [[package]]
 name = "once_cell_polyfill"
@@ -366,10 +370,6 @@ dependencies = [
  "libc",
  "windows-sys",
 ]
-
-[[package]]
-name = "swiftlib"
-version = "0.1.0"
 
 [[package]]
 name = "syn"

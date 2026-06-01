@@ -2,7 +2,7 @@ use crate::interrupt::spinlock::SpinLock;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use super::{EAGAIN, EFAULT, EINVAL};
+use super::{EACCES, EAGAIN, EFAULT, EINVAL};
 
 const MAX_THREADS: usize = crate::task::ThreadQueue::MAX_THREADS;
 const MAILBOX_CAP: usize = 64;
@@ -437,6 +437,19 @@ pub fn send(dest_thread_id: u64, buf_ptr: u64, len: u64) -> u64 {
         None => return EINVAL,
     };
 
+    // capability 強制:
+    // IPC で任意スレッドへメッセージを送れると、サービス制御や情報取得が無権限で可能になる。
+    // そのため、送信は `ipc.client` または `ipc.server` を持つプロセスに限定する。
+    let sender_pid = match crate::task::thread_to_process_id(sender) {
+        Some(p) => p,
+        None => return EINVAL,
+    };
+    if !crate::task::process::process_has_capability(sender_pid, crate::capability::Capability::IpcClient)
+        && !crate::task::process::process_has_capability(sender_pid, crate::capability::Capability::IpcServer)
+    {
+        return EACCES;
+    }
+
     let (idx, dest_generation) =
         match crate::task::thread_slot_index_and_generation_by_u64(dest_thread_id) {
             Some(v) => v,
@@ -630,7 +643,7 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
             None => return EAGAIN,
         }
     };
-    crate::debug!("[IPC RCV] pop_valid_for_receiver_copy returned from={} copy_len={} ext_pages_count={} data={:02x?}", from, copy_len, ext_pages_count, &recv_buf[..core::cmp::min(copy_len, recv_buf.len())]);
+    // NOTE: デバッグログは大量になりやすいので、通常は出さない
     let copy_len = match prepare_external_pages_for_user(
         receiver,
         &mut recv_buf,

@@ -1,4 +1,4 @@
-use swiftlib::fs;
+use mochi_syscall::fs;
 
 fn main() {
     let mut buf = [0u8; 256];

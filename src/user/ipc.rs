@@ -2,6 +2,11 @@
 
 use super::sys::{syscall2, syscall3, SyscallNumber};
 
+/// IPCメッセージの最大サイズ（kernel ipc.rs の MAX_MSG_SIZE と一致）
+pub const MAX_MSG_SIZE: usize = crate::fs_consts::IPC_MAX_MSG_SIZE;
+/// IPCのページ共有通知に使うヘッダーマジック
+pub const MAP_HEADER_MAGIC: u32 = 0xABCD_DCBA;
+
 /// IPC送信（宛先スレッドID, データ）
 pub fn ipc_send(dest_thread_id: u64, data: &[u8]) -> u64 {
     syscall3(

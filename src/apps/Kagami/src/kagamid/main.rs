@@ -1,13 +1,12 @@
-use swiftlib::{ipc::ipc_recv, keyboard, privileged, process, time, vga};
+use mochi_syscall::{ipc::ipc_recv, keyboard, privileged, process, time, vga};
 
-const IPC_BUF_SIZE: usize = 4128;
+const IPC_BUF_SIZE: usize = mochi_syscall::ipc::MAX_MSG_SIZE;
 const OP_REQ_CREATE_WINDOW: u32 = 1;
 const OP_RES_WINDOW_CREATED: u32 = 2;
 const OP_REQ_FLUSH_CHUNK: u32 = 4;
 const OP_REQ_ATTACH_SHARED: u32 = 5;
 const OP_REQ_PRESENT_SHARED: u32 = 6;
 const OP_RES_SHARED_ATTACHED: u32 = 7;
-const MAP_HEADER_MAGIC: u32 = 0xABCD_DCBA;
 
 struct Window {
     id: u32,
@@ -91,7 +90,7 @@ fn main() {
             // Handle shared-page map header (kernel format).
             if len == 20 {
                 let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
-                if magic == MAP_HEADER_MAGIC {
+                if magic == mochi_syscall::ipc::MAP_HEADER_MAGIC {
                     let map_start = u64::from_le_bytes([
                         recv[4], recv[5], recv[6], recv[7], recv[8], recv[9], recv[10], recv[11],
                     ]);
@@ -110,7 +109,7 @@ fn main() {
                                 let mut res = [0u8; 8];
                                 res[0..4].copy_from_slice(&OP_RES_SHARED_ATTACHED.to_le_bytes());
                                 res[4..8].copy_from_slice(&window_id.to_le_bytes());
-                                let _ = swiftlib::ipc::ipc_send(sender, &res);
+                                let _ = mochi_syscall::ipc::ipc_send(sender, &res);
                             }
                         }
                     }
@@ -173,7 +172,7 @@ fn main() {
                     let mut res = [0u8; 8];
                     res[0..4].copy_from_slice(&OP_RES_WINDOW_CREATED.to_le_bytes());
                     res[4..8].copy_from_slice(&id.to_le_bytes());
-                    let _ = swiftlib::ipc::ipc_send(sender, &res);
+                    let _ = mochi_syscall::ipc::ipc_send(sender, &res);
                 }
                 OP_REQ_FLUSH_CHUNK => {
                     if len < 20 {
@@ -268,7 +267,7 @@ fn main() {
                                 let mut res = [0u8; 8];
                                 res[0..4].copy_from_slice(&OP_RES_SHARED_ATTACHED.to_le_bytes());
                                 res[4..8].copy_from_slice(&window_id.to_le_bytes());
-                                let _ = swiftlib::ipc::ipc_send(sender, &res);
+                                let _ = mochi_syscall::ipc::ipc_send(sender, &res);
                             }
                         }
                     }

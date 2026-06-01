@@ -236,6 +236,10 @@ pub enum SyscallNumber {
     CheckThreadCapability = 553,
     /// exec 時に capability を付与する（path_ptr, args_ptr, caps_ptr, caps_total_len）
     ExecWithCapabilities = 554,
+    /// ブロックデバイス読み取り（disk_id, lba, buf_ptr, sector_count）
+    BlockRead = 555,
+    /// ブロックデバイス書き込み（disk_id, lba, buf_ptr, sector_count）
+    BlockWrite = 556,
 }
 
 /// 成功
@@ -254,6 +258,8 @@ pub const ESRCH: u64 = (-3i64) as u64;
 pub const EIO: u64 = (-5i64) as u64;
 /// 不正なファイルディスクリプタ
 pub const EBADF: u64 = (-9i64) as u64;
+/// アクセス権がない
+pub const EACCES: u64 = (-13i64) as u64;
 /// 不正なアドレス
 pub const EFAULT: u64 = (-14i64) as u64;
 /// デバイスが見つからない

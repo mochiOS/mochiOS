@@ -5,7 +5,7 @@
 
 use core::fmt;
 use core::sync::atomic::{AtomicBool, Ordering};
-use swiftlib::libc::{inb, outb, inw, outw};
+use mochi_syscall::port::{inb, inw, outb, outw};
 
 /// ATAポート
 #[allow(dead_code)]

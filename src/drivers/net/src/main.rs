@@ -1,7 +1,7 @@
 use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{compiler_fence, Ordering as AtomicOrdering};
 
-use swiftlib::{mmio, port, privileged, task, time};
+use mochi_syscall::{mmio, port, privileged, task, time};
 
 const PCI_CFG_ADDR_PORT: u16 = 0xCF8;
 const PCI_CFG_DATA_PORT: u16 = 0xCFC;

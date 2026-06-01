@@ -1,7 +1,7 @@
-use swiftlib::ipc;
-use swiftlib::process;
-use swiftlib::task;
-use swiftlib::time;
+use mochi_syscall::ipc;
+use mochi_syscall::process;
+use mochi_syscall::task;
+use mochi_syscall::time;
 
 /// READY通知OPコード
 const OP_NOTIFY_READY: u64 = 0xFF;
@@ -22,6 +22,7 @@ struct CapabilityRequestMsg {
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct CapabilityResponseMsg {
+    op: u64,
     status: i64,
     len: u64,
     data: [u8; 512],
@@ -123,6 +124,24 @@ fn parse_service_id_and_required_caps(manifest_text: &str) -> Option<(String, Ve
     Some((id, required))
 }
 
+fn fallback_required_caps_for_service(service_base: &str) -> Option<Vec<String>> {
+    // manifest が読めない場合のフォールバック（ブート継続のため）。
+    // ここでのリストは plan.md の推奨 / 既存 manifest と一致させる。
+    let list: &[&str] = match service_base {
+        "capability.service" => &["ipc.server", "system.info.read"],
+        "driver.service" => &["ipc.server", "process.spawn", "device.storage", "device.net", "device.input"],
+        "disk.service" => &["ipc.server", "device.storage"],
+        "fs.service" => &["ipc.server", "device.storage", "fs.read.all", "fs.write.all"],
+        "process.service" => &["ipc.server", "process.spawn", "process.inspect", "process.kill"],
+        "device.service" => &["ipc.server"],
+        "net.service" => &["ipc.server", "device.net", "net.raw"],
+        "window.service" => &["ipc.server", "display.read", "display.capture", "input.pointer.global", "input.keyboard.global"],
+        "shell.service" => &["ipc.server", "display.read", "input.keyboard", "input.pointer", "window.create"],
+        _ => return None,
+    };
+    Some(list.iter().map(|s| s.to_string()).collect())
+}
+
 fn find_capability_service_pid() -> Option<u64> {
     task::find_process_by_name("capability.service")
 }
@@ -132,6 +151,20 @@ fn request_grant_for_service(
     service_id: &str,
     requested: &[String],
 ) -> Option<Vec<String>> {
+    // 以前のリクエストに対するレスポンスがキューに残っていると、
+    // 次の grant の待受で「別リクエストのレスポンス」を誤って拾ってしまう。
+    // ブート直後は 500ms タイムアウトに引っかかりやすいので、送信前に古い分を排出する。
+    {
+        let mut drain_buf = [0u8; 576];
+        for _ in 0..16 {
+            let (sender, len) = ipc::ipc_recv(&mut drain_buf);
+            // ipc_recv はメッセージ無し/エラー時に (0, 0) を返す
+            if sender == 0 || len == 0 {
+                break;
+            }
+        }
+    }
+
     // subject_id と requested を NUL 区切りで詰める
     let mut msg = CapabilityRequestMsg {
         op: OP_CAP_GRANT_FOR_EXEC,
@@ -170,13 +203,15 @@ fn request_grant_for_service(
     let _ = ipc::ipc_send(cap_pid, req_slice);
 
     let mut buf = [0u8; 576];
-    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1500);
     loop {
         if std::time::Instant::now() > deadline {
+            println!("[CORE] grant timeout for {}", service_id);
             return None;
         }
+        // ノンブロッキングで回して deadline を守る
         let (sender, len) = ipc::ipc_recv(&mut buf);
-        if sender == 0xFFFFFFFF || len == 0xFFFFFFFD {
+        if sender == 0 || len == 0 {
             time::sleep_ms(0);
             continue;
         }
@@ -185,6 +220,11 @@ fn request_grant_for_service(
         }
         let resp: CapabilityResponseMsg =
             unsafe { core::ptr::read(buf.as_ptr() as *const CapabilityResponseMsg) };
+        // NOTE: 返ってくるレスポンスは他OPと混ざることがあるため op でフィルタする
+        if resp.op != OP_CAP_GRANT_FOR_EXEC {
+            // 他の応答（RecordGranted 等）が混ざることがあるため、目的の op 以外は捨てる
+            continue;
+        }
         if resp.status != 0 {
             return None;
         }
@@ -199,6 +239,7 @@ fn request_grant_for_service(
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
+        // デバッグ観測: 期待した required cap が返っているか確認する
         return Some(granted);
     }
 }
@@ -367,7 +408,22 @@ fn main() {
     match fs_open_read_lines("/config/services.list") {
         Ok(lines) => {
             println!("[CORE] Found services.list with {} entries", lines.len());
-            for p in lines {
+            // NOTE:
+            // disk.service が起動すると、カーネル側の初期ローダ（kmod::fs）が使う
+            // デバイス状態を変更してしまい、以降の /system/services/* の読み込みが
+            // 失敗することがある（"file not found" で起動不能になる）。
+            //
+            // そのため、まず他のサービスを起動し、最後に disk.service を起動する。
+            let mut paths = lines;
+            paths.sort_by_key(|p| {
+                if p.ends_with("/disk.service") || p == "/system/services/disk.service" {
+                    1u8
+                } else {
+                    0u8
+                }
+            });
+
+            for p in paths {
                 if !is_allowed_service_path(&p) {
                     println!("[CORE] Skipping disallowed service path: {}", p);
                     continue;
@@ -382,15 +438,37 @@ fn main() {
                 }
                 println!("[CORE] Requesting exec for {}", p);
                 // capability.service が居れば manifest から required を読み、付与して起動する
+                let service_base = service_name_from_path(&p);
                 let cap_pid = find_capability_service_pid();
-                let manifest_path = format!("/system/services/{}.service.manifest.toml", service_name_from_path(&p).trim_end_matches(".service"));
+                let manifest_path = format!(
+                    "/system/services/{}.service.manifest.toml",
+                    service_name_from_path(&p).trim_end_matches(".service")
+                );
                 let manifest_text = std::fs::read_to_string(&manifest_path).ok();
-                let maybe_granted = if let (Some(cap_pid), Some(ref text)) = (cap_pid, manifest_text.as_ref()) {
-                    let (sid, requested) = parse_service_id_and_required_caps(text)
-                        .unwrap_or_else(|| (service_name_from_path(&p).to_string(), Vec::new()));
-                    request_grant_for_service(cap_pid, &sid, &requested)
+
+                // ブートストラップ:
+                // capability.service 自身は grant 判定を委譲できないため、
+                // manifest の required をそのまま付与して起動する（最小限）。
+                let maybe_granted = if service_base == "capability.service" {
+                    manifest_text
+                        .as_ref()
+                        .and_then(|text| parse_service_id_and_required_caps(text))
+                        .map(|(_, requested)| requested)
                 } else {
-                    None
+                    let requested = manifest_text
+                        .as_ref()
+                        .and_then(|text| parse_service_id_and_required_caps(text))
+                        .map(|(sid, req)| (sid, req))
+                        .or_else(|| {
+                            fallback_required_caps_for_service(service_base)
+                                .map(|req| (service_base.to_string(), req))
+                        });
+
+                    if let (Some(cap_pid), Some((sid, req))) = (cap_pid, requested) {
+                        request_grant_for_service(cap_pid, &sid, &req)
+                    } else {
+                        None
+                    }
                 };
 
                 let launch = if let Some(granted) = maybe_granted {

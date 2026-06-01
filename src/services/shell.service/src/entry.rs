@@ -3,7 +3,7 @@ mod keyboard;
 
 use char::{Font, Terminal};
 use keyboard::Ps2Keyboard;
-use swiftlib::{time, vga};
+use mochi_syscall::{time, vga};
 
 #[repr(C)]
 struct WinSize {
@@ -12,8 +12,6 @@ struct WinSize {
     ws_xpixel: u16,
     ws_ypixel: u16,
 }
-
-const TIOCSWINSZ: u64 = 0x5414;
 
 fn main() {
     println!("[SHELL] Service Started.");
@@ -61,7 +59,11 @@ fn main() {
         ws_ypixel: 0,
     };
     unsafe {
-        let _ = swiftlib::posix_stubs::ioctl(0, TIOCSWINSZ, (&ws as *const WinSize) as u64);
+        let _ = mochi_syscall::posix_stubs::ioctl(
+            0,
+            mochi_syscall::posix_stubs::TIOCSWINSZ,
+            (&ws as *const WinSize) as u64,
+        );
     }
 
     term.clear_screen(); // clear_screen 内で flush 済み

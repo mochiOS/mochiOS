@@ -164,6 +164,10 @@ pub enum SyscallNumber {
     CheckThreadCapability = 553,
     /// exec 時に capability を付与する（path_ptr, args_ptr, caps_ptr, caps_total_len）
     ExecWithCapabilities = 554,
+    /// ブロックデバイス読み取り（disk_id, lba, buf_ptr, sector_count）
+    BlockRead = 555,
+    /// ブロックデバイス書き込み（disk_id, lba, buf_ptr, sector_count）
+    BlockWrite = 556,
     /// 重力が存在するか
     CheckGravityExist = 999,
 }

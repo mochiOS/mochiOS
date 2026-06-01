@@ -3,7 +3,7 @@
 //! カーネルから rawスキャンコード (セット1) を受け取り
 //! ASCII 文字に変換する。Shift / CapsLock の状態を保持する。
 
-use swiftlib::keyboard;
+use mochi_syscall::keyboard;
 
 /// スキャンコードセット1 → ASCII（通常）
 #[rustfmt::skip]

@@ -975,6 +975,24 @@ pub fn find_process_by_name(name_ptr: u64, len: u64) -> u64 {
         return 0;
     }
 
+    // capability 強制:
+    // 名前解決で任意サービスのスレッドIDが分かると、そのまま IPC を送れてしまう。
+    // 「サービスへ接続する」操作として `ipc.client` を要求する。
+    // ただしサービス自身が READY 通知などで名前解決を行うため、`ipc.server` も許可する。
+    let caller_tid = match task::current_thread_id() {
+        Some(t) => t.as_u64(),
+        None => return 0,
+    };
+    let caller_pid = match task::thread_to_process_id(caller_tid) {
+        Some(p) => p,
+        None => return 0,
+    };
+    if !task::process::process_has_capability(caller_pid, crate::capability::Capability::IpcClient)
+        && !task::process::process_has_capability(caller_pid, crate::capability::Capability::IpcServer)
+    {
+        return 0;
+    }
+
     let mut name_buf = [0u8; 64];
     if crate::syscall::copy_from_user(name_ptr, &mut name_buf[..len as usize]).is_err() {
         return 0;

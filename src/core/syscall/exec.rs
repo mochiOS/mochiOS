@@ -263,7 +263,7 @@ pub fn exec_kernel(path_ptr: u64, args_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let extra_args: Vec<&str> = extra_args_owned.iter().map(|s| s.as_str()).collect();
-    exec_internal(path, None, &extra_args)
+    exec_internal(path, None, &extra_args, None)
 }
 
 /// exec 時に capability を付与して起動する
@@ -309,29 +309,22 @@ pub fn exec_with_capabilities_syscall(
         caps.insert(cap);
     }
 
-    let pid_or_errno = exec_internal(path.as_str(), None, &extra_args);
-    let pid_i64 = pid_or_errno as i64;
-    if pid_i64 < 0 {
-        return pid_or_errno;
-    }
-
-    // 生成されたプロセスへ capability を付与する（カーネル内部用 API）
-    let pid = crate::task::ProcessId::from_u64(pid_or_errno);
-    if crate::task::process::set_process_capabilities(pid, caps).is_err() {
-        // 付与に失敗した場合は安全側（起動を失敗扱い）に倒す。
-        // ここで起動だけ成功にすると、想定した sandbox が掛からない可能性がある。
-        return EINVAL;
-    }
-
-    pid_or_errno
+    // capability はプロセス生成時に設定する必要がある。
+    // 後付けだと、スケジューラ有効時に起動直後の IPC 等が cap 無しで走り得る。
+    exec_internal(path.as_str(), None, &extra_args, Some(caps))
 }
 
 /// 名前を指定してカーネル内から実行可能ファイルを実行する（カーネル内部用）
 pub fn exec_kernel_with_name(path: &str, name: &str) -> u64 {
-    exec_internal(path, Some(name), &[])
+    exec_internal(path, Some(name), &[], None)
 }
 
-fn exec_internal(path: &str, name_override: Option<&str>, args: &[&str]) -> u64 {
+fn exec_internal(
+    path: &str,
+    name_override: Option<&str>,
+    args: &[&str],
+    initial_caps: Option<crate::capability::CapabilitySet>,
+) -> u64 {
     let mut process_name = name_override
         .map(|s| s.to_string())
         .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path).to_string());
@@ -340,7 +333,7 @@ fn exec_internal(path: &str, name_override: Option<&str>, args: &[&str]) -> u64 
     }
     let loaded = crate::kmod::fs::read_all(path).or_else(|| crate::init::fs::read(path));
     if let Some(data) = loaded {
-        exec_with_data(&data, &process_name, path, args, None)
+        exec_with_data(&data, &process_name, path, args, None, initial_caps)
     } else {
         crate::warn!("exec: file not found: {}", path);
         crate::syscall::types::ENOENT
@@ -366,14 +359,14 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
 
     // First try to obtain the image via FS service (streaming). If that fails, fall back to kmod::fs.
     match crate::syscall::fs::exec_image_via_fs(&path) {
-        Ok(data) => return exec_with_data(&data, &path, &path, &extra_args, None),
+        Ok(data) => return exec_with_data(&data, &path, &path, &extra_args, None, None),
         Err(_) => {
             // fallthrough to kmod fallback
         }
     }
 
     if let Some(data) = crate::kmod::fs::read_all(&path) {
-        return exec_with_data(&data, &path, &path, &extra_args, None);
+        return exec_with_data(&data, &path, &path, &extra_args, None, None);
     }
 
     crate::syscall::types::ENOENT
@@ -551,6 +544,7 @@ fn exec_with_data(
     exec_path: &str,
     args: &[&str],
     parent_override: Option<crate::task::ProcessId>,
+    initial_caps: Option<crate::capability::CapabilitySet>,
 ) -> u64 {
     crate::debug!("exec: name={}", process_name);
     let aslr_seed = next_aslr_seed(process_name);
@@ -998,6 +992,12 @@ fn exec_with_data(
         });
         let privilege = resolve_exec_privilege(process_name, exec_path);
         let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
+        if let Some(caps) = initial_caps {
+            // capability はプロセス開始前にセットする必要がある。
+            // スケジューラが有効だと `add_thread()` の直後に動き出すため、
+            // syscall 後付けだと競合して「cap不足」になる。
+            proc.set_capabilities_for_exec(caps);
+        }
         proc.set_page_table(new_pt_phys);
         proc.set_stack_bottom(stack_base_vaddr);
         proc.set_stack_top(stack_end_vaddr + 4096);
@@ -1492,6 +1492,7 @@ pub fn exec_from_buffer_syscall(buf_ptr: u64, buf_len: u64) -> u64 {
         "user_exec",
         &[],
         delegated_parent_pid(),
+        None,
     )
 }
 
@@ -1531,6 +1532,7 @@ pub fn exec_from_buffer_named_syscall(buf_ptr: u64, buf_len: u64, path_ptr: u64)
         path.as_str(),
         &[],
         delegated_parent_pid(),
+        None,
     )
 }
 
@@ -1582,6 +1584,7 @@ pub fn exec_from_buffer_named_args_syscall(
         path.as_str(),
         &args_refs,
         delegated_parent_pid(),
+        None,
     )
 }
 
@@ -1654,5 +1657,6 @@ pub fn exec_from_buffer_named_args_with_requester_syscall(
         path.as_str(),
         &args_refs,
         parent_override.or_else(delegated_parent_pid),
+        None,
     )
 }

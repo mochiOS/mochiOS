@@ -1,4 +1,5 @@
-use swiftlib::{fs, io, ipc, process, task, vga};
+use mochi_syscall::{fs, io, ipc, process, task, vga};
+use mochi_syscall::fs_consts::{FS_PATH_MAX, IPC_MAX_MSG_SIZE, S_IFDIR, S_IFMT, S_IFREG};
 
 // 色の編集がだるっちいったらありゃしないのでgeminiに作ってもらったエディタを使ってください。
 // https://gemini.google.com/share/02481dc7584f
@@ -38,9 +39,7 @@ const FONT_BIN_SIZE: usize = GLYPH_COUNT * FONT_HEIGHT;
 const FONT_BDF_MAX_SIZE: usize = 512 * 1024;
 const ENV_FILE_MAX_SIZE: usize = 4096;
 const FONT_READ_CHUNK: usize = 512;
-const FS_PATH_MAX: usize = 128;
 const FS_REQ_TIMEOUT_MS: u64 = 2000;
-const IPC_MSG_MAX: usize = 4128;
 const PENDING_IPC_CAPACITY: usize = 32;
 
 #[repr(C)]
@@ -61,17 +60,12 @@ impl FsRequest {
     const OP_READDIR: u64 = 8;
 }
 
-/// FS service の STAT/FSTAT が返す mode のファイルタイプビット
-const S_IFMT: u64 = 0o170000;
-const S_IFDIR: u64 = 0o040000;
-const S_IFREG: u64 = 0o100000;
-
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct FsResponse {
     status: i64,
     len: u64,
-    data: [u8; swiftlib::fs_consts::FS_DATA_MAX],
+    data: [u8; mochi_syscall::fs::max_data_len()],
 }
 
 #[derive(Clone, Copy)]
@@ -79,7 +73,7 @@ struct PendingIpcMessage {
     used: bool,
     sender: u64,
     len: usize,
-    data: [u8; IPC_MSG_MAX],
+    data: [u8; IPC_MAX_MSG_SIZE],
 }
 
 impl PendingIpcMessage {
@@ -88,7 +82,7 @@ impl PendingIpcMessage {
             used: false,
             sender: 0,
             len: 0,
-            data: [0; IPC_MSG_MAX],
+            data: [0; IPC_MAX_MSG_SIZE],
         }
     }
 }
@@ -97,7 +91,7 @@ static mut PENDING_IPC_MESSAGES: [PendingIpcMessage; PENDING_IPC_CAPACITY] =
     [PendingIpcMessage::new(); PENDING_IPC_CAPACITY];
 
 fn enqueue_pending_message(sender: u64, data: &[u8], len: usize) -> bool {
-    let copy_len = core::cmp::min(len, core::cmp::min(data.len(), IPC_MSG_MAX));
+    let copy_len = core::cmp::min(len, core::cmp::min(data.len(), IPC_MAX_MSG_SIZE));
     unsafe {
         for slot in &mut PENDING_IPC_MESSAGES {
             if !slot.used {
@@ -525,9 +519,9 @@ impl Terminal {
     fn command_exists(&self, path: &str) -> bool {
         // stat syscall 未実装のため open/close で存在確認
         // 1回のopen試行で十分
-        let fd = swiftlib::io::open(path, io::O_RDONLY);
+        let fd = mochi_syscall::io::open(path, io::O_RDONLY);
         if fd >= 0 {
-            swiftlib::io::close(fd as u64);
+            mochi_syscall::io::close(fd as u64);
             return true;
         }
         false
@@ -1581,7 +1575,7 @@ impl Terminal {
 
     /// 子プロセスのIPC出力を受け取りながら終了を待つ
     fn drain_child_output(&mut self, pid: u64) {
-        let mut buf = Box::new([0u8; IPC_MSG_MAX]);
+        let mut buf = Box::new([0u8; IPC_MAX_MSG_SIZE]);
         loop {
             let mut wrote = false;
             if self.drain_pending_ipc_messages(&mut *buf) {

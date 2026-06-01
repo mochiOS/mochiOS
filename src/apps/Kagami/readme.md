@@ -9,5 +9,5 @@ The window server for mochiOS.
 
 - Linux framebuffer: `--features backend-linux-fb`（default）
 - mochiOS VGA/VRAM: `--no-default-features --features backend-mochios-vga`
-- mochiOS VGA/VRAM (hosted): `--no-default-features --features backend-mochios-vga-hosted`（Linuxホストでswiftlib vgaを模擬）
+- mochiOS VGA/VRAM (hosted): `--no-default-features --features backend-mochios-vga-hosted`（Linuxホストで mochi_syscall の hosted-vga を使う）
 - In-memory (debug/CI): `--no-default-features --features backend-generic-memory`

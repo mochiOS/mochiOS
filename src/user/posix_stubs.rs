@@ -5,6 +5,9 @@
 
 use crate::sys::{syscall1, syscall2, syscall3, syscall6, SyscallNumber};
 
+/// TTYのウィンドウサイズ設定 ioctl
+pub const TIOCSWINSZ: u64 = 0x5414;
+
 // errno
 static mut ERRNO_VAL: i32 = 0;
 
@@ -151,7 +154,7 @@ pub struct PthreadAttr {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_attr_init(attr: *mut PthreadAttr) -> i32 {
     if !attr.is_null() {
-        core::ptr::write_bytes(attr as *mut u8, 0, size_of::<PthreadAttr>());
+        core::ptr::write_bytes(attr as *mut u8, 0, core::mem::size_of::<PthreadAttr>());
     }
     0
 }
@@ -301,10 +304,25 @@ pub unsafe extern "C" fn readlink(path: *const u8, buf: *mut u8, bufsiz: usize) 
     ) as i64;
     if ret < 0 {
         set_errno(errno_from_neg_ret(ret));
-        -1
+        return -1;
     } else {
-        ret as isize
+        return ret as isize;
     }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn readlinkat(
+    dirfd: i32,
+    path: *const u8,
+    buf: *mut u8,
+    bufsiz: usize,
+) -> isize {
+    const AT_FDCWD: i32 = -100;
+    if dirfd != AT_FDCWD {
+        set_errno(38); // ENOSYS
+        return -1;
+    }
+    readlink(path, buf, bufsiz)
 }
 
 #[unsafe(no_mangle)]
@@ -507,7 +525,11 @@ pub unsafe extern "C" fn posix_memalign(
         return 22; // EINVAL
     }
 
-    let ptr = crate::libc::memalign(alignment, size);
+    extern "C" {
+        #[link_name = "memalign"]
+        fn c_memalign(alignment: usize, size: usize) -> *mut u8;
+    }
+    let ptr = c_memalign(alignment, size);
     if ptr.is_null() {
         return 12; // ENOMEM
     }
@@ -658,8 +680,8 @@ pub unsafe extern "C" fn pthread_create(
     _start_routine: extern "C" fn(*mut u8) -> *mut u8,
     _arg: *mut u8,
 ) -> i32 {
-    // Stub: threading not actually supported; return failure
-    1
+    // Stub: threading not actually supported; report success so std can proceed.
+    0
 }
 
 #[unsafe(no_mangle)]

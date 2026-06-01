@@ -1,6 +1,6 @@
-use swiftlib::ipc;
-use swiftlib::task;
-use swiftlib::time;
+use mochi_syscall::ipc;
+use mochi_syscall::task;
+use mochi_syscall::time;
 
 /// READY通知OPコード
 const OP_NOTIFY_READY: u64 = 0xFF;
@@ -77,7 +77,7 @@ fn main() {
         };
 
         if let Some(cap) = required_cap {
-            let ok = swiftlib::capability::check_thread_capability(sender, cap)
+            let ok = mochi_syscall::capability::check_thread_capability(sender, cap)
                 .ok()
                 .unwrap_or(false);
             if !ok {

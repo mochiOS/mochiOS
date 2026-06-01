@@ -2,10 +2,60 @@
 
 use core::mem::size_of;
 
-use swiftlib::ipc;
+use mochi_syscall::fs_consts::IPC_MAX_MSG_SIZE;
+use mochi_syscall::ipc;
+use mochi_syscall::task;
+use std::vec::Vec;
 
 use crate::common::vfs::{VfsError, VfsResult};
 use crate::ext2::BlockDevice;
+
+#[derive(Clone, Copy)]
+struct StashedMsg {
+    sender: u64,
+    len: usize,
+    data: [u8; IPC_MAX_MSG_SIZE],
+}
+
+// fs.service は単一スレッドで動かしているため、簡易キューを unsafe で持つ。
+// disk.service とのやり取り中に他クライアントから fs IPC が届くと、
+// `ipc_recv()` がそれを先に受信してしまうため退避が必要。
+static mut STASH: Option<Vec<StashedMsg>> = None;
+const STASH_CAP: usize = 32;
+
+fn stash_push(sender: u64, bytes: &[u8]) {
+    unsafe {
+        if STASH.is_none() {
+            STASH = Some(Vec::new());
+        }
+        let Some(ref mut q) = STASH else { return };
+        if q.len() >= STASH_CAP {
+            // 古いものから捨てる（ブート時の一時的な混線対策）
+            q.remove(0);
+        }
+        let mut msg = StashedMsg {
+            sender,
+            len: core::cmp::min(bytes.len(), IPC_MAX_MSG_SIZE),
+            data: [0u8; IPC_MAX_MSG_SIZE],
+        };
+        msg.data[..msg.len].copy_from_slice(&bytes[..msg.len]);
+        q.push(msg);
+    }
+}
+
+/// disk_device が退避したメッセージを 1 件取り出す（無ければ None）
+pub fn pop_stashed(into: &mut [u8]) -> Option<(u64, u64)> {
+    unsafe {
+        let Some(ref mut q) = STASH else { return None };
+        if q.is_empty() {
+            return None;
+        }
+        let msg = q.remove(0);
+        let n = core::cmp::min(into.len(), msg.len);
+        into[..n].copy_from_slice(&msg.data[..n]);
+        Some((msg.sender, n as u64))
+    }
+}
 
 /// ディスク操作リクエスト（書き込みデータを含む）
 #[repr(C)]
@@ -75,12 +125,17 @@ impl DiskServiceDevice {
             return Err(VfsError::IoError);
         }
 
-        // レスポンスを受信（EAGAIN の場合はスピン、最大 1000 回）
-        let mut resp_buf = [0u8; size_of::<DiskResponse>()];
+        // レスポンスを受信（他クライアントの fs リクエストが混ざるため退避する）
+        let mut inbox = vec![0u8; IPC_MAX_MSG_SIZE];
         let (sender, len) = loop {
-            let (s, l) = ipc::ipc_recv(&mut resp_buf);
-            // EAGAIN sentinel: sender=0xFFFF_FFFF または len=0xFFFF_FFFD
-            if s == 0xFFFF_FFFF || l == 0xFFFF_FFFD {
+            let (s, l) = ipc::ipc_recv(&mut inbox);
+            if s == 0 || l == 0 {
+                task::yield_now();
+                continue;
+            }
+            if s != self.disk_service_pid {
+                let n = core::cmp::min(l as usize, inbox.len());
+                stash_push(s, &inbox[..n]);
                 continue;
             }
             break (s, l);
@@ -91,7 +146,7 @@ impl DiskServiceDevice {
         }
 
         let resp: DiskResponse = unsafe {
-            core::ptr::read(resp_buf.as_ptr() as *const DiskResponse)
+            core::ptr::read(inbox.as_ptr() as *const DiskResponse)
         };
 
         if resp.status != 0 {
@@ -127,11 +182,17 @@ impl DiskServiceDevice {
             return Err(VfsError::IoError);
         }
 
-        // レスポンスを受信（EAGAIN の場合はスピン）
-        let mut resp_buf = [0u8; size_of::<DiskResponse>()];
+        // レスポンスを受信（他クライアントの fs リクエストが混ざるため退避する）
+        let mut inbox = vec![0u8; IPC_MAX_MSG_SIZE];
         let (sender, len) = loop {
-            let (s, l) = ipc::ipc_recv(&mut resp_buf);
-            if s == 0xFFFF_FFFF || l == 0xFFFF_FFFD {
+            let (s, l) = ipc::ipc_recv(&mut inbox);
+            if s == 0 || l == 0 {
+                task::yield_now();
+                continue;
+            }
+            if s != self.disk_service_pid {
+                let n = core::cmp::min(l as usize, inbox.len());
+                stash_push(s, &inbox[..n]);
                 continue;
             }
             break (s, l);
@@ -141,9 +202,8 @@ impl DiskServiceDevice {
             return Err(VfsError::IoError);
         }
 
-        let resp: DiskResponse = unsafe {
-            core::ptr::read(resp_buf.as_ptr() as *const DiskResponse)
-        };
+        let resp: DiskResponse =
+            unsafe { core::ptr::read(inbox.as_ptr() as *const DiskResponse) };
 
         if resp.status != 0 {
             Err(VfsError::IoError)

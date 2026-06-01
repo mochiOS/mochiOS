@@ -178,13 +178,13 @@ pub fn build_newlib(src_dir: &Path) {
     }
 }
 
-pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
+pub fn build_user_libs(glue_dir: &Path, libc_dir: &Path) {
     if !libc_dir.exists() {
         fs::create_dir_all(libc_dir).expect("Failed to create libc dir");
     }
 
-    let crt_src = user_dir.join("crt.rs");
-    let lib_src = user_dir.join("lib.rs");
+    let crt_src = glue_dir.join("crt.rs");
+    let lib_src = glue_dir.join("lib.rs");
     let crt_obj = libc_dir.join("crt0.o");
     let libc_a = libc_dir.join("libc.a");
     let libg_a = libc_dir.join("libg.a");
@@ -202,8 +202,8 @@ pub fn build_user_libs(user_dir: &Path, libc_dir: &Path) {
         let libc_mtime = libc_a.metadata().and_then(|m| m.modified()).ok();
         let lib_mtime = lib_src.metadata().and_then(|m| m.modified()).ok();
         let crt_mtime = crt_src.metadata().and_then(|m| m.modified()).ok();
-        // Check all .rs files in user_dir for changes
-        let newest_src = fs::read_dir(user_dir)
+        // Check all .rs files in glue_dir for changes
+        let newest_src = fs::read_dir(glue_dir)
             .into_iter()
             .flatten()
             .flatten()

@@ -2,7 +2,7 @@ use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{compiler_fence, Ordering as AtomicOrdering};
 use std::alloc::{alloc_zeroed, dealloc, Layout};
 
-use swiftlib::{mmio, port, time};
+use mochi_syscall::{mmio, port, time};
 
 mod define;
 mod hid;

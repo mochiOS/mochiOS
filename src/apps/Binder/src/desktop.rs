@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 use std::sync::OnceLock;
-use swiftlib::{
+use mochi_syscall::{
     ipc::{ipc_recv, ipc_send},
     keyboard::read_scancode_tap,
     process,
@@ -11,7 +11,7 @@ use swiftlib::{
 };
 use viewkit::{render_component_to_pixmap_with_asset_root_and_boxes, VComponent};
 
-const IPC_BUF_SIZE: usize = 4128;
+const IPC_BUF_SIZE: usize = mochi_syscall::ipc::MAX_MSG_SIZE;
 const KAGAMI_PROCESS_CANDIDATES: [&str; 3] =
     ["/applications/Kagami.app/entry.elf", "Kagami.app", "entry.elf"];
 
@@ -443,7 +443,7 @@ fn detect_asset_root() -> Option<String> {
     ];
     for c in candidates.into_iter().flatten() {
         let test = format!("{}/components/icons/CloseButton.png", c.trim_end_matches('/'));
-        match swiftlib::fs::read_file_via_fs(&test, 1024 * 1024) {
+        match mochi_syscall::fs::read_file_via_fs(&test, 1024 * 1024) {
             Ok(Some(_)) => return Some(c.to_string()),
             _ => {}
         }
@@ -625,7 +625,6 @@ fn blit_shared_surface(surface: &SharedSurface, pixels: &[u32]) {
 }
 
 fn wait_shared_map_header(kagami_tid: u64) -> Result<u64, &'static str> {
-    const MAP_HEADER_MAGIC: u32 = 0xABCD_DCBA;
     let mut recv = [0u8; IPC_BUF_SIZE];
     for _ in 0..512 {
         let (sender, len) = ipc_recv(&mut recv);
@@ -634,7 +633,7 @@ fn wait_shared_map_header(kagami_tid: u64) -> Result<u64, &'static str> {
             continue;
         }
         let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
-        if magic != MAP_HEADER_MAGIC {
+        if magic != mochi_syscall::ipc::MAP_HEADER_MAGIC {
             continue;
         }
         let map_start = u64::from_le_bytes([

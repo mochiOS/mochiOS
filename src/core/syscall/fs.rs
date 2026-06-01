@@ -1,6 +1,6 @@
 //! ファイルシステム関連のシステムコール
 
-use super::types::{EBADF, EEXIST, EFAULT, EINVAL, EIO, ENOENT, ENOSYS, ENOTDIR, ESRCH, SUCCESS};
+use super::types::{EACCES, EBADF, EEXIST, EFAULT, EINVAL, EIO, ENOENT, ENOSYS, ENOTDIR, ESRCH, SUCCESS};
 use crate::task::fd_table::{FdTable, FileHandle, FD_BASE, O_CLOEXEC, PROCESS_MAX_FDS};
 use alloc::string::String;
 use alloc::string::ToString;
@@ -35,7 +35,7 @@ where
     crate::task::with_process_mut(pid, |p| f(p.fd_table_mut()))
 }
 
-// ファイルシステムIPC定数（swiftlib::fs_constsと同一の値を維持）
+// ファイルシステムIPC定数（mochi_syscall::fs_constsと同一の値を維持）
 const FS_PATH_MAX: usize = 512;
 const FS_DATA_MAX: usize = 4096;
 const IPC_MAX_MSG_SIZE: usize = 4128;  // kernel ipc.rs MAX_MSG_SIZE と同じに
@@ -53,12 +53,14 @@ pub(crate) struct FsRequest {
 impl FsRequest {
     pub(crate) const OP_OPEN: u64 = 1;
     pub(crate) const OP_READ: u64 = 2;
+    pub(crate) const OP_WRITE: u64 = 3;
     pub(crate) const OP_CLOSE: u64 = 4;
     pub(crate) const OP_STAT: u64 = 6;
     pub(crate) const OP_FSTAT: u64 = 7;
     pub(crate) const OP_READDIR: u64 = 8;
     pub(crate) const OP_EXEC_STREAM: u64 = 9;
     pub(crate) const OP_READDIR_ALL: u64 = 10;
+    pub(crate) const OP_SEEK: u64 = 11;
 }
 
 #[repr(C)]
@@ -253,6 +255,65 @@ fn read_via_fs_service(fd_remote: u64, out: &mut [u8]) -> Result<usize, u64> {
     );
     out[..n].copy_from_slice(&resp.data[..n]);
     Ok(n)
+}
+
+fn seek_via_fs_service(fd_remote: u64, new_offset: u64) -> Result<u64, u64> {
+    let fs_tid = fs_service_tid().ok_or(ESRCH)?;
+    let req = FsRequest {
+        op: FsRequest::OP_SEEK,
+        arg1: fd_remote,
+        arg2: new_offset,
+        path: [0; FS_PATH_MAX],
+    };
+    let resp = fs_service_request(fs_tid, &req)?;
+    if resp.status < 0 {
+        return Err((-resp.status) as u64);
+    }
+    Ok(resp.status as u64)
+}
+
+fn write_via_fs_service(fd_remote: u64, data: &[u8]) -> Result<usize, u64> {
+    let fs_tid = fs_service_tid().ok_or(ESRCH)?;
+    let req = FsRequest {
+        op: FsRequest::OP_WRITE,
+        arg1: fd_remote,
+        arg2: data.len() as u64,
+        path: [0; FS_PATH_MAX],
+    };
+
+    let req_slice = unsafe {
+        core::slice::from_raw_parts(
+            &req as *const _ as *const u8,
+            core::mem::size_of::<FsRequest>(),
+        )
+    };
+
+    // ヘッダ送信→データ分割送信→レスポンス受信
+    if !crate::syscall::ipc::send_from_kernel(fs_tid, req_slice) {
+        return Err(EIO);
+    }
+
+    const CHUNK_SIZE: usize = 4000; // IPC_MAX_MSG_SIZE の安全マージン
+    let mut sent = 0usize;
+    while sent < data.len() {
+        let n = core::cmp::min(CHUNK_SIZE, data.len() - sent);
+        if !crate::syscall::ipc::send_from_kernel(fs_tid, &data[sent..sent + n]) {
+            return Err(EIO);
+        }
+        sent += n;
+    }
+
+    let mut resp_buf = [0u8; core::mem::size_of::<FsResponse>()];
+    let n = recv_from_fs_with_timeout(fs_tid, &mut resp_buf)?;
+    if n < core::mem::size_of::<FsResponse>() {
+        return Err(EIO);
+    }
+    let resp: FsResponse =
+        unsafe { core::ptr::read_unaligned(resp_buf.as_ptr() as *const FsResponse) };
+    if resp.status < 0 {
+        return Err((-resp.status) as u64);
+    }
+    Ok(resp.status as usize)
 }
 
 fn close_via_fs_service(fd_remote: u64) -> u64 {
@@ -472,6 +533,12 @@ pub(crate) fn is_tty_like_path(path: &str) -> bool {
         || path.starts_with("/dev/pts/")
 }
 
+fn is_special_service_path(path: &str) -> bool {
+    // 特殊ファイルは fs.service 側へ委譲する（例: /var/zero）。
+    // それ以外は cext(fs/disk) を優先し、IPC をホットパスにしない。
+    path == "/var/zero" || path == "/dev/zero" || path == "/dev/null"
+}
+
 fn make_tty_handle(path: &str) -> alloc::boxed::Box<FileHandle> {
     let tty_path = if is_tty_like_path(path) {
         path
@@ -505,34 +572,35 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
         };
     }
 
-    if has_write_intent(flags) {
-        let exists_in_service = stat_path_via_fs_service(path).is_ok();
+    // O_CREAT|O_EXCL は先に存在チェックしておく。
+    if (flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL) {
         let exists_in_fallback = metadata_rootfs_first(path).is_some();
-        if (flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)
-            && (exists_in_service || exists_in_fallback)
-        {
+        if exists_in_fallback {
             return EEXIST;
         }
+    }
 
-        let mut data_vec = Vec::new();
-        if (flags & O_TRUNC) == 0 && exists_in_fallback {
-            if let Some(d) = crate::kmod::fs::read_all(path) {
-                data_vec = d;
-            }
-        }
-        let start_pos = if (flags & O_APPEND) != 0 {
-            data_vec.len()
-        } else {
-            0
+    // 書き込みは基本的に cext 側へ寄せたいが、現状 fs.cext が read-only のため拒否する。
+    // （IPC 経由にフォールバックして遅くなるより、失敗を明確にする）
+    if has_write_intent(flags) && !is_special_service_path(path) {
+        return EACCES;
+    }
+
+    // 特殊ファイルは fs.service に委譲（/var/zero 等）
+    if is_special_service_path(path) {
+        let backend_flags = flags & !O_CLOEXEC;
+        let remote_fd = match open_via_fs_service(path, backend_flags) {
+            Ok(fd) => fd,
+            Err(e) => return e,
         };
         let cloexec = (flags & O_CLOEXEC) != 0;
         let handle = alloc::boxed::Box::new(FileHandle {
-            data: data_vec.into_boxed_slice(),
-            pos: start_pos,
+            data: alloc::boxed::Box::new([]),
+            pos: 0,
             dir_path: None,
-            is_remote: false,
-            fd_remote: 0,
-            remote_refs: None,
+            is_remote: true,
+            fd_remote: remote_fd,
+            remote_refs: Some(Arc::new(AtomicUsize::new(1))),
             pipe_id: None,
             pipe_write: false,
             open_flags: flags,
@@ -543,54 +611,17 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
         };
     }
 
-    // カーネル内で管理する FD_CLOEXEC は fs.service へ渡さない。
-    let backend_flags = flags & !O_CLOEXEC;
-    let mut last_err = 0u64;
-    let mut opened = None;
-    for _ in 0..FS_SERVICE_RETRY_COUNT {
-        match open_via_fs_service(path, backend_flags) {
-            Ok(remote_fd) => {
-                opened = Some(remote_fd);
-                break;
-            }
-            Err(e) => {
-                last_err = e;
-                if e == EIO {
-                    crate::task::yield_now();
-                    continue;
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-
-    let (data_vec, dir_path, is_remote, fd_remote) = match opened {
-        Some(remote_fd) => {
-            // ディレクトリFD経由の openat 相対解決で必要になるため、
-            // リモートでもディレクトリは dir_path を保持する。
-            let dir_path = match stat_path_via_fs_service(path) {
-                Ok((mode, _)) if (mode as u64 & 0xF000) == 0x4000 => Some(path.to_string()),
-                _ => None,
-            };
-            (Vec::new(), dir_path, true, remote_fd)
-        }
-        None => {
-            let errno = if last_err != 0 { last_err } else { EIO };
-            if should_fallback_to_initfs(errno) {
-                if is_directory_rootfs_first(path) {
-                    (Vec::new(), Some(path.to_string()), false, 0)
-                } else {
-                    match crate::kmod::fs::read_all(path) {
-                        Some(d) => (d, None, false, 0),
-                        None => return ENOENT,
-                    }
-                }
-            } else {
-                return errno;
-            }
+    // 通常パス: disk.cext/fs.cext 経由で読む（IPC しない）
+    let (data_vec, dir_path) = if is_directory_rootfs_first(path) {
+        (Vec::new(), Some(path.to_string()))
+    } else {
+        match crate::kmod::fs::read_all(path) {
+            Some(d) => (d, None),
+            None => return ENOENT,
         }
     };
+    let is_remote = false;
+    let fd_remote = 0u64;
 
     let cloexec = (flags & O_CLOEXEC) != 0;
     let handle = alloc::boxed::Box::new(FileHandle {
@@ -691,6 +722,8 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
             return Err(EINVAL);
         }
         let new_pos = if fh.is_remote {
+            // リモートFDは fs.service 側にも反映する（以降の read/write が一致するため）
+            seek_via_fs_service(fh.fd_remote, new_pos as u64)?;
             new_pos as usize
         } else {
             core::cmp::min(new_pos as usize, fh.data.len())
@@ -1012,6 +1045,12 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
         };
 
     if is_remote {
+        // リモートFDは fs.service 側でオフセットを保持するため、
+        // カーネル側の fh.pos に合わせて事前に seek を反映する。
+        if let Some(Some(pos)) = with_fd_table(pid, |t| t.get(idx).map(|fh| fh.pos as u64)) {
+            let _ = seek_via_fs_service(fd_remote, pos);
+        }
+
         let mut tmp = alloc::vec![0u8; len as usize];
         let n = match read_via_fs_service(fd_remote, &mut tmp) {
             Ok(v) => v,
@@ -1022,6 +1061,13 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
                 return EFAULT;
             }
         }
+
+        // カーネル側の位置も進めておく（seek+read の一貫性を保つ）
+        let _ = with_fd_table_mut(pid, |t| {
+            let fh = t.get_mut(idx)?;
+            fh.pos = fh.pos.saturating_add(n);
+            Some(())
+        });
         return n as u64;
     }
 
@@ -1051,7 +1097,7 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     local.len() as u64
 }
 
-/// Write: 開かれたファイルへデータを書き込む（ローカル一時FDのみ）
+/// Write: 開かれたファイルへデータを書き込む
 pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     if buf_ptr == 0 {
         return EFAULT;
@@ -1082,7 +1128,12 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     let wrote = with_fd_table_mut(pid, |t| {
         let fh = t.get_mut(idx).ok_or(EBADF)?;
         if fh.is_remote {
-            return Err(ENOSYS);
+            // リモートFDは fs.service 側でオフセットを保持するため、
+            // カーネル側の fh.pos に合わせて seek を反映してから write する。
+            seek_via_fs_service(fh.fd_remote, fh.pos as u64)?;
+            let n = write_via_fs_service(fh.fd_remote, &buf)?;
+            fh.pos = fh.pos.saturating_add(n);
+            return Ok(n as u64);
         }
         let end = fh.pos.checked_add(buf.len()).ok_or(EINVAL)?;
         let mut data = fh.data.to_vec();

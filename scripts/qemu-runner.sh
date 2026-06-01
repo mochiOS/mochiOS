@@ -33,6 +33,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TARGET_DIR="$ROOT_DIR/target"
 
+# sandbox/CI 環境では /var/tmp が read-only のことがあるため、
+# QEMU が使う一時ファイルの置き場を明示しておく。
+export TMPDIR="${TMPDIR:-/tmp}"
+
 rm -f "$TARGET_DIR/esp.img"
 
 mkdir -p "$TARGET_DIR"
@@ -73,11 +77,30 @@ if [ -e /dev/kvm ] && [ -r /dev/kvm ]; then
     KVM_ARGS=(-enable-kvm -cpu host,migratable=no,+invtsc)
 fi
 
+# GUI が使えない環境（CI/SSH/ヘッドレス）でも起動できるように display を切り替える。
+# 既定: DISPLAY が無ければ -display none（serial stdio のみ）
+DISPLAY_ARGS=()
+if [ -n "${MOCHIOS_QEMU_DISPLAY:-}" ]; then
+    DISPLAY_ARGS=(-display "$MOCHIOS_QEMU_DISPLAY")
+elif [ -z "${DISPLAY:-}" ]; then
+    DISPLAY_ARGS=(-display none)
+fi
+
+# 別プロセス（ホスト側のQEMUなど）が mochiOS.img をロックしている場合に備え、
+# 必要なら一時コピーを使って起動する。
+DISK_IMG="$TARGET_DIR/mochiOS.img"
+if [ -n "${MOCHIOS_QEMU_DISK_COPY:-}" ]; then
+    DISK_COPY="/tmp/mochiOS.$$.${RANDOM}.img"
+    cp "$DISK_IMG" "$DISK_COPY"
+    DISK_IMG="$DISK_COPY"
+fi
+
 exec qemu-system-x86_64 \
     "${KVM_ARGS[@]}" \
+    "${DISPLAY_ARGS[@]}" \
     -bios "$OVMF" \
     -drive format=raw,file="$ESP_IMG",index=0,media=disk \
-    -drive id=disk0,file="$TARGET_DIR/mochiOS.img",format=raw,if=ide,index=1,media=disk \
+    -drive id=disk0,file="$DISK_IMG",format=raw,if=ide,index=1,media=disk \
     -usb \
     -device qemu-xhci,id=xhci \
     -device usb-kbd,bus=xhci.0 \

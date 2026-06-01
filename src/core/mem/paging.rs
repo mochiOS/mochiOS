@@ -627,10 +627,10 @@ pub fn map_and_copy_segment(
                 .as_u64();
 
             // Temporarily map as writable for loading, but preserve execute permission
-            // to avoid conflicts with final flags
-            let flags = PageTableFlags::PRESENT
-                | PageTableFlags::USER_ACCESSIBLE
-                | PageTableFlags::WRITABLE;
+            // to avoid conflicts with final flags.
+            //
+            // NOTE: この関数はカーネル (cext) のロードに使うため USER_ACCESSIBLE は付与しない。
+            let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
             // Don't set NO_EXECUTE during loading - we'll set it in the final flag update if needed
 
             if let Some(ref mut pt) = PAGE_TABLE.lock().as_mut() {
@@ -649,10 +649,9 @@ pub fn map_and_copy_segment(
             // Not mapped, allocate new frame
             let frame = frame::allocate_frame()?;
 
-            // Setup flags: PRESENT + USER + WRITABLE
-            let flags = PageTableFlags::PRESENT
-                | PageTableFlags::USER_ACCESSIBLE
-                | PageTableFlags::WRITABLE;
+            // Setup flags: PRESENT + WRITABLE
+            // NOTE: カーネル (cext) 用のマッピングなので USER_ACCESSIBLE は付与しない。
+            let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
 
             crate::debug!(
                 "about to map page {:#x} -> frame {:#x}, flags={:?}, writable={}",
@@ -709,7 +708,8 @@ pub fn map_and_copy_segment(
         }
         // セグメントのコピーと初期化が完了したら、最終的なフラグを設定
         if let Some(ref mut pt) = PAGE_TABLE.lock().as_mut() {
-            let mut new_flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
+            // cext のセグメントはカーネル専用なので USER_ACCESSIBLE は付与しない。
+            let mut new_flags = PageTableFlags::PRESENT;
 
             if writable {
                 new_flags |= PageTableFlags::WRITABLE;

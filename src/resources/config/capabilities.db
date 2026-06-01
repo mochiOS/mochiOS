@@ -1,0 +1,8 @@
+# capabilityのDB
+#
+# フォーマット:
+#   service:<service-id>=cap1,cap2,...
+#   app:<app-id>=cap1,cap2,...
+#
+# UI/永続設定が未実装の間は、このファイルで許可を追加すｒう
+

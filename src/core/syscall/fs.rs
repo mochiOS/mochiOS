@@ -442,6 +442,15 @@ pub(crate) fn readdir_rootfs_first(path: &str) -> Option<Vec<String>> {
     crate::kmod::fs::readdir_path(path).or_else(|| crate::init::fs::readdir_path(path))
 }
 
+#[inline]
+fn stat_path_local_or_special(path: &str) -> Result<(u16, u64), u64> {
+    if is_special_service_path(path) {
+        stat_path_via_fs_service(path)
+    } else {
+        metadata_rootfs_first(path).ok_or(ENOENT)
+    }
+}
+
 fn parse_readdir_names(bytes: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     for raw in bytes.split(|&b| b == b'\n') {
@@ -850,19 +859,11 @@ pub fn stat(path_ptr: u64, stat_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let resolved = resolve_path(owner_pid, &path);
-
-    match stat_path_via_fs_service(&resolved) {
+    match stat_path_local_or_special(&resolved) {
         Ok((mode, size)) => {
             write_stat_buf(stat_ptr, mode_for_stat(mode), size);
             SUCCESS
         }
-        Err(errno) if should_fallback_to_initfs(errno) => match metadata_rootfs_first(&resolved) {
-            Some((inode_mode, size)) => {
-                write_stat_buf(stat_ptr, mode_for_stat(inode_mode), size);
-                SUCCESS
-            }
-            None => ENOENT,
-        },
         Err(errno) => errno,
     }
 }
@@ -963,14 +964,9 @@ pub fn chdir(path_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let resolved = resolve_path(pid_raw, &path);
-    match stat_path_via_fs_service(&resolved) {
+    match stat_path_local_or_special(&resolved) {
         Ok((mode, _)) => {
             if !mode_is_directory(mode) {
-                return ENOTDIR;
-            }
-        }
-        Err(errno) if should_fallback_to_initfs(errno) => {
-            if !is_directory_rootfs_first(&resolved) {
                 return ENOTDIR;
             }
         }
@@ -1494,7 +1490,7 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
             path
         ))
     };
-    match stat_path_via_fs_service(&full) {
+    match stat_path_local_or_special(&full) {
         Ok((mode, size)) => {
             const STAT_SIZE: u64 = 144;
             if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
@@ -1503,17 +1499,6 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
             write_stat_buf(stat_ptr, mode_for_stat(mode), size);
             SUCCESS
         }
-        Err(errno) if should_fallback_to_initfs(errno) => match metadata_rootfs_first(&full) {
-            Some((inode_mode, size)) => {
-                const STAT_SIZE: u64 = 144;
-                if !crate::syscall::validate_user_ptr(stat_ptr, STAT_SIZE) {
-                    return EFAULT;
-                }
-                write_stat_buf(stat_ptr, mode_for_stat(inode_mode), size);
-                SUCCESS
-            }
-            None => ENOENT,
-        },
         Err(errno) => errno,
     }
 }
@@ -1549,15 +1534,8 @@ pub fn faccessat(dirfd: i64, path_ptr: u64, _mode: u64, _flags: u64) -> u64 {
             _ => return EBADF,
         }
     };
-    match stat_path_via_fs_service(&resolved) {
+    match stat_path_local_or_special(&resolved) {
         Ok(_) => SUCCESS,
-        Err(errno) if should_fallback_to_initfs(errno) => {
-            if metadata_rootfs_first(&resolved).is_some() {
-                SUCCESS
-            } else {
-                ENOENT
-            }
-        }
         Err(errno) => errno,
     }
 }
@@ -1583,7 +1561,7 @@ pub fn statfs(path_ptr: u64, buf_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let resolved = resolve_path(pid, &path);
-    if stat_path_via_fs_service(&resolved).is_err() && metadata_rootfs_first(&resolved).is_none() {
+    if stat_path_local_or_special(&resolved).is_err() {
         return ENOENT;
     }
 

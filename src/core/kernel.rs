@@ -34,7 +34,6 @@ fn kernel_main() -> ! {
         caps.insert(crate::capability::Capability::ServiceControl);
         caps.insert(crate::capability::Capability::SystemInfoRead);
         // core.service はサービス起動のため /system/services/*.manifest.toml を読む必要がある。
-        // 起動初期は fs.service が InitFs を返すことがあり、通常の権限チェックだと詰まるため、
         // ブートストラップとして読み取り専用の全体権限を与える。
         caps.insert(crate::capability::Capability::FsReadAll);
         let _ = crate::task::process::set_process_capabilities(

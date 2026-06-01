@@ -75,7 +75,6 @@ fn is_bootstrap_trusted_service(id: &str) -> bool {
             | "capability.service"
             | "driver.service"
             | "disk.service"
-            | "fs.service"
             | "process.service"
             | "device.service"
             | "net.service"

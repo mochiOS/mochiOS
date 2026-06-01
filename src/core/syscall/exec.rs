@@ -357,14 +357,6 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
     };
     let extra_args: Vec<&str> = extra_args_owned.iter().map(|s| s.as_str()).collect();
 
-    // First try to obtain the image via FS service (streaming). If that fails, fall back to kmod::fs.
-    match crate::syscall::fs::exec_image_via_fs(&path) {
-        Ok(data) => return exec_with_data(&data, &path, &path, &extra_args, None, None),
-        Err(_) => {
-            // fallthrough to kmod fallback
-        }
-    }
-
     if let Some(data) = crate::kmod::fs::read_all(&path) {
         return exec_with_data(&data, &path, &path, &extra_args, None, None);
     }

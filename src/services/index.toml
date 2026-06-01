@@ -36,13 +36,6 @@ fs = "ata"
 autostart = true
 order = 8
 
-[core.service.fs]
-description = "Filesystem service - VFS/ext2/initfs"
-dir = "fs.service"
-fs = "ata"
-autostart = true
-order = 10
-
 [core.service.device]
 description = "Device service - privileged device access broker"
 dir = "device.service"

@@ -61,7 +61,7 @@ fn parse_service_id_and_required_caps(manifest_text: &str) -> Option<(String, Ve
     // 依存クレートを増やさず、最低限の TOML 風パースを行う。
     // 期待する形式:
     // [service]
-    // id = "fs.service"
+    // id = "service.name"
     // ...
     //
     // [capabilities]
@@ -131,7 +131,6 @@ fn fallback_required_caps_for_service(service_base: &str) -> Option<Vec<String>>
         "capability.service" => &["ipc.server", "system.info.read"],
         "driver.service" => &["ipc.server", "process.spawn", "device.storage", "device.net", "device.input"],
         "disk.service" => &["ipc.server", "device.storage"],
-        "fs.service" => &["ipc.server", "device.storage", "fs.read.all", "fs.write.all"],
         "process.service" => &["ipc.server", "process.spawn", "process.inspect", "process.kill"],
         "device.service" => &["ipc.server"],
         "net.service" => &["ipc.server", "device.net", "net.raw"],

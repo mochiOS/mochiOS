@@ -1,10 +1,10 @@
 use crate::interrupt::spinlock::SpinLock;
 
-use super::context::switch_to_thread;
+use super::context::switch_to_thread_with_slots;
 use super::ids::{ThreadId, ThreadState};
 use super::thread::{
-    current_thread_id, remove_thread, set_current_thread, with_thread, with_thread_mut,
-    THREAD_QUEUE,
+    current_thread_id, current_thread_slot, remove_thread, set_current_thread, set_thread_state,
+    set_thread_state_at_slot, with_thread, with_thread_at_slot, with_thread_mut, THREAD_QUEUE,
 };
 
 /// スケジューラ
@@ -20,8 +20,7 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-    /// デフォルトのタイムスライス（10ms × 2 = 20ms）
-    pub const DEFAULT_TIME_SLICE: u64 = 2;
+    pub const DEFAULT_TIME_SLICE: u64 = 1;
 
     /// 新しいスケジューラを作成
     pub const fn new() -> Self {
@@ -115,7 +114,11 @@ pub fn is_scheduler_enabled() -> bool {
 /// # Returns
 /// スケジューリングが必要な場合はtrue
 pub fn scheduler_tick() -> bool {
-    if let Some(tid) = current_thread_id() {
+    if let Some(slot) = current_thread_slot() {
+        if with_thread_at_slot(slot, |t| t.in_syscall()).unwrap_or(false) {
+            return false;
+        }
+    } else if let Some(tid) = current_thread_id() {
         if with_thread(tid, |t| t.in_syscall()).unwrap_or(false) {
             return false;
         }
@@ -130,33 +133,46 @@ pub fn scheduler_tick() -> bool {
 /// # Returns
 /// 次に実行すべきスレッドID。実行可能なスレッドがない場合はNone
 pub fn schedule() -> Option<ThreadId> {
+    schedule_with_slot().map(|(next_id, _)| next_id)
+}
+
+/// 次に実行すべきスレッドIDとスロットを取得
+fn schedule_with_slot() -> Option<(ThreadId, usize)> {
     let mut queue = THREAD_QUEUE.lock();
 
-    // 現在のスレッドを取得
+    let current_slot = current_thread_slot();
     let current = current_thread_id();
 
-    // 現在のスレッドがあれば、状態をReadyに戻す（Running -> Ready）
-    if let Some(current_id) = current {
-        if let Some(thread) = queue.get_mut(current_id) {
-            if thread.state() == ThreadState::Running {
-                thread.set_state(ThreadState::Ready);
+    // 現在のスレッドの状態を Running から Ready に戻す
+    if let Some(slot) = current_slot {
+        if queue
+            .get_slot(slot)
+            .is_some_and(|thread| thread.state() == ThreadState::Running)
+        {
+            queue.set_state_at_slot(slot, ThreadState::Ready);
+        }
+    } else if let Some(current_id) = current {
+        if let Some(slot) = queue.slot_index(current_id) {
+            if queue
+                .get_slot(slot)
+                .is_some_and(|thread| thread.state() == ThreadState::Running)
+            {
+                queue.set_state_at_slot(slot, ThreadState::Ready);
             }
         }
     }
 
-    // 現在のスレッドの次のReady状態のスレッドを探す
-    if let Some(next_thread) = queue.peek_next_after(current) {
-        let next_id = next_thread.id();
-        next_thread.set_state(ThreadState::Running);
+    // 次の Ready スレッドを探す
+    let next_slot = queue.next_ready_slot_after(current_slot)?;
+    let next_id = queue.get_slot(next_slot).map(|thread| thread.id())?;
+    
+    // 見つけた次のスレッドを Running 状態に設定
+    queue.set_state_at_slot(next_slot, ThreadState::Running);
 
-        // スケジューラのタイムスライスをリセット
-        drop(queue);
-        SCHEDULER.lock().reset_slice();
+    drop(queue);
+    SCHEDULER.lock().reset_slice();
 
-        Some(next_id)
-    } else {
-        None
-    }
+    Some((next_id, next_slot))
 }
 
 /// 現在のスレッドを明示的にCPUを手放す（yield）
@@ -167,26 +183,18 @@ pub fn yield_now() {
         return;
     }
 
-    crate::debug!("yield_now() called");
-
     // スケジューリングと切り替えは割り込み禁止区間で実行し、
     // 状態更新と実際の切替の間に割り込みが入る競合窓を防ぐ。
     x86_64::instructions::interrupts::without_interrupts(|| {
-        if let Some(next_id) = schedule() {
+        if let Some((next_id, next_slot)) = schedule_with_slot() {
             let current = current_thread_id();
-
-            crate::debug!("yield_now: current={:?}, next={:?}", current, next_id);
+            let current_slot = current_thread_slot();
 
             // 次のスレッドが現在のスレッドと異なる場合のみ切り替え
             if Some(next_id) != current {
-                crate::debug!("Calling switch_to_thread...");
-
-                // コンテキストスイッチを実行
                 unsafe {
-                    switch_to_thread(current, next_id);
+                    switch_to_thread_with_slots(current, current_slot, next_id, next_slot);
                 }
-
-                crate::debug!("Returned from switch_to_thread");
             }
         }
     });
@@ -197,9 +205,11 @@ pub fn yield_now() {
 /// 現在のスレッドをBlocked状態にして、次のスレッドにスケジューリング
 pub fn block_current_thread() {
     if let Some(current_id) = current_thread_id() {
-        with_thread_mut(current_id, |thread| {
-            thread.set_state(ThreadState::Blocked);
-        });
+        if let Some(slot) = current_thread_slot() {
+            set_thread_state_at_slot(slot, ThreadState::Blocked);
+        } else {
+            set_thread_state(current_id, ThreadState::Blocked);
+        }
 
         // 次のスレッドにスケジューリング
         yield_now();
@@ -210,9 +220,7 @@ pub fn block_current_thread() {
 ///
 /// 指定されたスレッドをSleeping状態にする
 pub fn sleep_thread(id: ThreadId) {
-    with_thread_mut(id, |thread| {
-        thread.set_state(ThreadState::Sleeping);
-    });
+    set_thread_state(id, ThreadState::Sleeping);
 }
 
 /// スレッドを起床させる
@@ -220,15 +228,13 @@ pub fn sleep_thread(id: ThreadId) {
 /// Sleeping/Blocked状態のスレッドをReady状態にする。
 /// Ready状態の場合は pending_wakeup フラグを立てて競合を防ぐ。
 pub fn wake_thread(id: ThreadId) {
-    with_thread_mut(id, |thread| {
-        let state = thread.state();
-        if state == ThreadState::Sleeping || state == ThreadState::Blocked {
-            thread.set_state(ThreadState::Ready);
-        } else if state == ThreadState::Ready {
-            // まだ眠っていない場合、起床要求を記録しておく
-            thread.set_pending_wakeup();
+    if let Some(current_state) = crate::task::with_thread(id, |t| t.state()) {
+        if current_state == ThreadState::Sleeping || current_state == ThreadState::Blocked {
+            set_thread_state(id, ThreadState::Ready);
+        } else if current_state == ThreadState::Ready {
+            with_thread_mut(id, |t| t.set_pending_wakeup());
         }
-    });
+    }
 }
 
 /// 現在のスレッドをスリープ状態にする。
@@ -237,16 +243,19 @@ pub fn wake_thread(id: ThreadId) {
 /// # Returns
 /// `true` なら実際に Sleeping 状態に遷移した。`false` なら眠らなかった。
 pub fn sleep_thread_unless_woken(id: ThreadId) -> bool {
-    with_thread_mut(id, |thread| {
+    let mut should_sleep = true;
+    crate::task::with_thread_mut(id, |thread| {
         if thread.take_pending_wakeup() {
-            // 先に wake が呼ばれていたので眠らない
-            false
-        } else {
-            thread.set_state(ThreadState::Sleeping);
-            true
+            should_sleep = false;
         }
-    })
-    .unwrap_or(false)
+    });
+    
+    if should_sleep {
+        set_thread_state(id, ThreadState::Sleeping);
+        true
+    } else {
+        false
+    }
 }
 
 /// 子プロセス終了時に親プロセスの先頭スレッドの IPC waiter を起床させる。
@@ -278,13 +287,11 @@ fn wake_parent_ipc_waiter(exited_pid: crate::task::ProcessId) {
 ///
 /// 指定されたスレッドをTerminated状態にして削除
 pub fn terminate_thread(id: ThreadId) {
-    with_thread_mut(id, |thread| {
-        thread.set_state(ThreadState::Terminated);
-    });
+    set_thread_state(id, ThreadState::Terminated);
 
     // 現在のスレッドの場合は次のスレッドにスケジューリング
     if Some(id) == current_thread_id() {
-        set_current_thread(None);
+        set_current_thread(None, None);
         yield_now();
     }
 
@@ -303,9 +310,7 @@ pub fn exit_current_task(exit_code: u64) -> ! {
         crate::debug!("Exiting thread {:?} with code {}", current_id, exit_code);
         let current_pid = with_thread(current_id, |thread| thread.process_id());
 
-        with_thread_mut(current_id, |thread| {
-            thread.set_state(ThreadState::Terminated);
-        });
+        set_thread_state(current_id, ThreadState::Terminated);
 
         if let Some(pid) = current_pid {
             let mut has_other_live_threads = false;
@@ -327,11 +332,11 @@ pub fn exit_current_task(exit_code: u64) -> ! {
         }
 
         // 現在のスレッドをクリア（先にクリアしないとschedule()が正しく動作しない）
-        set_current_thread(None);
+        set_current_thread(None, None);
 
         x86_64::instructions::interrupts::without_interrupts(|| {
             // 次のスレッドにスケジューリング（戻ってこない）
-            if let Some(next_id) = schedule() {
+            if let Some((next_id, next_slot)) = schedule_with_slot() {
                 crate::debug!("Switching from exited thread to {:?}", next_id);
 
                 // スレッドをキューから削除（コンテキストスイッチ前に削除）
@@ -345,7 +350,7 @@ pub fn exit_current_task(exit_code: u64) -> ! {
                 // コンテキストスイッチを実行（終了したスレッドのコンテキストは保存しない）
                 // old_context_ptr = None を渡すことで、現在のコンテキストを保存せずに次のスレッドにジャンプ
                 unsafe {
-                    switch_to_thread(None, next_id);
+                    switch_to_thread_with_slots(None, None, next_id, next_slot);
                 }
 
                 crate::audit::log(
@@ -387,14 +392,14 @@ pub fn schedule_and_switch() {
 
     x86_64::instructions::interrupts::without_interrupts(|| {
         let current = current_thread_id();
+        let current_slot = current_thread_slot();
 
         // 次のスレッドを選択
-        if let Some(next_id) = schedule() {
+        if let Some((next_id, next_slot)) = schedule_with_slot() {
             // 次のスレッドが現在のスレッドと異なる場合のみ切り替え
             if Some(next_id) != current {
-                // コンテキストスイッチを実行
                 unsafe {
-                    switch_to_thread(current, next_id);
+                    switch_to_thread_with_slots(current, current_slot, next_id, next_slot);
                 }
             }
         }
@@ -408,19 +413,22 @@ pub fn start_scheduling() -> ! {
     // 最初のスレッドを選択
     if let Some(first_id) = super::thread::peek_next_thread() {
         x86_64::instructions::interrupts::without_interrupts(|| {
-            with_thread_mut(first_id, |thread| {
+            // 最初のスレッドを Running 状態に設定
+            set_thread_state(first_id, ThreadState::Running);
+            with_thread(first_id, |thread| {
                 crate::info!(
                     "Starting first thread: {} (id={:?})",
                     thread.name(),
                     thread.id()
                 );
-                thread.set_state(ThreadState::Running);
             });
 
             // 最初のスレッドへ switch_to_thread でジャンプ（戻ってこない）
             // user/kernel どちらも switch_context 経由で正しく動作する
             unsafe {
-                switch_to_thread(None, first_id);
+                let first_slot = THREAD_QUEUE.lock().slot_index(first_id)
+                    .expect("First thread must exist in queue");
+                switch_to_thread_with_slots(None, None, first_id, first_slot);
             }
         });
 

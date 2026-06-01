@@ -506,7 +506,10 @@ extern "sysv64" fn syscall_interrupt_handler_rust(kstack: *mut u64) -> u64 {
     }
 
     let current_tid = crate::task::current_thread_id();
-    if let Some(tid) = current_tid {
+    let current_slot = crate::task::current_thread_slot();
+    if let Some(slot) = current_slot {
+        crate::task::with_thread_at_slot_mut(slot, |t| t.set_in_syscall(true));
+    } else if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(true));
     }
 
@@ -519,7 +522,9 @@ extern "sysv64" fn syscall_interrupt_handler_rust(kstack: *mut u64) -> u64 {
         unsafe { kstack.add(7).read() },  // saved r8  = arg4
     );
 
-    if let Some(tid) = current_tid {
+    if let Some(slot) = current_slot {
+        crate::task::with_thread_at_slot_mut(slot, |t| t.set_in_syscall(false));
+    } else if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(false));
     }
 
@@ -548,15 +553,20 @@ extern "C" fn syscall_handler_rust(
 ) -> u64 {
     crate::percpu::install_current_cpu_gs_base();
     let current_tid = crate::task::current_thread_id();
+    let current_slot = crate::task::current_thread_slot();
     let prev_cr3 = syscall_entry::switch_to_kernel_page_table();
     crate::cpu::reassert_runtime_hardening();
-    if let Some(tid) = current_tid {
+    if let Some(slot) = current_slot {
+        crate::task::with_thread_at_slot_mut(slot, |t| t.set_in_syscall(true));
+    } else if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(true));
     }
 
     let ret = dispatch(num, arg0, arg1, arg2, arg3, arg4);
 
-    if let Some(tid) = current_tid {
+    if let Some(slot) = current_slot {
+        crate::task::with_thread_at_slot_mut(slot, |t| t.set_in_syscall(false));
+    } else if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(false));
     }
     syscall_entry::restore_page_table(prev_cr3);

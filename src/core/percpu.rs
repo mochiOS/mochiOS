@@ -16,6 +16,7 @@ struct PerCpuState {
     kernel_cr3: AtomicU64,
     syscall_kernel_rsp: AtomicU64,
     current_thread_id: AtomicU64,
+    current_thread_slot: AtomicU64,
     syscall_user_rsp_tmp: AtomicU64,
 }
 
@@ -25,6 +26,7 @@ impl PerCpuState {
             kernel_cr3: AtomicU64::new(0),
             syscall_kernel_rsp: AtomicU64::new(0),
             current_thread_id: AtomicU64::new(0),
+            current_thread_slot: AtomicU64::new(u64::MAX),
             syscall_user_rsp_tmp: AtomicU64::new(0),
         }
     }
@@ -108,6 +110,7 @@ pub fn init_boot_cpu(syscall_kernel_rsp: u64) {
         .syscall_kernel_rsp
         .store(syscall_kernel_rsp, Ordering::SeqCst);
     state.current_thread_id.store(0, Ordering::SeqCst);
+    state.current_thread_slot.store(u64::MAX, Ordering::SeqCst);
     state.syscall_user_rsp_tmp.store(0, Ordering::SeqCst);
     install_current_cpu_gs_base();
 }
@@ -145,4 +148,22 @@ pub fn set_current_thread_raw_id(id: u64) {
     state_for_current_cpu()
         .current_thread_id
         .store(id, Ordering::SeqCst);
+}
+
+pub fn current_thread_slot() -> Option<usize> {
+    let raw = state_for_current_cpu()
+        .current_thread_slot
+        .load(Ordering::SeqCst);
+    if raw == u64::MAX {
+        None
+    } else {
+        Some(raw as usize)
+    }
+}
+
+pub fn set_current_thread_slot(slot: Option<usize>) {
+    let raw = slot.map(|value| value as u64).unwrap_or(u64::MAX);
+    state_for_current_cpu()
+        .current_thread_slot
+        .store(raw, Ordering::SeqCst);
 }

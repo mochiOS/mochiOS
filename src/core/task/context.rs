@@ -114,20 +114,39 @@ pub unsafe extern "C" fn switch_context(old_context: *mut Context, new_context: 
 /// # Safety
 /// 呼び出し側は `next_id` が有効な実行可能スレッドであることを保証する必要がある。
 pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) {
+    let mut queue = THREAD_QUEUE.lock();
+    let current_slot = current_id.and_then(|id| queue.slot_index(id));
+    let next_slot = match queue.slot_index(next_id) {
+        Some(slot) => slot,
+        None => return,
+    };
+    drop(queue);
+    switch_to_thread_with_slots(current_id, current_slot, next_id, next_slot);
+}
+
+/// 別スレッドへ切替（通常呼び出し経路）
+///
+/// # Safety
+/// 呼び出し側は `next_id` が有効な実行可能スレッドであることを保証する必要がある。
+pub unsafe fn switch_to_thread_with_slots(
+    current_id: Option<ThreadId>,
+    current_slot: Option<usize>,
+    next_id: ThreadId,
+    next_slot: usize,
+) {
     // コンテキストスイッチ中は割り込みを禁止する
     // ロック解放からコンテキストスイッチまでの間に割り込みが入ると不整合が起きる可能性があるため
     x86_64::instructions::interrupts::disable();
 
-    crate::debug!(
-        "switch_to_thread: current_id={:?}, next_id={:?}",
-        current_id,
-        next_id
-    );
-
     let mut queue = THREAD_QUEUE.lock();
 
     let (old_ctx_ptr, current_process_id, current_priv) = if let Some(id) = current_id {
-        if let Some(thread) = queue.get_mut(id) {
+        let current_thread = if let Some(slot) = current_slot {
+            queue.get_slot_mut(slot)
+        } else {
+            queue.get_mut(id)
+        };
+        if let Some(thread) = current_thread {
             if !thread.is_kernel_stack_guard_intact() {
                 let bottom = thread.kernel_stack_bottom();
                 let top = thread.kernel_stack_top();
@@ -146,12 +165,6 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
                 return;
             }
             let ptr = thread.context_mut() as *mut Context;
-            crate::debug!(
-                "  Current context ptr: {:p}, rsp={:#x}, rip={:#x}",
-                ptr,
-                thread.context().rsp,
-                thread.context().rip
-            );
             let pid = thread.process_id();
             let priv_level =
                 with_process(pid, |p| p.privilege()).unwrap_or(crate::task::PrivilegeLevel::Core);
@@ -161,7 +174,6 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
         }
     } else {
         // 現在のスレッドがない場合（初回スイッチ）はダミーに書き込む（値は捨てられる）
-        crate::debug!("  No current thread (initial switch)");
         (
             unsafe { core::ptr::addr_of_mut!(INITIAL_DUMMY_CONTEXT) },
             None,
@@ -177,7 +189,7 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
         next_fs_base,
         _next_in_syscall,
         next_priv,
-    ) = if let Some(thread) = queue.get(next_id) {
+    ) = if let Some(thread) = queue.get_slot(next_slot).or_else(|| queue.get(next_id)) {
         let ptr = thread.context() as *const Context;
         let kstack = thread.kernel_stack_top();
         let pid = thread.process_id();
@@ -185,13 +197,6 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
         let in_syscall = thread.in_syscall();
         let priv_level =
             with_process(pid, |p| p.privilege()).unwrap_or(crate::task::PrivilegeLevel::Core);
-        crate::debug!(
-            "  Next context ptr: {:p}, rsp={:#x}, rip={:#x}, kstack={:#x}",
-            ptr,
-            thread.context().rsp,
-            thread.context().rip,
-            kstack
-        );
         (ptr, kstack, pid, fs, in_syscall, priv_level)
     } else {
         return; // 次のスレッドが見つからない
@@ -201,7 +206,7 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
 
     // 実際に切り替える直前に current thread を更新する。
     // これにより「currentだけ先に更新される競合窓」を避ける。
-    crate::task::set_current_thread(Some(next_id));
+    crate::task::set_current_thread(Some(next_id), Some(next_slot));
 
     // TSSのRSP0とSYSCALL用カーネルスタックを更新
     crate::mem::tss::set_rsp0(next_kstack_top);
@@ -224,12 +229,12 @@ pub unsafe fn switch_to_thread(current_id: Option<ThreadId>, next_id: ThreadId) 
     // switch_context はカーネル管理領域上の Context とカーネルスタックを読む。
     // ユーザー CR3 に切り替えてから実行すると、KPTI で外した kernel heap 参照が
     // kernel-mode page fault になるため、実際の user CR3 への切替は iretq 直前に行う。
-    let kernel_cr3 = crate::percpu::kernel_cr3();
-    if kernel_cr3 != 0 {
-        crate::mem::paging::switch_page_table(kernel_cr3);
+    if current_process_id != Some(next_process_id) {
+        let kernel_cr3 = crate::percpu::kernel_cr3();
+        if kernel_cr3 != 0 {
+            crate::mem::paging::switch_page_table(kernel_cr3);
+        }
     }
-
-    crate::debug!("About to perform context switch...");
     switch_context(old_ctx_ptr, new_context_ptr);
 }
 
@@ -319,7 +324,7 @@ pub unsafe fn switch_to_thread_from_isr(
         )
     };
 
-    let (new_ctx_ptr, next_priv, next_kstack_top, next_fs_base, next_process_id, _next_in_syscall) =
+    let (new_ctx_ptr, next_priv, next_kstack_top, next_fs_base, next_process_id, _next_in_syscall, next_slot) =
         if let Some(thread) = queue.get(next_id) {
             let ptr = thread.context() as *const Context;
             let proc = thread.process_id();
@@ -328,7 +333,8 @@ pub unsafe fn switch_to_thread_from_isr(
             let kstack = thread.kernel_stack_top();
             let fs = thread.fs_base();
             let in_syscall = thread.in_syscall();
-            (ptr, priv_level, kstack, fs, proc, in_syscall)
+            let slot = queue.slot_index(next_id).unwrap_or(0);
+            (ptr, priv_level, kstack, fs, proc, in_syscall, slot)
         } else {
             return;
         };
@@ -342,7 +348,7 @@ pub unsafe fn switch_to_thread_from_isr(
     drop(queue);
 
     // ISR 経路でも、実際の遷移直前に current thread を更新する。
-    crate::task::set_current_thread(Some(next_id));
+    crate::task::set_current_thread(Some(next_id), Some(next_slot));
 
     // TSSのRSP0を更新
     crate::mem::tss::set_rsp0(next_kstack_top);
@@ -365,9 +371,11 @@ pub unsafe fn switch_to_thread_from_isr(
     // ISR 経路でもコンテキスト復元中は必ず kernel CR3 を使う。
     // ユーザー空間への復帰時は trap/syscall の出口または usermode trampoline が
     // 復帰対象スレッドの user CR3 を設定する。
-    let kernel_cr3 = crate::percpu::kernel_cr3();
-    if kernel_cr3 != 0 {
-        crate::mem::paging::switch_page_table(kernel_cr3);
+    if current_process_id != Some(next_process_id) {
+        let kernel_cr3 = crate::percpu::kernel_cr3();
+        if kernel_cr3 != 0 {
+            crate::mem::paging::switch_page_table(kernel_cr3);
+        }
     }
 
     if next_priv == crate::task::PrivilegeLevel::Core {

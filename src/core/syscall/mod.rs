@@ -1,13 +1,13 @@
 //! システムコール
 
+pub mod block;
+pub mod capability;
 pub mod exec;
 pub mod fs;
-pub mod block;
 pub mod io;
 pub mod io_port;
 pub mod ipc;
 pub mod keyboard;
-pub mod capability;
 pub mod mmio;
 pub mod mouse;
 pub mod pgroup;
@@ -375,6 +375,9 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Getdents64 as u64 => fs::getdents64(arg0, arg1, arg2),
         x if x == SyscallNumber::Newfstatat as u64 => fs::newfstatat(arg0 as i64, arg1, arg2, arg3),
         x if x == SyscallNumber::Unlinkat as u64 => fs::unlinkat(arg0 as i64, arg1, arg2),
+        x if x == SyscallNumber::Renameat as u64 => {
+            fs::renameat(arg0 as i64, arg1, arg2 as i64, arg3)
+        }
         x if x == SyscallNumber::Faccessat as u64 => fs::faccessat(arg0 as i64, arg1, arg2, arg3),
         x if x == SyscallNumber::Pselect6 as u64 => {
             pgroup::pselect6(arg0, arg1, arg2, arg3, arg4, 0)

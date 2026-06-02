@@ -26,19 +26,116 @@ pub struct BitmapFrameAllocator {
     next_frame: usize,
     /// 解放済みフレームのフリーリスト先頭（物理アドレス、0 = 空）
     free_list_head: u64,
+    /// 解放済みフレームの短期退避領域
+    quarantine: [u64; FRAME_QUARANTINE_CAP],
+    quarantine_head: usize,
+    quarantine_len: usize,
+    free_cookie_seed: u64,
     /// HHDM オフセット（phys → virt 変換用）
     phys_offset: u64,
 }
 
+const FRAME_QUARANTINE_CAP: usize = 32;
+const FRAME_FREE_COOKIE_CONST: u64 = 0x8f1d_3b79_2c4a_6e15;
+
 impl BitmapFrameAllocator {
     /// 新しいフレームアロケータを作成
     pub fn new(memory_map: &'static [MemoryRegion], phys_offset: u64) -> Self {
+        let seed = crate::cpu::boot_entropy_u64()
+            ^ (memory_map.as_ptr() as u64).rotate_left(17)
+            ^ (memory_map.len() as u64).rotate_left(41)
+            ^ FRAME_FREE_COOKIE_CONST;
         Self {
             memory_map,
             next_frame: 0x100000 / 4096, // 1MB から開始（低位メモリ予約領域をスキップ）
             free_list_head: 0,
+            quarantine: [0; FRAME_QUARANTINE_CAP],
+            quarantine_head: 0,
+            quarantine_len: 0,
+            free_cookie_seed: seed,
             phys_offset,
         }
+    }
+
+    fn free_cookie(&self, phys_addr: u64) -> u64 {
+        let mut value = self.free_cookie_seed ^ phys_addr ^ FRAME_FREE_COOKIE_CONST;
+        value ^= value >> 33;
+        value = value.wrapping_mul(0xff51_afd7_ed55_8ccd);
+        value ^= value >> 33;
+        value = value.wrapping_mul(0xc4ce_b9fe_1a85_ec53);
+        value ^ (value >> 33)
+    }
+
+    fn frame_meta_ptr(&self, phys_addr: u64) -> Option<*mut u64> {
+        if self.phys_offset == 0 {
+            return None;
+        }
+        Some((phys_addr + self.phys_offset) as *mut u64)
+    }
+
+    fn read_frame_meta(&self, phys_addr: u64) -> Option<(u64, u64)> {
+        let ptr = self.frame_meta_ptr(phys_addr)?;
+        unsafe { Some((*ptr, *ptr.add(1))) }
+    }
+
+    fn write_frame_meta(&self, phys_addr: u64, next: u64, cookie: u64) -> bool {
+        let Some(ptr) = self.frame_meta_ptr(phys_addr) else {
+            return false;
+        };
+        unsafe {
+            *ptr = next;
+            *ptr.add(1) = cookie;
+        }
+        true
+    }
+
+    fn clear_frame_meta(&self, phys_addr: u64) {
+        if let Some(ptr) = self.frame_meta_ptr(phys_addr) {
+            unsafe {
+                *ptr = 0;
+                *ptr.add(1) = 0;
+            }
+        }
+    }
+
+    fn push_free_list(&mut self, phys_addr: u64) -> bool {
+        let cookie = self.free_cookie(phys_addr);
+        self.write_frame_meta(phys_addr, self.free_list_head, cookie);
+        self.free_list_head = phys_addr;
+        true
+    }
+
+    fn quarantine_full(&self) -> bool {
+        self.quarantine_len >= FRAME_QUARANTINE_CAP
+    }
+
+    fn quarantine_push(&mut self, phys_addr: u64) {
+        if FRAME_QUARANTINE_CAP == 0 {
+            self.push_free_list(phys_addr);
+            return;
+        }
+
+        if self.quarantine_full() {
+            self.release_quarantine_oldest();
+        }
+
+        let insert_at = (self.quarantine_head + self.quarantine_len) % FRAME_QUARANTINE_CAP;
+        self.quarantine[insert_at] = phys_addr;
+        self.quarantine_len += 1;
+        let cookie = self.free_cookie(phys_addr);
+        let _ = self.write_frame_meta(phys_addr, 0, cookie);
+    }
+
+    fn release_quarantine_oldest(&mut self) {
+        if self.quarantine_len == 0 {
+            return;
+        }
+
+        let phys_addr = self.quarantine[self.quarantine_head];
+        self.quarantine[self.quarantine_head] = 0;
+        self.quarantine_head = (self.quarantine_head + 1) % FRAME_QUARANTINE_CAP;
+        self.quarantine_len -= 1;
+        self.push_free_list(phys_addr);
     }
 
     fn is_usable_frame_addr(&self, phys_addr: u64) -> bool {
@@ -52,15 +149,26 @@ impl BitmapFrameAllocator {
     pub fn deallocate_frame(&mut self, frame: PhysFrame) -> bool {
         let phys_addr = frame.start_address().as_u64();
         if phys_addr & 0xfff != 0 || !self.is_usable_frame_addr(phys_addr) {
+            crate::audit::log(
+                crate::audit::AuditEventKind::Memory,
+                "frame deallocation rejected",
+            );
             return false;
         }
         if self.phys_offset == 0 {
             return false;
         }
-        // フレームの先頭8バイトに現在の free_list_head を書き込んでリストに繋ぐ
-        let virt_ptr = (phys_addr + self.phys_offset) as *mut u64;
-        unsafe { *virt_ptr = self.free_list_head };
-        self.free_list_head = phys_addr;
+        let expected_cookie = self.free_cookie(phys_addr);
+        if let Some((_, cookie)) = self.read_frame_meta(phys_addr) {
+            if cookie == expected_cookie {
+                crate::audit::log(
+                    crate::audit::AuditEventKind::Quarantine,
+                    "frame double free detected",
+                );
+                return false;
+            }
+        }
+        self.quarantine_push(phys_addr);
         true
     }
 
@@ -95,12 +203,42 @@ impl BitmapFrameAllocator {
 
 unsafe impl FrameAllocator<Size4KiB> for BitmapFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
+        if self.free_list_head == 0 && self.quarantine_len != 0 {
+            self.release_quarantine_oldest();
+        }
+
         // フリーリストから再利用
-        if self.free_list_head != 0 && self.phys_offset != 0 {
+        let mut attempts = 0;
+        while self.free_list_head != 0 && attempts < 128 {
+            attempts += 1;
             let phys = self.free_list_head;
-            let virt_ptr = (phys + self.phys_offset) as *mut u64;
-            self.free_list_head = unsafe { *virt_ptr };
-            unsafe { *virt_ptr = 0 }; // nextp をゼロクリア
+            if phys & 0xfff != 0 || !self.is_usable_frame_addr(phys) {
+                crate::warn!("frame allocator free list corruption at {:#x}", phys);
+                crate::audit::log(
+                    crate::audit::AuditEventKind::Fault,
+                    "frame free list corruption",
+                );
+                self.free_list_head = 0;
+                break;
+            }
+            let Some((next, cookie)) = self.read_frame_meta(phys) else {
+                break;
+            };
+            if cookie != self.free_cookie(phys) {
+                crate::warn!("frame allocator cookie mismatch at {:#x}", phys);
+                crate::audit::log(
+                    crate::audit::AuditEventKind::Memory,
+                    "frame cookie mismatch",
+                );
+                self.free_list_head = 0;
+                break;
+            }
+            if next != 0 && next & 0xfff == 0 && self.is_usable_frame_addr(next) {
+                self.free_list_head = next;
+            } else {
+                self.free_list_head = 0;
+            }
+            self.clear_frame_meta(phys);
             return Some(PhysFrame::containing_address(PhysAddr::new(phys)));
         }
 

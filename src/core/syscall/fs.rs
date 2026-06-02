@@ -1,7 +1,7 @@
 //! ファイルシステム関連のシステムコール
 
 use super::types::{
-    EACCES, EBADF, EEXIST, EFAULT, EINVAL, ENOENT, ENOSYS, ENOTDIR, ESRCH, SUCCESS,
+    EACCES, EBADF, EEXIST, EFAULT, EINVAL, EIO, ENOENT, ENOSYS, ENOTDIR, ESRCH, SUCCESS,
 };
 use crate::task::fd_table::{FdTable, FileHandle, FD_BASE, O_CLOEXEC, PROCESS_MAX_FDS};
 use alloc::string::String;
@@ -38,6 +38,30 @@ fn read_cstring(ptr: u64) -> Result<String, u64> {
     crate::syscall::read_user_cstring(ptr, 1024)
 }
 
+fn resolve_path_at(pid_raw: u64, dirfd: i64, path_ptr: u64) -> Result<String, u64> {
+    const AT_FDCWD: i64 = -100;
+
+    if dirfd == AT_FDCWD {
+        return read_cstring(path_ptr).map(|path| normalize_path(&path));
+    }
+
+    let idx = dirfd as usize;
+    if idx >= PROCESS_MAX_FDS {
+        return Err(EBADF);
+    }
+    let dir_path = match with_fd_table(pid_raw, |t| t.get(idx).and_then(|fh| fh.dir_path.clone())) {
+        Some(Some(p)) => p,
+        _ => return Err(EBADF),
+    };
+    let path = read_cstring(path_ptr)?;
+    let full_path = if path.starts_with('/') {
+        path
+    } else {
+        alloc::format!("{}/{}", dir_path.trim_end_matches('/'), path)
+    };
+    Ok(normalize_path(&full_path))
+}
+
 fn path_has_prefix(path: &str, prefix: &str) -> bool {
     path == prefix
         || path
@@ -51,6 +75,8 @@ fn path_requires_fs_read_all(path: &str) -> bool {
         || path_has_prefix(path, "/config")
         || path_has_prefix(path, "/bin")
         || path_has_prefix(path, "/lib")
+        || path_has_prefix(path, "/log")
+        || path_has_prefix(path, "/var/log")
 }
 
 pub(crate) fn ensure_fs_path_readable(path: &str) -> Result<(), u64> {
@@ -104,18 +130,39 @@ pub(crate) fn readdir_rootfs_first(path: &str) -> Option<Vec<String>> {
     crate::kmod::fs::readdir_path(path).or_else(|| crate::init::fs::readdir_path(path))
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SpecialFileKind {
+    Zero,
+    Null,
+    AuditLog,
+}
+
+#[inline]
+fn special_file_kind(path: &str) -> Option<SpecialFileKind> {
+    match path {
+        "/var/zero" | "/dev/zero" => Some(SpecialFileKind::Zero),
+        "/dev/null" => Some(SpecialFileKind::Null),
+        "/log/audit.log" | "/var/log/audit.log" => Some(SpecialFileKind::AuditLog),
+        _ => None,
+    }
+}
+
 #[inline]
 fn special_file_metadata(path: &str) -> Option<(u16, u64)> {
-    match path {
-        "/var/zero" | "/dev/zero" => Some((0x2000 | 0o666, 0)),
-        "/dev/null" => Some((0x2000 | 0o666, 0)),
-        _ => None,
+    match special_file_kind(path)? {
+        SpecialFileKind::Zero | SpecialFileKind::Null => Some((0x2000 | 0o666, 0)),
+        SpecialFileKind::AuditLog => Some((0x8000 | 0o444, crate::audit::file_size() as u64)),
     }
 }
 
 #[inline]
 fn is_special_local_path(path: &str) -> bool {
     special_file_metadata(path).is_some()
+}
+
+#[inline]
+fn special_file_requires_read_cap(path: &str) -> bool {
+    matches!(special_file_kind(path), Some(SpecialFileKind::AuditLog))
 }
 
 #[inline]
@@ -133,6 +180,10 @@ fn handle_is_special(fh: &FileHandle) -> bool {
         .as_deref()
         .map(is_special_local_path)
         .unwrap_or(false)
+}
+
+fn handle_special_kind(fh: &FileHandle) -> Option<SpecialFileKind> {
+    fh.dir_path.as_deref().and_then(special_file_kind)
 }
 
 fn parse_readdir_names(bytes: &[u8]) -> Vec<String> {
@@ -235,6 +286,7 @@ fn make_tty_handle(path: &str) -> alloc::boxed::Box<FileHandle> {
     alloc::boxed::Box::new(FileHandle {
         data: alloc::boxed::Box::new([]),
         pos: 0,
+        fs_path: None,
         dir_path: Some(tty_path.to_string()),
         is_remote: false,
         fd_remote: 0,
@@ -262,6 +314,20 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
     if let Err(errno) = ensure_fs_path_readable(path) {
         return errno;
     }
+    if special_file_requires_read_cap(path) {
+        // 監査ログは special file としても読み取りには通常の fs.read.all を要求する。
+        if let Some(pid_raw) = current_process_id_raw() {
+            let pid = crate::task::ids::ProcessId::from_u64(pid_raw);
+            if !crate::task::process::process_has_capability(
+                pid,
+                crate::capability::Capability::FsReadAll,
+            ) {
+                return EACCES;
+            }
+        } else {
+            return EBADF;
+        }
+    }
 
     // O_CREAT|O_EXCL は先に存在チェックしておく。
     if (flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL) {
@@ -271,17 +337,12 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
         }
     }
 
-    // 書き込みは基本的に cext 側へ寄せたいが、現状 fs.cext が read-only のため拒否する。
-    // （IPC 経由にフォールバックして遅くなるより、失敗を明確にする）
-    if has_write_intent(flags) && !is_special_local_path(path) {
-        return EACCES;
-    }
-
     if is_special_local_path(path) {
         let cloexec = (flags & O_CLOEXEC) != 0;
         let handle = alloc::boxed::Box::new(FileHandle {
             data: alloc::boxed::Box::new([]),
             pos: 0,
+            fs_path: None,
             dir_path: Some(path.to_string()),
             is_remote: false,
             fd_remote: 0,
@@ -294,6 +355,28 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
             Some(Some(fd)) => fd as u64,
             _ => ENOSYS,
         };
+    }
+
+    let visible_exists = metadata_rootfs_first(path).is_some();
+    let existing_persistent = crate::kmod::fs::file_metadata(path).is_some();
+    if has_write_intent(flags) && !existing_persistent && (flags & O_CREAT) == 0 {
+        return EACCES;
+    }
+    if (flags & O_CREAT) != 0 && !visible_exists {
+        if crate::kmod::fs::create(path, 0o644) != 0 {
+            return crate::syscall::types::EIO;
+        }
+    }
+    if (flags & O_TRUNC) != 0
+        && (existing_persistent || crate::kmod::fs::file_metadata(path).is_some())
+    {
+        if crate::kmod::fs::truncate(path, 0) != 0 {
+            return crate::syscall::types::EIO;
+        }
+    }
+    let persistent_path = crate::kmod::fs::file_metadata(path).is_some();
+    if has_write_intent(flags) && !persistent_path && (flags & O_CREAT) == 0 {
+        return EACCES;
     }
 
     // 通常パス: disk.cext/fs.cext 経由で読む（IPC しない）
@@ -312,6 +395,11 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
     let handle = alloc::boxed::Box::new(FileHandle {
         data: data_vec.into_boxed_slice(),
         pos: 0,
+        fs_path: if persistent_path {
+            Some(path.to_string())
+        } else {
+            None
+        },
         dir_path,
         is_remote,
         fd_remote,
@@ -383,7 +471,11 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
             0 => offset,
             1 => fh.pos as i64 + offset,
             2 => {
-                let len = fh.data.len() as i64;
+                let len = if handle_special_kind(fh) == Some(SpecialFileKind::AuditLog) {
+                    crate::audit::file_size() as i64
+                } else {
+                    fh.data.len() as i64
+                };
                 len + offset
             }
             _ => return Err(EINVAL),
@@ -391,7 +483,12 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
         if new_pos < 0 {
             return Err(EINVAL);
         }
-        let new_pos = core::cmp::min(new_pos as usize, fh.data.len());
+        let limit = if handle_special_kind(fh) == Some(SpecialFileKind::AuditLog) {
+            crate::audit::file_size()
+        } else {
+            fh.data.len()
+        };
+        let new_pos = core::cmp::min(new_pos as usize, limit);
         fh.pos = new_pos;
         Ok(fh.pos as u64)
     }) {
@@ -464,19 +561,28 @@ pub fn fstat(fd: u64, stat_ptr: u64) -> u64 {
                 .map(is_tty_like_path)
                 .unwrap_or(false);
             let is_special = handle_is_special(fh);
+            let special_kind = handle_special_kind(fh);
+            let size = if special_kind == Some(SpecialFileKind::AuditLog) {
+                crate::audit::file_size() as u64
+            } else {
+                fh.data.len() as u64
+            };
             (
-                fh.data.len() as u64,
+                size,
                 fh.dir_path.is_some(),
                 is_tty,
                 is_special,
+                special_kind,
             )
         })
     });
-    let (size, is_dir, is_tty, is_special) = match file_info {
+    let (size, is_dir, is_tty, is_special, special_kind) = match file_info {
         Some(Some(v)) => v,
         _ => return EBADF,
     };
-    let mode = if is_special {
+    let mode = if special_kind == Some(SpecialFileKind::AuditLog) {
+        0x8000u32 | 0o444
+    } else if is_special {
         0x2000u32 | 0o666
     } else if is_tty {
         0x2000u32 | 0o666
@@ -524,9 +630,30 @@ pub fn mkdir(_path_ptr: u64, _mode: u64) -> u64 {
     ENOSYS
 }
 
-/// Rmdirシステムコール（読み取り専用ファイルシステムのため未実装）
-pub fn rmdir(_path_ptr: u64) -> u64 {
-    ENOSYS
+/// Rmdirシステムコール
+pub fn rmdir(path_ptr: u64) -> u64 {
+    if path_ptr == 0 {
+        return EINVAL;
+    }
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+    let path = match read_cstring(path_ptr) {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let resolved = resolve_path(pid, &path);
+    if let Err(errno) = ensure_fs_path_readable(&resolved) {
+        return errno;
+    }
+    if !crate::kmod::fs::is_directory(&resolved) {
+        return ENOTDIR;
+    }
+    if crate::kmod::fs::remove(&resolved, true) != 0 {
+        return crate::syscall::types::EIO;
+    }
+    SUCCESS
 }
 
 /// Readdirシステムコール
@@ -665,15 +792,26 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     let local = match with_fd_table_mut(pid, |t| {
         let fh = t.get_mut(idx)?;
         if handle_is_special(fh) {
-            let to_read = match fh.dir_path.as_deref().unwrap_or("") {
-                "/dev/null" => 0usize,
-                "/var/zero" | "/dev/zero" => core::cmp::min(len as usize, len as usize),
-                _ => 0usize,
+            let to_read = match handle_special_kind(fh) {
+                Some(SpecialFileKind::Null) => 0usize,
+                Some(SpecialFileKind::Zero) => core::cmp::min(len as usize, len as usize),
+                Some(SpecialFileKind::AuditLog) => {
+                    let available = crate::audit::file_size().saturating_sub(fh.pos);
+                    core::cmp::min(available, len as usize)
+                }
+                None => 0usize,
             };
             if to_read == 0 {
                 return Some(Vec::new());
             }
             let mut data = Vec::with_capacity(to_read);
+            if matches!(handle_special_kind(fh), Some(SpecialFileKind::AuditLog)) {
+                data.resize(to_read, 0);
+                let copied = crate::audit::read_file_at(fh.pos, &mut data);
+                data.truncate(copied);
+                fh.pos = fh.pos.saturating_add(copied);
+                return Some(data);
+            }
             data.resize(to_read, 0);
             fh.pos = fh.pos.saturating_add(to_read);
             return Some(data);
@@ -730,17 +868,42 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
         return errno;
     }
 
+    let (start_pos, fs_path, is_special, special_kind) = match with_fd_table(pid, |t| {
+        t.get(idx).map(|fh| {
+            (
+                fh.pos,
+                fh.fs_path.clone(),
+                handle_is_special(fh),
+                handle_special_kind(fh),
+            )
+        })
+    }) {
+        Some(Some(info)) => info,
+        _ => return EBADF,
+    };
+
+    if is_special && special_kind == Some(SpecialFileKind::AuditLog) {
+        return EACCES;
+    }
+
+    if let Some(path) = fs_path.as_deref() {
+        match crate::kmod::fs::write_all(path, start_pos as u64, &buf) {
+            Some(written) if written == buf.len() => {}
+            _ => return crate::syscall::types::EIO,
+        }
+    }
+
     let wrote = with_fd_table_mut(pid, |t| {
         let fh = t.get_mut(idx).ok_or(EBADF)?;
         if handle_is_special(fh) {
             return Ok(buf.len() as u64);
         }
-        let end = fh.pos.checked_add(buf.len()).ok_or(EINVAL)?;
+        let end = start_pos.checked_add(buf.len()).ok_or(EINVAL)?;
         let mut data = fh.data.to_vec();
         if end > data.len() {
             data.resize(end, 0);
         }
-        data[fh.pos..end].copy_from_slice(&buf);
+        data[start_pos..end].copy_from_slice(&buf);
         fh.data = data.into_boxed_slice();
         fh.pos = end;
         Ok(buf.len() as u64)
@@ -839,7 +1002,28 @@ pub fn fsync(fd: u64) -> u64 {
 }
 
 /// truncate システムコール（最小実装）
-pub fn truncate(_path_ptr: u64, _len: u64) -> u64 {
+pub fn truncate(path_ptr: u64, len: u64) -> u64 {
+    if path_ptr == 0 {
+        return EFAULT;
+    }
+    let path = match read_cstring(path_ptr) {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+    let path = resolve_path(pid, &path);
+    if special_file_requires_read_cap(&path) {
+        return EACCES;
+    }
+    if crate::kmod::fs::file_metadata(&path).is_none() {
+        return ENOENT;
+    }
+    if crate::kmod::fs::truncate(&path, len) != 0 {
+        return crate::syscall::types::EIO;
+    }
     SUCCESS
 }
 
@@ -863,7 +1047,15 @@ pub fn ftruncate(fd: u64, len: u64) -> u64 {
     let res = with_fd_table_mut(pid, |t| {
         let fh = t.get_mut(idx).ok_or(EBADF)?;
         if handle_is_special(fh) {
+            if handle_special_kind(fh) == Some(SpecialFileKind::AuditLog) {
+                return Err(ENOSYS);
+            }
             return Err(ENOSYS);
+        }
+        if let Some(path) = fh.fs_path.as_deref() {
+            if crate::kmod::fs::truncate(path, len) != 0 {
+                return Err(crate::syscall::types::EIO);
+            }
         }
         let mut data = fh.data.to_vec();
         data.resize(new_len, 0);
@@ -907,6 +1099,7 @@ pub fn dup(fd: u64) -> u64 {
             alloc::boxed::Box::new(FileHandle {
                 data: fh.data.clone(),
                 pos: fh.pos,
+                fs_path: fh.fs_path.clone(),
                 dir_path: fh.dir_path.clone(),
                 is_remote: false,
                 fd_remote: 0,
@@ -966,6 +1159,7 @@ pub fn dup2(old_fd: u64, new_fd: u64) -> u64 {
                 alloc::boxed::Box::new(FileHandle {
                     data: fh.data.clone(),
                     pos: fh.pos,
+                    fs_path: fh.fs_path.clone(),
                     dir_path: fh.dir_path.clone(),
                     is_remote: false,
                     fd_remote: 0,
@@ -993,20 +1187,64 @@ pub fn dup2(old_fd: u64, new_fd: u64) -> u64 {
     new_fd
 }
 
-/// unlink システムコール（最小実装）
+/// unlink システムコール
 pub fn unlink(path_ptr: u64) -> u64 {
     if path_ptr == 0 {
         return EINVAL;
     }
-    match read_cstring(path_ptr) {
-        Ok(_) => SUCCESS,
-        Err(errno) => errno,
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+    let path = match read_cstring(path_ptr) {
+        Ok(s) => s,
+        Err(errno) => return errno,
+    };
+    let resolved = resolve_path(pid, &path);
+    if let Err(errno) = ensure_fs_path_readable(&resolved) {
+        return errno;
     }
+    if crate::kmod::fs::is_directory(&resolved) {
+        return ENOTDIR;
+    }
+    if crate::kmod::fs::remove(&resolved, false) != 0 {
+        return crate::syscall::types::EIO;
+    }
+    SUCCESS
 }
 
 /// unlinkat システムコール（最小実装）
 pub fn unlinkat(_dirfd: i64, path_ptr: u64, _flags: u64) -> u64 {
     unlink(path_ptr)
+}
+
+/// renameat システムコール
+pub fn renameat(old_dirfd: i64, old_path_ptr: u64, new_dirfd: i64, new_path_ptr: u64) -> u64 {
+    if old_path_ptr == 0 || new_path_ptr == 0 {
+        return EINVAL;
+    }
+    let pid = match current_process_id_raw() {
+        Some(p) => p,
+        None => return EBADF,
+    };
+    let old_path = match resolve_path_at(pid, old_dirfd, old_path_ptr) {
+        Ok(path) => path,
+        Err(errno) => return errno,
+    };
+    let new_path = match resolve_path_at(pid, new_dirfd, new_path_ptr) {
+        Ok(path) => path,
+        Err(errno) => return errno,
+    };
+    if let Err(errno) = ensure_fs_path_readable(&old_path) {
+        return errno;
+    }
+    if let Err(errno) = ensure_fs_path_readable(&new_path) {
+        return errno;
+    }
+    if crate::kmod::fs::rename(&old_path, &new_path) != 0 {
+        return EIO;
+    }
+    SUCCESS
 }
 
 /// Openat システムコール

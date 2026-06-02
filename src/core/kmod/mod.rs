@@ -28,8 +28,14 @@ pub struct McxFsOps {
     pub mount: extern "C" fn(device_id: u32) -> i32,
     /// disk.cext の ops を渡す（fs.cext から ATA を直接叩かないため）
     pub set_disk_ops: extern "C" fn(ops: *const disk::McxDiskOps) -> i32,
+    pub create: extern "C" fn(path: McxPath, mode: u32) -> i32,
+    pub remove: extern "C" fn(path: McxPath, is_dir: u32) -> i32,
+    pub rename: extern "C" fn(src: McxPath, dst: McxPath) -> i32,
     pub read:
         extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut usize) -> i32,
+    pub write:
+        extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_written: *mut usize) -> i32,
+    pub truncate: extern "C" fn(path: McxPath, len: u64) -> i32,
     pub stat: extern "C" fn(path: McxPath, out_mode: *mut u16, out_size: *mut u64) -> i32,
     pub readdir: extern "C" fn(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> i32,
 }

@@ -1,10 +1,11 @@
 //! ファイルシステム関連のシステムコール
 
-use super::types::{EACCES, EBADF, EEXIST, EFAULT, EINVAL, EIO, ENOENT, ENOSYS, ENOTDIR, ESRCH, SUCCESS};
+use super::types::{
+    EACCES, EBADF, EEXIST, EFAULT, EINVAL, ENOENT, ENOSYS, ENOTDIR, ESRCH, SUCCESS,
+};
 use crate::task::fd_table::{FdTable, FileHandle, FD_BASE, O_CLOEXEC, PROCESS_MAX_FDS};
 use alloc::string::String;
 use alloc::string::ToString;
-use alloc::vec;
 use alloc::vec::Vec;
 
 // グローバル FD テーブルは廃止。各プロセスの Process::fd_table を使用する。
@@ -35,6 +36,38 @@ where
 
 fn read_cstring(ptr: u64) -> Result<String, u64> {
     crate::syscall::read_user_cstring(ptr, 1024)
+}
+
+fn path_has_prefix(path: &str, prefix: &str) -> bool {
+    path == prefix
+        || path
+            .strip_prefix(prefix)
+            .is_some_and(|rest| rest.starts_with('/'))
+}
+
+fn path_requires_fs_read_all(path: &str) -> bool {
+    path_has_prefix(path, "/system")
+        || path_has_prefix(path, "/Modules")
+        || path_has_prefix(path, "/config")
+        || path_has_prefix(path, "/bin")
+        || path_has_prefix(path, "/lib")
+}
+
+pub(crate) fn ensure_fs_path_readable(path: &str) -> Result<(), u64> {
+    if !path_requires_fs_read_all(path) {
+        return Ok(());
+    }
+
+    let pid = match current_process_id_raw() {
+        Some(pid) => pid,
+        None => return Err(EBADF),
+    };
+    let pid = crate::task::ids::ProcessId::from_u64(pid);
+    if crate::task::process::process_has_capability(pid, crate::capability::Capability::FsReadAll) {
+        Ok(())
+    } else {
+        Err(EACCES)
+    }
 }
 
 pub(crate) fn close_remote_fd_from_kernel(_fd_remote: u64) {}
@@ -90,6 +123,7 @@ fn stat_path_local_or_special(path: &str) -> Result<(u16, u64), u64> {
     if let Some((mode, size)) = special_file_metadata(path) {
         Ok((mode, size))
     } else {
+        ensure_fs_path_readable(path)?;
         metadata_rootfs_first(path).ok_or(ENOENT)
     }
 }
@@ -223,6 +257,10 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
             Some(Some(fd)) => fd as u64,
             _ => ENOSYS,
         };
+    }
+
+    if let Err(errno) = ensure_fs_path_readable(path) {
+        return errno;
     }
 
     // O_CREAT|O_EXCL は先に存在チェックしておく。
@@ -469,6 +507,9 @@ pub fn stat(path_ptr: u64, stat_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let resolved = resolve_path(owner_pid, &path);
+    if let Err(errno) = ensure_fs_path_readable(&resolved) {
+        return errno;
+    }
     match stat_path_local_or_special(&resolved) {
         Ok((mode, size)) => {
             write_stat_buf(stat_ptr, mode_for_stat(mode), size);
@@ -508,7 +549,7 @@ pub fn readdir(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
         None => return EBADF,
     };
 
-    let (dir_path, is_special) = match with_fd_table(pid, |t| {
+    let (dir_path, _is_special) = match with_fd_table(pid, |t| {
         t.get(idx)
             .map(|fh| (fh.dir_path.clone(), handle_is_special(fh)))
     }) {
@@ -516,6 +557,10 @@ pub fn readdir(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
         Some(Some((Some(_), true))) => return ENOTDIR,
         _ => return EBADF,
     };
+
+    if let Err(errno) = ensure_fs_path_readable(&dir_path) {
+        return errno;
+    }
 
     let names = match readdir_rootfs_first(&dir_path) {
         Some(n) => n,
@@ -544,6 +589,9 @@ pub fn chdir(path_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let resolved = resolve_path(pid_raw, &path);
+    if let Err(errno) = ensure_fs_path_readable(&resolved) {
+        return errno;
+    }
     match stat_path_local_or_special(&resolved) {
         Ok((mode, _)) => {
             if !mode_is_directory(mode) {
@@ -1061,7 +1109,6 @@ pub fn newfstatat(dirfd: i64, path_ptr: u64, stat_ptr: u64, flags: u64) -> u64 {
 
 /// Faccessat システムコール
 pub fn faccessat(dirfd: i64, path_ptr: u64, _mode: u64, _flags: u64) -> u64 {
-    use super::types::ENOENT;
     const AT_FDCWD: i64 = -100;
     if path_ptr == 0 {
         return EINVAL;
@@ -1117,6 +1164,9 @@ pub fn statfs(path_ptr: u64, buf_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let resolved = resolve_path(pid, &path);
+    if let Err(errno) = ensure_fs_path_readable(&resolved) {
+        return errno;
+    }
     if stat_path_local_or_special(&resolved).is_err() {
         return ENOENT;
     }
@@ -1225,6 +1275,10 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
     };
     if is_special {
         return ENOTDIR;
+    }
+
+    if let Err(errno) = ensure_fs_path_readable(&dir_path) {
+        return errno;
     }
 
     let entries: Vec<(alloc::string::String, u8)> = match readdir_rootfs_first(&dir_path) {

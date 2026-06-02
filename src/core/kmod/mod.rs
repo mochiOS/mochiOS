@@ -1,7 +1,9 @@
+use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::convert::TryInto;
 use core::sync::atomic::{AtomicU64, Ordering};
+use sha2::{Digest, Sha256};
 
 pub mod disk;
 pub mod fs;
@@ -50,6 +52,35 @@ static NEXT_MODULE_LOAD_BASE: AtomicU64 = AtomicU64::new(MODULE_LOAD_BASE_START)
 type FsInitFn = unsafe extern "C" fn() -> *const McxFsOps;
 type DiskInitFn = unsafe extern "C" fn() -> *const disk::McxDiskOps;
 
+fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    let mut out = String::with_capacity(digest.len() * 2);
+    for b in digest {
+        out.push_str(&alloc::format!("{:02x}", b));
+    }
+    out
+}
+
+fn load_module_hash_manifest() -> Option<BTreeMap<String, String>> {
+    let bytes = crate::init::fs::read("/Modules/modules.sha256")?;
+    let text = core::str::from_utf8(&bytes).ok()?;
+    let mut out = BTreeMap::new();
+    for raw_line in text.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let (name, hash) = line.split_once('=')?;
+        let name = name.trim();
+        let hash = hash.trim().to_ascii_lowercase();
+        if name.is_empty() || hash.len() != 64 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            return None;
+        }
+        out.insert(name.to_string(), hash);
+    }
+    Some(out)
+}
+
 fn register_disk_module(init_addr: u64, module_version: u16) -> bool {
     let init: DiskInitFn = unsafe { core::mem::transmute(init_addr) };
     let ops = unsafe { init() };
@@ -83,6 +114,11 @@ pub fn load_modules() {
         return;
     };
 
+    let Some(expected_hashes) = load_module_hash_manifest() else {
+        crate::warn!("kmod: /Modules/modules.sha256 missing or invalid");
+        return;
+    };
+
     let mut module_paths: Vec<String> = entries
         .into_iter()
         .filter(|name| name.ends_with(".cext"))
@@ -102,6 +138,22 @@ pub fn load_modules() {
             continue;
         };
 
+        let expected_name = alloc::format!("{}.cext", meta.name);
+        let Some(expected_hash) = expected_hashes.get(&expected_name) else {
+            crate::warn!("kmod: missing hash entry for {}", expected_name);
+            continue;
+        };
+        let actual_hash = sha256_hex(&bytes);
+        if actual_hash != *expected_hash {
+            crate::warn!(
+                "kmod: hash mismatch for {} (expected {}, got {})",
+                expected_name,
+                expected_hash,
+                actual_hash
+            );
+            continue;
+        }
+
         let mut missing_dep = false;
         for dep in &meta.deps {
             if dep == "disk" && !disk::is_loaded() {
@@ -118,6 +170,16 @@ pub fn load_modules() {
             crate::warn!("kmod: unknown module {}", meta.name);
             continue;
         };
+
+        if meta.module_version != reg.version {
+            crate::warn!(
+                "kmod: version mismatch for {} (expected {}, got {})",
+                meta.name,
+                reg.version,
+                meta.module_version
+            );
+            continue;
+        }
 
         let Some(addr) = load_elf_symbol(&meta.elf, "mochi_module_init") else {
             crate::warn!("kmod: mochi_module_init not found in {}.cext", meta.name);

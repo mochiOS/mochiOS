@@ -20,7 +20,7 @@ version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
-    "generic-array",
+ "generic-array",
 ]
 
 [[package]]
@@ -41,7 +41,7 @@ version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
 dependencies = [
-    "libc",
+ "libc",
 ]
 
 [[package]]
@@ -50,8 +50,8 @@ version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
 dependencies = [
-    "generic-array",
-    "typenum",
+ "generic-array",
+ "typenum",
 ]
 
 [[package]]
@@ -60,8 +60,8 @@ version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
-    "block-buffer",
-    "crypto-common",
+ "block-buffer",
+ "crypto-common",
 ]
 
 [[package]]
@@ -76,8 +76,8 @@ version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
-    "typenum",
-    "version_check",
+ "typenum",
+ "version_check",
 ]
 
 [[package]]
@@ -144,7 +144,7 @@ version = "0.0.1-dev"
 dependencies = [
  "linked_list_allocator",
  "num_cpus",
-    "sha2",
+ "sha2",
  "spin",
  "toml",
  "uefi",
@@ -255,9 +255,9 @@ version = "0.10.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
-    "cfg-if",
-    "cpufeatures",
-    "digest",
+ "cfg-if",
+ "cpufeatures",
+ "digest",
 ]
 
 [[package]]

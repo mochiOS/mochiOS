@@ -315,6 +315,35 @@ fn prune_stale_module_artifacts(
     Ok(())
 }
 
+fn write_module_hash_manifest(
+    modules: &[builders::modules::ModuleEntry],
+    ramfs_dir: &Path,
+) -> Result<(), String> {
+    let modules_dir = ramfs_dir.join("Modules");
+    fs::create_dir_all(&modules_dir)
+        .map_err(|e| format!("Failed to create {}: {}", modules_dir.display(), e))?;
+
+    let mut lines = Vec::new();
+    for module in modules {
+        let cext_path = modules_dir.join(format!("{}.cext", module.name));
+        if !cext_path.exists() {
+            return Err(format!(
+                "Missing built module artifact for {} at {}",
+                module.name,
+                cext_path.display()
+            ));
+        }
+        let hash = compute_sha256(&cext_path)?;
+        lines.push(format!("{}.cext={}", module.name, hash));
+    }
+
+    let manifest_path = modules_dir.join("modules.sha256");
+    fs::write(&manifest_path, lines.join("\n"))
+        .map_err(|e| format!("Failed to write {}: {}", manifest_path.display(), e))?;
+    println!("Generated {}", manifest_path.display());
+    Ok(())
+}
+
 #[allow(unused)]
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -520,6 +549,7 @@ fn main() {
         build_module(module, &modules_base_dir, &ramfs_dir)
             .unwrap_or_else(|e| panic!("Failed to build module {}: {}", module.name, e));
     }
+    write_module_hash_manifest(&modules, &ramfs_dir).expect("Failed to write module hash manifest");
 
     // アプリケーションをビルド
     let apps_dir = manifest_dir.join("src/apps");
@@ -527,11 +557,11 @@ fn main() {
     if apps_dir.is_dir() {
         println!("Building applications");
         build_apps(&apps_dir, &applications_dir, "elf");
-        
+
         // Clean up build artifacts from applications
-        for entry in fs::read_dir(&applications_dir).unwrap_or_else(|_| {
-            panic!("Failed to read applications dir")
-        }) {
+        for entry in fs::read_dir(&applications_dir)
+            .unwrap_or_else(|_| panic!("Failed to read applications dir"))
+        {
             if let Ok(entry) = entry {
                 let path = entry.path();
                 if path.is_dir() {

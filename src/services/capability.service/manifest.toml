@@ -9,6 +9,7 @@ order = 1
 [capabilities]
 required = [
   "ipc.server",
+    "fs.read.all",
   "system.info.read"
 ]
 

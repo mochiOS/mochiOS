@@ -10,8 +10,6 @@ const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
 const ECHILD: u64 = (-10i64) as u64;
 /// Linux互換: 操作がタイムアウトした
 const ETIMEDOUT: u64 = (-110i64) as u64;
-/// PIT割り込み周期 (10ms)
-const TICK_MS: u64 = 10;
 use crate::task::{current_thread_id, exit_current_task};
 
 #[derive(Clone, Copy)]
@@ -368,11 +366,21 @@ pub fn fork() -> u64 {
         None => return ENOSYS,
     };
 
-    let (parent_priv, parent_priority, parent_pt, heap_start, heap_end, stack_bottom, stack_top) =
+    let (
+        parent_priv,
+        parent_priority,
+        parent_foreground,
+        parent_pt,
+        heap_start,
+        heap_end,
+        stack_bottom,
+        stack_top,
+    ) =
         match crate::task::with_process(parent_pid, |p| {
             (
                 p.privilege(),
                 p.priority(),
+                p.is_foreground(),
                 p.page_table(),
                 p.heap_start(),
                 p.heap_end(),
@@ -408,6 +416,7 @@ pub fn fork() -> u64 {
 
     let mut child_proc =
         crate::task::Process::new("fork", parent_priv, Some(parent_pid), parent_priority);
+    child_proc.set_foreground(parent_foreground);
     child_proc.set_page_table(child_pt);
     child_proc.set_heap_start(heap_start);
     child_proc.set_heap_end(heap_end);
@@ -470,10 +479,7 @@ pub fn sleep(milliseconds: u64) -> u64 {
         crate::task::yield_now();
         return SUCCESS;
     }
-    let wait_ticks = milliseconds
-        .checked_add(TICK_MS - 1)
-        .map(|v| v / TICK_MS)
-        .unwrap_or(u64::MAX);
+    let wait_ticks = crate::interrupt::timer::ms_to_ticks_ceil(milliseconds);
     let target = crate::syscall::time::get_ticks().saturating_add(wait_ticks);
     crate::syscall::time::sleep_until(target);
     SUCCESS

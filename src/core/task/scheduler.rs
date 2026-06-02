@@ -1,10 +1,11 @@
 use crate::interrupt::spinlock::SpinLock;
 
 use super::context::switch_to_thread_with_slots;
-use super::ids::{ThreadId, ThreadState};
+use super::ids::{SchedulingClass, ThreadId, ThreadState};
 use super::thread::{
     current_thread_id, current_thread_slot, remove_thread, set_current_thread, set_thread_state,
-    set_thread_state_at_slot, with_thread, with_thread_at_slot, with_thread_mut, THREAD_QUEUE,
+    set_thread_state_at_slot, with_thread, with_thread_at_slot, with_thread_at_slot_mut,
+    with_thread_mut, THREAD_QUEUE,
 };
 
 /// スケジューラ
@@ -20,7 +21,7 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-    pub const DEFAULT_TIME_SLICE: u64 = 1;
+    pub const DEFAULT_TIME_SLICE: u64 = crate::interrupt::timer::ms_to_ticks_ceil(10);
 
     /// 新しいスケジューラを作成
     pub const fn new() -> Self {
@@ -74,6 +75,74 @@ impl Scheduler {
     }
 }
 
+const INTERACTIVE_MIN_TICKS: u64 = crate::interrupt::timer::ms_to_ticks_ceil(4);
+const INTERACTIVE_MID_TICKS: u64 = crate::interrupt::timer::ms_to_ticks_ceil(6);
+const INTERACTIVE_MAX_TICKS: u64 = crate::interrupt::timer::ms_to_ticks_ceil(8);
+const NORMAL_TICKS: u64 = crate::interrupt::timer::ms_to_ticks_ceil(10);
+const CPU_BOUND_TICKS: u64 = crate::interrupt::timer::ms_to_ticks_ceil(20);
+const BACKGROUND_TICKS: u64 = crate::interrupt::timer::ms_to_ticks_ceil(30);
+const LOW_PRIORITY_THRESHOLD: u8 = 192;
+const CPU_BIAS_PRIORITY_THRESHOLD: u8 = 128;
+const INTERACTIVE_PRIORITY_THRESHOLD: u8 = 31;
+
+fn classify_thread(
+    is_foreground: bool,
+    process_priority: u8,
+    interactive_score: u8,
+    cpu_burst_score: u8,
+) -> SchedulingClass {
+    if is_foreground {
+        SchedulingClass::Interactive
+    } else if process_priority >= LOW_PRIORITY_THRESHOLD {
+        SchedulingClass::Background
+    } else if cpu_burst_score >= 4 || process_priority >= CPU_BIAS_PRIORITY_THRESHOLD {
+        SchedulingClass::CpuBound
+    } else if interactive_score >= 2 || process_priority <= INTERACTIVE_PRIORITY_THRESHOLD {
+        SchedulingClass::Interactive
+    } else {
+        SchedulingClass::Normal
+    }
+}
+
+fn class_time_slice_ticks(
+    class: SchedulingClass,
+    is_foreground: bool,
+    interactive_score: u8,
+    process_priority: u8,
+) -> u64 {
+    match class {
+        SchedulingClass::Interactive => {
+            if is_foreground || interactive_score >= 6 || process_priority <= 7 {
+                INTERACTIVE_MIN_TICKS
+            } else if interactive_score >= 4 || process_priority <= 15 {
+                INTERACTIVE_MID_TICKS
+            } else {
+                INTERACTIVE_MAX_TICKS
+            }
+        }
+        SchedulingClass::Normal => NORMAL_TICKS,
+        SchedulingClass::CpuBound => CPU_BOUND_TICKS,
+        SchedulingClass::Background => {
+            BACKGROUND_TICKS + ((process_priority.saturating_sub(LOW_PRIORITY_THRESHOLD)) / 16) as u64
+        }
+    }
+}
+
+fn time_slice_ticks_for_thread(
+    is_foreground: bool,
+    process_priority: u8,
+    interactive_score: u8,
+    cpu_burst_score: u8,
+) -> u64 {
+    let class = classify_thread(
+        is_foreground,
+        process_priority,
+        interactive_score,
+        cpu_burst_score,
+    );
+    class_time_slice_ticks(class, is_foreground, interactive_score, process_priority)
+}
+
 impl Default for Scheduler {
     fn default() -> Self {
         Self::new()
@@ -123,7 +192,15 @@ pub fn scheduler_tick() -> bool {
             return false;
         }
     }
-    SCHEDULER.lock().tick()
+    let should_schedule = SCHEDULER.lock().tick();
+    if should_schedule {
+        if let Some(slot) = current_thread_slot() {
+            let _ = with_thread_at_slot_mut(slot, |thread| thread.note_slice_exhausted());
+        } else if let Some(tid) = current_thread_id() {
+            let _ = with_thread_mut(tid, |thread| thread.note_slice_exhausted());
+        }
+    }
+    should_schedule
 }
 
 /// 次に実行すべきスレッドを選択
@@ -164,13 +241,30 @@ fn schedule_with_slot() -> Option<(ThreadId, usize)> {
 
     // 次の Ready スレッドを探す
     let next_slot = queue.next_ready_slot_after(current_slot)?;
-    let next_id = queue.get_slot(next_slot).map(|thread| thread.id())?;
-    
+    let (next_id, next_pid, interactive_score, cpu_burst_score) =
+        queue.get_slot(next_slot).map(|thread| {
+            (
+                thread.id(),
+                thread.process_id(),
+                thread.interactive_score(),
+                thread.cpu_burst_score(),
+            )
+        })?;
+
     // 見つけた次のスレッドを Running 状態に設定
     queue.set_state_at_slot(next_slot, ThreadState::Running);
 
+    let (process_priority, is_foreground) = crate::task::with_process(next_pid, |process| {
+        (process.priority(), process.is_foreground())
+    })
+    .unwrap_or((0, false));
+    let next_time_slice =
+        time_slice_ticks_for_thread(is_foreground, process_priority, interactive_score, cpu_burst_score);
+
     drop(queue);
-    SCHEDULER.lock().reset_slice();
+    let mut scheduler = SCHEDULER.lock();
+    scheduler.set_time_slice(next_time_slice.max(1));
+    scheduler.reset_slice();
 
     Some((next_id, next_slot))
 }
@@ -205,6 +299,7 @@ pub fn yield_now() {
 /// 現在のスレッドをBlocked状態にして、次のスレッドにスケジューリング
 pub fn block_current_thread() {
     if let Some(current_id) = current_thread_id() {
+        let _ = with_thread_mut(current_id, |thread| thread.note_voluntary_yield());
         if let Some(slot) = current_thread_slot() {
             set_thread_state_at_slot(slot, ThreadState::Blocked);
         } else {
@@ -220,6 +315,9 @@ pub fn block_current_thread() {
 ///
 /// 指定されたスレッドをSleeping状態にする
 pub fn sleep_thread(id: ThreadId) {
+    if Some(id) == current_thread_id() {
+        let _ = with_thread_mut(id, |thread| thread.note_voluntary_yield());
+    }
     set_thread_state(id, ThreadState::Sleeping);
 }
 
@@ -230,6 +328,7 @@ pub fn sleep_thread(id: ThreadId) {
 pub fn wake_thread(id: ThreadId) {
     if let Some(current_state) = crate::task::with_thread(id, |t| t.state()) {
         if current_state == ThreadState::Sleeping || current_state == ThreadState::Blocked {
+            let _ = with_thread_mut(id, |thread| thread.note_interactive_wakeup());
             set_thread_state(id, ThreadState::Ready);
         } else if current_state == ThreadState::Ready {
             with_thread_mut(id, |t| t.set_pending_wakeup());
@@ -251,6 +350,9 @@ pub fn sleep_thread_unless_woken(id: ThreadId) -> bool {
     });
     
     if should_sleep {
+        if Some(id) == current_thread_id() {
+            let _ = with_thread_mut(id, |thread| thread.note_voluntary_yield());
+        }
         set_thread_state(id, ThreadState::Sleeping);
         true
     } else {
@@ -426,6 +528,27 @@ pub fn start_scheduling() -> ! {
             // 最初のスレッドへ switch_to_thread でジャンプ（戻ってこない）
             // user/kernel どちらも switch_context 経由で正しく動作する
             unsafe {
+                if let Some((pid, interactive_score, cpu_burst_score)) =
+                    with_thread(first_id, |thread| {
+                        (
+                            thread.process_id(),
+                            thread.interactive_score(),
+                            thread.cpu_burst_score(),
+                        )
+                    })
+                {
+                    let (process_priority, is_foreground) = crate::task::with_process(pid, |process| {
+                        (process.priority(), process.is_foreground())
+                    })
+                    .unwrap_or((0, false));
+                    let first_slice = time_slice_ticks_for_thread(
+                        is_foreground,
+                        process_priority,
+                        interactive_score,
+                        cpu_burst_score,
+                    );
+                    SCHEDULER.lock().set_time_slice(first_slice.max(1));
+                }
                 let first_slot = THREAD_QUEUE.lock().slot_index(first_id)
                     .expect("First thread must exist in queue");
                 switch_to_thread_with_slots(None, None, first_id, first_slot);

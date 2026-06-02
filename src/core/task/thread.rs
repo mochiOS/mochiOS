@@ -57,6 +57,10 @@ pub struct Thread {
     futex_timed_out: bool,
     /// IPC受信などで眠る前に起床要求が来たことを示すフラグ
     pending_wakeup: bool,
+    /// 直近の対話的な待機/起床の傾向
+    interactive_score: u8,
+    /// 直近の量子使い切りの傾向
+    cpu_burst_score: u8,
 }
 
 // Simple kernel stack pool for creating kernel stacks for threads
@@ -315,6 +319,8 @@ impl Thread {
             syscall_user_rflags: 0,
             futex_timed_out: false,
             pending_wakeup: false,
+            interactive_score: 0,
+            cpu_burst_score: 0,
         }
     }
 
@@ -420,6 +426,8 @@ impl Thread {
             syscall_user_rflags: 0,
             futex_timed_out: false,
             pending_wakeup: false,
+            interactive_score: 0,
+            cpu_burst_score: 0,
         }
     }
 
@@ -526,6 +534,8 @@ impl Thread {
             syscall_user_rflags: user_rflags,
             futex_timed_out: false,
             pending_wakeup: false,
+            interactive_score: 0,
+            cpu_burst_score: 0,
         }
     }
 
@@ -585,6 +595,29 @@ impl Thread {
         let v = self.pending_wakeup;
         self.pending_wakeup = false;
         v
+    }
+
+    pub fn interactive_score(&self) -> u8 {
+        self.interactive_score
+    }
+
+    pub fn cpu_burst_score(&self) -> u8 {
+        self.cpu_burst_score
+    }
+
+    pub fn note_interactive_wakeup(&mut self) {
+        self.interactive_score = self.interactive_score.saturating_add(2).min(8);
+        self.cpu_burst_score = self.cpu_burst_score.saturating_sub(1);
+    }
+
+    pub fn note_voluntary_yield(&mut self) {
+        self.interactive_score = self.interactive_score.saturating_add(1).min(8);
+        self.cpu_burst_score = self.cpu_burst_score.saturating_sub(1);
+    }
+
+    pub fn note_slice_exhausted(&mut self) {
+        self.cpu_burst_score = self.cpu_burst_score.saturating_add(1).min(8);
+        self.interactive_score = self.interactive_score.saturating_sub(1);
     }
 
     /// スレッドIDを取得

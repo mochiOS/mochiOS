@@ -1,5 +1,7 @@
+use core::arch::asm;
 use mochi_syscall::{fs, io, ipc, process, task, vga};
 use mochi_syscall::fs_consts::{FS_PATH_MAX, IPC_MAX_MSG_SIZE, S_IFDIR, S_IFMT, S_IFREG};
+use mochi_syscall::sys::SyscallNumber;
 
 // 色の編集がだるっちいったらありゃしないのでgeminiに作ってもらったエディタを使ってください。
 // https://gemini.google.com/share/02481dc7584f
@@ -194,35 +196,44 @@ fn exec_via_fs_service(path: &str, args: &[&str]) -> Result<u64, i64> {
     process::exec_with_args(path, args).map_err(|_| -2)
 }
 
-/// OP_STAT 経由でファイルの (mode, size) を取得
+#[inline(always)]
+fn syscall2_raw(num: u64, arg0: u64, arg1: u64) -> u64 {
+    let ret: u64;
+    unsafe {
+        asm!(
+            "int 0x80",
+            inlateout("rax") num => ret,
+            in("rdi") arg0,
+            in("rsi") arg1,
+            options(nostack, preserves_flags)
+        );
+    }
+    ret
+}
+
+/// `stat(2)` でファイルの (mode, size) を取得
 fn stat_via_fs_service(path: &str) -> Option<(u64, u64)> {
-    let fd = io::open(path, io::O_RDONLY);
-    if fd < 0 {
+    let mut path_buf = [0u8; FS_PATH_MAX];
+    let path_bytes = path.as_bytes();
+    let path_len = core::cmp::min(path_bytes.len(), FS_PATH_MAX.saturating_sub(1));
+    if path_len == 0 && path != "/" {
+        return None;
+    }
+    path_buf[..path_len].copy_from_slice(&path_bytes[..path_len]);
+
+    let mut stat_buf = [0u8; 144];
+    let ret = syscall2_raw(
+        SyscallNumber::Stat as u64,
+        path_buf.as_ptr() as u64,
+        stat_buf.as_mut_ptr() as u64,
+    ) as i64;
+    if ret < 0 {
         return None;
     }
 
-    let mut dirbuf = [0u8; 4096];
-    let n = fs::readdir(fd as u64, &mut dirbuf);
-    if (n as i64) > 0 {
-        let _ = io::close(fd as u64);
-        return Some((0x4000 | 0o755, 0));
-    }
-
-    let mut size = 0u64;
-    let mut buf = [0u8; 4096];
-    loop {
-        let n = io::read(fd as u64, &mut buf);
-        if (n as i64) < 0 {
-            let _ = io::close(fd as u64);
-            return None;
-        }
-        if n == 0 {
-            break;
-        }
-        size = size.saturating_add(n);
-    }
-    let _ = io::close(fd as u64);
-    Some((0x8000 | 0o755, size))
+    let mode = u32::from_ne_bytes(stat_buf[24..28].try_into().ok()?) as u64;
+    let size = u64::from_ne_bytes(stat_buf[48..56].try_into().ok()?);
+    Some((mode, size))
 }
 
 /// OP_READDIR をページネーションしながら全エントリ名を取得
@@ -1762,17 +1773,7 @@ impl Terminal {
                         }
                     }
                 } else {
-                    // 色分け: ディレクトリは青、その他は白
-                    let mode = stat_via_fs_service(&child_path).map(|(m, _)| m).unwrap_or(0);
-                    let is_dir = (mode & S_IFMT) == S_IFDIR;
-                    if is_dir {
-                        self.fg = 0x005599FF;
-                    }
                     self.write_str(name);
-                    if is_dir {
-                        self.write_byte(b'/');
-                        self.fg = DEFAULT_FG;
-                    }
                     self.write_byte(b'\n');
                 }
             }

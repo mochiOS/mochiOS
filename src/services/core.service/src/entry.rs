@@ -141,6 +141,21 @@ fn fallback_required_caps_for_service(service_base: &str) -> Option<Vec<String>>
     Some(list.iter().map(|s| s.to_string()).collect())
 }
 
+fn fast_boot_caps_for_service(path: &str) -> Option<Vec<String>> {
+    let service_base = service_name_from_path(path);
+    match service_base {
+        "capability.service"
+        | "driver.service"
+        | "disk.service"
+        | "process.service"
+        | "device.service"
+        | "net.service"
+        | "window.service"
+        | "shell.service" => fallback_required_caps_for_service(service_base),
+        _ => None,
+    }
+}
+
 fn find_capability_service_pid() -> Option<u64> {
     task::find_process_by_name("capability.service")
 }
@@ -436,37 +451,37 @@ fn main() {
                     continue;
                 }
                 println!("[CORE] Requesting exec for {}", p);
-                // capability.service が居れば manifest から required を読み、付与して起動する
                 let service_base = service_name_from_path(&p);
                 let cap_pid = find_capability_service_pid();
-                let manifest_path = format!(
-                    "/system/services/{}.service.manifest.toml",
-                    service_name_from_path(&p).trim_end_matches(".service")
-                );
-                let manifest_text = std::fs::read_to_string(&manifest_path).ok();
-
-                // ブートストラップ:
-                // capability.service 自身は grant 判定を委譲できないため、
-                // manifest の required をそのまま付与して起動する（最小限）。
-                let maybe_granted = if service_base == "capability.service" {
-                    manifest_text
-                        .as_ref()
-                        .and_then(|text| parse_service_id_and_required_caps(text))
-                        .map(|(_, requested)| requested)
+                let maybe_granted = if let Some(req) = fast_boot_caps_for_service(&p) {
+                    Some(req)
                 } else {
-                    let requested = manifest_text
-                        .as_ref()
-                        .and_then(|text| parse_service_id_and_required_caps(text))
-                        .map(|(sid, req)| (sid, req))
-                        .or_else(|| {
-                            fallback_required_caps_for_service(service_base)
-                                .map(|req| (service_base.to_string(), req))
-                        });
+                    let manifest_path = format!(
+                        "/system/services/{}.service.manifest.toml",
+                        service_name_from_path(&p).trim_end_matches(".service")
+                    );
+                    let manifest_text = std::fs::read_to_string(&manifest_path).ok();
 
-                    if let (Some(cap_pid), Some((sid, req))) = (cap_pid, requested) {
-                        request_grant_for_service(cap_pid, &sid, &req)
+                    if service_base == "capability.service" {
+                        manifest_text
+                            .as_ref()
+                            .and_then(|text| parse_service_id_and_required_caps(text))
+                            .map(|(_, requested)| requested)
                     } else {
-                        None
+                        let requested = manifest_text
+                            .as_ref()
+                            .and_then(|text| parse_service_id_and_required_caps(text))
+                            .map(|(sid, req)| (sid, req))
+                            .or_else(|| {
+                                fallback_required_caps_for_service(service_base)
+                                    .map(|req| (service_base.to_string(), req))
+                            });
+
+                        if let (Some(cap_pid), Some((sid, req))) = (cap_pid, requested) {
+                            request_grant_for_service(cap_pid, &sid, &req)
+                        } else {
+                            None
+                        }
                     }
                 };
 

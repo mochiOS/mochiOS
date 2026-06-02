@@ -18,7 +18,12 @@ pub fn register(ops: *const McxFsOps, version: u16) -> bool {
     let ops_ref = unsafe { &*ops };
     if (ops_ref.mount as usize) == 0
         || (ops_ref.set_disk_ops as usize) == 0
+        || (ops_ref.create as usize) == 0
+        || (ops_ref.remove as usize) == 0
+        || (ops_ref.rename as usize) == 0
         || (ops_ref.read as usize) == 0
+        || (ops_ref.write as usize) == 0
+        || (ops_ref.truncate as usize) == 0
         || (ops_ref.stat as usize) == 0
         || (ops_ref.readdir as usize) == 0
     {
@@ -63,6 +68,53 @@ pub fn set_disk_ops(disk_ops: *const crate::kmod::disk::McxDiskOps) -> i32 {
     }
     let _smap_guard = crate::cpu::SmapSmepGuard::new();
     unsafe { ((*ops).set_disk_ops)(disk_ops) }
+}
+
+pub fn create(path: &str, mode: u32) -> i32 {
+    let ops = FS_OPS_PTR.load(Ordering::Acquire);
+    if ops.is_null() {
+        return -38;
+    }
+    let _smap_guard = crate::cpu::SmapSmepGuard::new();
+    let path_bytes = path.as_bytes();
+    let path_arg = McxPath {
+        ptr: path_bytes.as_ptr(),
+        len: path_bytes.len(),
+    };
+    unsafe { ((*ops).create)(path_arg, mode) }
+}
+
+pub fn remove(path: &str, is_dir: bool) -> i32 {
+    let ops = FS_OPS_PTR.load(Ordering::Acquire);
+    if ops.is_null() {
+        return -38;
+    }
+    let _smap_guard = crate::cpu::SmapSmepGuard::new();
+    let path_bytes = path.as_bytes();
+    let path_arg = McxPath {
+        ptr: path_bytes.as_ptr(),
+        len: path_bytes.len(),
+    };
+    unsafe { ((*ops).remove)(path_arg, is_dir as u32) }
+}
+
+pub fn rename(src: &str, dst: &str) -> i32 {
+    let ops = FS_OPS_PTR.load(Ordering::Acquire);
+    if ops.is_null() {
+        return -38;
+    }
+    let _smap_guard = crate::cpu::SmapSmepGuard::new();
+    let src_bytes = src.as_bytes();
+    let dst_bytes = dst.as_bytes();
+    let src_arg = McxPath {
+        ptr: src_bytes.as_ptr(),
+        len: src_bytes.len(),
+    };
+    let dst_arg = McxPath {
+        ptr: dst_bytes.as_ptr(),
+        len: dst_bytes.len(),
+    };
+    unsafe { ((*ops).rename)(src_arg, dst_arg) }
 }
 
 pub fn read_all(path: &str) -> Option<Vec<u8>> {
@@ -118,6 +170,44 @@ pub fn read_all(path: &str) -> Option<Vec<u8>> {
         }
     }
     Some(out)
+}
+
+pub fn write_all(path: &str, offset: u64, data: &[u8]) -> Option<usize> {
+    let ops = FS_OPS_PTR.load(Ordering::Acquire);
+    if ops.is_null() {
+        return None;
+    }
+    let _smap_guard = crate::cpu::SmapSmepGuard::new();
+
+    let path_bytes = path.as_bytes();
+    let path_arg = McxPath {
+        ptr: path_bytes.as_ptr(),
+        len: path_bytes.len(),
+    };
+    let mut written: usize = 0;
+    let mut buf = McxBuffer {
+        ptr: data.as_ptr() as *mut u8,
+        len: data.len(),
+    };
+    let rc = unsafe { ((*ops).write)(path_arg, offset, buf, &mut written as *mut usize) };
+    if rc != 0 {
+        return None;
+    }
+    Some(written)
+}
+
+pub fn truncate(path: &str, len: u64) -> i32 {
+    let ops = FS_OPS_PTR.load(Ordering::Acquire);
+    if ops.is_null() {
+        return -38;
+    }
+    let _smap_guard = crate::cpu::SmapSmepGuard::new();
+    let path_bytes = path.as_bytes();
+    let path_arg = McxPath {
+        ptr: path_bytes.as_ptr(),
+        len: path_bytes.len(),
+    };
+    unsafe { ((*ops).truncate)(path_arg, len) }
 }
 
 pub fn file_metadata(path: &str) -> Option<(u16, u64)> {

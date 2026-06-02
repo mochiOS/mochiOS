@@ -13,6 +13,7 @@ use builders::{
 
 const BUSYBOX_URL: &str = "https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox";
 const BUSYBOX_SHA256: &str = "6e123e7f3202a8c1e9b1f94d8941580a25135382b99e8d3e34fb858bba311348";
+const AUDIT_LOG_SIZE: u64 = 64 * 1024;
 
 /// カーネル ELF をビルドして fs/system/kernel.elf にコピーする
 fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
@@ -237,6 +238,27 @@ fn ensure_busybox_binary(fs_dir: &Path) -> Result<(), String> {
             }
         }
     }
+}
+
+fn ensure_audit_log_file(fs_dir: &Path) -> Result<(), String> {
+    let log_dir = fs_dir.join("log");
+    fs::create_dir_all(&log_dir)
+        .map_err(|e| format!("Failed to create {}: {}", log_dir.display(), e))?;
+    let audit_path = log_dir.join("audit.log");
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&audit_path)
+        .map_err(|e| format!("Failed to create {}: {}", audit_path.display(), e))?;
+    file.set_len(AUDIT_LOG_SIZE)
+        .map_err(|e| format!("Failed to size {}: {}", audit_path.display(), e))?;
+    println!(
+        "Initialized persistent audit log file: {} ({} bytes)",
+        audit_path.display(),
+        AUDIT_LOG_SIZE
+    );
+    Ok(())
 }
 
 fn prune_stale_service_artifacts(
@@ -587,6 +609,7 @@ fn main() {
     }
 
     ensure_busybox_binary(&fs_dir).expect("Failed to ensure busybox binary");
+    ensure_audit_log_file(&fs_dir).expect("Failed to create persistent audit log file");
 
     // ドライバをビルド
     let drivers_dir = manifest_dir.join("src/drivers");

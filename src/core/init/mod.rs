@@ -61,6 +61,8 @@ pub fn kinit(boot_info: &'static BootInfo) -> Result<&'static [MemoryRegion]> {
         let rc = crate::kmod::fs::mount(0);
         if rc != 0 {
             crate::warn!("kmod: fs mount failed rc={}", rc);
+        } else {
+            crate::audit::flush_to_disk();
         }
     }
 

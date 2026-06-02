@@ -2,8 +2,8 @@
 #![no_main]
 
 use core::arch::asm;
-use core::cmp::min;
 use core::cell::UnsafeCell;
+use core::cmp::min;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 const ATA_DATA: u16 = 0x1F0;
@@ -49,7 +49,14 @@ pub struct McxPath {
 pub struct McxFsOps {
     pub mount: extern "C" fn(device_id: u32) -> i32,
     pub set_disk_ops: extern "C" fn(ops: *const McxDiskOps) -> i32,
-    pub read: extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut usize) -> i32,
+    pub create: extern "C" fn(path: McxPath, mode: u32) -> i32,
+    pub remove: extern "C" fn(path: McxPath, is_dir: u32) -> i32,
+    pub rename: extern "C" fn(src: McxPath, dst: McxPath) -> i32,
+    pub read:
+        extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut usize) -> i32,
+    pub write:
+        extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_written: *mut usize) -> i32,
+    pub truncate: extern "C" fn(path: McxPath, len: u64) -> i32,
     pub stat: extern "C" fn(path: McxPath, out_mode: *mut u16, out_size: *mut u64) -> i32,
     pub readdir: extern "C" fn(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> i32,
 }
@@ -58,8 +65,7 @@ pub struct McxFsOps {
 pub struct McxDiskOps {
     pub probe: extern "C" fn() -> i32,
     pub read_sector: extern "C" fn(disk_id: u32, lba: u64, buf: *mut u8, buf_len: usize) -> i32,
-    pub write_sector:
-        extern "C" fn(disk_id: u32, lba: u64, buf: *const u8, buf_len: usize) -> i32,
+    pub write_sector: extern "C" fn(disk_id: u32, lba: u64, buf: *const u8, buf_len: usize) -> i32,
 }
 
 #[derive(Clone, Copy)]
@@ -70,6 +76,13 @@ struct FsMount {
     inode_size: u16,
     inodes_per_group: u32,
     gdt_block: u32,
+}
+
+#[derive(Clone, Copy)]
+struct GroupDesc {
+    block_bitmap: u32,
+    inode_bitmap: u32,
+    inode_table: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -174,7 +187,8 @@ static mut INODE_CACHE: [InodeCacheEntry; INODE_CACHE_SLOTS] =
     [InodeCacheEntry::empty(); INODE_CACHE_SLOTS];
 static mut INODE_CACHE_CURSOR: usize = 0;
 
-static mut PATH_CACHE: [PathCacheEntry; PATH_CACHE_SLOTS] = [PathCacheEntry::empty(); PATH_CACHE_SLOTS];
+static mut PATH_CACHE: [PathCacheEntry; PATH_CACHE_SLOTS] =
+    [PathCacheEntry::empty(); PATH_CACHE_SLOTS];
 static mut PATH_CACHE_CURSOR: usize = 0;
 static mut BMIDE_BASE: u16 = 0;
 static mut BMIDE_SCANNED: bool = false;
@@ -251,6 +265,16 @@ unsafe fn read_sector_disk(disk_id: u32, lba: u32, out: &mut [u8; 512]) -> bool 
     rc == 0
 }
 
+#[inline]
+unsafe fn write_sector_disk(disk_id: u32, lba: u32, buf: &[u8]) -> bool {
+    let ops = DISK_OPS_PTR;
+    if ops.is_null() || buf.len() < 512 {
+        return false;
+    }
+    let rc = ((*ops).write_sector)(disk_id, lba as u64, buf.as_ptr(), 512);
+    rc == 0
+}
+
 unsafe fn reset_caches() {
     for e in &mut BLOCK_CACHE {
         e.valid = false;
@@ -266,7 +290,12 @@ unsafe fn reset_caches() {
     PATH_CACHE_CURSOR = 0;
 }
 
-unsafe fn block_cache_lookup(disk_id: u32, block_num: u32, out: &mut [u8], block_size: usize) -> bool {
+unsafe fn block_cache_lookup(
+    disk_id: u32,
+    block_num: u32,
+    out: &mut [u8],
+    block_size: usize,
+) -> bool {
     for e in &BLOCK_CACHE {
         if e.valid && e.disk_id == disk_id && e.block_num == block_num {
             out[..block_size].copy_from_slice(&e.data[..block_size]);
@@ -286,7 +315,12 @@ unsafe fn block_cache_insert(disk_id: u32, block_num: u32, data: &[u8], block_si
     ent.data[..block_size].copy_from_slice(&data[..block_size]);
 }
 
-unsafe fn inode_cache_lookup(disk_id: u32, inode_num: u32, out: &mut [u8; 256], isz: usize) -> bool {
+unsafe fn inode_cache_lookup(
+    disk_id: u32,
+    inode_num: u32,
+    out: &mut [u8; 256],
+    isz: usize,
+) -> bool {
     for e in &INODE_CACHE {
         if e.valid && e.disk_id == disk_id && e.inode_num == inode_num {
             out[..isz].copy_from_slice(&e.inode[..isz]);
@@ -448,7 +482,11 @@ unsafe fn pci_config_read_u32(bus: u8, dev: u8, func: u8, offset: u8) -> u32 {
 
 unsafe fn find_bmide_base() -> Option<u16> {
     if BMIDE_SCANNED {
-        return if BMIDE_BASE == 0 { None } else { Some(BMIDE_BASE) };
+        return if BMIDE_BASE == 0 {
+            None
+        } else {
+            Some(BMIDE_BASE)
+        };
     }
     BMIDE_SCANNED = true;
     for bus in 0u16..=255 {
@@ -520,7 +558,12 @@ unsafe fn virt_to_phys(vaddr: u64) -> Option<u64> {
     Some((l1e & 0x000f_ffff_ffff_f000) | (vaddr & 0xfff))
 }
 
-unsafe fn read_fs_block_dma(m: &FsMount, block_num: u32, out: &mut [u8], block_size: usize) -> bool {
+unsafe fn read_fs_block_dma(
+    m: &FsMount,
+    block_num: u32,
+    out: &mut [u8],
+    block_size: usize,
+) -> bool {
     let _ = (m, block_num, out, block_size);
     false
 }
@@ -535,6 +578,24 @@ fn read_u16(buf: &[u8], off: usize) -> Option<u16> {
 fn read_u32(buf: &[u8], off: usize) -> Option<u32> {
     let s = buf.get(off..off + 4)?;
     Some(u32::from_le_bytes([s[0], s[1], s[2], s[3]]))
+}
+
+#[inline]
+fn write_u16(buf: &mut [u8], off: usize, value: u16) -> bool {
+    let Some(dst) = buf.get_mut(off..off + 2) else {
+        return false;
+    };
+    dst.copy_from_slice(&value.to_le_bytes());
+    true
+}
+
+#[inline]
+fn write_u32(buf: &mut [u8], off: usize, value: u32) -> bool {
+    let Some(dst) = buf.get_mut(off..off + 4) else {
+        return false;
+    };
+    dst.copy_from_slice(&value.to_le_bytes());
+    true
 }
 
 unsafe fn read_fs_block(m: &FsMount, block_num: u32, out: &mut [u8]) -> bool {
@@ -560,6 +621,512 @@ unsafe fn read_fs_block(m: &FsMount, block_num: u32, out: &mut [u8]) -> bool {
         out[dst..dst + 512].copy_from_slice(&sec);
     }
     block_cache_insert(m.disk_id, block_num, out, block_size);
+    true
+}
+
+unsafe fn read_group_desc(m: &FsMount, group: u32) -> Option<GroupDesc> {
+    let block_size = m.block_size as usize;
+    let desc_off = group as usize * 32;
+    let desc_block = m.gdt_block as usize + desc_off / block_size;
+    let desc_inner = desc_off % block_size;
+    if !read_fs_block(m, desc_block as u32, READ_INODE_GDT_BLK.as_mut()) {
+        return None;
+    }
+    let blk = READ_INODE_GDT_BLK.as_ref();
+    Some(GroupDesc {
+        block_bitmap: read_u32(blk, desc_inner)?,
+        inode_bitmap: read_u32(blk, desc_inner + 4)?,
+        inode_table: read_u32(blk, desc_inner + 8)?,
+    })
+}
+
+unsafe fn write_inode_raw(m: &FsMount, inode_num: u32, inode_bytes: &[u8; 256]) -> bool {
+    if inode_num == 0 || m.inodes_per_group == 0 {
+        return false;
+    }
+    let isz = m.inode_size as usize;
+    let group = (inode_num - 1) / m.inodes_per_group;
+    let index = (inode_num - 1) % m.inodes_per_group;
+    let Some(gd) = read_group_desc(m, group) else {
+        return false;
+    };
+    let inode_off = (index as usize) * isz;
+    let blk = inode_off / (m.block_size as usize);
+    let off = inode_off % (m.block_size as usize);
+    if !read_fs_block(m, gd.inode_table + blk as u32, READ_INODE_IBLK.as_mut()) {
+        return false;
+    }
+    let iblk = READ_INODE_IBLK.as_mut();
+    if off + isz > iblk.len() {
+        return false;
+    }
+    iblk[off..off + isz].copy_from_slice(&inode_bytes[..isz]);
+    if !write_fs_block(m, gd.inode_table + blk as u32, iblk) {
+        return false;
+    }
+    inode_cache_insert(m.disk_id, inode_num, inode_bytes, isz);
+    true
+}
+
+unsafe fn bitmap_find_free(bitmap: &[u8], start_bit: usize, limit_bits: usize) -> Option<usize> {
+    for bit in start_bit..limit_bits {
+        let byte = bit / 8;
+        let mask = 1u8 << (bit % 8);
+        if bitmap.get(byte).copied().unwrap_or(0) & mask == 0 {
+            return Some(bit);
+        }
+    }
+    None
+}
+
+unsafe fn bitmap_set_bit(m: &FsMount, bitmap_block: u32, bit: usize, set: bool) -> bool {
+    if !read_fs_block(m, bitmap_block, READ_RANGE_BLK.as_mut()) {
+        return false;
+    }
+    let blk = READ_RANGE_BLK.as_mut();
+    let byte = bit / 8;
+    let mask = 1u8 << (bit % 8);
+    let Some(slot) = blk.get_mut(byte) else {
+        return false;
+    };
+    if set {
+        *slot |= mask;
+    } else {
+        *slot &= !mask;
+    }
+    write_fs_block(m, bitmap_block, blk)
+}
+
+unsafe fn allocate_inode(m: &FsMount) -> Option<u32> {
+    let gd = read_group_desc(m, 0)?;
+    if !read_fs_block(m, gd.inode_bitmap, READ_RANGE_BLK.as_mut()) {
+        return None;
+    }
+    let bitmap = READ_RANGE_BLK.as_ref();
+    let total_bits = m.inodes_per_group as usize;
+    let bit = bitmap_find_free(bitmap, 1, total_bits)?;
+    if !bitmap_set_bit(m, gd.inode_bitmap, bit, true) {
+        return None;
+    }
+    Some((bit + 1) as u32)
+}
+
+unsafe fn allocate_block(m: &FsMount) -> Option<u32> {
+    let gd = read_group_desc(m, 0)?;
+    if !read_fs_block(m, gd.block_bitmap, READ_RANGE_BLK.as_mut()) {
+        return None;
+    }
+    let bitmap = READ_RANGE_BLK.as_ref();
+    let total_bits = (m.block_size as usize) * 8;
+    let bit = bitmap_find_free(bitmap, 1, total_bits)?;
+    if !bitmap_set_bit(m, gd.block_bitmap, bit, true) {
+        return None;
+    }
+    let block_num = bit as u32;
+    let zero = READ_RANGE_IND.as_mut();
+    zero.fill(0);
+    if !write_fs_block(m, block_num, zero) {
+        return None;
+    }
+    Some(block_num)
+}
+
+unsafe fn free_block(m: &FsMount, block_num: u32) -> bool {
+    let Some(gd) = read_group_desc(m, 0) else {
+        return false;
+    };
+    bitmap_set_bit(m, gd.block_bitmap, block_num as usize, false)
+}
+
+unsafe fn free_inode(m: &FsMount, inode_num: u32) -> bool {
+    let Some(gd) = read_group_desc(m, 0) else {
+        return false;
+    };
+    if inode_num == 0 {
+        return false;
+    }
+    bitmap_set_bit(m, gd.inode_bitmap, (inode_num - 1) as usize, false)
+}
+
+unsafe fn free_inode_blocks(m: &FsMount, inode: &[u8; 256]) -> bool {
+    let size = inode_size(inode) as usize;
+    let block_size = m.block_size as usize;
+    let blocks = size.div_ceil(block_size);
+    for bi in 0..blocks.min(12) {
+        let bnum = inode_block(inode, bi);
+        if bnum != 0 && !free_block(m, bnum) {
+            return false;
+        }
+    }
+    let indirect = inode_block(inode, 12);
+    if indirect != 0 {
+        if !read_fs_block(m, indirect, READ_RANGE_IND.as_mut()) {
+            return false;
+        }
+        let table = READ_RANGE_IND.as_ref();
+        let per = block_size / 4;
+        for idx in 0..per {
+            let entry = read_u32(table, idx * 4).unwrap_or(0);
+            if entry != 0 && !free_block(m, entry) {
+                return false;
+            }
+        }
+        if !free_block(m, indirect) {
+            return false;
+        }
+    }
+    true
+}
+
+unsafe fn find_child_entry_location(
+    m: &FsMount,
+    dir_inode_num: u32,
+    name: &[u8],
+) -> Option<(u32, usize, u32, usize)> {
+    let mut inode = [0u8; 256];
+    if !read_inode(m, dir_inode_num, &mut inode) || !is_dir(inode_mode(&inode)) {
+        return None;
+    }
+    let dir_size = inode_size(&inode) as usize;
+    let block_size = m.block_size as usize;
+    let blocks = dir_size.div_ceil(block_size);
+    for bi in 0..blocks {
+        let bnum = read_data_block_num(m, &inode, bi, LOOKUP_IND.as_mut())?;
+        if !read_fs_block(m, bnum, LOOKUP_BLK.as_mut()) {
+            return None;
+        }
+        let blk = LOOKUP_BLK.as_ref();
+        let mut off = 0usize;
+        while off + 8 <= block_size {
+            let ino = read_u32(blk, off)?;
+            let rec_len = read_u16(blk, off + 4)? as usize;
+            let nlen = *blk.get(off + 6)? as usize;
+            if rec_len == 0 || off + rec_len > block_size {
+                break;
+            }
+            if ino != 0 && nlen > 0 && off + 8 + nlen <= block_size {
+                let nm = &blk[off + 8..off + 8 + nlen];
+                if nm == name {
+                    return Some((bnum, off, ino, rec_len));
+                }
+            }
+            off += rec_len;
+        }
+    }
+    None
+}
+
+unsafe fn directory_is_empty(m: &FsMount, dir_inode_num: u32) -> Option<bool> {
+    let mut inode = [0u8; 256];
+    if !read_inode(m, dir_inode_num, &mut inode) || !is_dir(inode_mode(&inode)) {
+        return None;
+    }
+    let dir_size = inode_size(&inode) as usize;
+    let block_size = m.block_size as usize;
+    let blocks = dir_size.div_ceil(block_size);
+    for bi in 0..blocks {
+        let bnum = read_data_block_num(m, &inode, bi, LOOKUP_IND.as_mut())?;
+        if !read_fs_block(m, bnum, LOOKUP_BLK.as_mut()) {
+            return None;
+        }
+        let blk = LOOKUP_BLK.as_ref();
+        let mut off = 0usize;
+        while off + 8 <= block_size {
+            let ino = read_u32(blk, off)?;
+            let rec_len = read_u16(blk, off + 4)? as usize;
+            let nlen = *blk.get(off + 6)? as usize;
+            if rec_len == 0 || off + rec_len > block_size {
+                break;
+            }
+            if ino != 0 && nlen > 0 && off + 8 + nlen <= block_size {
+                let nm = &blk[off + 8..off + 8 + nlen];
+                if nm != b"." && nm != b".." {
+                    return Some(false);
+                }
+            }
+            off += rec_len;
+        }
+    }
+    Some(true)
+}
+
+unsafe fn remove_path(m: &FsMount, path: McxPath, want_dir: bool) -> i32 {
+    let raw = core::slice::from_raw_parts(path.ptr, path.len);
+    let (parent_raw, name_raw) = match split_parent_name(raw) {
+        Some(v) => v,
+        None => return -22,
+    };
+    let Some(parent_inode) = resolve_path_inode(
+        m,
+        if parent_raw.is_empty() {
+            &[]
+        } else {
+            parent_raw
+        },
+    ) else {
+        return -2;
+    };
+    let Some((bnum, off, child_inode_num, _rec_len)) =
+        find_child_entry_location(m, parent_inode, name_raw)
+    else {
+        return -2;
+    };
+    let mut child_inode = [0u8; 256];
+    if !read_inode(m, child_inode_num, &mut child_inode) {
+        return -5;
+    }
+    let child_is_dir = is_dir(inode_mode(&child_inode));
+    if want_dir && !child_is_dir {
+        return -20;
+    }
+    if !want_dir && child_is_dir {
+        return -21;
+    }
+    if child_is_dir {
+        match directory_is_empty(m, child_inode_num) {
+            Some(true) => {}
+            Some(false) => return (-39i64) as i32, // ENOTEMPTY
+            None => return -5,
+        }
+    }
+    if !free_inode_blocks(m, &child_inode) {
+        return -5;
+    }
+    if !free_inode(m, child_inode_num) {
+        return -5;
+    }
+    if !read_fs_block(m, bnum, LOOKUP_BLK.as_mut()) {
+        return -5;
+    }
+    let blk = LOOKUP_BLK.as_mut();
+    if !write_u32(blk, off, 0) {
+        return -5;
+    }
+    if !write_fs_block(m, bnum, blk) {
+        return -5;
+    }
+    0
+}
+
+unsafe fn clear_dir_entry(m: &FsMount, parent_inode_num: u32, name: &[u8]) -> bool {
+    let Some((bnum, off, _child_inode_num, _rec_len)) =
+        find_child_entry_location(m, parent_inode_num, name)
+    else {
+        return false;
+    };
+    if !read_fs_block(m, bnum, LOOKUP_BLK.as_mut()) {
+        return false;
+    }
+    let blk = LOOKUP_BLK.as_mut();
+    if !write_u32(blk, off, 0) {
+        return false;
+    }
+    write_fs_block(m, bnum, blk)
+}
+
+unsafe fn clear_dir_entry_at(m: &FsMount, bnum: u32, off: usize) -> bool {
+    if !read_fs_block(m, bnum, LOOKUP_BLK.as_mut()) {
+        return false;
+    }
+    let blk = LOOKUP_BLK.as_mut();
+    if !write_u32(blk, off, 0) {
+        return false;
+    }
+    write_fs_block(m, bnum, blk)
+}
+
+unsafe fn restore_dir_entry_at(m: &FsMount, bnum: u32, off: usize, inode_num: u32) -> bool {
+    if !read_fs_block(m, bnum, LOOKUP_BLK.as_mut()) {
+        return false;
+    }
+    let blk = LOOKUP_BLK.as_mut();
+    if !write_u32(blk, off, inode_num) {
+        return false;
+    }
+    write_fs_block(m, bnum, blk)
+}
+
+unsafe fn rename_path(m: &FsMount, old_path: McxPath, new_path: McxPath) -> i32 {
+    let old_raw = core::slice::from_raw_parts(old_path.ptr, old_path.len);
+    let new_raw = core::slice::from_raw_parts(new_path.ptr, new_path.len);
+    let (old_parent_raw, old_name_raw) = match split_parent_name(old_raw) {
+        Some(v) => v,
+        None => return -22,
+    };
+    let (new_parent_raw, new_name_raw) = match split_parent_name(new_raw) {
+        Some(v) => v,
+        None => return -22,
+    };
+    let Some(old_parent_inode) = resolve_path_inode(
+        m,
+        if old_parent_raw.is_empty() {
+            &[]
+        } else {
+            old_parent_raw
+        },
+    ) else {
+        return -2;
+    };
+    let Some(new_parent_inode) = resolve_path_inode(
+        m,
+        if new_parent_raw.is_empty() {
+            &[]
+        } else {
+            new_parent_raw
+        },
+    ) else {
+        return -2;
+    };
+    if old_parent_inode == new_parent_inode && old_name_raw == new_name_raw {
+        return 0;
+    }
+    let Some((old_bnum, old_off, child_inode_num, _)) =
+        find_child_entry_location(m, old_parent_inode, old_name_raw)
+    else {
+        return -2;
+    };
+    let mut child_inode = [0u8; 256];
+    if !read_inode(m, child_inode_num, &mut child_inode) {
+        return -5;
+    }
+    let child_is_dir = is_dir(inode_mode(&child_inode));
+    if child_is_dir {
+        match directory_is_empty(m, child_inode_num) {
+            Some(true) => {}
+            Some(false) => return (-39i64) as i32,
+            None => return -5,
+        }
+    }
+    let file_type = if child_is_dir { 2 } else { 1 };
+
+    let mut dst_inode_num = 0u32;
+    let mut dst_inode = [0u8; 256];
+    let mut dst_bnum = 0u32;
+    let mut dst_off = 0usize;
+    let mut has_dst = false;
+    if let Some((bnum, off, existing_inode_num, _)) =
+        find_child_entry_location(m, new_parent_inode, new_name_raw)
+    {
+        if existing_inode_num == child_inode_num && old_parent_inode == new_parent_inode {
+            return 0;
+        }
+        if !read_inode(m, existing_inode_num, &mut dst_inode) {
+            return -5;
+        }
+        let dst_is_dir = is_dir(inode_mode(&dst_inode));
+        if dst_is_dir {
+            match directory_is_empty(m, existing_inode_num) {
+                Some(true) => {}
+                Some(false) => return (-39i64) as i32,
+                None => return -5,
+            }
+        }
+        dst_inode_num = existing_inode_num;
+        dst_bnum = bnum;
+        dst_off = off;
+        has_dst = true;
+        if !clear_dir_entry_at(m, dst_bnum, dst_off) {
+            return -5;
+        }
+    }
+
+    if !allocate_dir_entry(
+        m,
+        new_parent_inode,
+        child_inode_num,
+        new_name_raw,
+        file_type,
+    ) {
+        if has_dst {
+            let _ = restore_dir_entry_at(m, dst_bnum, dst_off, dst_inode_num);
+        }
+        return -5;
+    }
+    if !clear_dir_entry_at(m, old_bnum, old_off) {
+        let _ = clear_dir_entry(m, new_parent_inode, new_name_raw);
+        if has_dst {
+            let _ = restore_dir_entry_at(m, dst_bnum, dst_off, dst_inode_num);
+        }
+        return -5;
+    }
+    if has_dst {
+        let _ = free_inode_blocks(m, &dst_inode);
+        let _ = free_inode(m, dst_inode_num);
+    }
+    0
+}
+
+unsafe fn ensure_inode_block(
+    m: &FsMount,
+    _inode_num: u32,
+    inode: &mut [u8; 256],
+    block_idx: usize,
+) -> Option<u32> {
+    let block_size = m.block_size as usize;
+    if block_idx < 12 {
+        let existing = inode_block(inode, block_idx);
+        if existing != 0 {
+            return Some(existing);
+        }
+        let new_block = allocate_block(m)?;
+        if !write_u32(inode, 40 + block_idx * 4, new_block) {
+            return None;
+        }
+        return Some(new_block);
+    }
+
+    let idx = block_idx - 12;
+    let per = block_size / 4;
+    if idx >= per {
+        return None;
+    }
+    let mut indirect = inode_block(inode, 12);
+    if indirect == 0 {
+        indirect = allocate_block(m)?;
+        if !write_u32(inode, 40 + 12 * 4, indirect) {
+            return None;
+        }
+        let zero = READ_RANGE_IND.as_mut();
+        zero.fill(0);
+        if !write_fs_block(m, indirect, zero) {
+            return None;
+        }
+    }
+    if !read_fs_block(m, indirect, READ_RANGE_IND.as_mut()) {
+        return None;
+    }
+    let table = READ_RANGE_IND.as_mut();
+    let entry_off = idx * 4;
+    let existing = read_u32(table, entry_off).unwrap_or(0);
+    if existing != 0 {
+        return Some(existing);
+    }
+    let new_block = allocate_block(m)?;
+    if !write_u32(table, entry_off, new_block) {
+        return None;
+    }
+    if !write_fs_block(m, indirect, table) {
+        return None;
+    }
+    Some(new_block)
+}
+
+unsafe fn write_fs_block(m: &FsMount, block_num: u32, data: &[u8]) -> bool {
+    let block_size = m.block_size as usize;
+    if data.len() < block_size {
+        return false;
+    }
+    let spb = m.sectors_per_block as usize;
+    for i in 0..spb {
+        let lba = block_num
+            .saturating_mul(m.sectors_per_block)
+            .saturating_add(i as u32);
+        let src_off = i * 512;
+        if !write_sector_disk(m.disk_id, lba, &data[src_off..src_off + 512]) {
+            return false;
+        }
+    }
+    block_cache_insert(m.disk_id, block_num, data, block_size);
     true
 }
 
@@ -682,7 +1249,11 @@ unsafe fn read_data_block_num(
         return None;
     }
     let n = read_u32(scratch, idx * 4)?;
-    if n == 0 { None } else { Some(n) }
+    if n == 0 {
+        None
+    } else {
+        Some(n)
+    }
 }
 
 unsafe fn lookup_child(m: &FsMount, dir_inode_num: u32, name: &[u8]) -> Option<u32> {
@@ -783,6 +1354,81 @@ unsafe fn read_inode_range(
     Some(done)
 }
 
+unsafe fn zero_fill_inode_range(
+    m: &FsMount,
+    inode_num: u32,
+    inode: &mut [u8; 256],
+    start: u64,
+    end: u64,
+) -> Option<()> {
+    if end <= start {
+        return Some(());
+    }
+    let block_size = m.block_size as usize;
+    let mut cursor = start as usize;
+    let end_usize = end as usize;
+    while cursor < end_usize {
+        let bi = cursor / block_size;
+        let boff = cursor % block_size;
+        let n = min(block_size - boff, end_usize - cursor);
+        let bnum = ensure_inode_block(m, inode_num, inode, bi)?;
+        if !read_fs_block(m, bnum, READ_RANGE_BLK.as_mut()) {
+            return None;
+        }
+        let blk = READ_RANGE_BLK.as_mut();
+        blk[boff..boff + n].fill(0);
+        if !write_fs_block(m, bnum, blk) {
+            return None;
+        }
+        cursor += n;
+    }
+    Some(())
+}
+
+unsafe fn write_inode_range(m: &FsMount, inode_num: u32, offset: u64, src: &[u8]) -> Option<usize> {
+    let mut inode = [0u8; 256];
+    if !read_inode(m, inode_num, &mut inode) {
+        return None;
+    }
+    let size = inode_size(&inode) as u64;
+    let end = offset.checked_add(src.len() as u64)?;
+    if offset > size {
+        zero_fill_inode_range(m, inode_num, &mut inode, size, offset)?;
+    }
+    let new_size = core::cmp::max(size, end);
+    let block_size = m.block_size as usize;
+    let blocks_needed = new_size.div_ceil(block_size as u64) as usize;
+    for bi in 0..blocks_needed {
+        ensure_inode_block(m, inode_num, &mut inode, bi)?;
+    }
+    let mut done = 0usize;
+    while done < src.len() {
+        let file_off = offset as usize + done;
+        let bi = file_off / block_size;
+        let boff = file_off % block_size;
+        let n = min(block_size - boff, src.len() - done);
+        let Some(bnum) = read_data_block_num(m, &inode, bi, READ_RANGE_IND.as_mut()) else {
+            return None;
+        };
+        if !read_fs_block(m, bnum, READ_RANGE_BLK.as_mut()) {
+            return None;
+        }
+        let blk = READ_RANGE_BLK.as_mut();
+        blk[boff..boff + n].copy_from_slice(&src[done..done + n]);
+        if !write_fs_block(m, bnum, blk) {
+            return None;
+        }
+        done += n;
+    }
+    if !write_u32(&mut inode, 4, new_size as u32) {
+        return None;
+    }
+    if !write_inode_raw(m, inode_num, &inode) {
+        return None;
+    }
+    Some(done)
+}
+
 unsafe fn read_path_inode(path: McxPath) -> Option<u32> {
     let m = MOUNT.as_ref()?;
     let raw = core::slice::from_raw_parts(path.ptr, path.len);
@@ -792,6 +1438,250 @@ unsafe fn read_path_inode(path: McxPath) -> Option<u32> {
         raw
     };
     resolve_path_inode(m, p)
+}
+
+fn dirent_ideal_len(name_len: usize) -> usize {
+    let raw = 8 + name_len;
+    (raw + 3) & !3
+}
+
+unsafe fn split_parent_name<'a>(raw: &'a [u8]) -> Option<(&'a [u8], &'a [u8])> {
+    let raw = if !raw.is_empty() && raw[0] == b'/' {
+        &raw[1..]
+    } else {
+        raw
+    };
+    let trimmed = raw.strip_suffix(b"/").unwrap_or(raw);
+    if trimmed.is_empty() {
+        return None;
+    }
+    let pos = trimmed.iter().rposition(|b| *b == b'/');
+    let (parent, name) = match pos {
+        Some(idx) => (&trimmed[..idx], &trimmed[idx + 1..]),
+        None => (&[][..], trimmed),
+    };
+    if name.is_empty() || name == b"." || name == b".." {
+        return None;
+    }
+    Some((parent, name))
+}
+
+unsafe fn allocate_dir_entry(
+    m: &FsMount,
+    parent_inode_num: u32,
+    child_inode_num: u32,
+    name: &[u8],
+    file_type: u8,
+) -> bool {
+    let mut parent = [0u8; 256];
+    if !read_inode(m, parent_inode_num, &mut parent) || !is_dir(inode_mode(&parent)) {
+        return false;
+    }
+    let block_size = m.block_size as usize;
+    let blocks = inode_size(&parent) as usize / block_size;
+    let need = dirent_ideal_len(name.len());
+    for bi in 0..blocks {
+        let Some(bnum) = read_data_block_num(m, &parent, bi, LOOKUP_IND.as_mut()) else {
+            continue;
+        };
+        if !read_fs_block(m, bnum, LOOKUP_BLK.as_mut()) {
+            return false;
+        }
+        let blk = LOOKUP_BLK.as_mut();
+        let mut off = 0usize;
+        while off + 8 <= block_size {
+            let inode = match read_u32(blk, off) {
+                Some(v) => v,
+                None => return false,
+            };
+            let rec_len = match read_u16(blk, off + 4) {
+                Some(v) => v as usize,
+                None => return false,
+            };
+            let name_len = match blk.get(off + 6) {
+                Some(v) => *v as usize,
+                None => return false,
+            };
+            if rec_len == 0 || off + rec_len > block_size {
+                break;
+            }
+            let ideal = dirent_ideal_len(name_len);
+            if rec_len.saturating_sub(ideal) >= need {
+                let new_off = off + ideal;
+                if !write_u32(blk, new_off, child_inode_num) {
+                    return false;
+                }
+                if !write_u16(blk, new_off + 4, (rec_len - ideal) as u16) {
+                    return false;
+                }
+                if let Some(slot) = blk.get_mut(new_off + 6) {
+                    *slot = name.len() as u8;
+                } else {
+                    return false;
+                }
+                if let Some(slot) = blk.get_mut(new_off + 7) {
+                    *slot = file_type;
+                } else {
+                    return false;
+                }
+                let name_dst = match blk.get_mut(new_off + 8..new_off + 8 + name.len()) {
+                    Some(dst) => dst,
+                    None => return false,
+                };
+                name_dst.copy_from_slice(name);
+                if !write_u16(blk, off + 4, ideal as u16) {
+                    return false;
+                }
+                if !write_fs_block(m, bnum, blk) {
+                    return false;
+                }
+                return true;
+            }
+            off += rec_len;
+            if inode == 0 {
+                continue;
+            }
+        }
+    }
+    let bnum = match ensure_inode_block(m, parent_inode_num, &mut parent, blocks) {
+        Some(v) => v,
+        None => return false,
+    };
+    if !read_fs_block(m, bnum, LOOKUP_BLK.as_mut()) {
+        return false;
+    }
+    let blk = LOOKUP_BLK.as_mut();
+    blk.fill(0);
+    if !write_u32(blk, 0, child_inode_num) {
+        return false;
+    }
+    if !write_u16(blk, 4, block_size as u16) {
+        return false;
+    }
+    if let Some(slot) = blk.get_mut(6) {
+        *slot = name.len() as u8;
+    } else {
+        return false;
+    }
+    if let Some(slot) = blk.get_mut(7) {
+        *slot = file_type;
+    } else {
+        return false;
+    }
+    let name_dst = match blk.get_mut(8..8 + name.len()) {
+        Some(dst) => dst,
+        None => return false,
+    };
+    name_dst.copy_from_slice(name);
+    let new_size = ((blocks + 1) * block_size) as u32;
+    if !write_u32(&mut parent, 4, new_size) {
+        return false;
+    }
+    if !write_inode_raw(m, parent_inode_num, &parent) {
+        return false;
+    }
+    write_fs_block(m, bnum, blk)
+}
+
+unsafe fn create_path(m: &FsMount, path: McxPath, mode: u32) -> i32 {
+    let raw = core::slice::from_raw_parts(path.ptr, path.len);
+    let (parent_raw, name_raw) = match split_parent_name(raw) {
+        Some(v) => v,
+        None => return -22,
+    };
+    let Some(parent_inode) = resolve_path_inode(
+        m,
+        if parent_raw.is_empty() {
+            &[]
+        } else {
+            parent_raw
+        },
+    ) else {
+        return -2;
+    };
+    let mut existing_parent = [0u8; 256];
+    if !read_inode(m, parent_inode, &mut existing_parent) || !is_dir(inode_mode(&existing_parent)) {
+        return -20;
+    }
+    if lookup_child(m, parent_inode, name_raw).is_some() {
+        return -17;
+    }
+    let inode_num = match allocate_inode(m) {
+        Some(v) => v,
+        None => return -28,
+    };
+    let mut inode = [0u8; 256];
+    let regular_mode = 0x8000u16 | (mode as u16 & 0o777);
+    if !write_u16(&mut inode, 0, regular_mode) {
+        return -5;
+    }
+    if !write_u16(&mut inode, 26, 1) {
+        return -5;
+    }
+    if !write_u32(&mut inode, 4, 0) {
+        return -5;
+    }
+    if !write_u32(&mut inode, 28, 0) {
+        return -5;
+    }
+    if !write_inode_raw(m, inode_num, &inode) {
+        let _ = bitmap_set_bit(
+            m,
+            read_group_desc(m, 0).map(|gd| gd.inode_bitmap).unwrap_or(0),
+            (inode_num - 1) as usize,
+            false,
+        );
+        return -5;
+    }
+    if !allocate_dir_entry(m, parent_inode, inode_num, name_raw, 1) {
+        let _ = bitmap_set_bit(
+            m,
+            read_group_desc(m, 0).map(|gd| gd.inode_bitmap).unwrap_or(0),
+            (inode_num - 1) as usize,
+            false,
+        );
+        return -5;
+    }
+    0
+}
+
+unsafe fn truncate_path(m: &FsMount, path: McxPath, len: u64) -> i32 {
+    let inode_num = match read_path_inode(path) {
+        Some(v) => v,
+        None => return -2,
+    };
+    let mut inode = [0u8; 256];
+    if !read_inode(m, inode_num, &mut inode) {
+        return -5;
+    }
+    if is_dir(inode_mode(&inode)) {
+        return -21;
+    }
+    let old_size = inode_size(&inode) as u64;
+    if len == old_size {
+        return 0;
+    }
+    if len < old_size {
+        if !write_u32(&mut inode, 4, len as u32) {
+            return -5;
+        }
+        return if write_inode_raw(m, inode_num, &inode) {
+            0
+        } else {
+            -5
+        };
+    }
+
+    let Some(()) = zero_fill_inode_range(m, inode_num, &mut inode, old_size, len) else {
+        return -5;
+    };
+    if !write_u32(&mut inode, 4, len as u32) {
+        return -5;
+    }
+    if !write_inode_raw(m, inode_num, &inode) {
+        return -5;
+    }
+    0
 }
 
 extern "C" fn fs_mount(_device_id: u32) -> i32 {
@@ -845,6 +1735,96 @@ extern "C" fn fs_read(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut
             }
             None => -5,
         }
+    }
+}
+
+extern "C" fn fs_write(path: McxPath, offset: u64, buf: McxBuffer, out_written: *mut usize) -> i32 {
+    if path.ptr.is_null() || buf.ptr.is_null() || out_written.is_null() {
+        return -22;
+    }
+    let _guard = lock_ops();
+    unsafe {
+        let inode = match read_path_inode(path) {
+            Some(v) => v,
+            None => {
+                return if MOUNT.is_some() { -2 } else { -5 };
+            }
+        };
+        let m = match MOUNT.as_ref() {
+            Some(v) => v,
+            None => return -5,
+        };
+        let mut meta = [0u8; 256];
+        if !read_inode(m, inode, &mut meta) {
+            return -5;
+        }
+        if is_dir(inode_mode(&meta)) {
+            return -21;
+        }
+        let src = core::slice::from_raw_parts(buf.ptr, buf.len);
+        match write_inode_range(m, inode, offset, src) {
+            Some(n) => {
+                *out_written = n;
+                0
+            }
+            None => -5,
+        }
+    }
+}
+
+extern "C" fn fs_create(path: McxPath, mode: u32) -> i32 {
+    if path.ptr.is_null() {
+        return -22;
+    }
+    let _guard = lock_ops();
+    unsafe {
+        let m = match MOUNT.as_ref() {
+            Some(v) => v,
+            None => return -5,
+        };
+        create_path(m, path, mode)
+    }
+}
+
+extern "C" fn fs_remove(path: McxPath, is_dir: u32) -> i32 {
+    if path.ptr.is_null() {
+        return -22;
+    }
+    let _guard = lock_ops();
+    unsafe {
+        let m = match MOUNT.as_ref() {
+            Some(v) => v,
+            None => return -5,
+        };
+        remove_path(m, path, is_dir != 0)
+    }
+}
+
+extern "C" fn fs_rename(old_path: McxPath, new_path: McxPath) -> i32 {
+    if old_path.ptr.is_null() || new_path.ptr.is_null() {
+        return -22;
+    }
+    let _guard = lock_ops();
+    unsafe {
+        let m = match MOUNT.as_ref() {
+            Some(v) => v,
+            None => return -5,
+        };
+        rename_path(m, old_path, new_path)
+    }
+}
+
+extern "C" fn fs_truncate(path: McxPath, len: u64) -> i32 {
+    if path.ptr.is_null() {
+        return -22;
+    }
+    let _guard = lock_ops();
+    unsafe {
+        let m = match MOUNT.as_ref() {
+            Some(v) => v,
+            None => return -5,
+        };
+        truncate_path(m, path, len)
     }
 }
 
@@ -956,7 +1936,12 @@ extern "C" fn fs_readdir(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> 
 static FS_OPS: McxFsOps = McxFsOps {
     mount: fs_mount,
     set_disk_ops: fs_set_disk_ops,
+    create: fs_create,
+    remove: fs_remove,
+    rename: fs_rename,
     read: fs_read,
+    write: fs_write,
+    truncate: fs_truncate,
     stat: fs_stat,
     readdir: fs_readdir,
 };

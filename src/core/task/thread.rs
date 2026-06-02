@@ -82,8 +82,12 @@ static KSTACK_POOL: SpinLock<KernelStackPool> =
 static NEXT_KSTACK_OFFSET: core::sync::atomic::AtomicUsize =
     core::sync::atomic::AtomicUsize::new(0);
 
+fn kstack_free_list_contains(guard_addr: u64) -> bool {
+    let list = KSTACK_FREE_LIST.lock();
+    list.iter().any(|slot| *slot == guard_addr)
+}
+
 fn unmap_guard_page(guard_addr: u64) -> bool {
-    use x86_64::structures::paging::mapper::Translate;
     use x86_64::structures::paging::mapper::TranslateError;
     use x86_64::structures::paging::{Mapper, Page, Size4KiB};
 
@@ -232,6 +236,21 @@ pub fn free_kernel_stack(base: u64) {
         pool.0.as_ptr() as u64
     };
     if guard_addr < pool_base || guard_addr >= pool_base + KSTACK_POOL_SIZE as u64 {
+        crate::audit::log(
+            crate::audit::AuditEventKind::Fault,
+            "kernel stack free rejected",
+        );
+        return;
+    }
+    if kstack_free_list_contains(guard_addr) {
+        crate::warn!(
+            "free_kernel_stack: double free detected at {:#x}",
+            guard_addr
+        );
+        crate::audit::log(
+            crate::audit::AuditEventKind::Quarantine,
+            "kernel stack double free detected",
+        );
         return;
     }
     let mut list = KSTACK_FREE_LIST.lock();
@@ -806,7 +825,9 @@ impl ThreadQueue {
 
     /// 指定スロットのスレッドを可変参照で取得
     pub fn get_slot_mut(&mut self, slot: usize) -> Option<&mut Thread> {
-        self.threads.get_mut(slot).and_then(|thread| thread.as_mut())
+        self.threads
+            .get_mut(slot)
+            .and_then(|thread| thread.as_mut())
     }
 
     /// スレッドIDが存在するスロットインデックスを返す
@@ -861,7 +882,7 @@ impl ThreadQueue {
         if self.ready_bitmap == 0 {
             return None;
         }
-        
+
         // Linear search from start_slot, wrapping around if needed
         for i in 0..Self::MAX_THREADS {
             let slot = (start_slot + i) % Self::MAX_THREADS;

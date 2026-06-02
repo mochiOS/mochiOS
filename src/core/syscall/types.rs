@@ -136,6 +136,8 @@ pub enum SyscallNumber {
     Newfstatat = 262,
     /// unlinkat
     Unlinkat = 263,
+    /// renameat
+    Renameat = 264,
     /// faccessat
     Faccessat = 269,
     /// pselect6

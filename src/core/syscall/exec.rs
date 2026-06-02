@@ -392,6 +392,100 @@ fn resolve_exec_privilege(process_name: &str, exec_path: &str) -> crate::task::P
     }
 }
 
+fn resolve_exec_priority(
+    process_name: &str,
+    exec_path: &str,
+    parent_pid: Option<crate::task::ProcessId>,
+) -> u8 {
+    let is_service_path =
+        exec_path.starts_with("/system/services/") || exec_path.starts_with("system/services/");
+    let is_driver_path =
+        exec_path.starts_with("/bin/drivers/") || exec_path.starts_with("bin/drivers/");
+    let is_application_path =
+        exec_path.starts_with("/applications/") || exec_path.starts_with("applications/");
+    let is_regular_bin_path = exec_path.starts_with("/bin/") || exec_path.starts_with("bin/");
+
+    if is_application_path {
+        return 0;
+    }
+    if is_regular_bin_path && !is_driver_path {
+        return 2;
+    }
+
+    if process_name == "shell.service" {
+        return 4;
+    }
+    if process_name == "window.service" || process_name == "process.service" {
+        return 8;
+    }
+    if process_name == "capability.service" || process_name == "device.service" {
+        return 12;
+    }
+    if process_name == "core.service" || process_name == "net.service" {
+        return 24;
+    }
+    if process_name == "driver.service" {
+        return 96;
+    }
+    if process_name == "disk.service" || is_driver_path {
+        return 160;
+    }
+    if is_service_path {
+        return 64;
+    }
+
+    if let Some(parent) = parent_pid {
+        let parent_name = crate::task::with_process(parent, |process| {
+            let mut name = alloc::string::String::new();
+            name.push_str(process.name());
+            name
+        });
+        if let Some(parent_name) = parent_name {
+            if parent_name == "shell.service" || parent_name == "process.service" {
+                return 0;
+            }
+            if parent_name == "window.service" {
+                return 2;
+            }
+        }
+    }
+
+    8
+}
+
+fn resolve_exec_foreground(
+    process_name: &str,
+    exec_path: &str,
+    privilege: crate::task::PrivilegeLevel,
+    parent_pid: Option<crate::task::ProcessId>,
+) -> bool {
+    if privilege != crate::task::PrivilegeLevel::User {
+        return false;
+    }
+
+    let is_application_path =
+        exec_path.starts_with("/applications/") || exec_path.starts_with("applications/");
+    let is_regular_bin_path =
+        (exec_path.starts_with("/bin/") || exec_path.starts_with("bin/"))
+            && !exec_path.starts_with("/bin/drivers/")
+            && !exec_path.starts_with("bin/drivers/");
+
+    if is_application_path || is_regular_bin_path {
+        return true;
+    }
+
+    let Some(parent) = parent_pid else {
+        return false;
+    };
+    crate::task::with_process(parent, |process| {
+        process.name() == "shell.service"
+            || process.name() == "process.service"
+            || process.name() == "window.service"
+            || process.is_foreground()
+    })
+    .unwrap_or(false)
+}
+
 fn map_initial_tls(table_phys: u64, aslr_seed: u64) -> Result<u64, u64> {
     let tls_base = TLS_BASE_MIN
         .saturating_add(aslr_offset_pages(aslr_seed ^ 0x19d7_3c6a, TLS_ASLR_MAX_PAGES) * 4096);
@@ -983,7 +1077,10 @@ fn exec_with_data(
                 .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
         });
         let privilege = resolve_exec_privilege(process_name, exec_path);
-        let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
+        let priority = resolve_exec_priority(process_name, exec_path, parent_pid);
+        let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, priority);
+        let foreground = resolve_exec_foreground(process_name, exec_path, privilege, parent_pid);
+        proc.set_foreground(foreground);
         if let Some(caps) = initial_caps {
             // capability はプロセス開始前にセットする必要がある。
             // スケジューラが有効だと `add_thread()` の直後に動き出すため、

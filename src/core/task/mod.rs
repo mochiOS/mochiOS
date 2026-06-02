@@ -14,7 +14,7 @@ pub mod usermode;
 
 pub use context::{switch_context, switch_to_thread, Context};
 pub use fd_table::{FdTable, FileHandle, FD_BASE, PROCESS_MAX_FDS};
-pub use ids::{PrivilegeLevel, ProcessId, ProcessState, ThreadId, ThreadState};
+pub use ids::{PrivilegeLevel, ProcessId, ProcessState, SchedulingClass, ThreadId, ThreadState};
 pub use process::{
     add_process, find_process_id_by_name, for_each_process, has_child_process, mark_process_exited,
     process_count, reap_zombie_child_process, remove_process, with_process, with_process_mut,

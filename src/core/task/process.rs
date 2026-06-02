@@ -53,6 +53,8 @@ pub struct Process {
     exe_path: String,
     /// 優先度（0が最高、値が大きいほど低い）
     priority: u8,
+    /// 前景プロセスとして待ち時間を優先する
+    foreground: bool,
     /// 終了コード（生存中はNone）
     exit_code: Option<u64>,
     /// プロセスグループID（0 = 自身の PID と同じ）
@@ -111,6 +113,7 @@ impl Process {
             cwd_len: 1,
             exe_path: String::new(),
             priority,
+            foreground: false,
             exit_code: None,
             pgid: 0,
             sid: 0,
@@ -175,6 +178,14 @@ impl Process {
     /// 優先度を取得
     pub fn priority(&self) -> u8 {
         self.priority
+    }
+
+    pub fn is_foreground(&self) -> bool {
+        self.foreground
+    }
+
+    pub fn set_foreground(&mut self, foreground: bool) {
+        self.foreground = foreground;
     }
 
     /// 終了コードを取得

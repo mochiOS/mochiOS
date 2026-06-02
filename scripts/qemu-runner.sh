@@ -120,7 +120,7 @@ qemu-system-x86_64 \
     -device usb-tablet,bus=xhci.0 \
     -netdev user,id=net0 \
     -device virtio-net-pci,netdev=net0 \
-    -m 512M \
+    -m 1G \
     -no-reboot \
     -serial stdio \
     -vga std &

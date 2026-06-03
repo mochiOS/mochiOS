@@ -50,6 +50,8 @@ pub fn kinit(boot_info: &'static BootInfo) -> Result<&'static [MemoryRegion]> {
     mem::init(boot_info)?;
 
     fs::init();
+    crate::config::init();
+    crate::kmod::init_runtime_config();
     crate::kmod::load_modules();
     if crate::kmod::fs::is_loaded() {
         if crate::kmod::disk::is_loaded() {

@@ -258,8 +258,6 @@ fn resolve_path(pid_raw: u64, path: &str) -> String {
     }
 }
 
-const FS_SERVICE_RETRY_COUNT: usize = 3;
-const FS_SERVICE_RETRY_MS: u64 = 10;
 const O_ACCMODE: u64 = 0o3;
 const O_WRONLY: u64 = 0o1;
 const O_RDWR: u64 = 0o2;

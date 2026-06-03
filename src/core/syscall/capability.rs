@@ -25,7 +25,7 @@ use crate::syscall::types::{EFAULT, EINVAL};
 pub fn check_thread_capability(thread_id: u64, cap_ptr: u64, cap_len: u64) -> u64 {
     // 過剰なコピーを避けるため、ここでは短い上限を設ける。
     // capability 名は固定の識別子であり、長大な文字列である必要がない。
-    const MAX_CAP_NAME_LEN: usize = 128;
+    let max_cap_name_len = crate::config::kernel().capability.max_name_len;
 
     if thread_id == 0 || cap_ptr == 0 || cap_len == 0 {
         return EINVAL;
@@ -33,7 +33,7 @@ pub fn check_thread_capability(thread_id: u64, cap_ptr: u64, cap_len: u64) -> u6
     let Ok(cap_len_usize) = usize::try_from(cap_len) else {
         return EINVAL;
     };
-    if cap_len_usize > MAX_CAP_NAME_LEN {
+    if cap_len_usize > max_cap_name_len {
         return EINVAL;
     }
 
@@ -59,4 +59,3 @@ pub fn check_thread_capability(thread_id: u64, cap_ptr: u64, cap_len: u64) -> u6
         0
     }
 }
-

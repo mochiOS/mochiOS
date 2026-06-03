@@ -40,8 +40,6 @@ pub struct McxFsOps {
     pub readdir: extern "C" fn(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> i32,
 }
 
-pub const MODULE_MAX_READ_BYTES: usize = 64 * 1024 * 1024;
-
 const CEXT_MAGIC: &[u8; 4] = b"MCEX";
 const CEXT_FIXED_HEADER_SIZE: usize = 32;
 const PT_LOAD: u32 = 1;
@@ -51,9 +49,7 @@ const SHF_ALLOC: u64 = 0x2;
 const SHT_RELA: u32 = 4;
 const R_X86_64_RELATIVE: u32 = 8;
 const ET_DYN: u16 = 3;
-const MODULE_LOAD_BASE_START: u64 = 0x0000_6000_0000_0000;
-const MODULE_LOAD_GUARD: u64 = 0x20_0000; // 2MiB guard
-static NEXT_MODULE_LOAD_BASE: AtomicU64 = AtomicU64::new(MODULE_LOAD_BASE_START);
+static NEXT_MODULE_LOAD_BASE: AtomicU64 = AtomicU64::new(0);
 
 type FsInitFn = unsafe extern "C" fn() -> *const McxFsOps;
 type DiskInitFn = unsafe extern "C" fn() -> *const disk::McxDiskOps;
@@ -65,6 +61,16 @@ fn sha256_hex(bytes: &[u8]) -> String {
         out.push_str(&alloc::format!("{:02x}", b));
     }
     out
+}
+
+#[inline]
+pub fn module_max_read_bytes() -> usize {
+    crate::config::kernel().kmod.max_read_bytes
+}
+
+pub fn init_runtime_config() {
+    let base = crate::config::kernel().kmod.module_load_base_start;
+    NEXT_MODULE_LOAD_BASE.store(base, Ordering::Release);
 }
 
 fn load_module_hash_manifest() -> Option<BTreeMap<String, String>> {
@@ -305,8 +311,12 @@ fn align_up_4k(v: u64) -> Option<u64> {
 }
 
 fn alloc_module_base(span: u64) -> Option<u64> {
+    let module_cfg = crate::config::kernel().kmod;
     let size = align_up_4k(span)?;
-    let step = size.checked_add(MODULE_LOAD_GUARD)?;
+    let step = size.checked_add(module_cfg.module_load_guard)?;
+    if NEXT_MODULE_LOAD_BASE.load(Ordering::Acquire) == 0 {
+        NEXT_MODULE_LOAD_BASE.store(module_cfg.module_load_base_start, Ordering::Release);
+    }
     let mut cur = NEXT_MODULE_LOAD_BASE.load(Ordering::Relaxed);
     loop {
         let next = cur.checked_add(step)?;

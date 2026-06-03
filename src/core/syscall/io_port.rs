@@ -4,20 +4,17 @@ use crate::syscall::{EFAULT, EINVAL, EPERM, SUCCESS};
 use core::arch::asm;
 
 fn caller_has_low_level_device_capability() -> bool {
-    crate::task::current_thread_id()
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .map(|pid| {
-            use crate::capability::Capability;
-            crate::task::process::process_has_capability(pid, Capability::DeviceInput)
-                || crate::task::process::process_has_capability(pid, Capability::DeviceNet)
-                || crate::task::process::process_has_capability(pid, Capability::DeviceStorage)
-                || crate::task::process::process_has_capability(pid, Capability::DeviceGpu)
-                || crate::task::process::process_has_capability(pid, Capability::DeviceAudio)
-                || crate::task::process::process_has_capability(pid, Capability::UsbAccess)
-                || crate::task::process::process_has_capability(pid, Capability::SerialAccess)
-                || crate::task::process::process_has_capability(pid, Capability::BluetoothAccess)
-        })
-        .unwrap_or(false)
+    use crate::capability::Capability::*;
+    crate::syscall::security::caller_has_any_capability(&[
+        DeviceInput,
+        DeviceNet,
+        DeviceStorage,
+        DeviceGpu,
+        DeviceAudio,
+        UsbAccess,
+        SerialAccess,
+        BluetoothAccess,
+    ])
 }
 
 /// I/Oポートから読み取り

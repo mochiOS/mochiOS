@@ -4,20 +4,17 @@ use x86_64::VirtAddr;
 const MAX_MMIO_MAP_SIZE: u64 = 64 * 1024 * 1024;
 
 fn caller_has_mmio_capability() -> bool {
-    crate::task::current_thread_id()
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .map(|pid| {
-            use crate::capability::Capability;
-            crate::task::process::process_has_capability(pid, Capability::DeviceGpu)
-                || crate::task::process::process_has_capability(pid, Capability::DeviceAudio)
-                || crate::task::process::process_has_capability(pid, Capability::DeviceInput)
-                || crate::task::process::process_has_capability(pid, Capability::DeviceStorage)
-                || crate::task::process::process_has_capability(pid, Capability::DeviceNet)
-                || crate::task::process::process_has_capability(pid, Capability::UsbAccess)
-                || crate::task::process::process_has_capability(pid, Capability::SerialAccess)
-                || crate::task::process::process_has_capability(pid, Capability::BluetoothAccess)
-        })
-        .unwrap_or(false)
+    use crate::capability::Capability::*;
+    crate::syscall::security::caller_has_any_capability(&[
+        DeviceGpu,
+        DeviceAudio,
+        DeviceInput,
+        DeviceStorage,
+        DeviceNet,
+        UsbAccess,
+        SerialAccess,
+        BluetoothAccess,
+    ])
 }
 
 fn current_process_page_table() -> Option<u64> {
@@ -78,7 +75,7 @@ pub fn map_physical_range(phys_addr: u64, size: u64) -> u64 {
 
     let result = crate::task::with_process_mut(pid, |process| {
         if process.heap_start() == 0 {
-            let default_base = 0x5000_0000u64;
+            let default_base = crate::config::kernel().exec.mmap_heap_base_min;
             process.set_heap_start(default_base);
             process.set_heap_end(default_base);
         }

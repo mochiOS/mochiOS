@@ -6,12 +6,15 @@ extern crate alloc;
 mod vga_console;
 
 use core::ptr::addr_of_mut;
-use mochios::{BootInfo, MemoryRegion, MemoryType};
+use core::sync::atomic::Ordering;
+use core::time::Duration;
+use mochios::{BootInfo, MemoryRegion, MemoryType, SmpHandoff, MAX_CPU_IDS};
 use uefi::prelude::*;
 use uefi::proto::console::gop::GraphicsOutput;
 use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::{File, FileAttribute, FileInfo, FileMode, FileType};
 use uefi::proto::media::fs::SimpleFileSystem;
+use uefi::proto::pi::mp::MpServices;
 use uefi::table::boot::{
     AllocateType, MemoryType as UefiMemType, OpenProtocolAttributes, OpenProtocolParams,
 };
@@ -43,7 +46,16 @@ static mut BOOT_INFO: BootInfo = BootInfo {
     initfs_size: 0,
     rootfs_addr: 0,
     rootfs_size: 0,
+    cpu_total: 1,
+    cpu_enabled: 1,
+    bsp_apic_id: 0,
+    cpu_apic_ids: [0; MAX_CPU_IDS],
+    cpu_apic_id_count: 0,
+    smp_handoff_addr: 0,
+    smp_handoff_size: 0,
 };
+
+static mut SMP_HANDOFF: SmpHandoff = SmpHandoff::new();
 
 static mut MEMORY_MAP: [MemoryRegion; 256] = [MemoryRegion {
     start: 0,
@@ -107,6 +119,213 @@ const DT_RELA: i64 = 7;
 const DT_RELASZ: i64 = 8;
 const DT_RELAENT: i64 = 9;
 const READ_CHUNK_BYTES: usize = 64 * 1024;
+
+#[inline]
+fn read_u32(bytes: &[u8], offset: usize) -> Option<u32> {
+    let raw = bytes.get(offset..offset + 4)?;
+    Some(u32::from_le_bytes([raw[0], raw[1], raw[2], raw[3]]))
+}
+
+#[inline]
+fn read_u64(bytes: &[u8], offset: usize) -> Option<u64> {
+    let raw = bytes.get(offset..offset + 8)?;
+    Some(u64::from_le_bytes([
+        raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7],
+    ]))
+}
+
+fn find_elf_symbol(elf: &[u8], symbol_name: &str) -> Option<u64> {
+    if elf.len() < core::mem::size_of::<Elf64Header>() {
+        return None;
+    }
+    let eh = unsafe { &*(elf.as_ptr() as *const Elf64Header) };
+    if &eh.e_ident[0..4] != b"\x7fELF" || eh.e_ident[4] != 2 || eh.e_machine != 0x3E {
+        return None;
+    }
+    let shoff = eh.e_shoff as usize;
+    let shentsz = eh.e_shentsize as usize;
+    let shnum = eh.e_shnum as usize;
+    if shoff == 0 || shentsz == 0 || shnum == 0 {
+        return None;
+    }
+
+    for si in 0..shnum {
+        let sh_off = shoff + si * shentsz;
+        let sh_type = read_u32(elf, sh_off + 4)?;
+        if sh_type != 2 && sh_type != 11 {
+            continue;
+        }
+        let symtab_offset = usize::try_from(read_u64(elf, sh_off + 24)?).ok()?;
+        let symtab_size = usize::try_from(read_u64(elf, sh_off + 32)?).ok()?;
+        let sh_link = read_u32(elf, sh_off + 40)? as usize;
+        let symtab_entsize = usize::try_from(read_u64(elf, sh_off + 56)?).ok()?;
+        if symtab_entsize < 24 || symtab_size == 0 || sh_link >= shnum {
+            continue;
+        }
+        let link_sh_off = shoff + sh_link * shentsz;
+        let strtab_offset = usize::try_from(read_u64(elf, link_sh_off + 24)?).ok()?;
+        let strtab_size = usize::try_from(read_u64(elf, link_sh_off + 32)?).ok()?;
+        let nsyms = symtab_size / symtab_entsize;
+        for i_sym in 0..nsyms {
+            let sym_off = symtab_offset + i_sym * symtab_entsize;
+            let st_name = read_u32(elf, sym_off)? as usize;
+            let st_value = read_u64(elf, sym_off + 8)?;
+            if st_name >= strtab_size {
+                continue;
+            }
+            let name_off = strtab_offset + st_name;
+            if name_off >= elf.len() {
+                continue;
+            }
+            let mut end = name_off;
+            while end < elf.len() && elf[end] != 0 {
+                end += 1;
+            }
+            let Ok(name_str) = core::str::from_utf8(&elf[name_off..end]) else {
+                continue;
+            };
+            if name_str == symbol_name {
+                return Some(st_value);
+            }
+        }
+    }
+    None
+}
+
+unsafe fn populate_cpu_info(bt: &BootServices) {
+    let handle = match bt.get_handle_for_protocol::<MpServices>() {
+        Ok(handle) => handle,
+        Err(_) => {
+            vga_println!("MpServices unavailable; assuming single CPU");
+            BOOT_INFO.cpu_total = 1;
+            BOOT_INFO.cpu_enabled = 1;
+            BOOT_INFO.bsp_apic_id = 0;
+            BOOT_INFO.cpu_apic_id_count = 0;
+            return;
+        }
+    };
+
+    let mp = match bt.open_protocol_exclusive::<MpServices>(handle) {
+        Ok(mp) => mp,
+        Err(e) => {
+            vga_println!("MpServices open failed: {:?}", e.status());
+            return;
+        }
+    };
+
+    let counts = match mp.get_number_of_processors() {
+        Ok(counts) => counts,
+        Err(e) => {
+            vga_println!("MpServices count failed: {:?}", e.status());
+            return;
+        }
+    };
+
+    BOOT_INFO.cpu_total = counts.total;
+    BOOT_INFO.cpu_enabled = counts.enabled;
+    BOOT_INFO.cpu_apic_id_count = 0;
+
+    let total = core::cmp::min(counts.total, MAX_CPU_IDS);
+    for index in 0..total {
+        if let Ok(info) = mp.get_processor_info(index) {
+            if index < MAX_CPU_IDS {
+                BOOT_INFO.cpu_apic_ids[index] = info.processor_id as u32;
+                BOOT_INFO.cpu_apic_id_count = BOOT_INFO.cpu_apic_id_count.saturating_add(1);
+            }
+            if info.is_bsp() {
+                BOOT_INFO.bsp_apic_id = info.processor_id as u32;
+            }
+        }
+    }
+}
+
+unsafe fn launch_secondary_cpus(
+    bt: &BootServices,
+    boot_info_ptr: *mut BootInfo,
+    secondary_entry: u64,
+) {
+    if BOOT_INFO.cpu_enabled <= 1 {
+        return;
+    }
+
+    let handle = match bt.get_handle_for_protocol::<MpServices>() {
+        Ok(handle) => handle,
+        Err(_) => {
+            vga_println!("MpServices unavailable; secondary CPUs remain offline");
+            return;
+        }
+    };
+
+    let mp = match bt.open_protocol_exclusive::<MpServices>(handle) {
+        Ok(mp) => mp,
+        Err(e) => {
+            vga_println!("MpServices open failed for AP start: {:?}", e.status());
+            return;
+        }
+    };
+
+    let handoff = addr_of_mut!(SMP_HANDOFF);
+    unsafe {
+        (*handoff)
+            .boot_info_ptr
+            .store(boot_info_ptr as u64, Ordering::Release);
+        (*handoff)
+            .kernel_secondary_entry
+            .store(secondary_entry, Ordering::Release);
+        (*handoff).kernel_cr3.store(0, Ordering::Release);
+        (*handoff).ready.store(0, Ordering::Release);
+        (*handoff).ap_count.store(0, Ordering::Release);
+    }
+
+    let handoff_ptr = handoff as *mut core::ffi::c_void;
+    match mp.startup_all_aps(
+        false,
+        ap_bootstrap,
+        handoff_ptr,
+        None,
+        Some(Duration::from_millis(10)),
+    ) {
+        Ok(()) => vga_println!("AP startup completed"),
+        Err(e) => {
+            if e.status() == Status::TIMEOUT {
+                vga_println!("AP startup timed out; continuing boot");
+            } else {
+                vga_println!("AP startup failed: {:?}", e.status());
+            }
+        }
+    }
+}
+
+extern "efiapi" fn ap_bootstrap(arg: *mut core::ffi::c_void) {
+    let handoff = unsafe { &*(arg as *const SmpHandoff) };
+    loop {
+        if handoff.ready.load(Ordering::Acquire) != 0 {
+            break;
+        }
+        core::hint::spin_loop();
+    }
+
+    let boot_info_ptr = handoff.boot_info_ptr.load(Ordering::Acquire) as *const BootInfo;
+    let secondary_entry = handoff.kernel_secondary_entry.load(Ordering::Acquire);
+    let kernel_cr3 = handoff.kernel_cr3.load(Ordering::Acquire);
+    if boot_info_ptr.is_null() || secondary_entry == 0 {
+        loop {
+            x86_64::instructions::hlt();
+        }
+    }
+
+    if kernel_cr3 == 0 {
+        loop {
+            x86_64::instructions::hlt();
+        }
+    }
+
+    mochios::mem::paging::switch_page_table(kernel_cr3);
+
+    let entry: unsafe extern "sysv64" fn(*const BootInfo) -> ! =
+        unsafe { core::mem::transmute(secondary_entry) };
+    unsafe { entry(boot_info_ptr) }
+}
 
 #[inline]
 fn tick_booting_gif() {}
@@ -198,7 +417,7 @@ unsafe fn try_load_raw(
 }
 
 /// `\system\kernel.elf` を読み込み、PT_LOAD セグメントを物理アドレスに展開してエントリアドレスを返す
-unsafe fn load_kernel(bt: &BootServices, image_handle: Handle) -> Option<u64> {
+unsafe fn load_kernel(bt: &BootServices, image_handle: Handle) -> Option<(u64, u64)> {
     let kernel_path = cstr16!(r"\system\kernel.elf");
 
     // LoadedImage からブートローダー自身のデバイスハンドルを取得して優先的に試みる
@@ -243,7 +462,7 @@ unsafe fn try_load_from(
     agent: Handle,
     handle: Handle,
     kernel_path: &uefi::CStr16,
-) -> Option<u64> {
+) -> Option<(u64, u64)> {
     // GetProtocol で非排他的に開く（ファームウェアが既に開いていても失敗しない）
     let mut sfs = match bt.open_protocol::<SimpleFileSystem>(
         OpenProtocolParams {
@@ -505,7 +724,8 @@ unsafe fn try_load_from(
         }
     }
 
-    Some(hdr.e_entry)
+    let secondary_entry = find_elf_symbol(buf, "secondary_cpu_entry")?;
+    Some((hdr.e_entry, secondary_entry))
 }
 
 /// UEFI エントリーポイント
@@ -546,12 +766,12 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
     // booting.gif disabled; proceed without animation
 
     // カーネルをロード (boot_services の借用をスコープで切る)
-    let kernel_entry_addr = {
+    let kernel_entry_addrs = {
         let bt = system_table.boot_services();
         unsafe { load_kernel(bt, image_handle) }
     };
-    let kernel_entry_addr = match kernel_entry_addr {
-        Some(addr) => addr,
+    let kernel_entry_addrs = match kernel_entry_addrs {
+        Some(addrs) => addrs,
         None => {
             vga_println!("Failed to load kernel.elf");
             return Status::NOT_FOUND;
@@ -567,6 +787,14 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
     // rootfs は起動後にFS層がマウントして利用するため、
     // ブートローダーではプリロードしない（起動時間短縮）
     let (rootfs_addr, rootfs_size) = (0u64, 0usize);
+
+    {
+        let bt = system_table.boot_services();
+        unsafe {
+            populate_cpu_info(bt);
+            launch_secondary_cpus(bt, addr_of_mut!(BOOT_INFO), kernel_entry_addrs.1);
+        }
+    }
 
     // Boot services を終了してメモリマップを取得
     let (_system_table, memory_map_iter) =
@@ -615,10 +843,12 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         BOOT_INFO.initfs_size = initfs_size;
         BOOT_INFO.rootfs_addr = rootfs_addr;
         BOOT_INFO.rootfs_size = rootfs_size;
+        BOOT_INFO.smp_handoff_addr = addr_of_mut!(SMP_HANDOFF) as u64;
+        BOOT_INFO.smp_handoff_size = core::mem::size_of::<SmpHandoff>();
     }
 
     // カーネルへジャンプ (system V AMD64 ABI)
     let kernel_entry: unsafe extern "sysv64" fn(*mut BootInfo) -> ! =
-        core::mem::transmute(kernel_entry_addr);
+        core::mem::transmute(kernel_entry_addrs.0);
     unsafe { kernel_entry(addr_of_mut!(BOOT_INFO)) }
 }

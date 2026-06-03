@@ -5,19 +5,12 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::convert::TryInto;
 use core::sync::atomic::{AtomicU64, Ordering};
-use x86_64::structures::paging::Mapper;
 
 /// `.service` 実行を許可するサービスマネージャープロセスID
 /// 0 は未登録。
 static SERVICE_MANAGER_PID: AtomicU64 = AtomicU64::new(0);
 const EM_X86_64: u16 = 0x3E;
 static EXEC_ASLR_COUNTER: AtomicU64 = AtomicU64::new(0);
-const STACK_TOP_BASE: u64 = 0x0000_7FFF_FFF0_0000;
-const STACK_ASLR_MAX_PAGES: u64 = 4096; // 16MiB
-const USER_STACK_SIZE_PAGES: usize = 32; // 128KiB stack
-const TLS_BASE_MIN: u64 = 0x3000_0000;
-const TLS_ASLR_MAX_PAGES: u64 = 0x4000; // 64MiB
-const INITIAL_TLS_SIZE: u64 = 4096;
 
 struct InitialUserStack {
     stack_base_vaddr: u64,
@@ -465,10 +458,9 @@ fn resolve_exec_foreground(
 
     let is_application_path =
         exec_path.starts_with("/applications/") || exec_path.starts_with("applications/");
-    let is_regular_bin_path =
-        (exec_path.starts_with("/bin/") || exec_path.starts_with("bin/"))
-            && !exec_path.starts_with("/bin/drivers/")
-            && !exec_path.starts_with("bin/drivers/");
+    let is_regular_bin_path = (exec_path.starts_with("/bin/") || exec_path.starts_with("bin/"))
+        && !exec_path.starts_with("/bin/drivers/")
+        && !exec_path.starts_with("bin/drivers/");
 
     if is_application_path || is_regular_bin_path {
         return true;
@@ -487,15 +479,17 @@ fn resolve_exec_foreground(
 }
 
 fn map_initial_tls(table_phys: u64, aslr_seed: u64) -> Result<u64, u64> {
-    let tls_base = TLS_BASE_MIN
-        .saturating_add(aslr_offset_pages(aslr_seed ^ 0x19d7_3c6a, TLS_ASLR_MAX_PAGES) * 4096);
-    let mut tls_data = vec![0u8; INITIAL_TLS_SIZE as usize];
+    let exec = crate::config::kernel().exec;
+    let tls_base = exec
+        .tls_base_min
+        .saturating_add(aslr_offset_pages(aslr_seed ^ 0x19d7_3c6a, exec.tls_aslr_max_pages) * 4096);
+    let mut tls_data = vec![0u8; exec.initial_tls_size as usize];
     tls_data[..8].copy_from_slice(&tls_base.to_ne_bytes());
     match crate::mem::paging::map_and_copy_segment_to(
         table_phys,
         tls_base,
-        INITIAL_TLS_SIZE,
-        INITIAL_TLS_SIZE,
+        exec.initial_tls_size,
+        exec.initial_tls_size,
         &tls_data,
         true,
         false,
@@ -520,9 +514,11 @@ fn build_initial_user_stack(
     execfn: &str,
     auxv_entries: &[(u64, u64)],
 ) -> Result<InitialUserStack, u64> {
-    let stack_end_vaddr = STACK_TOP_BASE
-        .saturating_sub(aslr_offset_pages(aslr_seed ^ 0x53a9_1e2d, STACK_ASLR_MAX_PAGES) * 4096);
-    let stack_base_vaddr = stack_end_vaddr - (USER_STACK_SIZE_PAGES as u64 * 4096);
+    let exec = crate::config::kernel().exec;
+    let stack_end_vaddr = exec.stack_top_base.saturating_sub(
+        aslr_offset_pages(aslr_seed ^ 0x53a9_1e2d, exec.stack_aslr_max_pages) * 4096,
+    );
+    let stack_base_vaddr = stack_end_vaddr - (exec.user_stack_size_pages as u64 * 4096);
 
     let mut string_block = Vec::new();
     let mut argv_offsets = Vec::new();
@@ -950,12 +946,13 @@ fn exec_with_data(
             Ok(stack) => stack,
             Err(errno) => return errno,
         };
+        let exec = crate::config::kernel().exec;
 
         crate::debug!(
             "Allocating user stack: base={:#x}, top={:#x}, size={} pages, rsp={:#x}",
             stack_base_vaddr,
             stack_end_vaddr,
-            USER_STACK_SIZE_PAGES,
+            exec.user_stack_size_pages,
             initial_rsp
         );
 
@@ -964,7 +961,7 @@ fn exec_with_data(
             new_pt_phys,
             stack_base_vaddr,
             0,
-            (USER_STACK_SIZE_PAGES - 1) as u64 * 4096,
+            (exec.user_stack_size_pages - 1) as u64 * 4096,
             &[],
             true,
             false,
@@ -991,10 +988,10 @@ fn exec_with_data(
 
         // Pre-map initial heap pages to avoid immediate page faults from user allocations.
         // Map two pages at the default heap base so small early allocations won't fault.
-        const HEAP_BASE_MIN: u64 = 0x4000_0000;
-        const HEAP_ASLR_MAX_PAGES: u64 = 0x8000; // 128MiB
-        let default_heap_base = HEAP_BASE_MIN
-            .saturating_add(aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, HEAP_ASLR_MAX_PAGES) * 4096);
+        let exec_cfg = crate::config::kernel().exec;
+        let default_heap_base = exec_cfg.brk_heap_base_min.saturating_add(
+            aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, exec_cfg.brk_heap_aslr_max_pages) * 4096,
+        );
         let heap_map_size: u64 = 4096 * 2;
         let mut heap_pre_mapped = false;
         if let Err(e) = crate::mem::paging::map_and_copy_segment_to(
@@ -1140,8 +1137,8 @@ fn exec_with_data(
         }
         // allocate kernel stack for the new thread
         // unmap_guard_page() がページテーブル操作を行うため、SmapSmepGuard スコープを保持
-        const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 32; // 128KB
-        let kstack = match crate::task::thread::allocate_kernel_stack(KERNEL_THREAD_STACK_SIZE) {
+        let kstack_size = crate::config::kernel().exec.kernel_thread_stack_size;
+        let kstack = match crate::task::thread::allocate_kernel_stack(kstack_size) {
             Some(a) => a,
             None => {
                 crate::warn!("Failed to allocate kernel stack for thread");
@@ -1168,7 +1165,7 @@ fn exec_with_data(
             entry,
             initial_rsp,
             kstack,
-            KERNEL_THREAD_STACK_SIZE,
+            kstack_size,
         );
         thread.set_fs_base(initial_fs_base);
 
@@ -1456,7 +1453,7 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         new_pt_phys,
         stack_base_vaddr,
         0,
-        (USER_STACK_SIZE_PAGES - 1) as u64 * 4096,
+        (crate::config::kernel().exec.user_stack_size_pages - 1) as u64 * 4096,
         &[],
         true,
         false,
@@ -1481,10 +1478,10 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
     }
 
     // 初期ヒープをASLR付きで確保
-    const HEAP_BASE_MIN: u64 = 0x4000_0000;
-    const HEAP_ASLR_MAX_PAGES: u64 = 0x8000; // 128MiB
-    let heap_base = HEAP_BASE_MIN
-        .saturating_add(aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, HEAP_ASLR_MAX_PAGES) * 4096);
+    let exec_cfg = crate::config::kernel().exec;
+    let heap_base = exec_cfg.mmap_heap_base_min.saturating_add(
+        aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, exec_cfg.mmap_heap_aslr_max_pages) * 4096,
+    );
     let heap_map_size: u64 = 4096 * 2;
     if crate::mem::paging::map_and_copy_segment_to(
         new_pt_phys,

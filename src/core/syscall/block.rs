@@ -10,34 +10,21 @@
 use crate::syscall::{copy_from_user, copy_to_user, EACCES, EINVAL, EIO, EPERM, SUCCESS};
 
 const SECTOR_SIZE: usize = 512;
-const MAX_SECTORS_PER_CALL: u64 = 128; // 64KiB
+#[inline]
+fn max_sectors_per_call() -> u64 {
+    crate::config::kernel().block.max_sectors_per_call
+}
 
 fn caller_has_storage_capability() -> bool {
-    crate::task::current_thread_id()
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .map(|pid| {
-            crate::task::process::process_has_capability(
-                pid,
-                crate::capability::Capability::DeviceStorage,
-            )
-        })
-        .unwrap_or(false)
+    crate::syscall::security::caller_has_any_capability(&[
+        crate::capability::Capability::DeviceStorage,
+    ])
 }
 
 /// ブロック読み取り: (disk_id, lba, buf_ptr, sector_count)
 pub fn block_read(disk_id: u64, lba: u64, buf_ptr: u64, sector_count: u64) -> u64 {
     // privilege: 最低でも Service/Core を要求 (ユーザへ raw disk は出さない)
-    let privilege_ok = crate::task::current_thread_id()
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .and_then(|pid| crate::task::with_process(pid, |p| p.privilege()))
-        .map(|pl| {
-            matches!(
-                pl,
-                crate::task::PrivilegeLevel::Core | crate::task::PrivilegeLevel::Service
-            )
-        })
-        .unwrap_or(false);
-    if !privilege_ok {
+    if !crate::syscall::security::caller_is_core_or_service() {
         return EPERM;
     }
 
@@ -45,7 +32,7 @@ pub fn block_read(disk_id: u64, lba: u64, buf_ptr: u64, sector_count: u64) -> u6
         return EACCES;
     }
 
-    if sector_count == 0 || sector_count > MAX_SECTORS_PER_CALL {
+    if sector_count == 0 || sector_count > max_sectors_per_call() {
         return EINVAL;
     }
 
@@ -75,17 +62,7 @@ pub fn block_read(disk_id: u64, lba: u64, buf_ptr: u64, sector_count: u64) -> u6
 
 /// ブロック書き込み: (disk_id, lba, buf_ptr, sector_count)
 pub fn block_write(disk_id: u64, lba: u64, buf_ptr: u64, sector_count: u64) -> u64 {
-    let privilege_ok = crate::task::current_thread_id()
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .and_then(|pid| crate::task::with_process(pid, |p| p.privilege()))
-        .map(|pl| {
-            matches!(
-                pl,
-                crate::task::PrivilegeLevel::Core | crate::task::PrivilegeLevel::Service
-            )
-        })
-        .unwrap_or(false);
-    if !privilege_ok {
+    if !crate::syscall::security::caller_is_core_or_service() {
         return EPERM;
     }
 
@@ -93,7 +70,7 @@ pub fn block_write(disk_id: u64, lba: u64, buf_ptr: u64, sector_count: u64) -> u
         return EACCES;
     }
 
-    if sector_count == 0 || sector_count > MAX_SECTORS_PER_CALL {
+    if sector_count == 0 || sector_count > max_sectors_per_call() {
         return EINVAL;
     }
 

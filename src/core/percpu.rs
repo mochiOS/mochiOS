@@ -89,7 +89,7 @@ fn local_apic_id() -> u32 {
     ((ebx as u32) >> 24) & 0xff
 }
 
-pub fn init_boot_cpu(syscall_kernel_rsp: u64) {
+pub fn init_current_cpu(syscall_kernel_rsp: u64) {
     let apic_id = local_apic_id() as usize;
     let slot = if apic_id < MAX_CPUS {
         apic_id
@@ -113,6 +113,10 @@ pub fn init_boot_cpu(syscall_kernel_rsp: u64) {
     state.current_thread_slot.store(u64::MAX, Ordering::SeqCst);
     state.syscall_user_rsp_tmp.store(0, Ordering::SeqCst);
     install_current_cpu_gs_base();
+}
+
+pub fn init_boot_cpu(syscall_kernel_rsp: u64) {
+    init_current_cpu(syscall_kernel_rsp);
 }
 
 pub fn install_current_cpu_gs_base() {

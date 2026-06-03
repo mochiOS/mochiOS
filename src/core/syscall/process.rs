@@ -155,7 +155,7 @@ pub fn exit(exit_code: u64) -> ! {
 /// List processes into a user-supplied buffer.
 /// arg0 = user buffer ptr, arg1 = buffer length in bytes.
 pub fn list_processes(buf_ptr: u64, buf_len: u64) -> u64 {
-    use crate::task::{for_each_process, ProcessState};
+    use crate::task::ProcessState;
 
     const RECORD_SIZE: usize = 88;
     if buf_ptr == 0 {
@@ -264,7 +264,12 @@ pub fn brk(addr: u64) -> u64 {
             process.heap_end()
         );
         if process.heap_start() == 0 {
-            let default_heap_base = randomized_heap_base(pid, 0x4000_0000, 0x8000);
+            let exec_cfg = crate::config::kernel().exec;
+            let default_heap_base = randomized_heap_base(
+                pid,
+                exec_cfg.brk_heap_base_min,
+                exec_cfg.brk_heap_aslr_max_pages,
+            );
             process.set_heap_start(default_heap_base);
             process.set_heap_end(default_heap_base);
         }
@@ -375,22 +380,21 @@ pub fn fork() -> u64 {
         heap_end,
         stack_bottom,
         stack_top,
-    ) =
-        match crate::task::with_process(parent_pid, |p| {
-            (
-                p.privilege(),
-                p.priority(),
-                p.is_foreground(),
-                p.page_table(),
-                p.heap_start(),
-                p.heap_end(),
-                p.stack_bottom(),
-                p.stack_top(),
-            )
-        }) {
-            Some(v) => v,
-            None => return ENOSYS,
-        };
+    ) = match crate::task::with_process(parent_pid, |p| {
+        (
+            p.privilege(),
+            p.priority(),
+            p.is_foreground(),
+            p.page_table(),
+            p.heap_start(),
+            p.heap_end(),
+            p.stack_bottom(),
+            p.stack_top(),
+        )
+    }) {
+        Some(v) => v,
+        None => return ENOSYS,
+    };
     let parent_pt = match parent_pt {
         Some(pt) => pt,
         None => return ENOSYS,
@@ -437,8 +441,8 @@ pub fn fork() -> u64 {
         return ENOMEM;
     }
 
-    const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 4;
-    let kstack = match crate::task::thread::allocate_kernel_stack(KERNEL_THREAD_STACK_SIZE) {
+    let kstack_size = crate::config::kernel().exec.kernel_thread_stack_size;
+    let kstack = match crate::task::thread::allocate_kernel_stack(kstack_size) {
         Some(s) => s,
         None => {
             let _ = crate::task::remove_process(child_pid);
@@ -453,7 +457,7 @@ pub fn fork() -> u64 {
         user_rflags,
         parent_fs,
         kstack,
-        KERNEL_THREAD_STACK_SIZE,
+        kstack_size,
     );
     if crate::task::add_thread(child_thread).is_none() {
         let _ = crate::task::remove_process(child_pid);
@@ -600,7 +604,12 @@ pub fn mmap(addr: u64, length: u64, _prot: u64, flags: u64, _fd: u64) -> u64 {
         // mmap用のヒープ領域を現在のbrk以降に割り当てる
         // (簡易実装: brkと同じ領域を使う)
         if process.heap_start() == 0 {
-            let default_heap_base = randomized_heap_base(pid, 0x5000_0000, 0x10000);
+            let exec_cfg = crate::config::kernel().exec;
+            let default_heap_base = randomized_heap_base(
+                pid,
+                exec_cfg.mmap_heap_base_min,
+                exec_cfg.mmap_heap_aslr_max_pages,
+            );
             process.set_heap_start(default_heap_base);
             process.set_heap_end(default_heap_base);
         }
@@ -989,13 +998,10 @@ pub fn find_process_by_name(name_ptr: u64, len: u64) -> u64 {
         Some(t) => t.as_u64(),
         None => return 0,
     };
-    let caller_pid = match task::thread_to_process_id(caller_tid) {
-        Some(p) => p,
-        None => return 0,
-    };
-    if !task::process::process_has_capability(caller_pid, crate::capability::Capability::IpcClient)
-        && !task::process::process_has_capability(caller_pid, crate::capability::Capability::IpcServer)
-    {
+    if !crate::syscall::security::caller_has_any_capability(&[
+        crate::capability::Capability::IpcClient,
+        crate::capability::Capability::IpcServer,
+    ]) {
         return 0;
     }
 

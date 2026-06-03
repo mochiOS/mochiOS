@@ -14,6 +14,7 @@ pub mod pgroup;
 pub mod pipe;
 pub mod privileged;
 pub mod process;
+pub mod security;
 pub mod signal;
 pub mod syscall_entry;
 pub mod task;

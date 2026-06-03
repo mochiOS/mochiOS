@@ -2,7 +2,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU16, Ordering};
 
-use super::{McxBuffer, McxFsOps, McxPath, MODULE_MAX_READ_BYTES};
+use super::{McxBuffer, McxFsOps, McxPath};
 
 static LOADED: AtomicBool = AtomicBool::new(false);
 static MOUNTED: AtomicBool = AtomicBool::new(false);
@@ -165,7 +165,7 @@ pub fn read_all(path: &str) -> Option<Vec<u8>> {
         }
         out.extend_from_slice(&chunk[..nread]);
         offset = offset.saturating_add(nread as u64);
-        if out.len() > MODULE_MAX_READ_BYTES {
+        if out.len() > super::module_max_read_bytes() {
             return None;
         }
     }

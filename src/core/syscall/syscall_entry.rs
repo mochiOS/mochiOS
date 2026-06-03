@@ -23,7 +23,7 @@
 /// STAR MSR レイアウト:
 ///   [47:32] = SYSCALL CS (カーネル CS, SS は CS+8)
 ///   [63:48] = SYSRET CS  (ユーザー CS-16, 実際の user CS は +16, SS は +8)
-pub fn init_syscall() {
+pub fn init_syscall_current_cpu() {
     // IA32_EFER の SCE ビットを有効化 (SYSCALL/SYSRET を使えるようにする)
     const IA32_EFER: u32 = 0xC000_0080;
     const SCE_BIT: u64 = 1;
@@ -60,9 +60,13 @@ pub fn init_syscall() {
     unsafe {
         core::arch::asm!("mov {}, rsp", out(reg) kstack_top, options(nomem, nostack, preserves_flags));
     }
-    crate::percpu::init_boot_cpu(kstack_top);
+    crate::percpu::init_current_cpu(kstack_top);
 
     crate::info!("SYSCALL/SYSRET initialized: LSTAR={:#x}", lstar_val);
+}
+
+pub fn init_syscall() {
+    init_syscall_current_cpu();
 }
 
 /// SYSCALL カーネルスタックを更新する (コンテキストスイッチ時に呼ぶ)

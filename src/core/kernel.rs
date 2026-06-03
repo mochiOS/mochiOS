@@ -2,8 +2,9 @@ use crate::result::handle_kernel_error;
 use crate::result::{Kernel, Process};
 use crate::syscall::exec::exec_kernel_with_name;
 use crate::util::log::LogLevel;
-use crate::{debug, info, sprintln, vprintln};
+use crate::{debug, info};
 use crate::{init::kinit, task, util, BootInfo, MemoryRegion, Result};
+use core::sync::atomic::Ordering;
 
 const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 8;
 
@@ -49,6 +50,14 @@ fn kernel_main() -> ! {
         );
     }
 
+    if let Some(handoff) = crate::smp::handoff() {
+        handoff
+            .kernel_cr3
+            .store(crate::percpu::kernel_cr3(), Ordering::Release);
+        handoff.ready.store(1, Ordering::Release);
+        crate::info!("SMP handoff released secondary CPUs");
+    }
+
     // カーネルはアイドル状態に入る
     info!("Kernel initialization complete. Entering idle loop...");
     loop {
@@ -58,6 +67,7 @@ fn kernel_main() -> ! {
 
 /// カーネルエントリポイント（kernel binary から呼ばれる）
 pub fn kernel_entry(boot_info: &'static BootInfo) -> ! {
+    crate::smp::set_handoff_addr(boot_info.smp_handoff_addr);
     let memory_map = match kinit(boot_info) {
         Ok(map) => map,
         Err(e) => {
@@ -70,6 +80,21 @@ pub fn kernel_entry(boot_info: &'static BootInfo) -> ! {
         handle_kernel_error(e);
         halt_forever();
     });
+    task::start_scheduling();
+}
+
+#[unsafe(no_mangle)]
+pub extern "sysv64" fn secondary_cpu_entry(boot_info: *const BootInfo) -> ! {
+    let Some(boot_info) = (unsafe { boot_info.as_ref() }) else {
+        halt_forever();
+    };
+    crate::smp::set_handoff_addr(boot_info.smp_handoff_addr);
+    crate::info!("Secondary CPU entering kernel");
+    crate::cpu::init();
+    crate::syscall::syscall_entry::init_syscall_current_cpu();
+    if let Some(handoff) = crate::smp::handoff() {
+        handoff.ap_count.fetch_add(1, Ordering::SeqCst);
+    }
     task::start_scheduling();
 }
 

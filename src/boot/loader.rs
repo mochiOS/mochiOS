@@ -270,6 +270,30 @@ unsafe fn find_elf_symbol_in_file(
     None
 }
 
+unsafe fn read_kernel_meta_secondary_entry(root: &mut impl File) -> Option<u64> {
+    let meta_path = cstr16!(r"\system\kernel.meta");
+    let fh = root
+        .open(meta_path, FileMode::Read, FileAttribute::empty())
+        .ok()?;
+    let mut file = match fh.into_type().ok()? {
+        FileType::Regular(f) => f,
+        _ => return None,
+    };
+    let mut buf = alloc::vec![0u8; 256];
+    let read = file.read(&mut buf).ok()?;
+    buf.truncate(read);
+    let text = core::str::from_utf8(&buf).ok()?;
+    for line in text.lines() {
+        let Some(value) = line.strip_prefix("secondary_cpu_entry=0x") else {
+            continue;
+        };
+        if let Ok(addr) = u64::from_str_radix(value.trim(), 16) {
+            return Some(addr);
+        }
+    }
+    None
+}
+
 unsafe fn populate_cpu_info(bt: &BootServices) {
     let handle = match bt.get_handle_for_protocol::<MpServices>() {
         Ok(handle) => handle,
@@ -302,6 +326,9 @@ unsafe fn populate_cpu_info(bt: &BootServices) {
     BOOT_INFO.cpu_total = counts.total;
     BOOT_INFO.cpu_enabled = counts.enabled;
     BOOT_INFO.cpu_apic_id_count = 0;
+    let cpu_total = BOOT_INFO.cpu_total;
+    let cpu_enabled = BOOT_INFO.cpu_enabled;
+    println!("CPU topology: total={} enabled={}", cpu_total, cpu_enabled);
 
     let total = core::cmp::min(counts.total, MAX_CPU_IDS);
     for index in 0..total {
@@ -315,6 +342,12 @@ unsafe fn populate_cpu_info(bt: &BootServices) {
             }
         }
     }
+    let bsp_apic_id = BOOT_INFO.bsp_apic_id;
+    let cpu_apic_id_count = BOOT_INFO.cpu_apic_id_count;
+    println!(
+        "BSP APIC ID={} APIC list count={}",
+        bsp_apic_id, cpu_apic_id_count
+    );
 }
 
 unsafe fn launch_secondary_cpus(
@@ -322,7 +355,16 @@ unsafe fn launch_secondary_cpus(
     boot_info_ptr: *mut BootInfo,
     secondary_entry: u64,
 ) {
+    if secondary_entry == 0 {
+        println!("secondary_cpu_entry unavailable; skipping AP startup");
+        return;
+    }
     if BOOT_INFO.cpu_enabled <= 1 {
+        let cpu_enabled = BOOT_INFO.cpu_enabled;
+        println!(
+            "single CPU detected (enabled={}); skipping AP startup",
+            cpu_enabled
+        );
         return;
     }
 
@@ -354,6 +396,12 @@ unsafe fn launch_secondary_cpus(
         (*handoff).ready.store(0, Ordering::Release);
         (*handoff).ap_count.store(0, Ordering::Release);
     }
+    let cpu_total = BOOT_INFO.cpu_total;
+    let cpu_enabled = BOOT_INFO.cpu_enabled;
+    println!(
+        "Starting APs: total={} enabled={} secondary_entry={:#x} boot_info_ptr={:#x} handoff={:#x}",
+        cpu_total, cpu_enabled, secondary_entry, boot_info_ptr as u64, handoff as u64
+    );
 
     let handoff_ptr = handoff as *mut core::ffi::c_void;
     match mp.startup_all_aps(
@@ -375,6 +423,7 @@ unsafe fn launch_secondary_cpus(
 }
 
 extern "efiapi" fn ap_bootstrap(arg: *mut core::ffi::c_void) {
+    println!("AP bootstrap entered: arg={:#x}", arg as u64);
     let handoff = unsafe { &*(arg as *const SmpHandoff) };
     loop {
         if handoff.ready.load(Ordering::Acquire) != 0 {
@@ -382,10 +431,20 @@ extern "efiapi" fn ap_bootstrap(arg: *mut core::ffi::c_void) {
         }
         core::hint::spin_loop();
     }
+    println!(
+        "AP bootstrap released: boot_info_ptr={:#x} secondary_entry={:#x} kernel_cr3={:#x}",
+        handoff.boot_info_ptr.load(Ordering::Acquire),
+        handoff.kernel_secondary_entry.load(Ordering::Acquire),
+        handoff.kernel_cr3.load(Ordering::Acquire)
+    );
 
     let boot_info_ptr = handoff.boot_info_ptr.load(Ordering::Acquire) as *const BootInfo;
     let secondary_entry = handoff.kernel_secondary_entry.load(Ordering::Acquire);
     let kernel_cr3 = handoff.kernel_cr3.load(Ordering::Acquire);
+    println!(
+        "AP handoff: boot_info_ptr={:#x} secondary_entry={:#x} kernel_cr3={:#x}",
+        boot_info_ptr as u64, secondary_entry, kernel_cr3
+    );
     if boot_info_ptr.is_null() || secondary_entry == 0 {
         loop {
             x86_64::instructions::hlt();
@@ -399,9 +458,11 @@ extern "efiapi" fn ap_bootstrap(arg: *mut core::ffi::c_void) {
     }
 
     mochios::mem::paging::switch_page_table(kernel_cr3);
+    println!("AP page table switched");
 
     let entry: unsafe extern "sysv64" fn(*const BootInfo) -> ! =
         unsafe { core::mem::transmute(secondary_entry) };
+    println!("AP jumping to secondary_cpu_entry={:#x}", secondary_entry);
     unsafe { entry(boot_info_ptr) }
 }
 
@@ -563,6 +624,8 @@ unsafe fn try_load_from(
             return None;
         }
     };
+
+    let secondary_meta = read_kernel_meta_secondary_entry(&mut root);
 
     // カーネル ELF を開く
     let file_handle = match root.open(kernel_path, FileMode::Read, FileAttribute::empty()) {
@@ -823,18 +886,62 @@ unsafe fn try_load_from(
         for i in 0..rela_count {
             let rela = &*((rela_addr as usize + i * rela_ent) as *const Elf64Rela);
             if (rela.r_info & 0xFFFF_FFFF) as u32 == R_X86_64_RELATIVE {
-                let target = (rela.r_offset as i128 + load_delta)
-                    .try_into()
-                    .ok()
-                    .map(|addr: u64| addr as *mut u64)?;
-                *target = (rela.r_addend as i128 + load_delta).try_into().ok()?;
+                let target_addr: u64 = match (rela.r_offset as i128 + load_delta).try_into() {
+                    Ok(addr) => addr,
+                    Err(_) => {
+                        println!(
+                            "RELA target relocation overflow: idx={} offset={:#x} addend={:#x} delta={:#x}",
+                            i,
+                            rela.r_offset,
+                            rela.r_addend,
+                            load_delta
+                        );
+                        return None;
+                    }
+                };
+                let value: u64 = match (rela.r_addend as i128 + load_delta).try_into() {
+                    Ok(addr) => addr,
+                    Err(_) => {
+                        println!(
+                            "RELA value relocation overflow: idx={} offset={:#x} addend={:#x} delta={:#x}",
+                            i,
+                            rela.r_offset,
+                            rela.r_addend,
+                            load_delta
+                        );
+                        return None;
+                    }
+                };
+                unsafe { *(target_addr as *mut u64) = value };
             }
         }
     }
 
-    let secondary_entry = find_elf_symbol_in_file(&mut file, &hdr_buf, "secondary_cpu_entry")?;
     let entry = (hdr.e_entry as i128 + load_delta).try_into().ok()?;
-    let secondary_entry = (secondary_entry as i128 + load_delta).try_into().ok()?;
+    let secondary_entry = if let Some(meta_addr) = secondary_meta {
+        match (meta_addr as i128 + load_delta).try_into().ok() {
+            Some(addr) => addr,
+            None => {
+                println!("kernel.meta secondary_cpu_entry out of range; falling back to symtab");
+                0
+            }
+        }
+    } else {
+        println!("kernel.meta missing or unreadable; falling back to symtab");
+        match find_elf_symbol_in_file(&mut file, &hdr_buf, "secondary_cpu_entry") {
+            Some(ptr) => match (ptr as i128 + load_delta).try_into().ok() {
+                Some(addr) => addr,
+                None => {
+                    println!("secondary_cpu_entry relocation out of range");
+                    0
+                }
+            },
+            None => {
+                println!("secondary_cpu_entry symbol not found");
+                0
+            }
+        }
+    };
     Some((entry, secondary_entry))
 }
 
@@ -845,7 +952,7 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         return Status::UNSUPPORTED;
     }
 
-    // ── GOP フレームバッファを最初に取得してコンソールを初期化 ──────────────
+    // GOP フレームバッファを最初に取得してコンソールを初期化
     let (_fb_ptr, fb_addr, fb_size, screen_w, screen_h, stride) = {
         let gop_handle = match system_table
             .boot_services()
@@ -879,9 +986,8 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
 
     println!("mochiOS bootloader");
     println!("Framebuffer: {}x{} stride={}", screen_w, screen_h, stride);
-    // booting.gif disabled; proceed without animation
 
-    // カーネルをロード (boot_services の借用をスコープで切る)
+    // カーネルをロード
     let kernel_entry_addrs = {
         let bt = system_table.boot_services();
         unsafe { load_kernel(bt, image_handle) }
@@ -894,14 +1000,14 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         }
     };
 
-    // initfs を ESP から読み込む
+    // initfsをESPから読み込む
     let (initfs_addr, initfs_size) = {
         let bt = system_table.boot_services();
         unsafe { load_initfs(bt, image_handle) }
     };
 
-    // rootfs は起動後にFS層がマウントして利用するため、
-    // ブートローダーではプリロードしない（起動時間短縮）
+    // rootfsは起動後にFS層がマウントして利用するため、
+    // ブートローダーではプリロードしない
     let (rootfs_addr, rootfs_size) = (0u64, 0usize);
 
     {
@@ -912,7 +1018,7 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         }
     }
 
-    // Boot services を終了してメモリマップを取得
+    // Boot servicesを終了してメモリマップを取得
     let (_system_table, memory_map_iter) =
         unsafe { system_table.exit_boot_services(UefiMemType::LOADER_DATA) };
 

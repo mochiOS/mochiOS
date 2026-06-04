@@ -60,6 +60,47 @@ fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
     fs::copy(&kernel_bin, &dest)
         .unwrap_or_else(|e| panic!("failed to copy kernel ELF to {}: {}", dest.display(), e));
     println!("Kernel ELF copied to {}", dest.display());
+
+    let meta_path = system_dir.join("kernel.meta");
+    let meta = build_kernel_meta(&kernel_bin);
+    fs::write(&meta_path, meta)
+        .unwrap_or_else(|e| panic!("failed to write {}: {}", meta_path.display(), e));
+    println!("Kernel metadata written to {}", meta_path.display());
+}
+
+fn build_kernel_meta(kernel_bin: &Path) -> String {
+    let output = std::process::Command::new("nm")
+        .args(["-a", "--defined-only"])
+        .arg(kernel_bin)
+        .output()
+        .unwrap_or_else(|e| panic!("failed to run nm on {}: {}", kernel_bin.display(), e));
+    if !output.status.success() {
+        panic!("nm failed on {}", kernel_bin.display());
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut secondary_entry = None;
+    for line in stdout.lines() {
+        let mut parts = line.split_whitespace();
+        let Some(addr) = parts.next() else {
+            continue;
+        };
+        let Some(_kind) = parts.next() else {
+            continue;
+        };
+        let Some(name) = parts.next() else {
+            continue;
+        };
+        if name == "secondary_cpu_entry" {
+            secondary_entry = Some(addr.to_string());
+            break;
+        }
+    }
+    let secondary_entry = secondary_entry
+        .unwrap_or_else(|| panic!("secondary_cpu_entry not found in {}", kernel_bin.display()));
+    format!(
+        "secondary_cpu_entry=0x{}\n",
+        secondary_entry.trim_start_matches("0x")
+    )
 }
 
 fn is_elf_binary(path: &Path) -> Result<bool, String> {

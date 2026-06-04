@@ -312,6 +312,15 @@ pub fn exec_kernel_with_name(path: &str, name: &str) -> u64 {
     exec_internal(path, Some(name), &[], None)
 }
 
+/// 名前と初期 capability を指定してカーネル内から実行可能ファイルを実行する（カーネル内部用）
+pub fn exec_kernel_with_name_and_caps(
+    path: &str,
+    name: &str,
+    initial_caps: crate::capability::CapabilitySet,
+) -> u64 {
+    exec_internal(path, Some(name), &[], Some(initial_caps))
+}
+
 fn exec_internal(
     path: &str,
     name_override: Option<&str>,

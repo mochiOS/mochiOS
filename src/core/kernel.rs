@@ -1,6 +1,6 @@
 use crate::result::handle_kernel_error;
 use crate::result::{Kernel, Process};
-use crate::syscall::exec::exec_kernel_with_name;
+use crate::syscall::exec::exec_kernel_with_name_and_caps;
 use crate::util::log::LogLevel;
 use crate::{debug, info};
 use crate::{init::kinit, task, util, BootInfo, MemoryRegion, Result};
@@ -20,28 +20,19 @@ fn kernel_main() -> ! {
 
     // core.serviceのみ起動（他のサービスはcore.serviceが管理）
     info!("Starting core.service");
-    let manager_pid = exec_kernel_with_name("core.service", "core.service");
+    let mut caps = crate::capability::CapabilitySet::empty();
+    caps.insert(crate::capability::Capability::IpcServer);
+    caps.insert(crate::capability::Capability::IpcClient);
+    caps.insert(crate::capability::Capability::ProcessSpawn);
+    caps.insert(crate::capability::Capability::ServiceControl);
+    caps.insert(crate::capability::Capability::SystemInfoRead);
+    // core.service はサービス起動のため /system/services/*.manifest.toml を読む必要がある。
+    // ブートストラップとして読み取り専用の全体権限を与える。
+    caps.insert(crate::capability::Capability::FsReadAll);
+    let manager_pid = exec_kernel_with_name_and_caps("core.service", "core.service", caps);
     if manager_pid != 0
         && task::with_process(task::ProcessId::from_u64(manager_pid), |_| ()).is_some()
     {
-        // ブートストラップ:
-        // core.service は capability.service 起動・サービス管理の起点になる。
-        // capability.service が未起動の段階では付与判定を委譲できないため、
-        // 最低限の capability はカーネルが固定で与える。
-        let mut caps = crate::capability::CapabilitySet::empty();
-        caps.insert(crate::capability::Capability::IpcServer);
-        caps.insert(crate::capability::Capability::IpcClient);
-        caps.insert(crate::capability::Capability::ProcessSpawn);
-        caps.insert(crate::capability::Capability::ServiceControl);
-        caps.insert(crate::capability::Capability::SystemInfoRead);
-        // core.service はサービス起動のため /system/services/*.manifest.toml を読む必要がある。
-        // ブートストラップとして読み取り専用の全体権限を与える。
-        caps.insert(crate::capability::Capability::FsReadAll);
-        let _ = crate::task::process::set_process_capabilities(
-            task::ProcessId::from_u64(manager_pid),
-            caps,
-        );
-
         crate::syscall::exec::register_service_manager_pid(manager_pid);
     } else {
         crate::warn!(
@@ -51,11 +42,15 @@ fn kernel_main() -> ! {
     }
 
     if let Some(handoff) = crate::smp::handoff() {
-        handoff
-            .kernel_cr3
-            .store(crate::percpu::kernel_cr3(), Ordering::Release);
+        let kernel_cr3 = crate::percpu::kernel_cr3();
+        let ap_count = handoff.ap_count.load(Ordering::Acquire);
+        handoff.kernel_cr3.store(kernel_cr3, Ordering::Release);
         handoff.ready.store(1, Ordering::Release);
-        crate::info!("SMP handoff released secondary CPUs");
+        crate::info!(
+            "SMP handoff released secondary CPUs: kernel_cr3={:#x} ap_count={}",
+            kernel_cr3,
+            ap_count
+        );
     }
 
     // カーネルはアイドル状態に入る
@@ -89,14 +84,28 @@ pub extern "sysv64" fn secondary_cpu_entry(boot_info: *const BootInfo) -> ! {
         halt_forever();
     };
     crate::smp::set_handoff_addr(boot_info.smp_handoff_addr);
-    crate::info!("Secondary CPU entering kernel");
+    crate::info!(
+        "Secondary CPU entering kernel: boot_info={:#x} handoff={:#x}",
+        boot_info as *const BootInfo as u64,
+        boot_info.smp_handoff_addr
+    );
     crate::cpu::init();
     crate::syscall::syscall_entry::init_syscall_current_cpu();
     if let Some(handoff) = crate::smp::handoff() {
-        handoff.ap_count.fetch_add(1, Ordering::SeqCst);
+        let before = handoff.ap_count.fetch_add(1, Ordering::SeqCst);
+        crate::info!(
+            "Secondary CPU online: ap_count {} -> {}",
+            before,
+            before + 1
+        );
     }
     task::start_scheduling();
 }
+
+#[used]
+#[unsafe(no_mangle)]
+pub static SECONDARY_CPU_ENTRY: unsafe extern "sysv64" fn(*const BootInfo) -> ! =
+    secondary_cpu_entry;
 
 /// カーネルメインプロセスの作成
 fn create_kernel_proc(

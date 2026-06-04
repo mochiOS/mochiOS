@@ -36,9 +36,10 @@ struct ServiceDef {
 
 const CRITICAL_SERVICES: &[ServiceDef] = &[];
 
-const BACKGROUND_SERVICES: &[ServiceDef] = &[
-    ServiceDef { name: "driver.service", path: "/system/services/driver.service" },
-];
+const BACKGROUND_SERVICES: &[ServiceDef] = &[ServiceDef {
+    name: "driver.service",
+    path: "/system/services/driver.service",
+}];
 
 #[cfg(feature = "run_tests")]
 const TEST_PATH: &str = "tests";
@@ -129,13 +130,37 @@ fn fallback_required_caps_for_service(service_base: &str) -> Option<Vec<String>>
     // ここでのリストは plan.md の推奨 / 既存 manifest と一致させる。
     let list: &[&str] = match service_base {
         "capability.service" => &["ipc.server", "system.info.read"],
-        "driver.service" => &["ipc.server", "process.spawn", "device.storage", "device.net", "device.input"],
+        "driver.service" => &[
+            "ipc.server",
+            "process.spawn",
+            "fs.read.all",
+            "device.storage",
+            "device.net",
+            "device.input",
+        ],
         "disk.service" => &["ipc.server", "device.storage"],
-        "process.service" => &["ipc.server", "process.spawn", "process.inspect", "process.kill"],
+        "process.service" => &[
+            "ipc.server",
+            "process.spawn",
+            "process.inspect",
+            "process.kill",
+        ],
         "device.service" => &["ipc.server"],
         "net.service" => &["ipc.server", "device.net", "net.raw"],
-        "window.service" => &["ipc.server", "display.read", "display.capture", "input.pointer.global", "input.keyboard.global"],
-        "shell.service" => &["ipc.server", "display.read", "input.keyboard", "input.pointer", "window.create"],
+        "window.service" => &[
+            "ipc.server",
+            "display.read",
+            "display.capture",
+            "input.pointer.global",
+            "input.keyboard.global",
+        ],
+        "shell.service" => &[
+            "ipc.server",
+            "display.read",
+            "input.keyboard",
+            "input.pointer",
+            "window.create",
+        ],
         _ => return None,
     };
     Some(list.iter().map(|s| s.to_string()).collect())
@@ -144,14 +169,10 @@ fn fallback_required_caps_for_service(service_base: &str) -> Option<Vec<String>>
 fn fast_boot_caps_for_service(path: &str) -> Option<Vec<String>> {
     let service_base = service_name_from_path(path);
     match service_base {
-        "capability.service"
-        | "driver.service"
-        | "disk.service"
-        | "process.service"
-        | "device.service"
-        | "net.service"
-        | "window.service"
-        | "shell.service" => fallback_required_caps_for_service(service_base),
+        "capability.service" | "driver.service" | "disk.service" | "process.service"
+        | "device.service" | "net.service" | "window.service" | "shell.service" => {
+            fallback_required_caps_for_service(service_base)
+        }
         _ => None,
     }
 }
@@ -296,14 +317,21 @@ fn start_background_service(service: &ServiceDef) -> Option<u64> {
             Some(pid)
         }
         Err(errno) => {
-            println!("[CORE] exec failed for {}: errno={}, falling back", service.name, errno);
+            println!(
+                "[CORE] exec failed for {}: errno={}, falling back",
+                service.name, errno
+            );
             start_service(service)
         }
     }
 }
 
 fn wait_for_ready(expected_pids: &[u64]) -> bool {
-    let mut pending: Vec<u64> = expected_pids.iter().copied().filter(|pid| *pid != 0).collect();
+    let mut pending: Vec<u64> = expected_pids
+        .iter()
+        .copied()
+        .filter(|pid| *pid != 0)
+        .collect();
 
     if pending.is_empty() {
         println!("[CORE] WARNING: no critical services to wait for");
@@ -315,7 +343,10 @@ fn wait_for_ready(expected_pids: &[u64]) -> bool {
     let timeout = std::time::Duration::from_secs(20);
     let start = std::time::Instant::now();
 
-    println!("[CORE] Waiting for {} critical service(s) to be ready...", total);
+    println!(
+        "[CORE] Waiting for {} critical service(s) to be ready...",
+        total
+    );
 
     while !pending.is_empty() {
         if start.elapsed() >= timeout {
@@ -507,7 +538,10 @@ fn main() {
             }
         }
         Err(errno) => {
-            println!("[CORE] No services.list (errno={}), falling back to background list", errno);
+            println!(
+                "[CORE] No services.list (errno={}), falling back to background list",
+                errno
+            );
             for service in BACKGROUND_SERVICES {
                 let _ = start_background_service(service);
             }

@@ -12,7 +12,7 @@ required = [
   "display.read",
   "input.keyboard",
   "input.pointer",
-    "fs.read.all",
+  "fs.read.all",
   "window.create"
 ]
 

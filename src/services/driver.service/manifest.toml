@@ -10,6 +10,7 @@ order = 5
 required = [
   "ipc.server",
   "process.spawn",
+    "fs.read.all",
   "device.storage",
   "device.net",
   "device.input"

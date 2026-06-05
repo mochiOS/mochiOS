@@ -34,10 +34,8 @@ const ANSI_COLOR_BRIGHT: [u32; 8] = [
     0x0055_FFFF, // bright cyan
     0x00FF_FFFF, // bright white
 ];
-const FONT_BIN_PATH: &str = "/system/fonts/ter-u12b.bin";
 const FONT_BDF_PATH: &str = "/system/fonts/ter-u12b.bdf";
 const ENV_FILE_PATH: &str = "/config/env.txt";
-const FONT_BIN_SIZE: usize = GLYPH_COUNT * FONT_HEIGHT;
 const FONT_BDF_MAX_SIZE: usize = 512 * 1024;
 const ENV_FILE_MAX_SIZE: usize = 4096;
 const FONT_READ_CHUNK: usize = 512;
@@ -322,27 +320,6 @@ impl Font {
         Font { glyphs }
     }
 
-    fn load_from_binary() -> Option<Self> {
-        match read_file_from_fs(FONT_BIN_PATH, FONT_BIN_SIZE) {
-            Some(data) => {
-                if data.len() < FONT_BIN_SIZE {
-                    println!("[SHELL] Font binary too small: {} bytes", data.len());
-                    return None;
-                }
-                let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
-                for (i, glyph) in glyphs.iter_mut().enumerate() {
-                    let start = i * FONT_HEIGHT;
-                    glyph.copy_from_slice(&data[start..start + FONT_HEIGHT]);
-                }
-                Some(Font { glyphs })
-            }
-            None => {
-                println!("[SHELL] Font binary not found or read failed: {}", FONT_BIN_PATH);
-                None
-            }
-        }
-    }
-
     fn load_from_bdf() -> Option<Self> {
         match read_file_from_fs(FONT_BDF_PATH, FONT_BDF_MAX_SIZE) {
             Some(data) => {
@@ -357,11 +334,8 @@ impl Font {
         }
     }
 
-    /// `system/fonts/ter-u12b.bin` を優先し、失敗時はBDFを解析する
+    /// `system/fonts/ter-u12b.bdf` を直接読み込む
     pub fn load() -> Option<Self> {
-        if let Some(font) = Self::load_from_binary() {
-            return Some(font);
-        }
         if let Some(font) = Self::load_from_bdf() {
             return Some(font);
         }

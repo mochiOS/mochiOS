@@ -1,17 +1,18 @@
 use crate::ipc_proto::*;
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
-use swiftlib::{
+use mochi_syscall::{
     ipc::{ipc_recv, ipc_send},
     task::{find_process_by_name, yield_now},
 };
+use mochi_syscall::user_space::looks_like_user_mapping;
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 const KAGAMI_PROCESS_CANDIDATES: [&str; 3] =
     ["/applications/Kagami.app/entry.elf", "Kagami.app", "entry.elf"];
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
-const IPC_BUF_SIZE: usize = 4128;
+const IPC_BUF_SIZE: usize = mochi_syscall::ipc::MAX_MSG_SIZE;
 
 /// A small Kagami window client for UI apps.
 pub struct Window {
@@ -82,7 +83,10 @@ impl Window {
             // Prefer shared-memory present when available; fall back to chunked IPC.
             if let Some(shared) = self.shared.as_mut() {
                 // If shared mapping looks wrong, disable it and fall back to chunked IPC.
-                if !looks_like_user_mapping(shared.virt_addr, shared.mapped_bytes) {
+                if !mochi_syscall::user_space::looks_like_user_mapping(
+                    shared.virt_addr,
+                    shared.mapped_bytes,
+                ) {
                     self.shared = None;
                 } else {
                     blit_shared(shared, pixels);
@@ -108,45 +112,9 @@ impl Window {
 }
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
-const MAP_HEADER_MAGIC: u32 = 0xABCD_DCBA;
-#[cfg(all(target_os = "linux", target_env = "musl"))]
-const USER_SPACE_END: u64 = 0x0000_7FFF_FFFF_FFFF;
-#[cfg(all(target_os = "linux", target_env = "musl"))]
-// Kernel IPC page mapping places external pages at/above this floor (see `map_external_pages_for_receiver`).
-const USER_MAP_FLOOR: u64 = 0x7100_0000_0000;
-
-#[cfg(all(target_os = "linux", target_env = "musl"))]
 struct SharedSurface {
     virt_addr: u64,
     mapped_bytes: usize,
-}
-
-#[cfg(all(target_os = "linux", target_env = "musl"))]
-fn looks_like_user_mapping(addr: u64, bytes: usize) -> bool {
-    if addr == 0 {
-        return false;
-    }
-    if addr < USER_MAP_FLOOR {
-        return false;
-    }
-    // must be canonical low-half user space
-    if addr > USER_SPACE_END {
-        return false;
-    }
-    // page-aligned mapping start is expected
-    if (addr & 0xFFF) != 0 {
-        return false;
-    }
-    // sanity: require at least one page
-    if bytes < 4096 {
-        return false;
-    }
-    // avoid overflow and ensure end is also in user range
-    let end = match addr.checked_add(bytes.saturating_sub(1) as u64) {
-        Some(e) => e,
-        None => return false,
-    };
-    end <= USER_SPACE_END
 }
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
@@ -171,7 +139,7 @@ fn create_window(kagami_tid: u64, width: u16, height: u16, layer: u8) -> Result<
     if (ipc_send(kagami_tid, &req) as i64) < 0 {
         return Err("send create_window failed");
     }
-    let mut recv = [0u8; 4096];
+    let mut recv = [0u8; IPC_BUF_SIZE];
     for _ in 0..256 {
         let (sender, len) = ipc_recv(&mut recv);
         if sender != kagami_tid || len < 8 {
@@ -223,7 +191,7 @@ fn setup_shared_surface(
         // MAP_HEADER_MAGIC: [magic:u32][map_start:u64][total:u64] (20 bytes)
         if sender == kagami_tid && (len as usize) == 20 {
             let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
-            if magic == MAP_HEADER_MAGIC {
+            if magic == mochi_syscall::ipc::MAP_HEADER_MAGIC {
                 map_start = Some(u64::from_le_bytes([
                     recv[4], recv[5], recv[6], recv[7], recv[8], recv[9], recv[10], recv[11],
                 ]));

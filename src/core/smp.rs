@@ -4,7 +4,7 @@ use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use spin::Once;
 use x86_64::registers::model_specific::{ApicBase, ApicBaseFlags};
-use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame};
+use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::{BootInfo, SmpHandoff};
@@ -114,7 +114,7 @@ __mochi_ap_trampoline_lm64_entry:
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov rbx, 0x1122334455667788
+    lea rbx, [rip + __mochi_ap_trampoline_stack_top]
     mov rsp, qword ptr [rbx]
     sub rsp, 8
     mov rdi, qword ptr [rbx + 8]
@@ -403,30 +403,30 @@ pub fn start_ap(apic_id: u32, vector: u8) -> bool {
     }
 }
 
-unsafe fn write_trampoline_field(base_phys: u64, offset: usize, value: u64) {
-    let ptr = (base_phys + offset as u64) as *mut u64;
-    ptr::write_volatile(ptr, value);
+unsafe fn write_trampoline_field(base_virt: u64, offset: usize, value: u64) {
+    let ptr = (base_virt + offset as u64) as *mut u64;
+    ptr::write_unaligned(ptr, value);
 }
 
-unsafe fn patch_trampoline_u16(base_phys: u64, instr_offset: usize, value: u16) {
-    let ptr = (base_phys + instr_offset as u64 + 1) as *mut u16;
-    ptr::write_volatile(ptr, value);
+unsafe fn patch_trampoline_u16(base_virt: u64, instr_offset: usize, value: u16) {
+    let ptr = (base_virt + instr_offset as u64 + 1) as *mut u16;
+    ptr::write_unaligned(ptr, value);
 }
 
-unsafe fn patch_trampoline_u32(base_phys: u64, instr_offset: usize, value: u32) {
-    let ptr = (base_phys + instr_offset as u64 + 1) as *mut u32;
-    ptr::write_volatile(ptr, value);
+unsafe fn patch_trampoline_u32(base_virt: u64, instr_offset: usize, value: u32) {
+    let ptr = (base_virt + instr_offset as u64 + 1) as *mut u32;
+    ptr::write_unaligned(ptr, value);
 }
 
-unsafe fn patch_trampoline_u64(base_phys: u64, instr_offset: usize, value: u64) {
-    let ptr = (base_phys + instr_offset as u64 + 2) as *mut u64;
-    ptr::write_volatile(ptr, value);
+unsafe fn patch_trampoline_u64(base_virt: u64, instr_offset: usize, value: u64) {
+    let ptr = (base_virt + instr_offset as u64 + 2) as *mut u64;
+    ptr::write_unaligned(ptr, value);
 }
 
-unsafe fn write_trampoline_gdtr(base_phys: u64, gdtr_offset: usize, gdt_phys: u64) {
-    let gdtr_ptr = (base_phys + gdtr_offset as u64) as *mut u8;
-    ptr::write_volatile(gdtr_ptr as *mut u16, ((4 * 8) - 1) as u16);
-    ptr::write_volatile(gdtr_ptr.add(2) as *mut u32, gdt_phys as u32);
+unsafe fn write_trampoline_gdtr(base_virt: u64, gdtr_offset: usize, gdt_phys: u64) {
+    let gdtr_ptr = (base_virt + gdtr_offset as u64) as *mut u8;
+    ptr::write_unaligned(gdtr_ptr as *mut u16, ((4 * 8) - 1) as u16);
+    ptr::write_unaligned(gdtr_ptr.add(2) as *mut u32, gdt_phys as u32);
 }
 
 unsafe fn install_trampoline(boot_info: &'static BootInfo) -> Option<()> {
@@ -450,13 +450,6 @@ unsafe fn install_trampoline(boot_info: &'static BootInfo) -> Option<()> {
     let trampoline_virt = trampoline_phys + phys_off;
     let dst = trampoline_virt as *mut u8;
     ptr::copy_nonoverlapping(template.as_ptr(), dst, layout.size);
-
-    let page = Page::containing_address(VirtAddr::new(trampoline_phys));
-    let frame = PhysFrame::containing_address(PhysAddr::new(trampoline_phys));
-    let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-    if let Err(e) = crate::mem::paging::map_page(page, frame, flags) {
-        crate::warn!("Failed to map AP trampoline page: {:?}", e);
-    }
 
     let kernel_cr3 = handoff()?.kernel_cr3.load(Ordering::Acquire);
     let entry_ptr = handoff()?.kernel_secondary_entry.load(Ordering::Acquire);
@@ -497,12 +490,6 @@ unsafe fn install_trampoline(boot_info: &'static BootInfo) -> Option<()> {
         layout.lm64_jump_off,
         (trampoline_phys + layout.lm64_entry_off as u64) as u32,
     );
-    patch_trampoline_u64(
-        trampoline_virt,
-        layout.lm64_entry_off,
-        trampoline_phys + layout.stack_top_off as u64,
-    );
-
     write_trampoline_field(trampoline_virt, layout.kernel_cr3_off, kernel_cr3);
     write_trampoline_field(trampoline_virt, layout.boot_info_ptr_off, boot_info_ptr);
     write_trampoline_field(
@@ -563,9 +550,26 @@ pub fn start_secondary_cpus() {
         crate::warn!("AP trampoline not installed");
         return;
     }
+    let phys_off = crate::mem::paging::physical_memory_offset().unwrap_or(0);
+    let trampoline_virt = trampoline_phys + phys_off;
     let trampoline_size = TRAMPOLINE_SIZE.load(Ordering::Acquire);
     let layout = trampoline_layout();
     let vector = (trampoline_phys >> 12) as u8;
+
+    let trampoline_page = Page::<Size4KiB>::containing_address(VirtAddr::new(trampoline_phys));
+    let trampoline_frame = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(trampoline_phys));
+    if let Err(err) = crate::mem::paging::map_page(
+        trampoline_page,
+        trampoline_frame,
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+    ) {
+        crate::warn!(
+            "Failed to identity-map AP trampoline page at {:#x}: {:?}",
+            trampoline_phys,
+            err
+        );
+        return;
+    }
 
     let bsp_apic_id = boot_info.bsp_apic_id;
     let cpu_count = boot_info.cpu_apic_id_count.min(crate::MAX_CPU_IDS);
@@ -604,7 +608,7 @@ pub fn start_secondary_cpus() {
         );
 
         unsafe {
-            write_trampoline_field(trampoline_phys, layout.stack_top_off, stack_top);
+            write_trampoline_field(trampoline_virt, layout.stack_top_off, stack_top);
         }
         if !start_ap(apic_id, vector) {
             crate::warn!("APIC IPI start failed for APIC ID {}", apic_id);

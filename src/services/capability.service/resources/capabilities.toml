@@ -237,3 +237,12 @@ description = "プロファイリング機能へアクセスする"
 
 [capabilities.developer.tracing]
 description = "トレース機能へアクセスする"
+
+[policy]
+default_risk = "sensitive"
+trusted_services = "core.service,capability.service,driver.service,disk.service,process.service,device.service,net.service,window.service,shell.service"
+
+[policy.risk]
+normal = "ipc.client,ipc.server,process.spawn,process.inspect,fs.read.user.documents,fs.write.user.documents,window.create,audio.playback,notification.send,system.time.read,system.info.read,account.self.read"
+privileged = "fs.read.all,fs.write.all,net.raw,process.kill,service.register,service.control,package.install,package.remove,package.update,device.storage,device.gpu,device.input,device.audio,device.net,system.time.set,system.logs.read"
+dangerous = "kernel.module.load,kernel.debug,unsandboxed,developer.debug,developer.profile,developer.tracing"

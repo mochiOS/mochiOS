@@ -6,8 +6,6 @@ extern crate alloc;
 mod console;
 
 use core::ptr::addr_of_mut;
-use core::sync::atomic::Ordering;
-use core::time::Duration;
 use mochios::{BootInfo, MemoryRegion, MemoryType, SmpHandoff, MAX_CPU_IDS};
 use uefi::prelude::*;
 use uefi::proto::console::gop::GraphicsOutput;
@@ -67,6 +65,8 @@ static mut BOOT_INFO: BootInfo = BootInfo {
     cpu_apic_id_count: 0,
     smp_handoff_addr: 0,
     smp_handoff_size: 0,
+    smp_trampoline_addr: 0,
+    smp_trampoline_size: 0,
 };
 
 static mut SMP_HANDOFF: SmpHandoff = SmpHandoff::new();
@@ -149,10 +149,57 @@ const DT_RELASZ: i64 = 8;
 const DT_RELAENT: i64 = 9;
 const READ_CHUNK_BYTES: usize = 64 * 1024;
 const PAGE_SIZE: u64 = 0x1000;
+const AP_TRAMPOLINE_BYTES: usize = 0x1000;
+const AP_TRAMPOLINE_LIMIT: u64 = 0x100000;
 
 #[inline]
 fn align_up(value: u64, align: u64) -> u64 {
     (value + align - 1) & !(align - 1)
+}
+
+unsafe fn allocate_ap_trampoline(bt: &BootServices) -> Option<u64> {
+    let mmap = bt.memory_map(UefiMemType::LOADER_DATA).ok()?;
+    let mut candidate = None;
+
+    for desc in mmap.entries() {
+        if desc.ty != UefiMemType::CONVENTIONAL {
+            continue;
+        }
+        let region_start = align_up(desc.phys_start, PAGE_SIZE);
+        let region_end = core::cmp::min(
+            desc.phys_start + desc.page_count * PAGE_SIZE,
+            AP_TRAMPOLINE_LIMIT,
+        );
+        if region_end <= region_start || region_end - region_start < PAGE_SIZE {
+            continue;
+        }
+        let mut addr = region_end - PAGE_SIZE;
+        loop {
+            if addr < region_start {
+                break;
+            }
+            if bt
+                .allocate_pages(
+                    AllocateType::Address(addr),
+                    UefiMemType::LOADER_DATA,
+                    1,
+                )
+                .is_ok()
+            {
+                candidate = Some(addr);
+                break;
+            }
+            if addr < PAGE_SIZE {
+                break;
+            }
+            addr -= PAGE_SIZE;
+        }
+        if candidate.is_some() {
+            break;
+        }
+    }
+
+    candidate
 }
 
 unsafe fn find_elf_symbol_in_file(
@@ -348,122 +395,6 @@ unsafe fn populate_cpu_info(bt: &BootServices) {
         "BSP APIC ID={} APIC list count={}",
         bsp_apic_id, cpu_apic_id_count
     );
-}
-
-unsafe fn launch_secondary_cpus(
-    bt: &BootServices,
-    boot_info_ptr: *mut BootInfo,
-    secondary_entry: u64,
-) {
-    if secondary_entry == 0 {
-        println!("secondary_cpu_entry unavailable; skipping AP startup");
-        return;
-    }
-    if BOOT_INFO.cpu_enabled <= 1 {
-        let cpu_enabled = BOOT_INFO.cpu_enabled;
-        println!(
-            "single CPU detected (enabled={}); skipping AP startup",
-            cpu_enabled
-        );
-        return;
-    }
-
-    let handle = match bt.get_handle_for_protocol::<MpServices>() {
-        Ok(handle) => handle,
-        Err(_) => {
-            println!("MpServices unavailable; secondary CPUs remain offline");
-            return;
-        }
-    };
-
-    let mp = match bt.open_protocol_exclusive::<MpServices>(handle) {
-        Ok(mp) => mp,
-        Err(e) => {
-            println!("MpServices open failed for AP start: {:?}", e.status());
-            return;
-        }
-    };
-
-    let handoff = addr_of_mut!(SMP_HANDOFF);
-    unsafe {
-        (*handoff)
-            .boot_info_ptr
-            .store(boot_info_ptr as u64, Ordering::Release);
-        (*handoff)
-            .kernel_secondary_entry
-            .store(secondary_entry, Ordering::Release);
-        (*handoff).kernel_cr3.store(0, Ordering::Release);
-        (*handoff).ready.store(0, Ordering::Release);
-        (*handoff).ap_count.store(0, Ordering::Release);
-    }
-    let cpu_total = BOOT_INFO.cpu_total;
-    let cpu_enabled = BOOT_INFO.cpu_enabled;
-    println!(
-        "Starting APs: total={} enabled={} secondary_entry={:#x} boot_info_ptr={:#x} handoff={:#x}",
-        cpu_total, cpu_enabled, secondary_entry, boot_info_ptr as u64, handoff as u64
-    );
-
-    let handoff_ptr = handoff as *mut core::ffi::c_void;
-    match mp.startup_all_aps(
-        false,
-        ap_bootstrap,
-        handoff_ptr,
-        None,
-        Some(Duration::from_millis(10)),
-    ) {
-        Ok(()) => println!("AP startup completed"),
-        Err(e) => {
-            if e.status() == Status::TIMEOUT {
-                println!("AP startup timed out; continuing boot");
-            } else {
-                println!("AP startup failed: {:?}", e.status());
-            }
-        }
-    }
-}
-
-extern "efiapi" fn ap_bootstrap(arg: *mut core::ffi::c_void) {
-    println!("AP bootstrap entered: arg={:#x}", arg as u64);
-    let handoff = unsafe { &*(arg as *const SmpHandoff) };
-    loop {
-        if handoff.ready.load(Ordering::Acquire) != 0 {
-            break;
-        }
-        core::hint::spin_loop();
-    }
-    println!(
-        "AP bootstrap released: boot_info_ptr={:#x} secondary_entry={:#x} kernel_cr3={:#x}",
-        handoff.boot_info_ptr.load(Ordering::Acquire),
-        handoff.kernel_secondary_entry.load(Ordering::Acquire),
-        handoff.kernel_cr3.load(Ordering::Acquire)
-    );
-
-    let boot_info_ptr = handoff.boot_info_ptr.load(Ordering::Acquire) as *const BootInfo;
-    let secondary_entry = handoff.kernel_secondary_entry.load(Ordering::Acquire);
-    let kernel_cr3 = handoff.kernel_cr3.load(Ordering::Acquire);
-    println!(
-        "AP handoff: boot_info_ptr={:#x} secondary_entry={:#x} kernel_cr3={:#x}",
-        boot_info_ptr as u64, secondary_entry, kernel_cr3
-    );
-    if boot_info_ptr.is_null() || secondary_entry == 0 {
-        loop {
-            x86_64::instructions::hlt();
-        }
-    }
-
-    if kernel_cr3 == 0 {
-        loop {
-            x86_64::instructions::hlt();
-        }
-    }
-
-    mochios::mem::paging::switch_page_table(kernel_cr3);
-    println!("AP page table switched");
-
-    let entry: unsafe extern "sysv64" fn(*const BootInfo) -> ! =
-        unsafe { core::mem::transmute(secondary_entry) };
-    println!("AP jumping to secondary_cpu_entry={:#x}", secondary_entry);
-    unsafe { entry(boot_info_ptr) }
 }
 
 #[inline]
@@ -1014,7 +945,22 @@ unsafe fn main(image_handle: Handle, mut system_table: SystemTable<Boot>) -> Sta
         let bt = system_table.boot_services();
         unsafe {
             populate_cpu_info(bt);
-            launch_secondary_cpus(bt, addr_of_mut!(BOOT_INFO), kernel_entry_addrs.1);
+            let trampoline_addr = allocate_ap_trampoline(bt).unwrap_or(0);
+            let trampoline_size = if trampoline_addr != 0 {
+                AP_TRAMPOLINE_BYTES
+            } else {
+                0
+            };
+            BOOT_INFO.smp_trampoline_addr = trampoline_addr;
+            BOOT_INFO.smp_trampoline_size = trampoline_size;
+            if trampoline_addr != 0 {
+                println!(
+                    "AP trampoline reserved at {:#x} ({} bytes)",
+                    trampoline_addr, trampoline_size
+                );
+            } else {
+                println!("AP trampoline reservation failed; SMP startup will be disabled");
+            }
         }
     }
 

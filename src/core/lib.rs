@@ -145,6 +145,10 @@ pub struct BootInfo {
     pub smp_handoff_addr: u64,
     /// SMP ハンドオフ構造体のサイズ
     pub smp_handoff_size: usize,
+    /// AP 起動用トランポリンの物理アドレス
+    pub smp_trampoline_addr: u64,
+    /// AP 起動用トランポリンのサイズ
+    pub smp_trampoline_size: usize,
 }
 
 /// メモリ領域の種類

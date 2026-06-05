@@ -26,8 +26,6 @@ fn kernel_main() -> ! {
     caps.insert(crate::capability::Capability::ProcessSpawn);
     caps.insert(crate::capability::Capability::ServiceControl);
     caps.insert(crate::capability::Capability::SystemInfoRead);
-    // core.service はサービス起動のため /system/services/*.manifest.toml を読む必要がある。
-    // ブートストラップとして読み取り専用の全体権限を与える。
     caps.insert(crate::capability::Capability::FsReadAll);
     let manager_pid = exec_kernel_with_name_and_caps("core.service", "core.service", caps);
     if manager_pid != 0
@@ -43,15 +41,21 @@ fn kernel_main() -> ! {
 
     if let Some(handoff) = crate::smp::handoff() {
         let kernel_cr3 = crate::percpu::kernel_cr3();
+        let secondary_entry = secondary_cpu_entry as *const () as usize as u64;
         let ap_count = handoff.ap_count.load(Ordering::Acquire);
         handoff.kernel_cr3.store(kernel_cr3, Ordering::Release);
+        handoff
+            .kernel_secondary_entry
+            .store(secondary_entry, Ordering::Release);
         handoff.ready.store(1, Ordering::Release);
-        crate::info!(
+        info!(
             "SMP handoff released secondary CPUs: kernel_cr3={:#x} ap_count={}",
             kernel_cr3,
             ap_count
         );
     }
+
+    crate::smp::start_secondary_cpus();
 
     // カーネルはアイドル状態に入る
     info!("Kernel initialization complete. Entering idle loop...");

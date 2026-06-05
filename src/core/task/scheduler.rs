@@ -552,11 +552,25 @@ pub fn start_scheduling() -> ! {
                     );
                     scheduler().lock().set_time_slice(first_slice.max(1));
                 }
-                let first_slot = THREAD_QUEUE
-                    .lock()
-                    .slot_index(first_id)
-                    .expect("First thread must exist in queue");
-                switch_to_thread_with_slots(None, None, first_id, first_slot);
+                let first_slot = {
+                    let queue = THREAD_QUEUE.lock();
+                    queue.slot_index(first_id)
+                };
+                match first_slot {
+                    Some(first_slot) => {
+                        switch_to_thread_with_slots(None, None, first_id, first_slot);
+                    }
+                    None => {
+                        crate::audit::log(
+                            crate::audit::AuditEventKind::Fault,
+                            "start_scheduling could not resolve first thread slot",
+                        );
+                        x86_64::instructions::interrupts::disable();
+                        loop {
+                            x86_64::instructions::hlt();
+                        }
+                    }
+                }
             }
         });
 

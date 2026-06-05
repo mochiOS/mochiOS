@@ -24,6 +24,7 @@ static KERNEL_ALLOCATOR: HardenedKernelHeap = HardenedKernelHeap::empty();
 pub unsafe extern "sysv64" fn kernel_entry(boot_info_ptr: *mut mochios::BootInfo) -> ! {
     // kernel_heap_addr = &KERNEL_ALLOCATOR（init_heap がここを初期化する）
     (*boot_info_ptr).kernel_heap_addr = &KERNEL_ALLOCATOR as *const HardenedKernelHeap as u64;
+    mochios::smp::set_boot_info_addr(boot_info_ptr as u64);
 
     // ブートローダーがロードした initfs イメージを fs モジュールに設定
     mochios::init::fs::set_image((*boot_info_ptr).initfs_addr, (*boot_info_ptr).initfs_size);

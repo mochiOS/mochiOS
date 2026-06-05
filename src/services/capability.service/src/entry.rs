@@ -60,7 +60,11 @@ fn main() {
     println!("[CAP] capability.service started");
 
     let registry = CapabilityRegistry::load();
-    println!("[CAP] registry loaded: {} entries", registry.len());
+    println!(
+        "[CAP] registry loaded: {} entries, bootstrap_trusted={}",
+        registry.len(),
+        registry.trusted_services_len()
+    );
 
     let allow_db = AllowDb::load_from_config();
     println!(
@@ -183,7 +187,13 @@ fn main() {
                         if !registry.contains(&cap) {
                             continue;
                         }
-                        if policy::should_grant(subject_type, &subject_id, &cap, &allow_db) {
+                        if policy::should_grant(
+                            subject_type,
+                            &subject_id,
+                            &cap,
+                            &allow_db,
+                            &registry,
+                        ) {
                             granted.push(cap);
                         }
                     }

@@ -34,7 +34,10 @@ struct ServiceDef {
     path: &'static str,
 }
 
-const CRITICAL_SERVICES: &[ServiceDef] = &[];
+const CRITICAL_SERVICES: &[ServiceDef] = &[ServiceDef {
+    name: "capability.service",
+    path: "/system/services/capability.service",
+}];
 
 const BACKGROUND_SERVICES: &[ServiceDef] = &[ServiceDef {
     name: "driver.service",
@@ -77,6 +80,25 @@ fn parse_service_id_and_required_caps(manifest_text: &str) -> Option<(String, Ve
     let mut service_id: Option<String> = None;
     let mut required: Vec<String> = Vec::new();
 
+    fn push_caps_from_inline_list(target: &mut Vec<String>, rhs: &str) {
+        let trimmed = rhs.trim();
+        let Some(start) = trimmed.find('[') else {
+            return;
+        };
+        let Some(end) = trimmed.rfind(']') else {
+            return;
+        };
+        if end <= start {
+            return;
+        }
+        for item in trimmed[start + 1..end].split(',') {
+            let cap = item.trim().trim_matches('"').trim_matches('\'');
+            if !cap.is_empty() {
+                target.push(cap.to_string());
+            }
+        }
+    }
+
     for raw in manifest_text.lines() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
@@ -116,7 +138,14 @@ fn parse_service_id_and_required_caps(manifest_text: &str) -> Option<(String, Ve
                     required.push(v.to_string());
                 }
             } else if line.starts_with("required") && line.contains('[') {
-                collecting_required = true;
+                let closes_inline = line.rfind(']').is_some_and(|end| {
+                    line.find('[').is_some_and(|start| end > start + 1)
+                });
+                if closes_inline {
+                    push_caps_from_inline_list(&mut required, line);
+                } else {
+                    collecting_required = true;
+                }
             }
         }
     }
@@ -144,6 +173,7 @@ fn fallback_required_caps_for_service(service_base: &str) -> Option<Vec<String>>
             "process.spawn",
             "process.inspect",
             "process.kill",
+            "fs.read.all",
         ],
         "device.service" => &["ipc.server"],
         "net.service" => &["ipc.server", "device.net", "net.raw"],
@@ -159,6 +189,7 @@ fn fallback_required_caps_for_service(service_base: &str) -> Option<Vec<String>>
             "display.read",
             "input.keyboard",
             "input.pointer",
+            "fs.read.all",
             "window.create",
         ],
         _ => return None,

@@ -302,21 +302,25 @@ fn ensure_audit_log_file(fs_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn copy_kernel_config_to_ramfs(fs_dir: &Path, ramfs_dir: &Path) -> Result<(), String> {
-    let src = fs_dir.join("config").join("kernel.conf");
-    let dst_dir = ramfs_dir.join("config");
-    fs::create_dir_all(&dst_dir)
-        .map_err(|e| format!("Failed to create {}: {}", dst_dir.display(), e))?;
-    let dst = dst_dir.join("kernel.conf");
-    fs::copy(&src, &dst).map_err(|e| {
+fn copy_apps_autostart_config(
+    manifest_dir: &Path,
+    fs_dir: &Path,
+) -> Result<(), String> {
+    let src = manifest_dir.join("src/resources/config/autostart.list");
+    let fs_dst_dir = fs_dir.join("config");
+    fs::create_dir_all(&fs_dst_dir)
+        .map_err(|e| format!("Failed to create {}: {}", fs_dst_dir.display(), e))?;
+
+    let fs_dst = fs_dst_dir.join("autostart.list");
+    fs::copy(&src, &fs_dst).map_err(|e| {
         format!(
             "Failed to copy {} to {}: {}",
             src.display(),
-            dst.display(),
+            fs_dst.display(),
             e
         )
     })?;
-    println!("Copied kernel config to {}", dst.display());
+    println!("Copied app autostart config to {}", fs_dst.display());
     Ok(())
 }
 
@@ -495,8 +499,8 @@ fn main() {
     let resources_src = manifest_dir.join("src/resources");
     setup_fs_layout(&fs_dir, &resources_src)
         .unwrap_or_else(|e| println!("cargo:warning=setup_fs_layout failed: {}", e));
-    copy_kernel_config_to_ramfs(&fs_dir, &ramfs_dir)
-        .expect("Failed to copy kernel config into initfs");
+    copy_apps_autostart_config(&manifest_dir, &fs_dir)
+        .expect("Failed to copy apps autostart config");
 
     // newlibのインストールディレクトリを取得
     let target = env::var("TARGET").unwrap_or("x86_64-unknown-uefi".to_string());

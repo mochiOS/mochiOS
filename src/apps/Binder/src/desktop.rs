@@ -88,6 +88,7 @@ pub fn draw() {
             return;
         }
     };
+    println!("[Binder] kagami_tid={}", kagami_tid);
 
     // Determine screen size (fall back to 800x600)
     let (width_u16, height_u16) = match vga::get_info() {
@@ -166,10 +167,13 @@ pub fn draw() {
 }
 
 fn launch_dock() {
-    let dock_path = "/applications/Dock.app/entry.elf";
-    match process::exec(dock_path) {
+    let dock_bundle = "/applications/Dock.app";
+    match process::exec_app_via_process_service(dock_bundle) {
         Ok(pid) => println!("[Binder] launched Dock pid={}", pid),
-        Err(_) => eprintln!("[Binder] failed to exec {}", dock_path),
+        Err(errno) => eprintln!(
+            "[Binder] failed to launch {} via process.service: errno={}",
+            dock_bundle, errno
+        ),
     }
 }
 
@@ -543,7 +547,9 @@ fn create_app_window(kagami_tid: u64, width: u16, height: u16) -> Result<u32, &'
     req[4..6].copy_from_slice(&width.to_le_bytes());
     req[6..8].copy_from_slice(&height.to_le_bytes());
     req[8] = LAYER_APP;
-    if (ipc_send(kagami_tid, &req) as i64) < 0 {
+    let send_rc = ipc_send(kagami_tid, &req) as i64;
+    if send_rc < 0 {
+        eprintln!("[Binder] ipc_send create_window rc={}", send_rc);
         return Err("send create_window failed");
     }
     let mut recv = [0u8; IPC_BUF_SIZE];

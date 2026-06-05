@@ -1,4 +1,4 @@
-use mochi_syscall::{ipc::ipc_recv, keyboard, privileged, process, time, vga};
+use mochi_syscall::{ipc::ipc_recv, keyboard, privileged, process, task, time, vga};
 
 const IPC_BUF_SIZE: usize = mochi_syscall::ipc::MAX_MSG_SIZE;
 const OP_REQ_CREATE_WINDOW: u32 = 1;
@@ -51,6 +51,7 @@ fn main() {
         "[Kagami] fb info: width={} height={} stride={} fb_ptr={:p}",
         info.width, info.height, info.stride, fb_ptr
     );
+    println!("[Kagami] tid={}", task::gettid());
 
     // 背景色で塗りつぶし（ARGB, 常に不透明で書き込む）
     let background: u32 = 0xFF1F_1F1F;
@@ -62,11 +63,13 @@ fn main() {
         }
     }
 
-    // Launch Binder (desktop shell) automatically.
-    let binder_path = "/applications/Binder.app/entry.elf";
-    match process::exec(binder_path) {
+    let binder_bundle = "/applications/Binder.app";
+    match process::exec_app_via_process_service(binder_bundle) {
         Ok(pid) => println!("[Kagami] launched Binder pid={}", pid),
-        Err(()) => println!("[Kagami] failed to exec {}", binder_path),
+        Err(errno) => println!(
+            "[Kagami] failed to launch {} via process.service: errno={}",
+            binder_bundle, errno
+        ),
     }
 
     println!("[Kagami] ready (press 'e' to launch test_client)");

@@ -329,7 +329,7 @@ fn exec_internal(
 ) -> u64 {
     let mut process_name = name_override
         .map(|s| s.to_string())
-        .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path).to_string());
+        .unwrap_or_else(|| derive_process_name(path));
     if let Some(alias) = crate::task::process::driver_alias_for_path(path) {
         process_name = alias;
     }
@@ -340,6 +340,22 @@ fn exec_internal(
         crate::warn!("exec: file not found: {}", path);
         crate::syscall::types::ENOENT
     }
+}
+
+fn derive_process_name(path: &str) -> String {
+    let normalized = path.trim_end_matches('/');
+    if let Some(bundle_path) = normalized.strip_suffix("/entry.elf") {
+        if let Some(bundle_name) = bundle_path.rsplit('/').next() {
+            if bundle_name.ends_with(".app") && !bundle_name.is_empty() {
+                return bundle_name.to_string();
+            }
+        }
+    }
+    normalized
+        .rsplit('/')
+        .next()
+        .unwrap_or(normalized)
+        .to_string()
 }
 
 /// Exec by streaming image with zero-copy frame transfer when possible.

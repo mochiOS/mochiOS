@@ -93,8 +93,14 @@ pub extern "sysv64" fn secondary_cpu_entry(boot_info: *const BootInfo) -> ! {
         boot_info as *const BootInfo as u64,
         boot_info.smp_handoff_addr
     );
+    crate::mem::gdt::init();
+    crate::info!("Secondary CPU GDT/TSS initialized");
+    crate::interrupt::init_idt();
+    crate::info!("Secondary CPU IDT initialized");
     crate::cpu::init();
+    crate::info!("Secondary CPU CPU features initialized");
     crate::syscall::syscall_entry::init_syscall_current_cpu();
+    crate::info!("Secondary CPU syscall state initialized");
     if let Some(handoff) = crate::smp::handoff() {
         let before = handoff.ap_count.fetch_add(1, Ordering::SeqCst);
         crate::info!(
@@ -103,6 +109,7 @@ pub extern "sysv64" fn secondary_cpu_entry(boot_info: *const BootInfo) -> ! {
             before + 1
         );
     }
+    crate::info!("Secondary CPU entering scheduler");
     task::start_scheduling();
 }
 

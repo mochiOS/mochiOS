@@ -25,7 +25,7 @@ smithay-client-toolkit = { version = "0.20.0", optional = true }
 viewkit_macros = { path = "macros" }
 
 [target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
-swiftlib = { path = "../../user", features = ["std-support"] }
+mochi_syscall = { path = "../../user", features = ["std-support"] }
 
 [lib]
 name = "viewkit"

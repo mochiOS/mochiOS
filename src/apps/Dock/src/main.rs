@@ -68,8 +68,8 @@ fn main() {
             // Enter (press)
             if sc == 0x1C {
                 if let Some((app, _icon)) = apps.get(sel) {
-                    let path = format!("/applications/{}/entry.elf", app);
-                    match process::exec_with_args(&path, &[]) {
+                    let path = format!("/applications/{}", app);
+                    match process::exec_app_via_process_service(&path) {
                         Ok(pid) => println!("[Dock] launched {} pid={}", app, pid),
                         Err(_) => eprintln!("[Dock] failed to launch {}", app),
                     }

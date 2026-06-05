@@ -5,6 +5,7 @@ use mochi_syscall::time;
 
 /// READY通知OPコード
 const OP_NOTIFY_READY: u64 = 0xFF;
+const APPS_CONFIG_PATH: &str = "/config/autostart.list";
 
 /// capability.service の GrantForExec
 const OP_CAP_GRANT_FOR_EXEC: u64 = 3;
@@ -66,6 +67,21 @@ fn find_capability_service_pid() -> Option<u64> {
     task::find_process_by_name("capability.service")
 }
 
+fn normalize_app_entry(line: &str) -> Option<String> {
+    let line = line.trim();
+    if line.is_empty() || line.starts_with('#') {
+        return None;
+    }
+    if let Some((_, path)) = line.split_once('=') {
+        let path = path.trim();
+        if !path.is_empty() {
+            return Some(path.to_string());
+        }
+        return None;
+    }
+    Some(line.to_string())
+}
+
 fn parse_app_manifest(manifest_text: &str) -> Option<(String, String, Vec<String>)> {
     // 期待形式:
     // [app]
@@ -80,6 +96,25 @@ fn parse_app_manifest(manifest_text: &str) -> Option<(String, String, Vec<String
     let mut app_id: Option<String> = None;
     let mut entry: Option<String> = None;
     let mut required: Vec<String> = Vec::new();
+
+    fn push_caps_from_inline_list(target: &mut Vec<String>, rhs: &str) {
+        let trimmed = rhs.trim();
+        let Some(start) = trimmed.find('[') else {
+            return;
+        };
+        let Some(end) = trimmed.rfind(']') else {
+            return;
+        };
+        if end <= start {
+            return;
+        }
+        for item in trimmed[start + 1..end].split(',') {
+            let cap = item.trim().trim_matches('"').trim_matches('\'');
+            if !cap.is_empty() {
+                target.push(cap.to_string());
+            }
+        }
+    }
 
     for raw in manifest_text.lines() {
         let line = raw.trim();
@@ -127,7 +162,14 @@ fn parse_app_manifest(manifest_text: &str) -> Option<(String, String, Vec<String
                     required.push(v.to_string());
                 }
             } else if line.starts_with("required") && line.contains('[') {
-                collecting_required = true;
+                let closes_inline = line.rfind(']').is_some_and(|end| {
+                    line.find('[').is_some_and(|start| end > start + 1)
+                });
+                if closes_inline {
+                    push_caps_from_inline_list(&mut required, line);
+                } else {
+                    collecting_required = true;
+                }
             }
         }
     }
@@ -241,9 +283,88 @@ fn record_granted_for_pid(cap_pid: u64, pid: u64, granted: &[String]) {
     let _ = ipc::ipc_send(cap_pid, req_slice);
 }
 
+fn launch_app_bundle(path: &str) -> Result<u64, i64> {
+    let manifest_path = format!("{}/manifest.toml", path.trim_end_matches('/'));
+    let manifest_text = match std::fs::read_to_string(&manifest_path) {
+        Ok(t) => t,
+        Err(_) => return Err(-2),
+    };
+
+    let Some((app_id, entry, requested)) = parse_app_manifest(&manifest_text) else {
+        return Err(-22);
+    };
+
+    let Some(cap_pid) = find_capability_service_pid() else {
+        println!(
+            "[PROC] ERROR: capability.service unavailable; refusing to launch {}",
+            app_id
+        );
+        return Err(-5);
+    };
+    let Some(granted) = request_grant_for_app(cap_pid, &app_id, &requested) else {
+        println!(
+            "[PROC] ERROR: capability.service grant failed for {}; refusing launch",
+            app_id
+        );
+        return Err(-5);
+    };
+    let granted_refs = granted.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+    match process::exec_with_capabilities(&entry, &[], &granted_refs) {
+        Ok(pid) => {
+            record_granted_for_pid(cap_pid, pid, &granted);
+            Ok(pid)
+        }
+        Err(errno) => Err(errno),
+    }
+}
+
+fn wait_for_desktop_services() {
+    let required = ["window.service", "shell.service"];
+    for _ in 0..500 {
+        let ready = required
+            .iter()
+            .all(|name| task::find_process_by_name(name).is_some());
+        if ready {
+            return;
+        }
+        time::sleep_ms(10);
+    }
+    println!("[PROC] desktop services not ready; launching apps anyway");
+}
+
+fn launch_autostart_apps() {
+    wait_for_desktop_services();
+
+    let text = match std::fs::read_to_string(APPS_CONFIG_PATH) {
+        Ok(t) => t,
+        Err(_) => {
+            println!("[PROC] No autostart.list at {}", APPS_CONFIG_PATH);
+            return;
+        }
+    };
+
+    let mut launched = 0usize;
+    for raw in text.lines() {
+        let Some(path) = normalize_app_entry(raw) else {
+            continue;
+        };
+        match launch_app_bundle(&path) {
+            Ok(pid) => {
+                launched += 1;
+                println!("[PROC] autostarted {} (PID={})", path, pid);
+            }
+            Err(errno) => {
+                println!("[PROC] failed to autostart {}: errno={}", path, errno);
+            }
+        }
+    }
+    println!("[PROC] autostart apps done: {}", launched);
+}
+
 fn main() {
     println!("[PROC] process.service started");
     notify_ready_to_core();
+    launch_autostart_apps();
 
     let mut recv = [0u8; 520];
     loop {
@@ -292,52 +413,8 @@ fn main() {
                     let _ = ipc::ipc_send(sender, resp_slice);
                     continue;
                 };
-
-                let manifest_path = format!("{}/manifest.toml", path.trim_end_matches('/'));
-                let manifest_text = match std::fs::read_to_string(&manifest_path) {
-                    Ok(t) => t,
-                    Err(_) => {
-                        resp.status = -2;
-                        let resp_slice = unsafe {
-                            core::slice::from_raw_parts(
-                                &resp as *const _ as *const u8,
-                                core::mem::size_of::<ProcessResponseMsg>(),
-                            )
-                        };
-                        let _ = ipc::ipc_send(sender, resp_slice);
-                        continue;
-                    }
-                };
-
-                let Some((app_id, entry, requested)) = parse_app_manifest(&manifest_text) else {
-                    resp.status = -22;
-                    let resp_slice = unsafe {
-                        core::slice::from_raw_parts(
-                            &resp as *const _ as *const u8,
-                            core::mem::size_of::<ProcessResponseMsg>(),
-                        )
-                    };
-                    let _ = ipc::ipc_send(sender, resp_slice);
-                    continue;
-                };
-
-                let Some(cap_pid) = find_capability_service_pid() else {
-                    resp.status = -5;
-                    let resp_slice = unsafe {
-                        core::slice::from_raw_parts(
-                            &resp as *const _ as *const u8,
-                            core::mem::size_of::<ProcessResponseMsg>(),
-                        )
-                    };
-                    let _ = ipc::ipc_send(sender, resp_slice);
-                    continue;
-                };
-
-                let granted = request_grant_for_app(cap_pid, &app_id, &requested).unwrap_or_default();
-                let granted_refs = granted.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-                match process::exec_with_capabilities(&entry, &[], &granted_refs) {
+                match launch_app_bundle(path) {
                     Ok(pid) => {
-                        record_granted_for_pid(cap_pid, pid, &granted);
                         resp.status = 0;
                         resp.pid = pid;
                     }

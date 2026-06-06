@@ -1,6 +1,15 @@
 use wayland_compositor::{Compositor, backend};
 use std::env;
 
+fn default_socket_path() -> String {
+    if let Ok(runtime_dir) = env::var("XDG_RUNTIME_DIR") {
+        if !runtime_dir.is_empty() {
+            return format!("{}/wayland-0", runtime_dir.trim_end_matches('/'));
+        }
+    }
+    "/run/user/0/wayland-0".to_string()
+}
+
 #[cfg(feature = "backend-linux-fb")]
 fn create_backend() -> Box<dyn backend::FramebufferBackend> {
     Box::new(backend::LinuxFramebufferBackend::new())
@@ -44,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ソケットパス取得
     let socket_path = env::var("WAYLAND_DISPLAY")
-        .unwrap_or_else(|_| "/tmp/wayland-0".to_string());
+        .unwrap_or_else(|_| default_socket_path());
 
     // Compositor 作成
     let mut compositor = Compositor::new(backend, socket_path.clone())?;

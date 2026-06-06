@@ -135,6 +135,8 @@ enum SpecialFileKind {
     Zero,
     Null,
     AuditLog,
+    WaylandSocket,
+    RuntimeDir,
 }
 
 #[inline]
@@ -143,6 +145,8 @@ fn special_file_kind(path: &str) -> Option<SpecialFileKind> {
         "/var/zero" | "/dev/zero" => Some(SpecialFileKind::Zero),
         "/dev/null" => Some(SpecialFileKind::Null),
         "/log/audit.log" | "/var/log/audit.log" => Some(SpecialFileKind::AuditLog),
+        "/run" | "/run/user" | "/run/user/0" | "/dev/shm" => Some(SpecialFileKind::RuntimeDir),
+        "/run/user/0/wayland-0" => Some(SpecialFileKind::WaylandSocket),
         _ => None,
     }
 }
@@ -152,6 +156,8 @@ fn special_file_metadata(path: &str) -> Option<(u16, u64)> {
     match special_file_kind(path)? {
         SpecialFileKind::Zero | SpecialFileKind::Null => Some((0x2000 | 0o666, 0)),
         SpecialFileKind::AuditLog => Some((0x8000 | 0o444, crate::audit::file_size() as u64)),
+        SpecialFileKind::WaylandSocket => Some((0xC000 | 0o660, 0)),
+        SpecialFileKind::RuntimeDir => Some((0x4000 | 0o755, 0)),
     }
 }
 
@@ -797,6 +803,7 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
                     let available = crate::audit::file_size().saturating_sub(fh.pos);
                     core::cmp::min(available, len as usize)
                 }
+                Some(SpecialFileKind::WaylandSocket) | Some(SpecialFileKind::RuntimeDir) => 0usize,
                 None => 0usize,
             };
             if to_read == 0 {

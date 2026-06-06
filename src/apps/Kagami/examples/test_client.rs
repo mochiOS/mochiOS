@@ -5,6 +5,15 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 
+fn default_socket_path() -> String {
+    if let Ok(runtime_dir) = env::var("XDG_RUNTIME_DIR") {
+        if !runtime_dir.is_empty() {
+            return format!("{}/wayland-0", runtime_dir.trim_end_matches('/'));
+        }
+    }
+    "/run/user/0/wayland-0".to_string()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_default_env()
@@ -13,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ソケットパス取得
     let socket_path = env::var("WAYLAND_DISPLAY")
-        .unwrap_or_else(|_| "/tmp/wayland-0".to_string());
+        .unwrap_or_else(|_| default_socket_path());
 
     log::info!("Connecting to {}", socket_path);
 

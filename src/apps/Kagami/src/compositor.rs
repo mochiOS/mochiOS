@@ -7,6 +7,7 @@ use crate::protocol::{Message, MessageBuilder, MessageParser};
 use crate::surface::Surface;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::io::AsyncReadExt;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::RwLock;
 
@@ -150,31 +151,58 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             }
         };
 
+        let mut client_error: Option<CompositorError> = None;
         loop {
             let n = {
-                let s = stream.lock().await;
-                s.try_read(&mut buf).ok()
+                let mut s = stream.lock().await;
+                s.read(&mut buf).await
             };
 
             match n {
-                Some(0) => {
+                Ok(0) => {
                     log::info!("Client {} disconnected", client_id);
                     break;
                 }
-                Some(n) => {
-                    self.process_client_messages(client_id, &buf[..n]).await?;
+                Ok(n) => {
+                    if let Err(e) = self.process_client_messages(client_id, &buf[..n]).await {
+                        client_error = Some(e);
+                        break;
+                    }
                 }
-                None => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                Err(e) => {
+                    client_error = Some(CompositorError::Io(e));
+                    break;
                 }
             }
         }
 
         // クライアント削除
-        self.clients.write().await.remove(&client_id);
+        self.cleanup_client_state(client_id).await;
         log::info!("Client {} cleaned up", client_id);
 
-        Ok(())
+        if let Some(err) = client_error {
+            Err(err)
+        } else {
+            Ok(())
+        }
+    }
+
+    async fn cleanup_client_state(&self, client_id: u32) {
+        let mut clients = self.clients.write().await;
+        let owned_surfaces = clients
+            .get(&client_id)
+            .map(|client| client.surfaces.keys().copied().collect::<Vec<_>>())
+            .unwrap_or_default();
+
+        clients.remove(&client_id);
+        drop(clients);
+
+        if !owned_surfaces.is_empty() {
+            let mut surfaces = self.surfaces.write().await;
+            for surface_id in owned_surfaces {
+                surfaces.remove(&surface_id);
+            }
+        }
     }
 
     /// クライアントメッセージ処理
@@ -183,11 +211,45 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
 
         while offset < buf.len() {
             if let Some((msg, size)) = Message::from_bytes(&buf[offset..]) {
+                self.validate_message(&msg)?;
                 self.process_message(client_id, &msg).await?;
                 offset += size;
             } else {
-                break;
+                return Err(CompositorError::InvalidMessage(
+                    "truncated or malformed message".to_string(),
+                ));
             }
+        }
+
+        Ok(())
+    }
+
+    fn validate_message(&self, msg: &Message) -> Result<()> {
+        let object_id = msg.header.object_id;
+        let opcode = msg.header.opcode;
+        let len = msg.data.len();
+
+        let expected = match (object_id, opcode) {
+            (1, 0) => Some(0usize),  // wl_display::get_registry
+            (2, 0) => Some(4usize),  // wl_compositor::create_surface
+            (3, 1) => Some(12usize), // wl_surface::attach
+            (3, 2) => Some(16usize), // wl_surface::damage
+            (3, 4) => Some(0usize),  // wl_surface::commit
+            _ => None,
+        };
+
+        let Some(expected) = expected else {
+            return Err(CompositorError::InvalidMessage(format!(
+                "unknown object/opcode combination object_id={} opcode={}",
+                object_id, opcode
+            )));
+        };
+
+        if len != expected {
+            return Err(CompositorError::InvalidMessage(format!(
+                "invalid payload size for object_id={} opcode={}: got {}, expected {}",
+                object_id, opcode, len, expected
+            )));
         }
 
         Ok(())

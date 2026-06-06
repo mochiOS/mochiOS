@@ -267,6 +267,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                 (
                     client.registry_object_id,
                     client.compositor_object_id,
+                    client.buffers.keys().copied().collect::<Vec<_>>(),
                     client.surfaces.keys().copied().collect::<Vec<_>>(),
                 )
             })
@@ -275,16 +276,21 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         let legacy_compositor = object_id == 2;
         let surface_ids = client_state
             .as_ref()
-            .map(|(_, _, ids)| ids.as_slice())
+            .map(|(_, _, _, ids)| ids.as_slice())
             .unwrap_or(&[]);
-        let compositor_object_id = client_state.and_then(|(_, compositor_id, _)| compositor_id);
-        let registry_object_id = client_state.and_then(|(registry_id, _, _)| registry_id);
+        let buffer_ids = client_state
+            .as_ref()
+            .map(|(_, _, ids, _)| ids.as_slice())
+            .unwrap_or(&[]);
+        let compositor_object_id = client_state.and_then(|(_, compositor_id, _, _)| compositor_id);
+        let registry_object_id = client_state.and_then(|(registry_id, _, _, _)| registry_id);
         let shm_object_id = {
             let clients = self.clients.read().await;
             clients.get(&client_id).and_then(|client| client.shm_object_id)
         };
 
         let is_surface = surface_ids.contains(&object_id);
+        let is_buffer = buffer_ids.contains(&object_id);
         let is_compositor = legacy_compositor || compositor_object_id == Some(object_id);
 
         match (object_id, opcode) {
@@ -340,6 +346,20 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                     )));
                 }
             }
+            _ if is_buffer => {
+                if opcode != 0 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "unsupported wl_buffer opcode {}",
+                        opcode
+                    )));
+                }
+                if len != 0 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "wl_buffer::destroy expects no payload, got {}",
+                        len
+                    )));
+                }
+            }
             _ if is_surface => {
                 let expected = match opcode {
                     1 => 12usize,
@@ -375,17 +395,23 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         let object_id = msg.header.object_id;
         let opcode = msg.header.opcode;
         let mut needs_render = false;
+        let mut release_buffer_id: Option<u32> = None;
         let client_state = {
             let clients = self.clients.read().await;
             clients.get(&client_id).map(|client| {
                 (
                     client.registry_object_id,
                     client.compositor_object_id,
+                    client.buffers.keys().copied().collect::<Vec<_>>(),
                 )
             })
         };
-        let registry_object_id = client_state.and_then(|(registry_id, _)| registry_id);
-        let compositor_object_id = client_state.and_then(|(_, compositor_id)| compositor_id);
+        let registry_object_id = client_state.and_then(|(registry_id, _, _)| registry_id);
+        let compositor_object_id = client_state.and_then(|(_, compositor_id, _)| compositor_id);
+        let buffer_ids = client_state
+            .as_ref()
+            .map(|(_, _, buffers)| buffers.as_slice())
+            .unwrap_or(&[]);
 
         match (object_id, opcode) {
             // wl_display
@@ -542,6 +568,25 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                     client_id, buffer_id, width, height, stride
                 );
             }
+            _ if buffer_ids.contains(&object_id) => {
+                if opcode != 0 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "unsupported wl_buffer opcode {}",
+                        opcode
+                    )));
+                }
+                if !msg.data.is_empty() {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "wl_buffer::destroy expects no payload, got {}",
+                        msg.data.len()
+                    )));
+                }
+                if let Some(client) = self.clients.write().await.get_mut(&client_id) {
+                    client.remove_buffer(object_id);
+                }
+                self.buffers.write().await.remove(&object_id);
+                log::debug!("Buffer {} destroyed by client {}", object_id, client_id);
+            }
             _ if compositor_object_id == Some(object_id) =>
             {
                 let mut parser = MessageParser::new(&msg.data);
@@ -581,6 +626,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                                 buffer.width,
                                                 buffer.height,
                                                 buffer.stride,
+                                                Some(buffer_id),
                                             );
                                             log::debug!(
                                                 "Buffer {} attached to surface {}",
@@ -655,8 +701,10 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                     _ => {}
                                 }
 
-                                surface.attach_buffer(data, width, height, stride);
+                                surface.attach_buffer(data, width, height, stride, None);
                             }
+
+                            release_buffer_id = surface.buffer_object_id;
 
                             needs_render = true;
                             }
@@ -675,6 +723,10 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
 
         if needs_render {
             self.render().await?;
+        }
+
+        if let Some(buffer_id) = release_buffer_id {
+            self.send_buffer_release(client_id, buffer_id).await?;
         }
 
         Ok(())
@@ -713,6 +765,11 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         let msg = MessageBuilder::new(callback_id, 0)
             .push_u32(0)
             .build();
+        self.send_message(client_id, &msg).await
+    }
+
+    async fn send_buffer_release(&self, client_id: u32, buffer_id: u32) -> Result<()> {
+        let msg = MessageBuilder::new(buffer_id, 0).build();
         self.send_message(client_id, &msg).await
     }
 }

@@ -9,6 +9,7 @@ pub struct Surface {
     pub buffer_width: u32,
     pub buffer_height: u32,
     pub buffer_stride: u32,
+    pub buffer_object_id: Option<u32>,
 
     // ジオメトリ
     pub x: i32,
@@ -41,6 +42,7 @@ impl Surface {
             buffer_width: 0,
             buffer_height: 0,
             buffer_stride: 0,
+            buffer_object_id: None,
             x: 0,
             y: 0,
             width: 0,
@@ -57,15 +59,24 @@ impl Surface {
         self.buffer_width = 0;
         self.buffer_height = 0;
         self.buffer_stride = 0;
+        self.buffer_object_id = None;
         self.visible = false;
     }
 
     /// バッファをアタッチ
-    pub fn attach_buffer(&mut self, data: Vec<u8>, width: u32, height: u32, stride: u32) {
+    pub fn attach_buffer(
+        &mut self,
+        data: Vec<u8>,
+        width: u32,
+        height: u32,
+        stride: u32,
+        buffer_object_id: Option<u32>,
+    ) {
         self.buffer_data = Some(data);
         self.buffer_width = width;
         self.buffer_height = height;
         self.buffer_stride = stride;
+        self.buffer_object_id = buffer_object_id;
         self.visible = true;
     }
 
@@ -121,7 +132,7 @@ mod tests {
     fn test_surface_attach_buffer() {
         let mut surface = Surface::new(1, 1);
         let buffer = vec![0xFF; 100];
-        surface.attach_buffer(buffer, 10, 10, 40);
+        surface.attach_buffer(buffer, 10, 10, 40, Some(2));
         assert_eq!(surface.buffer_width, 10);
         assert_eq!(surface.buffer_height, 10);
     }

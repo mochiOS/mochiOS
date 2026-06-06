@@ -8,6 +8,8 @@ pub struct Client {
     pub id: u32,
     pub stream: Arc<Mutex<UnixStream>>,
     pub surfaces: HashMap<u32, u32>, // object_id surface_id
+    pub registry_object_id: Option<u32>,
+    pub compositor_object_id: Option<u32>,
 }
 
 impl Client {
@@ -16,6 +18,8 @@ impl Client {
             id,
             stream: Arc::new(Mutex::new(stream)),
             surfaces: HashMap::new(),
+            registry_object_id: None,
+            compositor_object_id: None,
         }
     }
 

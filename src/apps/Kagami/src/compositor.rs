@@ -215,7 +215,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
 
         while offset < buf.len() {
             if let Some((msg, size)) = Message::from_bytes(&buf[offset..]) {
-                self.validate_message(&msg)?;
+                self.validate_message(client_id, &msg).await?;
                 self.process_message(client_id, &msg).await?;
                 offset += size;
             } else {
@@ -228,32 +228,96 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         Ok(())
     }
 
-    fn validate_message(&self, msg: &Message) -> Result<()> {
+    async fn validate_message(&self, client_id: u32, msg: &Message) -> Result<()> {
         let object_id = msg.header.object_id;
         let opcode = msg.header.opcode;
         let len = msg.data.len();
-
-        let expected = match (object_id, opcode) {
-            (1, 0) => Some(0usize),  // wl_display::get_registry
-            (2, 0) => Some(4usize),  // wl_compositor::create_surface
-            (3, 1) => Some(12usize), // wl_surface::attach
-            (3, 2) => Some(16usize), // wl_surface::damage
-            (3, 4) => Some(0usize),  // wl_surface::commit
-            _ => None,
+        let client_state = {
+            let clients = self.clients.read().await;
+            clients.get(&client_id).map(|client| {
+                (
+                    client.registry_object_id,
+                    client.compositor_object_id,
+                    client.surfaces.keys().copied().collect::<Vec<_>>(),
+                )
+            })
         };
 
-        let Some(expected) = expected else {
-            return Err(CompositorError::InvalidMessage(format!(
-                "unknown object/opcode combination object_id={} opcode={}",
-                object_id, opcode
-            )));
-        };
+        let legacy_compositor = object_id == 2;
+        let surface_ids = client_state
+            .as_ref()
+            .map(|(_, _, ids)| ids.as_slice())
+            .unwrap_or(&[]);
+        let compositor_object_id = client_state.and_then(|(_, compositor_id, _)| compositor_id);
+        let registry_object_id = client_state.and_then(|(registry_id, _, _)| registry_id);
 
-        if len != expected {
-            return Err(CompositorError::InvalidMessage(format!(
-                "invalid payload size for object_id={} opcode={}: got {}, expected {}",
-                object_id, opcode, len, expected
-            )));
+        let is_surface = surface_ids.contains(&object_id);
+        let is_compositor = legacy_compositor || compositor_object_id == Some(object_id);
+
+        match (object_id, opcode) {
+            (1, 0) => {
+                if len != 0 && len != 4 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "wl_display::sync/get_registry expects 0 or 4 bytes, got {}",
+                        len
+                    )));
+                }
+            }
+            (1, 1) => {
+                if len != 4 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "wl_display::get_registry expects 4 bytes, got {}",
+                        len
+                    )));
+                }
+            }
+            _ if Some(object_id) == registry_object_id => {
+                if opcode != 0 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "unsupported wl_registry opcode {}",
+                        opcode
+                    )));
+                }
+                if len < 16 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "wl_registry::bind payload too short: {}",
+                        len
+                    )));
+                }
+            }
+            _ if is_compositor && opcode == 0 => {
+                if len != 4 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "wl_compositor::create_surface expects 4 bytes, got {}",
+                        len
+                    )));
+                }
+            }
+            _ if is_surface => {
+                let expected = match opcode {
+                    1 => 12usize,
+                    2 => 16usize,
+                    4 => 0usize,
+                    _ => {
+                        return Err(CompositorError::InvalidMessage(format!(
+                            "unsupported wl_surface opcode {}",
+                            opcode
+                        )))
+                    }
+                };
+                if len != expected {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "invalid payload size for object_id={} opcode={}: got {}, expected {}",
+                        object_id, opcode, len, expected
+                    )));
+                }
+            }
+            _ => {
+                return Err(CompositorError::InvalidMessage(format!(
+                    "unknown object/opcode combination object_id={} opcode={}",
+                    object_id, opcode
+                )));
+            }
         }
 
         Ok(())
@@ -264,22 +328,110 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         let object_id = msg.header.object_id;
         let opcode = msg.header.opcode;
         let mut needs_render = false;
+        let client_state = {
+            let clients = self.clients.read().await;
+            clients.get(&client_id).map(|client| {
+                (
+                    client.registry_object_id,
+                    client.compositor_object_id,
+                )
+            })
+        };
+        let registry_object_id = client_state.and_then(|(registry_id, _)| registry_id);
+        let compositor_object_id = client_state.and_then(|(_, compositor_id)| compositor_id);
 
         match (object_id, opcode) {
             // wl_display
             (1, 0) => {
-                // get_registry
+                if msg.data.len() == 4 {
+                    // wl_display::sync
+                    let mut parser = MessageParser::new(&msg.data);
+                    if let Some(callback_id) = parser.read_u32() {
+                        self.send_callback_done(client_id, callback_id).await?;
+                    }
+                    return Ok(());
+                }
+
+                // Legacy: get_registry without a new_id payload.
                 let registry_id = {
                     let mut id = self.next_object_id.write().await;
                     let oid = *id;
                     *id += 1;
                     oid
                 };
+                if let Some(client) = self.clients.write().await.get_mut(&client_id) {
+                    client.registry_object_id = Some(registry_id);
+                }
                 self.send_registry_globals(client_id, registry_id).await?;
+            }
+            (1, 1) => {
+                // wl_display::get_registry
+                let mut parser = MessageParser::new(&msg.data);
+                if let Some(registry_id) = parser.read_u32() {
+                    if let Some(client) = self.clients.write().await.get_mut(&client_id) {
+                        client.registry_object_id = Some(registry_id);
+                    }
+                    self.send_registry_globals(client_id, registry_id).await?;
+                }
+            }
+            _ if Some(object_id) == registry_object_id =>
+            {
+                let mut parser = MessageParser::new(&msg.data);
+                let Some(_name) = parser.read_u32() else {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_registry::bind missing name".to_string(),
+                    ));
+                };
+                let Some(interface) = parser.read_string() else {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_registry::bind missing interface".to_string(),
+                    ));
+                };
+                let Some(_version) = parser.read_u32() else {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_registry::bind missing version".to_string(),
+                    ));
+                };
+                let Some(new_id) = parser.read_u32() else {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_registry::bind missing new_id".to_string(),
+                    ));
+                };
+                if interface == "wl_compositor" {
+                    if let Some(client) = self.clients.write().await.get_mut(&client_id) {
+                        client.compositor_object_id = Some(new_id);
+                    }
+                    log::debug!("Client {} bound wl_compositor as object {}", client_id, new_id);
+                } else {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "unsupported wl_registry interface {}",
+                        interface
+                    )));
+                }
             }
             // wl_compositor
             (2, 0) => {
                 // create_surface
+                let mut parser = MessageParser::new(&msg.data);
+                if let Some(surface_id) = parser.read_u32() {
+                    if self.surfaces.read().await.contains_key(&surface_id) {
+                        return Err(CompositorError::InvalidMessage(format!(
+                            "duplicate surface id {}",
+                            surface_id
+                        )));
+                    }
+                    let surface = Surface::new(surface_id, client_id);
+                    self.surfaces.write().await.insert(surface_id, surface);
+
+                    if let Some(client) = self.clients.write().await.get_mut(&client_id) {
+                        client.add_surface(surface_id, surface_id);
+                    }
+
+                    log::debug!("Surface {} created for client {}", surface_id, client_id);
+                }
+            }
+            _ if compositor_object_id == Some(object_id) =>
+            {
                 let mut parser = MessageParser::new(&msg.data);
                 if let Some(surface_id) = parser.read_u32() {
                     if self.surfaces.read().await.contains_key(&surface_id) {
@@ -428,6 +580,13 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         } else {
             Err(CompositorError::ClientNotFound(client_id))
         }
+    }
+
+    async fn send_callback_done(&self, client_id: u32, callback_id: u32) -> Result<()> {
+        let msg = MessageBuilder::new(callback_id, 0)
+            .push_u32(0)
+            .build();
+        self.send_message(client_id, &msg).await
     }
 }
 

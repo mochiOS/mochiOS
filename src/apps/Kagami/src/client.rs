@@ -10,6 +10,8 @@ pub struct Client {
     pub surfaces: HashMap<u32, u32>, // object_id surface_id
     pub registry_object_id: Option<u32>,
     pub compositor_object_id: Option<u32>,
+    pub shm_object_id: Option<u32>,
+    pub buffers: HashMap<u32, u32>, // buffer object_id -> pixel buffer id
 }
 
 impl Client {
@@ -20,11 +22,21 @@ impl Client {
             surfaces: HashMap::new(),
             registry_object_id: None,
             compositor_object_id: None,
+            shm_object_id: None,
+            buffers: HashMap::new(),
         }
     }
 
     pub fn add_surface(&mut self, object_id: u32, surface_id: u32) {
         self.surfaces.insert(object_id, surface_id);
+    }
+
+    pub fn add_buffer(&mut self, object_id: u32, buffer_id: u32) {
+        self.buffers.insert(object_id, buffer_id);
+    }
+
+    pub fn remove_buffer(&mut self, object_id: u32) -> Option<u32> {
+        self.buffers.remove(&object_id)
     }
 
     pub fn remove_surface(&mut self, object_id: u32) -> Option<u32> {
@@ -37,6 +49,10 @@ impl Client {
 
     pub fn surface_count(&self) -> usize {
         self.surfaces.len()
+    }
+
+    pub fn buffer_count(&self) -> usize {
+        self.buffers.len()
     }
 }
 

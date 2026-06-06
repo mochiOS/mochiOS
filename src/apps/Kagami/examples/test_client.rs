@@ -34,8 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let registry_id = 2u32;
-    let compositor_id = 3u32;
-    let surface_id = 4u32;
+    let shm_id = 3u32;
+    let compositor_id = 4u32;
+    let surface_id = 5u32;
+    let buffer_id = 6u32;
 
     // wl_display.get_registry
     let msg = MessageBuilder::new(1, 1)
@@ -53,6 +55,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             log::info!("Response: {:?}", &buf[..std::cmp::min(n, 32)]);
         }
     }
+
+    // wl_registry.bind -> wl_shm
+    let msg = MessageBuilder::new(registry_id, 0)
+        .push_u32(2) // name
+        .push_string("wl_shm")
+        .push_u32(1) // version
+        .push_u32(shm_id) // new object id
+        .build();
+
+    let bytes = msg.to_bytes();
+    stream.write_all(&bytes).await?;
+    log::info!("SHM bind request sent");
+
+    thread::sleep(Duration::from_millis(100));
 
     // wl_registry.bind -> wl_compositor
     let msg = MessageBuilder::new(registry_id, 0)
@@ -79,10 +95,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     thread::sleep(Duration::from_millis(100));
 
+    // wl_shm.create_buffer
+    let msg = MessageBuilder::new(shm_id, 0)
+        .push_u32(buffer_id)
+        .push_u32(320)
+        .push_u32(240)
+        .push_u32(320 * 4)
+        .push_u32(0)
+        .build();
+    let bytes = msg.to_bytes();
+    stream.write_all(&bytes).await?;
+    log::info!("Buffer create request sent");
+
+    thread::sleep(Duration::from_millis(100));
+
     // バッファアタッチ
     // 簡略版：ダミーバッファIDを使用
     let msg = MessageBuilder::new(surface_id, 1) // wl_surface::attach
-        .push_u32(100) // buffer id
+        .push_u32(buffer_id) // buffer id
         .push_i32(0) // x offset
         .push_i32(0) // y offset
         .build();

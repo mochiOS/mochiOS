@@ -16,9 +16,21 @@ pub struct Compositor<B: FramebufferBackend> {
     backend: Arc<RwLock<B>>,
     clients: Arc<RwLock<HashMap<u32, Client>>>,
     surfaces: Arc<RwLock<HashMap<u32, Surface>>>,
+    buffers: Arc<RwLock<HashMap<u32, Buffer>>>,
     next_client_id: Arc<RwLock<u32>>,
     next_object_id: Arc<RwLock<u32>>,
     socket_path: String,
+}
+
+#[derive(Clone, Debug)]
+struct Buffer {
+    object_id: u32,
+    client_id: u32,
+    width: u32,
+    height: u32,
+    stride: u32,
+    format: u32,
+    data: Vec<u8>,
 }
 
 impl<B: FramebufferBackend + 'static> Compositor<B> {
@@ -28,6 +40,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             backend: Arc::new(RwLock::new(backend)),
             clients: Arc::new(RwLock::new(HashMap::new())),
             surfaces: Arc::new(RwLock::new(HashMap::new())),
+            buffers: Arc::new(RwLock::new(HashMap::new())),
             next_client_id: Arc::new(RwLock::new(1)),
             next_object_id: Arc::new(RwLock::new(2)),
             socket_path,
@@ -119,6 +132,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             backend: Arc::clone(&self.backend),
             clients: Arc::clone(&self.clients),
             surfaces: Arc::clone(&self.surfaces),
+            buffers: Arc::clone(&self.buffers),
             next_client_id: Arc::clone(&self.next_client_id),
             next_object_id: Arc::clone(&self.next_object_id),
             socket_path: self.socket_path.clone(),
@@ -207,6 +221,21 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                 surfaces.remove(&surface_id);
             }
         }
+
+        let owned_buffers = {
+            let buffers = self.buffers.read().await;
+            buffers
+                .values()
+                .filter(|buffer| buffer.client_id == client_id)
+                .map(|buffer| buffer.object_id)
+                .collect::<Vec<_>>()
+        };
+        if !owned_buffers.is_empty() {
+            let mut buffers = self.buffers.write().await;
+            for buffer_id in owned_buffers {
+                buffers.remove(&buffer_id);
+            }
+        }
     }
 
     /// クライアントメッセージ処理
@@ -250,6 +279,10 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             .unwrap_or(&[]);
         let compositor_object_id = client_state.and_then(|(_, compositor_id, _)| compositor_id);
         let registry_object_id = client_state.and_then(|(registry_id, _, _)| registry_id);
+        let shm_object_id = {
+            let clients = self.clients.read().await;
+            clients.get(&client_id).and_then(|client| client.shm_object_id)
+        };
 
         let is_surface = surface_ids.contains(&object_id);
         let is_compositor = legacy_compositor || compositor_object_id == Some(object_id);
@@ -289,6 +322,20 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                 if len != 4 {
                     return Err(CompositorError::InvalidMessage(format!(
                         "wl_compositor::create_surface expects 4 bytes, got {}",
+                        len
+                    )));
+                }
+            }
+            _ if Some(object_id) == shm_object_id => {
+                if opcode != 0 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "unsupported wl_shm opcode {}",
+                        opcode
+                    )));
+                }
+                if len != 20 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "wl_shm::create_buffer expects 20 bytes, got {}",
                         len
                     )));
                 }
@@ -402,6 +449,11 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                         client.compositor_object_id = Some(new_id);
                     }
                     log::debug!("Client {} bound wl_compositor as object {}", client_id, new_id);
+                } else if interface == "wl_shm" {
+                    if let Some(client) = self.clients.write().await.get_mut(&client_id) {
+                        client.shm_object_id = Some(new_id);
+                    }
+                    log::debug!("Client {} bound wl_shm as object {}", client_id, new_id);
                 } else {
                     return Err(CompositorError::InvalidMessage(format!(
                         "unsupported wl_registry interface {}",
@@ -429,6 +481,66 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
 
                     log::debug!("Surface {} created for client {}", surface_id, client_id);
                 }
+            }
+            _ if Some(object_id) == shm_object_id => {
+                let mut parser = MessageParser::new(&msg.data);
+                let Some(buffer_id) = parser.read_u32() else {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_shm::create_buffer missing buffer_id".to_string(),
+                    ));
+                };
+                let Some(width) = parser.read_u32() else {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_shm::create_buffer missing width".to_string(),
+                    ));
+                };
+                let Some(height) = parser.read_u32() else {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_shm::create_buffer missing height".to_string(),
+                    ));
+                };
+                let Some(stride) = parser.read_u32() else {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_shm::create_buffer missing stride".to_string(),
+                    ));
+                };
+                let Some(format) = parser.read_u32() else {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_shm::create_buffer missing format".to_string(),
+                    ));
+                };
+                if self.buffers.read().await.contains_key(&buffer_id) {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "duplicate buffer id {}",
+                        buffer_id
+                    )));
+                }
+                let pixel_count = (stride as usize).saturating_mul(height as usize);
+                let mut data = vec![0u8; pixel_count];
+                if format == 0 {
+                    for px in data.chunks_exact_mut(4) {
+                        px.copy_from_slice(&0x00_20_a0_e0u32.to_le_bytes());
+                    }
+                }
+                self.buffers.write().await.insert(
+                    buffer_id,
+                    Buffer {
+                        object_id: buffer_id,
+                        client_id,
+                        width,
+                        height,
+                        stride,
+                        format,
+                        data,
+                    },
+                );
+                if let Some(client) = self.clients.write().await.get_mut(&client_id) {
+                    client.add_buffer(buffer_id, buffer_id);
+                }
+                log::debug!(
+                    "Client {} created wl_shm buffer {} ({}x{} stride={})",
+                    client_id, buffer_id, width, height, stride
+                );
             }
             _ if compositor_object_id == Some(object_id) =>
             {
@@ -462,13 +574,25 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                         surface.detach_buffer();
                                         surface.clear_damage();
                                     } else {
-                                        // 簡略化：buffer_id を直接使用
-                                        // 実装では wl_shm でバッファを管理
-                                        log::debug!(
-                                            "Buffer {} attached to surface {}",
-                                            buffer_id,
-                                            object_id
-                                        );
+                                        let buffer = self.buffers.read().await.get(&buffer_id).cloned();
+                                        if let Some(buffer) = buffer {
+                                            surface.attach_buffer(
+                                                buffer.data,
+                                                buffer.width,
+                                                buffer.height,
+                                                buffer.stride,
+                                            );
+                                            log::debug!(
+                                                "Buffer {} attached to surface {}",
+                                                buffer_id,
+                                                object_id
+                                            );
+                                        } else {
+                                            return Err(CompositorError::InvalidMessage(format!(
+                                                "unknown buffer id {}",
+                                                buffer_id
+                                            )));
+                                        }
                                     }
                                 }
                                 if parser.remaining() != 8 {
@@ -562,6 +686,9 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             .push_u32(1) // name
             .push_string("wl_compositor")
             .push_u32(4) // version
+            .push_u32(2) // name
+            .push_string("wl_shm")
+            .push_u32(1) // version
             .build();
 
         self.send_message(client_id, &msg).await?;

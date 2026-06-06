@@ -442,7 +442,6 @@ dependencies = [
 name = "dock"
 version = "0.1.0"
 dependencies = [
- "mochi_syscall",
  "viewkit",
 ]
 

@@ -1,17 +1,19 @@
 use std::convert::TryInto;
 use std::sync::OnceLock;
-use mochi_syscall::{
-    ipc::{ipc_recv, ipc_send},
-    keyboard::read_scancode_tap,
-    process,
-    privileged,
-    task::{find_process_by_name, yield_now},
-    vga,
-    fs,
+use viewkit::{
+    platform::{
+        fs,
+        ipc::{recv as ipc_recv, send as ipc_send, MAP_HEADER_MAGIC, MAX_MSG_SIZE},
+        keyboard::read_scancode_tap,
+        privileged,
+        process,
+        task::{find_process_by_name, yield_now},
+        vga,
+    },
+    render_component_to_pixmap_with_asset_root_and_boxes, VComponent,
 };
-use viewkit::{render_component_to_pixmap_with_asset_root_and_boxes, VComponent};
 
-const IPC_BUF_SIZE: usize = mochi_syscall::ipc::MAX_MSG_SIZE;
+const IPC_BUF_SIZE: usize = MAX_MSG_SIZE;
 const KAGAMI_PROCESS_CANDIDATES: [&str; 3] =
     ["/applications/Kagami.app/entry.elf", "Kagami.app", "entry.elf"];
 
@@ -155,7 +157,7 @@ pub fn draw() {
     println!("[Binder] window shown");
 
     loop {
-        let sc_opt = read_scancode_tap().ok().flatten();
+        let sc_opt = read_scancode_tap();
         if let Some(sc) = sc_opt {
             if sc == 0x01 {
                 println!("[Binder] exit");
@@ -168,7 +170,7 @@ pub fn draw() {
 
 fn launch_dock() {
     let dock_bundle = "/applications/Dock.app";
-    match process::exec_app_via_process_service(dock_bundle) {
+    match process::exec_app(dock_bundle) {
         Ok(pid) => println!("[Binder] launched Dock pid={}", pid),
         Err(errno) => eprintln!(
             "[Binder] failed to launch {} via process.service: errno={}",
@@ -248,10 +250,7 @@ fn draw_dock(px: &mut [u32], stride: usize, height: usize, apps: &[(String, Opti
 }
 
 fn read_file(path: &str, max_size: usize) -> Option<Vec<u8>> {
-    match fs::read_file_via_fs(path, max_size) {
-        Ok(Some(data)) => Some(data),
-        _ => None,
-    }
+    fs::read_file(path, max_size)
 }
 
 fn list_app_bundles() -> Vec<(String, Option<String>)> {
@@ -447,9 +446,9 @@ fn detect_asset_root() -> Option<String> {
     ];
     for c in candidates.into_iter().flatten() {
         let test = format!("{}/components/icons/CloseButton.png", c.trim_end_matches('/'));
-        match mochi_syscall::fs::read_file_via_fs(&test, 1024 * 1024) {
-            Ok(Some(_)) => return Some(c.to_string()),
-            _ => {}
+        match fs::read_file(&test, 1024 * 1024) {
+            Some(_) => return Some(c.to_string()),
+            None => {}
         }
     }
     argv0_root
@@ -639,7 +638,7 @@ fn wait_shared_map_header(kagami_tid: u64) -> Result<u64, &'static str> {
             continue;
         }
         let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
-        if magic != mochi_syscall::ipc::MAP_HEADER_MAGIC {
+        if magic != MAP_HEADER_MAGIC {
             continue;
         }
         let map_start = u64::from_le_bytes([

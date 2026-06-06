@@ -134,6 +134,26 @@ fn compute_sha256(path: &Path) -> Result<String, String> {
         .ok_or_else(|| "No hash in sha256sum output".to_string())
 }
 
+fn service_startup_priority(path: &str) -> u8 {
+    if path.ends_with("/shell.service") {
+        0
+    } else if path.ends_with("/window.service") {
+        1
+    } else if path.ends_with("/process.service") {
+        2
+    } else if path.ends_with("/driver.service") {
+        3
+    } else if path.ends_with("/device.service") {
+        4
+    } else if path.ends_with("/net.service") {
+        5
+    } else if path.ends_with("/disk.service") {
+        6
+    } else {
+        7
+    }
+}
+
 /// BusyBoxをダウンロード
 fn ensure_busybox_binary(fs_dir: &Path) -> Result<(), String> {
     let binaries_dir = fs_dir.join("bin");
@@ -302,10 +322,7 @@ fn ensure_audit_log_file(fs_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn copy_apps_autostart_config(
-    manifest_dir: &Path,
-    fs_dir: &Path,
-) -> Result<(), String> {
+fn copy_apps_autostart_config(manifest_dir: &Path, fs_dir: &Path) -> Result<(), String> {
     let src = manifest_dir.join("src/resources/config/autostart.list");
     let fs_dst_dir = fs_dir.join("config");
     fs::create_dir_all(&fs_dst_dir)
@@ -709,6 +726,11 @@ fn main() {
             }
         }
     }
+    services_autostart_entries.sort_by(|left, right| {
+        let left_key = (service_startup_priority(left), left.as_str());
+        let right_key = (service_startup_priority(right), right.as_str());
+        left_key.cmp(&right_key)
+    });
     let services_autostart_path = fs_dir.join("config").join("services.list");
     match fs::write(
         &services_autostart_path,

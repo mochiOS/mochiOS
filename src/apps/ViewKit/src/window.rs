@@ -1,18 +1,18 @@
 use crate::ipc_proto::*;
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
-use mochi_syscall::{
+use crate::mochios::{
     ipc::{ipc_recv, ipc_send},
     task::{find_process_by_name, yield_now},
+    user_space::looks_like_user_mapping,
 };
-use mochi_syscall::user_space::looks_like_user_mapping;
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 const KAGAMI_PROCESS_CANDIDATES: [&str; 3] =
     ["/applications/Kagami.app/entry.elf", "Kagami.app", "entry.elf"];
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
-const IPC_BUF_SIZE: usize = mochi_syscall::ipc::MAX_MSG_SIZE;
+const IPC_BUF_SIZE: usize = crate::mochios::ipc::MAX_MSG_SIZE;
 
 /// A small Kagami window client for UI apps.
 pub struct Window {
@@ -83,7 +83,7 @@ impl Window {
             // Prefer shared-memory present when available; fall back to chunked IPC.
             if let Some(shared) = self.shared.as_mut() {
                 // If shared mapping looks wrong, disable it and fall back to chunked IPC.
-                if !mochi_syscall::user_space::looks_like_user_mapping(
+                if !crate::mochios::user_space::looks_like_user_mapping(
                     shared.virt_addr,
                     shared.mapped_bytes,
                 ) {
@@ -191,7 +191,7 @@ fn setup_shared_surface(
         // MAP_HEADER_MAGIC: [magic:u32][map_start:u64][total:u64] (20 bytes)
         if sender == kagami_tid && (len as usize) == 20 {
             let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
-            if magic == mochi_syscall::ipc::MAP_HEADER_MAGIC {
+            if magic == crate::mochios::ipc::MAP_HEADER_MAGIC {
                 map_start = Some(u64::from_le_bytes([
                     recv[4], recv[5], recv[6], recv[7], recv[8], recv[9], recv[10], recv[11],
                 ]));

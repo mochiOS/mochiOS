@@ -7,9 +7,6 @@ edition = "2024"
 viewkit = { path = "../ViewKit" }
 image = "0.25.10"
 
-[target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
-mochi_syscall = { path = "../../user", features = ["std-support"] }
-
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
 wayland-client = { version = "0.31.14", features = ["dlopen"] }
 wayland-protocols = { version = "0.32", features = ["client"] }

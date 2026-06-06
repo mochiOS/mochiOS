@@ -179,11 +179,7 @@ unsafe fn allocate_ap_trampoline(bt: &BootServices) -> Option<u64> {
                 break;
             }
             if bt
-                .allocate_pages(
-                    AllocateType::Address(addr),
-                    UefiMemType::LOADER_DATA,
-                    1,
-                )
+                .allocate_pages(AllocateType::Address(addr), UefiMemType::LOADER_DATA, 1)
                 .is_ok()
             {
                 candidate = Some(addr);

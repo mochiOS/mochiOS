@@ -90,6 +90,19 @@ pub fn init() {
         set_data_segments(selectors.data_selector);
         crate::debug!("Data segments set");
 
+        // 共有GDT上のTSS descriptorはBSPでbusyになる。
+        // APでも同じdescriptorを再利用するため、LTR前にbusy bitを落としておく。
+        let mut gdtr: [u8; 10] = [0; 10];
+        asm!("sgdt [{}]", in(reg) &mut gdtr, options(nostack));
+        let gdt_base = u64::from_le_bytes([
+            gdtr[2], gdtr[3], gdtr[4], gdtr[5], gdtr[6], gdtr[7], gdtr[8], gdtr[9],
+        ]);
+        let tss_index = selectors.tss_selector.0 as usize >> 3;
+        let tss_desc_ptr = (gdt_base + (tss_index * 8) as u64) as *mut u64;
+        let tss_desc_old = core::ptr::read_volatile(tss_desc_ptr);
+        let tss_desc_new = tss_desc_old & !(1u64 << 41);
+        core::ptr::write_volatile(tss_desc_ptr, tss_desc_new);
+
         // TSSをロード
         crate::debug!("Loading TSS");
         load_tss(selectors.tss_selector);

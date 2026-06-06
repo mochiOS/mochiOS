@@ -5,11 +5,9 @@ edition = "2024"
 build = "build.rs"
 
 [dependencies]
-mochi_syscall = { path = "../../user", features = ["std-support"] }
 
 [profile.release]
 panic = "abort"
 
 [profile.dev]
 panic = "abort"
-

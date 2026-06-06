@@ -456,11 +456,12 @@ impl CapabilitySet {
         let mut set = Self::empty();
         for s in list {
             let Some(cap) = Capability::from_str(s.as_str()) else {
-                return Err(CapabilityParseError::UnknownCapability { name: s.to_string() });
+                return Err(CapabilityParseError::UnknownCapability {
+                    name: s.to_string(),
+                });
             };
             set.insert(cap);
         }
         Ok(set)
     }
 }
-

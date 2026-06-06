@@ -90,7 +90,7 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
         if resources_dir.is_dir() {
             emit_rerun_if_changed(&resources_dir);
         }
-        
+
         let about_file = path.join("about.toml");
         if about_file.exists() {
             println!("cargo:rerun-if-changed={}", about_file.display());
@@ -249,14 +249,19 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
                                 // Parse about.toml and copy resources
                                 if let Ok(content) = fs::read_to_string(&about_src) {
                                     if let Ok(table) = content.parse::<toml::Table>() {
-                                        if let Some(resources) = table.get("resources").and_then(|v| v.as_array()) {
+                                        if let Some(resources) =
+                                            table.get("resources").and_then(|v| v.as_array())
+                                        {
                                             for resource in resources {
                                                 if let Some(resource_path) = resource.as_str() {
                                                     let src_file = path.join(resource_path);
                                                     if src_file.exists() {
-                                                        let dest_file = app_bundle_dir.join(resource_path);
+                                                        let dest_file =
+                                                            app_bundle_dir.join(resource_path);
                                                         if let Some(parent) = dest_file.parent() {
-                                                            if let Err(e) = fs::create_dir_all(parent) {
+                                                            if let Err(e) =
+                                                                fs::create_dir_all(parent)
+                                                            {
                                                                 println!(
                                                                     "cargo:warning=Failed to create directory for {}: {}",
                                                                     resource_path, e
@@ -264,7 +269,9 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
                                                                 continue;
                                                             }
                                                         }
-                                                        if let Err(e) = fs::copy(&src_file, &dest_file) {
+                                                        if let Err(e) =
+                                                            fs::copy(&src_file, &dest_file)
+                                                        {
                                                             println!(
                                                                 "cargo:warning=Failed to copy resource {} for {}: {}",
                                                                 resource_path, app_name, e
@@ -300,7 +307,9 @@ pub fn build_apps(apps_dir: &Path, output_dir: &Path, _extension: &str) {
                             let mut app_display_name = app_name.clone();
                             if let Ok(content) = fs::read_to_string(&about_src) {
                                 if let Ok(table) = content.parse::<toml::Table>() {
-                                    if let Some(id) = table.get("bundle_id").and_then(|v| v.as_str()) {
+                                    if let Some(id) =
+                                        table.get("bundle_id").and_then(|v| v.as_str())
+                                    {
                                         app_id = id.to_string();
                                     }
                                     if let Some(n) = table.get("name").and_then(|v| v.as_str()) {

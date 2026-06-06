@@ -272,7 +272,8 @@ pub fn build_service(
         } else {
             output_dir.to_path_buf()
         };
-        let dest_manifest = effective_output_dir.join(format!("{}.service.manifest.toml", service.name));
+        let dest_manifest =
+            effective_output_dir.join(format!("{}.service.manifest.toml", service.name));
         fs::copy(&manifest, &dest_manifest).map_err(|e| {
             format!(
                 "Failed to copy manifest {} to {}: {}",

@@ -10,15 +10,44 @@ use db::AllowDb;
 use protocol::{AlignedBuf, CapabilityRequestMsg, CapabilityResponseMsg, SubjectType, OP_NOTIFY_READY};
 use registry::CapabilityRegistry;
 
+const CORE_SERVICE_PID_FALLBACK: u64 = 2;
+
+fn find_service_pid(candidates: &[&str]) -> Option<u64> {
+    for name in candidates {
+        if let Some(pid) = task::find_process_by_name(name) {
+            if pid != 0 {
+                return Some(pid);
+            }
+        }
+    }
+    None
+}
+
+fn core_ready_tid_from_args() -> Option<u64> {
+    for arg in std::env::args().skip(1) {
+        if let Some(value) = arg.strip_prefix("--ready-tid=") {
+            if let Ok(tid) = value.parse::<u64>() {
+                if tid != 0 {
+                    return Some(tid);
+                }
+            }
+        }
+    }
+    None
+}
+
 /// core.service に準備完了を通知する
 fn notify_ready_to_core() {
-    let core_pid = match task::find_process_by_name("core.service") {
-        Some(pid) => pid,
-        None => {
-            println!("[CAP] WARNING: core.service not found, skipping READY notify");
-            return;
-        }
-    };
+    let core_pid = core_ready_tid_from_args().or_else(|| {
+        find_service_pid(&["core.service", "/system/services/core.service", "core"])
+    })
+        .unwrap_or_else(|| {
+            println!(
+                "[CAP] WARNING: core.service lookup failed, using fallback PID={}",
+                CORE_SERVICE_PID_FALLBACK
+            );
+            CORE_SERVICE_PID_FALLBACK
+        });
 
     let op_bytes = OP_NOTIFY_READY.to_le_bytes();
     let _ = ipc::ipc_send(core_pid, &op_bytes);
@@ -48,10 +77,14 @@ fn split_nul_list(bytes: &[u8]) -> Vec<String> {
 fn is_trusted_grant_caller(sender_tid: u64) -> bool {
     // 権限昇格の入口になるため、呼び出し元を信頼済みプロセスに限定する。
     // ここを緩めると、任意プロセスが `unsandboxed` 等を要求して自己昇格できる。
-    task::find_process_by_name("core.service")
+    find_service_pid(&["core.service", "/system/services/core.service", "core"])
         .filter(|pid| *pid == sender_tid)
         .is_some()
-        || task::find_process_by_name("process.service")
+        || find_service_pid(&[
+            "process.service",
+            "/system/services/process.service",
+            "process",
+        ])
             .filter(|pid| *pid == sender_tid)
             .is_some()
 }

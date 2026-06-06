@@ -1,6 +1,14 @@
-use mochi_syscall::{ipc::ipc_recv, keyboard, privileged, process, task, time, vga};
+use viewkit::platform::{
+    ipc::{recv as ipc_recv, send as ipc_send, MAP_HEADER_MAGIC, MAX_MSG_SIZE},
+    keyboard,
+    privileged,
+    process,
+    task,
+    time,
+    vga,
+};
 
-const IPC_BUF_SIZE: usize = mochi_syscall::ipc::MAX_MSG_SIZE;
+const IPC_BUF_SIZE: usize = MAX_MSG_SIZE;
 const OP_REQ_CREATE_WINDOW: u32 = 1;
 const OP_RES_WINDOW_CREATED: u32 = 2;
 const OP_REQ_FLUSH_CHUNK: u32 = 4;
@@ -64,7 +72,7 @@ fn main() {
     }
 
     let binder_bundle = "/applications/Binder.app";
-    match process::exec_app_via_process_service(binder_bundle) {
+    match process::exec_app(binder_bundle) {
         Ok(pid) => println!("[Kagami] launched Binder pid={}", pid),
         Err(errno) => println!(
             "[Kagami] failed to launch {} via process.service: errno={}",
@@ -93,7 +101,7 @@ fn main() {
             // Handle shared-page map header (kernel format).
             if len == 20 {
                 let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
-                if magic == mochi_syscall::ipc::MAP_HEADER_MAGIC {
+                if magic == MAP_HEADER_MAGIC {
                     let map_start = u64::from_le_bytes([
                         recv[4], recv[5], recv[6], recv[7], recv[8], recv[9], recv[10], recv[11],
                     ]);
@@ -112,7 +120,7 @@ fn main() {
                                 let mut res = [0u8; 8];
                                 res[0..4].copy_from_slice(&OP_RES_SHARED_ATTACHED.to_le_bytes());
                                 res[4..8].copy_from_slice(&window_id.to_le_bytes());
-                                let _ = mochi_syscall::ipc::ipc_send(sender, &res);
+                                let _ = ipc_send(sender, &res);
                             }
                         }
                     }
@@ -175,7 +183,7 @@ fn main() {
                     let mut res = [0u8; 8];
                     res[0..4].copy_from_slice(&OP_RES_WINDOW_CREATED.to_le_bytes());
                     res[4..8].copy_from_slice(&id.to_le_bytes());
-                    let _ = mochi_syscall::ipc::ipc_send(sender, &res);
+                    let _ = ipc_send(sender, &res);
                 }
                 OP_REQ_FLUSH_CHUNK => {
                     if len < 20 {
@@ -270,7 +278,7 @@ fn main() {
                                 let mut res = [0u8; 8];
                                 res[0..4].copy_from_slice(&OP_RES_SHARED_ATTACHED.to_le_bytes());
                                 res[4..8].copy_from_slice(&window_id.to_le_bytes());
-                                let _ = mochi_syscall::ipc::ipc_send(sender, &res);
+                                let _ = ipc_send(sender, &res);
                             }
                         }
                     }
@@ -312,9 +320,8 @@ fn main() {
         }
 
         let sc = match keyboard::read_scancode_tap() {
-            Ok(Some(s)) => s,
-            Ok(None) => continue,
-            Err(_) => continue,
+            Some(s) => s,
+            None => continue,
         };
 
         // break code is make|0x80 for set1
@@ -329,10 +336,10 @@ fn main() {
             }
             e_down = true;
 
-            let path = "/applications/TestClient.app/entry.elf";
-            match process::exec(path) {
+            let path = "/applications/TestClient.app";
+            match process::exec_app(path) {
                 Ok(pid) => println!("[Kagami] launched TestClient pid={}", pid),
-                Err(()) => println!("[Kagami] failed to exec {}", path),
+                Err(errno) => println!("[Kagami] failed to exec {}: errno={}", path, errno),
             }
         }
     }

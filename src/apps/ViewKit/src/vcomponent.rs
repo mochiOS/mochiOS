@@ -234,8 +234,7 @@ impl RenderContext {
     fn read_file(&self, path: &str) -> Option<Vec<u8>> {
         #[cfg(all(target_os = "linux", target_env = "musl"))]
         {
-            // mochiOS target: use mochi_syscall fs syscalls directly.
-            match mochi_syscall::fs::read_file_via_fs(path, 16 * 1024 * 1024) {
+            match crate::mochios::fs::read_file_via_fs(path, 16 * 1024 * 1024) {
                 Ok(Some(v)) => Some(v),
                 _ => None,
             }

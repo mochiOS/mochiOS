@@ -39,12 +39,39 @@ struct SharedSurface {
     total_pixels: usize,
 }
 
+impl Drop for SharedSurface {
+    fn drop(&mut self) {
+        if self.virt_addr == 0 || self.page_count == 0 {
+            return;
+        }
+        let _ = privileged::unmap_pages(self.virt_addr, self.page_count, false);
+    }
+}
+
 struct DesktopWindow {
     x: i32,
     y: i32,
     width: i32,
     height: i32,
     title: String,
+}
+
+fn launch_app_with_retry(bundle_path: &str, label: &str) -> Result<u64, i64> {
+    let mut last_err = -110;
+    for _ in 0..300 {
+        match process::exec_app(bundle_path) {
+            Ok(pid) => return Ok(pid),
+            Err(errno) => {
+                last_err = errno;
+                yield_now();
+            }
+        }
+    }
+    eprintln!(
+        "[Binder] failed to launch {} via process.service after retries: errno={}",
+        label, last_err
+    );
+    Err(last_err)
 }
 
 impl Font {
@@ -98,14 +125,17 @@ pub fn draw() {
         None => (800u16, 600u16),
     };
 
-    let window_id = match create_app_window(kagami_tid, width_u16, height_u16) {
-        Ok(id) => { println!("[Binder] created window id={}", id); id }
+    let window_id = match create_app_window_with_retry(kagami_tid, width_u16, height_u16) {
+        Ok(id) => {
+            println!("[Binder] created window id={}", id);
+            id
+        }
         Err(e) => {
             eprintln!("[Binder] create window failed: {}", e);
             return;
         }
     };
-    let shared_surface = match setup_shared_surface(kagami_tid, window_id, width_u16, height_u16) {
+    let shared_surface = match setup_shared_surface_with_retry(kagami_tid, window_id, width_u16, height_u16) {
         Ok(surface) => { println!("[Binder] setup_shared_surface ok"); Some(surface) },
         Err(e) => {
             eprintln!("[Binder] shared setup failed: {}, fallback to chunk", e);
@@ -170,12 +200,9 @@ pub fn draw() {
 
 fn launch_dock() {
     let dock_bundle = "/applications/Dock.app";
-    match process::exec_app(dock_bundle) {
+    match launch_app_with_retry(dock_bundle, dock_bundle) {
         Ok(pid) => println!("[Binder] launched Dock pid={}", pid),
-        Err(errno) => eprintln!(
-            "[Binder] failed to launch {} via process.service: errno={}",
-            dock_bundle, errno
-        ),
+        Err(_) => {}
     }
 }
 
@@ -567,6 +594,20 @@ fn create_app_window(kagami_tid: u64, width: u16, height: u16) -> Result<u32, &'
     Err("window create timeout")
 }
 
+fn create_app_window_with_retry(kagami_tid: u64, width: u16, height: u16) -> Result<u32, &'static str> {
+    let mut last_err = "window create timeout";
+    for _ in 0..300 {
+        match create_app_window(kagami_tid, width, height) {
+            Ok(id) => return Ok(id),
+            Err(err) => {
+                last_err = err;
+                yield_now();
+            }
+        }
+    }
+    Err(last_err)
+}
+
 fn setup_shared_surface(
     kagami_tid: u64,
     window_id: u32,
@@ -605,6 +646,25 @@ fn setup_shared_surface(
         page_count: page_count as u64,
         total_pixels: total,
     })
+}
+
+fn setup_shared_surface_with_retry(
+    kagami_tid: u64,
+    window_id: u32,
+    width: u16,
+    height: u16,
+) -> Result<SharedSurface, &'static str> {
+    let mut last_err = "shared attach timeout";
+    for _ in 0..300 {
+        match setup_shared_surface(kagami_tid, window_id, width, height) {
+            Ok(surface) => return Ok(surface),
+            Err(err) => {
+                last_err = err;
+                yield_now();
+            }
+        }
+    }
+    Err(last_err)
 }
 
 fn present_shared(kagami_tid: u64, window_id: u32) -> Result<(), &'static str> {

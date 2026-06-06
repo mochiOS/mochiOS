@@ -46,6 +46,19 @@ struct Window {
     shared_bytes: usize,
 }
 
+impl Drop for Window {
+    fn drop(&mut self) {
+        let Some(addr) = self.shared_addr else {
+            return;
+        };
+        if self.shared_bytes == 0 {
+            return;
+        }
+        let page_count = self.shared_bytes.div_ceil(4096) as u64;
+        let _ = privileged::unmap_pages(addr, page_count, false);
+    }
+}
+
 fn is_e_make(scancode: u8) -> bool {
     // PS/2 Set 1 make code: 'e' = 0x12
     scancode == 0x12

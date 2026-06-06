@@ -38,6 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let compositor_id = 4u32;
     let surface_id = 5u32;
     let buffer_id = 6u32;
+    let sync_callback_id = 7u32;
 
     // wl_display.get_registry
     let msg = MessageBuilder::new(1, 1)
@@ -139,9 +140,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     stream.write_all(&bytes).await?;
     log::info!("Commit request sent");
 
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    // wl_display.sync -> callback done を受け取る
+    let msg = MessageBuilder::new(1, 0)
+        .push_u32(sync_callback_id)
+        .build();
+    let bytes = msg.to_bytes();
+    stream.write_all(&bytes).await?;
+    log::info!("Sync request sent");
 
-    log::info!("Test completed");
+    let mut seen_sync_done = false;
+    let mut seen_buffer_release = false;
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(1500);
+    while tokio::time::Instant::now() < deadline && (!seen_sync_done || !seen_buffer_release) {
+        let mut event_buf = [0u8; 256];
+        match tokio::time::timeout(Duration::from_millis(200), stream.read(&mut event_buf)).await {
+            Ok(Ok(0)) => break,
+            Ok(Ok(n)) if n >= 8 => {
+                let object_id = u32::from_le_bytes([
+                    event_buf[0], event_buf[1], event_buf[2], event_buf[3],
+                ]);
+                let opcode = u16::from_le_bytes([event_buf[6], event_buf[7]]);
+                log::info!("Event received: object_id={} opcode={} len={}", object_id, opcode, n);
+                if object_id == sync_callback_id && opcode == 0 {
+                    seen_sync_done = true;
+                }
+                if object_id == buffer_id && opcode == 0 {
+                    seen_buffer_release = true;
+                }
+            }
+            Ok(Ok(_)) => {}
+            Ok(Err(err)) => return Err(Box::new(err)),
+            Err(_) => {}
+        }
+    }
+
+    log::info!(
+        "Test completed (sync_done={}, buffer_release={})",
+        seen_sync_done,
+        seen_buffer_release
+    );
 
     Ok(())
 }

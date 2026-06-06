@@ -727,6 +727,11 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
 
         if let Some(buffer_id) = release_buffer_id {
             self.send_buffer_release(client_id, buffer_id).await?;
+            if let Some(surface) = self.surfaces.write().await.get_mut(&object_id) {
+                if surface.buffer_object_id == Some(buffer_id) {
+                    surface.buffer_object_id = None;
+                }
+            }
         }
 
         Ok(())

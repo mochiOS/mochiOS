@@ -33,8 +33,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ウェイトタイム（コンポジター起動待機）
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    // registry リクエスト送信
-    let msg = MessageBuilder::new(1, 0).build();
+    let registry_id = 2u32;
+    let compositor_id = 3u32;
+    let surface_id = 4u32;
+
+    // wl_display.get_registry
+    let msg = MessageBuilder::new(1, 1)
+        .push_u32(registry_id)
+        .build();
     let bytes = msg.to_bytes();
     stream.write_all(&bytes).await?;
     log::info!("Registry request sent");
@@ -48,9 +54,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Surface 作成リクエスト
-    let msg = MessageBuilder::new(2, 0) // wl_compositor::create_surface
-        .push_u32(3) // new surface object id
+    // wl_registry.bind -> wl_compositor
+    let msg = MessageBuilder::new(registry_id, 0)
+        .push_u32(1) // name
+        .push_string("wl_compositor")
+        .push_u32(4) // version
+        .push_u32(compositor_id) // new object id
+        .build();
+
+    let bytes = msg.to_bytes();
+    stream.write_all(&bytes).await?;
+    log::info!("Compositor bind request sent");
+
+    thread::sleep(Duration::from_millis(100));
+
+    // wl_compositor.create_surface
+    let msg = MessageBuilder::new(compositor_id, 0)
+        .push_u32(surface_id)
         .build();
 
     let bytes = msg.to_bytes();
@@ -61,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // バッファアタッチ
     // 簡略版：ダミーバッファIDを使用
-    let msg = MessageBuilder::new(3, 1) // wl_surface::attach
+    let msg = MessageBuilder::new(surface_id, 1) // wl_surface::attach
         .push_u32(100) // buffer id
         .push_i32(0) // x offset
         .push_i32(0) // y offset
@@ -72,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     log::info!("Buffer attach request sent");
 
     // Damage 設定
-    let msg = MessageBuilder::new(3, 2) // wl_surface::damage
+    let msg = MessageBuilder::new(surface_id, 2) // wl_surface::damage
         .push_i32(0)
         .push_i32(0)
         .push_i32(320)
@@ -84,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     log::info!("Damage request sent");
 
     // Commit
-    let msg = MessageBuilder::new(3, 4); // wl_surface::commit
+    let msg = MessageBuilder::new(surface_id, 4); // wl_surface::commit
     let bytes = msg.build().to_bytes();
     stream.write_all(&bytes).await?;
     log::info!("Commit request sent");

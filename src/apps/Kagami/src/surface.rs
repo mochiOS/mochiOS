@@ -51,17 +51,32 @@ impl Surface {
         }
     }
 
+    /// バッファ参照を解除
+    pub fn detach_buffer(&mut self) {
+        self.buffer_data = None;
+        self.buffer_width = 0;
+        self.buffer_height = 0;
+        self.buffer_stride = 0;
+        self.visible = false;
+    }
+
     /// バッファをアタッチ
     pub fn attach_buffer(&mut self, data: Vec<u8>, width: u32, height: u32, stride: u32) {
         self.buffer_data = Some(data);
         self.buffer_width = width;
         self.buffer_height = height;
         self.buffer_stride = stride;
+        self.visible = true;
     }
 
     /// ダメージ領域を設定
     pub fn set_damage(&mut self, x: i32, y: i32, width: i32, height: i32) {
         self.damage = DamageRect { x, y, width, height };
+    }
+
+    /// 描画要求を初期状態へ戻す
+    pub fn clear_damage(&mut self) {
+        self.damage = DamageRect::default();
     }
 
     /// ジオメトリを確定

@@ -200,6 +200,10 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         if !owned_surfaces.is_empty() {
             let mut surfaces = self.surfaces.write().await;
             for surface_id in owned_surfaces {
+                if let Some(surface) = surfaces.get_mut(&surface_id) {
+                    surface.detach_buffer();
+                    surface.clear_damage();
+                }
                 surfaces.remove(&surface_id);
             }
         }
@@ -291,16 +295,25 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             // wl_surface
             _ => {
                 if let Some(surface) = self.surfaces.write().await.get_mut(&object_id) {
-                    match opcode {
-                        1 => {
-                            // attach
-                            let mut parser = MessageParser::new(&msg.data);
-                            if let Some(buffer_id) = parser.read_u32() {
-                                // 簡略化：buffer_id を直接使用
-                                // 実装では wl_shm でバッファを管理
-                                log::debug!("Buffer {} attached to surface {}", buffer_id, object_id);
+                        match opcode {
+                            1 => {
+                                // attach
+                                let mut parser = MessageParser::new(&msg.data);
+                                if let Some(buffer_id) = parser.read_u32() {
+                                    if buffer_id == 0 {
+                                        surface.detach_buffer();
+                                        surface.clear_damage();
+                                    } else {
+                                        // 簡略化：buffer_id を直接使用
+                                        // 実装では wl_shm でバッファを管理
+                                        log::debug!(
+                                            "Buffer {} attached to surface {}",
+                                            buffer_id,
+                                            object_id
+                                        );
+                                    }
+                                }
                             }
-                        }
                         2 => {
                             // damage
                             let mut parser = MessageParser::new(&msg.data);

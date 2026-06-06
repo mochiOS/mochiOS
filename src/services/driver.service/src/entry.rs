@@ -61,7 +61,8 @@ fn start_driver(path: &str) {
     }
     let _ = io::close(probe_fd as u64);
     println!("[DRIVER] Starting {}", path);
-    match process::exec(path) {
+    let launch_result = process::exec(path).map_err(|_| -1);
+    match launch_result {
         Ok(pid) => println!("[DRIVER] Started {} (PID={})", path, pid),
         Err(_) => println!("[DRIVER] Failed to start {}", path),
     }

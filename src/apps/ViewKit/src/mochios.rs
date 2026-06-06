@@ -57,6 +57,10 @@ pub mod privileged {
     pub unsafe fn ipc_send_pages(dest_thread_id: u64, phys_pages: &[u64], map_start: u64) -> u64 {
         unsafe { mochi_syscall::privileged::ipc_send_pages(dest_thread_id, phys_pages, map_start) }
     }
+
+    pub unsafe fn unmap_pages(virt_addr: u64, page_count: u64, deallocate: bool) -> u64 {
+        mochi_syscall::privileged::unmap_pages(virt_addr, page_count, deallocate)
+    }
 }
 
 pub mod process {

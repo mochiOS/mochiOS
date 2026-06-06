@@ -66,8 +66,7 @@ global_asm!(
 __mochi_ap_trampoline_start:
     .code16
     cli
-    push cs
-    pop ax
+    xor ax, ax
     mov ds, ax
     mov es, ax
     mov ss, ax

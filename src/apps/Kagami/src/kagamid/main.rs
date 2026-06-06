@@ -55,7 +55,9 @@ impl Drop for Window {
             return;
         }
         let page_count = self.shared_bytes.div_ceil(4096) as u64;
-        let _ = privileged::unmap_pages(addr, page_count, false);
+        unsafe {
+            let _ = privileged::unmap_pages(addr, page_count, false);
+        }
     }
 }
 

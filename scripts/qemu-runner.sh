@@ -75,8 +75,15 @@ mcopy -i "$ESP_IMG" "$BOOTX64_SRC" ::/EFI/BOOT/BOOTX64.EFI
 [ -f "$ROOTFS_IMG" ] && mcopy -i "$ESP_IMG" "$ROOTFS_IMG" ::/system/rootfs.ext2
 
 KVM_ARGS=()
-if [ -e /dev/kvm ] && [ -r /dev/kvm ]; then
-    KVM_ARGS=(-enable-kvm -cpu host,migratable=no,+invtsc)
+if [ -e /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+    KVM_ARGS=(-machine accel=kvm -enable-kvm -cpu host,migratable=no,+invtsc)
+    echo "[qemu-runner] Using KVM acceleration"
+elif [ -n "${MOCHIOS_QEMU_ALLOW_TCG:-}" ]; then
+    echo "[qemu-runner] /dev/kvm unavailable; falling back to TCG because MOCHIOS_QEMU_ALLOW_TCG is set"
+else
+    echo "[qemu-runner] Error: /dev/kvm is unavailable. KVM is required." >&2
+    echo "[qemu-runner] Set MOCHIOS_QEMU_ALLOW_TCG=1 only if you intentionally want slow software emulation." >&2
+    exit 1
 fi
 
 # GUI が使えない環境（CI/SSH/ヘッドレス）でも起動できるように display を切り替える。

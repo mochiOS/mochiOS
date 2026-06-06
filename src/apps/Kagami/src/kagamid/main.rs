@@ -16,6 +16,24 @@ const OP_REQ_ATTACH_SHARED: u32 = 5;
 const OP_REQ_PRESENT_SHARED: u32 = 6;
 const OP_RES_SHARED_ATTACHED: u32 = 7;
 
+fn launch_app_with_retry(bundle_path: &str, label: &str) -> Result<u64, i64> {
+    let mut last_err = -110;
+    for _ in 0..300 {
+        match process::exec_app(bundle_path) {
+            Ok(pid) => return Ok(pid),
+            Err(errno) => {
+                last_err = errno;
+                time::sleep_ms(20);
+            }
+        }
+    }
+    println!(
+        "[Kagami] failed to launch {} via process.service after retries: errno={}",
+        label, last_err
+    );
+    Err(last_err)
+}
+
 struct Window {
     id: u32,
     x: i32,
@@ -72,12 +90,9 @@ fn main() {
     }
 
     let binder_bundle = "/applications/Binder.app";
-    match process::exec_app(binder_bundle) {
+    match launch_app_with_retry(binder_bundle, binder_bundle) {
         Ok(pid) => println!("[Kagami] launched Binder pid={}", pid),
-        Err(errno) => println!(
-            "[Kagami] failed to launch {} via process.service: errno={}",
-            binder_bundle, errno
-        ),
+        Err(_) => {}
     }
 
     println!("[Kagami] ready (press 'e' to launch test_client)");
@@ -88,7 +103,7 @@ fn main() {
 
     let mut e_down = false;
     loop {
-        time::sleep_ms(10);
+        let mut did_work = false;
 
         // Handle window server IPC.
         let mut recv = [0u8; IPC_BUF_SIZE];
@@ -97,6 +112,7 @@ fn main() {
             if sender == 0 || len == 0 {
                 break;
             }
+            did_work = true;
             let len = len as usize;
             // Handle shared-page map header (kernel format).
             if len == 20 {
@@ -323,6 +339,7 @@ fn main() {
             Some(s) => s,
             None => continue,
         };
+        did_work = true;
 
         // break code is make|0x80 for set1
         if sc == 0x92 {
@@ -341,6 +358,10 @@ fn main() {
                 Ok(pid) => println!("[Kagami] launched TestClient pid={}", pid),
                 Err(errno) => println!("[Kagami] failed to exec {}: errno={}", path, errno),
             }
+        }
+
+        if !did_work {
+            time::sleep_ms(1);
         }
     }
 }

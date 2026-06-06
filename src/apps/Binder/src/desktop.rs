@@ -44,7 +44,9 @@ impl Drop for SharedSurface {
         if self.virt_addr == 0 || self.page_count == 0 {
             return;
         }
-        let _ = privileged::unmap_pages(self.virt_addr, self.page_count, false);
+        unsafe {
+            let _ = privileged::unmap_pages(self.virt_addr, self.page_count, false);
+        }
     }
 }
 

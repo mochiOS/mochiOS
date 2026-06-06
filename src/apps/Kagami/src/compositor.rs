@@ -261,34 +261,23 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         let object_id = msg.header.object_id;
         let opcode = msg.header.opcode;
         let len = msg.data.len();
-        let client_state = {
+        let (registry_object_id, compositor_object_id, shm_object_id, buffer_ids, surface_ids) = {
             let clients = self.clients.read().await;
-            clients.get(&client_id).map(|client| {
-                (
-                    client.registry_object_id,
-                    client.compositor_object_id,
-                    client.buffers.keys().copied().collect::<Vec<_>>(),
-                    client.surfaces.keys().copied().collect::<Vec<_>>(),
-                )
-            })
+            clients
+                .get(&client_id)
+                .map(|client| {
+                    (
+                        client.registry_object_id,
+                        client.compositor_object_id,
+                        client.shm_object_id,
+                        client.buffers.keys().copied().collect::<Vec<_>>(),
+                        client.surfaces.keys().copied().collect::<Vec<_>>(),
+                    )
+                })
+                .unwrap_or((None, None, None, Vec::new(), Vec::new()))
         };
 
         let legacy_compositor = object_id == 2;
-        let surface_ids = client_state
-            .as_ref()
-            .map(|(_, _, _, ids)| ids.as_slice())
-            .unwrap_or(&[]);
-        let buffer_ids = client_state
-            .as_ref()
-            .map(|(_, _, ids, _)| ids.as_slice())
-            .unwrap_or(&[]);
-        let compositor_object_id = client_state.and_then(|(_, compositor_id, _, _)| compositor_id);
-        let registry_object_id = client_state.and_then(|(registry_id, _, _, _)| registry_id);
-        let shm_object_id = {
-            let clients = self.clients.read().await;
-            clients.get(&client_id).and_then(|client| client.shm_object_id)
-        };
-
         let is_surface = surface_ids.contains(&object_id);
         let is_buffer = buffer_ids.contains(&object_id);
         let is_compositor = legacy_compositor || compositor_object_id == Some(object_id);
@@ -396,22 +385,20 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         let opcode = msg.header.opcode;
         let mut needs_render = false;
         let mut release_buffer_id: Option<u32> = None;
-        let client_state = {
+        let (registry_object_id, compositor_object_id, shm_object_id, buffer_ids) = {
             let clients = self.clients.read().await;
-            clients.get(&client_id).map(|client| {
-                (
-                    client.registry_object_id,
-                    client.compositor_object_id,
-                    client.buffers.keys().copied().collect::<Vec<_>>(),
-                )
-            })
+            clients
+                .get(&client_id)
+                .map(|client| {
+                    (
+                        client.registry_object_id,
+                        client.compositor_object_id,
+                        client.shm_object_id,
+                        client.buffers.keys().copied().collect::<Vec<_>>(),
+                    )
+                })
+                .unwrap_or((None, None, None, Vec::new()))
         };
-        let registry_object_id = client_state.and_then(|(registry_id, _, _)| registry_id);
-        let compositor_object_id = client_state.and_then(|(_, compositor_id, _)| compositor_id);
-        let buffer_ids = client_state
-            .as_ref()
-            .map(|(_, _, buffers)| buffers.as_slice())
-            .unwrap_or(&[]);
 
         match (object_id, opcode) {
             // wl_display

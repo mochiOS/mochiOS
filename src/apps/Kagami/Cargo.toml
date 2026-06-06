@@ -3,6 +3,7 @@ name = "kagami"
 version = "0.1.0"
 edition = "2024"
 build = "build.rs"
+autoexamples = false
 
 [lib]
 name = "wayland_compositor"
@@ -15,11 +16,6 @@ required-features = ["wayland-host"]
 
 [[bin]]
 name = "test-client"
-path = "examples/test_client.rs"
-required-features = ["wayland-host"]
-
-[[example]]
-name = "test_client"
 path = "examples/test_client.rs"
 required-features = ["wayland-host"]
 

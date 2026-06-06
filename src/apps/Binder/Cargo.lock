@@ -158,7 +158,6 @@ version = "0.1.0"
 dependencies = [
  "image",
  "memmap2",
- "mochi_syscall",
  "tempfile",
  "viewkit",
  "wayland-client",

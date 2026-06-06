@@ -3,6 +3,9 @@
 pub mod app;
 pub mod backend;
 pub mod ipc_proto;
+pub mod platform;
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+mod mochios;
 mod ffi;
 pub mod pipeline;
 pub mod ui;

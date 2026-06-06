@@ -49,7 +49,14 @@ const TEST_PATH: &str = "tests";
 
 fn start_service(service: &ServiceDef) -> Option<u64> {
     println!("[CORE] Starting service: {}", service.name);
-    match process::exec(service.path) {
+    let exec_result = if service.name == "capability.service" {
+        let ready_tid = task::gettid();
+        let arg = format!("--ready-tid={}", ready_tid);
+        process::exec_with_args(service.path, &[&arg])
+    } else {
+        process::exec(service.path)
+    };
+    match exec_result {
         Ok(pid) => {
             println!("[CORE] {} started (PID={})", service.name, pid);
             Some(pid)

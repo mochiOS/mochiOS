@@ -78,10 +78,8 @@ __mochi_ap_trampoline_gdtr_load:
     mov eax, cr0
     or eax, 1
     mov cr0, eax
-    push 0x08
 __mochi_ap_trampoline_pm32_jump:
-    push 0x1234
-    retf
+    ljmp 0x08, 0x1234
 
     .code32
 __mochi_ap_trampoline_pm32_entry:
@@ -91,6 +89,7 @@ __mochi_ap_trampoline_kernel_cr3_load:
     mov ds, ax
     mov es, ax
     mov ss, ax
+    mov esp, 0x0ff0
     mov eax, dword ptr [ebx]
     mov cr3, eax
     mov eax, cr4
@@ -103,10 +102,8 @@ __mochi_ap_trampoline_kernel_cr3_load:
     mov eax, cr0
     or eax, 1 << 31
     mov cr0, eax
-    push 0x18
 __mochi_ap_trampoline_lm64_jump:
-    push 0x12345678
-    retf
+    ljmp 0x18, 0x12345678
 
     .code64
 __mochi_ap_trampoline_lm64_entry:
@@ -117,8 +114,8 @@ __mochi_ap_trampoline_lm64_entry:
     lea rbx, [rip + __mochi_ap_trampoline_stack_top]
     mov rsp, qword ptr [rbx]
     sub rsp, 8
-    mov rdi, qword ptr [rbx + 8]
-    mov rax, qword ptr [rbx + 16]
+    mov rdi, qword ptr [rbx - 16]
+    mov rax, qword ptr [rbx - 8]
     jmp rax
 
     .align 8
@@ -180,7 +177,9 @@ fn trampoline_layout() -> &'static TrampolineLayout {
             gdtr_load_off: core::ptr::addr_of!(__mochi_ap_trampoline_gdtr_load) as usize - start,
             pm32_jump_off: core::ptr::addr_of!(__mochi_ap_trampoline_pm32_jump) as usize - start,
             pm32_entry_off: core::ptr::addr_of!(__mochi_ap_trampoline_pm32_entry) as usize - start,
-            kernel_cr3_load_off: core::ptr::addr_of!(__mochi_ap_trampoline_kernel_cr3_load) as usize - start,
+            kernel_cr3_load_off: core::ptr::addr_of!(__mochi_ap_trampoline_kernel_cr3_load)
+                as usize
+                - start,
             lm64_jump_off: core::ptr::addr_of!(__mochi_ap_trampoline_lm64_jump) as usize - start,
             lm64_entry_off: core::ptr::addr_of!(__mochi_ap_trampoline_lm64_entry) as usize - start,
             kernel_cr3_off: core::ptr::addr_of!(__mochi_ap_trampoline_kernel_cr3) as usize - start,
@@ -310,7 +309,10 @@ pub fn init_local_apic() {
 
     unsafe {
         if x2apic_supported {
-            ApicBase::write(frame, flags | ApicBaseFlags::LAPIC_ENABLE | ApicBaseFlags::X2APIC_ENABLE);
+            ApicBase::write(
+                frame,
+                flags | ApicBaseFlags::LAPIC_ENABLE | ApicBaseFlags::X2APIC_ENABLE,
+            );
             x2apic_write(X2APIC_SIVR_MSR, APIC_SIVR_ENABLE | 0xff);
             crate::info!("Local APIC initialized in x2APIC mode");
         } else {
@@ -418,6 +420,19 @@ unsafe fn patch_trampoline_u32(base_virt: u64, instr_offset: usize, value: u32) 
     ptr::write_unaligned(ptr, value);
 }
 
+unsafe fn patch_trampoline_u32_prefixed(base_virt: u64, instr_offset: usize, value: u32) {
+    let ptr = (base_virt + instr_offset as u64 + 2) as *mut u32;
+    ptr::write_unaligned(ptr, value);
+}
+
+unsafe fn patch_gdt_descriptor_base(base_virt: u64, descriptor_offset: usize, base: u32) {
+    let desc = (base_virt + descriptor_offset as u64) as *mut u8;
+    ptr::write(desc.add(2), (base & 0xFF) as u8);
+    ptr::write(desc.add(3), ((base >> 8) & 0xFF) as u8);
+    ptr::write(desc.add(4), ((base >> 16) & 0xFF) as u8);
+    ptr::write(desc.add(7), ((base >> 24) & 0xFF) as u8);
+}
+
 unsafe fn patch_trampoline_u64(base_virt: u64, instr_offset: usize, value: u64) {
     let ptr = (base_virt + instr_offset as u64 + 2) as *mut u64;
     ptr::write_unaligned(ptr, value);
@@ -455,10 +470,7 @@ unsafe fn install_trampoline(boot_info: &'static BootInfo) -> Option<()> {
     let entry_ptr = handoff()?.kernel_secondary_entry.load(Ordering::Acquire);
     let boot_info_ptr = BOOT_INFO_PTR.load(Ordering::Acquire);
     if kernel_cr3 > u32::MAX as u64 {
-        crate::warn!(
-            "kernel_cr3 too large for AP trampoline: {:#x}",
-            kernel_cr3
-        );
+        crate::warn!("kernel_cr3 too large for AP trampoline: {:#x}", kernel_cr3);
         return None;
     }
     if entry_ptr == 0 {
@@ -483,7 +495,7 @@ unsafe fn install_trampoline(boot_info: &'static BootInfo) -> Option<()> {
     patch_trampoline_u32(
         trampoline_virt,
         layout.kernel_cr3_load_off,
-        (trampoline_phys + layout.kernel_cr3_off as u64) as u32,
+        layout.kernel_cr3_off as u32,
     );
     patch_trampoline_u32(
         trampoline_virt,
@@ -502,6 +514,8 @@ unsafe fn install_trampoline(boot_info: &'static BootInfo) -> Option<()> {
         layout.gdtr_off,
         trampoline_phys + layout.gdt_off as u64,
     );
+    patch_gdt_descriptor_base(trampoline_virt, layout.gdt_off + 8, trampoline_phys as u32);
+    patch_gdt_descriptor_base(trampoline_virt, layout.gdt_off + 16, trampoline_phys as u32);
     TRAMPOLINE_PHYS.store(trampoline_phys, Ordering::Release);
     TRAMPOLINE_SIZE.store(layout.size, Ordering::Release);
 
@@ -556,19 +570,34 @@ pub fn start_secondary_cpus() {
     let layout = trampoline_layout();
     let vector = (trampoline_phys >> 12) as u8;
 
-    let trampoline_page = Page::<Size4KiB>::containing_address(VirtAddr::new(trampoline_phys));
-    let trampoline_frame = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(trampoline_phys));
-    if let Err(err) = crate::mem::paging::map_page(
-        trampoline_page,
-        trampoline_frame,
-        PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-    ) {
-        crate::warn!(
-            "Failed to identity-map AP trampoline page at {:#x}: {:?}",
-            trampoline_phys,
-            err
+    let trampoline_addr = VirtAddr::new(trampoline_phys);
+    let identity_mapped = crate::mem::paging::translate_addr(trampoline_addr)
+        .is_some_and(|phys| phys.as_u64() == trampoline_phys);
+    if !identity_mapped {
+        let trampoline_page = Page::<Size4KiB>::containing_address(trampoline_addr);
+        let trampoline_frame =
+            PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(trampoline_phys));
+        if let Err(err) = crate::mem::paging::map_page(
+            trampoline_page,
+            trampoline_frame,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        ) {
+            crate::warn!(
+                "Failed to identity-map AP trampoline page at {:#x}: {:?}",
+                trampoline_phys,
+                err
+            );
+            return;
+        }
+        crate::info!(
+            "Identity-mapped AP trampoline page at {:#x}",
+            trampoline_phys
         );
-        return;
+    } else {
+        crate::info!(
+            "AP trampoline page already identity-mapped at {:#x}",
+            trampoline_phys
+        );
     }
 
     let bsp_apic_id = boot_info.bsp_apic_id;

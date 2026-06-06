@@ -18,6 +18,23 @@ fn kernel_main() -> ! {
     util::log::set_level(LogLevel::Info);
     debug!("Kernel started");
 
+    if let Some(handoff) = crate::smp::handoff() {
+        let kernel_cr3 = crate::percpu::kernel_cr3();
+        let secondary_entry = secondary_cpu_entry as *const () as usize as u64;
+        let ap_count = handoff.ap_count.load(Ordering::Acquire);
+        handoff.kernel_cr3.store(kernel_cr3, Ordering::Release);
+        handoff
+            .kernel_secondary_entry
+            .store(secondary_entry, Ordering::Release);
+        handoff.ready.store(1, Ordering::Release);
+        info!(
+            "SMP handoff released secondary CPUs: kernel_cr3={:#x} ap_count={}",
+            kernel_cr3, ap_count
+        );
+    }
+
+    crate::smp::start_secondary_cpus();
+
     // core.serviceのみ起動（他のサービスはcore.serviceが管理）
     info!("Starting core.service");
     let mut caps = crate::capability::CapabilitySet::empty();
@@ -38,24 +55,6 @@ fn kernel_main() -> ! {
             manager_pid
         );
     }
-
-    if let Some(handoff) = crate::smp::handoff() {
-        let kernel_cr3 = crate::percpu::kernel_cr3();
-        let secondary_entry = secondary_cpu_entry as *const () as usize as u64;
-        let ap_count = handoff.ap_count.load(Ordering::Acquire);
-        handoff.kernel_cr3.store(kernel_cr3, Ordering::Release);
-        handoff
-            .kernel_secondary_entry
-            .store(secondary_entry, Ordering::Release);
-        handoff.ready.store(1, Ordering::Release);
-        info!(
-            "SMP handoff released secondary CPUs: kernel_cr3={:#x} ap_count={}",
-            kernel_cr3,
-            ap_count
-        );
-    }
-
-    crate::smp::start_secondary_cpus();
 
     // カーネルはアイドル状態に入る
     info!("Kernel initialization complete. Entering idle loop...");

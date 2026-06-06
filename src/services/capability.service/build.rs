@@ -8,7 +8,13 @@ fn main() {
         return;
     }
 
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let manifest_dir = match env::var("CARGO_MANIFEST_DIR") {
+        Ok(v) => v,
+        Err(_) => {
+            println!("cargo:warning=CARGO_MANIFEST_DIR not set");
+            return;
+        }
+    };
 
     let root_dir = Path::new(&manifest_dir)
         .ancestors()

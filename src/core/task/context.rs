@@ -324,20 +324,27 @@ pub unsafe fn switch_to_thread_from_isr(
         )
     };
 
-    let (new_ctx_ptr, next_priv, next_kstack_top, next_fs_base, next_process_id, _next_in_syscall, next_slot) =
-        if let Some(thread) = queue.get(next_id) {
-            let ptr = thread.context() as *const Context;
-            let proc = thread.process_id();
-            let priv_level =
-                with_process(proc, |p| p.privilege()).unwrap_or(crate::task::PrivilegeLevel::Core);
-            let kstack = thread.kernel_stack_top();
-            let fs = thread.fs_base();
-            let in_syscall = thread.in_syscall();
-            let slot = queue.slot_index(next_id).unwrap_or(0);
-            (ptr, priv_level, kstack, fs, proc, in_syscall, slot)
-        } else {
-            return;
-        };
+    let (
+        new_ctx_ptr,
+        next_priv,
+        next_kstack_top,
+        next_fs_base,
+        next_process_id,
+        _next_in_syscall,
+        next_slot,
+    ) = if let Some(thread) = queue.get(next_id) {
+        let ptr = thread.context() as *const Context;
+        let proc = thread.process_id();
+        let priv_level =
+            with_process(proc, |p| p.privilege()).unwrap_or(crate::task::PrivilegeLevel::Core);
+        let kstack = thread.kernel_stack_top();
+        let fs = thread.fs_base();
+        let in_syscall = thread.in_syscall();
+        let slot = queue.slot_index(next_id).unwrap_or(0);
+        (ptr, priv_level, kstack, fs, proc, in_syscall, slot)
+    } else {
+        return;
+    };
 
     if !old_ctx_ptr.is_null() {
         unsafe {

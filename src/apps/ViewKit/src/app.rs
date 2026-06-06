@@ -116,14 +116,14 @@ impl App {
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 fn kagami_present_loop(app: App) {
-    use mochi_syscall::{
+    use crate::mochios::{
         ipc::{ipc_recv, ipc_send},
         privileged,
         task::{find_process_by_name, yield_now},
         time, vga,
     };
 
-    const IPC_BUF_SIZE: usize = mochi_syscall::ipc::MAX_MSG_SIZE;
+    const IPC_BUF_SIZE: usize = crate::mochios::ipc::MAX_MSG_SIZE;
     const KAGAMI_PROCESS_CANDIDATES: [&str; 3] =
         ["/applications/Kagami.app/entry.elf", "Kagami.app", "entry.elf"];
 

@@ -261,6 +261,11 @@ pub fn setup_fs_layout(fs_dir: &Path, resources_src: &Path) -> Result<(), String
         "config",       // 設定ファイルを配置
         "tmp",          // 一時ファイルを配置
         "var",          // 変動するデータを配置
+        "run",          // runtime dir のルート
+        "run/user",     // XDG_RUNTIME_DIR 互換の親ディレクトリ
+        "run/user/0",   // mochiOS の既定 runtime dir
+        "dev",          // デバイスノード用のルート
+        "dev/shm",      // 共有メモリ用の準備ディレクトリ
     ];
 
     for dir in &dirs {

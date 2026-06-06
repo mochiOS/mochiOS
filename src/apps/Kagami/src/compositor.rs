@@ -282,6 +282,12 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                 // create_surface
                 let mut parser = MessageParser::new(&msg.data);
                 if let Some(surface_id) = parser.read_u32() {
+                    if self.surfaces.read().await.contains_key(&surface_id) {
+                        return Err(CompositorError::InvalidMessage(format!(
+                            "duplicate surface id {}",
+                            surface_id
+                        )));
+                    }
                     let surface = Surface::new(surface_id, client_id);
                     self.surfaces.write().await.insert(surface_id, surface);
 
@@ -295,7 +301,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             // wl_surface
             _ => {
                 if let Some(surface) = self.surfaces.write().await.get_mut(&object_id) {
-                        match opcode {
+                    match opcode {
                             1 => {
                                 // attach
                                 let mut parser = MessageParser::new(&msg.data);
@@ -313,22 +319,32 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                         );
                                     }
                                 }
+                                if parser.remaining() != 8 {
+                                    return Err(CompositorError::InvalidMessage(format!(
+                                        "wl_surface::attach expects 12 bytes, got {}",
+                                        msg.data.len()
+                                    )));
+                                }
                             }
-                        2 => {
-                            // damage
-                            let mut parser = MessageParser::new(&msg.data);
-                            if let (Some(x), Some(y), Some(w), Some(h)) = (
+                            2 => {
+                                // damage
+                                let mut parser = MessageParser::new(&msg.data);
+                                if let (Some(x), Some(y), Some(w), Some(h)) = (
                                 parser.read_i32(),
                                 parser.read_i32(),
                                 parser.read_i32(),
                                 parser.read_i32(),
-                            ) {
-                                surface.set_damage(x, y, w, h);
+                                ) {
+                                    surface.set_damage(x, y, w, h);
+                                } else {
+                                    return Err(CompositorError::InvalidMessage(
+                                        "wl_surface::damage payload too short".to_string(),
+                                    ));
+                                }
                             }
-                        }
-                        4 => {
-                            // commit
-                            surface.commit();
+                            4 => {
+                                // commit
+                                surface.commit();
                             log::debug!("Surface {} committed", object_id);
 
                             // MVP: wl_shm 等が未実装のため、バッファが無い場合は
@@ -367,9 +383,16 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                             }
 
                             needs_render = true;
+                            }
+                        _ => {
+                            return Err(CompositorError::InvalidMessage(format!(
+                                "unsupported wl_surface opcode {}",
+                                opcode
+                            )));
                         }
-                        _ => {}
                     }
+                } else {
+                    return Err(CompositorError::SurfaceNotFound(object_id));
                 }
             }
         }

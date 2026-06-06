@@ -1,6 +1,5 @@
 use wayland_compositor::protocol::MessageBuilder;
 use std::env;
-use std::thread;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
@@ -29,9 +28,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compositor に接続
     let mut stream = UnixStream::connect(&socket_path).await?;
     log::info!("Connected to compositor");
-
-    // ウェイトタイム（コンポジター起動待機）
-    tokio::time::sleep(Duration::from_millis(100)).await;
 
     let registry_id = 2u32;
     let shm_id = 3u32;
@@ -69,8 +65,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     stream.write_all(&bytes).await?;
     log::info!("SHM bind request sent");
 
-    thread::sleep(Duration::from_millis(100));
-
     // wl_registry.bind -> wl_compositor
     let msg = MessageBuilder::new(registry_id, 0)
         .push_u32(1) // name
@@ -83,8 +77,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     stream.write_all(&bytes).await?;
     log::info!("Compositor bind request sent");
 
-    thread::sleep(Duration::from_millis(100));
-
     // wl_compositor.create_surface
     let msg = MessageBuilder::new(compositor_id, 0)
         .push_u32(surface_id)
@@ -93,8 +85,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bytes = msg.to_bytes();
     stream.write_all(&bytes).await?;
     log::info!("Surface creation request sent");
-
-    thread::sleep(Duration::from_millis(100));
 
     // wl_shm.create_buffer
     let msg = MessageBuilder::new(shm_id, 0)
@@ -107,8 +97,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bytes = msg.to_bytes();
     stream.write_all(&bytes).await?;
     log::info!("Buffer create request sent");
-
-    thread::sleep(Duration::from_millis(100));
 
     // バッファアタッチ
     // 簡略版：ダミーバッファIDを使用

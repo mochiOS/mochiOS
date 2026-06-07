@@ -1256,6 +1256,62 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_committing_dirty_surface_clears_dirty_state() {
+        let backend = CountingFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let flush_count = backend.flush_count.clone();
+        let compositor = Compositor::new(backend, "/tmp/test-compositor2d.sock".to_string())
+            .expect("Failed to create compositor");
+        compositor.init().await.expect("init");
+
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: false,
+            },
+        );
+
+        let attach = MessageBuilder::new(5, 1)
+            .push_u32(6)
+            .push_i32(0)
+            .push_i32(0)
+            .build();
+        compositor
+            .process_client_messages(1, &attach.to_bytes())
+            .await
+            .expect("attach");
+
+        let commit = MessageBuilder::new(5, 4).build();
+        compositor
+            .process_client_messages(1, &commit.to_bytes())
+            .await
+            .expect("dirty commit");
+        assert_eq!(flush_count.load(Ordering::SeqCst), 1);
+
+        let commit = MessageBuilder::new(5, 4).build();
+        compositor
+            .process_client_messages(1, &commit.to_bytes())
+            .await
+            .expect("clean commit");
+        assert_eq!(flush_count.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
     async fn test_render_uses_shared_buffer_stride() {
         let backend = MemoryFramebufferBackend::new(4, 4, PixelFormat::XRGB8888);
         let mut compositor = Compositor::new(backend, "/tmp/test-compositor18.sock".to_string())

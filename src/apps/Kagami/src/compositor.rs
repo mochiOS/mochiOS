@@ -351,6 +351,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             }
             _ if is_surface => {
                 let expected = match opcode {
+                    0 => 0usize,
                     1 => 12usize,
                     2 => 16usize,
                     4 => 0usize,
@@ -596,7 +597,22 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             }
             // wl_surface
             _ => {
-                if let Some(surface) = self.surfaces.write().await.get_mut(&object_id) {
+                if opcode == 0 {
+                    let removed = self.surfaces.write().await.remove(&object_id);
+                    let Some(mut surface) = removed else {
+                        return Err(CompositorError::SurfaceNotFound(object_id));
+                    };
+                    let was_visible = surface.visible;
+                    surface.detach_buffer();
+                    surface.clear_damage();
+                    if let Some(client) = self.clients.write().await.get_mut(&client_id) {
+                        client.remove_surface(object_id);
+                    }
+                    needs_render = was_visible;
+                    if needs_render {
+                        log::debug!("Surface {} destroyed by client {}", object_id, client_id);
+                    }
+                } else if let Some(surface) = self.surfaces.write().await.get_mut(&object_id) {
                     match opcode {
                             1 => {
                                 // attach
@@ -726,16 +742,19 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
 
     /// Registry グローバルを送信
     async fn send_registry_globals(&self, client_id: u32, registry_id: u32) -> Result<()> {
-        let msg = MessageBuilder::new(registry_id, 0) // global event
+        let compositor_msg = MessageBuilder::new(registry_id, 0)
             .push_u32(1) // name
             .push_string("wl_compositor")
             .push_u32(4) // version
+            .build();
+        let shm_msg = MessageBuilder::new(registry_id, 0)
             .push_u32(2) // name
             .push_string("wl_shm")
             .push_u32(1) // version
             .build();
 
-        self.send_message(client_id, &msg).await?;
+        self.send_message(client_id, &compositor_msg).await?;
+        self.send_message(client_id, &shm_msg).await?;
         Ok(())
     }
 
@@ -771,6 +790,11 @@ mod tests {
     use super::*;
     use crate::backend::memory::MemoryFramebufferBackend;
     use crate::backend::PixelFormat;
+    use crate::client::Client;
+    use crate::protocol::Message;
+    use std::os::unix::net::UnixStream as StdUnixStream;
+    use tokio::io::AsyncReadExt;
+    use tokio::net::UnixStream;
 
     #[tokio::test]
     async fn test_compositor_creation() {
@@ -788,5 +812,65 @@ mod tests {
             .expect("Failed to create compositor");
         let result = compositor.render().await;
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_registry_globals_are_sent_as_separate_events() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor3.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        right.set_nonblocking(true).expect("nonblocking right");
+        let left = UnixStream::from_std(left).expect("tokio left");
+        let mut right = UnixStream::from_std(right).expect("tokio right");
+        compositor
+            .clients
+            .write()
+            .await
+            .insert(1, Client::new(1, left));
+
+        compositor.send_registry_globals(1, 42).await.expect("send globals");
+
+        let mut buf = [0u8; 128];
+        let n = right.read(&mut buf).await.expect("read globals");
+        let (msg1, size1) = Message::from_bytes(&buf[..n]).expect("first global");
+        let (msg2, _) = Message::from_bytes(&buf[size1..n]).expect("second global");
+
+        assert_eq!(msg1.header.object_id, 42);
+        assert_eq!(msg1.header.opcode, 0);
+        assert_eq!(msg2.header.object_id, 42);
+        assert_eq!(msg2.header.opcode, 0);
+    }
+
+    #[tokio::test]
+    async fn test_surface_destroy_removes_client_mapping() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor4.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(10, 10);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(10, Surface::new(10, 1));
+
+        let destroy = MessageBuilder::new(10, 0).build();
+        compositor
+            .process_client_messages(1, &destroy.to_bytes())
+            .await
+            .expect("destroy surface");
+
+        assert!(!compositor.surfaces.read().await.contains_key(&10));
+        let clients = compositor.clients.read().await;
+        assert!(
+            !clients
+                .get(&1)
+                .expect("client")
+                .surfaces
+                .contains_key(&10)
+        );
     }
 }

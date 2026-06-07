@@ -118,13 +118,19 @@ fn main() {
 
     let mut e_down = false;
     loop {
+        let mut processed_ipc = 0usize;
+
         // Handle window server IPC.
         let mut recv = [0u8; IPC_BUF_SIZE];
         loop {
+            if processed_ipc >= 8 {
+                break;
+            }
             let (sender, len) = ipc_recv(&mut recv);
             if sender == 0 || len == 0 {
                 break;
             }
+            processed_ipc += 1;
             let len = len as usize;
             // Handle shared-page map header (kernel format).
             if len == 20 {

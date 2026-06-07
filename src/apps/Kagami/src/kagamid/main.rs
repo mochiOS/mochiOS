@@ -376,7 +376,7 @@ fn main() {
         }
 
         if !did_work {
-            time::sleep_ms(1);
+            task::yield_now();
         }
     }
 }

@@ -49,7 +49,7 @@ fn main() {
             continue;
         }
         if sender == 0 || (len as usize) < core::mem::size_of::<WindowRequest>() {
-            time::sleep_ms(0);
+            task::yield_now();
             continue;
         }
 

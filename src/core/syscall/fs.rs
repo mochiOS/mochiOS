@@ -128,15 +128,10 @@ pub(crate) fn is_directory_rootfs_first(path: &str) -> bool {
 
 #[inline]
 pub(crate) fn readdir_rootfs_first(path: &str) -> Option<Vec<String>> {
-    let mut entries = crate::kmod::fs::readdir_path(path)
+    let entries = crate::kmod::fs::readdir_path(path)
         .or_else(|| crate::init::fs::readdir_path(path))
         .unwrap_or_default();
-    if let Some(mut special) = special_dir_entries(path) {
-        entries.append(&mut special);
-    } else if entries.is_empty() {
-        return None;
-    }
-    Some(entries)
+    merge_special_dir_entries(entries, path)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -181,10 +176,26 @@ fn special_dir_entries(path: &str) -> Option<Vec<String>> {
     }
 }
 
+#[inline]
+fn merge_special_dir_entries(mut entries: Vec<String>, path: &str) -> Option<Vec<String>> {
+    if let Some(special) = special_dir_entries(path) {
+        for name in special {
+            if !entries.iter().any(|existing| existing == &name) {
+                entries.push(name);
+            }
+        }
+        Some(entries)
+    } else if entries.is_empty() {
+        None
+    } else {
+        Some(entries)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        special_dir_entries, special_file_allows_open, special_file_metadata,
+        merge_special_dir_entries, special_dir_entries, special_file_allows_open, special_file_metadata,
         special_path_blocks_mutation, O_CREAT, O_RDWR, O_TRUNC, O_WRONLY, SpecialFileKind,
     };
 
@@ -203,6 +214,26 @@ mod tests {
         assert_eq!(
             special_dir_entries("/run/user/0").unwrap(),
             vec!["wayland-0".to_string()]
+        );
+    }
+
+    #[test]
+    fn runtime_dir_merge_preserves_real_entries() {
+        assert_eq!(
+            merge_special_dir_entries(vec!["existing".to_string()], "/run/user/0").unwrap(),
+            vec!["existing".to_string(), "wayland-0".to_string()]
+        );
+    }
+
+    #[test]
+    fn runtime_dir_merge_deduplicates_special_entries() {
+        assert_eq!(
+            merge_special_dir_entries(
+                vec!["wayland-0".to_string(), "existing".to_string()],
+                "/run/user/0"
+            )
+            .unwrap(),
+            vec!["wayland-0".to_string(), "existing".to_string()]
         );
     }
 

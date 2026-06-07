@@ -1253,6 +1253,13 @@ mod tests {
             .await
             .expect("detach commit");
         assert_eq!(flush_count.load(Ordering::SeqCst), 2);
+        assert!(!compositor
+            .surfaces
+            .read()
+            .await
+            .get(&5)
+            .expect("surface")
+            .dirty);
     }
 
     #[tokio::test]

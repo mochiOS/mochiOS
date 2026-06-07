@@ -192,11 +192,21 @@ fn merge_special_dir_entries(mut entries: Vec<String>, path: &str) -> Option<Vec
     }
 }
 
+#[inline]
+fn special_dir_entry_dtype(path: &str, name: &str) -> Option<u8> {
+    match (path, name) {
+        ("/run", "user") | ("/run/user", "0") => Some(4),
+        ("/run/user/0", "wayland-0") => Some(12),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        merge_special_dir_entries, special_dir_entries, special_file_allows_open, special_file_metadata,
-        special_path_blocks_mutation, O_CREAT, O_RDWR, O_TRUNC, O_WRONLY, SpecialFileKind,
+        merge_special_dir_entries, parse_readdir_typed, special_dir_entries, special_dir_entry_dtype,
+        special_file_allows_open, special_file_metadata, special_path_blocks_mutation, O_CREAT,
+        O_RDWR, O_TRUNC, O_WRONLY, SpecialFileKind,
     };
 
     const O_RDONLY: u64 = 0;
@@ -234,6 +244,23 @@ mod tests {
             )
             .unwrap(),
             vec!["wayland-0".to_string(), "existing".to_string()]
+        );
+    }
+
+    #[test]
+    fn runtime_dir_reports_special_entry_types() {
+        assert_eq!(special_dir_entry_dtype("/run", "user"), Some(4));
+        assert_eq!(special_dir_entry_dtype("/run/user", "0"), Some(4));
+        assert_eq!(special_dir_entry_dtype("/run/user/0", "wayland-0"), Some(12));
+        assert_eq!(special_dir_entry_dtype("/run/user/0", "other"), None);
+    }
+
+    #[test]
+    fn parse_readdir_typed_accepts_socket_dtype() {
+        let bytes = b"wayland-0\0\x0c\n";
+        assert_eq!(
+            parse_readdir_typed(bytes),
+            vec![("wayland-0".to_string(), 12)]
         );
     }
 
@@ -342,7 +369,7 @@ fn parse_readdir_typed(bytes: &[u8]) -> Vec<(String, u8)> {
             continue;
         }
         let dtype = record[record.len() - 1];
-        if !(1..=8).contains(&dtype) {
+        if dtype == 0 {
             continue;
         }
         if record.len() >= 2 && record[record.len() - 2] == 0 {
@@ -1678,9 +1705,12 @@ pub fn getdents64(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
     let entries: Vec<(alloc::string::String, u8)> = match readdir_rootfs_first(&dir_path) {
         Some(e) => e
             .into_iter()
-            // d_type の判定で追加 stat を打つとカーネルモジュール呼び出し回数が増え不安定化するため、
-            // ここでは DT_UNKNOWN(0) を返して利用側のフォールバックに任せる。
-            .map(|name| (name, 0u8))
+            // special runtime path で型が分かるものだけ最小限の d_type を返す。
+            // それ以外は追加 stat を避けるため DT_UNKNOWN(0) のままにする。
+            .map(|name| {
+                let dtype = special_dir_entry_dtype(&dir_path, &name).unwrap_or(0u8);
+                (name, dtype)
+            })
             .collect(),
         None => return EINVAL,
     };

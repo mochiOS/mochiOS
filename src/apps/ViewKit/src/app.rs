@@ -349,6 +349,6 @@ fn kagami_present_loop(app: App) {
 
     // Keep process alive so the window remains visible.
     loop {
-        time::sleep_ms(16);
+        yield_now();
     }
 }

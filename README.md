@@ -1,6 +1,6 @@
 <div align="center">
 <h1>mochiOS</h1>
-<a href="https://deepwiki.com/tas0dev/mochiOS"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+<a href="https://deepwiki.com/mochiOS/mochiOS"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 <a href="https://deps.rs/repo/github/tas0dev/mochiOS" target="_blank"><img src="https://deps.rs/repo/github/tas0dev/mochiOS/status.svg" alt="dependency status" /></a>
 <a href="https://discord.gg/2zYbEnMC5H" target="_blank"><img src="https://img.shields.io/badge/Discord-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord server" /></a>
 </div>

@@ -3,7 +3,7 @@
 
 extern crate alloc;
 
-use swiftlib::io;
+use mochi_syscall::io;
 
 fn parse_number(s: &str) -> Option<usize> {
     let mut result = 0usize;

@@ -1,16 +1,19 @@
 use std::convert::TryInto;
 use std::sync::OnceLock;
-use swiftlib::{
-    ipc::{ipc_recv, ipc_send},
-    keyboard::read_scancode_tap,
-    privileged,
-    process,
-    task::{find_process_by_name, yield_now},
-    vga,
+use viewkit::{
+    platform::{
+        fs,
+        ipc::{recv as ipc_recv, send as ipc_send, MAP_HEADER_MAGIC, MAX_MSG_SIZE},
+        keyboard::read_scancode_tap,
+        privileged,
+        process,
+        task::{find_process_by_name, yield_now},
+        vga,
+    },
+    render_component_to_pixmap_with_asset_root_and_boxes, VComponent,
 };
-use viewkit::{render_component_to_pixmap, VComponent};
 
-const IPC_BUF_SIZE: usize = 4128;
+const IPC_BUF_SIZE: usize = MAX_MSG_SIZE;
 const KAGAMI_PROCESS_CANDIDATES: [&str; 3] =
     ["/applications/Kagami.app/entry.elf", "Kagami.app", "entry.elf"];
 
@@ -20,7 +23,7 @@ const OP_REQ_FLUSH_CHUNK: u32 = 4;
 const OP_REQ_ATTACH_SHARED: u32 = 5;
 const OP_REQ_PRESENT_SHARED: u32 = 6;
 const OP_RES_SHARED_ATTACHED: u32 = 7;
-const LAYER_WALLPAPER: u8 = 0;
+const LAYER_APP: u8 = 2;
 const FONT_HEIGHT: usize = 12;
 const GLYPH_COUNT: usize = 96;
 const ASCII_START: usize = 32;
@@ -36,12 +39,41 @@ struct SharedSurface {
     total_pixels: usize,
 }
 
+impl Drop for SharedSurface {
+    fn drop(&mut self) {
+        if self.virt_addr == 0 || self.page_count == 0 {
+            return;
+        }
+        unsafe {
+            let _ = privileged::unmap_pages(self.virt_addr, self.page_count, false);
+        }
+    }
+}
+
 struct DesktopWindow {
     x: i32,
     y: i32,
     width: i32,
     height: i32,
     title: String,
+}
+
+fn launch_app_with_retry(bundle_path: &str, label: &str) -> Result<u64, i64> {
+    let mut last_err = -110;
+    for _ in 0..300 {
+        match process::exec_app(bundle_path) {
+            Ok(pid) => return Ok(pid),
+            Err(errno) => {
+                last_err = errno;
+                yield_now();
+            }
+        }
+    }
+    eprintln!(
+        "[Binder] failed to launch {} via process.service after retries: errno={}",
+        label, last_err
+    );
+    Err(last_err)
 }
 
 impl Font {
@@ -62,9 +94,9 @@ impl Font {
     }
 
     fn load() -> Self {
-        let data = include_bytes!("../../../../resources/system/fonts/ter-u12b.bdf");
+        let data = include_bytes!("../../../../src/resources/system/fonts/ter-u12b.bdf");
         let mut glyphs = [[0u8; FONT_HEIGHT]; GLYPH_COUNT];
-        parse_bdf(&data, &mut glyphs);
+        parse_bdf(data, &mut glyphs);
         Self { glyphs }
     }
 
@@ -87,6 +119,7 @@ pub fn draw() {
             return;
         }
     };
+    println!("[Binder] kagami_tid={}", kagami_tid);
 
     // Determine screen size (fall back to 800x600)
     let (width_u16, height_u16) = match vga::get_info() {
@@ -94,14 +127,17 @@ pub fn draw() {
         None => (800u16, 600u16),
     };
 
-    let window_id = match create_app_window(kagami_tid, width_u16, height_u16) {
-        Ok(id) => { println!("[Binder] created window id={}", id); id }
+    let window_id = match create_app_window_with_retry(kagami_tid, width_u16, height_u16) {
+        Ok(id) => {
+            println!("[Binder] created window id={}", id);
+            id
+        }
         Err(e) => {
             eprintln!("[Binder] create window failed: {}", e);
             return;
         }
     };
-    let shared_surface = match setup_shared_surface(kagami_tid, window_id, width_u16, height_u16) {
+    let shared_surface = match setup_shared_surface_with_retry(kagami_tid, window_id, width_u16, height_u16) {
         Ok(surface) => { println!("[Binder] setup_shared_surface ok"); Some(surface) },
         Err(e) => {
             eprintln!("[Binder] shared setup failed: {}, fallback to chunk", e);
@@ -109,14 +145,29 @@ pub fn draw() {
         }
     };
 
-    // Build some example windows so decorations can be seen.
+    // Launch Dock.app (separate process / window).
+    launch_dock();
+
+    // Kept for compatibility with existing render_desktop signature; Binder does not draw Dock.
+    let dock_apps: Vec<(String, Option<String>)> = Vec::new();
+
+    // Build a single example window (no dock / no desktop UI).
     let mut desktop_windows = Vec::new();
     let width = width_u16 as i32;
     let height = height_u16 as i32;
-    desktop_windows.push(DesktopWindow { x: 80, y: 80, width: (width - 160).max(100), height: (height - 160).max(80), title: "Welcome to mochiOS".to_string() });
-    desktop_windows.push(DesktopWindow { x: 160, y: 140, width: 420, height: 280, title: "Documents".to_string() });
+    let win_w = (width * 2 / 3).clamp(320, width.max(320) - 40);
+    let win_h = (height * 2 / 3).clamp(240, height.max(240) - 40);
+    let win_x = ((width - win_w) / 2).max(0);
+    let win_y = ((height - win_h) / 2).max(0);
+    desktop_windows.push(DesktopWindow {
+        x: win_x,
+        y: win_y,
+        width: win_w,
+        height: win_h,
+        title: "Window".to_string(),
+    });
 
-    let pixels = render_desktop(width as usize, height as usize, 0, &desktop_windows);
+    let pixels = render_desktop(width as usize, height as usize, &dock_apps, &desktop_windows);
 
     let render_res = if let Some(shared) = shared_surface.as_ref() {
         blit_shared_surface(shared, &pixels);
@@ -135,11 +186,10 @@ pub fn draw() {
         return;
     }
 
-    println!("[Binder] desktop shown");
-    launch_dock(kagami_tid);
+    println!("[Binder] window shown");
 
     loop {
-        let sc_opt = read_scancode_tap().ok().flatten();
+        let sc_opt = read_scancode_tap();
         if let Some(sc) = sc_opt {
             if sc == 0x01 {
                 println!("[Binder] exit");
@@ -150,20 +200,22 @@ pub fn draw() {
     }
 }
 
+fn launch_dock() {
+    let dock_bundle = "/applications/Dock.app";
+    match launch_app_with_retry(dock_bundle, dock_bundle) {
+        Ok(pid) => println!("[Binder] launched Dock pid={}", pid),
+        Err(_) => {}
+    }
+}
+
 // Integrate decorations into render flow
-fn render_desktop(width: usize, height: usize, _dock_offset: i32, windows: &[DesktopWindow]) -> Vec<u32> {
-    let mut px: Vec<u32> = (0..height)
-        .flat_map(|y| {
-            let r = (198 * (height - y) + 137 * y) / height;
-            let g = (222 * (height - y) + 180 * y) / height;
-            let b = (234 * (height - y) + 204 * y) / height;
-
-            let color = 0xFF00_0000 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
-            std::iter::repeat(color).take(width)
-        })
-        .collect();
-
-    draw_info_bar(&mut px, width);
+fn render_desktop(
+    width: usize,
+    height: usize,
+    dock_apps: &[(String, Option<String>)],
+    windows: &[DesktopWindow],
+) -> Vec<u32> {
+    let mut px: Vec<u32> = render_wallpaper(width, height);
 
     // Draw each window with decorations
     for win in windows {
@@ -179,7 +231,155 @@ fn render_desktop(width: usize, height: usize, _dock_offset: i32, windows: &[Des
         );
     }
 
+    // Dock is a separate app (Dock.app). Binder should not render a simplified dock here.
+    let _ = dock_apps;
+
     px
+}
+
+fn draw_dock(px: &mut [u32], stride: usize, height: usize, apps: &[(String, Option<String>)]) {
+    // Match Dock.app sizing.
+    let icon_w = 40i32;
+    let icon_h = 40i32;
+    let gap = 10i32;
+    let padding = 18i32;
+    let dock_h = 75i32;
+    let content_w = if apps.is_empty() {
+        0
+    } else {
+        (apps.len() as i32) * icon_w + (apps.len() as i32 - 1) * gap
+    };
+    let dock_w = (content_w + padding * 2).max(120);
+    let x = ((stride as i32 - dock_w) / 2).max(0);
+    let y = (height as i32 - dock_h - 16).max(0);
+
+    // semi-transparent white bg over wallpaper
+    fill_rounded_rect(
+        px,
+        stride,
+        x,
+        y,
+        dock_w,
+        dock_h,
+        30,
+        0xE6FF_FFFF, // 90% white
+    );
+    stroke_rounded_rect(px, stride, x, y, dock_w, dock_h, 30, 0x66C8_C8C8);
+
+    let mut ix = x + padding;
+    let iy = y + (dock_h - icon_h) / 2;
+    for (name, _icon) in apps.iter() {
+        fill_rounded_rect(px, stride, ix, iy, icon_w, icon_h, 15, 0xFFD9_D9D9);
+        // Simple label hint: first letter
+        if let Some(ch) = name.trim_end_matches(".app").bytes().next() {
+            draw_text(px, stride, (ix + 14) as usize, (iy + 14) as usize, &String::from_utf8_lossy(&[ch]), 0xFF3A_3F4B);
+        }
+        ix += icon_w + gap;
+    }
+}
+
+fn read_file(path: &str, max_size: usize) -> Option<Vec<u8>> {
+    fs::read_file(path, max_size)
+}
+
+fn list_app_bundles() -> Vec<(String, Option<String>)> {
+    let mut apps = Vec::new();
+    let dir_path = "/applications/";
+    match fs::open_via_fs(dir_path) {
+        Ok(fd) => {
+            let mut buf = vec![0u8; 16 * 1024];
+            let n = fs::readdir(fd, &mut buf);
+            fs::close_via_fs(fd);
+            if n == 0 || n > buf.len() as u64 {
+                return apps;
+            }
+            let text = match core::str::from_utf8(&buf[..n as usize]) {
+                Ok(t) => t,
+                Err(_) => return apps,
+            };
+            for line in text.lines() {
+                let name_str = line.trim();
+                if name_str.is_empty() || !name_str.ends_with(".app") {
+                    continue;
+                }
+                let app_path = format!("{}{}", dir_path, name_str);
+                let about_toml_path = format!("{}/about.toml", app_path);
+                let icon = read_icon_from_about_toml(&about_toml_path);
+                apps.push((name_str.to_string(), icon));
+            }
+        }
+        Err(_) => {}
+    }
+    apps.sort_by(|a, b| a.0.cmp(&b.0));
+    apps
+}
+
+fn read_icon_from_about_toml(path: &str) -> Option<String> {
+    let contents = read_file(path, 8192)?;
+    let text = String::from_utf8(contents).ok()?;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with("icon") && line.contains('=') {
+            if let Some(value) = line.split('=').nth(1) {
+                let value = value.trim().trim_matches(|c| c == '"' || c == '\'' || c == ' ');
+                if !value.is_empty() {
+                    if value.starts_with('/') {
+                        return Some(value.to_string());
+                    }
+                    if let Some((base, _)) = path.rsplit_once('/') {
+                        return Some(format!("{}/{}", base, value));
+                    }
+                    return Some(value.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn render_wallpaper(width: usize, height: usize) -> Vec<u32> {
+    static WALLPAPER_RGBA: OnceLock<(Vec<u8>, u32, u32)> = OnceLock::new();
+    let (src_rgba, sw, sh) = WALLPAPER_RGBA.get_or_init(|| {
+        let data = include_bytes!("../assets/wallpapers/Light-Default.png");
+        let img = image::load_from_memory(data)
+            .unwrap_or_else(|_| image::DynamicImage::new_rgba8(1, 1))
+            .to_rgba8();
+        let (w, h) = img.dimensions();
+        (img.into_raw(), w.max(1), h.max(1))
+    });
+
+    let mut dst = vec![0u32; width.saturating_mul(height)];
+    if width == 0 || height == 0 {
+        return dst;
+    }
+
+    // Cover scale: fill the entire screen, cropping as needed.
+    let scale = (width as f32 / *sw as f32).max(height as f32 / *sh as f32);
+    let scaled_w = *sw as f32 * scale;
+    let scaled_h = *sh as f32 * scale;
+    let off_x = (width as f32 - scaled_w) * 0.5;
+    let off_y = (height as f32 - scaled_h) * 0.5;
+
+    for dy in 0..height {
+        for dx in 0..width {
+            let sx_f = (dx as f32 - off_x) / scale;
+            let sy_f = (dy as f32 - off_y) / scale;
+            let sx = sx_f.floor() as i32;
+            let sy = sy_f.floor() as i32;
+            let sx = sx.clamp(0, *sw as i32 - 1) as u32;
+            let sy = sy.clamp(0, *sh as i32 - 1) as u32;
+            let si = (sy as usize * *sw as usize + sx as usize) * 4;
+            let di = dy * width + dx;
+            if si + 3 < src_rgba.len() && di < dst.len() {
+                let r = src_rgba[si] as u32;
+                let g = src_rgba[si + 1] as u32;
+                let b = src_rgba[si + 2] as u32;
+                // wallpaper is treated as opaque in compositor path
+                dst[di] = 0xFF00_0000 | (r << 16) | (g << 8) | b;
+            }
+        }
+    }
+    dst
 }
 
 fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
@@ -191,7 +391,96 @@ fn render_window_component(win: &DesktopWindow) -> Vec<u32> {
 
     // Window body is left blank for Binder; the template supplies the frame.
     let component = component.child(VComponent::from_str("<div></div>"));
-    render_component_to_pixmap(&component, win.width as u32, win.height as u32)
+    let asset_root = detect_asset_root();
+    let (mut pixels, boxes) = render_component_to_pixmap_with_asset_root_and_boxes(
+        &component,
+        win.width as u32,
+        win.height as u32,
+        asset_root.as_deref(),
+        &[
+            "appwindow-content",
+            "appwindow-control-buttons",
+            "appwindow-title",
+            "appwindow-control-button",
+        ],
+    );
+
+    // Keep alpha so the desktop compositor (Binder) can blend rounded corners
+    // over the wallpaper. (Kagami does not alpha blend, so Binder must.)
+
+    if let Some((x, y, w, h)) = boxes.get("appwindow-content").copied() {
+        // Placeholder "client content" until real surface composition is wired.
+        fill_rect(
+            &mut pixels,
+            win.width as usize,
+            x as i32 + 8,
+            y as i32 + 8,
+            (w as i32 - 16).max(0),
+            (h as i32 - 16).max(0),
+            0xFFCC_D3DD,
+        );
+    }
+
+    // Debug layout: draw outlines for title/buttons boxes.
+    if std::env::var("VIEWKIT_DEBUG_LAYOUT").ok().as_deref() == Some("1") {
+        if let Some((x, y, w, h)) = boxes.get("appwindow-control-buttons").copied() {
+            stroke_rect(&mut pixels, win.width as usize, x as i32, y as i32, w as i32, h as i32, 0xFFFF0000);
+        }
+        if let Some((x, y, w, h)) = boxes.get("appwindow-title").copied() {
+            stroke_rect(&mut pixels, win.width as usize, x as i32, y as i32, w as i32, h as i32, 0xFF00FF00);
+        }
+        if let Some((x, y, w, h)) = boxes.get("appwindow-control-button").copied() {
+            stroke_rect(&mut pixels, win.width as usize, x as i32, y as i32, w as i32, h as i32, 0xFF3399FF);
+        }
+    }
+
+    pixels
+}
+
+fn stroke_rect(pixels: &mut [u32], stride: usize, x: i32, y: i32, w: i32, h: i32, color: u32) {
+    if w <= 0 || h <= 0 {
+        return;
+    }
+    // top/bottom
+    for dx in 0..w {
+        put_pixel(pixels, stride, x + dx, y, color);
+        put_pixel(pixels, stride, x + dx, y + h - 1, color);
+    }
+    // left/right
+    for dy in 0..h {
+        put_pixel(pixels, stride, x, y + dy, color);
+        put_pixel(pixels, stride, x + w - 1, y + dy, color);
+    }
+}
+
+fn put_pixel(pixels: &mut [u32], stride: usize, x: i32, y: i32, color: u32) {
+    if x < 0 || y < 0 {
+        return;
+    }
+    let x = x as usize;
+    let y = y as usize;
+    let idx = y.saturating_mul(stride).saturating_add(x);
+    if idx < pixels.len() {
+        pixels[idx] = color;
+    }
+}
+
+fn detect_asset_root() -> Option<String> {
+    let argv0_root = std::env::args()
+        .next()
+        .and_then(|p| p.rsplit_once("/entry.elf").map(|(d, _)| d.to_string()));
+    let candidates = [
+        argv0_root.as_deref(),
+        Some("/applications/Binder.app"),
+    ];
+    for c in candidates.into_iter().flatten() {
+        let test = format!("{}/components/icons/CloseButton.png", c.trim_end_matches('/'));
+        match fs::read_file(&test, 1024 * 1024) {
+            Some(_) => return Some(c.to_string()),
+            None => {}
+        }
+    }
+    argv0_root
 }
 
 fn blit_pixmap(
@@ -219,7 +508,32 @@ fn blit_pixmap(
             if src_idx >= src.len() {
                 continue;
             }
-            dst[dy * dst_stride + dx] = src[src_idx];
+            let spx = src[src_idx];
+            let sa = (spx >> 24) as u8;
+            if sa == 0 {
+                continue;
+            }
+            let di = dy * dst_stride + dx;
+            if di >= dst.len() {
+                continue;
+            }
+            if sa == 255 {
+                dst[di] = spx | 0xFF00_0000;
+                continue;
+            }
+            // tiny-skia outputs premultiplied alpha.
+            let dpx = dst[di];
+            let inv = 255u32 - sa as u32;
+            let sr = ((spx >> 16) & 0xFF) as u32;
+            let sg = ((spx >> 8) & 0xFF) as u32;
+            let sb = (spx & 0xFF) as u32;
+            let dr = ((dpx >> 16) & 0xFF) as u32;
+            let dg = ((dpx >> 8) & 0xFF) as u32;
+            let db = (dpx & 0xFF) as u32;
+            let r = (sr + (dr * inv) / 255).min(255);
+            let g = (sg + (dg * inv) / 255).min(255);
+            let b = (sb + (db * inv) / 255).min(255);
+            dst[di] = 0xFF00_0000 | (r << 16) | (g << 8) | b;
         }
     }
 }
@@ -244,9 +558,10 @@ fn redraw_desktop(
     width: u16,
     height: u16,
     shared_surface: Option<&SharedSurface>,
+    dock_apps: &[(String, Option<String>)],
     windows: &[DesktopWindow],
 ) {
-    let pixels = render_desktop(width as usize, height as usize, 0, windows);
+    let pixels = render_desktop(width as usize, height as usize, dock_apps, windows);
 
     if let Some(shared) = shared_surface {
         blit_shared_surface(shared, &pixels);
@@ -259,8 +574,10 @@ fn create_app_window(kagami_tid: u64, width: u16, height: u16) -> Result<u32, &'
     req[0..4].copy_from_slice(&OP_REQ_CREATE_WINDOW.to_le_bytes());
     req[4..6].copy_from_slice(&width.to_le_bytes());
     req[6..8].copy_from_slice(&height.to_le_bytes());
-    req[8] = LAYER_WALLPAPER;
-    if (ipc_send(kagami_tid, &req) as i64) < 0 {
+    req[8] = LAYER_APP;
+    let send_rc = ipc_send(kagami_tid, &req) as i64;
+    if send_rc < 0 {
+        eprintln!("[Binder] ipc_send create_window rc={}", send_rc);
         return Err("send create_window failed");
     }
     let mut recv = [0u8; IPC_BUF_SIZE];
@@ -279,6 +596,20 @@ fn create_app_window(kagami_tid: u64, width: u16, height: u16) -> Result<u32, &'
     Err("window create timeout")
 }
 
+fn create_app_window_with_retry(kagami_tid: u64, width: u16, height: u16) -> Result<u32, &'static str> {
+    let mut last_err = "window create timeout";
+    for _ in 0..300 {
+        match create_app_window(kagami_tid, width, height) {
+            Ok(id) => return Ok(id),
+            Err(err) => {
+                last_err = err;
+                yield_now();
+            }
+        }
+    }
+    Err(last_err)
+}
+
 fn setup_shared_surface(
     kagami_tid: u64,
     window_id: u32,
@@ -293,28 +624,6 @@ fn setup_shared_surface(
         return Err("shared surface page count out of range");
     }
 
-    println!("[Binder] setup_shared_surface: requesting {} pages", page_count);
-    let mut phys_pages = vec![0u64; page_count];
-    let virt_addr = unsafe {
-        privileged::alloc_shared_pages(page_count as u64, Some(phys_pages.as_mut_slice()), 0)
-    };
-    println!("[Binder] alloc_shared_pages -> virt={:#x}", virt_addr);
-    if (virt_addr as i64) < 0 || virt_addr == 0 {
-        println!("[Binder] alloc_shared_pages failed -> {}", virt_addr as i64);
-        return Err("alloc_shared_pages failed");
-    }
-
-    // Log physical pages allocated
-    println!("[Binder] phys_pages (first 8):");
-    for i in 0..(phys_pages.len().min(8)) {
-        println!("  [{}] = {:#x}", i, phys_pages[i]);
-    }
-    let all_zero = phys_pages.iter().all(|&x| x == 0);
-    if all_zero {
-        println!("[Binder] Warning: phys_pages all zero after alloc_shared_pages");
-        return Err("alloc_shared_pages returned zeroed phys pages");
-    }
-
     let mut attach = [0u8; 12];
     attach[0..4].copy_from_slice(&OP_REQ_ATTACH_SHARED.to_le_bytes());
     attach[4..8].copy_from_slice(&window_id.to_le_bytes());
@@ -326,13 +635,10 @@ fn setup_shared_surface(
         return Err("failed to send shared attach");
     }
     println!("[Binder] ipc_send attach ok");
-    println!("[Binder] sending pages to kagami tid={}", kagami_tid);
-    let send_pages_ret = unsafe { privileged::ipc_send_pages(kagami_tid, phys_pages.as_slice(), 0) };
-    println!("[Binder] ipc_send_pages ret {}", send_pages_ret as i64);
-    if (send_pages_ret as i64) < 0 {
-        println!("[Binder] ipc_send_pages failed");
-        return Err("failed to send shared pages");
-    }
+    // Kagami allocates pages and sends them to us (wl_shm-like).
+    // The kernel will deliver a 20-byte MAP_HEADER_MAGIC message with the mapped address.
+    let virt_addr = wait_shared_map_header(kagami_tid)?;
+    println!("[Binder] shared map header received virt={:#x}", virt_addr);
     println!("[Binder] waiting for shared attach ack");
     wait_shared_attach_ack(kagami_tid, window_id)?;
     println!("[Binder] shared attach ack received");
@@ -342,6 +648,25 @@ fn setup_shared_surface(
         page_count: page_count as u64,
         total_pixels: total,
     })
+}
+
+fn setup_shared_surface_with_retry(
+    kagami_tid: u64,
+    window_id: u32,
+    width: u16,
+    height: u16,
+) -> Result<SharedSurface, &'static str> {
+    let mut last_err = "shared attach timeout";
+    for _ in 0..300 {
+        match setup_shared_surface(kagami_tid, window_id, width, height) {
+            Ok(surface) => return Ok(surface),
+            Err(err) => {
+                last_err = err;
+                yield_now();
+            }
+        }
+    }
+    Err(last_err)
 }
 
 fn present_shared(kagami_tid: u64, window_id: u32) -> Result<(), &'static str> {
@@ -364,6 +689,27 @@ fn blit_shared_surface(surface: &SharedSurface, pixels: &[u32]) {
             *d = *s | 0xFF00_0000;
         }
     }
+}
+
+fn wait_shared_map_header(kagami_tid: u64) -> Result<u64, &'static str> {
+    let mut recv = [0u8; IPC_BUF_SIZE];
+    for _ in 0..512 {
+        let (sender, len) = ipc_recv(&mut recv);
+        if sender != kagami_tid || len != 20 {
+            yield_now();
+            continue;
+        }
+        let magic = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
+        if magic != MAP_HEADER_MAGIC {
+            continue;
+        }
+        let map_start = u64::from_le_bytes([
+            recv[4], recv[5], recv[6], recv[7], recv[8], recv[9], recv[10], recv[11],
+        ]);
+        // total bytes in recv[12..20] is ignored here; we already sized our blit by page_count.
+        return Ok(map_start);
+    }
+    Err("shared map header timeout")
 }
 
 fn wait_shared_attach_ack(kagami_tid: u64, window_id: u32) -> Result<(), &'static str> {
@@ -648,13 +994,4 @@ fn find_kagami_tid() -> Option<u64> {
     None
 }
 
-fn launch_dock(kagami_tid: u64) {
-    let arg_tid = format!("--kagami-tid={}", kagami_tid);
-    let args = [arg_tid.as_str()];
-    match process::exec_with_args("/applications/Dock.app/entry.elf", &args) {
-        Ok(pid) => println!("[Binder] launched Dock pid={}", pid),
-        Err(_) => {
-            eprintln!("[Binder] failed to launch Dock");
-        }
-    }
-}
+// Dock is rendered by Binder directly for now.

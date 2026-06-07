@@ -1,21 +1,8 @@
 //! パニックハンドラ
 //!
-//! カーネルパニック時の処理
-//! 通常のパニックは最終手段として使用し、可能な限りResult型でエラー処理を行うこと
+//! カーネル内部では Result ベースのエラー処理を優先し、ここは最終退避先のみを担う。
 
-use crate::{result, warn};
-
-/// エラーコンテキスト（パニック時に使用）
-pub struct ErrorContext {
-    /// エラーメッセージ
-    pub error: &'static str,
-    /// 発生ファイル
-    pub file: &'static str,
-    /// 発生行
-    pub line: u32,
-    /// 発生列
-    pub column: u32,
-}
+use crate::warn;
 
 #[allow(deprecated)]
 #[panic_handler]
@@ -47,37 +34,4 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
             core::arch::asm!("hlt");
         }
     }
-}
-
-/// エラーコンテキスト付きのパニックマクロ（開発用）
-///
-/// 本番環境ではResult型を使用し、このマクロは使用しないこと
-#[macro_export]
-macro_rules! kernel_panic {
-    ($msg:expr) => {
-        {
-            $crate::warn!("[KERNEL PANIC] {}", $msg);
-            #[cfg(target_arch = "x86_64")]
-            unsafe {
-                x86_64::instructions::interrupts::disable();
-            }
-            loop {
-                #[cfg(target_arch = "x86_64")]
-                unsafe { core::arch::asm!("hlt"); }
-            }
-        }
-    };
-    ($fmt:expr, $($arg:tt)*) => {
-        {
-            $crate::warn!($fmt, $($arg)*);
-            #[cfg(target_arch = "x86_64")]
-            unsafe {
-                x86_64::instructions::interrupts::disable();
-            }
-            loop {
-                #[cfg(target_arch = "x86_64")]
-                unsafe { core::arch::asm!("hlt"); }
-            }
-        }
-    };
 }

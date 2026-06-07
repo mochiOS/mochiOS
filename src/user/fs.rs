@@ -1,12 +1,18 @@
 //! ファイルシステム関連のシステムコール（ユーザー側）
 
+use super::fs_consts;
 use super::sys::{syscall1, syscall2, syscall3, SyscallNumber};
 use alloc::vec::Vec;
 
-fn path_buf(path: &str) -> ([u8; 512], usize) {
-    let mut buf = [0u8; 512];
+/// ファイルシステムIPCの最大データ長
+pub const fn max_data_len() -> usize {
+    fs_consts::FS_DATA_MAX
+}
+
+fn path_buf(path: &str) -> ([u8; fs_consts::FS_PATH_MAX], usize) {
+    let mut buf = [0u8; fs_consts::FS_PATH_MAX];
     let bytes = path.as_bytes();
-    let len = bytes.len().min(511);
+    let len = bytes.len().min(fs_consts::FS_PATH_MAX - 1);
     buf[..len].copy_from_slice(&bytes[..len]);
     (buf, len)
 }
@@ -88,7 +94,7 @@ pub fn read_file_via_fs(path: &str, max_size: usize) -> Result<Option<Vec<u8>>, 
     };
 
     let mut out = Vec::new();
-    let mut chunk = [0u8; 4096];
+    let mut chunk = [0u8; fs_consts::FS_DATA_MAX];
     while out.len() < max_size {
         let to_read = core::cmp::min(chunk.len(), max_size - out.len());
         match read_via_fs(fd, &mut chunk[..to_read]) {

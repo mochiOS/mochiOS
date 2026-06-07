@@ -1,7 +1,6 @@
 //! I/O関連のシステムコール
 
 use super::types::{EBADF, EFAULT, EINVAL, SUCCESS};
-use crate::syscall::types;
 use crate::util::console;
 use crate::{debug, error, info, warn};
 
@@ -10,7 +9,11 @@ const STDOUT_FD: u64 = 1;
 /// 標準エラー出力のファイルディスクリプタ
 const STDERR_FD: u64 = 2;
 const IOVEC_SIZE: u64 = 16;
-const IOV_MAX: u64 = 1024;
+
+#[inline]
+fn iov_max() -> u64 {
+    crate::config::kernel().io.max_iov
+}
 
 #[inline]
 fn is_tty_path(path: Option<&str>) -> bool {
@@ -69,7 +72,6 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
 
     // シリアルには常に出力する（デバッグ用）
     x86_64::instructions::interrupts::without_interrupts(|| {
-        use core::fmt::Write;
         let mut serial = console::SERIAL.lock();
         for &byte in &buf {
             serial.send_byte(byte);
@@ -106,7 +108,7 @@ pub fn writev(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
     if iov_ptr == 0 {
         return EFAULT;
     }
-    if iovcnt > IOV_MAX {
+    if iovcnt > iov_max() {
         return EINVAL;
     }
 
@@ -188,7 +190,7 @@ pub fn readv(fd: u64, iov_ptr: u64, iovcnt: u64) -> u64 {
     if iov_ptr == 0 {
         return EFAULT;
     }
-    if iovcnt > IOV_MAX {
+    if iovcnt > iov_max() {
         return EINVAL;
     }
 

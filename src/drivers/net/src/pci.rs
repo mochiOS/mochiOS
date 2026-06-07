@@ -1,5 +1,5 @@
 use crate::net_common::*;
-use swiftlib::{mmio, port};
+use mochi_syscall::{mmio, port};
 
 fn pci_config_address(bdf: PciBdf, offset: u8) -> u32 {
     0x8000_0000

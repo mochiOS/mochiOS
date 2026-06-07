@@ -234,7 +234,9 @@ pub fn spawn_service(path: &str, name: &'static str) -> Result<()> {
         .ok_or(Kernel::InvalidParam)?;
     let new_pt_phys = paging::create_user_page_table()?;
 
-    let mut process = TaskProcess::new(name, PrivilegeLevel::Service, None, 1);
+    let priority = 10;
+
+    let mut process = TaskProcess::new(name, PrivilegeLevel::Service, None, priority);
     process.set_page_table(new_pt_phys);
     let pid = process.id();
 

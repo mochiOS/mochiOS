@@ -44,12 +44,12 @@ To insert an image, write:
 <Content type="Image" />
 ```
 
-You can also add attributes to the Content tag to control how the image is rendered. For example, to make an image fill the component area while keeping its aspect ratio, use:
+You can also add attributes to the Content tag to control how the image is rendered. For example, to make an image fill the Component area while keeping its aspect ratio, use:
 ```html
 <Content type="Image" fit="cover" clip-radius="15" />
 ```
 
-`fit="cover"` makes the image crop to the component's bounds, and `clip-radius` applies rounded corners to the clipped image.
+`fit="cover"` makes the image crop to the Component's bounds, and `clip-radius` applies rounded corners to the clipped image.
 
 ### Example
 ```html
@@ -71,10 +71,10 @@ You can also add attributes to the Content tag to control how the image is rende
 ```
 
 ### Size Placeholders
-In the CSS section, you can use special placeholders to dynamically set the size of your component. These are replaced by the properties assigned to the component at runtime:
+In the CSS section, you can use special placeholders to dynamically set the size of your Component. These are replaced by the properties assigned to the Component at runtime:
 
-`CONTENT_W`: Replaced by the value specified in the component's `.width` property.
-`CONTENT_H`: Replaced by the value specified in the component's `.height` property.
+`CONTENT_W`: Replaced by the value specified in the Component's `.width` property.
+`CONTENT_H`: Replaced by the value specified in the Component's `.height` property.
 
 In ViewKit, you can set these with `.width()` and `.height()` on `VComponent`.
 
@@ -82,13 +82,13 @@ Example:
 
 ```html
 <style>
-.component {
+.Component {
     /* each is replaced at runtime. */
     width: CONTENT_W;
     height: CONTENT_H;
 }
 </style>
-<div class="component">
+<div class="Component">
     <Children />
 </div>
 ```

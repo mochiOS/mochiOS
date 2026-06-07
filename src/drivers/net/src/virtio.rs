@@ -2,7 +2,7 @@ use crate::net_common::*;
 use crate::util::*;
 use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{compiler_fence, Ordering as AtomicOrdering};
-use swiftlib::{ipc, mmio, port, privileged, task, time};
+use mochi_syscall::{ipc, mmio, port, privileged, task, time};
 
 #[repr(C)]
 #[derive(Clone, Copy)]

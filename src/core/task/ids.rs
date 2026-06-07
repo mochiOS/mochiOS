@@ -102,3 +102,16 @@ pub enum PrivilegeLevel {
     /// ユーザーレベルタスク（Ring3）
     User,
 }
+
+/// スケジューリング上の分類
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SchedulingClass {
+    /// 待ち時間重視
+    Interactive,
+    /// 既定
+    Normal,
+    /// 長めの量子を与える
+    CpuBound,
+    /// 明示的に低優先度
+    Background,
+}

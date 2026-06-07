@@ -9,7 +9,7 @@ Summary
 
 ## Overview
 
-Short overview and rationale. Explain the problem this component/feature solves and where it fits in the system.
+Short overview and rationale. Explain the problem this Component/feature solves and where it fits in the system.
 
 ## API
 

@@ -3,21 +3,18 @@
 use crate::syscall::{EFAULT, EINVAL, EPERM, SUCCESS};
 use core::arch::asm;
 
-/// 呼び出し元プロセスがI/Oポートアクセス権限を持つか確認する
-///
-/// ServiceまたはCore権限レベルのプロセスのみ許可する
-fn caller_has_port_privilege() -> bool {
-    crate::task::current_thread_id()
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .and_then(|pid| {
-            crate::task::with_process(pid, |p| {
-                matches!(
-                    p.privilege(),
-                    crate::task::PrivilegeLevel::Core | crate::task::PrivilegeLevel::Service
-                )
-            })
-        })
-        .unwrap_or(false)
+fn caller_has_low_level_device_capability() -> bool {
+    use crate::capability::Capability::*;
+    crate::syscall::security::caller_has_any_capability(&[
+        DeviceInput,
+        DeviceNet,
+        DeviceStorage,
+        DeviceGpu,
+        DeviceAudio,
+        UsbAccess,
+        SerialAccess,
+        BluetoothAccess,
+    ])
 }
 
 /// I/Oポートから読み取り
@@ -29,8 +26,8 @@ fn caller_has_port_privilege() -> bool {
 /// # Returns
 /// 読み取った値、またはエラー時は EINVAL
 pub fn port_in(port: u64, size: u64) -> u64 {
-    // 権限チェック: ServiceまたはCore権限のプロセスのみI/Oポートアクセスを許可
-    if !caller_has_port_privilege() {
+    // 権限チェック: 明示的な device capability を持つプロセスのみ許可
+    if !caller_has_low_level_device_capability() {
         return EPERM;
     }
 
@@ -90,8 +87,8 @@ pub fn port_in(port: u64, size: u64) -> u64 {
 /// # Returns
 /// SUCCESS、またはエラー時は EINVAL
 pub fn port_out(port: u64, value: u64, size: u64) -> u64 {
-    // 権限チェック: ServiceまたはCore権限のプロセスのみI/Oポートアクセスを許可
-    if !caller_has_port_privilege() {
+    // 権限チェック: 明示的な device capability を持つプロセスのみ許可
+    if !caller_has_low_level_device_capability() {
         return EPERM;
     }
 
@@ -147,7 +144,7 @@ pub fn port_out(port: u64, value: u64, size: u64) -> u64 {
 /// # Returns
 /// SUCCESS、またはエラー時は EINVAL / EFAULT / EPERM
 pub fn port_in_words(port: u64, dst_ptr: u64, count: u64) -> u64 {
-    if !caller_has_port_privilege() {
+    if !caller_has_low_level_device_capability() {
         return EPERM;
     }
     if port > 0xFFFF || count == 0 {
@@ -194,7 +191,7 @@ pub fn port_in_words(port: u64, dst_ptr: u64, count: u64) -> u64 {
 /// # Returns
 /// SUCCESS、またはエラー時は EINVAL / EFAULT / EPERM
 pub fn port_out_words(port: u64, src_ptr: u64, count: u64) -> u64 {
-    if !caller_has_port_privilege() {
+    if !caller_has_low_level_device_capability() {
         return EPERM;
     }
     if port > 0xFFFF || count == 0 {

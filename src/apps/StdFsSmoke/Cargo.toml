@@ -1,0 +1,13 @@
+[package]
+name = "stdfssmoke"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+
+[dependencies]
+
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"

@@ -13,6 +13,7 @@ use builders::{
 
 const BUSYBOX_URL: &str = "https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox";
 const BUSYBOX_SHA256: &str = "6e123e7f3202a8c1e9b1f94d8941580a25135382b99e8d3e34fb858bba311348";
+const AUDIT_LOG_SIZE: u64 = 64 * 1024;
 
 /// カーネル ELF をビルドして fs/system/kernel.elf にコピーする
 fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
@@ -59,6 +60,47 @@ fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
     fs::copy(&kernel_bin, &dest)
         .unwrap_or_else(|e| panic!("failed to copy kernel ELF to {}: {}", dest.display(), e));
     println!("Kernel ELF copied to {}", dest.display());
+
+    let meta_path = system_dir.join("kernel.meta");
+    let meta = build_kernel_meta(&kernel_bin);
+    fs::write(&meta_path, meta)
+        .unwrap_or_else(|e| panic!("failed to write {}: {}", meta_path.display(), e));
+    println!("Kernel metadata written to {}", meta_path.display());
+}
+
+fn build_kernel_meta(kernel_bin: &Path) -> String {
+    let output = std::process::Command::new("nm")
+        .args(["-a", "--defined-only"])
+        .arg(kernel_bin)
+        .output()
+        .unwrap_or_else(|e| panic!("failed to run nm on {}: {}", kernel_bin.display(), e));
+    if !output.status.success() {
+        panic!("nm failed on {}", kernel_bin.display());
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut secondary_entry = None;
+    for line in stdout.lines() {
+        let mut parts = line.split_whitespace();
+        let Some(addr) = parts.next() else {
+            continue;
+        };
+        let Some(_kind) = parts.next() else {
+            continue;
+        };
+        let Some(name) = parts.next() else {
+            continue;
+        };
+        if name == "secondary_cpu_entry" {
+            secondary_entry = Some(addr.to_string());
+            break;
+        }
+    }
+    let secondary_entry = secondary_entry
+        .unwrap_or_else(|| panic!("secondary_cpu_entry not found in {}", kernel_bin.display()));
+    format!(
+        "secondary_cpu_entry=0x{}\n",
+        secondary_entry.trim_start_matches("0x")
+    )
 }
 
 fn is_elf_binary(path: &Path) -> Result<bool, String> {
@@ -90,6 +132,26 @@ fn compute_sha256(path: &Path) -> Result<String, String> {
         .next()
         .map(|s| s.to_lowercase())
         .ok_or_else(|| "No hash in sha256sum output".to_string())
+}
+
+fn service_startup_priority(path: &str) -> u8 {
+    if path.ends_with("/shell.service") {
+        0
+    } else if path.ends_with("/window.service") {
+        1
+    } else if path.ends_with("/process.service") {
+        2
+    } else if path.ends_with("/driver.service") {
+        3
+    } else if path.ends_with("/device.service") {
+        4
+    } else if path.ends_with("/net.service") {
+        5
+    } else if path.ends_with("/disk.service") {
+        6
+    } else {
+        7
+    }
 }
 
 /// BusyBoxをダウンロード
@@ -239,6 +301,46 @@ fn ensure_busybox_binary(fs_dir: &Path) -> Result<(), String> {
     }
 }
 
+fn ensure_audit_log_file(fs_dir: &Path) -> Result<(), String> {
+    let log_dir = fs_dir.join("log");
+    fs::create_dir_all(&log_dir)
+        .map_err(|e| format!("Failed to create {}: {}", log_dir.display(), e))?;
+    let audit_path = log_dir.join("audit.log");
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&audit_path)
+        .map_err(|e| format!("Failed to create {}: {}", audit_path.display(), e))?;
+    file.set_len(AUDIT_LOG_SIZE)
+        .map_err(|e| format!("Failed to size {}: {}", audit_path.display(), e))?;
+    println!(
+        "Initialized persistent audit log file: {} ({} bytes)",
+        audit_path.display(),
+        AUDIT_LOG_SIZE
+    );
+    Ok(())
+}
+
+fn copy_apps_autostart_config(manifest_dir: &Path, fs_dir: &Path) -> Result<(), String> {
+    let src = manifest_dir.join("src/resources/config/autostart.list");
+    let fs_dst_dir = fs_dir.join("config");
+    fs::create_dir_all(&fs_dst_dir)
+        .map_err(|e| format!("Failed to create {}: {}", fs_dst_dir.display(), e))?;
+
+    let fs_dst = fs_dst_dir.join("autostart.list");
+    fs::copy(&src, &fs_dst).map_err(|e| {
+        format!(
+            "Failed to copy {} to {}: {}",
+            src.display(),
+            fs_dst.display(),
+            e
+        )
+    })?;
+    println!("Copied app autostart config to {}", fs_dst.display());
+    Ok(())
+}
+
 fn prune_stale_service_artifacts(
     services: &[builders::services::ServiceEntry],
     ramfs_dir: &Path,
@@ -315,6 +417,35 @@ fn prune_stale_module_artifacts(
     Ok(())
 }
 
+fn write_module_hash_manifest(
+    modules: &[builders::modules::ModuleEntry],
+    ramfs_dir: &Path,
+) -> Result<(), String> {
+    let modules_dir = ramfs_dir.join("Modules");
+    fs::create_dir_all(&modules_dir)
+        .map_err(|e| format!("Failed to create {}: {}", modules_dir.display(), e))?;
+
+    let mut lines = Vec::new();
+    for module in modules {
+        let cext_path = modules_dir.join(format!("{}.cext", module.name));
+        if !cext_path.exists() {
+            return Err(format!(
+                "Missing built module artifact for {} at {}",
+                module.name,
+                cext_path.display()
+            ));
+        }
+        let hash = compute_sha256(&cext_path)?;
+        lines.push(format!("{}.cext={}", module.name, hash));
+    }
+
+    let manifest_path = modules_dir.join("modules.sha256");
+    fs::write(&manifest_path, lines.join("\n"))
+        .map_err(|e| format!("Failed to write {}: {}", manifest_path.display(), e))?;
+    println!("Generated {}", manifest_path.display());
+    Ok(())
+}
+
 #[allow(unused)]
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -385,6 +516,8 @@ fn main() {
     let resources_src = manifest_dir.join("src/resources");
     setup_fs_layout(&fs_dir, &resources_src)
         .unwrap_or_else(|e| println!("cargo:warning=setup_fs_layout failed: {}", e));
+    copy_apps_autostart_config(&manifest_dir, &fs_dir)
+        .expect("Failed to copy apps autostart config");
 
     // newlibのインストールディレクトリを取得
     let target = env::var("TARGET").unwrap_or("x86_64-unknown-uefi".to_string());
@@ -426,9 +559,8 @@ fn main() {
 
     let libc_dir = newlib_install_dir.join("x86_64-elf").join("lib");
 
-    // ユーザーライブラリをビルド
-    let user_src_dir = manifest_dir.join("src/user");
-    build_user_libs(&user_src_dir, &libc_dir);
+    let glue_src_dir = manifest_dir.join("src/runtime_glue");
+    build_user_libs(&glue_src_dir, &libc_dir);
 
     // newlibライブラリをramfsとfsにコピー
     copy_newlib_libs(&libc_dir, &ramfs_dir.join("lib"))
@@ -521,6 +653,7 @@ fn main() {
         build_module(module, &modules_base_dir, &ramfs_dir)
             .unwrap_or_else(|e| panic!("Failed to build module {}: {}", module.name, e));
     }
+    write_module_hash_manifest(&modules, &ramfs_dir).expect("Failed to write module hash manifest");
 
     // アプリケーションをビルド
     let apps_dir = manifest_dir.join("src/apps");
@@ -528,11 +661,11 @@ fn main() {
     if apps_dir.is_dir() {
         println!("Building applications");
         build_apps(&apps_dir, &applications_dir, "elf");
-        
+
         // Clean up build artifacts from applications
-        for entry in fs::read_dir(&applications_dir).unwrap_or_else(|_| {
-            panic!("Failed to read applications dir")
-        }) {
+        for entry in fs::read_dir(&applications_dir)
+            .unwrap_or_else(|_| panic!("Failed to read applications dir"))
+        {
             if let Ok(entry) = entry {
                 let path = entry.path();
                 if path.is_dir() {
@@ -558,6 +691,7 @@ fn main() {
     }
 
     ensure_busybox_binary(&fs_dir).expect("Failed to ensure busybox binary");
+    ensure_audit_log_file(&fs_dir).expect("Failed to create persistent audit log file");
 
     // ドライバをビルド
     let drivers_dir = manifest_dir.join("src/drivers");
@@ -592,6 +726,11 @@ fn main() {
             }
         }
     }
+    services_autostart_entries.sort_by(|left, right| {
+        let left_key = (service_startup_priority(left), left.as_str());
+        let right_key = (service_startup_priority(right), right.as_str());
+        left_key.cmp(&right_key)
+    });
     let services_autostart_path = fs_dir.join("config").join("services.list");
     match fs::write(
         &services_autostart_path,

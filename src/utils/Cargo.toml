@@ -108,7 +108,7 @@ name = "which"
 path = "src/bin/which.rs"
 
 [dependencies]
-swiftlib = { path = "../user" }
+mochi_syscall = { path = "../user" }
 
 [profile.release]
 opt-level = "z"

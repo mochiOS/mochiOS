@@ -264,6 +264,26 @@ pub fn build_service(
         ));
     }
 
+    // manifest.toml があれば同じ場所へコピーする（capability 付与のため）
+    let manifest = service_dir.join("manifest.toml");
+    if manifest.exists() {
+        let effective_output_dir = if service.fs_type != "initfs" {
+            output_dir.join("system/services")
+        } else {
+            output_dir.to_path_buf()
+        };
+        let dest_manifest =
+            effective_output_dir.join(format!("{}.service.manifest.toml", service.name));
+        fs::copy(&manifest, &dest_manifest).map_err(|e| {
+            format!(
+                "Failed to copy manifest {} to {}: {}",
+                manifest.display(),
+                dest_manifest.display(),
+                e
+            )
+        })?;
+    }
+
     Ok(())
 }
 

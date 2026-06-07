@@ -90,10 +90,12 @@ pub fn clock_gettime(clk_id: u64, ts_ptr: u64) -> u64 {
         return EFAULT;
     }
 
-    // タイマーティックを使って時刻を計算 (1ティック = 10ms)
+    // タイマーティックを使って時刻を計算
     let ticks = get_ticks();
-    let sec = ticks / 100;
-    let nsec = (ticks % 100) * 10_000_000;
+    let ticks_per_second = crate::interrupt::timer::ticks_per_second();
+    let tick_ns = crate::interrupt::timer::tick_ms() * 1_000_000;
+    let sec = ticks / ticks_per_second;
+    let nsec = (ticks % ticks_per_second) * tick_ns;
 
     match clk_id {
         CLOCK_REALTIME | CLOCK_MONOTONIC | CLOCK_PROCESS_CPUTIME_ID | CLOCK_THREAD_CPUTIME_ID => {

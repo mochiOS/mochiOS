@@ -1,10 +1,13 @@
-use swiftlib::{
-    fs,
-    keyboard::{read_scancode, read_scancode_tap},
-    process,
-    task::yield_now,
+use viewkit::{
+    ipc_proto,
+    platform::{
+        fs,
+        keyboard::{read_scancode, read_scancode_tap},
+        process,
+        task::yield_now,
+    },
+    render_component_to_pixmap, Window, VComponent,
 };
-use viewkit::{ipc_proto, render_component_to_pixmap, Window, VComponent};
 
 fn main() {
     println!("[Dock] start");
@@ -36,11 +39,7 @@ fn main() {
     println!("[Dock] shown");
 
     loop {
-        let sc_opt = match read_scancode_tap() {
-            Ok(Some(sc)) => Some(sc),
-            Ok(None) => read_scancode(),
-            Err(_) => read_scancode(),
-        };
+        let sc_opt = read_scancode_tap().or_else(|| read_scancode());
         if let Some(sc) = sc_opt {
             // ESC
             if sc == 0x01 || sc == 0x81 {
@@ -68,8 +67,8 @@ fn main() {
             // Enter (press)
             if sc == 0x1C {
                 if let Some((app, _icon)) = apps.get(sel) {
-                    let path = format!("/applications/{}/entry.elf", app);
-                    match process::exec_with_args(&path, &[]) {
+                    let path = format!("/applications/{}", app);
+                    match process::exec_app(&path) {
                         Ok(pid) => println!("[Dock] launched {} pid={}", app, pid),
                         Err(_) => eprintln!("[Dock] failed to launch {}", app),
                     }
@@ -124,10 +123,7 @@ fn dock_window_size(app_count: usize) -> (u16, u16) {
 }
 
 fn read_file(path: &str, max_size: usize) -> Option<Vec<u8>> {
-    match fs::read_file_via_fs(path, max_size) {
-        Ok(Some(data)) => Some(data),
-        _ => None,
-    }
+    fs::read_file(path, max_size)
 }
 
 fn list_app_bundles() -> Vec<(String, Option<String>)> {

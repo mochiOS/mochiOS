@@ -2,7 +2,8 @@ ENTRY(kernel_entry)
 
 SECTIONS
 {
-    . = 0x4000000;
+    /* Keep the kernel image in a conventional-memory window below the bootloader image. */
+    . = 0x2000000;
 
     .text : {
         __text_start = .;

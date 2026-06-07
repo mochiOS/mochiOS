@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use swiftlib::io;
+use mochi_syscall::io;
 
 #[no_mangle]
 pub extern "C" fn main(argc: i32, argv: *const *const u8) -> i32 {

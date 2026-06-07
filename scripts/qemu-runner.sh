@@ -33,6 +33,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TARGET_DIR="$ROOT_DIR/target"
 
+# sandbox/CI 環境では /var/tmp が read-only のことがあるため、
+# QEMU が使う一時ファイルの置き場を明示しておく。
+export TMPDIR="${TMPDIR:-/tmp}"
+
 rm -f "$TARGET_DIR/esp.img"
 
 mkdir -p "$TARGET_DIR"
@@ -45,6 +49,7 @@ PROFILE="debug"
 
 FALLBACK_KERNEL="$ROOT_DIR/target/kernel/x86_64-unknown-none/$PROFILE/kernel"
 FS_KERNEL="$ROOT_DIR/fs/system/kernel.elf"
+FS_KERNEL_META="$ROOT_DIR/fs/system/kernel.meta"
 KERNEL_ELF="${FALLBACK_KERNEL}"
 [ ! -f "$KERNEL_ELF" ] && KERNEL_ELF="$FS_KERNEL"
 
@@ -65,26 +70,71 @@ mmd -i "$ESP_IMG" ::/EFI ::/EFI/BOOT ::/system
 mcopy -i "$ESP_IMG" "$BOOTX64_SRC" ::/EFI/BOOT/BOOTX64.EFI
 
 [ -f "$KERNEL_ELF" ] && mcopy -i "$ESP_IMG" "$KERNEL_ELF" ::/system/kernel.elf
+[ -f "$FS_KERNEL_META" ] && mcopy -i "$ESP_IMG" "$FS_KERNEL_META" ::/system/kernel.meta
 [ -f "$INITFS_IMG" ] && mcopy -i "$ESP_IMG" "$INITFS_IMG" ::/system/initfs.img
 [ -f "$ROOTFS_IMG" ] && mcopy -i "$ESP_IMG" "$ROOTFS_IMG" ::/system/rootfs.ext2
 
 KVM_ARGS=()
-if [ -e /dev/kvm ] && [ -r /dev/kvm ]; then
-    KVM_ARGS=(-enable-kvm -cpu host,migratable=no,+invtsc)
+if [ -e /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+    KVM_ARGS=(-machine accel=kvm -enable-kvm -cpu host,migratable=no,+invtsc)
+    echo "[qemu-runner] Using KVM acceleration"
+elif [ -n "${MOCHIOS_QEMU_ALLOW_TCG:-}" ]; then
+    echo "[qemu-runner] /dev/kvm unavailable; falling back to TCG because MOCHIOS_QEMU_ALLOW_TCG is set"
+else
+    echo "[qemu-runner] Error: /dev/kvm is unavailable. KVM is required." >&2
+    echo "[qemu-runner] Set MOCHIOS_QEMU_ALLOW_TCG=1 only if you intentionally want slow software emulation." >&2
+    exit 1
 fi
 
-exec qemu-system-x86_64 \
+# GUI が使えない環境（CI/SSH/ヘッドレス）でも起動できるように display を切り替える。
+# 既定: DISPLAY が無ければ -display none（serial stdio のみ）
+DISPLAY_ARGS=()
+if [ -n "${MOCHIOS_QEMU_DISPLAY:-}" ]; then
+    DISPLAY_ARGS=(-display "$MOCHIOS_QEMU_DISPLAY")
+elif [ -z "${DISPLAY:-}" ]; then
+    DISPLAY_ARGS=(-display none)
+fi
+
+# 別プロセス（ホスト側のQEMUなど）が mochiOS.img をロックしている場合に備え、
+# 必要なら一時コピーを使って起動する。
+DISK_IMG="$TARGET_DIR/mochiOS.img"
+if [ -n "${MOCHIOS_QEMU_DISK_COPY:-}" ]; then
+    DISK_COPY="/tmp/mochiOS.$$.${RANDOM}.img"
+    cp "$DISK_IMG" "$DISK_COPY"
+    DISK_IMG="$DISK_COPY"
+fi
+
+cleanup() {
+    if [ -n "${QEMU_PID:-}" ]; then
+        kill -TERM "$QEMU_PID" 2>/dev/null || true
+        wait "$QEMU_PID" 2>/dev/null || true
+    fi
+
+    if [ -n "${DISK_COPY:-}" ] && [ -f "$DISK_COPY" ]; then
+        rm -f "$DISK_COPY"
+    fi
+}
+
+trap cleanup INT TERM EXIT
+
+qemu-system-x86_64 \
     "${KVM_ARGS[@]}" \
+    "${DISPLAY_ARGS[@]}" \
     -bios "$OVMF" \
     -drive format=raw,file="$ESP_IMG",index=0,media=disk \
-    -drive id=disk0,file="$TARGET_DIR/mochiOS.img",format=raw,if=ide,index=1,media=disk \
+    -drive id=disk0,file="$DISK_IMG",format=raw,if=ide,index=1,media=disk \
     -usb \
     -device qemu-xhci,id=xhci \
     -device usb-kbd,bus=xhci.0 \
     -device usb-tablet,bus=xhci.0 \
     -netdev user,id=net0 \
     -device virtio-net-pci,netdev=net0 \
-    -m 512M \
+    -m 1G \
+    -smp 4 \
     -no-reboot \
     -serial stdio \
-    -vga std
+    -vga std &
+
+QEMU_PID=$!
+
+wait "$QEMU_PID"

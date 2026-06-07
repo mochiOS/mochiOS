@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use swiftlib::{io, sys::SyscallNumber};
+use mochi_syscall::{io, sys::SyscallNumber};
 
 // ANSI カラーコード
 const COLOR_RESET: &str = "\x1b[0m";

@@ -1965,6 +1965,70 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_cleanup_keeps_other_clients_intact() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor9c.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left1, _right1) = StdUnixStream::pair().expect("pair1");
+        left1.set_nonblocking(true).expect("nonblocking left1");
+        let left1 = UnixStream::from_std(left1).expect("tokio left1");
+        let (left2, _right2) = StdUnixStream::pair().expect("pair2");
+        left2.set_nonblocking(true).expect("nonblocking left2");
+        let left2 = UnixStream::from_std(left2).expect("tokio left2");
+
+        let mut client1 = Client::new(1, left1);
+        client1.registry_object_id = Some(2);
+        client1.add_surface(5, 5);
+        client1.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client1);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: true,
+            },
+        );
+
+        let mut client2 = Client::new(2, left2);
+        client2.registry_object_id = Some(8);
+        client2.add_surface(9, 9);
+        client2.add_buffer(10, 10);
+        compositor.clients.write().await.insert(2, client2);
+        compositor.surfaces.write().await.insert(9, Surface::new(9, 2));
+        compositor.buffers.write().await.insert(
+            10,
+            Buffer {
+                object_id: 10,
+                client_id: 2,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: false,
+            },
+        );
+
+        compositor.cleanup_client_state(1).await;
+
+        assert!(!compositor.surfaces.read().await.contains_key(&5));
+        assert!(!compositor.buffers.read().await.contains_key(&6));
+        assert!(compositor.surfaces.read().await.contains_key(&9));
+        assert!(compositor.buffers.read().await.contains_key(&10));
+
+        let clients = compositor.clients.read().await;
+        assert!(!clients.contains_key(&1));
+        assert!(clients.contains_key(&2));
+    }
+
+    #[tokio::test]
     async fn test_attach_rejects_non_zero_offsets() {
         let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
         let compositor = Compositor::new(backend, "/tmp/test-compositor14.sock".to_string())

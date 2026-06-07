@@ -281,10 +281,10 @@ fn special_dir_entry_dtype(path: &str, name: &str) -> Option<u8> {
 mod tests {
     use super::{
         close_shm_handle, filter_hidden_root_entries, is_shm_entry_path,
-        merge_special_dir_entries, parse_readdir_typed, shm_entry_name, special_dir_entries,
-        special_dir_entry_dtype, special_file_allows_open, special_file_metadata,
-        special_path_blocks_mutation, with_shm_namespace, with_shm_namespace_mut, O_CREAT,
-        O_RDWR, O_TRUNC, O_WRONLY, ShmEntry, SpecialFileKind,
+        merge_special_dir_entries, parse_readdir_typed, shm_entry_name, shm_file_metadata,
+        special_dir_entries, special_dir_entry_dtype, special_file_allows_open,
+        special_file_metadata, special_path_blocks_mutation, with_shm_namespace,
+        with_shm_namespace_mut, O_CREAT, O_RDWR, O_TRUNC, O_WRONLY, ShmEntry, SpecialFileKind,
     };
     use alloc::vec;
 
@@ -403,6 +403,38 @@ mod tests {
         close_shm_handle("/dev/shm/tmp");
         with_shm_namespace(|map| {
             assert!(!map.contains_key("tmp"));
+        });
+    }
+
+    #[test]
+    fn shm_removed_entries_disappear_from_metadata_and_listing() {
+        with_shm_namespace_mut(|map| {
+            map.insert(
+                "gone".to_string(),
+                ShmEntry {
+                    data: vec![9, 8, 7, 6],
+                    open_count: 1,
+                    removed: false,
+                },
+            );
+        });
+
+        assert_eq!(
+            shm_file_metadata("/dev/shm/gone"),
+            Some((0x8000 | 0o600, 4))
+        );
+        with_shm_namespace_mut(|map| {
+            map.get_mut("gone").expect("entry").removed = true;
+        });
+        assert_eq!(shm_file_metadata("/dev/shm/gone"), None);
+        assert_eq!(
+            special_dir_entries("/dev/shm").unwrap_or_default(),
+            Vec::<String>::new()
+        );
+
+        close_shm_handle("/dev/shm/gone");
+        with_shm_namespace(|map| {
+            assert!(!map.contains_key("gone"));
         });
     }
 

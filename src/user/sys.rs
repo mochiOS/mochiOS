@@ -72,6 +72,8 @@ pub enum SyscallNumber {
     Tgkill = 234,
     /// getcwd
     Getcwd = 79,
+    /// readlink
+    Readlink = 89,
     /// unlink (ファイル削除)
     Unlink = 87,
 
@@ -158,6 +160,14 @@ pub enum SyscallNumber {
     MouseReadWait = 551,
     /// プロセス一覧を取得（ユーザーバッファへ書き込む）
     ListProcesses = 552,
+    /// 指定スレッドが capability を持つか確認（thread_id, cap_ptr, cap_len）
+    CheckThreadCapability = 553,
+    /// exec 時に capability を付与する（path_ptr, args_ptr, caps_ptr, caps_total_len）
+    ExecWithCapabilities = 554,
+    /// ブロックデバイス読み取り（disk_id, lba, buf_ptr, sector_count）
+    BlockRead = 555,
+    /// ブロックデバイス書き込み（disk_id, lba, buf_ptr, sector_count）
+    BlockWrite = 556,
     /// 重力が存在するか
     CheckGravityExist = 999,
 }

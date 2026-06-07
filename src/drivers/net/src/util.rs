@@ -1,7 +1,7 @@
 use crate::net_common::*;
 use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{compiler_fence, Ordering as AtomicOrdering};
-use swiftlib::{privileged, task};
+use mochi_syscall::{privileged, task};
 
 pub fn align_up(value: usize, align: usize) -> usize {
     if align == 0 {

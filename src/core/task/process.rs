@@ -3,6 +3,9 @@ use alloc::format;
 use alloc::string::String;
 use alloc::string::ToString;
 
+use crate::capability::CapabilitySet;
+use crate::result::{Kernel, Process as ProcessError, Result};
+
 use super::fd_table::FdTable;
 use super::ids::{PrivilegeLevel, ProcessId, ProcessState};
 use super::signal::SignalState;
@@ -14,6 +17,10 @@ use super::signal::SignalState;
 pub struct Process {
     /// プロセスID
     id: ProcessId,
+    /// アプリID（アプリの場合のみ設定）
+    app_id: Option<String>,
+    /// サービスID（サービスの場合のみ設定）
+    service_id: Option<String>,
     /// プロセス名 (固定長バッファ)
     name: [u8; 32],
     /// 有効な名前の長さ
@@ -22,6 +29,11 @@ pub struct Process {
     state: ProcessState,
     /// 権限レベル
     privilege: PrivilegeLevel,
+    /// プロセスに付与された capability（カーネルが保持）
+    ///
+    /// ユーザープロセスが自分で capability を増やせると sandbox を回避できるため、
+    /// 変更は信頼済みの起動経路（init/core/process.service 等）からのみ行う。
+    capabilities: CapabilitySet,
     /// 親プロセスID（存在する場合）
     parent_id: Option<ProcessId>,
     /// ページテーブルのアドレス（メモリ空間）。Noneの場合はカーネル空間を共有。
@@ -37,8 +49,12 @@ pub struct Process {
     /// カレントワーキングディレクトリ（固定バッファ、ヒープ確保不要）
     cwd: [u8; 256],
     cwd_len: usize,
+    /// 実行ファイルのパス
+    exe_path: String,
     /// 優先度（0が最高、値が大きいほど低い）
     priority: u8,
+    /// 前景プロセスとして待ち時間を優先する
+    foreground: bool,
     /// 終了コード（生存中はNone）
     exit_code: Option<u64>,
     /// プロセスグループID（0 = 自身の PID と同じ）
@@ -76,10 +92,13 @@ impl Process {
 
         Self {
             id: ProcessId::new(),
+            app_id: None,
+            service_id: None,
             name: name_buf,
             name_len: len,
             state: ProcessState::Running,
             privilege,
+            capabilities: CapabilitySet::empty(),
             parent_id,
             page_table: None, // TODO: ページテーブル実装後に設定
             heap_start,
@@ -92,7 +111,9 @@ impl Process {
                 b
             },
             cwd_len: 1,
+            exe_path: String::new(),
             priority,
+            foreground: false,
             exit_code: None,
             pgid: 0,
             sid: 0,
@@ -104,6 +125,29 @@ impl Process {
     /// プロセスIDを取得
     pub fn id(&self) -> ProcessId {
         self.id
+    }
+
+    /// アプリIDを取得
+    pub fn app_id(&self) -> Option<&str> {
+        self.app_id.as_deref()
+    }
+
+    /// サービスIDを取得
+    pub fn service_id(&self) -> Option<&str> {
+        self.service_id.as_deref()
+    }
+
+    /// capability 集合を取得（読み取り専用）
+    pub fn capabilities(&self) -> &CapabilitySet {
+        &self.capabilities
+    }
+
+    /// exec 経路でプロセス生成時に capability を設定する（カーネル内部用）
+    ///
+    /// # 注意
+    /// capability は sandbox の根幹なので、ユーザー空間へ公開しないこと。
+    pub(crate) fn set_capabilities_for_exec(&mut self, caps: CapabilitySet) {
+        self.capabilities = caps;
     }
 
     /// プロセス名を取得
@@ -134,6 +178,14 @@ impl Process {
     /// 優先度を取得
     pub fn priority(&self) -> u8 {
         self.priority
+    }
+
+    pub fn is_foreground(&self) -> bool {
+        self.foreground
+    }
+
+    pub fn set_foreground(&mut self, foreground: bool) {
+        self.foreground = foreground;
     }
 
     /// 終了コードを取得
@@ -201,6 +253,15 @@ impl Process {
         self.cwd_len = len;
     }
 
+    pub fn exe_path(&self) -> &str {
+        &self.exe_path
+    }
+
+    pub fn set_exe_path(&mut self, path: &str) {
+        self.exe_path.clear();
+        self.exe_path.push_str(path);
+    }
+
     /// シグナル状態への読み取りアクセス
     pub fn signal_state(&self) -> &SignalState {
         &self.signal_state
@@ -265,10 +326,13 @@ impl core::fmt::Debug for Process {
         let mut debug_struct = f.debug_struct("Process");
         debug_struct
             .field("id", &self.id)
+            .field("app_id", &self.app_id)
+            .field("service_id", &self.service_id)
             .field("name", &self.name())
             .field("state", &self.state)
             .field("privilege", &self.privilege)
             .field("parent_id", &self.parent_id)
+            .field("capabilities", &self.capabilities)
             .field("priority", &self.priority)
             .field("exit_code", &self.exit_code);
 
@@ -371,12 +435,11 @@ impl ProcessTable {
     /// 名前でプロセスを検索
     pub fn find_by_name(&self, name: &str) -> Option<&Process> {
         // 名前比較: まず完全一致を試し、それでも見つからない場合はいくつかの互換候補を試す。
-        // 目的: バイナリ名 (net.elf -> net) とクレート名 (netdrv) の食い違いに耐性を持たせる。
         // マッチ順序:
         // 1. 完全一致
         // 2. stored_name without ".elf" == name
         // 3. stored_name == name + ".elf"
-        // 4. stored_name == "/bin/drivers/" + name + ".elf"
+        // 4. drivers.list に定義された alias == name
         // 5. stored_name contains name as substring (fallback)
 
         // 1) 完全一致
@@ -412,45 +475,19 @@ impl ProcessTable {
             return Some(p);
         }
 
-        // 4) drivers path variant
-        let mut drivers_path = String::from("/bin/drivers/");
-        drivers_path.push_str(name);
-        drivers_path.push_str(".elf");
-        if let Some(p) = self
-            .processes
-            .iter()
-            .filter_map(|s| s.as_ref())
-            .find(|p| p.name() == drivers_path)
-        {
-            return Some(p);
-        }
-
-        // 5) Try drv -> base mapping (e.g., netdrv -> net)
-        if name.ends_with("drv") && name.len() > 3 {
-            let base = &name[..name.len() - 3];
-            // try base, base.elf, drivers path
+        // 4) drivers.list alias lookup (path -> alias)
+        if let Some(alias) = driver_alias_for_path(name) {
             if let Some(p) = self
                 .processes
                 .iter()
                 .filter_map(|s| s.as_ref())
-                .find(|p| p.name() == base || p.name() == format!("{}.elf", base))
-            {
-                return Some(p);
-            }
-            let mut drivers_path = String::from("/bin/drivers/");
-            drivers_path.push_str(base);
-            drivers_path.push_str(".elf");
-            if let Some(p) = self
-                .processes
-                .iter()
-                .filter_map(|s| s.as_ref())
-                .find(|p| p.name() == drivers_path)
+                .find(|p| p.name() == alias || p.name() == format!("{}.elf", alias))
             {
                 return Some(p);
             }
         }
 
-        // 6) fallback: substring match
+        // 5) fallback: substring match
         self.processes
             .iter()
             .filter_map(|s| s.as_ref())
@@ -505,6 +542,27 @@ impl ProcessTable {
     pub fn count(&self) -> usize {
         self.count
     }
+}
+
+pub(crate) fn driver_alias_for_path(path: &str) -> Option<String> {
+    let data = crate::kmod::fs::read_all("/config/drivers.list")?;
+    let text = core::str::from_utf8(&data).ok()?;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((alias, driver_path)) = line.split_once('=') else {
+            continue;
+        };
+        if driver_path.trim() == path {
+            let alias = alias.trim();
+            if !alias.is_empty() {
+                return Some(alias.to_string());
+            }
+        }
+    }
+    None
 }
 
 impl Default for ProcessTable {
@@ -595,4 +653,26 @@ pub fn reap_zombie_child_process(
 /// 現在のプロセス数を取得
 pub fn process_count() -> usize {
     PROCESS_TABLE.lock().count()
+}
+
+/// プロセス生成時に capability を設定する（カーネル内部用）
+///
+/// これは syscall として公開してはいけない。
+/// ユーザープロセスがこれを呼べると、自己昇格で sandbox を回避できるため。
+pub fn set_process_capabilities(pid: ProcessId, caps: CapabilitySet) -> Result<()> {
+    let updated = with_process_mut(pid, |proc| {
+        proc.capabilities = caps;
+    })
+    .is_some();
+
+    if updated {
+        Ok(())
+    } else {
+        Err(Kernel::Process(ProcessError::ProcessNotFound))
+    }
+}
+
+/// プロセスが指定 capability を持つか（階層継承を含む）
+pub fn process_has_capability(pid: ProcessId, cap: crate::capability::Capability) -> bool {
+    with_process(pid, |proc| proc.capabilities.contains(cap)).unwrap_or(false)
 }

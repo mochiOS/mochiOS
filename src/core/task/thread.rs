@@ -57,6 +57,10 @@ pub struct Thread {
     futex_timed_out: bool,
     /// IPC受信などで眠る前に起床要求が来たことを示すフラグ
     pending_wakeup: bool,
+    /// 直近の対話的な待機/起床の傾向
+    interactive_score: u8,
+    /// 直近の量子使い切りの傾向
+    cpu_burst_score: u8,
 }
 
 // Simple kernel stack pool for creating kernel stacks for threads
@@ -78,8 +82,12 @@ static KSTACK_POOL: SpinLock<KernelStackPool> =
 static NEXT_KSTACK_OFFSET: core::sync::atomic::AtomicUsize =
     core::sync::atomic::AtomicUsize::new(0);
 
+fn kstack_free_list_contains(guard_addr: u64) -> bool {
+    let list = KSTACK_FREE_LIST.lock();
+    list.iter().any(|slot| *slot == guard_addr)
+}
+
 fn unmap_guard_page(guard_addr: u64) -> bool {
-    use x86_64::structures::paging::mapper::Translate;
     use x86_64::structures::paging::mapper::TranslateError;
     use x86_64::structures::paging::{Mapper, Page, Size4KiB};
 
@@ -228,6 +236,21 @@ pub fn free_kernel_stack(base: u64) {
         pool.0.as_ptr() as u64
     };
     if guard_addr < pool_base || guard_addr >= pool_base + KSTACK_POOL_SIZE as u64 {
+        crate::audit::log(
+            crate::audit::AuditEventKind::Fault,
+            "kernel stack free rejected",
+        );
+        return;
+    }
+    if kstack_free_list_contains(guard_addr) {
+        crate::warn!(
+            "free_kernel_stack: double free detected at {:#x}",
+            guard_addr
+        );
+        crate::audit::log(
+            crate::audit::AuditEventKind::Quarantine,
+            "kernel stack double free detected",
+        );
         return;
     }
     let mut list = KSTACK_FREE_LIST.lock();
@@ -315,6 +338,8 @@ impl Thread {
             syscall_user_rflags: 0,
             futex_timed_out: false,
             pending_wakeup: false,
+            interactive_score: 0,
+            cpu_burst_score: 0,
         }
     }
 
@@ -420,6 +445,8 @@ impl Thread {
             syscall_user_rflags: 0,
             futex_timed_out: false,
             pending_wakeup: false,
+            interactive_score: 0,
+            cpu_burst_score: 0,
         }
     }
 
@@ -526,6 +553,8 @@ impl Thread {
             syscall_user_rflags: user_rflags,
             futex_timed_out: false,
             pending_wakeup: false,
+            interactive_score: 0,
+            cpu_burst_score: 0,
         }
     }
 
@@ -585,6 +614,29 @@ impl Thread {
         let v = self.pending_wakeup;
         self.pending_wakeup = false;
         v
+    }
+
+    pub fn interactive_score(&self) -> u8 {
+        self.interactive_score
+    }
+
+    pub fn cpu_burst_score(&self) -> u8 {
+        self.cpu_burst_score
+    }
+
+    pub fn note_interactive_wakeup(&mut self) {
+        self.interactive_score = self.interactive_score.saturating_add(2).min(8);
+        self.cpu_burst_score = self.cpu_burst_score.saturating_sub(1);
+    }
+
+    pub fn note_voluntary_yield(&mut self) {
+        self.interactive_score = self.interactive_score.saturating_add(1).min(8);
+        self.cpu_burst_score = self.cpu_burst_score.saturating_sub(1);
+    }
+
+    pub fn note_slice_exhausted(&mut self) {
+        self.cpu_burst_score = self.cpu_burst_score.saturating_add(1).min(8);
+        self.interactive_score = self.interactive_score.saturating_sub(1);
     }
 
     /// スレッドIDを取得
@@ -693,6 +745,10 @@ pub struct ThreadQueue {
     threads: [Option<Thread>; Self::MAX_THREADS],
     /// スロット世代番号（スロット再利用時に増加）
     slot_generations: [u64; Self::MAX_THREADS],
+    /// Ready 状態のスレッドを表すビットマップ
+    ready_bitmap: u64,
+    /// ラウンドロビンの開始位置
+    rr_cursor: usize,
     /// 現在のスレッド数
     count: usize,
 }
@@ -707,6 +763,8 @@ impl ThreadQueue {
         Self {
             threads: [INIT; Self::MAX_THREADS],
             slot_generations: [0; Self::MAX_THREADS],
+            ready_bitmap: 0,
+            rr_cursor: 0,
             count: 0,
         }
     }
@@ -721,6 +779,7 @@ impl ThreadQueue {
         }
 
         let id = thread.id();
+        let is_ready = thread.state() == ThreadState::Ready;
 
         // 空きスロットを探す
         for (idx, slot) in self.threads.iter_mut().enumerate() {
@@ -729,6 +788,13 @@ impl ThreadQueue {
                 self.slot_generations[idx] = self.slot_generations[idx].wrapping_add(1);
                 if self.slot_generations[idx] == 0 {
                     self.slot_generations[idx] = 1;
+                }
+                // Ready状態のスレッドをビットマップに登録
+                if is_ready {
+                    self.ready_bitmap |= 1u64 << idx;
+                }
+                if self.count == 0 {
+                    self.rr_cursor = idx;
                 }
                 self.count += 1;
                 return Some(id);
@@ -745,11 +811,23 @@ impl ThreadQueue {
             .find_map(|slot| slot.as_ref().filter(|t| t.id() == id))
     }
 
+    /// 指定スロットのスレッドを取得
+    pub fn get_slot(&self, slot: usize) -> Option<&Thread> {
+        self.threads.get(slot).and_then(|thread| thread.as_ref())
+    }
+
     /// スレッドIDでスレッドの可変参照を取得
     pub fn get_mut(&mut self, id: ThreadId) -> Option<&mut Thread> {
         self.threads
             .iter_mut()
             .find_map(|slot| slot.as_mut().filter(|t| t.id() == id))
+    }
+
+    /// 指定スロットのスレッドを可変参照で取得
+    pub fn get_slot_mut(&mut self, slot: usize) -> Option<&mut Thread> {
+        self.threads
+            .get_mut(slot)
+            .and_then(|thread| thread.as_mut())
     }
 
     /// スレッドIDが存在するスロットインデックスを返す
@@ -773,10 +851,11 @@ impl ThreadQueue {
     /// # Returns
     /// 削除されたスレッドを返す。存在しない場合はNone
     pub fn remove(&mut self, id: ThreadId) -> Option<Thread> {
-        for slot in &mut self.threads {
+        for (idx, slot) in self.threads.iter_mut().enumerate() {
             if let Some(ref thread) = slot {
                 if thread.id() == id {
                     self.count -= 1;
+                    self.ready_bitmap &= !(1u64 << idx);
                     return slot.take();
                 }
             }
@@ -787,53 +866,67 @@ impl ThreadQueue {
     /// 次に実行すべきスレッドを取得（削除せずに参照を返す）
     ///
     /// Ready状態のスレッドを優先して返す
-    pub fn peek_next(&self) -> Option<&Thread> {
-        // Ready状態のスレッドを探す
-        self.threads
-            .iter()
-            .filter_map(|slot| slot.as_ref())
-            .find(|t| t.state() == ThreadState::Ready)
+    pub fn peek_next(&mut self) -> Option<&Thread> {
+        self.next_ready_slot_after(None)
+            .and_then(|slot| self.get_slot(slot))
     }
 
     /// 次に実行すべきスレッドを取得（可変参照）
     pub fn peek_next_mut(&mut self) -> Option<&mut Thread> {
-        // Ready状態のスレッドを探す
-        self.threads
-            .iter_mut()
-            .filter_map(|slot| slot.as_mut())
-            .find(|t| t.state() == ThreadState::Ready)
+        let slot = self.next_ready_slot_after(None)?;
+        self.get_slot_mut(slot)
     }
 
-    /// 指定されたスレッドの次のReady状態のスレッドを取得（ラウンドロビン用）
-    ///
-    /// current_idの次のスロットから検索を開始し、見つからなければ先頭から検索
-    pub fn peek_next_after(&mut self, current_id: Option<ThreadId>) -> Option<&mut Thread> {
-        if let Some(current) = current_id {
-            // 現在のスレッドのインデックスを探す
-            let mut current_index = None;
-            for (i, slot) in self.threads.iter().enumerate() {
-                if let Some(thread) = slot.as_ref() {
-                    if thread.id() == current {
-                        current_index = Some(i);
-                        break;
-                    }
-                }
-            }
-
-            if let Some(start_idx) = current_index {
-                for i in (start_idx + 1..Self::MAX_THREADS).chain(0..=start_idx) {
-                    if self.threads[i]
-                        .as_ref()
-                        .is_some_and(|t| t.state() == ThreadState::Ready)
-                    {
-                        return self.threads[i].as_mut();
-                    }
-                }
-            }
+    #[inline]
+    fn ready_mask_from_slot(&self, start_slot: usize) -> Option<usize> {
+        if self.ready_bitmap == 0 {
+            return None;
         }
 
-        // current_idがない場合は最初のReady状態のスレッドを返す
-        self.peek_next_mut()
+        // Linear search from start_slot, wrapping around if needed
+        for i in 0..Self::MAX_THREADS {
+            let slot = (start_slot + i) % Self::MAX_THREADS;
+            if (self.ready_bitmap & (1u64 << slot)) != 0 {
+                return Some(slot);
+            }
+        }
+        None
+    }
+
+    /// 指定スロットの次のReady状態のスロットを取得（ラウンドロビン用）
+    pub fn next_ready_slot_after(&mut self, current_slot: Option<usize>) -> Option<usize> {
+        if self.ready_bitmap == 0 {
+            return None;
+        }
+        let start = current_slot
+            .map(|slot| (slot + 1) % Self::MAX_THREADS)
+            .unwrap_or(self.rr_cursor);
+        let next_slot = self.ready_mask_from_slot(start)?;
+        self.rr_cursor = (next_slot + 1) % Self::MAX_THREADS;
+        Some(next_slot)
+    }
+
+    /// 指定スロットの状態を更新
+    pub fn set_state_at_slot(&mut self, slot: usize, state: ThreadState) -> bool {
+        let Some(thread) = self.get_slot_mut(slot) else {
+            return false;
+        };
+        thread.set_state(state);
+        if state == ThreadState::Ready {
+            self.ready_bitmap |= 1u64 << slot;
+        } else {
+            self.ready_bitmap &= !(1u64 << slot);
+        }
+        true
+    }
+
+    /// スレッドIDの状態を更新
+    pub fn set_state(&mut self, id: ThreadId, state: ThreadState) -> bool {
+        if let Some(slot) = self.slot_index(id) {
+            self.set_state_at_slot(slot, state)
+        } else {
+            false
+        }
     }
 
     /// 指定された状態のスレッド数をカウント
@@ -911,6 +1004,24 @@ where
     queue.get_mut(id).map(f)
 }
 
+/// 指定スロットのスレッド情報を取得（読み取り専用操作）
+pub fn with_thread_at_slot<F, R>(slot: usize, f: F) -> Option<R>
+where
+    F: FnOnce(&Thread) -> R,
+{
+    let queue = THREAD_QUEUE.lock();
+    queue.get_slot(slot).map(f)
+}
+
+/// 指定スロットのスレッド情報を可変操作
+pub fn with_thread_at_slot_mut<F, R>(slot: usize, f: F) -> Option<R>
+where
+    F: FnOnce(&mut Thread) -> R,
+{
+    let mut queue = THREAD_QUEUE.lock();
+    queue.get_slot_mut(slot).map(f)
+}
+
 /// スレッドを削除
 pub fn remove_thread(id: ThreadId) -> Option<Thread> {
     THREAD_QUEUE.lock().remove(id)
@@ -971,22 +1082,42 @@ pub fn thread_slot_index_and_generation_by_u64(id_val: u64) -> Option<(usize, u6
 
 /// 現在実行中のスレッドIDを取得
 pub fn current_thread_id() -> Option<ThreadId> {
-    x86_64::instructions::interrupts::without_interrupts(|| {
-        let raw = crate::percpu::current_thread_raw_id();
-        if raw == 0 {
-            None
-        } else {
-            Some(ThreadId::from_u64(raw))
-        }
-    })
+    let raw = crate::percpu::current_thread_raw_id();
+    if raw == 0 {
+        None
+    } else {
+        Some(ThreadId::from_u64(raw))
+    }
+}
+
+/// 現在実行中のスレッドスロットを取得
+pub fn current_thread_slot() -> Option<usize> {
+    crate::percpu::current_thread_slot()
 }
 
 /// 現在実行中のスレッドIDを設定
-pub fn set_current_thread(id: Option<ThreadId>) {
+pub fn set_current_thread(id: Option<ThreadId>, slot: Option<usize>) {
     let raw = id.map(|v| v.as_u64()).unwrap_or(0);
     x86_64::instructions::interrupts::without_interrupts(|| {
         crate::percpu::set_current_thread_raw_id(raw);
+        crate::percpu::set_current_thread_slot(slot);
     });
+}
+
+/// 互換用: スロット情報なしで現在スレッドを設定
+pub fn set_current_thread_by_id(id: Option<ThreadId>) {
+    let slot = id.and_then(|thread_id| THREAD_QUEUE.lock().slot_index(thread_id));
+    set_current_thread(id, slot);
+}
+
+/// 現在スレッドの状態を更新
+pub fn set_thread_state(id: ThreadId, state: ThreadState) -> bool {
+    THREAD_QUEUE.lock().set_state(id, state)
+}
+
+/// 指定スロットのスレッド状態を更新
+pub fn set_thread_state_at_slot(slot: usize, state: ThreadState) -> bool {
+    THREAD_QUEUE.lock().set_state_at_slot(slot, state)
 }
 
 /// スレッドIDからプロセスIDを取得

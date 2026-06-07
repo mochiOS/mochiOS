@@ -1,4 +1,4 @@
-use swiftlib::{fs, io};
+use mochi_syscall::{fs, io};
 
 fn main() {
     let mut args = std::env::args();

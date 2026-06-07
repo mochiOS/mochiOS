@@ -1,0 +1,8 @@
+[app]
+id = "com.mochi.dock"
+name = "Dock"
+entry = "/applications/Dock.app/entry.elf"
+
+[capabilities]
+required = ["ipc.client", "process.spawn"]
+optional = []

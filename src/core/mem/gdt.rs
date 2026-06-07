@@ -90,30 +90,39 @@ pub fn init() {
         set_data_segments(selectors.data_selector);
         crate::debug!("Data segments set");
 
+        // 共有GDT上のTSS descriptorはBSPでbusyになる。
+        // APでも同じdescriptorを再利用するため、LTR前にbusy bitを落としておく。
+        let mut gdtr: [u8; 10] = [0; 10];
+        asm!("sgdt [{}]", in(reg) &mut gdtr, options(nostack));
+        let gdt_base = u64::from_le_bytes([
+            gdtr[2], gdtr[3], gdtr[4], gdtr[5], gdtr[6], gdtr[7], gdtr[8], gdtr[9],
+        ]);
+        let tss_index = selectors.tss_selector.0 as usize >> 3;
+        let tss_desc_ptr = (gdt_base + (tss_index * 8) as u64) as *mut u64;
+        let tss_desc_old = core::ptr::read_volatile(tss_desc_ptr);
+        let tss_desc_new = tss_desc_old & !(1u64 << 41);
+        core::ptr::write_volatile(tss_desc_ptr, tss_desc_new);
+
         // TSSをロード
         crate::debug!("Loading TSS");
         load_tss(selectors.tss_selector);
         crate::debug!("TSS loaded");
-        // Ensure user data descriptor has D/B cleared for long mode (avoid GPF on iretq)
-        // We modify the loaded GDT in-place: clear bit 54 (D/B) of the descriptor.
-        // ただし、SMAP有効環境ではこのメモリアクセスが違反になるため、スキップする。
-        if !crate::cpu::is_smap_enabled() {
-            crate::debug!("Modifying GDT descriptor for user data segment");
-            let mut gdtr: [u8; 10] = [0; 10];
-            asm!("sgdt [{}]", in(reg) &mut gdtr, options(nostack));
-            let base = u64::from_le_bytes([
-                gdtr[2], gdtr[3], gdtr[4], gdtr[5], gdtr[6], gdtr[7], gdtr[8], gdtr[9],
-            ]);
-            let user_ds_index = selectors.user_data_selector.0 as usize >> 3;
-            let desc_ptr = (base + (user_ds_index * 8) as u64) as *mut u64;
-            let old = core::ptr::read_volatile(desc_ptr);
-            // clear D/B bit (bit 54)
-            let new = old & !(1u64 << 54);
-            core::ptr::write_volatile(desc_ptr, new);
-            crate::debug!("GDT descriptor modified");
-        } else {
-            crate::debug!("Skipping GDT descriptor modification (SMAP enabled)");
-        }
+        // Ensure user data descriptor has D/B cleared for long mode (avoid GPF on iretq).
+        // SMAP/SMEP が有効でも確実に更新できるよう、ガードで一時的に無効化して処理する。
+        let _smap_smep_guard = crate::cpu::SmapSmepGuard::new();
+        crate::debug!("Modifying GDT descriptor for user data segment");
+        let mut gdtr: [u8; 10] = [0; 10];
+        asm!("sgdt [{}]", in(reg) &mut gdtr, options(nostack));
+        let base = u64::from_le_bytes([
+            gdtr[2], gdtr[3], gdtr[4], gdtr[5], gdtr[6], gdtr[7], gdtr[8], gdtr[9],
+        ]);
+        let user_ds_index = selectors.user_data_selector.0 as usize >> 3;
+        let desc_ptr = (base + (user_ds_index * 8) as u64) as *mut u64;
+        let old = core::ptr::read_volatile(desc_ptr);
+        // clear D/B bit (bit 54)
+        let new = old & !(1u64 << 54);
+        core::ptr::write_volatile(desc_ptr, new);
+        crate::debug!("GDT descriptor modified");
     }
 
     info!("GDT loaded with TSS");

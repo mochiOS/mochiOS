@@ -3,18 +3,18 @@ use x86_64::VirtAddr;
 
 const MAX_MMIO_MAP_SIZE: u64 = 64 * 1024 * 1024;
 
-fn caller_has_mmio_privilege() -> bool {
-    crate::task::current_thread_id()
-        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
-        .and_then(|pid| {
-            crate::task::with_process(pid, |p| {
-                matches!(
-                    p.privilege(),
-                    crate::task::PrivilegeLevel::Core | crate::task::PrivilegeLevel::Service
-                )
-            })
-        })
-        .unwrap_or(false)
+fn caller_has_mmio_capability() -> bool {
+    use crate::capability::Capability::*;
+    crate::syscall::security::caller_has_any_capability(&[
+        DeviceGpu,
+        DeviceAudio,
+        DeviceInput,
+        DeviceStorage,
+        DeviceNet,
+        UsbAccess,
+        SerialAccess,
+        BluetoothAccess,
+    ])
 }
 
 fn current_process_page_table() -> Option<u64> {
@@ -38,7 +38,7 @@ fn translate_user_vaddr_to_phys(table_phys: u64, user_vaddr: u64) -> Result<u64,
 /// 成功時: マップ済みユーザー仮想アドレス
 /// 失敗時: errno
 pub fn map_physical_range(phys_addr: u64, size: u64) -> u64 {
-    if !caller_has_mmio_privilege() {
+    if !caller_has_mmio_capability() {
         return EPERM;
     }
     if size == 0 {
@@ -75,7 +75,7 @@ pub fn map_physical_range(phys_addr: u64, size: u64) -> u64 {
 
     let result = crate::task::with_process_mut(pid, |process| {
         if process.heap_start() == 0 {
-            let default_base = 0x5000_0000u64;
+            let default_base = crate::config::kernel().exec.mmap_heap_base_min;
             process.set_heap_start(default_base);
             process.set_heap_end(default_base);
         }
@@ -124,7 +124,7 @@ pub fn map_physical_range(phys_addr: u64, size: u64) -> u64 {
 /// 現在はページの pin/refcount を行わないため、呼び出し側は DMA 完了まで
 /// 対象ページがアンマップされないことを保証する必要がある。
 pub fn virt_to_phys(user_vaddr: u64) -> u64 {
-    if !caller_has_mmio_privilege() {
+    if !caller_has_mmio_capability() {
         return EPERM;
     }
     if user_vaddr == 0 {

@@ -50,11 +50,21 @@ pub fn kinit(boot_info: &'static BootInfo) -> Result<&'static [MemoryRegion]> {
     mem::init(boot_info)?;
 
     fs::init();
+    crate::config::init();
+    crate::kmod::init_runtime_config();
     crate::kmod::load_modules();
     if crate::kmod::fs::is_loaded() {
+        if crate::kmod::disk::is_loaded() {
+            let rc = crate::kmod::fs::set_disk_ops(crate::kmod::disk::ops_ptr());
+            if rc != 0 {
+                crate::warn!("kmod: fs set_disk_ops failed rc={}", rc);
+            }
+        }
         let rc = crate::kmod::fs::mount(0);
         if rc != 0 {
             crate::warn!("kmod: fs mount failed rc={}", rc);
+        } else {
+            crate::audit::flush_to_disk();
         }
     }
 

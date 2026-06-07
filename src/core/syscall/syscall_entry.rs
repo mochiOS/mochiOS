@@ -23,7 +23,7 @@
 /// STAR MSR レイアウト:
 ///   [47:32] = SYSCALL CS (カーネル CS, SS は CS+8)
 ///   [63:48] = SYSRET CS  (ユーザー CS-16, 実際の user CS は +16, SS は +8)
-pub fn init_syscall() {
+pub fn init_syscall_current_cpu() {
     // IA32_EFER の SCE ビットを有効化 (SYSCALL/SYSRET を使えるようにする)
     const IA32_EFER: u32 = 0xC000_0080;
     const SCE_BIT: u64 = 1;
@@ -60,9 +60,13 @@ pub fn init_syscall() {
     unsafe {
         core::arch::asm!("mov {}, rsp", out(reg) kstack_top, options(nomem, nostack, preserves_flags));
     }
-    crate::percpu::init_boot_cpu(kstack_top);
+    crate::percpu::init_current_cpu(kstack_top);
 
     crate::info!("SYSCALL/SYSRET initialized: LSTAR={:#x}", lstar_val);
+}
+
+pub fn init_syscall() {
+    init_syscall_current_cpu();
 }
 
 /// SYSCALL カーネルスタックを更新する (コンテキストスイッチ時に呼ぶ)
@@ -95,11 +99,11 @@ pub fn restore_page_table(previous_cr3: u64) {
 
 /// KPTI: 現在スレッドがユーザー権限なら、そのプロセスのユーザーCR3へ切り替える
 pub fn switch_to_current_thread_user_page_table() {
-    let tid = match crate::task::current_thread_id() {
-        Some(t) => t,
+    let slot = match crate::task::current_thread_slot() {
+        Some(s) => s,
         None => return,
     };
-    let pid = match crate::task::with_thread(tid, |t| t.process_id()) {
+    let pid = match crate::task::with_thread_at_slot(slot, |t| t.process_id()) {
         Some(p) => p,
         None => return,
     };
@@ -116,22 +120,33 @@ pub fn switch_to_current_thread_user_page_table() {
 /// KPTI: SYSCALL/INT入口でカーネルCR3へ切り替える
 pub fn kpti_enter_for_current_thread() {
     let previous = switch_to_kernel_page_table();
-    if let Some(tid) = crate::task::current_thread_id() {
+    if let Some(slot) = crate::task::current_thread_slot() {
+        crate::task::with_thread_at_slot_mut(slot, |t| t.set_syscall_user_cr3(previous));
+    } else if let Some(tid) = crate::task::current_thread_id() {
         crate::task::with_thread_mut(tid, |t| t.set_syscall_user_cr3(previous));
     }
 }
 
 /// KPTI: SYSCALL/INT出口でユーザーCR3へ戻す
 pub fn kpti_leave_for_current_thread() {
-    let restore = crate::task::current_thread_id()
-        .and_then(|tid| {
-            crate::task::with_thread_mut(tid, |t| {
-                let cr3 = t.syscall_user_cr3();
-                t.set_syscall_user_cr3(0);
-                cr3
-            })
+    let restore = if let Some(slot) = crate::task::current_thread_slot() {
+        crate::task::with_thread_at_slot_mut(slot, |t| {
+            let cr3 = t.syscall_user_cr3();
+            t.set_syscall_user_cr3(0);
+            cr3
         })
-        .unwrap_or(0);
+        .unwrap_or(0)
+    } else {
+        crate::task::current_thread_id()
+            .and_then(|tid| {
+                crate::task::with_thread_mut(tid, |t| {
+                    let cr3 = t.syscall_user_cr3();
+                    t.set_syscall_user_cr3(0);
+                    cr3
+                })
+            })
+            .unwrap_or(0)
+    };
     restore_page_table(restore);
 }
 
@@ -311,6 +326,11 @@ pub unsafe extern "C" fn syscall_entry() {
 }
 
 extern "sysv64" fn current_thread_fs_base_for_sysret() -> u64 {
+    if let Some(slot) = crate::task::current_thread_slot() {
+        if let Some(fs_base) = crate::task::with_thread_at_slot(slot, |t| t.fs_base()) {
+            return fs_base;
+        }
+    }
     if let Some(tid) = crate::task::current_thread_id() {
         if let Some(fs_base) = crate::task::with_thread(tid, |t| t.fs_base()) {
             return fs_base;

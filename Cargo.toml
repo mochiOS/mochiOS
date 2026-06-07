@@ -31,9 +31,11 @@ uefi = { version = "0.30", features = ["alloc", "logger", "global_allocator"], o
 spin = "0.9"
 x86_64 = "0.15"
 linked_list_allocator = "0.10.5"
+sha2 = { version = "0.10", default-features = false, features = ["force-soft"] }
 
 [build-dependencies]
 num_cpus = "1.17.0"
+toml = "0.8"
 
 [profile.dev]
 panic = "abort"

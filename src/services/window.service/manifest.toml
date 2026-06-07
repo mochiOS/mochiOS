@@ -1,0 +1,19 @@
+[service]
+id = "window.service"
+name = "Window Service"
+entry = "entry"
+type = "system"
+autostart = true
+order = 30
+
+[capabilities]
+required = [
+  "ipc.server",
+  "display.read",
+  "display.capture",
+  "input.pointer.global",
+  "input.keyboard.global"
+]
+
+optional = []
+

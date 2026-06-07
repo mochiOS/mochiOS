@@ -3,7 +3,10 @@
 //! Rust std (build-std) がリンク時に要求する C ライブラリ関数を実装する。
 //! 各関数は最小限の実装か、成功を返すスタブ。
 
-use crate::sys::{syscall1, syscall2, syscall3, syscall4, syscall6, SyscallNumber};
+use crate::sys::{syscall1, syscall2, syscall3, syscall6, SyscallNumber};
+
+/// TTYのウィンドウサイズ設定 ioctl
+pub const TIOCSWINSZ: u64 = 0x5414;
 
 // errno
 static mut ERRNO_VAL: i32 = 0;
@@ -151,7 +154,7 @@ pub struct PthreadAttr {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pthread_attr_init(attr: *mut PthreadAttr) -> i32 {
     if !attr.is_null() {
-        core::ptr::write_bytes(attr as *mut u8, 0, size_of::<PthreadAttr>());
+        core::ptr::write_bytes(attr as *mut u8, 0, core::mem::size_of::<PthreadAttr>());
     }
     0
 }
@@ -289,6 +292,37 @@ pub unsafe extern "C" fn dup2(_oldfd: i32, _newfd: i32) -> i32 {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn chdir(_path: *const u8) -> i32 {
     0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn readlink(path: *const u8, buf: *mut u8, bufsiz: usize) -> isize {
+    let ret = syscall3(
+        SyscallNumber::Readlink as u64,
+        path as u64,
+        buf as u64,
+        bufsiz as u64,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        return -1;
+    } else {
+        return ret as isize;
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn readlinkat(
+    dirfd: i32,
+    path: *const u8,
+    buf: *mut u8,
+    bufsiz: usize,
+) -> isize {
+    const AT_FDCWD: i32 = -100;
+    if dirfd != AT_FDCWD {
+        set_errno(38); // ENOSYS
+        return -1;
+    }
+    readlink(path, buf, bufsiz)
 }
 
 #[unsafe(no_mangle)]
@@ -491,7 +525,11 @@ pub unsafe extern "C" fn posix_memalign(
         return 22; // EINVAL
     }
 
-    let ptr = crate::libc::memalign(alignment, size);
+    extern "C" {
+        #[link_name = "memalign"]
+        fn c_memalign(alignment: usize, size: usize) -> *mut u8;
+    }
+    let ptr = c_memalign(alignment, size);
     if ptr.is_null() {
         return 12; // ENOMEM
     }
@@ -539,20 +577,14 @@ pub unsafe extern "C" fn __libc_open64(path: *const u8, flags: i32, mode: u32) -
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn openat(dirfd: i32, path: *const u8, flags: i32, mode: u32) -> i32 {
-    const SYS_OPENAT: u64 = 257;
-    let ret = syscall4(
-        SYS_OPENAT,
-        dirfd as i64 as u64,
-        path as u64,
-        flags as u64,
-        mode as u64,
-    ) as i64;
-    if ret < 0 {
-        set_errno(errno_from_neg_ret(ret));
-        -1
-    } else {
-        ret as i32
+    // mochiOS does not implement Linux's openat(2) syscall ABI.
+    // Rust std uses openat mostly with AT_FDCWD; bridge that to our Open syscall.
+    const AT_FDCWD: i32 = -100;
+    if dirfd != AT_FDCWD {
+        set_errno(38); // ENOSYS
+        return -1;
     }
+    open(path, flags, mode)
 }
 
 #[unsafe(no_mangle)]
@@ -583,6 +615,11 @@ pub unsafe extern "C" fn stat64(path: *const u8, stat: *mut u8) -> i32 {
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn stat(path: *const u8, stat: *mut u8) -> i32 {
+    stat64(path, stat)
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn lstat64(path: *const u8, stat: *mut u8) -> i32 {
     let ret = syscall2(SyscallNumber::Lstat as u64, path as u64, stat as u64) as i64;
     if ret < 0 {
@@ -591,6 +628,11 @@ pub unsafe extern "C" fn lstat64(path: *const u8, stat: *mut u8) -> i32 {
     } else {
         ret as i32
     }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn lstat(path: *const u8, stat: *mut u8) -> i32 {
+    lstat64(path, stat)
 }
 
 /// `iovec` structure for writev
@@ -621,4 +663,145 @@ pub unsafe extern "C" fn writev(fd: i32, iov: *const IoVec, iovcnt: i32) -> isiz
         total += ret as isize;
     }
     total
+}
+
+// Additional pthread functions required by std library threading
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_attr_setstacksize(_attr: *mut u8, _stacksize: usize) -> i32 {
+    // Stub: just accept any size for now
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_create(
+    _thread: *mut u64,
+    _attr: *const u8,
+    _start_routine: extern "C" fn(*mut u8) -> *mut u8,
+    _arg: *mut u8,
+) -> i32 {
+    // Stub: threading not actually supported; report success so std can proceed.
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_join(_thread: u64, _retval: *mut *mut u8) -> i32 {
+    // Stub
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_detach(_thread: u64) -> i32 {
+    // Stub
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_init(_mutex: *mut u8, _attr: *const u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_destroy(_mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_lock(_mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_unlock(_mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_init(_cond: *mut u8, _attr: *const u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_destroy(_cond: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_wait(_cond: *mut u8, _mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_signal(_cond: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_broadcast(_cond: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_once(
+    once_control: *mut u32,
+    init_routine: extern "C" fn(),
+) -> i32 {
+    // Stub: just call the routine
+    if !once_control.is_null() && *once_control == 0 {
+        *once_control = 1;
+        (init_routine)();
+    }
+    0
+}
+
+// Unwind support functions required by std library
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_GetIP(_context: *mut u8) -> u64 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_GetCFA(_context: *mut u8) -> u64 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_Resume(_ex_obj: *mut u8) {
+    // Should never return
+    loop {}
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_Backtrace(
+    _trace: extern "C" fn(*mut u8, *mut u8) -> i32,
+    _trace_argument: *mut u8,
+) -> i32 {
+    // Stub: backtrace not available
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_setname_np(_thread: u64, _name: *const u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn getcwd(buf: *mut u8, size: usize) -> *mut u8 {
+    if buf.is_null() || size == 0 {
+        return core::ptr::null_mut();
+    }
+    // Stub: return "/" as current directory
+    let root = b"/\0";
+    if size >= root.len() {
+        core::ptr::copy_nonoverlapping(root.as_ptr(), buf, root.len());
+        buf
+    } else {
+        core::ptr::null_mut()
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sched_getaffinity(_pid: i32, _cpusetsize: usize, _mask: *mut u8) -> i32 {
+    // Stub: return success with single CPU
+    0
 }

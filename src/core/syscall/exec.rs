@@ -5,19 +5,12 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::convert::TryInto;
 use core::sync::atomic::{AtomicU64, Ordering};
-use x86_64::structures::paging::Mapper;
 
 /// `.service` 実行を許可するサービスマネージャープロセスID
 /// 0 は未登録。
 static SERVICE_MANAGER_PID: AtomicU64 = AtomicU64::new(0);
 const EM_X86_64: u16 = 0x3E;
 static EXEC_ASLR_COUNTER: AtomicU64 = AtomicU64::new(0);
-const STACK_TOP_BASE: u64 = 0x0000_7FFF_FFF0_0000;
-const STACK_ASLR_MAX_PAGES: u64 = 4096; // 16MiB
-const USER_STACK_SIZE_PAGES: usize = 32; // 128KiB stack
-const TLS_BASE_MIN: u64 = 0x3000_0000;
-const TLS_ASLR_MAX_PAGES: u64 = 0x4000; // 64MiB
-const INITIAL_TLS_SIZE: u64 = 4096;
 
 struct InitialUserStack {
     stack_base_vaddr: u64,
@@ -138,6 +131,47 @@ fn caller_is_service_or_core() -> bool {
         })
 }
 
+fn caller_can_grant_capabilities_on_exec() -> bool {
+    let caller_pid = crate::task::current_thread_id()
+        .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()));
+    let Some(caller_pid) = caller_pid else {
+        // カーネルコンテキストは許可
+        return true;
+    };
+
+    // Core 権限は許可
+    if crate::task::with_process(caller_pid, |p| {
+        p.privilege() == crate::task::PrivilegeLevel::Core
+    })
+    .unwrap_or(false)
+    {
+        return true;
+    }
+
+    // Service 権限でも、信頼済みの実行パスに限定する。
+    // 「名前」だけで判定すると、ユーザープロセスが同名バイナリを用意して自己昇格できるため、
+    // ここは必ず「カーネルが管理する exec_path」を参照して絞り込む。
+    //
+    // 許可する主体:
+    // - service manager として登録された core.service
+    // - /system/services/process.service（アプリ起動経路）
+    let manager_pid_raw = SERVICE_MANAGER_PID.load(Ordering::SeqCst);
+    if manager_pid_raw != 0 && caller_pid.as_u64() == manager_pid_raw {
+        return true;
+    }
+
+    crate::task::with_process(caller_pid, |p| {
+        if p.privilege() != crate::task::PrivilegeLevel::Service {
+            return false;
+        }
+        matches!(
+            p.exe_path(),
+            "/system/services/process.service" | "system/services/process.service"
+        )
+    })
+    .unwrap_or(false)
+}
+
 fn read_nul_args_from_user(
     args_ptr: u64,
     max_total_bytes: usize,
@@ -168,6 +202,37 @@ fn read_nul_args_from_user(
     Ok(out)
 }
 
+fn read_nul_caps_from_user(caps_ptr: u64, caps_total_len: u64) -> Result<Vec<String>, u64> {
+    use crate::syscall::types::EINVAL;
+
+    if caps_ptr == 0 {
+        return Ok(Vec::new());
+    }
+    let Ok(len) = usize::try_from(caps_total_len) else {
+        return Err(EINVAL);
+    };
+    if len == 0 || len > 1024 {
+        return Err(EINVAL);
+    }
+
+    let mut storage = alloc::vec![0u8; len];
+    crate::syscall::copy_from_user(caps_ptr, &mut storage)?;
+
+    // cap 名は NUL 区切りで渡す。末尾の NUL は任意だが、無くても split が動くようにする。
+    let mut out = Vec::new();
+    for s in storage.split(|&b| b == 0) {
+        if s.is_empty() {
+            continue;
+        }
+        let text = core::str::from_utf8(s).map_err(|_| EINVAL)?;
+        out.push(text.to_string());
+        if out.len() >= 128 {
+            break;
+        }
+    }
+    Ok(out)
+}
+
 /// カーネル内から実行可能ファイルを読み込み実行するシステムコール
 /// args_ptr: ヌル区切り引数文字列へのポインタ（"arg1\0arg2\0\0"形式）、0 なら引数なし
 pub fn exec_kernel(path_ptr: u64, args_ptr: u64) -> u64 {
@@ -191,33 +256,106 @@ pub fn exec_kernel(path_ptr: u64, args_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let extra_args: Vec<&str> = extra_args_owned.iter().map(|s| s.as_str()).collect();
-    exec_internal(path, None, &extra_args)
+    exec_internal(path, None, &extra_args, None)
+}
+
+/// exec 時に capability を付与して起動する
+///
+/// この syscall は「プロセスの capability を外部から設定できる経路」になるため、
+/// 呼び出し元は信頼済みの起動経路（core.service / process.service など）に限定する。
+///
+/// `caps_ptr` は NUL 区切りの capability 名列（例: `b"fs.read.user\\0window.create\\0"`）を指す。
+pub fn exec_with_capabilities_syscall(
+    path_ptr: u64,
+    args_ptr: u64,
+    caps_ptr: u64,
+    caps_total_len: u64,
+) -> u64 {
+    use crate::syscall::types::{EINVAL, EPERM};
+
+    if !caller_can_grant_capabilities_on_exec() {
+        return EPERM;
+    }
+
+    let path = match crate::syscall::read_user_cstring(path_ptr, 256) {
+        Ok(s) => s,
+        Err(_) => return EINVAL,
+    };
+
+    // 引数は通常 exec と同じ形式
+    let extra_args_owned = match read_nul_args_from_user(args_ptr, 512, 64) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let extra_args: Vec<&str> = extra_args_owned.iter().map(|s| s.as_str()).collect();
+
+    // capability リストを読み取り、カーネル内の enum へ変換する
+    let caps_list = match read_nul_caps_from_user(caps_ptr, caps_total_len) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let mut caps = crate::capability::CapabilitySet::empty();
+    for s in &caps_list {
+        let Some(cap) = crate::capability::Capability::from_str(s.as_str()) else {
+            return EINVAL;
+        };
+        caps.insert(cap);
+    }
+
+    // capability はプロセス生成時に設定する必要がある。
+    // 後付けだと、スケジューラ有効時に起動直後の IPC 等が cap 無しで走り得る。
+    exec_internal(path.as_str(), None, &extra_args, Some(caps))
 }
 
 /// 名前を指定してカーネル内から実行可能ファイルを実行する（カーネル内部用）
 pub fn exec_kernel_with_name(path: &str, name: &str) -> u64 {
-    exec_internal(path, Some(name), &[])
+    exec_internal(path, Some(name), &[], None)
 }
 
-fn exec_internal(path: &str, name_override: Option<&str>, args: &[&str]) -> u64 {
+/// 名前と初期 capability を指定してカーネル内から実行可能ファイルを実行する（カーネル内部用）
+pub fn exec_kernel_with_name_and_caps(
+    path: &str,
+    name: &str,
+    initial_caps: crate::capability::CapabilitySet,
+) -> u64 {
+    exec_internal(path, Some(name), &[], Some(initial_caps))
+}
+
+fn exec_internal(
+    path: &str,
+    name_override: Option<&str>,
+    args: &[&str],
+    initial_caps: Option<crate::capability::CapabilitySet>,
+) -> u64 {
     let mut process_name = name_override
         .map(|s| s.to_string())
-        .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path).to_string());
-    // Special-case mapping: drivers/net.elf should be exposed as "netdrv" for compatibility
-    if process_name == "net"
-        || process_name == "net.elf"
-        || path.ends_with("/bin/drivers/net.elf")
-    {
-        process_name = "netdrv".to_string();
+        .unwrap_or_else(|| derive_process_name(path));
+    if let Some(alias) = crate::task::process::driver_alias_for_path(path) {
+        process_name = alias;
     }
-    if let Some(data) = crate::init::fs::read(path) {
-        exec_with_data(&data, &process_name, path, args, None)
-    } else if let Some(data) = crate::kmod::fs::read_all(path) {
-        exec_with_data(&data, &process_name, path, args, None)
+    let loaded = crate::kmod::fs::read_all(path).or_else(|| crate::init::fs::read(path));
+    if let Some(data) = loaded {
+        exec_with_data(&data, &process_name, path, args, None, initial_caps)
     } else {
         crate::warn!("exec: file not found: {}", path);
         crate::syscall::types::ENOENT
     }
+}
+
+fn derive_process_name(path: &str) -> String {
+    let normalized = path.trim_end_matches('/');
+    if let Some(bundle_path) = normalized.strip_suffix("/entry.elf") {
+        if let Some(bundle_name) = bundle_path.rsplit('/').next() {
+            if bundle_name.ends_with(".app") && !bundle_name.is_empty() {
+                return bundle_name.to_string();
+            }
+        }
+    }
+    normalized
+        .rsplit('/')
+        .next()
+        .unwrap_or(normalized)
+        .to_string()
 }
 
 /// Exec by streaming image with zero-copy frame transfer when possible.
@@ -237,16 +375,8 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
     };
     let extra_args: Vec<&str> = extra_args_owned.iter().map(|s| s.as_str()).collect();
 
-    // First try to obtain the image via FS service (streaming). If that fails, fall back to kmod::fs.
-    match crate::syscall::fs::exec_image_via_fs(&path) {
-        Ok(data) => return exec_with_data(&data, &path, &path, &extra_args, None),
-        Err(_) => {
-            // fallthrough to kmod fallback
-        }
-    }
-
     if let Some(data) = crate::kmod::fs::read_all(&path) {
-        return exec_with_data(&data, &path, &path, &extra_args, None);
+        return exec_with_data(&data, &path, &path, &extra_args, None, None);
     }
 
     crate::syscall::types::ENOENT
@@ -280,16 +410,111 @@ fn resolve_exec_privilege(process_name: &str, exec_path: &str) -> crate::task::P
     }
 }
 
+fn resolve_exec_priority(
+    process_name: &str,
+    exec_path: &str,
+    parent_pid: Option<crate::task::ProcessId>,
+) -> u8 {
+    let is_service_path =
+        exec_path.starts_with("/system/services/") || exec_path.starts_with("system/services/");
+    let is_driver_path =
+        exec_path.starts_with("/bin/drivers/") || exec_path.starts_with("bin/drivers/");
+    let is_application_path =
+        exec_path.starts_with("/applications/") || exec_path.starts_with("applications/");
+    let is_regular_bin_path = exec_path.starts_with("/bin/") || exec_path.starts_with("bin/");
+
+    if is_application_path {
+        return 0;
+    }
+    if is_regular_bin_path && !is_driver_path {
+        return 2;
+    }
+
+    if process_name == "shell.service" {
+        return 4;
+    }
+    if process_name == "window.service" || process_name == "process.service" {
+        return 8;
+    }
+    if process_name == "capability.service" || process_name == "device.service" {
+        return 12;
+    }
+    if process_name == "core.service" || process_name == "net.service" {
+        return 24;
+    }
+    if process_name == "driver.service" {
+        return 96;
+    }
+    if process_name == "disk.service" || is_driver_path {
+        return 160;
+    }
+    if is_service_path {
+        return 64;
+    }
+
+    if let Some(parent) = parent_pid {
+        let parent_name = crate::task::with_process(parent, |process| {
+            let mut name = alloc::string::String::new();
+            name.push_str(process.name());
+            name
+        });
+        if let Some(parent_name) = parent_name {
+            if parent_name == "shell.service" || parent_name == "process.service" {
+                return 0;
+            }
+            if parent_name == "window.service" {
+                return 2;
+            }
+        }
+    }
+
+    8
+}
+
+fn resolve_exec_foreground(
+    process_name: &str,
+    exec_path: &str,
+    privilege: crate::task::PrivilegeLevel,
+    parent_pid: Option<crate::task::ProcessId>,
+) -> bool {
+    if privilege != crate::task::PrivilegeLevel::User {
+        return false;
+    }
+
+    let is_application_path =
+        exec_path.starts_with("/applications/") || exec_path.starts_with("applications/");
+    let is_regular_bin_path = (exec_path.starts_with("/bin/") || exec_path.starts_with("bin/"))
+        && !exec_path.starts_with("/bin/drivers/")
+        && !exec_path.starts_with("bin/drivers/");
+
+    if is_application_path || is_regular_bin_path {
+        return true;
+    }
+
+    let Some(parent) = parent_pid else {
+        return false;
+    };
+    crate::task::with_process(parent, |process| {
+        process.name() == "shell.service"
+            || process.name() == "process.service"
+            || process.name() == "window.service"
+            || process.is_foreground()
+    })
+    .unwrap_or(false)
+}
+
 fn map_initial_tls(table_phys: u64, aslr_seed: u64) -> Result<u64, u64> {
-    let tls_base = TLS_BASE_MIN
-        .saturating_add(aslr_offset_pages(aslr_seed ^ 0x19d7_3c6a, TLS_ASLR_MAX_PAGES) * 4096);
-    let mut tls_data = vec![0u8; INITIAL_TLS_SIZE as usize];
+    let exec = crate::config::kernel().exec;
+    let tls_base = exec
+        .tls_base_min
+        .saturating_add(aslr_offset_pages(aslr_seed ^ 0x19d7_3c6a, exec.tls_aslr_max_pages) * 4096);
+    let mut tls_data = vec![0u8; exec.initial_tls_size as usize];
     tls_data[..8].copy_from_slice(&tls_base.to_ne_bytes());
     match crate::mem::paging::map_and_copy_segment_to(
         table_phys,
         tls_base,
-        INITIAL_TLS_SIZE,
-        INITIAL_TLS_SIZE,
+        exec.initial_tls_size,
+        exec.initial_tls_size,
         &tls_data,
         true,
         false,
@@ -314,9 +539,11 @@ fn build_initial_user_stack(
     execfn: &str,
     auxv_entries: &[(u64, u64)],
 ) -> Result<InitialUserStack, u64> {
-    let stack_end_vaddr = STACK_TOP_BASE
-        .saturating_sub(aslr_offset_pages(aslr_seed ^ 0x53a9_1e2d, STACK_ASLR_MAX_PAGES) * 4096);
-    let stack_base_vaddr = stack_end_vaddr - (USER_STACK_SIZE_PAGES as u64 * 4096);
+    let exec = crate::config::kernel().exec;
+    let stack_end_vaddr = exec.stack_top_base.saturating_sub(
+        aslr_offset_pages(aslr_seed ^ 0x53a9_1e2d, exec.stack_aslr_max_pages) * 4096,
+    );
+    let stack_base_vaddr = stack_end_vaddr - (exec.user_stack_size_pages as u64 * 4096);
 
     let mut string_block = Vec::new();
     let mut argv_offsets = Vec::new();
@@ -424,6 +651,7 @@ fn exec_with_data(
     exec_path: &str,
     args: &[&str],
     parent_override: Option<crate::task::ProcessId>,
+    initial_caps: Option<crate::capability::CapabilitySet>,
 ) -> u64 {
     crate::debug!("exec: name={}", process_name);
     let aslr_seed = next_aslr_seed(process_name);
@@ -523,7 +751,10 @@ fn exec_with_data(
                         let src_end = match src_off.checked_add(filesz as usize) {
                             Some(e) if e <= data.len() => e,
                             _ => {
-                                crate::warn!("ELF segment src offset+filesz out of bounds");
+                                crate::warn!(
+                                    "ELF segment src offset+filesz out of bounds: seg={} src_off={} filesz={} data.len()={}",
+                                    i, src_off, filesz, data.len()
+                                );
                                 return crate::syscall::types::EINVAL;
                             }
                         };
@@ -740,12 +971,13 @@ fn exec_with_data(
             Ok(stack) => stack,
             Err(errno) => return errno,
         };
+        let exec = crate::config::kernel().exec;
 
         crate::debug!(
             "Allocating user stack: base={:#x}, top={:#x}, size={} pages, rsp={:#x}",
             stack_base_vaddr,
             stack_end_vaddr,
-            USER_STACK_SIZE_PAGES,
+            exec.user_stack_size_pages,
             initial_rsp
         );
 
@@ -754,7 +986,7 @@ fn exec_with_data(
             new_pt_phys,
             stack_base_vaddr,
             0,
-            (USER_STACK_SIZE_PAGES - 1) as u64 * 4096,
+            (exec.user_stack_size_pages - 1) as u64 * 4096,
             &[],
             true,
             false,
@@ -781,10 +1013,10 @@ fn exec_with_data(
 
         // Pre-map initial heap pages to avoid immediate page faults from user allocations.
         // Map two pages at the default heap base so small early allocations won't fault.
-        const HEAP_BASE_MIN: u64 = 0x4000_0000;
-        const HEAP_ASLR_MAX_PAGES: u64 = 0x8000; // 128MiB
-        let default_heap_base = HEAP_BASE_MIN
-            .saturating_add(aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, HEAP_ASLR_MAX_PAGES) * 4096);
+        let exec_cfg = crate::config::kernel().exec;
+        let default_heap_base = exec_cfg.brk_heap_base_min.saturating_add(
+            aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, exec_cfg.brk_heap_aslr_max_pages) * 4096,
+        );
         let heap_map_size: u64 = 4096 * 2;
         let mut heap_pre_mapped = false;
         if let Err(e) = crate::mem::paging::map_and_copy_segment_to(
@@ -867,11 +1099,21 @@ fn exec_with_data(
                 .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
         });
         let privilege = resolve_exec_privilege(process_name, exec_path);
-        let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, 0);
+        let priority = resolve_exec_priority(process_name, exec_path, parent_pid);
+        let mut proc = crate::task::Process::new(process_name, privilege, parent_pid, priority);
+        let foreground = resolve_exec_foreground(process_name, exec_path, privilege, parent_pid);
+        proc.set_foreground(foreground);
+        if let Some(caps) = initial_caps {
+            // capability はプロセス開始前にセットする必要がある。
+            // スケジューラが有効だと `add_thread()` の直後に動き出すため、
+            // syscall 後付けだと競合して「cap不足」になる。
+            proc.set_capabilities_for_exec(caps);
+        }
         proc.set_page_table(new_pt_phys);
         proc.set_stack_bottom(stack_base_vaddr);
         proc.set_stack_top(stack_end_vaddr + 4096);
-        crate::info!(
+        proc.set_exe_path(exec_path);
+        crate::debug!(
             "[STACK_INIT] {}: stack_base={:#x}, stack_end={:#x}, stack_top={:#x}",
             proc.name(),
             stack_base_vaddr,
@@ -920,8 +1162,8 @@ fn exec_with_data(
         }
         // allocate kernel stack for the new thread
         // unmap_guard_page() がページテーブル操作を行うため、SmapSmepGuard スコープを保持
-        const KERNEL_THREAD_STACK_SIZE: usize = 4096 * 32; // 128KB
-        let kstack = match crate::task::thread::allocate_kernel_stack(KERNEL_THREAD_STACK_SIZE) {
+        let kstack_size = crate::config::kernel().exec.kernel_thread_stack_size;
+        let kstack = match crate::task::thread::allocate_kernel_stack(kstack_size) {
             Some(a) => a,
             None => {
                 crate::warn!("Failed to allocate kernel stack for thread");
@@ -948,11 +1190,11 @@ fn exec_with_data(
             entry,
             initial_rsp,
             kstack,
-            KERNEL_THREAD_STACK_SIZE,
+            kstack_size,
         );
         thread.set_fs_base(initial_fs_base);
 
-        crate::info!(
+        crate::debug!(
             "exec: loaded '{}', entry={:#x}, pid={:?}",
             process_name,
             entry,
@@ -960,7 +1202,7 @@ fn exec_with_data(
         );
 
         let add_res = crate::task::add_thread(thread);
-        crate::info!("exec: add_thread returned: {:?}", add_res);
+        crate::debug!("exec: add_thread returned: {:?}", add_res);
         if add_res.is_none() {
             crate::warn!("Failed to add thread");
             let _ = crate::task::remove_process(pid);
@@ -977,29 +1219,29 @@ fn exec_with_data(
         }
 
         // report scheduling state
-        crate::info!(
+        crate::debug!(
             "exec: scheduler_enabled={} thread_count={}",
             crate::task::is_scheduler_enabled(),
             crate::task::thread_count()
         );
         if let Some(next) = crate::task::peek_next_thread() {
-            crate::info!("exec: peek_next_thread -> {:?}", next);
+            crate::debug!("exec: peek_next_thread -> {:?}", next);
         } else {
-            crate::info!("exec: peek_next_thread -> None");
+            crate::debug!("exec: peek_next_thread -> None");
         }
 
         // log current thread and thread-state counts
-        crate::info!(
+        crate::debug!(
             "exec: current_thread={:?}",
             crate::task::current_thread_id()
         );
-        crate::info!(
+        crate::debug!(
             "exec: ready_count={} running_count={}",
             crate::task::count_threads_by_state(crate::task::ThreadState::Ready),
             crate::task::count_threads_by_state(crate::task::ThreadState::Running)
         );
         if let Some(tid) = add_res {
-            crate::info!("exec: new_thread_id={:?}", tid);
+            crate::debug!("exec: new_thread_id={:?}", tid);
         }
 
         // Ensure newly launched user process gets CPU promptly
@@ -1007,7 +1249,7 @@ fn exec_with_data(
             crate::task::yield_now();
         }
 
-        crate::info!(
+        crate::debug!(
             "exec: created usermode process '{}' (pid={:?}, entry={:#x})",
             process_name,
             pid,
@@ -1236,7 +1478,7 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         new_pt_phys,
         stack_base_vaddr,
         0,
-        (USER_STACK_SIZE_PAGES - 1) as u64 * 4096,
+        (crate::config::kernel().exec.user_stack_size_pages - 1) as u64 * 4096,
         &[],
         true,
         false,
@@ -1261,10 +1503,10 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
     }
 
     // 初期ヒープをASLR付きで確保
-    const HEAP_BASE_MIN: u64 = 0x4000_0000;
-    const HEAP_ASLR_MAX_PAGES: u64 = 0x8000; // 128MiB
-    let heap_base = HEAP_BASE_MIN
-        .saturating_add(aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, HEAP_ASLR_MAX_PAGES) * 4096);
+    let exec_cfg = crate::config::kernel().exec;
+    let heap_base = exec_cfg.mmap_heap_base_min.saturating_add(
+        aslr_offset_pages(aslr_seed ^ 0x4a11_6b5c, exec_cfg.mmap_heap_aslr_max_pages) * 4096,
+    );
     let heap_map_size: u64 = 4096 * 2;
     if crate::mem::paging::map_and_copy_segment_to(
         new_pt_phys,
@@ -1301,7 +1543,7 @@ pub fn execve_syscall(path_ptr: u64, argv: u64, envp: u64) -> u64 {
         p.set_heap_end(heap_base + heap_map_size);
         p.set_stack_bottom(stack_base_vaddr);
         p.set_stack_top(stack_end_vaddr + 4096);
-        crate::info!(
+        crate::debug!(
             "[STACK_INIT] {}: stack_base={:#x}, stack_end={:#x}, stack_top={:#x}",
             p.name(),
             stack_base_vaddr,
@@ -1361,6 +1603,7 @@ pub fn exec_from_buffer_syscall(buf_ptr: u64, buf_len: u64) -> u64 {
         "user_exec",
         &[],
         delegated_parent_pid(),
+        None,
     )
 }
 
@@ -1400,6 +1643,7 @@ pub fn exec_from_buffer_named_syscall(buf_ptr: u64, buf_len: u64, path_ptr: u64)
         path.as_str(),
         &[],
         delegated_parent_pid(),
+        None,
     )
 }
 
@@ -1451,6 +1695,7 @@ pub fn exec_from_buffer_named_args_syscall(
         path.as_str(),
         &args_refs,
         delegated_parent_pid(),
+        None,
     )
 }
 
@@ -1523,5 +1768,6 @@ pub fn exec_from_buffer_named_args_with_requester_syscall(
         path.as_str(),
         &args_refs,
         parent_override.or_else(delegated_parent_pid),
+        None,
     )
 }

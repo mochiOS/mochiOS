@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use swiftlib::{io, sys::SyscallNumber};
+use mochi_syscall::{io, sys::SyscallNumber};
 
 fn syscall0(num: u64) -> u64 {
     let result: u64;

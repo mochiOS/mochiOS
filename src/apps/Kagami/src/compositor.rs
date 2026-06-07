@@ -277,6 +277,61 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         Ok(())
     }
 
+    async fn reserve_registry_id(&self, client_id: u32, requested_id: Option<u32>) -> Result<u32> {
+        let mut clients = self.clients.write().await;
+        let Some(client) = clients.get_mut(&client_id) else {
+            return Err(CompositorError::ClientNotFound(client_id));
+        };
+
+        let registry_id = if let Some(registry_id) = requested_id {
+            if registry_id == 0 {
+                return Err(CompositorError::InvalidMessage(
+                    "wl_display::get_registry id must be non-zero".to_string(),
+                ));
+            }
+            if client.registry_object_id == Some(registry_id) {
+                return Ok(registry_id);
+            }
+            if client.registry_object_id.is_some()
+                || client.compositor_object_id == Some(registry_id)
+                || client.shm_object_id == Some(registry_id)
+                || client.surfaces.contains_key(&registry_id)
+                || client.buffers.contains_key(&registry_id)
+                || client.callbacks.contains(&registry_id)
+            {
+                return Err(CompositorError::InvalidMessage(format!(
+                    "wl_display::get_registry duplicate id {}",
+                    registry_id
+                )));
+            }
+            registry_id
+        } else if let Some(registry_id) = client.registry_object_id {
+            return Ok(registry_id);
+        } else {
+            loop {
+                let candidate = {
+                    let mut id = self.next_object_id.write().await;
+                    let oid = *id;
+                    *id += 1;
+                    oid
+                };
+                if candidate == 0
+                    || client.compositor_object_id == Some(candidate)
+                    || client.shm_object_id == Some(candidate)
+                    || client.surfaces.contains_key(&candidate)
+                    || client.buffers.contains_key(&candidate)
+                    || client.callbacks.contains(&candidate)
+                {
+                    continue;
+                }
+                break candidate;
+            }
+        };
+
+        client.registry_object_id = Some(registry_id);
+        Ok(registry_id)
+    }
+
     /// クライアントメッセージ処理
     async fn process_client_messages(&self, client_id: u32, buf: &[u8]) -> Result<()> {
         let mut offset = 0;
@@ -480,24 +535,14 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                 }
 
                 // Legacy: get_registry without a new_id payload.
-                let registry_id = {
-                    let mut id = self.next_object_id.write().await;
-                    let oid = *id;
-                    *id += 1;
-                    oid
-                };
-                if let Some(client) = self.clients.write().await.get_mut(&client_id) {
-                    client.registry_object_id = Some(registry_id);
-                }
+                let registry_id = self.reserve_registry_id(client_id, None).await?;
                 self.send_registry_globals(client_id, registry_id).await?;
             }
             (1, 1) => {
                 // wl_display::get_registry
                 let mut parser = MessageParser::new(&msg.data);
                 if let Some(registry_id) = parser.read_u32() {
-                    if let Some(client) = self.clients.write().await.get_mut(&client_id) {
-                        client.registry_object_id = Some(registry_id);
-                    }
+                    let registry_id = self.reserve_registry_id(client_id, Some(registry_id)).await?;
                     self.send_registry_globals(client_id, registry_id).await?;
                 }
             }
@@ -1127,6 +1172,66 @@ mod tests {
             .await
             .expect_err("duplicate object id must fail");
         assert!(matches!(err, CompositorError::InvalidMessage(_)));
+    }
+
+    #[tokio::test]
+    async fn test_get_registry_rejects_duplicate_existing_object_id() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor12.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.compositor_object_id = Some(4);
+        compositor.clients.write().await.insert(1, client);
+
+        let get_registry = MessageBuilder::new(1, 1).push_u32(4).build();
+        let err = compositor
+            .process_client_messages(1, &get_registry.to_bytes())
+            .await
+            .expect_err("duplicate registry id must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
+    }
+
+    #[tokio::test]
+    async fn test_legacy_get_registry_reuses_existing_registry_id() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor13.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        right.set_nonblocking(true).expect("nonblocking right");
+        let left = UnixStream::from_std(left).expect("tokio left");
+        let mut right = UnixStream::from_std(right).expect("tokio right");
+
+        let mut client = Client::new(1, left);
+        client.registry_object_id = Some(9);
+        compositor.clients.write().await.insert(1, client);
+
+        let legacy = MessageBuilder::new(1, 0).build();
+        compositor
+            .process_client_messages(1, &legacy.to_bytes())
+            .await
+            .expect("legacy get_registry");
+
+        let mut buf = [0u8; 128];
+        let n = right.read(&mut buf).await.expect("read globals");
+        let (msg1, size1) = Message::from_bytes(&buf[..n]).expect("first global");
+        let (msg2, _) = Message::from_bytes(&buf[size1..n]).expect("second global");
+        assert_eq!(msg1.header.object_id, 9);
+        assert_eq!(msg2.header.object_id, 9);
+        assert_eq!(
+            compositor
+                .clients
+                .read()
+                .await
+                .get(&1)
+                .expect("client")
+                .registry_object_id,
+            Some(9)
+        );
     }
 
     #[tokio::test]

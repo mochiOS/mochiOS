@@ -102,10 +102,15 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
     pub async fn render(&self) -> Result<()> {
         let mut backend = self.backend.write().await;
         let surfaces = self.surfaces.read().await;
+        let buffers = self.buffers.read().await;
+        let fb_info = backend.info();
+        let fb_stride = fb_info.stride as usize;
+        let fb_bpp = fb_info.format.bytes_per_pixel();
 
         // フレームバッファをクリア
         backend.clear(0x1f1f1fff)
             .map_err(|e| CompositorError::Backend(e.to_string()))?;
+        let fb = backend.framebuffer_mut();
 
         // Z-order でサーフェスを描画
         let mut sorted_surfaces: Vec<_> = surfaces.values().collect();
@@ -114,14 +119,39 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         for surface in sorted_surfaces {
             if surface.visible {
                 if let Some(ref buffer) = surface.buffer_data {
-                    backend.write_region(
-                        surface.x as u32,
-                        surface.y as u32,
-                        surface.width,
-                        surface.height,
-                        buffer,
-                    )
-                        .map_err(|e| CompositorError::Backend(e.to_string()))?;
+                    let row_bytes = (surface.width as usize).saturating_mul(fb_bpp);
+                    let dst_x = surface.x.max(0) as usize;
+                    let dst_y = surface.y.max(0) as usize;
+                    let src_stride = surface.buffer_stride as usize;
+                    for row in 0..surface.height as usize {
+                        let src_offset = row.saturating_mul(src_stride);
+                        let dst_offset = (dst_y + row)
+                            .saturating_mul(fb_stride)
+                            .saturating_add(dst_x.saturating_mul(fb_bpp));
+                        if src_offset + row_bytes <= buffer.len() && dst_offset + row_bytes <= fb.len() {
+                            fb[dst_offset..dst_offset + row_bytes]
+                                .copy_from_slice(&buffer[src_offset..src_offset + row_bytes]);
+                        }
+                    }
+                } else if let Some(buffer_id) = surface.buffer_object_id {
+                    if let Some(buffer) = buffers.get(&buffer_id) {
+                        let src_stride = buffer.stride as usize;
+                        let row_bytes = (surface.width as usize).saturating_mul(fb_bpp);
+                        let dst_x = surface.x.max(0) as usize;
+                        let dst_y = surface.y.max(0) as usize;
+                        for row in 0..surface.height as usize {
+                            let src_offset = row.saturating_mul(src_stride);
+                            let dst_offset = (dst_y + row)
+                                .saturating_mul(fb_stride)
+                                .saturating_add(dst_x.saturating_mul(fb_bpp));
+                            if src_offset + row_bytes <= buffer.data.len()
+                                && dst_offset + row_bytes <= fb.len()
+                            {
+                                fb[dst_offset..dst_offset + row_bytes]
+                                    .copy_from_slice(&buffer.data[src_offset..src_offset + row_bytes]);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -886,12 +916,11 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                                     buffer_id
                                                 )));
                                             }
-                                            surface.attach_buffer(
-                                                buffer.data,
+                                            surface.attach_shared_buffer(
                                                 buffer.width,
                                                 buffer.height,
                                                 buffer.stride,
-                                                Some(buffer_id),
+                                                buffer_id,
                                             );
                                             log::debug!(
                                                 "Buffer {} attached to surface {}",
@@ -1063,6 +1092,51 @@ mod tests {
             .expect("Failed to create compositor");
         let result = compositor.render().await;
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_render_uses_shared_buffer_stride() {
+        let backend = MemoryFramebufferBackend::new(4, 4, PixelFormat::XRGB8888);
+        let mut compositor = Compositor::new(backend, "/tmp/test-compositor18.sock".to_string())
+            .expect("Failed to create compositor");
+        compositor.init().await.expect("init");
+
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+
+        let mut surface = Surface::new(5, 1);
+        surface.attach_shared_buffer(2, 2, 12, 6);
+        surface.commit();
+        compositor.surfaces.write().await.insert(5, surface);
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 2,
+                height: 2,
+                stride: 12,
+                format: 0,
+                data: vec![
+                    1, 2, 3, 4, 5, 6, 7, 8, 90, 90, 90, 90, 11, 12, 13, 14, 15, 16, 17, 18,
+                    91, 91, 91, 91,
+                ],
+                destroyed: false,
+            },
+        );
+
+        compositor.render().await.expect("render");
+
+        let backend = compositor.backend.read().await;
+        let fb = backend.framebuffer();
+        assert_eq!(&fb[0..8], &[1, 2, 3, 4, 5, 6, 7, 8]);
+        assert_eq!(&fb[16..24], &[11, 12, 13, 14, 15, 16, 17, 18]);
     }
 
     #[tokio::test]

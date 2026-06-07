@@ -282,9 +282,10 @@ mod tests {
         close_shm_handle, filter_hidden_root_entries, is_shm_entry_path,
         merge_special_dir_entries, parse_readdir_typed, shm_entry_name, special_dir_entries,
         special_dir_entry_dtype, special_file_allows_open, special_file_metadata,
-        special_path_blocks_mutation, O_CREAT, O_RDWR, O_TRUNC, O_WRONLY, ShmEntry,
-        SpecialFileKind,
+        special_path_blocks_mutation, with_shm_namespace, with_shm_namespace_mut, O_CREAT,
+        O_RDWR, O_TRUNC, O_WRONLY, ShmEntry, SpecialFileKind,
     };
+    use alloc::vec;
 
     const O_RDONLY: u64 = 0;
 

@@ -80,6 +80,22 @@ impl Surface {
         self.visible = true;
     }
 
+    /// 共有メモリバッファの参照だけを保持する
+    pub fn attach_shared_buffer(
+        &mut self,
+        width: u32,
+        height: u32,
+        stride: u32,
+        buffer_object_id: u32,
+    ) {
+        self.buffer_data = None;
+        self.buffer_width = width;
+        self.buffer_height = height;
+        self.buffer_stride = stride;
+        self.buffer_object_id = Some(buffer_object_id);
+        self.visible = true;
+    }
+
     /// ダメージ領域を設定
     pub fn set_damage(&mut self, x: i32, y: i32, width: i32, height: i32) {
         self.damage = DamageRect { x, y, width, height };

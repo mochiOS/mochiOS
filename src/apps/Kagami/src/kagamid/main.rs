@@ -378,7 +378,7 @@ fn main() {
             }
         }
 
-        if !did_work {
+        if did_work {
             task::yield_now();
         }
     }

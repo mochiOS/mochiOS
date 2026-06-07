@@ -11,6 +11,11 @@ use tokio::io::AsyncReadExt;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::RwLock;
 
+const WL_COMPOSITOR_GLOBAL_NAME: u32 = 1;
+const WL_COMPOSITOR_GLOBAL_VERSION: u32 = 4;
+const WL_SHM_GLOBAL_NAME: u32 = 2;
+const WL_SHM_GLOBAL_VERSION: u32 = 1;
+
 /// Wayland Compositor
 pub struct Compositor<B: FramebufferBackend> {
     backend: Arc<RwLock<B>>,
@@ -472,7 +477,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             _ if Some(object_id) == registry_object_id =>
             {
                 let mut parser = MessageParser::new(&msg.data);
-                let Some(_name) = parser.read_u32() else {
+                let Some(name) = parser.read_u32() else {
                     return Err(CompositorError::InvalidMessage(
                         "wl_registry::bind missing name".to_string(),
                     ));
@@ -482,7 +487,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                         "wl_registry::bind missing interface".to_string(),
                     ));
                 };
-                let Some(_version) = parser.read_u32() else {
+                let Some(version) = parser.read_u32() else {
                     return Err(CompositorError::InvalidMessage(
                         "wl_registry::bind missing version".to_string(),
                     ));
@@ -518,9 +523,33 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                     )));
                 }
                 if interface == "wl_compositor" {
+                    if name != WL_COMPOSITOR_GLOBAL_NAME {
+                        return Err(CompositorError::InvalidMessage(format!(
+                            "wl_registry::bind name {} does not match wl_compositor",
+                            name
+                        )));
+                    }
+                    if version == 0 || version > WL_COMPOSITOR_GLOBAL_VERSION {
+                        return Err(CompositorError::InvalidMessage(format!(
+                            "wl_registry::bind invalid wl_compositor version {}",
+                            version
+                        )));
+                    }
                     client.compositor_object_id = Some(new_id);
                     log::debug!("Client {} bound wl_compositor as object {}", client_id, new_id);
                 } else if interface == "wl_shm" {
+                    if name != WL_SHM_GLOBAL_NAME {
+                        return Err(CompositorError::InvalidMessage(format!(
+                            "wl_registry::bind name {} does not match wl_shm",
+                            name
+                        )));
+                    }
+                    if version == 0 || version > WL_SHM_GLOBAL_VERSION {
+                        return Err(CompositorError::InvalidMessage(format!(
+                            "wl_registry::bind invalid wl_shm version {}",
+                            version
+                        )));
+                    }
                     client.shm_object_id = Some(new_id);
                     log::debug!("Client {} bound wl_shm as object {}", client_id, new_id);
                 } else {
@@ -853,14 +882,14 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
     /// Registry グローバルを送信
     async fn send_registry_globals(&self, client_id: u32, registry_id: u32) -> Result<()> {
         let compositor_msg = MessageBuilder::new(registry_id, 0)
-            .push_u32(1) // name
+            .push_u32(WL_COMPOSITOR_GLOBAL_NAME)
             .push_string("wl_compositor")
-            .push_u32(4) // version
+            .push_u32(WL_COMPOSITOR_GLOBAL_VERSION)
             .build();
         let shm_msg = MessageBuilder::new(registry_id, 0)
-            .push_u32(2) // name
+            .push_u32(WL_SHM_GLOBAL_NAME)
             .push_string("wl_shm")
-            .push_u32(1) // version
+            .push_u32(WL_SHM_GLOBAL_VERSION)
             .build();
 
         self.send_message(client_id, &compositor_msg).await?;
@@ -1023,6 +1052,58 @@ mod tests {
             .process_client_messages(1, &bind.to_bytes())
             .await
             .expect_err("duplicate object id must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
+    }
+
+    #[tokio::test]
+    async fn test_registry_bind_rejects_wrong_global_name() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor10.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.registry_object_id = Some(2);
+        compositor.clients.write().await.insert(1, client);
+
+        let bind = MessageBuilder::new(2, 0)
+            .push_u32(WL_SHM_GLOBAL_NAME)
+            .push_string("wl_compositor")
+            .push_u32(WL_COMPOSITOR_GLOBAL_VERSION)
+            .push_u32(4)
+            .build();
+        let err = compositor
+            .process_client_messages(1, &bind.to_bytes())
+            .await
+            .expect_err("wrong advertised name must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
+    }
+
+    #[tokio::test]
+    async fn test_registry_bind_rejects_unsupported_version() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor11.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.registry_object_id = Some(2);
+        compositor.clients.write().await.insert(1, client);
+
+        let bind = MessageBuilder::new(2, 0)
+            .push_u32(WL_SHM_GLOBAL_NAME)
+            .push_string("wl_shm")
+            .push_u32(WL_SHM_GLOBAL_VERSION + 1)
+            .push_u32(3)
+            .build();
+        let err = compositor
+            .process_client_messages(1, &bind.to_bytes())
+            .await
+            .expect_err("unsupported version must fail");
         assert!(matches!(err, CompositorError::InvalidMessage(_)));
     }
 

@@ -979,15 +979,19 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                             }
                             4 => {
                                 // commit
+                                let was_visible = surface.visible;
                                 surface.commit();
                                 log::debug!("Surface {} committed", object_id);
 
                                 self.attach_fallback_buffer_if_needed(surface).await;
 
                                 release_buffer_id = surface.buffer_object_id;
-                                needs_render = surface.buffer_object_id.is_some()
-                                    || surface.buffer_data.is_some();
+                                needs_render = surface.dirty
+                                    || surface.buffer_object_id.is_some()
+                                    || surface.buffer_data.is_some()
+                                    || surface.visible != was_visible;
                                 surface.clear_damage();
+                                surface.clear_dirty();
                             }
                         _ => {
                             return Err(CompositorError::InvalidMessage(format!(
@@ -1183,6 +1187,72 @@ mod tests {
             .expect("commit");
 
         assert_eq!(flush_count.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn test_attach_null_commit_renders_detach() {
+        let backend = CountingFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let flush_count = backend.flush_count.clone();
+        let compositor = Compositor::new(backend, "/tmp/test-compositor2c.sock".to_string())
+            .expect("Failed to create compositor");
+        compositor.init().await.expect("init");
+
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: false,
+            },
+        );
+
+        let attach = MessageBuilder::new(5, 1)
+            .push_u32(6)
+            .push_i32(0)
+            .push_i32(0)
+            .build();
+        compositor
+            .process_client_messages(1, &attach.to_bytes())
+            .await
+            .expect("attach");
+
+        let commit = MessageBuilder::new(5, 4).build();
+        compositor
+            .process_client_messages(1, &commit.to_bytes())
+            .await
+            .expect("first commit");
+        assert_eq!(flush_count.load(Ordering::SeqCst), 1);
+
+        let detach = MessageBuilder::new(5, 1)
+            .push_u32(0)
+            .push_i32(0)
+            .push_i32(0)
+            .build();
+        compositor
+            .process_client_messages(1, &detach.to_bytes())
+            .await
+            .expect("detach");
+
+        let commit = MessageBuilder::new(5, 4).build();
+        compositor
+            .process_client_messages(1, &commit.to_bytes())
+            .await
+            .expect("detach commit");
+        assert_eq!(flush_count.load(Ordering::SeqCst), 2);
     }
 
     #[tokio::test]

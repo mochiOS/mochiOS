@@ -22,6 +22,7 @@ pub struct Surface {
 
     // 画面に表示されているか
     pub visible: bool,
+    pub dirty: bool,
     pub z_index: u32,
 }
 
@@ -49,6 +50,7 @@ impl Surface {
             height: 0,
             damage: DamageRect::default(),
             visible: true,
+            dirty: false,
             z_index: 0,
         }
     }
@@ -61,6 +63,7 @@ impl Surface {
         self.buffer_stride = 0;
         self.buffer_object_id = None;
         self.visible = false;
+        self.dirty = true;
     }
 
     /// バッファをアタッチ
@@ -78,6 +81,7 @@ impl Surface {
         self.buffer_stride = stride;
         self.buffer_object_id = buffer_object_id;
         self.visible = true;
+        self.dirty = true;
     }
 
     /// 共有メモリバッファの参照だけを保持する
@@ -94,11 +98,13 @@ impl Surface {
         self.buffer_stride = stride;
         self.buffer_object_id = Some(buffer_object_id);
         self.visible = true;
+        self.dirty = true;
     }
 
     /// ダメージ領域を設定
     pub fn set_damage(&mut self, x: i32, y: i32, width: i32, height: i32) {
         self.damage = DamageRect { x, y, width, height };
+        self.dirty = true;
     }
 
     /// 描画要求を初期状態へ戻す
@@ -112,6 +118,10 @@ impl Surface {
             self.width = self.buffer_width;
             self.height = self.buffer_height;
         }
+    }
+
+    pub fn clear_dirty(&mut self) {
+        self.dirty = false;
     }
 
     /// 指定座標がこのサーフェス内にあるか
@@ -142,6 +152,7 @@ mod tests {
         let surface = Surface::new(1, 1);
         assert_eq!(surface.object_id, 1);
         assert_eq!(surface.client_id, 1);
+        assert!(!surface.dirty);
     }
 
     #[test]
@@ -151,6 +162,7 @@ mod tests {
         surface.attach_buffer(buffer, 10, 10, 40, Some(2));
         assert_eq!(surface.buffer_width, 10);
         assert_eq!(surface.buffer_height, 10);
+        assert!(surface.dirty);
     }
 
     #[test]

@@ -656,6 +656,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                     || client.shm_object_id == Some(new_id)
                     || client.surfaces.contains_key(&new_id)
                     || client.buffers.contains_key(&new_id)
+                    || client.callbacks.contains(&new_id)
                 {
                     return Err(CompositorError::InvalidMessage(format!(
                         "wl_registry::bind duplicate object id {}",
@@ -1519,6 +1520,39 @@ mod tests {
         assert_eq!(client.surface_count(), 0);
         assert_eq!(client.buffer_count(), 0);
         assert_eq!(client.callback_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_registry_bind_rejects_callback_object_id_collision() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor11c.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.registry_object_id = Some(2);
+        client.add_callback(7);
+        compositor.clients.write().await.insert(1, client);
+
+        let bind = MessageBuilder::new(2, 0)
+            .push_u32(WL_SHM_GLOBAL_NAME)
+            .push_string("wl_shm")
+            .push_u32(WL_SHM_GLOBAL_VERSION)
+            .push_u32(7)
+            .build();
+        let err = compositor
+            .process_client_messages(1, &bind.to_bytes())
+            .await
+            .expect_err("callback id collision must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
+
+        let clients = compositor.clients.read().await;
+        let client = clients.get(&1).expect("client");
+        assert_eq!(client.callback_count(), 1);
+        assert_eq!(client.registry_object_id, Some(2));
+        assert_eq!(client.shm_object_id, None);
     }
 
     #[tokio::test]

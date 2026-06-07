@@ -21,7 +21,7 @@ fn main() {
         None => {
             println!("[SHELL] Failed to get framebuffer info");
             loop {
-                time::sleep_ms(1000);
+                mochi_syscall::task::yield_now();
             }
         }
     };
@@ -30,7 +30,7 @@ fn main() {
         None => {
             println!("[SHELL] Failed to map framebuffer");
             loop {
-                time::sleep_ms(1000);
+                mochi_syscall::task::yield_now();
             }
         }
     };
@@ -44,7 +44,7 @@ fn main() {
         None => {
             println!("[SHELL] Failed to load font");
             loop {
-                time::sleep_ms(1000);
+                mochi_syscall::task::yield_now();
             }
         }
     };

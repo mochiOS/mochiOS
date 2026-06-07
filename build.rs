@@ -66,6 +66,23 @@ fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
     fs::write(&meta_path, meta)
         .unwrap_or_else(|e| panic!("failed to write {}: {}", meta_path.display(), e));
     println!("Kernel metadata written to {}", meta_path.display());
+
+    let kernel_meta_path = kernel_target_dir
+        .join("x86_64-unknown-none")
+        .join(profile)
+        .join("kernel.meta");
+    if let Some(parent) = kernel_meta_path.parent() {
+        fs::create_dir_all(parent)
+            .unwrap_or_else(|e| panic!("failed to create {}: {}", parent.display(), e));
+    }
+    fs::copy(&meta_path, &kernel_meta_path).unwrap_or_else(|e| {
+        panic!(
+            "failed to copy kernel metadata to {}: {}",
+            kernel_meta_path.display(),
+            e
+        )
+    });
+    println!("Kernel metadata copied to {}", kernel_meta_path.display());
 }
 
 fn build_kernel_meta(kernel_bin: &Path) -> String {

@@ -50,8 +50,11 @@ PROFILE="debug"
 FALLBACK_KERNEL="$ROOT_DIR/target/kernel/x86_64-unknown-none/$PROFILE/kernel"
 FS_KERNEL="$ROOT_DIR/fs/system/kernel.elf"
 FS_KERNEL_META="$ROOT_DIR/fs/system/kernel.meta"
+FALLBACK_KERNEL_META="$ROOT_DIR/target/kernel/x86_64-unknown-none/$PROFILE/kernel.meta"
 KERNEL_ELF="${FALLBACK_KERNEL}"
 [ ! -f "$KERNEL_ELF" ] && KERNEL_ELF="$FS_KERNEL"
+KERNEL_META="$FS_KERNEL_META"
+[ ! -f "$KERNEL_META" ] && KERNEL_META="$FALLBACK_KERNEL_META"
 
 INITFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "initfs.ext2" 2>/dev/null | xargs ls -t 2>/dev/null | head -1 || true)
 ROOTFS_IMG=$(find "$ROOT_DIR/target/x86_64-unknown-uefi" -name "rootfs.ext2" 2>/dev/null | xargs ls -t 2>/dev/null | head -1 || true)
@@ -70,7 +73,7 @@ mmd -i "$ESP_IMG" ::/EFI ::/EFI/BOOT ::/system
 mcopy -i "$ESP_IMG" "$BOOTX64_SRC" ::/EFI/BOOT/BOOTX64.EFI
 
 [ -f "$KERNEL_ELF" ] && mcopy -i "$ESP_IMG" "$KERNEL_ELF" ::/system/kernel.elf
-[ -f "$FS_KERNEL_META" ] && mcopy -i "$ESP_IMG" "$FS_KERNEL_META" ::/system/kernel.meta
+[ -f "$KERNEL_META" ] && mcopy -i "$ESP_IMG" "$KERNEL_META" ::/system/kernel.meta
 [ -f "$INITFS_IMG" ] && mcopy -i "$ESP_IMG" "$INITFS_IMG" ::/system/initfs.img
 [ -f "$ROOTFS_IMG" ] && mcopy -i "$ESP_IMG" "$ROOTFS_IMG" ::/system/rootfs.ext2
 

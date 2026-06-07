@@ -6,6 +6,7 @@ use super::types::{
 use crate::task::fd_table::{FdTable, FileHandle, FD_BASE, O_CLOEXEC, PROCESS_MAX_FDS};
 use alloc::string::String;
 use alloc::string::ToString;
+use alloc::vec;
 use alloc::vec::Vec;
 
 // グローバル FD テーブルは廃止。各プロセスの Process::fd_table を使用する。
@@ -127,7 +128,15 @@ pub(crate) fn is_directory_rootfs_first(path: &str) -> bool {
 
 #[inline]
 pub(crate) fn readdir_rootfs_first(path: &str) -> Option<Vec<String>> {
-    crate::kmod::fs::readdir_path(path).or_else(|| crate::init::fs::readdir_path(path))
+    let mut entries = crate::kmod::fs::readdir_path(path)
+        .or_else(|| crate::init::fs::readdir_path(path))
+        .unwrap_or_default();
+    if let Some(mut special) = special_dir_entries(path) {
+        entries.append(&mut special);
+    } else if entries.is_empty() {
+        return None;
+    }
+    Some(entries)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -158,6 +167,50 @@ fn special_file_metadata(path: &str) -> Option<(u16, u64)> {
         SpecialFileKind::AuditLog => Some((0x8000 | 0o444, crate::audit::file_size() as u64)),
         SpecialFileKind::WaylandSocket => Some((0xC000 | 0o660, 0)),
         SpecialFileKind::RuntimeDir => Some((0x4000 | 0o755, 0)),
+    }
+}
+
+#[inline]
+fn special_dir_entries(path: &str) -> Option<Vec<String>> {
+    match path {
+        "/run" => Some(vec!["user".to_string()]),
+        "/run/user" => Some(vec!["0".to_string()]),
+        "/run/user/0" => Some(vec!["wayland-0".to_string()]),
+        "/dev/shm" => Some(Vec::new()),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{special_dir_entries, special_file_metadata, SpecialFileKind};
+
+    #[test]
+    fn runtime_dirs_expose_expected_children() {
+        assert_eq!(
+            special_dir_entries("/run").unwrap(),
+            vec!["user".to_string()]
+        );
+        assert_eq!(
+            special_dir_entries("/run/user").unwrap(),
+            vec!["0".to_string()]
+        );
+        assert_eq!(
+            special_dir_entries("/run/user/0").unwrap(),
+            vec!["wayland-0".to_string()]
+        );
+    }
+
+    #[test]
+    fn wayland_socket_reports_socket_mode() {
+        assert_eq!(
+            special_file_metadata("/run/user/0/wayland-0"),
+            Some((0xC000 | 0o660, 0))
+        );
+        assert!(matches!(
+            super::special_file_kind("/run/user/0/wayland-0"),
+            Some(SpecialFileKind::WaylandSocket)
+        ));
     }
 }
 

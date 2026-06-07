@@ -131,6 +131,9 @@ pub(crate) fn readdir_rootfs_first(path: &str) -> Option<Vec<String>> {
     let entries = crate::kmod::fs::readdir_path(path)
         .or_else(|| crate::init::fs::readdir_path(path))
         .unwrap_or_default();
+    if path == "/" {
+        return filter_hidden_root_entries(entries);
+    }
     merge_special_dir_entries(entries, path)
 }
 
@@ -147,9 +150,10 @@ enum SpecialFileKind {
 fn special_file_kind(path: &str) -> Option<SpecialFileKind> {
     match path {
         "/var/zero" | "/dev/zero" => Some(SpecialFileKind::Zero),
+        "/dev" | "/dev/shm" => Some(SpecialFileKind::RuntimeDir),
         "/dev/null" => Some(SpecialFileKind::Null),
         "/log/audit.log" | "/var/log/audit.log" => Some(SpecialFileKind::AuditLog),
-        "/run" | "/run/user" | "/run/user/0" | "/dev/shm" => Some(SpecialFileKind::RuntimeDir),
+        "/run" | "/run/user" | "/run/user/0" => Some(SpecialFileKind::RuntimeDir),
         "/run/user/0/wayland-0" => Some(SpecialFileKind::WaylandSocket),
         _ => None,
     }
@@ -168,12 +172,20 @@ fn special_file_metadata(path: &str) -> Option<(u16, u64)> {
 #[inline]
 fn special_dir_entries(path: &str) -> Option<Vec<String>> {
     match path {
+        "/dev" => Some(vec!["shm".to_string()]),
         "/run" => Some(vec!["user".to_string()]),
         "/run/user" => Some(vec!["0".to_string()]),
         "/run/user/0" => Some(vec!["wayland-0".to_string()]),
         "/dev/shm" => Some(Vec::new()),
         _ => None,
     }
+}
+
+#[inline]
+fn filter_hidden_root_entries(mut entries: Vec<String>) -> Option<Vec<String>> {
+    let hidden = ["dev", "run"];
+    entries.retain(|entry| !hidden.iter().any(|name| name == entry));
+    if entries.is_empty() { None } else { Some(entries) }
 }
 
 #[inline]
@@ -204,15 +216,24 @@ fn special_dir_entry_dtype(path: &str, name: &str) -> Option<u8> {
 #[cfg(test)]
 mod tests {
     use super::{
-        merge_special_dir_entries, parse_readdir_typed, special_dir_entries, special_dir_entry_dtype,
-        special_file_allows_open, special_file_metadata, special_path_blocks_mutation, O_CREAT,
-        O_RDWR, O_TRUNC, O_WRONLY, SpecialFileKind,
+        filter_hidden_root_entries, merge_special_dir_entries, parse_readdir_typed,
+        special_dir_entries, special_dir_entry_dtype, special_file_allows_open,
+        special_file_metadata, special_path_blocks_mutation, O_CREAT, O_RDWR, O_TRUNC,
+        O_WRONLY, SpecialFileKind,
     };
 
     const O_RDONLY: u64 = 0;
 
     #[test]
     fn runtime_dirs_expose_expected_children() {
+        assert_eq!(
+            special_file_metadata("/dev"),
+            Some((0x4000 | 0o755, 0))
+        );
+        assert_eq!(
+            special_dir_entries("/dev").unwrap(),
+            vec!["shm".to_string()]
+        );
         assert_eq!(
             special_dir_entries("/run").unwrap(),
             vec!["user".to_string()]
@@ -256,6 +277,19 @@ mod tests {
     }
 
     #[test]
+    fn root_listing_hides_virtual_dirs() {
+        assert_eq!(
+            filter_hidden_root_entries(vec![
+                "bin".to_string(),
+                "dev".to_string(),
+                "run".to_string(),
+                "system".to_string(),
+            ]),
+            Some(vec!["bin".to_string(), "system".to_string()])
+        );
+    }
+
+    #[test]
     fn parse_readdir_typed_accepts_socket_dtype() {
         let bytes = b"wayland-0\0\x0c\n";
         assert_eq!(
@@ -291,6 +325,7 @@ mod tests {
     fn wayland_runtime_paths_block_mutation() {
         assert!(special_path_blocks_mutation("/run/user/0/wayland-0"));
         assert!(special_path_blocks_mutation("/run/user/0"));
+        assert!(special_path_blocks_mutation("/dev"));
         assert!(special_path_blocks_mutation("/dev/shm"));
         assert!(!special_path_blocks_mutation("/dev/null"));
     }

@@ -26,3 +26,8 @@ pub fn read_scancode_tap() -> Result<Option<u8>, u64> {
         Ok(Some(ret as u8))
     }
 }
+
+/// PS/2 rawスキャンコードを1バイト読み取る（ブロッキング）
+pub fn read_scancode_blocking() -> u8 {
+    syscall0(SyscallNumber::KeyboardReadWait as u64) as u8
+}

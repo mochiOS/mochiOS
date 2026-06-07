@@ -168,6 +168,8 @@ pub enum SyscallNumber {
     BlockRead = 555,
     /// ブロックデバイス書き込み（disk_id, lba, buf_ptr, sector_count）
     BlockWrite = 556,
+    /// キーボード入力をブロッキングで1文字読み取る
+    KeyboardReadWait = 557,
     /// 重力が存在するか
     CheckGravityExist = 999,
 }

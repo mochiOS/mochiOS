@@ -64,39 +64,57 @@ impl Ps2Keyboard {
         Ps2Keyboard { shift: false, caps: false }
     }
 
+    fn decode_scancode(&mut self, sc: u8) -> Option<u8> {
+        // キーリリース
+        if sc & SC_RELEASE != 0 {
+            let make = sc & !SC_RELEASE;
+            if make == SC_LSHIFT || make == SC_RSHIFT {
+                self.shift = false;
+            }
+            return None;
+        }
+
+        // 修飾キー
+        match sc {
+            SC_LSHIFT | SC_RSHIFT => {
+                self.shift = true;
+                return None;
+            }
+            SC_CAPSLOCK => {
+                self.caps = !self.caps;
+                return None;
+            }
+            _ => {}
+        }
+
+        let idx = sc as usize;
+        if idx >= 128 {
+            return None;
+        }
+
+        let use_shift = self.shift ^ (self.caps && MAP_NORMAL[idx].is_ascii_alphabetic());
+        let ch = if use_shift { MAP_SHIFT[idx] } else { MAP_NORMAL[idx] };
+        (ch != 0).then_some(ch)
+    }
+
     /// カーネルバッファからスキャンコードを取得して ASCII に変換する。
     /// キー入力がなければ None を返す。
     pub fn read(&mut self) -> Option<u8> {
         loop {
             let sc = keyboard::read_scancode()?;
-
-            // キーリリース
-            if sc & SC_RELEASE != 0 {
-                let make = sc & !SC_RELEASE;
-                if make == SC_LSHIFT || make == SC_RSHIFT {
-                    self.shift = false;
-                }
-                continue; // リリースイベントは文字を生成しない
-            }
-
-            // 修飾キー
-            match sc {
-                SC_LSHIFT | SC_RSHIFT => { self.shift = true; continue; }
-                SC_CAPSLOCK => { self.caps = !self.caps; continue; }
-                _ => {}
-            }
-
-            let idx = sc as usize;
-            if idx >= 128 {
-                continue;
-            }
-
-            // Shift と CapsLock を組み合わせて文字を決定
-            let use_shift = self.shift ^ (self.caps && MAP_NORMAL[idx].is_ascii_alphabetic());
-            let ch = if use_shift { MAP_SHIFT[idx] } else { MAP_NORMAL[idx] };
-
-            if ch != 0 {
+            if let Some(ch) = self.decode_scancode(sc) {
                 return Some(ch);
+            }
+        }
+    }
+
+    /// カーネルバッファからスキャンコードを取得して ASCII に変換する。
+    /// キー入力が来るまで IRQ 連動で待機する。
+    pub fn read_blocking(&mut self) -> u8 {
+        loop {
+            let sc = keyboard::read_scancode_blocking();
+            if let Some(ch) = self.decode_scancode(sc) {
+                return ch;
             }
         }
     }

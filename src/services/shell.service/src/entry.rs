@@ -75,32 +75,29 @@ fn main() {
     println!("[SHELL] Ready. Input is on the QEMU VGA window.");
 
     loop {
-        time::sleep_ms(10);
-
-        while let Some(ch) = kbd.read() {
-            match ch {
-                b'\n' | b'\r' => {
-                    term.handle_line();
-                    term.prompt();
+        let ch = kbd.read_blocking();
+        match ch {
+            b'\n' | b'\r' => {
+                term.handle_line();
+                term.prompt();
+                term.flush();
+            }
+            0x08 | 0x7F => { // Backspace / Delete
+                if term.input_len > 0 {
+                    term.input_len -= 1;
+                    term.erase_previous_cell();
                     term.flush();
                 }
-                0x08 | 0x7F => { // Backspace / Delete
-                    if term.input_len > 0 {
-                        term.input_len -= 1;
-                        term.erase_previous_cell();
-                        term.flush();
-                    }
-                }
-                0x20..=0x7E => {
-                    if term.input_len < term.input_buf.len() - 1 {
-                        term.input_buf[term.input_len] = ch;
-                        term.input_len += 1;
-                        term.write_byte(ch);
-                        term.flush();
-                    }
-                }
-                _ => {}
             }
+            0x20..=0x7E => {
+                if term.input_len < term.input_buf.len() - 1 {
+                    term.input_buf[term.input_len] = ch;
+                    term.input_len += 1;
+                    term.write_byte(ch);
+                    term.flush();
+                }
+            }
+            _ => {}
         }
     }
 }

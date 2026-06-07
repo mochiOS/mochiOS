@@ -267,6 +267,7 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Chdir as u64 => fs::chdir(arg0),
         x if x == SyscallNumber::KeyboardRead as u64 => keyboard::read_char(),
         x if x == SyscallNumber::KeyboardReadTap as u64 => keyboard::read_char_tap(),
+        x if x == SyscallNumber::KeyboardReadWait as u64 => keyboard::read_char_blocking() as u64,
         x if x == SyscallNumber::MouseRead as u64 => {
             if arg0 == 0 {
                 match mouse::read_packet() {

@@ -1929,6 +1929,19 @@ mod tests {
         assert_eq!(msg.header.object_id, 1);
         assert_eq!(msg.header.opcode, 1);
         assert_eq!(u32::from_le_bytes(msg.data[..4].try_into().expect("payload")), 6);
+
+        compositor.cleanup_client_state(1).await;
+        assert!(!compositor.surfaces.read().await.contains_key(&5));
+        assert!(!compositor.buffers.read().await.contains_key(&6));
+        assert!(!compositor.clients.read().await.contains_key(&1));
+
+        let mut extra = [0u8; 32];
+        match right.try_read(&mut extra) {
+            Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {}
+            Ok(0) => {}
+            Ok(n) => panic!("unexpected extra bytes after idempotent cleanup: {n}"),
+            Err(err) => panic!("unexpected read error after idempotent cleanup: {err}"),
+        }
     }
 
     #[tokio::test]

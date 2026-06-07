@@ -355,6 +355,22 @@ mod tests {
     }
 
     #[test]
+    fn root_readdir_hides_virtual_dirs_but_keeps_direct_access() {
+        let root = readdir_rootfs_first("/").expect("root entries");
+        assert!(!root.iter().any(|entry| entry == "dev"));
+        assert!(!root.iter().any(|entry| entry == "run"));
+
+        let dev = readdir_rootfs_first("/dev").expect("/dev entries");
+        assert_eq!(dev, vec!["shm".to_string()]);
+
+        let run = readdir_rootfs_first("/run").expect("/run entries");
+        assert_eq!(run, vec!["user".to_string()]);
+
+        let runtime = readdir_rootfs_first("/run/user/0").expect("/run/user/0 entries");
+        assert_eq!(runtime, vec!["wayland-0".to_string()]);
+    }
+
+    #[test]
     fn shm_paths_are_identified() {
         assert_eq!(shm_entry_name("/dev/shm/test"), Some("test"));
         assert_eq!(shm_entry_name("/dev/shm/nested/file"), None);

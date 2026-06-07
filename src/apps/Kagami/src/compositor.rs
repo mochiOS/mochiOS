@@ -1077,12 +1077,68 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
 mod tests {
     use super::*;
     use crate::backend::memory::MemoryFramebufferBackend;
-    use crate::backend::PixelFormat;
+    use crate::backend::{BackendError, FramebufferBackend, FramebufferInfo, PixelFormat};
     use crate::client::Client;
     use crate::protocol::Message;
+    use async_trait::async_trait;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
     use std::os::unix::net::UnixStream as StdUnixStream;
     use tokio::io::AsyncReadExt;
     use tokio::net::UnixStream;
+
+    struct CountingFramebufferBackend {
+        fb_data: Vec<u8>,
+        info: FramebufferInfo,
+        flush_count: Arc<AtomicUsize>,
+    }
+
+    impl CountingFramebufferBackend {
+        fn new(width: u32, height: u32, format: PixelFormat) -> Self {
+            let stride = width.saturating_mul(format.bytes_per_pixel() as u32);
+            Self {
+                fb_data: vec![0; (stride * height) as usize],
+                info: FramebufferInfo {
+                    width,
+                    height,
+                    stride,
+                    format,
+                    phys_addr: 0,
+                },
+                flush_count: Arc::new(AtomicUsize::new(0)),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl FramebufferBackend for CountingFramebufferBackend {
+        async fn init(&mut self) -> Result<FramebufferInfo, BackendError> {
+            Ok(self.info)
+        }
+
+        fn framebuffer(&self) -> &[u8] {
+            &self.fb_data
+        }
+
+        fn framebuffer_mut(&mut self) -> &mut [u8] {
+            &mut self.fb_data
+        }
+
+        fn info(&self) -> FramebufferInfo {
+            self.info
+        }
+
+        fn name(&self) -> &'static str {
+            "counting-memory-backend"
+        }
+
+        async fn flush(&mut self) -> Result<(), BackendError> {
+            self.flush_count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
 
     #[tokio::test]
     async fn test_compositor_creation() {
@@ -1100,6 +1156,32 @@ mod tests {
             .expect("Failed to create compositor");
         let result = compositor.render().await;
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_noop_commit_does_not_render() {
+        let backend = CountingFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let flush_count = backend.flush_count.clone();
+        let compositor = Compositor::new(backend, "/tmp/test-compositor2b.sock".to_string())
+            .expect("Failed to create compositor");
+        compositor.init().await.expect("init");
+
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+
+        let commit = MessageBuilder::new(5, 4).build();
+        compositor
+            .process_client_messages(1, &commit.to_bytes())
+            .await
+            .expect("commit");
+
+        assert_eq!(flush_count.load(Ordering::SeqCst), 0);
     }
 
     #[tokio::test]

@@ -458,15 +458,36 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                         "wl_registry::bind missing new_id".to_string(),
                     ));
                 };
+                if parser.remaining() != 0 {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_registry::bind has trailing payload".to_string(),
+                    ));
+                }
+                if new_id == 0 {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_registry::bind new_id must be non-zero".to_string(),
+                    ));
+                }
+                let mut clients = self.clients.write().await;
+                let Some(client) = clients.get_mut(&client_id) else {
+                    return Err(CompositorError::ClientNotFound(client_id));
+                };
+                if client.registry_object_id == Some(new_id)
+                    || client.compositor_object_id == Some(new_id)
+                    || client.shm_object_id == Some(new_id)
+                    || client.surfaces.contains_key(&new_id)
+                    || client.buffers.contains_key(&new_id)
+                {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "wl_registry::bind duplicate object id {}",
+                        new_id
+                    )));
+                }
                 if interface == "wl_compositor" {
-                    if let Some(client) = self.clients.write().await.get_mut(&client_id) {
-                        client.compositor_object_id = Some(new_id);
-                    }
+                    client.compositor_object_id = Some(new_id);
                     log::debug!("Client {} bound wl_compositor as object {}", client_id, new_id);
                 } else if interface == "wl_shm" {
-                    if let Some(client) = self.clients.write().await.get_mut(&client_id) {
-                        client.shm_object_id = Some(new_id);
-                    }
+                    client.shm_object_id = Some(new_id);
                     log::debug!("Client {} bound wl_shm as object {}", client_id, new_id);
                 } else {
                     return Err(CompositorError::InvalidMessage(format!(
@@ -523,6 +544,36 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                         "wl_shm::create_buffer missing format".to_string(),
                     ));
                 };
+                if parser.remaining() != 0 {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_shm::create_buffer has trailing payload".to_string(),
+                    ));
+                }
+                if buffer_id == 0 {
+                    return Err(CompositorError::InvalidMessage(
+                        "wl_shm::create_buffer buffer_id must be non-zero".to_string(),
+                    ));
+                }
+                if width == 0 || height == 0 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "wl_shm::create_buffer invalid size {}x{}",
+                        width, height
+                    )));
+                }
+                if format != 0 {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "unsupported wl_shm format {}",
+                        format
+                    )));
+                }
+                let bytes_per_pixel = 4u32;
+                let min_stride = width.saturating_mul(bytes_per_pixel);
+                if stride < min_stride {
+                    return Err(CompositorError::InvalidMessage(format!(
+                        "wl_shm::create_buffer stride {} too small for width {}",
+                        stride, width
+                    )));
+                }
                 if self.buffers.read().await.contains_key(&buffer_id) {
                     return Err(CompositorError::InvalidMessage(format!(
                         "duplicate buffer id {}",
@@ -872,5 +923,59 @@ mod tests {
                 .surfaces
                 .contains_key(&10)
         );
+    }
+
+    #[tokio::test]
+    async fn test_registry_bind_rejects_duplicate_object_id() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor5.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.registry_object_id = Some(2);
+        client.compositor_object_id = Some(4);
+        compositor.clients.write().await.insert(1, client);
+
+        let bind = MessageBuilder::new(2, 0)
+            .push_u32(2)
+            .push_string("wl_shm")
+            .push_u32(1)
+            .push_u32(4)
+            .build();
+        let err = compositor
+            .process_client_messages(1, &bind.to_bytes())
+            .await
+            .expect_err("duplicate object id must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
+    }
+
+    #[tokio::test]
+    async fn test_shm_create_buffer_rejects_invalid_stride() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor6.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.shm_object_id = Some(3);
+        compositor.clients.write().await.insert(1, client);
+
+        let create = MessageBuilder::new(3, 0)
+            .push_u32(6)
+            .push_u32(320)
+            .push_u32(240)
+            .push_u32(320 * 3)
+            .push_u32(0)
+            .build();
+        let err = compositor
+            .process_client_messages(1, &create.to_bytes())
+            .await
+            .expect_err("invalid stride must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
     }
 }

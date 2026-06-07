@@ -23,7 +23,7 @@ fn launch_app_with_retry(bundle_path: &str, label: &str) -> Result<u64, i64> {
             Ok(pid) => return Ok(pid),
             Err(errno) => {
                 last_err = errno;
-                time::sleep_ms(20);
+                task::yield_now();
             }
         }
     }

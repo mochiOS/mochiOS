@@ -214,12 +214,20 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
 
         if !owned_surfaces.is_empty() {
             let mut surfaces = self.surfaces.write().await;
+            let mut released_buffer_ids = Vec::new();
             for surface_id in owned_surfaces {
                 if let Some(surface) = surfaces.get_mut(&surface_id) {
+                    if let Some(buffer_id) = surface.buffer_object_id {
+                        released_buffer_ids.push(buffer_id);
+                    }
                     surface.detach_buffer();
                     surface.clear_damage();
                 }
                 surfaces.remove(&surface_id);
+            }
+            drop(surfaces);
+            for buffer_id in released_buffer_ids {
+                self.release_buffer_if_unused(buffer_id).await;
             }
         }
 
@@ -1079,5 +1087,100 @@ mod tests {
             .await
             .expect("commit");
         assert!(!compositor.buffers.read().await.contains_key(&6));
+    }
+
+    #[tokio::test]
+    async fn test_attach_null_releases_destroyed_buffer() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor8.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: false,
+            },
+        );
+
+        let attach = MessageBuilder::new(5, 1)
+            .push_u32(6)
+            .push_i32(0)
+            .push_i32(0)
+            .build();
+        compositor
+            .process_client_messages(1, &attach.to_bytes())
+            .await
+            .expect("attach");
+
+        let destroy = MessageBuilder::new(6, 0).build();
+        compositor
+            .process_client_messages(1, &destroy.to_bytes())
+            .await
+            .expect("destroy deferred");
+        assert!(compositor.buffers.read().await.contains_key(&6));
+
+        let detach = MessageBuilder::new(5, 1)
+            .push_u32(0)
+            .push_i32(0)
+            .push_i32(0)
+            .build();
+        compositor
+            .process_client_messages(1, &detach.to_bytes())
+            .await
+            .expect("attach null");
+        assert!(!compositor.buffers.read().await.contains_key(&6));
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_releases_attached_destroyed_buffer() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor9.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+
+        let mut surface = Surface::new(5, 1);
+        surface.attach_buffer(vec![0; 8 * 8 * 4], 8, 8, 32, Some(6));
+        compositor.surfaces.write().await.insert(5, surface);
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: true,
+            },
+        );
+
+        compositor.cleanup_client_state(1).await;
+
+        assert!(!compositor.surfaces.read().await.contains_key(&5));
+        assert!(!compositor.buffers.read().await.contains_key(&6));
+        assert!(!compositor.clients.read().await.contains_key(&1));
     }
 }

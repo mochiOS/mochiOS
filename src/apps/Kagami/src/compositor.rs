@@ -858,6 +858,22 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                 let mut parser = MessageParser::new(&msg.data);
                                 let previous_buffer_id = surface.buffer_object_id;
                                 if let Some(buffer_id) = parser.read_u32() {
+                                    let Some(offset_x) = parser.read_i32() else {
+                                        return Err(CompositorError::InvalidMessage(
+                                            "wl_surface::attach missing x offset".to_string(),
+                                        ));
+                                    };
+                                    let Some(offset_y) = parser.read_i32() else {
+                                        return Err(CompositorError::InvalidMessage(
+                                            "wl_surface::attach missing y offset".to_string(),
+                                        ));
+                                    };
+                                    if offset_x != 0 || offset_y != 0 {
+                                        return Err(CompositorError::InvalidMessage(format!(
+                                            "non-zero wl_surface::attach offsets are unsupported: {}, {}",
+                                            offset_x, offset_y
+                                        )));
+                                    }
                                     if buffer_id == 0 {
                                         surface.detach_buffer();
                                         surface.clear_damage();
@@ -884,7 +900,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                         }
                                     }
                                 }
-                                if parser.remaining() != 8 {
+                                if parser.remaining() != 0 {
                                     return Err(CompositorError::InvalidMessage(format!(
                                         "wl_surface::attach expects 12 bytes, got {}",
                                         msg.data.len()
@@ -905,6 +921,12 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                 parser.read_i32(),
                                 parser.read_i32(),
                                 ) {
+                                    if w < 0 || h < 0 {
+                                        return Err(CompositorError::InvalidMessage(format!(
+                                            "wl_surface::damage negative size is unsupported: {}x{}",
+                                            w, h
+                                        )));
+                                    }
                                     surface.set_damage(x, y, w, h);
                                 } else {
                                     return Err(CompositorError::InvalidMessage(
@@ -1476,5 +1498,72 @@ mod tests {
         assert!(!compositor.surfaces.read().await.contains_key(&5));
         assert!(!compositor.buffers.read().await.contains_key(&6));
         assert!(!compositor.clients.read().await.contains_key(&1));
+    }
+
+    #[tokio::test]
+    async fn test_attach_rejects_non_zero_offsets() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor14.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: false,
+            },
+        );
+
+        let attach = MessageBuilder::new(5, 1)
+            .push_u32(6)
+            .push_i32(1)
+            .push_i32(0)
+            .build();
+        let err = compositor
+            .process_client_messages(1, &attach.to_bytes())
+            .await
+            .expect_err("non-zero offset must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
+    }
+
+    #[tokio::test]
+    async fn test_damage_rejects_negative_size() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor15.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+
+        let damage = MessageBuilder::new(5, 2)
+            .push_i32(0)
+            .push_i32(0)
+            .push_i32(-1)
+            .push_i32(10)
+            .build();
+        let err = compositor
+            .process_client_messages(1, &damage.to_bytes())
+            .await
+            .expect_err("negative damage size must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
     }
 }

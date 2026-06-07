@@ -272,13 +272,16 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             buffers
                 .values()
                 .filter(|buffer| buffer.client_id == client_id)
-                .map(|buffer| buffer.object_id)
+                .map(|buffer| (buffer.object_id, buffer.destroyed))
                 .collect::<Vec<_>>()
         };
         if !owned_buffers.is_empty() {
-            let mut buffers = self.buffers.write().await;
-            for buffer_id in owned_buffers {
-                buffers.remove(&buffer_id);
+            for (buffer_id, destroyed) in owned_buffers {
+                if destroyed {
+                    let _ = self.release_buffer_if_unused(buffer_id).await;
+                } else {
+                    self.buffers.write().await.remove(&buffer_id);
+                }
             }
         }
 
@@ -1942,6 +1945,47 @@ mod tests {
             Ok(n) => panic!("unexpected extra bytes after idempotent cleanup: {n}"),
             Err(err) => panic!("unexpected read error after idempotent cleanup: {err}"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_deletes_destroyed_owned_buffer_without_surface() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor9e.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        right.set_nonblocking(true).expect("nonblocking right");
+        let left = UnixStream::from_std(left).expect("tokio left");
+        let mut right = UnixStream::from_std(right).expect("tokio right");
+
+        let mut client = Client::new(1, left);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: true,
+            },
+        );
+
+        compositor.cleanup_client_state(1).await;
+
+        assert!(!compositor.buffers.read().await.contains_key(&6));
+        assert!(!compositor.clients.read().await.contains_key(&1));
+
+        let mut buf = [0u8; 32];
+        let n = right.read(&mut buf).await.expect("read delete_id");
+        let (msg, _) = Message::from_bytes(&buf[..n]).expect("delete_id event");
+        assert_eq!(msg.header.object_id, 1);
+        assert_eq!(msg.header.opcode, 1);
+        assert_eq!(u32::from_le_bytes(msg.data[..4].try_into().expect("payload")), 6);
     }
 
     #[tokio::test]

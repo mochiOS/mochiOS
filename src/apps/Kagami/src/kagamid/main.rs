@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use viewkit::platform::{
     ipc::{recv as ipc_recv, send as ipc_send, MAP_HEADER_MAGIC, MAX_MSG_SIZE},
     keyboard,
@@ -114,7 +115,7 @@ fn main() {
 
     let mut next_window_id: u32 = 1;
     let mut windows: Vec<Window> = Vec::new();
-    let mut pending_shared: Option<(u64, u32, u16, u16)> = None; // (sender_tid, window_id, w, h)
+    let mut pending_shared: HashMap<u64, (u32, u16, u16)> = HashMap::new(); // sender_tid -> (window_id, w, h)
 
     let mut e_down = false;
     loop {
@@ -143,19 +144,17 @@ fn main() {
                         recv[12], recv[13], recv[14], recv[15], recv[16], recv[17], recv[18],
                         recv[19],
                     ]);
-                    if let Some((psender, window_id, w, h)) = pending_shared.take() {
-                        if psender == sender {
-                            if let Some(win) = windows.iter_mut().find(|w0| w0.id == window_id) {
-                                win.shared_addr = Some(map_start);
-                                win.shared_bytes = total as usize;
-                                win.width = w;
-                                win.height = h;
-                                // Ack attach.
-                                let mut res = [0u8; 8];
-                                res[0..4].copy_from_slice(&OP_RES_SHARED_ATTACHED.to_le_bytes());
-                                res[4..8].copy_from_slice(&window_id.to_le_bytes());
-                                let _ = ipc_send(sender, &res);
-                            }
+                    if let Some((window_id, w, h)) = pending_shared.remove(&sender) {
+                        if let Some(win) = windows.iter_mut().find(|w0| w0.id == window_id) {
+                            win.shared_addr = Some(map_start);
+                            win.shared_bytes = total as usize;
+                            win.width = w;
+                            win.height = h;
+                            // Ack attach.
+                            let mut res = [0u8; 8];
+                            res[0..4].copy_from_slice(&OP_RES_SHARED_ATTACHED.to_le_bytes());
+                            res[4..8].copy_from_slice(&window_id.to_le_bytes());
+                            let _ = ipc_send(sender, &res);
                         }
                     }
                     continue;
@@ -319,7 +318,7 @@ fn main() {
 
                     // Fallback: allow privileged clients (Binder) to allocate and send pages.
                     if !attached {
-                        pending_shared = Some((sender, window_id, w, h));
+                        pending_shared.insert(sender, (window_id, w, h));
                     }
                 }
                 OP_REQ_PRESENT_SHARED => {

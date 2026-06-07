@@ -963,6 +963,6 @@ fn main() {
 
     println!("[NETDRV] driver idle");
     loop {
-        time::sleep_ms(1000);
+        task::yield_now();
     }
 }

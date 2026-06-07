@@ -6,7 +6,7 @@ mod virtio;
 use crate::net_common::{NetDevice, NetKind};
 use crate::pci::{find_network_devices, enable_device_command_bits, try_map_mmio_bar0};
 use crate::virtio::{virtio_legacy_init_pio, run_virtio_loop};
-use mochi_syscall::time;
+use mochi_syscall::task;
 
 fn init_device(dev: NetDevice) {
     println!(
@@ -58,6 +58,6 @@ fn main() {
 
     println!("[NETDRV] driver idle");
     loop {
-        time::sleep_ms(1000);
+        task::yield_now();
     }
 }

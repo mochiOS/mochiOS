@@ -1427,6 +1427,35 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_shm_create_buffer_rejects_trailing_payload_without_state_change() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor6b.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.shm_object_id = Some(3);
+        compositor.clients.write().await.insert(1, client);
+
+        let create = MessageBuilder::new(3, 0)
+            .push_u32(6)
+            .push_u32(8)
+            .push_u32(8)
+            .push_u32(32)
+            .push_u32(0)
+            .push_bytes(&[0xaa, 0xbb, 0xcc, 0xdd])
+            .build();
+        let err = compositor
+            .process_client_messages(1, &create.to_bytes())
+            .await
+            .expect_err("trailing payload must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
+        assert!(!compositor.buffers.read().await.contains_key(&6));
+    }
+
+    #[tokio::test]
     async fn test_attached_buffer_destroy_is_deferred_until_release() {
         let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
         let compositor = Compositor::new(backend, "/tmp/test-compositor7.sock".to_string())

@@ -1,10 +1,10 @@
 ---
-title: "Text component"
+title: "Text Component"
 file: "resources/components/text.html"
 ---
 
-# Text component
+# Text Component
 
-The text component allows you to display any plain text string.
+The text Component allows you to display any plain text string.
 
 Children cannot be specified; you must pass a string as the Content.

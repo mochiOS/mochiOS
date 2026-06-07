@@ -1,0 +1,803 @@
+//! Linux/POSIX 互換スタブ
+//!
+//! Rust std (build-std) がリンク時に要求する C ライブラリ関数を実装する。
+//! 各関数は最小限の実装か、成功を返すスタブ。
+
+use crate::sys::{syscall1, syscall2, syscall3, syscall6, SyscallNumber};
+
+/// TTYのウィンドウサイズ設定 ioctl
+pub const TIOCSWINSZ: u64 = 0x5414;
+
+// errno
+static mut ERRNO_VAL: i32 = 0;
+
+#[inline]
+unsafe fn set_errno(errno: i32) {
+    ERRNO_VAL = errno;
+}
+
+#[inline]
+unsafe fn errno_from_neg_ret(ret: i64) -> i32 {
+    (-ret) as i32
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __errno_location() -> *mut i32 {
+    &raw mut ERRNO_VAL
+}
+
+// メモリ管理
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mmap(
+    addr: *mut u8,
+    len: usize,
+    prot: i32,
+    flags: i32,
+    fd: i32,
+    offset: i64,
+) -> *mut u8 {
+    let ret = syscall6(
+        SyscallNumber::Mmap as u64,
+        addr as u64,
+        len as u64,
+        prot as u64,
+        flags as u64,
+        fd as u64,
+        offset as u64,
+    );
+    if ret as i64 == -1 || (ret as i64) < 0 {
+        usize::MAX as *mut u8 // MAP_FAILED = (void*)-1
+    } else {
+        ret as *mut u8
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn munmap(addr: *mut u8, len: usize) -> i32 {
+    let ret = syscall2(SyscallNumber::Munmap as u64, addr as u64, len as u64);
+    if (ret as i64) < 0 { -1 } else { 0 }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn mprotect(_addr: *mut u8, _len: usize, _prot: i32) -> i32 {
+    0 // 成功
+}
+
+/// C の syscall(nr, arg0, arg1, arg2, arg3, arg4, arg5) の実装
+/// SysV ABI: nr=rdi, arg0=rsi, arg1=rdx, arg2=rcx, arg3=r8, arg4=r9
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn syscall() {
+    core::arch::naked_asm!(
+        "mov rax, rdi",    // syscall number
+        "mov rdi, rsi",    // arg0
+        "mov rsi, rdx",    // arg1
+        "mov rdx, rcx",    // arg2
+        "mov r10, r8",     // arg3 (Linux: r10, not rcx)
+        "mov r8,  r9",     // arg4
+        // arg5 would be at [rsp+8] but ignore for now
+        "syscall",
+        "ret",
+    );
+}
+
+
+// 単純なスレッドローカルストレージ (シングルスレッド用)
+const MAX_TLS_KEYS: usize = 128;
+static mut TLS_VALUES: [*mut u8; MAX_TLS_KEYS] = [core::ptr::null_mut(); MAX_TLS_KEYS];
+static mut TLS_DESTRUCTORS: [Option<unsafe extern "C" fn(*mut u8)>; MAX_TLS_KEYS] =
+    [None; MAX_TLS_KEYS];
+static mut TLS_NEXT_KEY: usize = 1; // 0 は無効なキー
+
+#[unsafe(no_mangle)]
+// Provide minimal stubs to satisfy libstd linking on custom target (no real pthread support)
+// sched_yield is required by std::sys::thread::unix::yield_now
+pub extern "C" fn sched_yield() -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_self() -> u64 {
+    1 // スレッド ID = 1 (シングルスレッド)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_key_create(
+    key_out: *mut u32,
+    destructor: Option<unsafe extern "C" fn(*mut u8)>,
+) -> i32 {
+    if TLS_NEXT_KEY >= MAX_TLS_KEYS {
+        return 12; // ENOMEM
+    }
+    let key = TLS_NEXT_KEY as u32;
+    TLS_NEXT_KEY += 1;
+    TLS_DESTRUCTORS[key as usize] = destructor;
+    *key_out = key;
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_key_delete(key: u32) -> i32 {
+    if (key as usize) < MAX_TLS_KEYS {
+        TLS_VALUES[key as usize] = core::ptr::null_mut();
+        TLS_DESTRUCTORS[key as usize] = None;
+    }
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_getspecific(key: u32) -> *mut u8 {
+    if (key as usize) < MAX_TLS_KEYS {
+        TLS_VALUES[key as usize]
+    } else {
+        core::ptr::null_mut()
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_setspecific(key: u32, val: *const u8) -> i32 {
+    if (key as usize) < MAX_TLS_KEYS {
+        TLS_VALUES[key as usize] = val as *mut u8;
+        0
+    } else {
+        22 // EINVAL
+    }
+}
+
+/// pthread_attr_t の最小実装 (128 バイトのダミー構造)
+#[repr(C)]
+pub struct PthreadAttr {
+    _data: [u8; 64],
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_attr_init(attr: *mut PthreadAttr) -> i32 {
+    if !attr.is_null() {
+        core::ptr::write_bytes(attr as *mut u8, 0, core::mem::size_of::<PthreadAttr>());
+    }
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_attr_destroy(_attr: *mut PthreadAttr) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_attr_getguardsize(
+    _attr: *const PthreadAttr,
+    size_out: *mut usize,
+) -> i32 {
+    if !size_out.is_null() {
+        *size_out = 4096;
+    }
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_attr_getstack(
+    _attr: *const PthreadAttr,
+    stack_addr_out: *mut *mut u8,
+    stack_size_out: *mut usize,
+) -> i32 {
+    if !stack_addr_out.is_null() {
+        *stack_addr_out = core::ptr::null_mut();
+    }
+    if !stack_size_out.is_null() {
+        *stack_size_out = 0;
+    }
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_getattr_np(
+    _thread: u64,
+    attr: *mut PthreadAttr,
+) -> i32 {
+    pthread_attr_init(attr)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sigaction(
+    _signum: i32,
+    _act: *const u8,
+    _oldact: *mut u8,
+) -> i32 {
+    0 // 成功
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sigaltstack(_ss: *const u8, _oss: *mut u8) -> i32 {
+    0
+}
+
+/// nanosleep(req, rem) - 簡易実装 (yield で代用)
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nanosleep(_req: *const u8, _rem: *mut u8) -> i32 {
+    // 少しだけ yield
+    for _ in 0..10 {
+        syscall1(SyscallNumber::Yield as u64, 0);
+    }
+    0
+}
+
+/// pause() - シグナル待ち (実装なし: すぐリターン)
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pause() -> i32 {
+    -1 // EINTR
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fcntl(fd: i32, cmd: i32, arg: i64) -> i32 {
+    let ret = syscall3(
+        SyscallNumber::Fcntl as u64,
+        fd as u64,
+        cmd as u64,
+        arg as u64,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pipe2(_pipefd: *mut i32, _flags: i32) -> i32 {
+    -1 // ENOSYS
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn recv(
+    _fd: i32,
+    _buf: *mut u8,
+    _len: usize,
+    _flags: i32,
+) -> isize {
+    -1
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn socketpair(
+    _domain: i32,
+    _type_: i32,
+    _protocol: i32,
+    _sv: *mut i32,
+) -> i32 {
+    -1 // ENOSYS
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn getauxval(_type_: u64) -> u64 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn waitpid(_pid: i32, _status: *mut i32, _options: i32) -> i32 {
+    -1
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dup(_oldfd: i32) -> i32 {
+    -1
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dup2(_oldfd: i32, _newfd: i32) -> i32 {
+    -1
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chdir(_path: *const u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn readlink(path: *const u8, buf: *mut u8, bufsiz: usize) -> isize {
+    let ret = syscall3(
+        SyscallNumber::Readlink as u64,
+        path as u64,
+        buf as u64,
+        bufsiz as u64,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        return -1;
+    } else {
+        return ret as isize;
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn readlinkat(
+    dirfd: i32,
+    path: *const u8,
+    buf: *mut u8,
+    bufsiz: usize,
+) -> isize {
+    const AT_FDCWD: i32 = -100;
+    if dirfd != AT_FDCWD {
+        set_errno(38); // ENOSYS
+        return -1;
+    }
+    readlink(path, buf, bufsiz)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chroot(_path: *const u8) -> i32 {
+    -1
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn setuid(_uid: u32) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn setgid(_gid: u32) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn setgroups(_size: usize, _list: *const u32) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawn_file_actions_init(_actions: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawn_file_actions_adddup2(
+    _actions: *mut u8, _fd: i32, _newfd: i32,
+) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawnattr_init(_attr: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawnattr_setpgroup(_attr: *mut u8, _pgroup: i32) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawnattr_setsigdefault(
+    _attr: *mut u8, _sigset: *const u8,
+) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawnattr_setflags(_attr: *mut u8, _flags: i16) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawn(
+    pid_out: *mut i32,
+    path: *const u8,
+    _file_actions: *const u8,
+    _attr: *const u8,
+    _argv: *const *const u8,
+    _envp: *const *const u8,
+) -> i32 {
+    // カーネルの Exec syscall (516) を使って新しいプロセスを生成する
+    // 第2引数(args_ptr)は未使用でも0を明示してABIを安定化させる
+    let ret = syscall2(SyscallNumber::Exec as u64, path as u64, 0);
+    let ret_i64 = ret as i64;
+    if ret_i64 < 0 {
+        return (-ret_i64) as i32; // posix_spawn は正のerror numberを返す
+    }
+    if !pid_out.is_null() {
+        *pid_out = ret as i32;
+    }
+    0 // 成功
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawnp(
+    pid_out: *mut i32,
+    file: *const u8,
+    file_actions: *const u8,
+    attr: *const u8,
+    argv: *const *const u8,
+    envp: *const *const u8,
+) -> i32 {
+    posix_spawn(pid_out, file, file_actions, attr, argv, envp)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sigemptyset(set: *mut u8) -> i32 {
+    if !set.is_null() {
+        core::ptr::write_bytes(set, 0, 128); // sigset_t は最大 128 バイト
+    }
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sigaddset(_set: *mut u8, _signum: i32) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn recvmsg(_fd: i32, _msg: *mut u8, _flags: i32) -> isize {
+    -1
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sendmsg(_fd: i32, _msg: *const u8, _flags: i32) -> isize {
+    -1
+}
+
+/// sysconf - システム設定値を取得
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sysconf(name: i32) -> i64 {
+    const SC_PAGESIZE: i32 = 30;
+    const SC_NPROCESSORS_ONLN: i32 = 84;
+    const SC_NPROCESSORS_CONF: i32 = 83;
+    const SC_GETPW_R_SIZE_MAX: i32 = 70;
+    const SC_GETGR_R_SIZE_MAX: i32 = 69;
+    const SC_OPEN_MAX: i32 = 4;
+    const SC_CLK_TCK: i32 = 2;
+
+    match name {
+        SC_PAGESIZE => 4096,
+        SC_NPROCESSORS_ONLN | SC_NPROCESSORS_CONF => 1,
+        SC_GETPW_R_SIZE_MAX | SC_GETGR_R_SIZE_MAX => 1024,
+        SC_OPEN_MAX => 256,
+        SC_CLK_TCK => 100,
+        _ => -1,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn setpgid(_pid: i32, _pgid: i32) -> i32 { 0 }
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn setsid() -> i32 { 1 }
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn execvp(_file: *const u8, _argv: *const *const u8) -> i32 { -1 }
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn waitid(_which: i32, _id: u32, _infop: *mut u8, _options: i32) -> i32 { -1 }
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn poll(fds: *mut u8, nfds: u64, timeout: i32) -> i32 {
+    let ret = syscall3(
+        SyscallNumber::Poll as u64,
+        fds as u64,
+        nfds,
+        timeout as u64,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ioctl(fd: i32, request: u64, arg: u64) -> i32 {
+    let ret = syscall3(
+        SyscallNumber::Ioctl as u64,
+        fd as u64,
+        request,
+        arg,
+    ) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawn_file_actions_destroy(_actions: *mut u8) -> i32 { 0 }
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawn_file_actions_addchdir_np(
+    _actions: *mut u8, _path: *const u8,
+) -> i32 { 0 }
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_spawnattr_destroy(_attr: *mut u8) -> i32 { 0 }
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn posix_memalign(
+    memptr: *mut *mut u8, alignment: usize, size: usize,
+) -> i32 {
+    // POSIX: alignment は 2 のべき乗かつ sizeof(void*) の倍数である必要がある。
+    if memptr.is_null()
+        || alignment == 0
+        || !alignment.is_power_of_two()
+        || (alignment % core::mem::size_of::<*mut u8>()) != 0
+    {
+        return 22; // EINVAL
+    }
+
+    let ptr = crate::libc::memalign(alignment, size);
+    if ptr.is_null() {
+        return 12; // ENOMEM
+    }
+    *memptr = ptr;
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn clock_gettime(_clk_id: i32, tp: *mut u8) -> i32 {
+    // timespec: { tv_sec: i64, tv_nsec: i64 }
+    // タイマーティック (1ティック = 1ms) から計算
+    let ticks = syscall1(SyscallNumber::GetTicks as u64, 0);
+    let sec = (ticks / 1000) as i64;
+    let nsec = ((ticks % 1000) * 1_000_000) as i64;
+    if !tp.is_null() {
+        core::ptr::write(tp as *mut i64, sec);
+        core::ptr::write((tp as *mut i64).add(1), nsec);
+    }
+    0
+}
+
+// ── ファイル I/O（std がリンク時に要求する基本 POSIX 関数）────────────────
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn open(path: *const u8, flags: i32, _mode: u32) -> i32 {
+    let ret = syscall2(SyscallNumber::Open as u64, path as u64, flags as u64);
+    let ret_i64 = ret as i64;
+    if ret_i64 < 0 {
+        set_errno(errno_from_neg_ret(ret_i64));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn open64(path: *const u8, flags: i32, mode: u32) -> i32 {
+    open(path, flags, mode)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __libc_open64(path: *const u8, flags: i32, mode: u32) -> i32 {
+    open(path, flags, mode)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn openat(dirfd: i32, path: *const u8, flags: i32, mode: u32) -> i32 {
+    // mochiOS does not implement Linux's openat(2) syscall ABI.
+    // Rust std uses openat mostly with AT_FDCWD; bridge that to our Open syscall.
+    const AT_FDCWD: i32 = -100;
+    if dirfd != AT_FDCWD {
+        set_errno(38); // ENOSYS
+        return -1;
+    }
+    open(path, flags, mode)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn openat64(dirfd: i32, path: *const u8, flags: i32, mode: u32) -> i32 {
+    openat(dirfd, path, flags, mode)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fstat64(fd: i32, stat: *mut u8) -> i32 {
+    let ret = syscall2(SyscallNumber::Fstat as u64, fd as u64, stat as u64) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn stat64(path: *const u8, stat: *mut u8) -> i32 {
+    let ret = syscall2(SyscallNumber::Stat as u64, path as u64, stat as u64) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn stat(path: *const u8, stat: *mut u8) -> i32 {
+    stat64(path, stat)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn lstat64(path: *const u8, stat: *mut u8) -> i32 {
+    let ret = syscall2(SyscallNumber::Lstat as u64, path as u64, stat as u64) as i64;
+    if ret < 0 {
+        set_errno(errno_from_neg_ret(ret));
+        -1
+    } else {
+        ret as i32
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn lstat(path: *const u8, stat: *mut u8) -> i32 {
+    lstat64(path, stat)
+}
+
+/// `iovec` structure for writev
+#[repr(C)]
+struct IoVec {
+    iov_base: *const u8,
+    iov_len: usize,
+}
+
+#[unsafe(no_mangle)]
+#[allow(private_interfaces)]
+pub unsafe extern "C" fn writev(fd: i32, iov: *const IoVec, iovcnt: i32) -> isize {
+    let mut total: isize = 0;
+    for i in 0..iovcnt {
+        let v = &*iov.add(i as usize);
+        if v.iov_len == 0 {
+            continue;
+        }
+        let ret = crate::sys::syscall3(
+            SyscallNumber::Write as u64,
+            fd as u64,
+            v.iov_base as u64,
+            v.iov_len as u64,
+        );
+        if (ret as i64) < 0 {
+            return if total == 0 { -1 } else { total };
+        }
+        total += ret as isize;
+    }
+    total
+}
+
+// Additional pthread functions required by std library threading
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_attr_setstacksize(_attr: *mut u8, _stacksize: usize) -> i32 {
+    // Stub: just accept any size for now
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_create(
+    _thread: *mut u64,
+    _attr: *const u8,
+    _start_routine: extern "C" fn(*mut u8) -> *mut u8,
+    _arg: *mut u8,
+) -> i32 {
+    // Stub: threading not actually supported; report success so std can proceed.
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_join(_thread: u64, _retval: *mut *mut u8) -> i32 {
+    // Stub
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_detach(_thread: u64) -> i32 {
+    // Stub
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_init(_mutex: *mut u8, _attr: *const u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_destroy(_mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_lock(_mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_mutex_unlock(_mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_init(_cond: *mut u8, _attr: *const u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_destroy(_cond: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_wait(_cond: *mut u8, _mutex: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_signal(_cond: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_cond_broadcast(_cond: *mut u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_once(
+    once_control: *mut u32,
+    init_routine: extern "C" fn(),
+) -> i32 {
+    // Stub: just call the routine
+    if !once_control.is_null() && *once_control == 0 {
+        *once_control = 1;
+        (init_routine)();
+    }
+    0
+}
+
+// Unwind support functions required by std library
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_GetIP(_context: *mut u8) -> u64 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_GetCFA(_context: *mut u8) -> u64 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_Resume(_ex_obj: *mut u8) {
+    // Should never return
+    loop {}
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn _Unwind_Backtrace(
+    _trace: extern "C" fn(*mut u8, *mut u8) -> i32,
+    _trace_argument: *mut u8,
+) -> i32 {
+    // Stub: backtrace not available
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pthread_setname_np(_thread: u64, _name: *const u8) -> i32 {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn getcwd(buf: *mut u8, size: usize) -> *mut u8 {
+    if buf.is_null() || size == 0 {
+        return core::ptr::null_mut();
+    }
+    // Stub: return "/" as current directory
+    let root = b"/\0";
+    if size >= root.len() {
+        core::ptr::copy_nonoverlapping(root.as_ptr(), buf, root.len());
+        buf
+    } else {
+        core::ptr::null_mut()
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sched_getaffinity(_pid: i32, _cpusetsize: usize, _mask: *mut u8) -> i32 {
+    // Stub: return success with single CPU
+    0
+}

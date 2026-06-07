@@ -2,15 +2,53 @@
 name = "kagami"
 version = "0.1.0"
 edition = "2024"
+build = "build.rs"
+autoexamples = false
+
+[lib]
+name = "wayland_compositor"
+path = "src/lib.rs"
+
+[[bin]]
+name = "compositor"
+path = "src/compositor/main.rs"
+required-features = ["wayland-host"]
+
+[[bin]]
+name = "test-client"
+path = "examples/test_client.rs"
+required-features = ["wayland-host"]
+
+[[bin]]
+name = "kagamid"
+path = "src/kagamid/main.rs"
+required-features = ["mochios"]
 
 [dependencies]
-swiftlib = { path = "../../user", features = ["std-support"] }
+tokio = { version = "1", features = ["full"], optional = true }
+async-trait = { version = "0.1", optional = true }
+log = { version = "0.4", optional = true }
+env_logger = { version = "0.11.10", optional = true }
+thiserror = { version = "2.0.18", optional = true }
+
+[dev-dependencies]
+
+[features]
+default = ["wayland-host", "backend-linux-fb"]
+
+wayland-host = ["dep:tokio", "dep:async-trait", "dep:log", "dep:env_logger", "dep:thiserror"]
+mochios = []
+
+backend-linux-fb = []       # Linux フレームバッファドライバ
+backend-mochios-vga = ["mochios"] # mochiOS VGA/VRAM 向け
+backend-mochios-vga-hosted = ["backend-mochios-vga", "viewkit/hosted-vga"] # Linuxホストで hosted-vga を使う
+backend-generic-memory = [] # 汎用メモリバッファ
+backend-custom = []         # カスタムバックエンド用（デフォルトパニック）
+
+debug-logging = []
+performance-metrics = []
 
 [build-dependencies]
-resvg = { version = "0.45", default-features = false }
 
-[profile.release]
-panic = "abort"
-
-[profile.dev]
-panic = "abort"
+[target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
+viewkit = { path = "../ViewKit" }

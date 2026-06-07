@@ -1,10 +1,13 @@
+use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::convert::TryInto;
 use core::sync::atomic::{AtomicU64, Ordering};
+use sha2::{Digest, Sha256};
 
 pub mod disk;
 pub mod fs;
+mod registry;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -23,13 +26,19 @@ pub struct McxPath {
 #[repr(C)]
 pub struct McxFsOps {
     pub mount: extern "C" fn(device_id: u32) -> i32,
+    /// disk.cext の ops を渡す（fs.cext から ATA を直接叩かないため）
+    pub set_disk_ops: extern "C" fn(ops: *const disk::McxDiskOps) -> i32,
+    pub create: extern "C" fn(path: McxPath, mode: u32) -> i32,
+    pub remove: extern "C" fn(path: McxPath, is_dir: u32) -> i32,
+    pub rename: extern "C" fn(src: McxPath, dst: McxPath) -> i32,
     pub read:
         extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_read: *mut usize) -> i32,
+    pub write:
+        extern "C" fn(path: McxPath, offset: u64, buf: McxBuffer, out_written: *mut usize) -> i32,
+    pub truncate: extern "C" fn(path: McxPath, len: u64) -> i32,
     pub stat: extern "C" fn(path: McxPath, out_mode: *mut u16, out_size: *mut u64) -> i32,
     pub readdir: extern "C" fn(path: McxPath, buf: McxBuffer, out_len: *mut usize) -> i32,
 }
-
-pub const MODULE_MAX_READ_BYTES: usize = 64 * 1024 * 1024;
 
 const CEXT_MAGIC: &[u8; 4] = b"MCEX";
 const CEXT_FIXED_HEADER_SIZE: usize = 32;
@@ -40,12 +49,61 @@ const SHF_ALLOC: u64 = 0x2;
 const SHT_RELA: u32 = 4;
 const R_X86_64_RELATIVE: u32 = 8;
 const ET_DYN: u16 = 3;
-const MODULE_LOAD_BASE_START: u64 = 0x0000_6000_0000_0000;
-const MODULE_LOAD_GUARD: u64 = 0x20_0000; // 2MiB guard
-static NEXT_MODULE_LOAD_BASE: AtomicU64 = AtomicU64::new(MODULE_LOAD_BASE_START);
+static NEXT_MODULE_LOAD_BASE: AtomicU64 = AtomicU64::new(0);
 
 type FsInitFn = unsafe extern "C" fn() -> *const McxFsOps;
 type DiskInitFn = unsafe extern "C" fn() -> *const disk::McxDiskOps;
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    let mut out = String::with_capacity(digest.len() * 2);
+    for b in digest {
+        out.push_str(&alloc::format!("{:02x}", b));
+    }
+    out
+}
+
+#[inline]
+pub fn module_max_read_bytes() -> usize {
+    crate::config::kernel().kmod.max_read_bytes
+}
+
+pub fn init_runtime_config() {
+    let base = crate::config::kernel().kmod.module_load_base_start;
+    NEXT_MODULE_LOAD_BASE.store(base, Ordering::Release);
+}
+
+fn load_module_hash_manifest() -> Option<BTreeMap<String, String>> {
+    let bytes = crate::init::fs::read("/Modules/modules.sha256")?;
+    let text = core::str::from_utf8(&bytes).ok()?;
+    let mut out = BTreeMap::new();
+    for raw_line in text.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let (name, hash) = line.split_once('=')?;
+        let name = name.trim();
+        let hash = hash.trim().to_ascii_lowercase();
+        if name.is_empty() || hash.len() != 64 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            return None;
+        }
+        out.insert(name.to_string(), hash);
+    }
+    Some(out)
+}
+
+fn register_disk_module(init_addr: u64, module_version: u16) -> bool {
+    let init: DiskInitFn = unsafe { core::mem::transmute(init_addr) };
+    let ops = unsafe { init() };
+    disk::register(ops, module_version)
+}
+
+fn register_fs_module(init_addr: u64, module_version: u16) -> bool {
+    let init: FsInitFn = unsafe { core::mem::transmute(init_addr) };
+    let ops = unsafe { init() };
+    fs::register(ops, module_version)
+}
 
 struct CextHeader {
     module_version: u16,
@@ -68,12 +126,19 @@ pub fn load_modules() {
         return;
     };
 
+    let Some(expected_hashes) = load_module_hash_manifest() else {
+        crate::warn!("kmod: /Modules/modules.sha256 missing or invalid");
+        return;
+    };
+
     let mut module_paths: Vec<String> = entries
         .into_iter()
         .filter(|name| name.ends_with(".cext"))
         .map(|name| alloc::format!("/Modules/{}", name))
         .collect();
     module_paths.sort();
+
+    let registrations = registry::registrations();
 
     for path in module_paths {
         let Some(bytes) = crate::init::fs::read(&path) else {
@@ -84,6 +149,22 @@ pub fn load_modules() {
             crate::warn!("kmod: invalid cext {}", path);
             continue;
         };
+
+        let expected_name = alloc::format!("{}.cext", meta.name);
+        let Some(expected_hash) = expected_hashes.get(&expected_name) else {
+            crate::warn!("kmod: missing hash entry for {}", expected_name);
+            continue;
+        };
+        let actual_hash = sha256_hex(&bytes);
+        if actual_hash != *expected_hash {
+            crate::warn!(
+                "kmod: hash mismatch for {} (expected {}, got {})",
+                expected_name,
+                expected_hash,
+                actual_hash
+            );
+            continue;
+        }
 
         let mut missing_dep = false;
         for dep in &meta.deps {
@@ -97,36 +178,30 @@ pub fn load_modules() {
             continue;
         }
 
-        match meta.name.as_str() {
-            "disk" => {
-                if let Some(addr) = load_elf_symbol(&meta.elf, "mochi_module_init") {
-                    let init: DiskInitFn = unsafe { core::mem::transmute(addr) };
-                    let ops = unsafe { init() };
-                    if disk::register(ops, meta.module_version) {
-                        crate::info!("kmod: loaded disk.cext v{}", meta.module_version);
-                    } else {
-                        crate::warn!("kmod: disk init returned null ops");
-                    }
-                } else {
-                    crate::warn!("kmod: mochi_module_init not found in disk.cext");
-                }
-            }
-            "fs" => {
-                if let Some(addr) = load_elf_symbol(&meta.elf, "mochi_module_init") {
-                    let init: FsInitFn = unsafe { core::mem::transmute(addr) };
-                    let ops = unsafe { init() };
-                    if fs::register(ops, meta.module_version) {
-                        crate::info!("kmod: loaded fs.cext v{}", meta.module_version);
-                    } else {
-                        crate::warn!("kmod: fs init returned null ops");
-                    }
-                } else {
-                    crate::warn!("kmod: mochi_module_init not found in fs.cext");
-                }
-            }
-            other => {
-                crate::warn!("kmod: unknown module {}", other);
-            }
+        let Some(reg) = registrations.iter().find(|r| r.name == meta.name) else {
+            crate::warn!("kmod: unknown module {}", meta.name);
+            continue;
+        };
+
+        if meta.module_version != reg.version {
+            crate::warn!(
+                "kmod: version mismatch for {} (expected {}, got {})",
+                meta.name,
+                reg.version,
+                meta.module_version
+            );
+            continue;
+        }
+
+        let Some(addr) = load_elf_symbol(&meta.elf, "mochi_module_init") else {
+            crate::warn!("kmod: mochi_module_init not found in {}.cext", meta.name);
+            continue;
+        };
+
+        if (reg.register)(addr, meta.module_version) {
+            crate::info!("kmod: loaded {}.cext v{}", meta.name, meta.module_version);
+        } else {
+            crate::warn!("kmod: {} init returned null ops", meta.name);
         }
     }
 }
@@ -236,8 +311,12 @@ fn align_up_4k(v: u64) -> Option<u64> {
 }
 
 fn alloc_module_base(span: u64) -> Option<u64> {
+    let module_cfg = crate::config::kernel().kmod;
     let size = align_up_4k(span)?;
-    let step = size.checked_add(MODULE_LOAD_GUARD)?;
+    let step = size.checked_add(module_cfg.module_load_guard)?;
+    if NEXT_MODULE_LOAD_BASE.load(Ordering::Acquire) == 0 {
+        NEXT_MODULE_LOAD_BASE.store(module_cfg.module_load_base_start, Ordering::Release);
+    }
     let mut cur = NEXT_MODULE_LOAD_BASE.load(Ordering::Relaxed);
     loop {
         let next = cur.checked_add(step)?;

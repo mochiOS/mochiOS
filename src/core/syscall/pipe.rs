@@ -237,6 +237,7 @@ pub fn pipe2_syscall(pipefd_ptr: u64, flags: u64) -> u64 {
     let read_handle = alloc::boxed::Box::new(FileHandle {
         data: alloc::boxed::Box::new([]),
         pos: 0,
+        fs_path: None,
         dir_path: None,
         is_remote: false,
         fd_remote: 0,
@@ -248,6 +249,7 @@ pub fn pipe2_syscall(pipefd_ptr: u64, flags: u64) -> u64 {
     let write_handle = alloc::boxed::Box::new(FileHandle {
         data: alloc::boxed::Box::new([]),
         pos: 0,
+        fs_path: None,
         dir_path: None,
         is_remote: false,
         fd_remote: 0,

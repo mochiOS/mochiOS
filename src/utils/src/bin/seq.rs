@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use swiftlib::io;
+use mochi_syscall::io;
 
 fn parse_number(s: &str) -> Option<i64> {
     let mut result = 0i64;

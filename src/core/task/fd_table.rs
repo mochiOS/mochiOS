@@ -23,6 +23,8 @@ pub struct FileHandle {
     pub data: Box<[u8]>,
     /// 現在の読み取り/書き込み位置（パイプの場合はエントリインデックス兼用）
     pub pos: usize,
+    /// 実ファイルのパス（通常の永続ファイルにのみ設定）
+    pub fs_path: Option<String>,
     /// Some(path) であればディレクトリ fd
     pub dir_path: Option<String>,
     /// true の場合、データはリモート FD バックエンドで管理される（fd_remote 値を参照）
@@ -44,6 +46,7 @@ impl FileHandle {
         Self {
             data: Box::new([]),
             pos: 0,
+            fs_path: None,
             dir_path: None,
             is_remote: false,
             fd_remote: 0,
@@ -58,6 +61,7 @@ impl FileHandle {
         Self {
             data: Box::new([]),
             pos: 0,
+            fs_path: None,
             dir_path: None,
             is_remote: false,
             fd_remote: 0,
@@ -224,6 +228,7 @@ impl FdTable {
             let new_fh = Box::new(FileHandle {
                 data: fh.data.clone(),
                 pos: fh.pos,
+                fs_path: fh.fs_path.clone(),
                 dir_path: fh.dir_path.clone(),
                 is_remote: fh.is_remote,
                 fd_remote: fh.fd_remote,

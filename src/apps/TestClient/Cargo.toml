@@ -1,0 +1,14 @@
+[package]
+name = "testclient"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+
+[dependencies]
+viewkit = { path = "../ViewKit" }
+
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"

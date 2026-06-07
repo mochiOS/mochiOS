@@ -627,10 +627,10 @@ pub fn map_and_copy_segment(
                 .as_u64();
 
             // Temporarily map as writable for loading, but preserve execute permission
-            // to avoid conflicts with final flags
-            let flags = PageTableFlags::PRESENT
-                | PageTableFlags::USER_ACCESSIBLE
-                | PageTableFlags::WRITABLE;
+            // to avoid conflicts with final flags.
+            //
+            // NOTE: この関数はカーネル (cext) のロードに使うため USER_ACCESSIBLE は付与しない。
+            let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
             // Don't set NO_EXECUTE during loading - we'll set it in the final flag update if needed
 
             if let Some(ref mut pt) = PAGE_TABLE.lock().as_mut() {
@@ -649,10 +649,9 @@ pub fn map_and_copy_segment(
             // Not mapped, allocate new frame
             let frame = frame::allocate_frame()?;
 
-            // Setup flags: PRESENT + USER + WRITABLE
-            let flags = PageTableFlags::PRESENT
-                | PageTableFlags::USER_ACCESSIBLE
-                | PageTableFlags::WRITABLE;
+            // Setup flags: PRESENT + WRITABLE
+            // NOTE: カーネル (cext) 用のマッピングなので USER_ACCESSIBLE は付与しない。
+            let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
 
             crate::debug!(
                 "about to map page {:#x} -> frame {:#x}, flags={:?}, writable={}",
@@ -709,7 +708,8 @@ pub fn map_and_copy_segment(
         }
         // セグメントのコピーと初期化が完了したら、最終的なフラグを設定
         if let Some(ref mut pt) = PAGE_TABLE.lock().as_mut() {
-            let mut new_flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
+            // cext のセグメントはカーネル専用なので USER_ACCESSIBLE は付与しない。
+            let mut new_flags = PageTableFlags::PRESENT;
 
             if writable {
                 new_flags |= PageTableFlags::WRITABLE;
@@ -1300,7 +1300,6 @@ pub fn map_and_copy_segment_to(
         }
 
         // 直接ページテーブルにエントリを作成（テンポラリマッピング経由で）
-        
 
         crate::debug!(
             "Mapping page {:#x} (L4[{}]->L3[{}]->L2[{}]->L1[{}])",
@@ -1388,6 +1387,9 @@ pub fn map_and_copy_segment_to(
 
         page_addr += 4096;
     }
+
+    // 最終的なleaf属性を明示的に再適用し、既存マッピングのNX継承を避ける。
+    protect_user_range_in_table(table_phys, start, end - start, true, writable, executable)?;
 
     // テンポラリマッピングをアンマップしてTLBフラッシュ
     let temp_page = Page::<Size4KiB>::containing_address(VirtAddr::new(0xFFFF_8000_0000_0000u64));

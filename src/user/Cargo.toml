@@ -1,5 +1,5 @@
 [package]
-name = "swiftlib"
+name = "mochi_syscall"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,7 +12,7 @@ std-support = []  # When used from std-based binaries; disables the custom panic
 hosted-vga = ["std-support"] # Linuxホスト上のソフトウェアフレームバッファ
 
 [lib]
-name = "swiftlib"
+name = "mochi_syscall"
 path = "lib.rs"
 test = false
 bench = false

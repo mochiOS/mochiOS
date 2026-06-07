@@ -6,7 +6,11 @@ use crate::debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use x86_64::structures::idt::InterruptStackFrame;
 
-/// タイマー割り込みカウンタ（100回 = 1秒）
+pub const PIT_HZ: u64 = 500;
+pub const TICK_MS: u64 = 1000 / PIT_HZ;
+const PIT_BASE_HZ: u64 = 1_193_182;
+
+/// タイマー割り込みカウンタ
 static TIMER_TICKS: AtomicU64 = AtomicU64::new(0);
 
 /// タイマー割り込みハンドラ（IRQ0）
@@ -45,9 +49,26 @@ pub extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptSta
 /// 現在のタイマーティック数を取得
 ///
 /// ## Returns
-/// - タイマーティック数（100回 = 1秒）
+/// - タイマーティック数
 pub fn get_ticks() -> u64 {
     TIMER_TICKS.load(Ordering::Relaxed)
+}
+
+#[inline]
+pub const fn tick_ms() -> u64 {
+    TICK_MS
+}
+
+#[inline]
+pub const fn ticks_per_second() -> u64 {
+    PIT_HZ
+}
+
+#[inline]
+pub const fn ms_to_ticks_ceil(milliseconds: u64) -> u64 {
+    milliseconds
+        .saturating_add(TICK_MS.saturating_sub(1))
+        .saturating_div(TICK_MS)
 }
 
 /// タイマーカウンタをリセット
@@ -77,16 +98,13 @@ pub fn disable_pit() {
     debug!("PIT disabled");
 }
 
-/// PITを初期化して10ms周期のタイマー割り込みを設定
+/// PITを初期化して2ms周期のタイマー割り込みを設定
 pub fn init_pit() {
-    debug!("Initializing PIT for 10ms timer interrupt...");
+    debug!("Initializing PIT for {}ms timer interrupt...", TICK_MS);
     unsafe {
         use x86_64::instructions::port::Port;
 
-        // PIT base frequency: 1.193182 MHz
-        // 10ms = 100 Hz
-        // Divisor = 1193182 / 100 = 11932 (0x2E9C)
-        let divisor: u16 = 11932;
+        let divisor: u16 = (PIT_BASE_HZ / PIT_HZ) as u16;
 
         // Channel 0, LSB+MSB, Mode 2 (rate generator), Binary
         Port::<u8>::new(0x43).write(0x34);
@@ -107,7 +125,7 @@ pub fn init_pit() {
         // MSBを送信
         Port::<u8>::new(0x40).write(((divisor >> 8) & 0xff) as u8);
     }
-    debug!("PIT configured for 10ms interrupts");
+    debug!("PIT configured for {} Hz interrupts", PIT_HZ);
 }
 
 /// タイマー割り込み（IRQ0）を有効化

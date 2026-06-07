@@ -8,12 +8,12 @@
 
 extern crate alloc;
 
-use linked_list_allocator::LockedHeap;
+use mochios::mem::allocator::HardenedKernelHeap;
 
 /// カーネルのグローバルアロケータ
-/// mem::init 内の init_heap がこの LockedHeap を初期化する
+/// mem::init 内の init_heap がこの HardenedKernelHeap を初期化する
 #[global_allocator]
-static KERNEL_ALLOCATOR: LockedHeap = LockedHeap::empty();
+static KERNEL_ALLOCATOR: HardenedKernelHeap = HardenedKernelHeap::empty();
 
 /// ELF エントリポイント
 ///
@@ -23,18 +23,12 @@ static KERNEL_ALLOCATOR: LockedHeap = LockedHeap::empty();
 #[no_mangle]
 pub unsafe extern "sysv64" fn kernel_entry(boot_info_ptr: *mut mochios::BootInfo) -> ! {
     // kernel_heap_addr = &KERNEL_ALLOCATOR（init_heap がここを初期化する）
-    (*boot_info_ptr).kernel_heap_addr =
-        &KERNEL_ALLOCATOR as *const LockedHeap as u64;
+    (*boot_info_ptr).kernel_heap_addr = &KERNEL_ALLOCATOR as *const HardenedKernelHeap as u64;
+    mochios::smp::set_boot_info_addr(boot_info_ptr as u64);
 
     // ブートローダーがロードした initfs イメージを fs モジュールに設定
-    mochios::init::fs::set_image(
-        (*boot_info_ptr).initfs_addr,
-        (*boot_info_ptr).initfs_size,
-    );
-    mochios::init::fs::set_rootfs(
-        (*boot_info_ptr).rootfs_addr,
-        (*boot_info_ptr).rootfs_size,
-    );
+    mochios::init::fs::set_image((*boot_info_ptr).initfs_addr, (*boot_info_ptr).initfs_size);
+    mochios::init::fs::set_rootfs((*boot_info_ptr).rootfs_addr, (*boot_info_ptr).rootfs_size);
 
     let boot_info: &'static mochios::BootInfo = &*(boot_info_ptr as *const _);
     mochios::kernel_entry(boot_info)

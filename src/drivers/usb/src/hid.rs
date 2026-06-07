@@ -1,4 +1,4 @@
-use swiftlib::input;
+use mochi_syscall::input;
 
 use crate::define::SC_RELEASE;
 

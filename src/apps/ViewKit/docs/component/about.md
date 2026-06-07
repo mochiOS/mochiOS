@@ -19,5 +19,5 @@ An editor for these can be downloaded from pencil.dev.
 - [Button](./button.md)
 - [Text](./text.md)
 
-## How to create original component?
+## How to create original Component?
 Please refer to [this](how-to-create.md) file.

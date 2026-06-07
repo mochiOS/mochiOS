@@ -3,9 +3,6 @@ target/
 /fs/
 /ramfs/
 initfs/
-*.bin
-*.elf
-*.service
 *.o
 *.a
 *.so

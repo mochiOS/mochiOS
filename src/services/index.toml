@@ -10,21 +10,63 @@
 
 [core.service]
 description = "Core service / system manager"
-dir = "core"
+dir = "core.service"
 fs = "initfs"
 autostart = false
 order = 0
 
+[core.service.capability]
+description = "Capability manager - grants and checks permissions"
+dir = "capability.service"
+fs = "ata"
+autostart = true
+order = 1
+
 [core.service.driver]
 description = "Driver manager - launches hardware drivers"
-dir = "driver"
+dir = "driver.service"
 fs = "ata"
 autostart = true
 order = 5
 
-[core.service.shell]
-description = "Draw video output and shell interface"
-dir = "shell"
+[core.service.disk]
+description = "Disk service - ATA block device"
+dir = "disk.service"
 fs = "ata"
 autostart = true
-order = 10
+order = 8
+
+[core.service.device]
+description = "Device service - privileged device access broker"
+dir = "device.service"
+fs = "ata"
+autostart = true
+order = 18
+
+[core.service.net]
+description = "Network service - sockets/stack"
+dir = "net.service"
+fs = "ata"
+autostart = true
+order = 25
+
+[core.service.process]
+description = "Process service - app launcher with capability grants"
+dir = "process.service"
+fs = "ata"
+autostart = true
+order = 12
+
+[core.service.window]
+description = "Window service - compositor"
+dir = "window.service"
+fs = "ata"
+autostart = true
+order = 35
+
+[core.service.shell]
+description = "Draw video output and shell interface"
+dir = "shell.service"
+fs = "ata"
+autostart = true
+order = 40

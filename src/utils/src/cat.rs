@@ -1,4 +1,4 @@
-use swiftlib::io;
+use mochi_syscall::io;
 
 #[derive(Debug)]
 enum Meow {

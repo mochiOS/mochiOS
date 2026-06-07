@@ -76,6 +76,7 @@ pub fn init() {
         enable_umip();
         enable_smep_smap();
         enable_speculation_controls();
+        crate::interrupt::apic::init_local_apic();
         report_optional_control_flow_features();
     }
 }

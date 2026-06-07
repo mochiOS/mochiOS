@@ -11,8 +11,8 @@ test = false
 bench = false
 
 [dependencies]
-# ユーザー空間ドライバーのため swiftlib(std-support) を利用する
-swiftlib = { path = "../../user", features = ["std-support"] }
+# ユーザー空間ドライバーのため mochi_syscall(std-support) を利用する
+mochi_syscall = { path = "../../user", features = ["std-support"] }
 
 [profile.dev]
 panic = "abort"

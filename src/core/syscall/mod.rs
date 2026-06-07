@@ -1,5 +1,7 @@
 //! システムコール
 
+pub mod block;
+pub mod capability;
 pub mod exec;
 pub mod fs;
 pub mod io;
@@ -12,6 +14,7 @@ pub mod pgroup;
 pub mod pipe;
 pub mod privileged;
 pub mod process;
+pub mod security;
 pub mod signal;
 pub mod syscall_entry;
 pub mod task;
@@ -199,7 +202,8 @@ pub fn write_user_u16(ptr: u64, value: u16) -> Result<(), u64> {
 }
 
 pub use types::{
-    SyscallNumber, EAGAIN, EBADF, EFAULT, EINVAL, ENODATA, ENOENT, ENOSYS, EPERM, ESRCH, SUCCESS,
+    SyscallNumber, EACCES, EAGAIN, EBADF, EFAULT, EINVAL, EIO, ENODATA, ENOENT, ENOSYS, EPERM,
+    ESRCH, SUCCESS,
 };
 
 use x86_64::structures::idt::InterruptStackFrame;
@@ -309,6 +313,14 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
             process::find_process_by_name(arg0, arg1)
         }
         x if x == SyscallNumber::ListProcesses as u64 => process::list_processes(arg0, arg1),
+        x if x == SyscallNumber::CheckThreadCapability as u64 => {
+            capability::check_thread_capability(arg0, arg1, arg2)
+        }
+        x if x == SyscallNumber::ExecWithCapabilities as u64 => {
+            exec::exec_with_capabilities_syscall(arg0, arg1, arg2, arg3)
+        }
+        x if x == SyscallNumber::BlockRead as u64 => block::block_read(arg0, arg1, arg2, arg3),
+        x if x == SyscallNumber::BlockWrite as u64 => block::block_write(arg0, arg1, arg2, arg3),
         x if x == SyscallNumber::GetThreadPrivilege as u64 => task::get_thread_privilege(arg0),
         x if x == SyscallNumber::GetFramebufferInfo as u64 => vga::get_framebuffer_info(arg0),
         x if x == SyscallNumber::MapFramebuffer as u64 => vga::map_framebuffer(),
@@ -364,6 +376,9 @@ pub fn dispatch(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64)
         x if x == SyscallNumber::Getdents64 as u64 => fs::getdents64(arg0, arg1, arg2),
         x if x == SyscallNumber::Newfstatat as u64 => fs::newfstatat(arg0 as i64, arg1, arg2, arg3),
         x if x == SyscallNumber::Unlinkat as u64 => fs::unlinkat(arg0 as i64, arg1, arg2),
+        x if x == SyscallNumber::Renameat as u64 => {
+            fs::renameat(arg0 as i64, arg1, arg2 as i64, arg3)
+        }
         x if x == SyscallNumber::Faccessat as u64 => fs::faccessat(arg0 as i64, arg1, arg2, arg3),
         x if x == SyscallNumber::Pselect6 as u64 => {
             pgroup::pselect6(arg0, arg1, arg2, arg3, arg4, 0)
@@ -495,7 +510,10 @@ extern "sysv64" fn syscall_interrupt_handler_rust(kstack: *mut u64) -> u64 {
     }
 
     let current_tid = crate::task::current_thread_id();
-    if let Some(tid) = current_tid {
+    let current_slot = crate::task::current_thread_slot();
+    if let Some(slot) = current_slot {
+        crate::task::with_thread_at_slot_mut(slot, |t| t.set_in_syscall(true));
+    } else if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(true));
     }
 
@@ -508,7 +526,9 @@ extern "sysv64" fn syscall_interrupt_handler_rust(kstack: *mut u64) -> u64 {
         unsafe { kstack.add(7).read() },  // saved r8  = arg4
     );
 
-    if let Some(tid) = current_tid {
+    if let Some(slot) = current_slot {
+        crate::task::with_thread_at_slot_mut(slot, |t| t.set_in_syscall(false));
+    } else if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(false));
     }
 
@@ -537,15 +557,20 @@ extern "C" fn syscall_handler_rust(
 ) -> u64 {
     crate::percpu::install_current_cpu_gs_base();
     let current_tid = crate::task::current_thread_id();
+    let current_slot = crate::task::current_thread_slot();
     let prev_cr3 = syscall_entry::switch_to_kernel_page_table();
     crate::cpu::reassert_runtime_hardening();
-    if let Some(tid) = current_tid {
+    if let Some(slot) = current_slot {
+        crate::task::with_thread_at_slot_mut(slot, |t| t.set_in_syscall(true));
+    } else if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(true));
     }
 
     let ret = dispatch(num, arg0, arg1, arg2, arg3, arg4);
 
-    if let Some(tid) = current_tid {
+    if let Some(slot) = current_slot {
+        crate::task::with_thread_at_slot_mut(slot, |t| t.set_in_syscall(false));
+    } else if let Some(tid) = current_tid {
         crate::task::with_thread_mut(tid, |t| t.set_in_syscall(false));
     }
     syscall_entry::restore_page_table(prev_cr3);

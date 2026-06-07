@@ -1,12 +1,30 @@
 use crate::interrupt::spinlock::SpinLock;
 use alloc::vec;
-use alloc::vec::Vec;
 
-use super::{EAGAIN, EFAULT, EINVAL};
+use super::{EACCES, EAGAIN, EFAULT, EINVAL};
 
 const MAX_THREADS: usize = crate::task::ThreadQueue::MAX_THREADS;
 const MAILBOX_CAP: usize = 64;
 const MAX_MSG_SIZE: usize = 4128; // FsResponse(4112) / DiskBulkResponse(2064) を収容
+const MAX_EXT_PAGES: usize = 128;
+
+#[inline]
+fn ipc_mailbox_cap() -> usize {
+    crate::config::kernel().ipc.mailbox_cap.min(MAILBOX_CAP)
+}
+
+#[inline]
+fn ipc_max_msg_size() -> usize {
+    crate::config::kernel().ipc.max_msg_size.min(MAX_MSG_SIZE)
+}
+
+#[inline]
+fn ipc_max_external_pages() -> usize {
+    crate::config::kernel()
+        .ipc
+        .max_external_pages
+        .min(MAX_EXT_PAGES)
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Message {
@@ -16,9 +34,8 @@ pub struct Message {
     to_generation: u64,
     len: usize,
     data: [u8; MAX_MSG_SIZE],
-    // Support up to 128 external pages (adjustable). Each entry is a physical page frame address.
     ext_pages_count: u16,
-    ext_pages: [u64; 128],
+    ext_pages: [u64; MAX_EXT_PAGES],
 }
 
 impl Message {
@@ -31,7 +48,7 @@ impl Message {
             len: 0,
             data: [0; MAX_MSG_SIZE],
             ext_pages_count: 0,
-            ext_pages: [0; 128],
+            ext_pages: [0; MAX_EXT_PAGES],
         }
     }
 }
@@ -70,7 +87,7 @@ impl Mailbox {
     }
 
     fn alloc_slot(&mut self) -> Option<usize> {
-        if self.free_count == 0 {
+        if self.free_count == 0 || self.count >= ipc_mailbox_cap() {
             return None;
         }
         self.free_count -= 1;
@@ -132,7 +149,7 @@ impl Mailbox {
         to_generation: u64,
         data: &[u8],
     ) -> Result<(), ()> {
-        if data.len() > MAX_MSG_SIZE {
+        if data.len() > ipc_max_msg_size() {
             return Err(());
         }
         let slot_idx = match self.alloc_slot() {
@@ -162,7 +179,7 @@ impl Mailbox {
         receiver_slot: u16,
         receiver_generation: u64,
         out: &mut [u8],
-    ) -> Option<(u64, usize, u16, [u64; 128])> {
+    ) -> Option<(u64, usize, u16, [u64; MAX_EXT_PAGES])> {
         while let Some(slot_idx) = self.dequeue_slot() {
             let msg = &self.slots[slot_idx];
             if msg.to == receiver
@@ -254,7 +271,7 @@ static MAILBOXES: SpinLock<[Mailbox; MAX_THREADS]> = SpinLock::new([Mailbox::new
 /// カーネル内部からIPC送信（ユーザー空間コピー不要）
 pub fn send_from_kernel(dest_thread_id: u64, data: &[u8]) -> bool {
     let len = data.len();
-    if len > MAX_MSG_SIZE {
+    if len > ipc_max_msg_size() {
         return false;
     }
     let (idx, dest_generation) =
@@ -295,7 +312,7 @@ pub fn send_pages_from_kernel(
     // Keep original behaviour as fallback: send explicit page list when provided.
     // This function will continue to work for up to 128 pages.
 
-    if pages.len() > 128 {
+    if pages.len() > ipc_max_external_pages() {
         return false;
     }
     let (idx, dest_generation) =
@@ -320,7 +337,7 @@ pub fn send_pages_from_kernel(
             // serialize map_start, total only.
             // 物理ページ配列は data に露出させず ext_pages 側だけに保持する。
             let mut off = 0usize;
-            if 16 > MAX_MSG_SIZE {
+            if 16 > ipc_max_msg_size() {
                 let _ = mb.free_slot(slot_idx);
                 return false;
             }
@@ -373,7 +390,7 @@ pub fn send_map_header_from_kernel(dest_thread_id: u64, map_start: u64, total: u
             msg.to_generation = dest_generation;
             // New format: [magic:u32][map_start:u64][total:u64] (20 bytes)
             let mut off = 0usize;
-            if 20 > MAX_MSG_SIZE {
+            if 20 > ipc_max_msg_size() {
                 let _ = mb.free_slot(slot_idx);
                 return false;
             }
@@ -425,7 +442,7 @@ pub fn send(dest_thread_id: u64, buf_ptr: u64, len: u64) -> u64 {
     }
 
     let len = len as usize;
-    if len > MAX_MSG_SIZE {
+    if len > ipc_max_msg_size() {
         return EINVAL;
     }
     if len > 0 && buf_ptr == 0 {
@@ -436,6 +453,16 @@ pub fn send(dest_thread_id: u64, buf_ptr: u64, len: u64) -> u64 {
         Some(id) => id.as_u64(),
         None => return EINVAL,
     };
+
+    // capability 強制:
+    // IPC で任意スレッドへメッセージを送れると、サービス制御や情報取得が無権限で可能になる。
+    // そのため、送信は `ipc.client` または `ipc.server` を持つプロセスに限定する。
+    if !crate::syscall::security::caller_has_any_capability(&[
+        crate::capability::Capability::IpcClient,
+        crate::capability::Capability::IpcServer,
+    ]) {
+        return EACCES;
+    }
 
     let (idx, dest_generation) =
         match crate::task::thread_slot_index_and_generation_by_u64(dest_thread_id) {
@@ -487,7 +514,7 @@ fn map_external_pages_for_receiver(
     map_start_hint: u64,
     total: u64,
     ext_pages_count: u16,
-    ext_pages: &[u64; 128],
+    ext_pages: &[u64; MAX_EXT_PAGES],
 ) -> Result<u64, u64> {
     if ext_pages_count == 0 || ext_pages_count as usize > ext_pages.len() {
         return Err(EINVAL);
@@ -555,7 +582,7 @@ fn prepare_external_pages_for_user(
     recv_buf: &mut [u8],
     copy_len: usize,
     ext_pages_count: u16,
-    ext_pages: &[u64; 128],
+    ext_pages: &[u64; MAX_EXT_PAGES],
 ) -> Result<usize, u64> {
     if ext_pages_count == 0 {
         return Ok(copy_len);
@@ -616,7 +643,7 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
         return EINVAL;
     }
 
-    let max_copy = core::cmp::min(max_len as usize, MAX_MSG_SIZE);
+    let max_copy = core::cmp::min(max_len as usize, ipc_max_msg_size());
     let mut recv_buf = vec![0u8; MAX_MSG_SIZE];
     let (from, copy_len, ext_pages_count, ext_pages) = {
         let mut boxes = MAILBOXES.lock();
@@ -630,7 +657,7 @@ pub fn recv(buf_ptr: u64, max_len: u64) -> u64 {
             None => return EAGAIN,
         }
     };
-    crate::debug!("[IPC RCV] pop_valid_for_receiver_copy returned from={} copy_len={} ext_pages_count={} data={:02x?}", from, copy_len, ext_pages_count, &recv_buf[..core::cmp::min(copy_len, recv_buf.len())]);
+    // NOTE: デバッグログは大量になりやすいので、通常は出さない
     let copy_len = match prepare_external_pages_for_user(
         receiver,
         &mut recv_buf,
@@ -675,7 +702,7 @@ pub fn recv_blocking(buf_ptr: u64, max_len: u64) -> u64 {
 
     let mut recv_buf = [0u8; MAX_MSG_SIZE];
     loop {
-        let max_copy = core::cmp::min(max_len as usize, MAX_MSG_SIZE);
+        let max_copy = core::cmp::min(max_len as usize, ipc_max_msg_size());
         // ロックを取得してメッセージを取り出すか、自分を waiter として登録する
         let recv = {
             let mut boxes = MAILBOXES.lock();

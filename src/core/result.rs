@@ -203,4 +203,6 @@ pub fn handle_kernel_error(error: Kernel) {
 }
 
 /// 結果型のエイリアス
-pub type Result<T> = core::result::Result<T, Kernel>;
+pub type KernelErr = Kernel;
+pub type KernelState = KernelErr;
+pub type Result<T> = core::result::Result<T, KernelState>;

@@ -1,0 +1,17 @@
+[service]
+id = "net.service"
+name = "Network Service"
+entry = "entry"
+type = "system"
+autostart = true
+order = 20
+
+[capabilities]
+required = [
+  "ipc.server",
+  "device.net",
+  "net.raw"
+]
+
+optional = []
+

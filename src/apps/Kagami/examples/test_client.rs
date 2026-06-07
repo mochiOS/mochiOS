@@ -13,6 +13,25 @@ fn default_socket_path() -> String {
     "/run/user/0/wayland-0".to_string()
 }
 
+fn resolve_socket_path() -> String {
+    match env::var("WAYLAND_DISPLAY") {
+        Ok(display) if !display.is_empty() => {
+            if display.contains('/') {
+                display
+            } else if let Ok(runtime_dir) = env::var("XDG_RUNTIME_DIR") {
+                if !runtime_dir.is_empty() {
+                    format!("{}/{}", runtime_dir.trim_end_matches('/'), display)
+                } else {
+                    format!("/run/user/0/{}", display)
+                }
+            } else {
+                format!("/run/user/0/{}", display)
+            }
+        }
+        _ => default_socket_path(),
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_default_env()
@@ -20,8 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     // ソケットパス取得
-    let socket_path = env::var("WAYLAND_DISPLAY")
-        .unwrap_or_else(|_| default_socket_path());
+    let socket_path = resolve_socket_path();
 
     log::info!("Connecting to {}", socket_path);
 
@@ -157,7 +175,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Ok(Ok(_)) => {}
-            Ok(Err(err)) => return Err(Box::new(err)),
+            Ok(Err(err)) => return Err(Box::<dyn std::error::Error>::from(err)),
             Err(_) => {}
         }
     }

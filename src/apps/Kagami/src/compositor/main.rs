@@ -10,6 +10,25 @@ fn default_socket_path() -> String {
     "/run/user/0/wayland-0".to_string()
 }
 
+fn resolve_socket_path() -> String {
+    match env::var("WAYLAND_DISPLAY") {
+        Ok(display) if !display.is_empty() => {
+            if display.contains('/') {
+                display
+            } else if let Ok(runtime_dir) = env::var("XDG_RUNTIME_DIR") {
+                if !runtime_dir.is_empty() {
+                    format!("{}/{}", runtime_dir.trim_end_matches('/'), display)
+                } else {
+                    format!("/run/user/0/{}", display)
+                }
+            } else {
+                format!("/run/user/0/{}", display)
+            }
+        }
+        _ => default_socket_path(),
+    }
+}
+
 #[cfg(feature = "backend-linux-fb")]
 fn create_backend() -> Box<dyn backend::FramebufferBackend> {
     Box::new(backend::LinuxFramebufferBackend::new())
@@ -52,8 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     log::info!("Backend: {}", backend.name());
 
     // ソケットパス取得
-    let socket_path = env::var("WAYLAND_DISPLAY")
-        .unwrap_or_else(|_| default_socket_path());
+    let socket_path = resolve_socket_path();
 
     // Compositor 作成
     let mut compositor = Compositor::new(backend, socket_path.clone())?;

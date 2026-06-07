@@ -1001,18 +1001,21 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
 
     /// メッセージをクライアントに送信
     async fn send_message(&self, client_id: u32, msg: &Message) -> Result<()> {
-        let clients = self.clients.read().await;
-        if let Some(client) = clients.get(&client_id) {
-            let bytes = msg.to_bytes();
-            let stream = client.stream.lock().await;
-            stream
-                .write_all(&bytes)
-                .await
-                .map_err(|e| CompositorError::Io(e))?;
-            Ok(())
-        } else {
-            Err(CompositorError::ClientNotFound(client_id))
+        let stream = {
+            let clients = self.clients.read().await;
+            clients
+                .get(&client_id)
+                .map(|client| Arc::clone(&client.stream))
         }
+        .ok_or(CompositorError::ClientNotFound(client_id))?;
+
+        let bytes = msg.to_bytes();
+        let mut stream = stream.lock().await;
+        stream
+            .write_all(&bytes)
+            .await
+            .map_err(CompositorError::Io)?;
+        Ok(())
     }
 
     async fn send_callback_done(&self, client_id: u32, callback_id: u32) -> Result<()> {

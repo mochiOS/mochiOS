@@ -51,7 +51,9 @@ fn start_service(service: &ServiceDef) -> Option<u64> {
     let exec_result = if service.name == "capability.service" {
         let ready_tid = task::gettid();
         let arg = format!("--ready-tid={}", ready_tid);
-        let caps = ["ipc.server", "system.info.read"];
+        // capability.service は起動直後に設定ファイルとレジストリを読むので、
+        // manifest と同じ bootstrap capability を渡す。
+        let caps = ["ipc.server", "fs.read.all", "system.info.read"];
         process::exec_with_capabilities(service.path, &[&arg], &caps).map_err(|_| -1)
     } else {
         process::exec(service.path).map_err(|_| -1)
@@ -145,9 +147,9 @@ fn parse_service_id_and_required_caps(manifest_text: &str) -> Option<(String, Ve
                     required.push(v.to_string());
                 }
             } else if line.starts_with("required") && line.contains('[') {
-                let closes_inline = line.rfind(']').is_some_and(|end| {
-                    line.find('[').is_some_and(|start| end > start + 1)
-                });
+                let closes_inline = line
+                    .rfind(']')
+                    .is_some_and(|end| line.find('[').is_some_and(|start| end > start + 1));
                 if closes_inline {
                     push_caps_from_inline_list(&mut required, line);
                 } else {

@@ -22,10 +22,13 @@ pub mod ipc {
         mochi_syscall::ipc::ipc_recv(buf)
     }
 
+<<<<<<< HEAD
     pub fn recv_wait(buf: &mut [u8]) -> (u64, u64) {
         mochi_syscall::ipc::ipc_recv_wait(buf)
     }
 
+=======
+>>>>>>> master
     pub fn send(dest_thread_id: u64, data: &[u8]) -> i64 {
         mochi_syscall::ipc::ipc_send(dest_thread_id, data) as i64
     }
@@ -34,10 +37,13 @@ pub mod ipc {
         recv(buf)
     }
 
+<<<<<<< HEAD
     pub fn ipc_recv_wait(buf: &mut [u8]) -> (u64, u64) {
         recv_wait(buf)
     }
 
+=======
+>>>>>>> master
     pub fn ipc_send(dest_thread_id: u64, data: &[u8]) -> i64 {
         send(dest_thread_id, data)
     }
@@ -51,10 +57,13 @@ pub mod keyboard {
     pub fn read_scancode_tap() -> Option<u8> {
         mochi_syscall::keyboard::read_scancode_tap().ok().flatten()
     }
+<<<<<<< HEAD
 
     pub fn read_scancode_blocking() -> u8 {
         mochi_syscall::keyboard::read_scancode_blocking()
     }
+=======
+>>>>>>> master
 }
 
 pub mod privileged {

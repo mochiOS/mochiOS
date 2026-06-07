@@ -246,8 +246,6 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                 client.surfaces.keys().copied().collect::<Vec<_>>()
             })
             .unwrap_or_default();
-
-        clients.remove(&client_id);
         drop(clients);
 
         if !owned_surfaces.is_empty() {
@@ -283,6 +281,8 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                 buffers.remove(&buffer_id);
             }
         }
+
+        self.clients.write().await.remove(&client_id);
     }
 
     async fn is_buffer_attached(&self, buffer_id: u32) -> bool {
@@ -1889,9 +1889,11 @@ mod tests {
         let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
         let compositor = Compositor::new(backend, "/tmp/test-compositor9.sock".to_string())
             .expect("Failed to create compositor");
-        let (left, _right) = StdUnixStream::pair().expect("pair");
+        let (left, right) = StdUnixStream::pair().expect("pair");
         left.set_nonblocking(true).expect("nonblocking left");
+        right.set_nonblocking(true).expect("nonblocking right");
         let left = UnixStream::from_std(left).expect("tokio left");
+        let mut right = UnixStream::from_std(right).expect("tokio right");
 
         let mut client = Client::new(1, left);
         client.add_surface(5, 5);
@@ -1920,6 +1922,13 @@ mod tests {
         assert!(!compositor.surfaces.read().await.contains_key(&5));
         assert!(!compositor.buffers.read().await.contains_key(&6));
         assert!(!compositor.clients.read().await.contains_key(&1));
+
+        let mut buf = [0u8; 32];
+        let n = right.read(&mut buf).await.expect("read delete_id");
+        let (msg, _) = Message::from_bytes(&buf[..n]).expect("delete_id event");
+        assert_eq!(msg.header.object_id, 1);
+        assert_eq!(msg.header.opcode, 1);
+        assert_eq!(u32::from_le_bytes(msg.data[..4].try_into().expect("payload")), 6);
     }
 
     #[tokio::test]

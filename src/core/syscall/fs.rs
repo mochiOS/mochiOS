@@ -1,5 +1,6 @@
 //! ファイルシステム関連のシステムコール
 
+use alloc::collections::BTreeMap;
 use super::types::{
     EACCES, EBADF, EEXIST, EFAULT, EINVAL, EIO, ENOENT, ENOSYS, ENOTDIR, ESRCH, SUCCESS,
 };
@@ -8,6 +9,9 @@ use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
+use spin::Mutex;
+
+static SHM_NAMESPACE: Mutex<Option<BTreeMap<String, Vec<u8>>>> = Mutex::new(None);
 
 // グローバル FD テーブルは廃止。各プロセスの Process::fd_table を使用する。
 
@@ -160,7 +164,51 @@ fn special_file_kind(path: &str) -> Option<SpecialFileKind> {
 }
 
 #[inline]
+fn is_shm_root(path: &str) -> bool {
+    path == "/dev/shm"
+}
+
+#[inline]
+fn shm_entry_name(path: &str) -> Option<&str> {
+    path.strip_prefix("/dev/shm/").and_then(|name| {
+        if name.is_empty() || name.contains('/') {
+            None
+        } else {
+            Some(name)
+        }
+    })
+}
+
+#[inline]
+fn is_shm_entry_path(path: &str) -> bool {
+    shm_entry_name(path).is_some()
+}
+
+fn with_shm_namespace<R>(f: impl FnOnce(&BTreeMap<String, Vec<u8>>) -> R) -> R {
+    let mut guard = SHM_NAMESPACE.lock();
+    let map = guard.get_or_insert_with(BTreeMap::new);
+    f(map)
+}
+
+fn with_shm_namespace_mut<R>(f: impl FnOnce(&mut BTreeMap<String, Vec<u8>>) -> R) -> R {
+    let mut guard = SHM_NAMESPACE.lock();
+    let map = guard.get_or_insert_with(BTreeMap::new);
+    f(map)
+}
+
+fn shm_file_metadata(path: &str) -> Option<(u16, u64)> {
+    if is_shm_root(path) {
+        return Some((0x4000 | 0o755, 0));
+    }
+    let name = shm_entry_name(path)?;
+    with_shm_namespace(|map| map.get(name).map(|data| (0x8000 | 0o600, data.len() as u64)))
+}
+
+#[inline]
 fn special_file_metadata(path: &str) -> Option<(u16, u64)> {
+    if let Some(meta) = shm_file_metadata(path) {
+        return Some(meta);
+    }
     match special_file_kind(path)? {
         SpecialFileKind::Zero | SpecialFileKind::Null => Some((0x2000 | 0o666, 0)),
         SpecialFileKind::AuditLog => Some((0x8000 | 0o444, crate::audit::file_size() as u64)),
@@ -173,10 +221,10 @@ fn special_file_metadata(path: &str) -> Option<(u16, u64)> {
 fn special_dir_entries(path: &str) -> Option<Vec<String>> {
     match path {
         "/dev" => Some(vec!["shm".to_string()]),
+        "/dev/shm" => Some(with_shm_namespace(|map| map.keys().cloned().collect())),
         "/run" => Some(vec!["user".to_string()]),
         "/run/user" => Some(vec!["0".to_string()]),
         "/run/user/0" => Some(vec!["wayland-0".to_string()]),
-        "/dev/shm" => Some(Vec::new()),
         _ => None,
     }
 }
@@ -216,10 +264,10 @@ fn special_dir_entry_dtype(path: &str, name: &str) -> Option<u8> {
 #[cfg(test)]
 mod tests {
     use super::{
-        filter_hidden_root_entries, merge_special_dir_entries, parse_readdir_typed,
-        special_dir_entries, special_dir_entry_dtype, special_file_allows_open,
-        special_file_metadata, special_path_blocks_mutation, O_CREAT, O_RDWR, O_TRUNC,
-        O_WRONLY, SpecialFileKind,
+        filter_hidden_root_entries, is_shm_entry_path, merge_special_dir_entries,
+        parse_readdir_typed, shm_entry_name, special_dir_entries, special_dir_entry_dtype,
+        special_file_allows_open, special_file_metadata, special_path_blocks_mutation, O_CREAT,
+        O_RDWR, O_TRUNC, O_WRONLY, SpecialFileKind,
     };
 
     const O_RDONLY: u64 = 0;
@@ -287,6 +335,14 @@ mod tests {
             ]),
             Some(vec!["bin".to_string(), "system".to_string()])
         );
+    }
+
+    #[test]
+    fn shm_paths_are_identified() {
+        assert_eq!(shm_entry_name("/dev/shm/test"), Some("test"));
+        assert_eq!(shm_entry_name("/dev/shm/nested/file"), None);
+        assert!(is_shm_entry_path("/dev/shm/test"));
+        assert!(!is_shm_entry_path("/dev/shm"));
     }
 
     #[test]
@@ -380,6 +436,10 @@ fn handle_is_special(fh: &FileHandle) -> bool {
 
 fn handle_special_kind(fh: &FileHandle) -> Option<SpecialFileKind> {
     fh.dir_path.as_deref().and_then(special_file_kind)
+}
+
+fn handle_is_shm(fh: &FileHandle) -> Option<&str> {
+    fh.fs_path.as_deref().and_then(shm_entry_name)
 }
 
 fn parse_readdir_names(bytes: &[u8]) -> Vec<String> {
@@ -503,6 +563,48 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
             Some(Some(fd)) => fd as u64,
             _ => ENOSYS,
         };
+    }
+
+    if let Some(name) = shm_entry_name(path) {
+        let exists = with_shm_namespace(|map| map.contains_key(name));
+        if !exists && (flags & O_CREAT) == 0 {
+            return ENOENT;
+        }
+        if exists && (flags & O_EXCL) != 0 && (flags & O_CREAT) != 0 {
+            return EEXIST;
+        }
+        if (flags & O_CREAT) != 0 {
+            with_shm_namespace_mut(|map| {
+                map.entry(name.to_string()).or_default();
+            });
+        }
+        if (flags & O_TRUNC) != 0 {
+            with_shm_namespace_mut(|map| {
+                if let Some(data) = map.get_mut(name) {
+                    data.clear();
+                }
+            });
+        }
+        if has_write_intent(flags) || exists || (flags & O_CREAT) != 0 {
+            let cloexec = (flags & O_CLOEXEC) != 0;
+            let handle = alloc::boxed::Box::new(FileHandle {
+                data: Vec::new().into_boxed_slice(),
+                pos: 0,
+                fs_path: Some(path.to_string()),
+                dir_path: None,
+                is_remote: false,
+                fd_remote: 0,
+                remote_refs: None,
+                pipe_id: None,
+                pipe_write: false,
+                open_flags: flags,
+            });
+            return match with_fd_table_mut(owner_pid, |t| t.alloc(handle, cloexec)) {
+                Some(Some(fd)) => fd as u64,
+                _ => ENOSYS,
+            };
+        }
+        return ENOENT;
     }
 
     if let Err(errno) = ensure_fs_path_readable(path) {
@@ -668,7 +770,13 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
             0 => offset,
             1 => fh.pos as i64 + offset,
             2 => {
-                let len = if handle_special_kind(fh) == Some(SpecialFileKind::AuditLog) {
+                let len = if handle_is_shm(fh).is_some() {
+                    fh.fs_path
+                        .as_deref()
+                        .and_then(shm_entry_name)
+                        .and_then(|name| with_shm_namespace(|map| map.get(name).map(|data| data.len() as i64)))
+                        .unwrap_or(0)
+                } else if handle_special_kind(fh) == Some(SpecialFileKind::AuditLog) {
                     crate::audit::file_size() as i64
                 } else {
                     fh.data.len() as i64
@@ -680,7 +788,13 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
         if new_pos < 0 {
             return Err(EINVAL);
         }
-        let limit = if handle_special_kind(fh) == Some(SpecialFileKind::AuditLog) {
+        let limit = if handle_is_shm(fh).is_some() {
+            fh.fs_path
+                .as_deref()
+                .and_then(shm_entry_name)
+                .and_then(|name| with_shm_namespace(|map| map.get(name).map(|data| data.len())))
+                .unwrap_or(0)
+        } else if handle_special_kind(fh) == Some(SpecialFileKind::AuditLog) {
             crate::audit::file_size()
         } else {
             fh.data.len()
@@ -752,6 +866,7 @@ pub fn fstat(fd: u64, stat_ptr: u64) -> u64 {
     // FileHandle からメタデータを取得する
     let file_info = with_fd_table(pid, |t| {
         t.get(idx).map(|fh| {
+            let shm_name = handle_is_shm(fh);
             let is_tty = fh
                 .dir_path
                 .as_deref()
@@ -761,6 +876,8 @@ pub fn fstat(fd: u64, stat_ptr: u64) -> u64 {
             let special_kind = handle_special_kind(fh);
             let size = if special_kind == Some(SpecialFileKind::AuditLog) {
                 crate::audit::file_size() as u64
+            } else if let Some(name) = shm_name {
+                with_shm_namespace(|map| map.get(name).map(|data| data.len() as u64).unwrap_or(0))
             } else {
                 fh.data.len() as u64
             };
@@ -770,21 +887,24 @@ pub fn fstat(fd: u64, stat_ptr: u64) -> u64 {
                 is_tty,
                 is_special,
                 special_kind,
+                shm_name.is_some(),
             )
         })
     });
-    let (size, is_dir, is_tty, is_special, special_kind) = match file_info {
+    let (size, is_dir, is_tty, is_special, special_kind, is_shm_file) = match file_info {
         Some(Some(v)) => v,
         _ => return EBADF,
     };
     let mode = if special_kind == Some(SpecialFileKind::AuditLog) {
         0x8000u32 | 0o444
+    } else if is_shm_file {
+        0x8000u32 | 0o600
+    } else if special_kind == Some(SpecialFileKind::RuntimeDir) || is_dir {
+        0x4000u32 | 0o755
     } else if is_special {
         0x2000u32 | 0o666
     } else if is_tty {
         0x2000u32 | 0o666
-    } else if is_dir {
-        0x4000u32 | 0o755
     } else {
         0x8000u32 | 0o755
     };
@@ -841,6 +961,13 @@ pub fn rmdir(path_ptr: u64) -> u64 {
         Err(e) => return e,
     };
     let resolved = resolve_path(pid, &path);
+    if let Some(name) = shm_entry_name(&resolved) {
+        let removed = with_shm_namespace_mut(|map| map.remove(name));
+        return if removed.is_some() { SUCCESS } else { ENOENT };
+    }
+    if is_shm_root(&resolved) {
+        return EACCES;
+    }
     if let Err(errno) = ensure_fs_path_readable(&resolved) {
         return errno;
     }
@@ -881,7 +1008,13 @@ pub fn readdir(fd: u64, buf_ptr: u64, buf_len: u64) -> u64 {
             .map(|fh| (fh.dir_path.clone(), handle_is_special(fh)))
     }) {
         Some(Some((Some(p), false))) => (p, false),
-        Some(Some((Some(_), true))) => return ENOTDIR,
+        Some(Some((Some(p), true))) => {
+            if special_file_kind(&p) == Some(SpecialFileKind::RuntimeDir) {
+                (p, true)
+            } else {
+                return ENOTDIR;
+            }
+        }
         _ => return EBADF,
     };
 
@@ -991,6 +1124,16 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
 
     let local = match with_fd_table_mut(pid, |t| {
         let fh = t.get_mut(idx)?;
+        if let Some(name) = handle_is_shm(fh) {
+            let (data, next_pos) = with_shm_namespace(|map| {
+                let data = map.get(name).cloned().unwrap_or_default();
+                let start = fh.pos.min(data.len());
+                let end = core::cmp::min(start.saturating_add(len as usize), data.len());
+                (data[start..end].to_vec(), end)
+            });
+            fh.pos = next_pos;
+            return Some(data);
+        }
         if handle_is_special(fh) {
             let to_read = match handle_special_kind(fh) {
                 Some(SpecialFileKind::Null) => 0usize,
@@ -1082,6 +1225,32 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
         Some(Some(info)) => info,
         _ => return EBADF,
     };
+
+    if let Some(name) = fs_path.as_deref().and_then(shm_entry_name) {
+        let updated = with_shm_namespace_mut(|map| {
+            let entry = map.get_mut(name)?;
+            let start = start_pos.min(entry.len());
+            let end = start.checked_add(buf.len()).unwrap_or(usize::MAX);
+            if end > entry.len() {
+                entry.resize(end, 0);
+            }
+            entry[start..end].copy_from_slice(&buf);
+            Some(())
+        });
+        if updated.is_none() {
+            return ENOENT;
+        }
+        let wrote = with_fd_table_mut(pid, |t| {
+            let fh = t.get_mut(idx).ok_or(EBADF)?;
+            fh.pos = start_pos.saturating_add(buf.len());
+            Ok(buf.len() as u64)
+        });
+        return match wrote {
+            Some(Ok(n)) => n,
+            Some(Err(errno)) => errno,
+            None => EBADF,
+        };
+    }
 
     if is_special && special_kind == Some(SpecialFileKind::AuditLog) {
         return EACCES;
@@ -1224,6 +1393,18 @@ pub fn truncate(path_ptr: u64, len: u64) -> u64 {
         None => return EBADF,
     };
     let path = resolve_path(pid, &path);
+    if let Some(name) = shm_entry_name(&path) {
+        let exists = with_shm_namespace(|map| map.contains_key(name));
+        if !exists {
+            return ENOENT;
+        }
+        with_shm_namespace_mut(|map| {
+            if let Some(entry) = map.get_mut(name) {
+                entry.resize(len as usize, 0);
+            }
+        });
+        return SUCCESS;
+    }
     if special_path_blocks_mutation(&path) {
         return EACCES;
     }
@@ -1258,6 +1439,21 @@ pub fn ftruncate(fd: u64, len: u64) -> u64 {
     };
     let res = with_fd_table_mut(pid, |t| {
         let fh = t.get_mut(idx).ok_or(EBADF)?;
+        if let Some(name) = handle_is_shm(fh) {
+            let exists = with_shm_namespace(|map| map.contains_key(name));
+            if !exists {
+                return Err(ENOENT);
+            }
+            with_shm_namespace_mut(|map| {
+                if let Some(entry) = map.get_mut(name) {
+                    entry.resize(new_len, 0);
+                }
+            });
+            if fh.pos > new_len {
+                fh.pos = new_len;
+            }
+            return Ok(());
+        }
         if handle_is_special(fh) {
             if handle_special_kind(fh) == Some(SpecialFileKind::AuditLog) {
                 return Err(ENOSYS);
@@ -1455,6 +1651,12 @@ pub fn renameat(old_dirfd: i64, old_path_ptr: u64, new_dirfd: i64, new_path_ptr:
     }
     if let Err(errno) = ensure_fs_path_readable(&new_path) {
         return errno;
+    }
+    if is_shm_root(&old_path) || is_shm_root(&new_path) {
+        return EACCES;
+    }
+    if is_shm_entry_path(&old_path) || is_shm_entry_path(&new_path) {
+        return EACCES;
     }
     if special_path_blocks_mutation(&old_path) || special_path_blocks_mutation(&new_path) {
         return EACCES;

@@ -2,7 +2,7 @@ use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{compiler_fence, Ordering as AtomicOrdering};
 use std::alloc::{alloc_zeroed, dealloc, Layout};
 
-use mochi_syscall::{mmio, port, time};
+use mochi_syscall::{mmio, port, task, time};
 
 mod define;
 mod hid;
@@ -166,7 +166,7 @@ fn wait_until(timeout_ms: u64, mut condition: impl FnMut() -> bool) -> bool {
         if condition() {
             return true;
         }
-        time::sleep_ms(1);
+        task::yield_now();
     }
     false
 }

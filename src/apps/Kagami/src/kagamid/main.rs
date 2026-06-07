@@ -118,8 +118,6 @@ fn main() {
 
     let mut e_down = false;
     loop {
-        let mut did_work = false;
-
         // Handle window server IPC.
         let mut recv = [0u8; IPC_BUF_SIZE];
         loop {
@@ -127,7 +125,6 @@ fn main() {
             if sender == 0 || len == 0 {
                 break;
             }
-            did_work = true;
             let len = len as usize;
             // Handle shared-page map header (kernel format).
             if len == 20 {
@@ -357,7 +354,6 @@ fn main() {
                 continue;
             }
         };
-        did_work = true;
 
         // break code is make|0x80 for set1
         if sc == 0x92 {
@@ -378,9 +374,7 @@ fn main() {
             }
         }
 
-        if did_work {
-            task::yield_now();
-        }
+        task::yield_now();
     }
 }
 

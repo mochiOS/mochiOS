@@ -984,8 +984,9 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                 self.attach_fallback_buffer_if_needed(surface).await;
 
                                 release_buffer_id = surface.buffer_object_id;
+                                needs_render = surface.buffer_object_id.is_some()
+                                    || surface.buffer_data.is_some();
                                 surface.clear_damage();
-                                needs_render = true;
                             }
                         _ => {
                             return Err(CompositorError::InvalidMessage(format!(

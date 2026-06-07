@@ -16,6 +16,7 @@ const OP_REQ_FLUSH_CHUNK: u32 = 4;
 const OP_REQ_ATTACH_SHARED: u32 = 5;
 const OP_REQ_PRESENT_SHARED: u32 = 6;
 const OP_RES_SHARED_ATTACHED: u32 = 7;
+const PENDING_SHARED_MAX_AGE: u32 = 32768;
 
 fn launch_app_with_retry(bundle_path: &str, label: &str) -> Result<u64, i64> {
     let mut last_err = -110;
@@ -45,6 +46,13 @@ struct Window {
     pixels: Vec<u32>,
     shared_addr: Option<u64>,
     shared_bytes: usize,
+}
+
+struct PendingShared {
+    window_id: u32,
+    width: u16,
+    height: u16,
+    age: u32,
 }
 
 impl Drop for Window {
@@ -115,7 +123,7 @@ fn main() {
 
     let mut next_window_id: u32 = 1;
     let mut windows: Vec<Window> = Vec::new();
-    let mut pending_shared: HashMap<u64, (u32, u16, u16)> = HashMap::new(); // sender_tid -> (window_id, w, h)
+    let mut pending_shared: HashMap<u64, PendingShared> = HashMap::new();
 
     let mut e_down = false;
     loop {
@@ -144,7 +152,10 @@ fn main() {
                         recv[12], recv[13], recv[14], recv[15], recv[16], recv[17], recv[18],
                         recv[19],
                     ]);
-                    if let Some((window_id, w, h)) = pending_shared.remove(&sender) {
+                    if let Some(pending) = pending_shared.remove(&sender) {
+                        let window_id = pending.window_id;
+                        let w = pending.width;
+                        let h = pending.height;
                         if let Some(win) = windows.iter_mut().find(|w0| w0.id == window_id) {
                             win.shared_addr = Some(map_start);
                             win.shared_bytes = total as usize;
@@ -318,7 +329,15 @@ fn main() {
 
                     // Fallback: allow privileged clients (Binder) to allocate and send pages.
                     if !attached {
-                        pending_shared.insert(sender, (window_id, w, h));
+                        pending_shared.insert(
+                            sender,
+                            PendingShared {
+                                window_id,
+                                width: w,
+                                height: h,
+                                age: 0,
+                            },
+                        );
                     }
                 }
                 OP_REQ_PRESENT_SHARED => {
@@ -378,6 +397,19 @@ fn main() {
                 Err(errno) => println!("[Kagami] failed to exec {}: errno={}", path, errno),
             }
         }
+
+        pending_shared.retain(|sender, pending| {
+            pending.age = pending.age.saturating_add(1);
+            if pending.age > PENDING_SHARED_MAX_AGE {
+                println!(
+                    "[Kagami] dropping stale pending shared attach from sender {} for window {}",
+                    sender, pending.window_id
+                );
+                false
+            } else {
+                true
+            }
+        });
 
         task::yield_now();
     }

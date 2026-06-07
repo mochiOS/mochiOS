@@ -74,7 +74,7 @@ fn main() {
         None => {
             println!("[Kagami] failed to get framebuffer info");
             loop {
-                time::sleep_ms(1000);
+                task::yield_now();
             }
         }
     };
@@ -83,7 +83,7 @@ fn main() {
         None => {
             println!("[Kagami] failed to map framebuffer");
             loop {
-                time::sleep_ms(1000);
+                task::yield_now();
             }
         }
     };

@@ -97,6 +97,6 @@ fn main() {
 
     println!("[DRIVER] Entering monitoring loop...");
     loop {
-        time::sleep_ms(1000);
+        task::yield_now();
     }
 }

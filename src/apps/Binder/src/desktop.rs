@@ -4,10 +4,10 @@ use viewkit::{
     platform::{
         fs,
         ipc::{recv as ipc_recv, send as ipc_send, MAP_HEADER_MAGIC, MAX_MSG_SIZE},
-        keyboard::read_scancode_tap,
+        keyboard::read_scancode_blocking,
         privileged,
         process,
-        task::{find_process_by_name, yield_now},
+        task::find_process_by_name,
         vga,
     },
     render_component_to_pixmap_with_asset_root_and_boxes, VComponent,
@@ -189,14 +189,11 @@ pub fn draw() {
     println!("[Binder] window shown");
 
     loop {
-        let sc_opt = read_scancode_tap();
-        if let Some(sc) = sc_opt {
-            if sc == 0x01 {
-                println!("[Binder] exit");
-                return;
-            }
+        let sc = read_scancode_blocking();
+        if sc == 0x01 || sc == 0x81 {
+            println!("[Binder] exit");
+            return;
         }
-        yield_now();
     }
 }
 

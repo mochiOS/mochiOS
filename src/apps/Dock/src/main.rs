@@ -2,9 +2,8 @@ use viewkit::{
     ipc_proto,
     platform::{
         fs,
-        keyboard::{read_scancode, read_scancode_tap},
+        keyboard::read_scancode_blocking,
         process,
-        task::yield_now,
     },
     render_component_to_pixmap, Window, VComponent,
 };
@@ -39,43 +38,39 @@ fn main() {
     println!("[Dock] shown");
 
     loop {
-        let sc_opt = read_scancode_tap().or_else(|| read_scancode());
-        if let Some(sc) = sc_opt {
-            // ESC
-            if sc == 0x01 || sc == 0x81 {
-                println!("[Dock] exit");
-                return;
+        let sc = read_scancode_blocking();
+        if sc == 0x01 || sc == 0x81 {
+            println!("[Dock] exit");
+            return;
+        }
+        // Left arrow (press)
+        if sc == 0x4B {
+            if sel > 0 {
+                sel -= 1;
             }
-            // Left arrow (press)
-            if sc == 0x4B {
-                if sel > 0 {
-                    sel -= 1;
-                }
-                let dock = render_dock_component(&apps, sel);
-                let pixels = render_component_to_pixmap(&dock, width as u32, height as u32);
-                let _ = window.present(&pixels);
+            let dock = render_dock_component(&apps, sel);
+            let pixels = render_component_to_pixmap(&dock, width as u32, height as u32);
+            let _ = window.present(&pixels);
+        }
+        // Right arrow (press)
+        if sc == 0x4D {
+            if sel + 1 < apps.len() {
+                sel += 1;
             }
-            // Right arrow (press)
-            if sc == 0x4D {
-                if sel + 1 < apps.len() {
-                    sel += 1;
-                }
-                let dock = render_dock_component(&apps, sel);
-                let pixels = render_component_to_pixmap(&dock, width as u32, height as u32);
-                let _ = window.present(&pixels);
-            }
-            // Enter (press)
-            if sc == 0x1C {
-                if let Some((app, _icon)) = apps.get(sel) {
-                    let path = format!("/applications/{}", app);
-                    match process::exec_app(&path) {
-                        Ok(pid) => println!("[Dock] launched {} pid={}", app, pid),
-                        Err(_) => eprintln!("[Dock] failed to launch {}", app),
-                    }
+            let dock = render_dock_component(&apps, sel);
+            let pixels = render_component_to_pixmap(&dock, width as u32, height as u32);
+            let _ = window.present(&pixels);
+        }
+        // Enter (press)
+        if sc == 0x1C {
+            if let Some((app, _icon)) = apps.get(sel) {
+                let path = format!("/applications/{}", app);
+                match process::exec_app(&path) {
+                    Ok(pid) => println!("[Dock] launched {} pid={}", app, pid),
+                    Err(_) => eprintln!("[Dock] failed to launch {}", app),
                 }
             }
         }
-        yield_now();
     }
 }
 

@@ -51,6 +51,10 @@ pub mod keyboard {
     pub fn read_scancode_tap() -> Option<u8> {
         mochi_syscall::keyboard::read_scancode_tap().ok().flatten()
     }
+
+    pub fn read_scancode_blocking() -> u8 {
+        mochi_syscall::keyboard::read_scancode_blocking()
+    }
 }
 
 pub mod privileged {

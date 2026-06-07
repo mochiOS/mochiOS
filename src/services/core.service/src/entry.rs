@@ -1,7 +1,6 @@
 use mochi_syscall::ipc;
 use mochi_syscall::process;
 use mochi_syscall::task;
-use mochi_syscall::time;
 
 /// READY通知OPコード
 const OP_NOTIFY_READY: u64 = 0xFF;
@@ -52,9 +51,10 @@ fn start_service(service: &ServiceDef) -> Option<u64> {
     let exec_result = if service.name == "capability.service" {
         let ready_tid = task::gettid();
         let arg = format!("--ready-tid={}", ready_tid);
-        process::exec_with_args(service.path, &[&arg])
+        let caps = ["ipc.server", "system.info.read"];
+        process::exec_with_capabilities(service.path, &[&arg], &caps).map_err(|_| -1)
     } else {
-        process::exec(service.path)
+        process::exec(service.path).map_err(|_| -1)
     };
     match exec_result {
         Ok(pid) => {
@@ -276,16 +276,9 @@ fn request_grant_for_service(
     let _ = ipc::ipc_send(cap_pid, req_slice);
 
     let mut buf = [0u8; 576];
-    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1500);
     loop {
-        if std::time::Instant::now() > deadline {
-            println!("[CORE] grant timeout for {}", service_id);
-            return None;
-        }
-        // ノンブロッキングで回して deadline を守る
-        let (sender, len) = ipc::ipc_recv(&mut buf);
+        let (sender, len) = ipc::ipc_recv_wait(&mut buf);
         if sender == 0 || len == 0 {
-            task::yield_now();
             continue;
         }
         if sender != cap_pid || (len as usize) < core::mem::size_of::<CapabilityResponseMsg>() {
@@ -391,9 +384,8 @@ fn wait_for_ready(expected_pids: &[u64]) -> bool {
             println!("[CORE] ERROR: timed out waiting for critical services");
             return false;
         }
-        let (sender, len) = ipc::ipc_recv(&mut recv_buf);
+        let (sender, len) = ipc::ipc_recv_wait(&mut recv_buf);
         if sender == 0 && len == 0 {
-            task::yield_now();
             continue;
         }
 

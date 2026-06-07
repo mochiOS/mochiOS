@@ -47,7 +47,7 @@ fn notify_ready_to_core() {
                 CORE_SERVICE_PID_FALLBACK
             );
             CORE_SERVICE_PID_FALLBACK
-        });
+    });
 
     let op_bytes = OP_NOTIFY_READY.to_le_bytes();
     let _ = ipc::ipc_send(core_pid, &op_bytes);

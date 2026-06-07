@@ -240,8 +240,11 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
     async fn cleanup_client_state(&self, client_id: u32) {
         let mut clients = self.clients.write().await;
         let owned_surfaces = clients
-            .get(&client_id)
-            .map(|client| client.surfaces.keys().copied().collect::<Vec<_>>())
+            .get_mut(&client_id)
+            .map(|client| {
+                client.clear_transient_objects();
+                client.surfaces.keys().copied().collect::<Vec<_>>()
+            })
             .unwrap_or_default();
 
         clients.remove(&client_id);

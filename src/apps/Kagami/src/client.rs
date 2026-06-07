@@ -68,6 +68,13 @@ impl Client {
     pub fn callback_count(&self) -> usize {
         self.callbacks.len()
     }
+
+    pub fn clear_transient_objects(&mut self) {
+        self.registry_object_id = None;
+        self.compositor_object_id = None;
+        self.shm_object_id = None;
+        self.callbacks.clear();
+    }
 }
 
 #[cfg(test)]
@@ -117,6 +124,26 @@ mod tests {
         assert_eq!(client.callback_count(), 1);
         assert!(!client.add_callback(7));
         assert!(client.remove_callback(7));
+        assert_eq!(client.callback_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_clear_transient_objects() {
+        let (s1, _s2) = std::os::unix::net::UnixStream::pair().expect("pair");
+        s1.set_nonblocking(true).expect("nonblocking");
+        let s1 = UnixStream::from_std(s1).expect("tokio stream");
+        let mut client = Client::new(1, s1);
+
+        client.registry_object_id = Some(2);
+        client.compositor_object_id = Some(3);
+        client.shm_object_id = Some(4);
+        client.add_callback(7);
+
+        client.clear_transient_objects();
+
+        assert_eq!(client.registry_object_id, None);
+        assert_eq!(client.compositor_object_id, None);
+        assert_eq!(client.shm_object_id, None);
         assert_eq!(client.callback_count(), 0);
     }
 }

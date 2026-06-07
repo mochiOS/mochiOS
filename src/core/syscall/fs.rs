@@ -272,6 +272,7 @@ fn special_dir_entry_dtype(path: &str, name: &str) -> Option<u8> {
     match (path, name) {
         ("/run", "user") | ("/run/user", "0") => Some(4),
         ("/run/user/0", "wayland-0") => Some(12),
+        ("/dev/shm", _) => Some(8),
         _ => None,
     }
 }
@@ -338,6 +339,7 @@ mod tests {
         assert_eq!(special_dir_entry_dtype("/run", "user"), Some(4));
         assert_eq!(special_dir_entry_dtype("/run/user", "0"), Some(4));
         assert_eq!(special_dir_entry_dtype("/run/user/0", "wayland-0"), Some(12));
+        assert_eq!(special_dir_entry_dtype("/dev/shm", "tmp"), Some(8));
         assert_eq!(special_dir_entry_dtype("/run/user/0", "other"), None);
     }
 

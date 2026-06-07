@@ -183,7 +183,12 @@ fn special_dir_entries(path: &str) -> Option<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{special_dir_entries, special_file_metadata, SpecialFileKind};
+    use super::{
+        special_dir_entries, special_file_allows_open, special_file_metadata, O_CREAT, O_RDWR,
+        O_TRUNC, O_WRONLY, SpecialFileKind,
+    };
+
+    const O_RDONLY: u64 = 0;
 
     #[test]
     fn runtime_dirs_expose_expected_children() {
@@ -212,6 +217,17 @@ mod tests {
             Some(SpecialFileKind::WaylandSocket)
         ));
     }
+
+    #[test]
+    fn wayland_runtime_paths_reject_write_like_open() {
+        assert!(special_file_allows_open("/run/user/0/wayland-0", O_RDONLY));
+        assert!(!special_file_allows_open("/run/user/0/wayland-0", O_WRONLY));
+        assert!(!special_file_allows_open("/run/user/0/wayland-0", O_RDWR));
+        assert!(!special_file_allows_open("/run/user/0/wayland-0", O_CREAT));
+        assert!(!special_file_allows_open("/run/user/0/wayland-0", O_TRUNC));
+        assert!(special_file_allows_open("/dev/shm", O_RDONLY));
+        assert!(!special_file_allows_open("/dev/shm", O_WRONLY));
+    }
 }
 
 #[inline]
@@ -222,6 +238,18 @@ fn is_special_local_path(path: &str) -> bool {
 #[inline]
 fn special_file_requires_read_cap(path: &str) -> bool {
     matches!(special_file_kind(path), Some(SpecialFileKind::AuditLog))
+}
+
+#[inline]
+fn special_file_allows_open(path: &str, flags: u64) -> bool {
+    match special_file_kind(path) {
+        Some(SpecialFileKind::RuntimeDir) | Some(SpecialFileKind::WaylandSocket) => {
+            !has_write_intent(flags) && (flags & O_CREAT) == 0 && (flags & O_TRUNC) == 0
+        }
+        Some(SpecialFileKind::AuditLog) => !has_write_intent(flags),
+        Some(SpecialFileKind::Zero) | Some(SpecialFileKind::Null) => true,
+        None => true,
+    }
 }
 
 #[inline]
@@ -395,6 +423,9 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
     }
 
     if is_special_local_path(path) {
+        if !special_file_allows_open(path, flags) {
+            return EACCES;
+        }
         let cloexec = (flags & O_CLOEXEC) != 0;
         let handle = alloc::boxed::Box::new(FileHandle {
             data: alloc::boxed::Box::new([]),
@@ -941,6 +972,14 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     };
 
     if is_special && special_kind == Some(SpecialFileKind::AuditLog) {
+        return EACCES;
+    }
+    if is_special
+        && matches!(
+            special_kind,
+            Some(SpecialFileKind::WaylandSocket | SpecialFileKind::RuntimeDir)
+        )
+    {
         return EACCES;
     }
 

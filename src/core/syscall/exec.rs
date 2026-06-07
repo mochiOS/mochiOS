@@ -382,6 +382,14 @@ pub fn exec_from_fs_stream(path_ptr: u64, args_ptr: u64) -> u64 {
     crate::syscall::types::ENOENT
 }
 
+// TODO: マニフェストに含む情報として
+//  - package_id
+//  - publisher_id
+//  - signature_trusted
+//  - manifest role
+//  - file digest
+//  - install source
+// を追加する
 #[inline]
 fn resolve_exec_privilege(process_name: &str, exec_path: &str) -> crate::task::PrivilegeLevel {
     // .service は従来通り Service 権限で実行。

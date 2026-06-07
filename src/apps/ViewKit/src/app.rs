@@ -117,7 +117,7 @@ impl App {
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 fn kagami_present_loop(app: App) {
     use crate::mochios::{
-        ipc::{ipc_recv, ipc_send},
+        ipc::{ipc_recv, ipc_recv_wait, ipc_send},
         privileged,
         task::{find_process_by_name, yield_now},
         time, vga,
@@ -157,9 +157,8 @@ fn kagami_present_loop(app: App) {
         }
         let mut recv = [0u8; IPC_BUF_SIZE];
         for _ in 0..256 {
-            let (sender, len) = ipc_recv(&mut recv);
+            let (sender, len) = ipc_recv_wait(&mut recv);
             if sender != kagami_tid || len < 8 {
-                yield_now();
                 continue;
             }
             let op = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
@@ -179,9 +178,8 @@ fn kagami_present_loop(app: App) {
     fn wait_shared_attach_ack(kagami_tid: u64, window_id: u32) -> Result<(), &'static str> {
         let mut recv = [0u8; IPC_BUF_SIZE];
         for _ in 0..256 {
-            let (sender, len) = ipc_recv(&mut recv);
+            let (sender, len) = ipc_recv_wait(&mut recv);
             if sender != kagami_tid || len < 8 {
-                yield_now();
                 continue;
             }
             let op = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);

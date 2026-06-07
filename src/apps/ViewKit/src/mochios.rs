@@ -22,12 +22,20 @@ pub mod ipc {
         mochi_syscall::ipc::ipc_recv(buf)
     }
 
+    pub fn recv_wait(buf: &mut [u8]) -> (u64, u64) {
+        mochi_syscall::ipc::ipc_recv_wait(buf)
+    }
+
     pub fn send(dest_thread_id: u64, data: &[u8]) -> i64 {
         mochi_syscall::ipc::ipc_send(dest_thread_id, data) as i64
     }
 
     pub fn ipc_recv(buf: &mut [u8]) -> (u64, u64) {
         recv(buf)
+    }
+
+    pub fn ipc_recv_wait(buf: &mut [u8]) -> (u64, u64) {
+        recv_wait(buf)
     }
 
     pub fn ipc_send(dest_thread_id: u64, data: &[u8]) -> i64 {

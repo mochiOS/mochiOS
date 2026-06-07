@@ -156,8 +156,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut seen_sync_done = false;
     let mut seen_buffer_release = false;
+    let mut seen_sync_delete_id = false;
+    let mut seen_buffer_delete_id = false;
     let deadline = tokio::time::Instant::now() + Duration::from_millis(1500);
-    while tokio::time::Instant::now() < deadline && (!seen_sync_done || !seen_buffer_release) {
+    while tokio::time::Instant::now() < deadline
+        && (!seen_sync_done
+            || !seen_buffer_release
+            || !seen_sync_delete_id
+            || !seen_buffer_delete_id)
+    {
         let mut event_buf = [0u8; 256];
         match tokio::time::timeout(Duration::from_millis(200), stream.read(&mut event_buf)).await {
             Ok(Ok(0)) => break,
@@ -173,6 +180,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if object_id == buffer_id && opcode == 0 {
                     seen_buffer_release = true;
                 }
+                if object_id == 1 && opcode == 1 && n >= 12 {
+                    let deleted_id = u32::from_le_bytes([
+                        event_buf[8],
+                        event_buf[9],
+                        event_buf[10],
+                        event_buf[11],
+                    ]);
+                    if deleted_id == sync_callback_id {
+                        seen_sync_delete_id = true;
+                    }
+                    if deleted_id == buffer_id {
+                        seen_buffer_delete_id = true;
+                    }
+                }
             }
             Ok(Ok(_)) => {}
             Ok(Err(err)) => return Err(Box::<dyn std::error::Error>::from(err)),
@@ -181,9 +202,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     log::info!(
-        "Test completed (sync_done={}, buffer_release={})",
+        "Test completed (sync_done={}, buffer_release={}, sync_delete_id={}, buffer_delete_id={})",
         seen_sync_done,
-        seen_buffer_release
+        seen_buffer_release,
+        seen_sync_delete_id,
+        seen_buffer_delete_id
     );
 
     Ok(())

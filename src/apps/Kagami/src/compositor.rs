@@ -227,7 +227,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             }
             drop(surfaces);
             for buffer_id in released_buffer_ids {
-                self.release_buffer_if_unused(buffer_id).await;
+                let _ = self.release_buffer_if_unused(buffer_id).await;
             }
         }
 
@@ -255,20 +255,21 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             .any(|surface| surface.buffer_object_id == Some(buffer_id))
     }
 
-    async fn release_buffer_if_unused(&self, buffer_id: u32) {
+    async fn release_buffer_if_unused(&self, buffer_id: u32) -> Result<()> {
         if self.is_buffer_attached(buffer_id).await {
-            return;
+            return Ok(());
         }
-        let should_remove = self
+        let removal = self
             .buffers
             .read()
             .await
             .get(&buffer_id)
-            .map(|buffer| buffer.destroyed)
-            .unwrap_or(false);
-        if should_remove {
+            .map(|buffer| (buffer.destroyed, buffer.client_id));
+        if let Some((true, client_id)) = removal {
             self.buffers.write().await.remove(&buffer_id);
+            self.send_delete_id(client_id, buffer_id).await?;
         }
+        Ok(())
     }
 
     /// クライアントメッセージ処理
@@ -668,6 +669,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                     );
                 } else {
                     self.buffers.write().await.remove(&object_id);
+                    self.send_delete_id(client_id, object_id).await?;
                     log::debug!("Buffer {} destroyed by client {}", object_id, client_id);
                 }
             }
@@ -706,8 +708,9 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                         client.remove_surface(object_id);
                     }
                     if let Some(previous_buffer_id) = previous_buffer_id {
-                        self.release_buffer_if_unused(previous_buffer_id).await;
+                        self.release_buffer_if_unused(previous_buffer_id).await?;
                     }
+                    self.send_delete_id(client_id, object_id).await?;
                     needs_render = was_visible;
                     if needs_render {
                         log::debug!("Surface {} destroyed by client {}", object_id, client_id);
@@ -753,7 +756,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                 }
                                 if let Some(previous_buffer_id) = previous_buffer_id {
                                     if previous_buffer_id != surface.buffer_object_id.unwrap_or(0) {
-                                        self.release_buffer_if_unused(previous_buffer_id).await;
+                                        self.release_buffer_if_unused(previous_buffer_id).await?;
                                     }
                                 }
                             }
@@ -841,7 +844,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                     surface.buffer_object_id = None;
                 }
             }
-            self.release_buffer_if_unused(buffer_id).await;
+            self.release_buffer_if_unused(buffer_id).await?;
         }
 
         Ok(())
@@ -883,6 +886,11 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         let msg = MessageBuilder::new(callback_id, 0)
             .push_u32(0)
             .build();
+        self.send_message(client_id, &msg).await
+    }
+
+    async fn send_delete_id(&self, client_id: u32, object_id: u32) -> Result<()> {
+        let msg = MessageBuilder::new(1, 1).push_u32(object_id).build();
         self.send_message(client_id, &msg).await
     }
 
@@ -955,9 +963,11 @@ mod tests {
         let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
         let compositor = Compositor::new(backend, "/tmp/test-compositor4.sock".to_string())
             .expect("Failed to create compositor");
-        let (left, _right) = StdUnixStream::pair().expect("pair");
+        let (left, right) = StdUnixStream::pair().expect("pair");
         left.set_nonblocking(true).expect("nonblocking left");
+        right.set_nonblocking(true).expect("nonblocking right");
         let left = UnixStream::from_std(left).expect("tokio left");
+        let mut right = UnixStream::from_std(right).expect("tokio right");
 
         let mut client = Client::new(1, left);
         client.add_surface(10, 10);
@@ -979,6 +989,14 @@ mod tests {
                 .surfaces
                 .contains_key(&10)
         );
+        drop(clients);
+
+        let mut buf = [0u8; 32];
+        let n = right.read(&mut buf).await.expect("read delete_id");
+        let (msg, _) = Message::from_bytes(&buf[..n]).expect("delete_id event");
+        assert_eq!(msg.header.object_id, 1);
+        assert_eq!(msg.header.opcode, 1);
+        assert_eq!(u32::from_le_bytes(msg.data[..4].try_into().expect("payload")), 10);
     }
 
     #[tokio::test]
@@ -1040,9 +1058,11 @@ mod tests {
         let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
         let compositor = Compositor::new(backend, "/tmp/test-compositor7.sock".to_string())
             .expect("Failed to create compositor");
-        let (left, _right) = StdUnixStream::pair().expect("pair");
+        let (left, right) = StdUnixStream::pair().expect("pair");
         left.set_nonblocking(true).expect("nonblocking left");
+        right.set_nonblocking(true).expect("nonblocking right");
         let left = UnixStream::from_std(left).expect("tokio left");
+        let mut right = UnixStream::from_std(right).expect("tokio right");
 
         let mut client = Client::new(1, left);
         client.shm_object_id = Some(3);
@@ -1087,6 +1107,19 @@ mod tests {
             .await
             .expect("commit");
         assert!(!compositor.buffers.read().await.contains_key(&6));
+
+        let mut buf = [0u8; 64];
+        let n = right.read(&mut buf).await.expect("read release/delete_id");
+        let (first, first_size) = Message::from_bytes(&buf[..n]).expect("first event");
+        let (second, _) = Message::from_bytes(&buf[first_size..n]).expect("second event");
+        assert_eq!(first.header.object_id, 6);
+        assert_eq!(first.header.opcode, 0);
+        assert_eq!(second.header.object_id, 1);
+        assert_eq!(second.header.opcode, 1);
+        assert_eq!(
+            u32::from_le_bytes(second.data[..4].try_into().expect("payload")),
+            6
+        );
     }
 
     #[tokio::test]

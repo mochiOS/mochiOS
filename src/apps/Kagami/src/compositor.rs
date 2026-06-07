@@ -277,6 +277,41 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         Ok(())
     }
 
+    async fn attach_fallback_buffer_if_needed(&self, surface: &mut Surface) {
+        if surface.buffer_object_id.is_some() || surface.buffer_data.is_some() {
+            return;
+        }
+        if surface.damage.width <= 0 || surface.damage.height <= 0 {
+            return;
+        }
+
+        let info = { self.backend.read().await.info() };
+        let bpp = info.format.bytes_per_pixel() as u32;
+        let width = surface.damage.width as u32;
+        let height = surface.damage.height as u32;
+        let stride = width.saturating_mul(bpp);
+
+        let mut data = vec![0u8; (stride * height) as usize];
+        match bpp {
+            4 => {
+                let color = 0x00_20_a0_e0u32.to_le_bytes();
+                for px in data.chunks_exact_mut(4) {
+                    px.copy_from_slice(&color);
+                }
+            }
+            2 => {
+                let color_565: u16 = (0x10 << 11) | (0x30 << 5) | 0x1c;
+                let bytes = color_565.to_le_bytes();
+                for px in data.chunks_exact_mut(2) {
+                    px.copy_from_slice(&bytes);
+                }
+            }
+            _ => {}
+        }
+
+        surface.attach_buffer(data, width, height, stride, None);
+    }
+
     async fn reserve_registry_id(&self, client_id: u32, requested_id: Option<u32>) -> Result<u32> {
         let mut clients = self.clients.write().await;
         let Some(client) = clients.get_mut(&client_id) else {
@@ -880,46 +915,12 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                             4 => {
                                 // commit
                                 surface.commit();
-                            log::debug!("Surface {} committed", object_id);
+                                log::debug!("Surface {} committed", object_id);
 
-                            // MVP: wl_shm 等が未実装のため、バッファが無い場合は
-                            // damage サイズのダミーバッファを生成して描画できるようにする。
-                            if surface.buffer_data.is_none()
-                                && surface.damage.width > 0
-                                && surface.damage.height > 0
-                            {
-                                let info = { self.backend.read().await.info() };
-                                let bpp = info.format.bytes_per_pixel() as u32;
-                                let width = surface.damage.width as u32;
-                                let height = surface.damage.height as u32;
-                                let stride = width.saturating_mul(bpp);
+                                self.attach_fallback_buffer_if_needed(surface).await;
 
-                                let mut data = vec![0u8; (stride * height) as usize];
-                                match bpp {
-                                    4 => {
-                                        // XRGB8888 想定（alpha無視）
-                                        let color = 0x00_20_a0_e0u32.to_le_bytes();
-                                        for px in data.chunks_exact_mut(4) {
-                                            px.copy_from_slice(&color);
-                                        }
-                                    }
-                                    2 => {
-                                        // RGB565: (R=0x10, G=0x30, B=0x1c) くらいの水色
-                                        let color_565: u16 = (0x10 << 11) | (0x30 << 5) | 0x1c;
-                                        let bytes = color_565.to_le_bytes();
-                                        for px in data.chunks_exact_mut(2) {
-                                            px.copy_from_slice(&bytes);
-                                        }
-                                    }
-                                    _ => {}
-                                }
-
-                                surface.attach_buffer(data, width, height, stride, None);
-                            }
-
-                            release_buffer_id = surface.buffer_object_id;
-
-                            needs_render = true;
+                                release_buffer_id = surface.buffer_object_id;
+                                needs_render = true;
                             }
                         _ => {
                             return Err(CompositorError::InvalidMessage(format!(

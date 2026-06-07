@@ -184,8 +184,8 @@ fn special_dir_entries(path: &str) -> Option<Vec<String>> {
 #[cfg(test)]
 mod tests {
     use super::{
-        special_dir_entries, special_file_allows_open, special_file_metadata, O_CREAT, O_RDWR,
-        O_TRUNC, O_WRONLY, SpecialFileKind,
+        special_dir_entries, special_file_allows_open, special_file_metadata,
+        special_path_blocks_mutation, O_CREAT, O_RDWR, O_TRUNC, O_WRONLY, SpecialFileKind,
     };
 
     const O_RDONLY: u64 = 0;
@@ -228,6 +228,14 @@ mod tests {
         assert!(special_file_allows_open("/dev/shm", O_RDONLY));
         assert!(!special_file_allows_open("/dev/shm", O_WRONLY));
     }
+
+    #[test]
+    fn wayland_runtime_paths_block_mutation() {
+        assert!(special_path_blocks_mutation("/run/user/0/wayland-0"));
+        assert!(special_path_blocks_mutation("/run/user/0"));
+        assert!(special_path_blocks_mutation("/dev/shm"));
+        assert!(!special_path_blocks_mutation("/dev/null"));
+    }
 }
 
 #[inline]
@@ -238,6 +246,14 @@ fn is_special_local_path(path: &str) -> bool {
 #[inline]
 fn special_file_requires_read_cap(path: &str) -> bool {
     matches!(special_file_kind(path), Some(SpecialFileKind::AuditLog))
+}
+
+#[inline]
+fn special_path_blocks_mutation(path: &str) -> bool {
+    matches!(
+        special_file_kind(path),
+        Some(SpecialFileKind::RuntimeDir | SpecialFileKind::WaylandSocket | SpecialFileKind::AuditLog)
+    )
 }
 
 #[inline]
@@ -735,6 +751,9 @@ pub fn rmdir(path_ptr: u64) -> u64 {
     if let Err(errno) = ensure_fs_path_readable(&resolved) {
         return errno;
     }
+    if special_path_blocks_mutation(&resolved) {
+        return EACCES;
+    }
     if !crate::kmod::fs::is_directory(&resolved) {
         return ENOTDIR;
     }
@@ -1112,6 +1131,9 @@ pub fn truncate(path_ptr: u64, len: u64) -> u64 {
         None => return EBADF,
     };
     let path = resolve_path(pid, &path);
+    if special_path_blocks_mutation(&path) {
+        return EACCES;
+    }
     if special_file_requires_read_cap(&path) {
         return EACCES;
     }
@@ -1301,6 +1323,9 @@ pub fn unlink(path_ptr: u64) -> u64 {
     if let Err(errno) = ensure_fs_path_readable(&resolved) {
         return errno;
     }
+    if special_path_blocks_mutation(&resolved) {
+        return EACCES;
+    }
     if crate::kmod::fs::is_directory(&resolved) {
         return ENOTDIR;
     }
@@ -1337,6 +1362,9 @@ pub fn renameat(old_dirfd: i64, old_path_ptr: u64, new_dirfd: i64, new_path_ptr:
     }
     if let Err(errno) = ensure_fs_path_readable(&new_path) {
         return errno;
+    }
+    if special_path_blocks_mutation(&old_path) || special_path_blocks_mutation(&new_path) {
+        return EACCES;
     }
     if crate::kmod::fs::rename(&old_path, &new_path) != 0 {
         return EIO;

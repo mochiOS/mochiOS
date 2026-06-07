@@ -886,60 +886,64 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                             1 => {
                                 // attach
                                 let mut parser = MessageParser::new(&msg.data);
-                                let previous_buffer_id = surface.buffer_object_id;
-                                if let Some(buffer_id) = parser.read_u32() {
-                                    let Some(offset_x) = parser.read_i32() else {
-                                        return Err(CompositorError::InvalidMessage(
-                                            "wl_surface::attach missing x offset".to_string(),
-                                        ));
-                                    };
-                                    let Some(offset_y) = parser.read_i32() else {
-                                        return Err(CompositorError::InvalidMessage(
-                                            "wl_surface::attach missing y offset".to_string(),
-                                        ));
-                                    };
-                                    if offset_x != 0 || offset_y != 0 {
-                                        return Err(CompositorError::InvalidMessage(format!(
-                                            "non-zero wl_surface::attach offsets are unsupported: {}, {}",
-                                            offset_x, offset_y
-                                        )));
-                                    }
-                                    if buffer_id == 0 {
-                                        surface.detach_buffer();
-                                        surface.clear_damage();
-                                    } else {
-                                        let buffer = self.buffers.read().await.get(&buffer_id).cloned();
-                                        if let Some(buffer) = buffer {
-                                            if buffer.destroyed {
-                                                return Err(CompositorError::InvalidMessage(format!(
-                                                    "buffer {} is pending destruction",
-                                                    buffer_id
-                                                )));
-                                            }
-                                            surface.attach_shared_buffer(
-                                                buffer.width,
-                                                buffer.height,
-                                                buffer.stride,
-                                                buffer_id,
-                                            );
-                                            log::debug!(
-                                                "Buffer {} attached to surface {}",
-                                                buffer_id,
-                                                object_id
-                                            );
-                                        } else {
-                                            return Err(CompositorError::InvalidMessage(format!(
-                                                "unknown buffer id {}",
-                                                buffer_id
-                                            )));
-                                        }
-                                    }
-                                }
+                                let Some(buffer_id) = parser.read_u32() else {
+                                    return Err(CompositorError::InvalidMessage(
+                                        "wl_surface::attach missing buffer id".to_string(),
+                                    ));
+                                };
+                                let Some(offset_x) = parser.read_i32() else {
+                                    return Err(CompositorError::InvalidMessage(
+                                        "wl_surface::attach missing x offset".to_string(),
+                                    ));
+                                };
+                                let Some(offset_y) = parser.read_i32() else {
+                                    return Err(CompositorError::InvalidMessage(
+                                        "wl_surface::attach missing y offset".to_string(),
+                                    ));
+                                };
                                 if parser.remaining() != 0 {
                                     return Err(CompositorError::InvalidMessage(format!(
                                         "wl_surface::attach expects 12 bytes, got {}",
                                         msg.data.len()
                                     )));
+                                }
+                                if offset_x != 0 || offset_y != 0 {
+                                    return Err(CompositorError::InvalidMessage(format!(
+                                        "non-zero wl_surface::attach offsets are unsupported: {}, {}",
+                                        offset_x, offset_y
+                                    )));
+                                }
+
+                                let previous_buffer_id = surface.buffer_object_id;
+                                if buffer_id == 0 {
+                                    surface.detach_buffer();
+                                    surface.clear_damage();
+                                } else {
+                                    let buffer = self.buffers.read().await.get(&buffer_id).cloned();
+                                    if let Some(buffer) = buffer {
+                                        if buffer.destroyed {
+                                            return Err(CompositorError::InvalidMessage(format!(
+                                                "buffer {} is pending destruction",
+                                                buffer_id
+                                            )));
+                                        }
+                                        surface.attach_shared_buffer(
+                                            buffer.width,
+                                            buffer.height,
+                                            buffer.stride,
+                                            buffer_id,
+                                        );
+                                        log::debug!(
+                                            "Buffer {} attached to surface {}",
+                                            buffer_id,
+                                            object_id
+                                        );
+                                    } else {
+                                        return Err(CompositorError::InvalidMessage(format!(
+                                            "unknown buffer id {}",
+                                            buffer_id
+                                        )));
+                                    }
                                 }
                                 if let Some(previous_buffer_id) = previous_buffer_id {
                                     if previous_buffer_id != surface.buffer_object_id.unwrap_or(0) {
@@ -1624,6 +1628,51 @@ mod tests {
             .await
             .expect_err("non-zero offset must fail");
         assert!(matches!(err, CompositorError::InvalidMessage(_)));
+    }
+
+    #[tokio::test]
+    async fn test_attach_rejects_trailing_payload_without_state_change() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor14b.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: false,
+            },
+        );
+
+        let attach = MessageBuilder::new(5, 1)
+            .push_u32(6)
+            .push_i32(0)
+            .push_i32(0)
+            .push_bytes(&[0xaa, 0xbb, 0xcc, 0xdd])
+            .build();
+        let err = compositor
+            .process_client_messages(1, &attach.to_bytes())
+            .await
+            .expect_err("trailing payload must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
+
+        let surface = compositor.surfaces.read().await.get(&5).cloned().expect("surface");
+        assert_eq!(surface.buffer_object_id, None);
+        assert!(compositor.buffers.read().await.contains_key(&6));
     }
 
     #[tokio::test]

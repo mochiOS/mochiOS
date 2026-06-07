@@ -7,7 +7,7 @@ use crate::protocol::{Message, MessageBuilder, MessageParser};
 use crate::surface::Surface;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::RwLock;
 
@@ -1005,7 +1005,9 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
         if let Some(client) = clients.get(&client_id) {
             let bytes = msg.to_bytes();
             let stream = client.stream.lock().await;
-            stream.try_write(&bytes)
+            stream
+                .write_all(&bytes)
+                .await
                 .map_err(|e| CompositorError::Io(e))?;
             Ok(())
         } else {

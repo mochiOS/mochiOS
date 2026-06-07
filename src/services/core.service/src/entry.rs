@@ -285,7 +285,7 @@ fn request_grant_for_service(
         // ノンブロッキングで回して deadline を守る
         let (sender, len) = ipc::ipc_recv(&mut buf);
         if sender == 0 || len == 0 {
-            time::sleep_ms(0);
+            task::yield_now();
             continue;
         }
         if sender != cap_pid || (len as usize) < core::mem::size_of::<CapabilityResponseMsg>() {
@@ -393,7 +393,7 @@ fn wait_for_ready(expected_pids: &[u64]) -> bool {
         }
         let (sender, len) = ipc::ipc_recv(&mut recv_buf);
         if sender == 0 && len == 0 {
-            time::sleep_ms(0);
+            task::yield_now();
             continue;
         }
 
@@ -593,7 +593,7 @@ fn main() {
             Ok(pid) => println!("[CORE] tests started (PID={})", pid),
             Err(_) => println!("[CORE] Failed to start tests"),
         }
-        time::sleep_ms(100);
+        task::yield_now();
     }
 
     println!("[CORE] Entering monitoring loop...");

@@ -227,7 +227,7 @@ fn request_grant_for_app(
         }
         let (sender, len) = ipc::ipc_recv(&mut buf);
         if sender == 0xFFFFFFFF || len == 0xFFFFFFFD {
-            time::sleep_ms(0);
+            task::yield_now();
             continue;
         }
         if sender != cap_pid || (len as usize) < core::mem::size_of::<CapabilityResponseMsg>() {

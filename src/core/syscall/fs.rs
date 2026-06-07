@@ -11,7 +11,14 @@ use alloc::vec;
 use alloc::vec::Vec;
 use spin::Mutex;
 
-static SHM_NAMESPACE: Mutex<Option<BTreeMap<String, Vec<u8>>>> = Mutex::new(None);
+#[derive(Clone, Debug)]
+struct ShmEntry {
+    data: Vec<u8>,
+    open_count: usize,
+    removed: bool,
+}
+
+static SHM_NAMESPACE: Mutex<Option<BTreeMap<String, ShmEntry>>> = Mutex::new(None);
 
 // グローバル FD テーブルは廃止。各プロセスの Process::fd_table を使用する。
 
@@ -184,13 +191,13 @@ fn is_shm_entry_path(path: &str) -> bool {
     shm_entry_name(path).is_some()
 }
 
-fn with_shm_namespace<R>(f: impl FnOnce(&BTreeMap<String, Vec<u8>>) -> R) -> R {
+fn with_shm_namespace<R>(f: impl FnOnce(&BTreeMap<String, ShmEntry>) -> R) -> R {
     let mut guard = SHM_NAMESPACE.lock();
     let map = guard.get_or_insert_with(BTreeMap::new);
     f(map)
 }
 
-fn with_shm_namespace_mut<R>(f: impl FnOnce(&mut BTreeMap<String, Vec<u8>>) -> R) -> R {
+fn with_shm_namespace_mut<R>(f: impl FnOnce(&mut BTreeMap<String, ShmEntry>) -> R) -> R {
     let mut guard = SHM_NAMESPACE.lock();
     let map = guard.get_or_insert_with(BTreeMap::new);
     f(map)
@@ -201,7 +208,10 @@ fn shm_file_metadata(path: &str) -> Option<(u16, u64)> {
         return Some((0x4000 | 0o755, 0));
     }
     let name = shm_entry_name(path)?;
-    with_shm_namespace(|map| map.get(name).map(|data| (0x8000 | 0o600, data.len() as u64)))
+    with_shm_namespace(|map| {
+        map.get(name)
+            .and_then(|entry| (!entry.removed).then_some((0x8000 | 0o600, entry.data.len() as u64)))
+    })
 }
 
 #[inline]
@@ -221,7 +231,12 @@ fn special_file_metadata(path: &str) -> Option<(u16, u64)> {
 fn special_dir_entries(path: &str) -> Option<Vec<String>> {
     match path {
         "/dev" => Some(vec!["shm".to_string()]),
-        "/dev/shm" => Some(with_shm_namespace(|map| map.keys().cloned().collect())),
+        "/dev/shm" => Some(with_shm_namespace(|map| {
+            map.iter()
+                .filter(|(_, entry)| !entry.removed)
+                .map(|(name, _)| name.clone())
+                .collect()
+        })),
         "/run" => Some(vec!["user".to_string()]),
         "/run/user" => Some(vec!["0".to_string()]),
         "/run/user/0" => Some(vec!["wayland-0".to_string()]),
@@ -264,10 +279,11 @@ fn special_dir_entry_dtype(path: &str, name: &str) -> Option<u8> {
 #[cfg(test)]
 mod tests {
     use super::{
-        filter_hidden_root_entries, is_shm_entry_path, merge_special_dir_entries,
-        parse_readdir_typed, shm_entry_name, special_dir_entries, special_dir_entry_dtype,
-        special_file_allows_open, special_file_metadata, special_path_blocks_mutation, O_CREAT,
-        O_RDWR, O_TRUNC, O_WRONLY, SpecialFileKind,
+        close_shm_handle, filter_hidden_root_entries, is_shm_entry_path,
+        merge_special_dir_entries, parse_readdir_typed, shm_entry_name, special_dir_entries,
+        special_dir_entry_dtype, special_file_allows_open, special_file_metadata,
+        special_path_blocks_mutation, O_CREAT, O_RDWR, O_TRUNC, O_WRONLY, ShmEntry,
+        SpecialFileKind,
     };
 
     const O_RDONLY: u64 = 0;
@@ -343,6 +359,32 @@ mod tests {
         assert_eq!(shm_entry_name("/dev/shm/nested/file"), None);
         assert!(is_shm_entry_path("/dev/shm/test"));
         assert!(!is_shm_entry_path("/dev/shm"));
+    }
+
+    #[test]
+    fn shm_close_removes_unlinked_entries_after_last_close() {
+        with_shm_namespace_mut(|map| {
+            map.insert(
+                "tmp".to_string(),
+                ShmEntry {
+                    data: vec![1, 2, 3],
+                    open_count: 2,
+                    removed: true,
+                },
+            );
+        });
+
+        close_shm_handle("/dev/shm/tmp");
+        with_shm_namespace(|map| {
+            let entry = map.get("tmp").expect("entry still held by one fd");
+            assert!(entry.removed);
+            assert_eq!(entry.open_count, 1);
+        });
+
+        close_shm_handle("/dev/shm/tmp");
+        with_shm_namespace(|map| {
+            assert!(!map.contains_key("tmp"));
+        });
     }
 
     #[test]
@@ -440,6 +482,24 @@ fn handle_special_kind(fh: &FileHandle) -> Option<SpecialFileKind> {
 
 fn handle_is_shm(fh: &FileHandle) -> Option<&str> {
     fh.fs_path.as_deref().and_then(shm_entry_name)
+}
+
+fn close_shm_handle(path: &str) {
+    let Some(name) = shm_entry_name(path) else {
+        return;
+    };
+    with_shm_namespace_mut(|map| {
+        let mut should_remove = false;
+        if let Some(entry) = map.get_mut(name) {
+            if entry.open_count > 0 {
+                entry.open_count -= 1;
+            }
+            should_remove = entry.removed && entry.open_count == 0;
+        }
+        if should_remove {
+            map.remove(name);
+        }
+    });
 }
 
 fn parse_readdir_names(bytes: &[u8]) -> Vec<String> {
@@ -566,45 +626,65 @@ fn open_resolved_for_pid(owner_pid: u64, path: &str, flags: u64) -> u64 {
     }
 
     if let Some(name) = shm_entry_name(path) {
-        let exists = with_shm_namespace(|map| map.contains_key(name));
-        if !exists && (flags & O_CREAT) == 0 {
-            return ENOENT;
-        }
-        if exists && (flags & O_EXCL) != 0 && (flags & O_CREAT) != 0 {
-            return EEXIST;
-        }
-        if (flags & O_CREAT) != 0 {
-            with_shm_namespace_mut(|map| {
-                map.entry(name.to_string()).or_default();
-            });
-        }
-        if (flags & O_TRUNC) != 0 {
-            with_shm_namespace_mut(|map| {
-                if let Some(data) = map.get_mut(name) {
-                    data.clear();
+        let mut status = ENOENT;
+        with_shm_namespace_mut(|map| {
+            let entry = map.get_mut(name);
+            match entry {
+                Some(entry) if entry.removed => {
+                    if (flags & O_CREAT) != 0 {
+                        status = EEXIST;
+                    } else {
+                        status = ENOENT;
+                    }
                 }
-            });
+                Some(entry) => {
+                    if (flags & O_CREAT) != 0 && (flags & O_EXCL) != 0 {
+                        status = EEXIST;
+                        return;
+                    }
+                    if (flags & O_TRUNC) != 0 {
+                        entry.data.clear();
+                    }
+                    entry.open_count = entry.open_count.saturating_add(1);
+                    status = 0;
+                }
+                None => {
+                    if (flags & O_CREAT) == 0 {
+                        status = ENOENT;
+                        return;
+                    }
+                    map.insert(
+                        name.to_string(),
+                        ShmEntry {
+                            data: Vec::new(),
+                            open_count: 1,
+                            removed: false,
+                        },
+                    );
+                    status = 0;
+                }
+            }
+        });
+        if status != 0 {
+            return status;
         }
-        if has_write_intent(flags) || exists || (flags & O_CREAT) != 0 {
-            let cloexec = (flags & O_CLOEXEC) != 0;
-            let handle = alloc::boxed::Box::new(FileHandle {
-                data: Vec::new().into_boxed_slice(),
-                pos: 0,
-                fs_path: Some(path.to_string()),
-                dir_path: None,
-                is_remote: false,
-                fd_remote: 0,
-                remote_refs: None,
-                pipe_id: None,
-                pipe_write: false,
-                open_flags: flags,
-            });
-            return match with_fd_table_mut(owner_pid, |t| t.alloc(handle, cloexec)) {
-                Some(Some(fd)) => fd as u64,
-                _ => ENOSYS,
-            };
-        }
-        return ENOENT;
+        let cloexec = (flags & O_CLOEXEC) != 0;
+        let handle = alloc::boxed::Box::new(FileHandle {
+            data: Vec::new().into_boxed_slice(),
+            pos: 0,
+            fs_path: Some(path.to_string()),
+            dir_path: None,
+            is_remote: false,
+            fd_remote: 0,
+            remote_refs: None,
+            pipe_id: None,
+            pipe_write: false,
+            open_flags: flags,
+        });
+        return match with_fd_table_mut(owner_pid, |t| t.alloc(handle, cloexec)) {
+            Some(Some(fd)) => fd as u64,
+            _ => ENOSYS,
+        };
     }
 
     if let Err(errno) = ensure_fs_path_readable(path) {
@@ -745,7 +825,12 @@ pub fn close(fd: u64) -> u64 {
     };
     let handle = with_fd_table_mut(pid, |t| t.take(idx));
     match handle {
-        Some(Some(_h)) => SUCCESS,
+        Some(Some(h)) => {
+            if let Some(path) = h.fs_path.as_deref() {
+                close_shm_handle(path);
+            }
+            SUCCESS
+        }
         _ => EBADF,
     }
 }
@@ -774,7 +859,7 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
                     fh.fs_path
                         .as_deref()
                         .and_then(shm_entry_name)
-                        .and_then(|name| with_shm_namespace(|map| map.get(name).map(|data| data.len() as i64)))
+                        .and_then(|name| with_shm_namespace(|map| map.get(name).map(|entry| entry.data.len() as i64)))
                         .unwrap_or(0)
                 } else if handle_special_kind(fh) == Some(SpecialFileKind::AuditLog) {
                     crate::audit::file_size() as i64
@@ -792,7 +877,7 @@ pub fn seek(fd: u64, offset: i64, whence: u64) -> u64 {
             fh.fs_path
                 .as_deref()
                 .and_then(shm_entry_name)
-                .and_then(|name| with_shm_namespace(|map| map.get(name).map(|data| data.len())))
+                .and_then(|name| with_shm_namespace(|map| map.get(name).map(|entry| entry.data.len())))
                 .unwrap_or(0)
         } else if handle_special_kind(fh) == Some(SpecialFileKind::AuditLog) {
             crate::audit::file_size()
@@ -877,7 +962,7 @@ pub fn fstat(fd: u64, stat_ptr: u64) -> u64 {
             let size = if special_kind == Some(SpecialFileKind::AuditLog) {
                 crate::audit::file_size() as u64
             } else if let Some(name) = shm_name {
-                with_shm_namespace(|map| map.get(name).map(|data| data.len() as u64).unwrap_or(0))
+                with_shm_namespace(|map| map.get(name).map(|entry| entry.data.len() as u64).unwrap_or(0))
             } else {
                 fh.data.len() as u64
             };
@@ -962,8 +1047,13 @@ pub fn rmdir(path_ptr: u64) -> u64 {
     };
     let resolved = resolve_path(pid, &path);
     if let Some(name) = shm_entry_name(&resolved) {
-        let removed = with_shm_namespace_mut(|map| map.remove(name));
-        return if removed.is_some() { SUCCESS } else { ENOENT };
+        return with_shm_namespace(|map| {
+            if map.get(name).is_some_and(|entry| !entry.removed) {
+                ENOTDIR
+            } else {
+                ENOENT
+            }
+        });
     }
     if is_shm_root(&resolved) {
         return EACCES;
@@ -1126,7 +1216,7 @@ pub fn read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
         let fh = t.get_mut(idx)?;
         if let Some(name) = handle_is_shm(fh) {
             let (data, next_pos) = with_shm_namespace(|map| {
-                let data = map.get(name).cloned().unwrap_or_default();
+                let data = map.get(name).map(|entry| entry.data.clone()).unwrap_or_default();
                 let start = fh.pos.min(data.len());
                 let end = core::cmp::min(start.saturating_add(len as usize), data.len());
                 (data[start..end].to_vec(), end)
@@ -1229,12 +1319,12 @@ pub fn write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     if let Some(name) = fs_path.as_deref().and_then(shm_entry_name) {
         let updated = with_shm_namespace_mut(|map| {
             let entry = map.get_mut(name)?;
-            let start = start_pos.min(entry.len());
+            let start = start_pos.min(entry.data.len());
             let end = start.checked_add(buf.len()).unwrap_or(usize::MAX);
-            if end > entry.len() {
-                entry.resize(end, 0);
+            if end > entry.data.len() {
+                entry.data.resize(end, 0);
             }
-            entry[start..end].copy_from_slice(&buf);
+            entry.data[start..end].copy_from_slice(&buf);
             Some(())
         });
         if updated.is_none() {
@@ -1394,13 +1484,13 @@ pub fn truncate(path_ptr: u64, len: u64) -> u64 {
     };
     let path = resolve_path(pid, &path);
     if let Some(name) = shm_entry_name(&path) {
-        let exists = with_shm_namespace(|map| map.contains_key(name));
+        let exists = with_shm_namespace(|map| map.get(name).is_some_and(|entry| !entry.removed));
         if !exists {
             return ENOENT;
         }
         with_shm_namespace_mut(|map| {
             if let Some(entry) = map.get_mut(name) {
-                entry.resize(len as usize, 0);
+                entry.data.resize(len as usize, 0);
             }
         });
         return SUCCESS;
@@ -1440,13 +1530,13 @@ pub fn ftruncate(fd: u64, len: u64) -> u64 {
     let res = with_fd_table_mut(pid, |t| {
         let fh = t.get_mut(idx).ok_or(EBADF)?;
         if let Some(name) = handle_is_shm(fh) {
-            let exists = with_shm_namespace(|map| map.contains_key(name));
+            let exists = with_shm_namespace(|map| map.get(name).is_some_and(|entry| !entry.removed));
             if !exists {
                 return Err(ENOENT);
             }
             with_shm_namespace_mut(|map| {
                 if let Some(entry) = map.get_mut(name) {
-                    entry.resize(new_len, 0);
+                    entry.data.resize(new_len, 0);
                 }
             });
             if fh.pos > new_len {
@@ -1609,6 +1699,29 @@ pub fn unlink(path_ptr: u64) -> u64 {
         Err(errno) => return errno,
     };
     let resolved = resolve_path(pid, &path);
+    if let Some(name) = shm_entry_name(&resolved) {
+        let (existed, should_remove) = with_shm_namespace_mut(|map| {
+            let mut should_remove = false;
+            let existed = if let Some(entry) = map.get_mut(name) {
+                if entry.removed {
+                    false
+                } else {
+                    entry.removed = true;
+                    should_remove = entry.open_count == 0;
+                    true
+                }
+            } else {
+                false
+            };
+            (existed, should_remove)
+        });
+        if should_remove {
+            with_shm_namespace_mut(|map| {
+                map.remove(name);
+            });
+        }
+        return if existed { SUCCESS } else { ENOENT };
+    }
     if let Err(errno) = ensure_fs_path_readable(&resolved) {
         return errno;
     }

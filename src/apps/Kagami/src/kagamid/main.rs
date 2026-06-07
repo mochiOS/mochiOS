@@ -352,7 +352,10 @@ fn main() {
 
         let sc = match keyboard::read_scancode_tap() {
             Some(s) => s,
-            None => continue,
+            None => {
+                task::yield_now();
+                continue;
+            }
         };
         did_work = true;
 

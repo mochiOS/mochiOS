@@ -880,6 +880,12 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                     } else {
                                         let buffer = self.buffers.read().await.get(&buffer_id).cloned();
                                         if let Some(buffer) = buffer {
+                                            if buffer.destroyed {
+                                                return Err(CompositorError::InvalidMessage(format!(
+                                                    "buffer {} is pending destruction",
+                                                    buffer_id
+                                                )));
+                                            }
                                             surface.attach_buffer(
                                                 buffer.data,
                                                 buffer.width,
@@ -942,6 +948,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                 self.attach_fallback_buffer_if_needed(surface).await;
 
                                 release_buffer_id = surface.buffer_object_id;
+                                surface.clear_damage();
                                 needs_render = true;
                             }
                         _ => {
@@ -1565,5 +1572,104 @@ mod tests {
             .await
             .expect_err("negative damage size must fail");
         assert!(matches!(err, CompositorError::InvalidMessage(_)));
+    }
+
+    #[tokio::test]
+    async fn test_attach_rejects_destroyed_buffer() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor16.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: true,
+            },
+        );
+
+        let attach = MessageBuilder::new(5, 1)
+            .push_u32(6)
+            .push_i32(0)
+            .push_i32(0)
+            .build();
+        let err = compositor
+            .process_client_messages(1, &attach.to_bytes())
+            .await
+            .expect_err("destroyed buffer must fail");
+        assert!(matches!(err, CompositorError::InvalidMessage(_)));
+    }
+
+    #[tokio::test]
+    async fn test_commit_clears_damage_after_render() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor17.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.add_surface(5, 5);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: false,
+            },
+        );
+
+        let attach = MessageBuilder::new(5, 1)
+            .push_u32(6)
+            .push_i32(0)
+            .push_i32(0)
+            .build();
+        compositor
+            .process_client_messages(1, &attach.to_bytes())
+            .await
+            .expect("attach");
+        let damage = MessageBuilder::new(5, 2)
+            .push_i32(1)
+            .push_i32(2)
+            .push_i32(8)
+            .push_i32(8)
+            .build();
+        compositor
+            .process_client_messages(1, &damage.to_bytes())
+            .await
+            .expect("damage");
+        let commit = MessageBuilder::new(5, 4).build();
+        compositor
+            .process_client_messages(1, &commit.to_bytes())
+            .await
+            .expect("commit");
+
+        let surface = compositor.surfaces.read().await;
+        let surface = surface.get(&5).expect("surface");
+        assert_eq!(surface.damage.width, 0);
+        assert_eq!(surface.damage.height, 0);
     }
 }

@@ -31,6 +31,7 @@ struct Buffer {
     stride: u32,
     format: u32,
     data: Vec<u8>,
+    destroyed: bool,
 }
 
 impl<B: FramebufferBackend + 'static> Compositor<B> {
@@ -235,6 +236,30 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
             for buffer_id in owned_buffers {
                 buffers.remove(&buffer_id);
             }
+        }
+    }
+
+    async fn is_buffer_attached(&self, buffer_id: u32) -> bool {
+        self.surfaces
+            .read()
+            .await
+            .values()
+            .any(|surface| surface.buffer_object_id == Some(buffer_id))
+    }
+
+    async fn release_buffer_if_unused(&self, buffer_id: u32) {
+        if self.is_buffer_attached(buffer_id).await {
+            return;
+        }
+        let should_remove = self
+            .buffers
+            .read()
+            .await
+            .get(&buffer_id)
+            .map(|buffer| buffer.destroyed)
+            .unwrap_or(false);
+        if should_remove {
+            self.buffers.write().await.remove(&buffer_id);
         }
     }
 
@@ -597,6 +622,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                         stride,
                         format,
                         data,
+                        destroyed: false,
                     },
                 );
                 if let Some(client) = self.clients.write().await.get_mut(&client_id) {
@@ -623,8 +649,19 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                 if let Some(client) = self.clients.write().await.get_mut(&client_id) {
                     client.remove_buffer(object_id);
                 }
-                self.buffers.write().await.remove(&object_id);
-                log::debug!("Buffer {} destroyed by client {}", object_id, client_id);
+                if self.is_buffer_attached(object_id).await {
+                    if let Some(buffer) = self.buffers.write().await.get_mut(&object_id) {
+                        buffer.destroyed = true;
+                    }
+                    log::debug!(
+                        "Buffer {} destroy deferred while attached for client {}",
+                        object_id,
+                        client_id
+                    );
+                } else {
+                    self.buffers.write().await.remove(&object_id);
+                    log::debug!("Buffer {} destroyed by client {}", object_id, client_id);
+                }
             }
             _ if compositor_object_id == Some(object_id) =>
             {
@@ -654,10 +691,14 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                         return Err(CompositorError::SurfaceNotFound(object_id));
                     };
                     let was_visible = surface.visible;
+                    let previous_buffer_id = surface.buffer_object_id;
                     surface.detach_buffer();
                     surface.clear_damage();
                     if let Some(client) = self.clients.write().await.get_mut(&client_id) {
                         client.remove_surface(object_id);
+                    }
+                    if let Some(previous_buffer_id) = previous_buffer_id {
+                        self.release_buffer_if_unused(previous_buffer_id).await;
                     }
                     needs_render = was_visible;
                     if needs_render {
@@ -668,6 +709,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                             1 => {
                                 // attach
                                 let mut parser = MessageParser::new(&msg.data);
+                                let previous_buffer_id = surface.buffer_object_id;
                                 if let Some(buffer_id) = parser.read_u32() {
                                     if buffer_id == 0 {
                                         surface.detach_buffer();
@@ -700,6 +742,11 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                                         "wl_surface::attach expects 12 bytes, got {}",
                                         msg.data.len()
                                     )));
+                                }
+                                if let Some(previous_buffer_id) = previous_buffer_id {
+                                    if previous_buffer_id != surface.buffer_object_id.unwrap_or(0) {
+                                        self.release_buffer_if_unused(previous_buffer_id).await;
+                                    }
                                 }
                             }
                             2 => {
@@ -786,6 +833,7 @@ impl<B: FramebufferBackend + 'static> Compositor<B> {
                     surface.buffer_object_id = None;
                 }
             }
+            self.release_buffer_if_unused(buffer_id).await;
         }
 
         Ok(())
@@ -977,5 +1025,59 @@ mod tests {
             .await
             .expect_err("invalid stride must fail");
         assert!(matches!(err, CompositorError::InvalidMessage(_)));
+    }
+
+    #[tokio::test]
+    async fn test_attached_buffer_destroy_is_deferred_until_release() {
+        let backend = MemoryFramebufferBackend::new(64, 64, PixelFormat::XRGB8888);
+        let compositor = Compositor::new(backend, "/tmp/test-compositor7.sock".to_string())
+            .expect("Failed to create compositor");
+        let (left, _right) = StdUnixStream::pair().expect("pair");
+        left.set_nonblocking(true).expect("nonblocking left");
+        let left = UnixStream::from_std(left).expect("tokio left");
+
+        let mut client = Client::new(1, left);
+        client.shm_object_id = Some(3);
+        client.add_surface(5, 5);
+        client.add_buffer(6, 6);
+        compositor.clients.write().await.insert(1, client);
+        compositor.surfaces.write().await.insert(5, Surface::new(5, 1));
+        compositor.buffers.write().await.insert(
+            6,
+            Buffer {
+                object_id: 6,
+                client_id: 1,
+                width: 8,
+                height: 8,
+                stride: 32,
+                format: 0,
+                data: vec![0; 8 * 8 * 4],
+                destroyed: false,
+            },
+        );
+
+        let attach = MessageBuilder::new(5, 1)
+            .push_u32(6)
+            .push_i32(0)
+            .push_i32(0)
+            .build();
+        compositor
+            .process_client_messages(1, &attach.to_bytes())
+            .await
+            .expect("attach");
+
+        let destroy = MessageBuilder::new(6, 0).build();
+        compositor
+            .process_client_messages(1, &destroy.to_bytes())
+            .await
+            .expect("destroy deferred");
+        assert!(compositor.buffers.read().await.contains_key(&6));
+
+        let commit = MessageBuilder::new(5, 4).build();
+        compositor
+            .process_client_messages(1, &commit.to_bytes())
+            .await
+            .expect("commit");
+        assert!(!compositor.buffers.read().await.contains_key(&6));
     }
 }

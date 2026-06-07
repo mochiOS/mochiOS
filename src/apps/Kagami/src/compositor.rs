@@ -1302,6 +1302,13 @@ mod tests {
             .await
             .expect("dirty commit");
         assert_eq!(flush_count.load(Ordering::SeqCst), 1);
+        assert!(!compositor
+            .surfaces
+            .read()
+            .await
+            .get(&5)
+            .expect("surface")
+            .dirty);
 
         let commit = MessageBuilder::new(5, 4).build();
         compositor
@@ -1309,6 +1316,13 @@ mod tests {
             .await
             .expect("clean commit");
         assert_eq!(flush_count.load(Ordering::SeqCst), 1);
+        assert!(!compositor
+            .surfaces
+            .read()
+            .await
+            .get(&5)
+            .expect("surface")
+            .dirty);
     }
 
     #[tokio::test]

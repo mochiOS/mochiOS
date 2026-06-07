@@ -327,7 +327,7 @@ fn wait_for_desktop_services() {
         if ready {
             return;
         }
-        time::sleep_ms(10);
+        task::yield_now();
     }
     println!("[PROC] desktop services not ready; launching apps anyway");
 }

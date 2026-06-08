@@ -2,11 +2,7 @@ use crate::ipc_proto::*;
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 use crate::mochios::{
-<<<<<<< HEAD
-    ipc::{ipc_recv, ipc_recv_wait, ipc_send},
-=======
-    ipc::{ipc_recv, ipc_send},
->>>>>>> master
+    ipc::{ipc_recv_wait, ipc_send},
     task::{find_process_by_name, yield_now},
     user_space::looks_like_user_mapping,
 };
@@ -145,14 +141,8 @@ fn create_window(kagami_tid: u64, width: u16, height: u16, layer: u8) -> Result<
     }
     let mut recv = [0u8; IPC_BUF_SIZE];
     for _ in 0..256 {
-<<<<<<< HEAD
         let (sender, len) = ipc_recv_wait(&mut recv);
         if sender != kagami_tid || len < 8 {
-=======
-        let (sender, len) = ipc_recv(&mut recv);
-        if sender != kagami_tid || len < 8 {
-            yield_now();
->>>>>>> master
             continue;
         }
         let op = u32::from_le_bytes([recv[0], recv[1], recv[2], recv[3]]);
@@ -191,15 +181,7 @@ fn setup_shared_surface(
 
     let mut recv = [0u8; 64];
     for _ in 0..768 {
-<<<<<<< HEAD
         let (sender, len) = ipc_recv_wait(&mut recv);
-=======
-        let (sender, len) = ipc_recv(&mut recv);
-        if sender == 0 || len == 0 {
-            yield_now();
-            continue;
-        }
->>>>>>> master
 
         // MAP_HEADER_MAGIC: [magic:u32][map_start:u64][total:u64] (20 bytes)
         if sender == kagami_tid && (len as usize) == 20 {
@@ -237,10 +219,6 @@ fn setup_shared_surface(
                 return Err("shared mapping address invalid");
             }
         }
-<<<<<<< HEAD
-=======
-        yield_now();
->>>>>>> master
     }
     Err("shared attach timeout")
 }

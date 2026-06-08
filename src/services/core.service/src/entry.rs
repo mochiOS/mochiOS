@@ -444,6 +444,13 @@ fn service_already_running(path: &str) -> bool {
         || task::find_process_by_name(&format!("/system/services/{}", name)).is_some()
 }
 
+fn running_service_pid(path: &str) -> Option<u64> {
+    let name = service_name_from_path(path);
+    task::find_process_by_name(path)
+        .or_else(|| task::find_process_by_name(name))
+        .or_else(|| task::find_process_by_name(&format!("/system/services/{}", name)))
+}
+
 fn fs_open_read_lines(path: &str) -> Result<Vec<String>, i64> {
     match std::fs::read_to_string(path) {
         Ok(text) => {

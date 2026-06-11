@@ -1,0 +1,13 @@
+[package]
+name = "mnu-abi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "mnu_abi"
+path = "src/lib.rs"
+test = false
+bench = false
+
+[features]
+default = []

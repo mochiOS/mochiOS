@@ -1,0 +1,229 @@
+//! I/Oポートアクセス用のシステムコール
+
+use crate::syscall::{EFAULT, EINVAL, EPERM, SUCCESS};
+use core::arch::asm;
+
+fn caller_has_low_level_device_capability() -> bool {
+    use crate::capability::Capability::*;
+    crate::syscall::security::caller_has_any_capability(&[
+        DeviceInput,
+        DeviceNet,
+        DeviceStorage,
+        DeviceGpu,
+        DeviceAudio,
+        UsbAccess,
+        SerialAccess,
+        BluetoothAccess,
+    ])
+}
+
+/// I/Oポートから読み取り
+///
+/// # Arguments
+/// * `port` - ポート番号 (0-65535)
+/// * `size` - データサイズ (1=byte, 2=word, 4=dword)
+///
+/// # Returns
+/// 読み取った値、またはエラー時は EINVAL
+pub fn port_in(port: u64, size: u64) -> u64 {
+    // 権限チェック: 明示的な device capability を持つプロセスのみ許可
+    if !caller_has_low_level_device_capability() {
+        return EPERM;
+    }
+
+    if port > 0xFFFF {
+        return EINVAL;
+    }
+
+    let port = port as u16;
+
+    unsafe {
+        match size {
+            1 => {
+                // inb
+                let value: u8;
+                asm!(
+                    "in al, dx",
+                    in("dx") port,
+                    out("al") value,
+                    options(nomem, nostack, preserves_flags)
+                );
+                value as u64
+            }
+            2 => {
+                // inw
+                let value: u16;
+                asm!(
+                    "in ax, dx",
+                    in("dx") port,
+                    out("ax") value,
+                    options(nomem, nostack, preserves_flags)
+                );
+                value as u64
+            }
+            4 => {
+                // inl
+                let value: u32;
+                asm!(
+                    "in eax, dx",
+                    in("dx") port,
+                    out("eax") value,
+                    options(nomem, nostack, preserves_flags)
+                );
+                value as u64
+            }
+            _ => EINVAL,
+        }
+    }
+}
+
+/// I/Oポートへ書き込み
+///
+/// # Arguments
+/// * `port` - ポート番号 (0-65535)
+/// * `value` - 書き込む値
+/// * `size` - データサイズ (1=byte, 2=word, 4=dword)
+///
+/// # Returns
+/// SUCCESS、またはエラー時は EINVAL
+pub fn port_out(port: u64, value: u64, size: u64) -> u64 {
+    // 権限チェック: 明示的な device capability を持つプロセスのみ許可
+    if !caller_has_low_level_device_capability() {
+        return EPERM;
+    }
+
+    if port > 0xFFFF {
+        return EINVAL;
+    }
+
+    let port = port as u16;
+
+    unsafe {
+        match size {
+            1 => {
+                // outb
+                asm!(
+                    "out dx, al",
+                    in("dx") port,
+                    in("al") value as u8,
+                    options(nomem, nostack, preserves_flags)
+                );
+            }
+            2 => {
+                // outw
+                asm!(
+                    "out dx, ax",
+                    in("dx") port,
+                    in("ax") value as u16,
+                    options(nomem, nostack, preserves_flags)
+                );
+            }
+            4 => {
+                // outl
+                asm!(
+                    "out dx, eax",
+                    in("dx") port,
+                    in("eax") value as u32,
+                    options(nomem, nostack, preserves_flags)
+                );
+            }
+            _ => return EINVAL,
+        }
+    }
+
+    SUCCESS
+}
+
+/// I/Oポートから16-bitワード列を一括読み取り
+///
+/// # Arguments
+/// * `port` - ポート番号 (0-65535)
+/// * `dst_ptr` - ユーザー空間の出力バッファ（u16配列）
+/// * `count` - ワード数
+///
+/// # Returns
+/// SUCCESS、またはエラー時は EINVAL / EFAULT / EPERM
+pub fn port_in_words(port: u64, dst_ptr: u64, count: u64) -> u64 {
+    if !caller_has_low_level_device_capability() {
+        return EPERM;
+    }
+    if port > 0xFFFF || count == 0 {
+        return EINVAL;
+    }
+
+    let byte_len = match count.checked_mul(2) {
+        Some(v) => v,
+        None => return EINVAL,
+    };
+    if !crate::syscall::validate_user_ptr(dst_ptr, byte_len) {
+        return EFAULT;
+    }
+
+    let port = port as u16;
+    let mut tmp = alloc::vec![0u8; byte_len as usize];
+    for i in 0..count as usize {
+        let mut value: u16 = 0;
+        unsafe {
+            asm!(
+                "in ax, dx",
+                in("dx") port,
+                out("ax") value,
+                options(nomem, nostack, preserves_flags)
+            );
+        }
+        let off = i * 2;
+        tmp[off..off + 2].copy_from_slice(&value.to_ne_bytes());
+    }
+
+    match crate::syscall::copy_to_user(dst_ptr, &tmp) {
+        Ok(()) => SUCCESS,
+        Err(e) => e,
+    }
+}
+
+/// I/Oポートへ16-bitワード列を一括書き込み
+///
+/// # Arguments
+/// * `port` - ポート番号 (0-65535)
+/// * `src_ptr` - ユーザー空間の入力バッファ（u16配列）
+/// * `count` - ワード数
+///
+/// # Returns
+/// SUCCESS、またはエラー時は EINVAL / EFAULT / EPERM
+pub fn port_out_words(port: u64, src_ptr: u64, count: u64) -> u64 {
+    if !caller_has_low_level_device_capability() {
+        return EPERM;
+    }
+    if port > 0xFFFF || count == 0 {
+        return EINVAL;
+    }
+
+    let byte_len = match count.checked_mul(2) {
+        Some(v) => v,
+        None => return EINVAL,
+    };
+    if !crate::syscall::validate_user_ptr(src_ptr, byte_len) {
+        return EFAULT;
+    }
+
+    let port = port as u16;
+    let mut tmp = alloc::vec![0u8; byte_len as usize];
+    if let Err(e) = crate::syscall::copy_from_user(src_ptr, &mut tmp) {
+        return e;
+    }
+
+    for i in 0..count as usize {
+        let off = i * 2;
+        let value = u16::from_ne_bytes([tmp[off], tmp[off + 1]]);
+        unsafe {
+            asm!(
+                "out dx, ax",
+                in("dx") port,
+                in("ax") value,
+                options(nomem, nostack, preserves_flags)
+            );
+        }
+    }
+
+    SUCCESS
+}

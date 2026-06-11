@@ -1,8 +1,0 @@
-[app]
-id = "com.mochi.kagami"
-name = "Kagami"
-entry = "/applications/Kagami.app/entry.elf"
-
-[capabilities]
-required = ["ipc.server", "process.spawn"]
-optional = []

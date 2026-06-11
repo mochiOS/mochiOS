@@ -1,8 +1,0 @@
-[app]
-id = "com.mochi.binder"
-name = "Binder"
-entry = "/applications/Binder.app/entry.elf"
-
-[capabilities]
-required = ["ipc.client", "process.spawn"]
-optional = []

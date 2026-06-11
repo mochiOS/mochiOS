@@ -1,8 +1,8 @@
 [package]
-name = "mochios-core"
+name = "mnu-kernel"
 version = "0.1.0"
 edition = "2021"
-build = "core_build.rs"
+build = "build.rs"
 
 [[bin]]
 name = "kernel"

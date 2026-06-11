@@ -32,7 +32,7 @@ spin = "0.9"
 x86_64 = "0.15"
 linked_list_allocator = "0.10.5"
 sha2 = { version = "0.10", default-features = false, features = ["force-soft"] }
-mnu-abi = { path = "src/mnu-abi" }
+mnu-abi = { path = "src/abi" }
 
 [build-dependencies]
 num_cpus = "1.17.0"

@@ -106,11 +106,7 @@ pub fn open(path: &str, flags: u64) -> i64 {
     }
     buf[..bytes.len()].copy_from_slice(bytes);
     // buf[bytes.len()] is already 0 (null terminator)
-    let ret = syscall2(
-        SyscallNumber::Open as u64,
-        buf.as_ptr() as u64,
-        flags,
-    );
+    let ret = syscall2(SyscallNumber::Open as u64, buf.as_ptr() as u64, flags);
     if (ret as i64) < 0 {
         -1
     } else {
@@ -146,19 +142,12 @@ pub fn close(fd: u64) -> i64 {
 /// SUCCESSまたはエラーコード
 #[inline]
 pub fn log(msg: u64, len: u64, level: u64) -> u64 {
-    syscall3(
-        SyscallNumber::Log as u64,
-        msg,
-        len,
-        level,
-    )
+    syscall3(SyscallNumber::Log as u64, msg, len, level)
 }
 
 #[inline]
 pub fn check_gravity_exist() -> bool {
-    let answer = syscall0(
-        SyscallNumber::CheckGravityExist as u64
-    );
+    let answer = syscall0(SyscallNumber::CheckGravityExist as u64);
 
     if answer == 0 {
         return true;

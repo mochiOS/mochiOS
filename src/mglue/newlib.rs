@@ -41,7 +41,12 @@ impl Drop for SbrkLockGuard {
 
 #[no_mangle]
 pub extern "C" fn _write(fd: i32, buf: *const u8, len: usize) -> isize {
-    let ret = syscall3(SyscallNumber::Write as u64, fd as u64, buf as u64, len as u64) as i64;
+    let ret = syscall3(
+        SyscallNumber::Write as u64,
+        fd as u64,
+        buf as u64,
+        len as u64,
+    ) as i64;
     if ret < 0 {
         unsafe { set_errno_from_ret(ret) };
         -1
@@ -57,7 +62,12 @@ pub extern "C" fn write(fd: i32, buf: *const u8, len: usize) -> isize {
 
 #[no_mangle]
 pub extern "C" fn _read(fd: i32, buf: *mut u8, len: usize) -> isize {
-    let ret = syscall3(SyscallNumber::Read as u64, fd as u64, buf as u64, len as u64) as i64;
+    let ret = syscall3(
+        SyscallNumber::Read as u64,
+        fd as u64,
+        buf as u64,
+        len as u64,
+    ) as i64;
     if ret < 0 {
         unsafe { set_errno_from_ret(ret) };
         -1
@@ -146,12 +156,7 @@ pub extern "C" fn fstat(fd: i32, stat: *mut u8) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn _ioctl(fd: i32, request: u64, arg: u64) -> i32 {
-    let ret = syscall3(
-        SyscallNumber::Ioctl as u64,
-        fd as u64,
-        request,
-        arg,
-    ) as i64;
+    let ret = syscall3(SyscallNumber::Ioctl as u64, fd as u64, request, arg) as i64;
     if ret < 0 {
         unsafe { set_errno_from_ret(ret) };
         -1
@@ -189,7 +194,11 @@ pub extern "C" fn _isatty(fd: i32) -> i32 {
         XCGETA,
         termio.as_mut_ptr() as u64,
     ) as i64;
-    if ret >= 0 { 1 } else { 0 }
+    if ret >= 0 {
+        1
+    } else {
+        0
+    }
 }
 
 #[no_mangle]

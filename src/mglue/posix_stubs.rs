@@ -56,7 +56,11 @@ pub unsafe extern "C" fn mmap(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn munmap(addr: *mut u8, len: usize) -> i32 {
     let ret = syscall2(SyscallNumber::Munmap as u64, addr as u64, len as u64);
-    if (ret as i64) < 0 { -1 } else { 0 }
+    if (ret as i64) < 0 {
+        -1
+    } else {
+        0
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -70,18 +74,17 @@ pub unsafe extern "C" fn mprotect(_addr: *mut u8, _len: usize, _prot: i32) -> i3
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn syscall() {
     core::arch::naked_asm!(
-        "mov rax, rdi",    // syscall number
-        "mov rdi, rsi",    // arg0
-        "mov rsi, rdx",    // arg1
-        "mov rdx, rcx",    // arg2
-        "mov r10, r8",     // arg3 (Linux: r10, not rcx)
-        "mov r8,  r9",     // arg4
+        "mov rax, rdi", // syscall number
+        "mov rdi, rsi", // arg0
+        "mov rsi, rdx", // arg1
+        "mov rdx, rcx", // arg2
+        "mov r10, r8",  // arg3 (Linux: r10, not rcx)
+        "mov r8,  r9",  // arg4
         // arg5 would be at [rsp+8] but ignore for now
         "syscall",
         "ret",
     );
 }
-
 
 // 単純なスレッドローカルストレージ (シングルスレッド用)
 const MAX_TLS_KEYS: usize = 128;
@@ -191,19 +194,12 @@ pub unsafe extern "C" fn pthread_attr_getstack(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn pthread_getattr_np(
-    _thread: u64,
-    attr: *mut PthreadAttr,
-) -> i32 {
+pub unsafe extern "C" fn pthread_getattr_np(_thread: u64, attr: *mut PthreadAttr) -> i32 {
     pthread_attr_init(attr)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn sigaction(
-    _signum: i32,
-    _act: *const u8,
-    _oldact: *mut u8,
-) -> i32 {
+pub unsafe extern "C" fn sigaction(_signum: i32, _act: *const u8, _oldact: *mut u8) -> i32 {
     0 // 成功
 }
 
@@ -250,12 +246,7 @@ pub unsafe extern "C" fn pipe2(_pipefd: *mut i32, _flags: i32) -> i32 {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn recv(
-    _fd: i32,
-    _buf: *mut u8,
-    _len: usize,
-    _flags: i32,
-) -> isize {
+pub unsafe extern "C" fn recv(_fd: i32, _buf: *mut u8, _len: usize, _flags: i32) -> isize {
     -1
 }
 
@@ -352,7 +343,9 @@ pub unsafe extern "C" fn posix_spawn_file_actions_init(_actions: *mut u8) -> i32
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn posix_spawn_file_actions_adddup2(
-    _actions: *mut u8, _fd: i32, _newfd: i32,
+    _actions: *mut u8,
+    _fd: i32,
+    _newfd: i32,
 ) -> i32 {
     0
 }
@@ -368,9 +361,7 @@ pub unsafe extern "C" fn posix_spawnattr_setpgroup(_attr: *mut u8, _pgroup: i32)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn posix_spawnattr_setsigdefault(
-    _attr: *mut u8, _sigset: *const u8,
-) -> i32 {
+pub unsafe extern "C" fn posix_spawnattr_setsigdefault(_attr: *mut u8, _sigset: *const u8) -> i32 {
     0
 }
 
@@ -458,25 +449,28 @@ pub unsafe extern "C" fn sysconf(name: i32) -> i64 {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn setpgid(_pid: i32, _pgid: i32) -> i32 { 0 }
+pub unsafe extern "C" fn setpgid(_pid: i32, _pgid: i32) -> i32 {
+    0
+}
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn setsid() -> i32 { 1 }
+pub unsafe extern "C" fn setsid() -> i32 {
+    1
+}
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn execvp(_file: *const u8, _argv: *const *const u8) -> i32 { -1 }
+pub unsafe extern "C" fn execvp(_file: *const u8, _argv: *const *const u8) -> i32 {
+    -1
+}
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn waitid(_which: i32, _id: u32, _infop: *mut u8, _options: i32) -> i32 { -1 }
+pub unsafe extern "C" fn waitid(_which: i32, _id: u32, _infop: *mut u8, _options: i32) -> i32 {
+    -1
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn poll(fds: *mut u8, nfds: u64, timeout: i32) -> i32 {
-    let ret = syscall3(
-        SyscallNumber::Poll as u64,
-        fds as u64,
-        nfds,
-        timeout as u64,
-    ) as i64;
+    let ret = syscall3(SyscallNumber::Poll as u64, fds as u64, nfds, timeout as u64) as i64;
     if ret < 0 {
         set_errno(errno_from_neg_ret(ret));
         -1
@@ -487,12 +481,7 @@ pub unsafe extern "C" fn poll(fds: *mut u8, nfds: u64, timeout: i32) -> i32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ioctl(fd: i32, request: u64, arg: u64) -> i32 {
-    let ret = syscall3(
-        SyscallNumber::Ioctl as u64,
-        fd as u64,
-        request,
-        arg,
-    ) as i64;
+    let ret = syscall3(SyscallNumber::Ioctl as u64, fd as u64, request, arg) as i64;
     if ret < 0 {
         set_errno(errno_from_neg_ret(ret));
         -1
@@ -502,19 +491,28 @@ pub unsafe extern "C" fn ioctl(fd: i32, request: u64, arg: u64) -> i32 {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn posix_spawn_file_actions_destroy(_actions: *mut u8) -> i32 { 0 }
+pub unsafe extern "C" fn posix_spawn_file_actions_destroy(_actions: *mut u8) -> i32 {
+    0
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn posix_spawn_file_actions_addchdir_np(
-    _actions: *mut u8, _path: *const u8,
-) -> i32 { 0 }
+    _actions: *mut u8,
+    _path: *const u8,
+) -> i32 {
+    0
+}
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn posix_spawnattr_destroy(_attr: *mut u8) -> i32 { 0 }
+pub unsafe extern "C" fn posix_spawnattr_destroy(_attr: *mut u8) -> i32 {
+    0
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn posix_memalign(
-    memptr: *mut *mut u8, alignment: usize, size: usize,
+    memptr: *mut *mut u8,
+    alignment: usize,
+    size: usize,
 ) -> i32 {
     // POSIX: alignment は 2 のべき乗かつ sizeof(void*) の倍数である必要がある。
     if memptr.is_null()

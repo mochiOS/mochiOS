@@ -580,7 +580,7 @@ fn main() {
 
     let libc_dir = newlib_install_dir.join("x86_64-elf").join("lib");
 
-    let glue_src_dir = manifest_dir.join("src/runtime_glue");
+    let glue_src_dir = manifest_dir.join("src/mglue");
     build_user_libs(&glue_src_dir, &libc_dir);
 
     // newlibライブラリをramfsとfsにコピー

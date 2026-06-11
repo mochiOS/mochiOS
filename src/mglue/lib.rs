@@ -24,10 +24,10 @@ pub mod posix_stubs;
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     unsafe {
         core::arch::asm!(
-            "int 0x80",
-            in("rax") sys::SyscallNumber::ExitGroup as u64,
-            in("rdi") 1u64,
-            options(nostack, noreturn)
+        "int 0x80",
+        in("rax") sys::SyscallNumber::ExitGroup as u64,
+        in("rdi") 1u64,
+        options(nostack, noreturn)
         )
     }
 }
@@ -50,4 +50,3 @@ unsafe impl GlobalAlloc for NewlibAllocator {
 
 #[global_allocator]
 static ALLOCATOR: NewlibAllocator = NewlibAllocator;
-

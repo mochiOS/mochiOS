@@ -20,20 +20,24 @@ fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
     let kernel_crate_dir = manifest_dir.join("src/core");
     let kernel_target_dir = manifest_dir.join("target/kernel");
 
-    let mut clean = std::process::Command::new("cargo");
-    clean.current_dir(&kernel_crate_dir);
-    clean.arg("clean");
-    let _ = clean.status();
-
     let mut cmd = std::process::Command::new("cargo");
     cmd.current_dir(&kernel_crate_dir);
     cmd.env("MOCHIOS_BUILDING_KERNEL", "1");
     cmd.env("CARGO_TARGET_DIR", &kernel_target_dir);
-    cmd.args(["build", "-Z", "build-std=core,alloc"]);
+    cmd.args([
+        "build",
+        "--target",
+        "x86_64-unknown-none",
+        "--features",
+        "kernel-bin",
+        "-Z",
+        "build-std=core,alloc",
+    ]);
     if profile == "release" {
         cmd.arg("--release");
     }
     let status = cmd.status();
+
     match status {
         Ok(s) if s.success() => {}
         Ok(s) => {

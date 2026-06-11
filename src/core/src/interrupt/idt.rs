@@ -5,7 +5,7 @@
 use crate::{debug, error, mem::gdt, syscall, warn};
 use spin::Once;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
-use x86_64::PrivilegeLevel;
+use x86_64::{PhysAddr, PrivilegeLevel};
 
 static IDT: Once<InterruptDescriptorTable> = Once::new();
 
@@ -748,7 +748,7 @@ extern "x86-interrupt" fn page_fault_handler(
             .and_then(|tid| crate::task::with_thread(tid, |t| t.process_id()))
             .and_then(|pid| crate::task::with_process(pid, |p| p.page_table()).flatten())
             .and_then(|pt| crate::mem::paging::virt_to_phys_in_table(pt, faulting_addr.as_u64()))
-            .map(x86_64::PhysAddr::new)
+            .map(PhysAddr::new)
     } else {
         crate::mem::paging::translate_addr(faulting_addr)
     };

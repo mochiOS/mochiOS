@@ -6,6 +6,7 @@ use crate::info;
 use crate::mem::frame;
 use crate::result::{Kernel, Memory, Result};
 use spin::Mutex;
+use x86_64 as arch64;
 
 use x86_64::registers::control::{Cr3, Cr3Flags};
 use x86_64::{
@@ -754,7 +755,7 @@ pub fn map_and_copy_segment(
     Ok(())
 }
 
-pub use x86_64::PhysAddr;
+pub use arch64::PhysAddr;
 
 fn clone_kernel_l1_table_without_user_entries(src_l1_phys: u64, phys_off: u64) -> Result<u64> {
     let src_l1 = unsafe { &*((src_l1_phys + phys_off) as *const PageTable) };
@@ -1068,7 +1069,7 @@ fn ensure_user_page_table_hierarchy(temp_kern_virt: u64, vaddr: u64, phys_off: u
 
         // ユーザーL4にL3を記録
         l4[l4_index].set_addr(
-            x86_64::PhysAddr::new(l3_phys),
+            PhysAddr::new(l3_phys),
             Flags::PRESENT | Flags::WRITABLE | Flags::USER_ACCESSIBLE,
         );
     } else {
@@ -1104,7 +1105,7 @@ fn ensure_user_page_table_hierarchy(temp_kern_virt: u64, vaddr: u64, phys_off: u
 
         // ユーザーL3にL2を記録
         l3[l3_index].set_addr(
-            x86_64::PhysAddr::new(l2_phys),
+            PhysAddr::new(l2_phys),
             Flags::PRESENT | Flags::WRITABLE | Flags::USER_ACCESSIBLE,
         );
     } else {
@@ -1138,7 +1139,7 @@ fn ensure_user_page_table_hierarchy(temp_kern_virt: u64, vaddr: u64, phys_off: u
         }
 
         l2[l2_index].set_addr(
-            x86_64::PhysAddr::new(l1_phys),
+            PhysAddr::new(l1_phys),
             Flags::PRESENT | Flags::WRITABLE | Flags::USER_ACCESSIBLE,
         );
     } else {
@@ -1219,7 +1220,7 @@ pub fn map_and_copy_segment_to(
         .ok_or(Kernel::Memory(Memory::NotMapped))?;
 
     let temp_page = Page::<Size4KiB>::containing_address(VirtAddr::new(temp_kern_virt));
-    let user_l4_frame = PhysFrame::containing_address(x86_64::PhysAddr::new(table_phys));
+    let user_l4_frame = PhysFrame::containing_address(PhysAddr::new(table_phys));
 
     // カーネルのページテーブルにユーザーL4テーブルをテンポラリマップ
     unsafe {
@@ -1336,7 +1337,7 @@ pub fn map_and_copy_segment_to(
 
         // L1 エントリをセット
         if l1[l1_index].is_unused() {
-            l1[l1_index].set_addr(x86_64::PhysAddr::new(phys_frame_addr), final_flags);
+            l1[l1_index].set_addr(PhysAddr::new(phys_frame_addr), final_flags);
         } else {
             let existing_addr = l1[l1_index].addr().as_u64();
             let existing_flags = l1[l1_index].flags();
@@ -1346,7 +1347,7 @@ pub fn map_and_copy_segment_to(
                 } else {
                     final_flags & !Flags::NO_EXECUTE
                 };
-                l1[l1_index].set_addr(x86_64::PhysAddr::new(phys_frame_addr), merged);
+                l1[l1_index].set_addr(PhysAddr::new(phys_frame_addr), merged);
             } else {
                 let existing_exec = !existing_flags.contains(Flags::NO_EXECUTE);
                 let existing_write = existing_flags.contains(Flags::WRITABLE);
@@ -1361,7 +1362,7 @@ pub fn map_and_copy_segment_to(
                 } else {
                     final_flags
                 };
-                l1[l1_index].set_addr(x86_64::PhysAddr::new(existing_addr), merged);
+                l1[l1_index].set_addr(PhysAddr::new(existing_addr), merged);
                 frame::deallocate_frame(frame);
                 phys_frame_addr = existing_addr;
             }

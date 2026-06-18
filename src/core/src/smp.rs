@@ -530,7 +530,9 @@ unsafe fn install_trampoline(boot_info: &'static BootInfo) -> Option<()> {
 
 pub fn start_secondary_cpus() {
     if !START_SECONDARY_CPUS {
-        crate::warn!("SMP startup temporarily disabled; booting single-core to avoid AP trampoline fault");
+        crate::warn!(
+            "SMP startup temporarily disabled; booting single-core to avoid AP trampoline fault"
+        );
         return;
     }
 

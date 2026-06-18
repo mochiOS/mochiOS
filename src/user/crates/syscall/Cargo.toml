@@ -1,0 +1,10 @@
+[package]
+name = "mochi-user-syscall"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+mnu-abi = { path = "../../../core/crates/abi" }
+
+[features]
+default = []

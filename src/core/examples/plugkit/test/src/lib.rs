@@ -3,10 +3,10 @@
 
 extern crate alloc;
 
-use core::alloc::{GlobalAlloc, Layout};
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
+use core::alloc::{GlobalAlloc, Layout};
 use core::fmt::Write;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
@@ -50,10 +50,12 @@ unsafe impl GlobalAlloc for BumpAllocator {
                 return core::ptr::null_mut();
             }
             let next_offset = next - base;
-            match self
-                .offset
-                .compare_exchange(current, next_offset, Ordering::SeqCst, Ordering::Relaxed)
-            {
+            match self.offset.compare_exchange(
+                current,
+                next_offset,
+                Ordering::SeqCst,
+                Ordering::Relaxed,
+            ) {
                 Ok(_) => return aligned as *mut u8,
                 Err(actual) => current = actual,
             }
@@ -367,7 +369,8 @@ fn device_matches_manifest(manifest: &AboutManifest, device: &PlugKitDevice) -> 
         "virtio" => device.bus() == DeviceBus::Virtio,
         _ => device.bus() == DeviceBus::Other,
     };
-    bus_ok && device.vendor_id() == Some(manifest.match_vendor_id)
+    bus_ok
+        && device.vendor_id() == Some(manifest.match_vendor_id)
         && device.device_id() == Some(manifest.match_device_id)
 }
 
@@ -522,7 +525,10 @@ pub fn run() -> ! {
         let msg = core::str::from_utf8(&recv_buf[..len]).unwrap_or("");
         let resp_len = handle_command(&mut state, msg, &mut send_buf);
         write_line("plugkit-test: send");
-        let rc = send_message(from, core::str::from_utf8(&send_buf[..resp_len]).unwrap_or(""));
+        let rc = send_message(
+            from,
+            core::str::from_utf8(&send_buf[..resp_len]).unwrap_or(""),
+        );
         if rc & (1u64 << 63) != 0 {
             write_line("plugkit-test: send failed");
             exit(1);
@@ -542,7 +548,14 @@ pub fn run() -> ! {
 }
 
 fn ipc_send(dest_thread_id: u64, bytes: &[u8]) -> u64 {
-    unsafe { syscall3(SYS_IPC_SEND, dest_thread_id, bytes.as_ptr() as u64, bytes.len() as u64) }
+    unsafe {
+        syscall3(
+            SYS_IPC_SEND,
+            dest_thread_id,
+            bytes.as_ptr() as u64,
+            bytes.len() as u64,
+        )
+    }
 }
 
 fn ipc_recv_wait(buf: &mut [u8]) -> u64 {
@@ -556,7 +569,13 @@ fn find_process_by_name(name: &str) -> u64 {
         return 0;
     }
     name_buf[..bytes.len()].copy_from_slice(bytes);
-    unsafe { syscall2(SYS_FIND_PROCESS_BY_NAME, name_buf.as_ptr() as u64, bytes.len() as u64) }
+    unsafe {
+        syscall2(
+            SYS_FIND_PROCESS_BY_NAME,
+            name_buf.as_ptr() as u64,
+            bytes.len() as u64,
+        )
+    }
 }
 
 fn file_open(path: &str, flags: u64) -> Option<u64> {

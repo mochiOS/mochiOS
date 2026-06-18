@@ -2,7 +2,12 @@ use proc_macro::TokenStream;
 
 #[proc_macro]
 pub fn driver(input: TokenStream) -> TokenStream {
-    let ty = input.to_string().trim().trim_end_matches(';').trim().to_string();
+    let ty = input
+        .to_string()
+        .trim()
+        .trim_end_matches(';')
+        .trim()
+        .to_string();
     if ty.is_empty() {
         return "compile_error!(\"plugkit::driver! expects a driver type\");"
             .parse()

@@ -4,9 +4,9 @@
 
 extern crate alloc;
 
-use alloc::vec::Vec;
 use crate::interrupt::spinlock::SpinLock;
 use crate::task::ThreadId;
+use alloc::vec::Vec;
 
 use super::{EAGAIN, EFAULT, EINVAL, ENOSYS, SUCCESS};
 

@@ -160,6 +160,7 @@ pub fn build_service(
     let mut cmd = Command::new("cargo");
     // 起動時ロード時間を抑えるため、サービスは常に release でビルドする
     cmd.args(["build", "--release"]);
+    cmd.args(["-Z", "build-std=core,alloc,compiler_builtins"]);
     if uses_json_target {
         cmd.args(["-Z", "json-target-spec"]);
         println!("  Enabling -Z json-target-spec");
@@ -232,7 +233,10 @@ pub fn build_service(
     let target_name: Option<String> = if has_config_target {
         Some("x86_64-mochios".to_string())
     } else {
-        None
+        target_spec
+            .as_deref()
+            .and_then(|p| Path::new(p).file_stem())
+            .map(|s| s.to_string_lossy().to_string())
     };
 
     if let Some(binary_path) = find_built_binary(&target_dir, target_name.as_deref()) {

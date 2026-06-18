@@ -1,0 +1,10 @@
+[package]
+name = "mochi-user-runtime"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+mochi-user-syscall = { path = "../syscall" }
+
+[features]
+default = []

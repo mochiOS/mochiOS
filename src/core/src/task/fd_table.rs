@@ -52,7 +52,10 @@ impl FileHandleCap {
     }
 
     pub fn from_open_flags(flags: u64) -> Self {
-        let mut cap = Self::CLOSE.union(Self::STAT).union(Self::SEEK).union(Self::SYNC);
+        let mut cap = Self::CLOSE
+            .union(Self::STAT)
+            .union(Self::SEEK)
+            .union(Self::SYNC);
         let acc = flags & 0o3;
         if acc == 0o0 {
             cap = cap.union(Self::READ);
@@ -115,7 +118,10 @@ impl FileHandle {
             pipe_id: Some(pipe_id),
             pipe_write: false,
             open_flags: 0,
-            cap: FileHandleCap::READ.union(FileHandleCap::SEEK).union(FileHandleCap::STAT).union(FileHandleCap::CLOSE),
+            cap: FileHandleCap::READ
+                .union(FileHandleCap::SEEK)
+                .union(FileHandleCap::STAT)
+                .union(FileHandleCap::CLOSE),
         }
     }
 

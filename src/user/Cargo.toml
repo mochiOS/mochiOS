@@ -1,13 +1,11 @@
-[package]
-name = "user"
+[workspace]
+resolver = "2"
+members = [
+    "crates/syscall",
+    "crates/runtime",
+    "crates/platform",
+]
+
+[workspace.package]
+edition = "2024"
 version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-mnu-abi = { git = "https://github.com/mochiOS/mnu.git", branch = "master" }
-
-[lib]
-name = "user"
-path = "src/lib.rs"
-test = false
-bench = false

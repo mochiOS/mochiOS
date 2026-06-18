@@ -6,10 +6,9 @@
 #![deny(clippy::expect_used)]
 #![deny(clippy::panic)]
 
+extern crate alloc;
 #[cfg(test)]
-compile_error!(
-    "cargo test is disabled for this crate; use the QEMU/kernel self-test path instead"
-);
+compile_error!("cargo test is disabled for this crate; use the QEMU/kernel self-test path instead");
 
 #[cfg(feature = "kcfi")]
 compile_error!(
@@ -29,8 +28,6 @@ compile_error!(
     "feature `cet-shadow-stack` is intentionally gated off: kernel shadow-stack allocation, \
      context-switch save/restore, and signal integration are not yet complete."
 );
-
-extern crate alloc;
 
 use core::sync::atomic::{AtomicU64, AtomicUsize};
 
@@ -96,10 +93,10 @@ pub mod cpu;
 /// per-CPU状態管理
 pub mod percpu;
 #[cfg(not(test))]
+mod plugkit;
+#[cfg(not(test))]
 /// SMP/マルチコアの共有ハンドオフ
 pub mod smp;
-#[cfg(not(test))]
-mod plugkit;
 
 pub const MAX_CPU_IDS: usize = 64;
 

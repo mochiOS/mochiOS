@@ -1,0 +1,6 @@
+[core.service]
+dir = "core"
+fs = "initfs"
+description = "mochiOS core service"
+autostart = true
+order = 0

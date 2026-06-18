@@ -167,7 +167,9 @@ pub struct Mmio {
 
 impl Mmio {
     pub fn new(size: usize) -> Self {
-        Self { bytes: vec![0; size] }
+        Self {
+            bytes: vec![0; size],
+        }
     }
 
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
@@ -179,14 +181,18 @@ impl Mmio {
     }
 
     fn range(&self, offset: usize, size: usize) -> PlugKitResult<&[u8]> {
-        let end = offset.checked_add(size).ok_or(PlugKitError::InvalidOffset)?;
+        let end = offset
+            .checked_add(size)
+            .ok_or(PlugKitError::InvalidOffset)?;
         self.bytes
             .get(offset..end)
             .ok_or(PlugKitError::InvalidOffset)
     }
 
     fn range_mut(&mut self, offset: usize, size: usize) -> PlugKitResult<&mut [u8]> {
-        let end = offset.checked_add(size).ok_or(PlugKitError::InvalidOffset)?;
+        let end = offset
+            .checked_add(size)
+            .ok_or(PlugKitError::InvalidOffset)?;
         self.bytes
             .get_mut(offset..end)
             .ok_or(PlugKitError::InvalidOffset)
@@ -219,17 +225,20 @@ impl Mmio {
     }
 
     pub fn write_u16(&mut self, offset: usize, value: u16) -> PlugKitResult<()> {
-        self.range_mut(offset, 2)?.copy_from_slice(&value.to_le_bytes());
+        self.range_mut(offset, 2)?
+            .copy_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     pub fn write_u32(&mut self, offset: usize, value: u32) -> PlugKitResult<()> {
-        self.range_mut(offset, 4)?.copy_from_slice(&value.to_le_bytes());
+        self.range_mut(offset, 4)?
+            .copy_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     pub fn write_u64(&mut self, offset: usize, value: u64) -> PlugKitResult<()> {
-        self.range_mut(offset, 8)?.copy_from_slice(&value.to_le_bytes());
+        self.range_mut(offset, 8)?
+            .copy_from_slice(&value.to_le_bytes());
         Ok(())
     }
 }
@@ -340,14 +349,18 @@ impl PciConfig {
     }
 
     fn range(&self, offset: usize, size: usize) -> PlugKitResult<&[u8]> {
-        let end = offset.checked_add(size).ok_or(PlugKitError::InvalidOffset)?;
+        let end = offset
+            .checked_add(size)
+            .ok_or(PlugKitError::InvalidOffset)?;
         self.bytes
             .get(offset..end)
             .ok_or(PlugKitError::InvalidOffset)
     }
 
     fn range_mut(&mut self, offset: usize, size: usize) -> PlugKitResult<&mut [u8]> {
-        let end = offset.checked_add(size).ok_or(PlugKitError::InvalidOffset)?;
+        let end = offset
+            .checked_add(size)
+            .ok_or(PlugKitError::InvalidOffset)?;
         self.bytes
             .get_mut(offset..end)
             .ok_or(PlugKitError::InvalidOffset)
@@ -373,12 +386,14 @@ impl PciConfig {
     }
 
     pub fn write_u16(&mut self, offset: usize, value: u16) -> PlugKitResult<()> {
-        self.range_mut(offset, 2)?.copy_from_slice(&value.to_le_bytes());
+        self.range_mut(offset, 2)?
+            .copy_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     pub fn write_u32(&mut self, offset: usize, value: u32) -> PlugKitResult<()> {
-        self.range_mut(offset, 4)?.copy_from_slice(&value.to_le_bytes());
+        self.range_mut(offset, 4)?
+            .copy_from_slice(&value.to_le_bytes());
         Ok(())
     }
 }
@@ -461,9 +476,7 @@ impl PlugKitResources {
         if !self.has_pci_config {
             return Err(PlugKitError::NotSupported);
         }
-        self.pci_config
-            .clone()
-            .ok_or(PlugKitError::InvalidHandle)
+        self.pci_config.clone().ok_or(PlugKitError::InvalidHandle)
     }
 }
 
@@ -496,7 +509,12 @@ pub struct DeviceSpec {
 }
 
 impl DeviceSpec {
-    pub fn new(path: impl Into<String>, name: impl Into<String>, bus: DeviceBus, class: DeviceClass) -> Self {
+    pub fn new(
+        path: impl Into<String>,
+        name: impl Into<String>,
+        bus: DeviceBus,
+        class: DeviceClass,
+    ) -> Self {
         Self {
             path: DevicePath::new(path),
             name: DeviceName::new(name),
@@ -706,15 +724,15 @@ pub fn take_logs() -> Vec<(String, String)> {
     with_log_lines_mut(|lines| {
         lines
             .drain(..)
-        .map(|(level, line)| {
-            let name = match level {
-                LogLevel::Info => "info",
-                LogLevel::Warn => "warn",
-                LogLevel::Error => "error",
-            };
-            (name.to_string(), line)
-        })
-        .collect()
+            .map(|(level, line)| {
+                let name = match level {
+                    LogLevel::Info => "info",
+                    LogLevel::Warn => "warn",
+                    LogLevel::Error => "error",
+                };
+                (name.to_string(), line)
+            })
+            .collect()
     })
 }
 

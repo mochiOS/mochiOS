@@ -13,11 +13,9 @@ pub struct ModuleRegistration {
 }
 
 pub fn registrations() -> Vec<ModuleRegistration> {
-    vec![
-        ModuleRegistration {
-            name: "disk",
-            version: 1,
-            register: super::register_disk_module,
-        },
-    ]
+    vec![ModuleRegistration {
+        name: "disk",
+        version: 1,
+        register: super::register_disk_module,
+    }]
 }

@@ -1,8 +1,10 @@
-[workspace]
-members = [
-    "src/core",
-    "src/boot",
-    "src/user",
-    "src/modules",
-    "src/services",
-]
+[package]
+name = "mochios"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "mochios"
+path = "src/main.rs"
+

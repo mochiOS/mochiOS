@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "src/core",
+    "src/boot",
+    "src/user",
+    "src/modules",
+    "src/services",
+]

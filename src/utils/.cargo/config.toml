@@ -1,5 +1,0 @@
-[build]
-target = "../x86_64-mochios.json"
-
-[unstable]
-json-target-spec = true

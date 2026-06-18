@@ -11,47 +11,23 @@ mochiOSはハイブリッドアーキテクチャを採用した、新しいOS�
 
 餅という名前にしたのは餅は柔らかくて壊れにくいから（伸びても切れない）。超絶安直なネーミングだぜぇ。
 
-## Build
+## Build and Run
+
 必要なツール:
-- git
-- qemu-system-x86_64
-- x86_64-elf-gcc
-- cargo
-- rustup
-- make
-- e2fsprogs
-- texinfo
-- build-essentialで入るすべてのツール
-- mtools
-- libgcc-s1
-- `x86_64-unknown-none`ターゲット
-- `x86_64-unknown-uefi`ターゲット
-- Nightly toolchain
 
-> [!TIP]
-> x86_64-elf-gccは[homebrew](https://brew.sh/)でインストールすることを推奨します。（Ubuntu標準のaptリポジトリにありません）また、brewをインストール時、`Run there commands in your terminal to add Homebrew to your PATH`と表示されたら、必ず指示に従ってください。
+- `cargo`
+- `rustup`
+- `qemu-system-x86_64`
+- `mke2fs`
+- `mkfs.fat`
+- `mtools`
+- `perl`
+- `openssl`
+- nightly toolchain
 
-また、これらのツールはUbuntuを使用している人は`scripts/autoinstall.sh`を使用すると自動でインストールできます。ただ、brewのインストールは各自行ってください。
+実行はルートで `cargo run` を使います。デフォルトで QEMU の画面ウィンドウを開きます。serial には `Hello, from user!` が出ます。
 
-1. このレポをクローンします。
-2. サブモジュールをインストールします。
-    ```bash
-    git submodule update --init --recursive --depth=1
-    ```
-3. libcのconfigureをします。
-    ```bash
-    cd src/lib
-    ./configure
-    ```
-4. ビルドします。
-    ```bash
-    cd ../..
-    cargo build
-    ```
-5. 実行します。
-    ```bash
-    cargo run
-    ```
+詳細は [起動手順](docs/running.md) を見てください。
 
 ## How to contribute?
 

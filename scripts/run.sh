@@ -14,10 +14,9 @@ SERVICE_BUILD_DIR="${TARGET_DIR}/service-build"
 
 KERNEL_TARGET_NAME="x86_64-unknown-none"
 BOOT_TARGET_NAME="x86_64-unknown-uefi"
-SERVICE_TARGET_JSON="${SERVICES_ROOT}/core/x86_64-unknown-mochios.json"
-
 OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
+QEMU_DISPLAY="${QEMU_DISPLAY:-gtk}"
 
 RUN_ID="$(date +%s)-$$"
 RUN_DIR="${TARGET_DIR}/run-${RUN_ID}"
@@ -75,7 +74,6 @@ need_file "${KERNEL_ROOT}/Cargo.toml"
 need_file "${BOOT_ROOT}/Cargo.toml"
 need_file "${SERVICES_ROOT}/Cargo.toml"
 need_file "${SERVICES_ROOT}/core/Cargo.toml"
-need_file "${SERVICES_ROOT}/core/x86_64-unknown-mochios.json"
 need_file "${KERNEL_ROOT}/scripts/signature_db.pl"
 need_file "${KERNEL_ROOT}/Cargo.lock"
 need_file "${BOOT_ROOT}/Cargo.lock"
@@ -111,14 +109,10 @@ echo "[build] core.service"
     cargo +nightly build \
         --locked \
         --release \
-        -Z build-std=core,alloc \
-        -Z build-std-features=compiler-builtins-mem \
-        -Z json-target-spec \
-        --target "${SERVICE_TARGET_JSON}" \
         -p core \
         --target-dir "${SERVICE_BUILD_DIR}")
 
-SERVICE_BIN="$(find "${SERVICE_BUILD_DIR}/x86_64-unknown-mochios/release" -maxdepth 1 -type f -name core | head -n 1)"
+SERVICE_BIN="$(find "${SERVICE_BUILD_DIR}/x86_64-unknown-none/release" -maxdepth 1 -type f -name core | head -n 1)"
 need_file "${SERVICE_BIN}"
 
 echo "[check] core.service binary"
@@ -180,7 +174,8 @@ QEMU_ARGS=(
     -smp 4
     -cpu qemu64
     -serial stdio
-    -display none
+    -display "${QEMU_DISPLAY}"
+    -vga std
     -monitor none
     -no-reboot
     -drive "if=pflash,format=raw,readonly=on,file=${OVMF_CODE}"

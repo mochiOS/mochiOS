@@ -74,6 +74,7 @@ need_file "${KERNEL_ROOT}/Cargo.toml"
 need_file "${BOOT_ROOT}/Cargo.toml"
 need_file "${SERVICES_ROOT}/Cargo.toml"
 need_file "${SERVICES_ROOT}/core/Cargo.toml"
+need_file "${SERVICES_ROOT}/logger/Cargo.toml"
 need_file "${KERNEL_ROOT}/scripts/signature_db.pl"
 need_file "${KERNEL_ROOT}/Cargo.lock"
 need_file "${BOOT_ROOT}/Cargo.lock"
@@ -115,6 +116,17 @@ echo "[build] core.service"
 SERVICE_BIN="$(find "${SERVICE_BUILD_DIR}/x86_64-unknown-none/release" -maxdepth 1 -type f -name core | head -n 1)"
 need_file "${SERVICE_BIN}"
 
+echo "[build] logger.service"
+(cd "${SERVICES_ROOT}" && \
+    cargo +nightly build \
+        --locked \
+        --release \
+        -p logger \
+        --target-dir "${SERVICE_BUILD_DIR}")
+
+LOGGER_BIN="$(find "${SERVICE_BUILD_DIR}/x86_64-unknown-none/release" -maxdepth 1 -type f -name logger | head -n 1)"
+need_file "${LOGGER_BIN}"
+
 echo "[check] core.service binary"
 stat "${SERVICE_BIN}"
 readelf -h "${SERVICE_BIN}" | grep -E 'Type:|Entry point address:' || true
@@ -126,12 +138,14 @@ cp -a "${ROOTFS_SOURCE_DIR}/." "${ROOTFS_STAGE}/"
 cp -a "${ROOTFS_SOURCE_DIR}/." "${INITFS_STAGE}/"
 
 install -m 0755 "${SERVICE_BIN}" "${INITFS_STAGE}/core.service"
+install -m 0755 "${LOGGER_BIN}" "${INITFS_STAGE}/logger.service"
 
 SIGNATURE_DB_STAGE="${TARGET_DIR}/signature.db"
 echo "[build] signature db"
 perl "${KERNEL_ROOT}/scripts/signature_db.pl" \
     --output "${SIGNATURE_DB_STAGE}" \
-    --entry "core.service=${SERVICE_BIN}"
+    --entry "core.service=${SERVICE_BIN}" \
+    --entry "logger.service=${LOGGER_BIN}"
 install -m 0644 "${SIGNATURE_DB_STAGE}" "${ROOTFS_STAGE}/signature.db"
 
 echo "[build] rootfs"
@@ -200,7 +214,7 @@ NEXT_LINE=1
 
 for _ in $(seq 1 600); do
     while IFS= read -r line; do
-        if [[ "$line" == *"Hello, from user!"* ]]; then
+        if [[ "$line" == *"logger.service: resident logger online"* ]]; then
             PASS_FOUND=1
             break
         fi
@@ -225,7 +239,7 @@ for _ in $(seq 1 600); do
 done
 
 if [[ "${PASS_FOUND}" -ne 1 ]]; then
-    echo "fatal: core.service did not print Hello, from user!" >&2
+    echo "fatal: core.service did not become resident" >&2
     echo "serial log: ${SERIAL_LOG}" >&2
     exit 1
 fi
@@ -234,4 +248,4 @@ kill "${QEMU_PID}" 2>/dev/null || true
 wait "${QEMU_PID}" 2>/dev/null || true
 trap - EXIT
 
-echo "[run] core.service printed hello"
+echo "[run] core.service became resident"

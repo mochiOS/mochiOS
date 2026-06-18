@@ -33,4 +33,4 @@ cargo run
 
 ## 期待する出力
 
-正常起動すると、serial に `Hello, from user!` が出ます。
+正常起動すると、serial に `core.service: resident core process online` と `logger.service: resident logger online` が出ます。

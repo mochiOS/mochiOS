@@ -25,9 +25,10 @@ mochiOSはハイブリッドアーキテクチャを採用した、新しいOS�
 - `openssl`
 - nightly toolchain
 
-実行はルートで `cargo run` を使います。デフォルトで QEMU の画面ウィンドウを開きます。serial には `Hello, from user!` が出ます。
+実行はルートで `cargo run` を使います。デフォルトで QEMU の画面ウィンドウを開きます。serial には
+`core.service: resident core process online` が出ます。
 
-詳細は [起動手順](docs/running.md) を見てください。
+詳細は [起動手順](docs/running.md) と [サービス構成](docs/architecture.md) を見てください。
 
 ## How to contribute?
 

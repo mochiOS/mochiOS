@@ -1,8 +1,0 @@
-[package]
-name = "plugkit"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-plugkit-sys = { path = "../plugkit-sys" }
-plugkit-macros = { path = "../plugkit-macros" }

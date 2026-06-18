@@ -1,0 +1,72 @@
+# サービスの定義
+#
+# 形式:
+# [service.サービス名]
+# description = サービスの説明
+# dir = サービスのディレクトリ
+# fs = サービスをどのファイルシステムに配置するか（initfs または ata）
+# autostart = カーネル起動時に自動起動するか（initfsに含まれている奴は勝手に起動するやつだけにしようね）
+# order = 起動順序（数値が小さいほど先に起動、core.serviceが他を起動）
+
+[core.service]
+description = "Core service / system manager"
+dir = "core.service"
+fs = "initfs"
+autostart = false
+order = 0
+
+[core.service.capability]
+description = "Capability manager - grants and checks permissions"
+dir = "capability.service"
+fs = "ata"
+autostart = true
+order = 1
+
+[core.service.driver]
+description = "Driver manager - launches hardware drivers"
+dir = "driver.service"
+fs = "ata"
+autostart = true
+order = 5
+
+[core.service.disk]
+description = "Disk service - ATA block device"
+dir = "disk.service"
+fs = "ata"
+autostart = true
+order = 8
+
+[core.service.device]
+description = "Device service - privileged device access broker"
+dir = "device.service"
+fs = "ata"
+autostart = true
+order = 18
+
+[core.service.net]
+description = "Network service - sockets/stack"
+dir = "net.service"
+fs = "ata"
+autostart = true
+order = 25
+
+[core.service.process]
+description = "Process service - app launcher with capability grants"
+dir = "process.service"
+fs = "ata"
+autostart = true
+order = 12
+
+[core.service.window]
+description = "Window service - compositor"
+dir = "window.service"
+fs = "ata"
+autostart = true
+order = 35
+
+[core.service.shell]
+description = "Draw video output and shell interface"
+dir = "shell.service"
+fs = "ata"
+autostart = true
+order = 40

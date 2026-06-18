@@ -1,0 +1,80 @@
+# mochiOS services capabilities list
+# 各サービスの manifest.toml から抽出したケーパビリティ定義
+
+[capabilities.ipc.server]
+description = "IPCサーバーを起動する"
+
+[capabilities.service.control]
+description = "他のサービスを制御・管理する"
+
+[capabilities.process.spawn]
+description = "プロセスの生成・実行"
+
+[capabilities.process.inspect]
+description = "プロセス情報の取得・監視"
+
+[capabilities.process.kill]
+description = "プロセスの終了・強制停止"
+
+[capabilities.system.info.read]
+description = "システム情報の読み取り"
+
+[capabilities.device.storage]
+description = "ストレージ（ATA/SATA）デバイスへのアクセス"
+
+[capabilities.device.net]
+description = "ネットワークデバイスへのアクセス"
+
+[capabilities.device.input]
+description = "入力デバイス（キーボード、マウス）へのアクセス"
+
+[capabilities.device.gpu]
+description = "GPUデバイスへのアクセス"
+
+[capabilities.device.audio]
+description = "オーディオデバイスへのアクセス"
+
+[capabilities.fs.read.all]
+description = "すべてのファイルシステムの読み取り"
+
+[capabilities.fs.write.all]
+description = "すべてのファイルシステムの書き込み"
+
+[capabilities.net.raw]
+description = "ローレベルネットワーク操作（RAWソケット）"
+
+[capabilities.display.read]
+description = "ディスプレイ/フレームバッファの読み取り"
+
+[capabilities.display.capture]
+description = "ディスプレイ/スクリーンのキャプチャ"
+
+[capabilities.input.pointer.global]
+description = "グローバルなポインタ入力（マウス）の監視・制御"
+
+[capabilities.input.pointer]
+description = "ポインタ入力（マウス）の受信"
+
+[capabilities.input.keyboard.global]
+description = "グローバルなキーボード入力の監視・制御"
+
+[capabilities.input.keyboard]
+description = "キーボード入力の受信"
+
+[capabilities.window.create]
+description = "ウィンドウの生成・管理"
+
+[capabilities.clipboard.read]
+description = "クリップボードの読み取り"
+
+[capabilities.clipboard.write]
+description = "クリップボードへの書き込み"
+
+[capabilities.usb.access]
+description = "USBデバイスへのアクセス"
+
+[capabilities.serial.access]
+description = "シリアルデバイスへのアクセス"
+
+[capabilities.bluetooth.access]
+description = "Bluetoothデバイスへのアクセス"

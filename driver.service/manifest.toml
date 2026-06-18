@@ -1,0 +1,19 @@
+[service]
+id = "driver.service"
+name = "Driver Manager"
+entry = "entry"
+type = "system"
+autostart = true
+order = 5
+
+[capabilities]
+required = [
+  "ipc.server",
+  "process.spawn",
+    "fs.read.all",
+  "device.storage",
+  "device.net",
+  "device.input"
+]
+
+optional = []

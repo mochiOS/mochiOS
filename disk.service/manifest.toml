@@ -1,0 +1,15 @@
+[service]
+id = "disk.service"
+name = "Disk Service"
+entry = "entry"
+type = "system"
+autostart = true
+order = 8
+
+[capabilities]
+required = [
+  "ipc.server",
+  "device.storage"
+]
+
+optional = []

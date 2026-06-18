@@ -28,6 +28,8 @@ fn build_kernel(manifest_dir: &PathBuf, fs_dir: &PathBuf, profile: &str) {
         "build",
         "--target",
         "x86_64-unknown-none",
+        "--package",
+        "mnu",
         "--features",
         "kernel-bin",
         "-Z",

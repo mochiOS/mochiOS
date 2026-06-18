@@ -1,3 +1,12 @@
 [submodule "src/lib"]
 	path = src/lib
 	url = https://sourceware.org/git/newlib-cygwin.git
+[submodule "src/services"]
+	path = src/services
+	url = https://github.com/mochiOS/services.git
+[submodule "src/user"]
+	path = src/user
+	url = https://github.com/mochiOS/syscalls.git
+[submodule "src/core"]
+	path = src/core
+	url = https://github.com/mochiOS/mnu.git

@@ -12,7 +12,7 @@ members = [
     "examples/user",
     "examples/plugkit/test",
 ]
-default-members = [".", "examples/user"]
+default-members = ["."]
 exclude = ["examples/boot"]
 
 [lib]

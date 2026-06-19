@@ -107,7 +107,7 @@ need_file "${BOOT_BIN}"
 
 echo "[build] core.service"
 (cd "${SERVICES_ROOT}" && \
-    cargo +nightly build \
+    RUSTUP_TOOLCHAIN=nightly cargo build \
         --locked \
         --release \
         -p core \
@@ -118,7 +118,7 @@ need_file "${SERVICE_BIN}"
 
 echo "[build] logger.service"
 (cd "${SERVICES_ROOT}" && \
-    cargo +nightly build \
+    RUSTUP_TOOLCHAIN=nightly cargo build \
         --locked \
         --release \
         -p logger \
@@ -137,15 +137,17 @@ mkdir -p "${ESP_DIR}/EFI/BOOT" "${INITFS_STAGE}" "${ROOTFS_STAGE}"
 cp -a "${ROOTFS_SOURCE_DIR}/." "${ROOTFS_STAGE}/"
 cp -a "${ROOTFS_SOURCE_DIR}/." "${INITFS_STAGE}/"
 
+mkdir -p "${ROOTFS_STAGE}/system/services"
+
 install -m 0755 "${SERVICE_BIN}" "${INITFS_STAGE}/core.service"
-install -m 0755 "${LOGGER_BIN}" "${INITFS_STAGE}/logger.service"
+install -m 0755 "${LOGGER_BIN}" "${ROOTFS_STAGE}/system/services/logger.service"
 
 SIGNATURE_DB_STAGE="${TARGET_DIR}/signature.db"
 echo "[build] signature db"
 perl "${KERNEL_ROOT}/scripts/signature_db.pl" \
     --output "${SIGNATURE_DB_STAGE}" \
     --entry "core.service=${SERVICE_BIN}" \
-    --entry "logger.service=${LOGGER_BIN}"
+    --entry "/system/services/logger.service=${LOGGER_BIN}"
 install -m 0644 "${SIGNATURE_DB_STAGE}" "${ROOTFS_STAGE}/signature.db"
 
 echo "[build] rootfs"

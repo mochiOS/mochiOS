@@ -1,55 +1,11 @@
-# サービス構成
+# サービス
 
-mochiOS は、`core.service` を起点にユーザー空間サービスを起動する構成を取ります。
+mochiOSのサービスは以下のように構成されています。（.service略）
 
-```mermaid
-flowchart TD
-    kernel[Kernel / mnu-kernel] --> core[core.service]
-    core --> logger[logger.service]
-    core --> fs[fs.service]
-    core --> device[device.service]
-    core --> time[time.service]
-    core --> signature[signature.service]
-    core --> plugkit[plugkit.service]
-    core --> policy[policy.service]
-    logger --> fs
-    device --> fs
-    time --> logger
-    signature --> logger
-    plugkit --> logger
-    policy --> logger
-    fs --> session[session.service]
-    fs --> package[package.service]
-    fs --> update[update.service]
-    session --> input[input.service]
-    session --> display[display.service]
-    session --> net[net.service]
-    input --> compositor[compositor.service]
-    display --> compositor
-    compositor --> session
-    net --> resolver[resolver.service]
-    net --> socket[socket.service]
-    package --> signature
-    update --> signature
-    update --> plugkit
-    metric[metric.service] --> logger
-    metric --> core
-```
-
-## まず実装する範囲
-
-- `core.service`
-    - 常駐
-    - `logger.service` を起動する
-    - 将来のサービス監督の中心
-- `logger.service`
-    - 最小の常駐 logger
-    - 後で IPC ベースのログ集約に拡張する
-
-## 依存の考え方
-
-- `core.service` は最上位のユーザー空間プロセス
-- `logger.service` は `core.service` から起動される最初の従属サービス
-- `signature.service` と `plugkit.service` は信頼・拡張系の中核
-- `fs.service` と `device.service` は OS の実用機能の土台
+- core: mnuが直接起動するサービス。他のサービスの起動、サービスの管理を行う。
+- logger: ログを管理するサービス。ログの収集、保存、表示を行う。
+- signature: 署名を管理するサービス。署名DBへのアクセス、署名の検証、署名の更新を行う。
+- driver: PlugKitを用いたドライバ管理サービス。ドライバのロード、アンロード、管理を行う。
+- user: ユーザ管理サービス。ユーザの作成、削除、権限管理を行う。mnuにはユーザの機能は含まれていない。
+- app: アプリの管理サービス。アプリのインストール、アンインストール、アップデート、アプリの検証を行う。
 

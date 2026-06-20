@@ -41,6 +41,12 @@
     />
 
     <project
+            name="mochiOS/cexts"
+            path="cexts"
+            revision="main"
+    />
+
+    <project
             name="newlib-cygwin"
             path="libraries/newlib"
             remote="sourceware"

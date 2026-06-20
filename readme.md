@@ -25,10 +25,17 @@ mochiOSはハイブリッドアーキテクチャを採用した、新しいOS�
 - `openssl`
 - nightly toolchain
 
-実行はルートで `cargo run` を使います。デフォルトで QEMU の画面ウィンドウを開きます。serial には
-`core.service: resident core process online` が出ます。
+submoduleの初期化を行います。
 
-詳細は [起動手順](docs/running.md) を見てください。
+```bash
+git submodule update --init --recursive
+```
+
+newlibをconfigureする必要があります。`newlib`のルートディレクトリで以下のコマンドを実行してください。
+
+```bash
+./configure
+```
 
 ## How to contribute?
 
@@ -37,8 +44,3 @@ mochiOSはハイブリッドアーキテクチャを採用した、新しいOS�
 ## Document
 まともなドキュメントはまだないです。
 [DeepWiki](https://deepwiki.com/tas0dev/mochiOS)を読んでください。
-
-<div align="center">
-<img src="src/resources/Resources/mochimochi-kun.png" width="50" alt="mochimochi-kun">
-<small>< みんなの貢献待ってるよ！</small>
-</div>

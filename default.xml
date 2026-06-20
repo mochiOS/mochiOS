@@ -1,0 +1,29 @@
+<project
+        name="mochiOS/boot.git"
+        path="boot"
+        revision="main"
+/>
+
+<project
+name="mochiOS/mnu.git"
+path="core"
+revision="master"
+/>
+
+<project
+name="mochiOS/syscalls.git"
+path="user"
+revision="main"
+/>
+
+<project
+name="mochiOS/services.git"
+path="services"
+revision="main"
+/>
+
+<project
+name="newlib-cygwin.git"
+path="libraries/newlib"
+remote="sourceware"
+/>

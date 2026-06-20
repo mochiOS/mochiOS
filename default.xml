@@ -17,31 +17,31 @@
     />
 
     <project
-            name="mochiOS/boot.git"
+            name="mochiOS/boot"
             path="boot"
             revision="main"
     />
 
     <project
-            name="mochiOS/mnu.git"
+            name="mochiOS/mnu"
             path="core"
             revision="master"
     />
 
     <project
-            name="mochiOS/syscalls.git"
+            name="mochiOS/syscalls"
             path="user"
             revision="main"
     />
 
     <project
-            name="mochiOS/services.git"
+            name="mochiOS/services"
             path="services"
             revision="main"
     />
 
     <project
-            name="newlib-cygwin.git"
+            name="newlib-cygwin"
             path="libraries/newlib"
             remote="sourceware"
             revision="master"

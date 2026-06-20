@@ -10,3 +10,6 @@
 [submodule "src/core"]
 	path = src/core
 	url = https://github.com/mochiOS/mnu.git
+[submodule "src/boot"]
+    path = src/boot
+    url = https://github.com/mochiOS/boot.git

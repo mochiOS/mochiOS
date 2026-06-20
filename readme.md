@@ -37,6 +37,42 @@ mochiOSという名前は、日本のおもちから付けられています。
 やわらかく、親しみやすく、いろいろな形になれるOSを目指しています。
 ただし、食べることはできません。（というかどうやっても食べられません）
 
+### Building and Running
+
+mochiOSは複数のリポジトリに分かれて開発されており、それらの管理に[repo](https://gerrit.googlesource.com/git-repo)
+を使用しています。
+まずはrepoをインストールしてください。
+
+1. このリポジトリをクローンします。
+
+```bash
+git clone https://github.com/mochiOS/mochiOS.git
+```
+
+2. repoを初期化します。
+
+```bash
+cd mochiOS
+repo init \
+    -u https://github.com/mochiOS/mochiOS.git \
+    -b master
+    
+repo sync
+```
+
+3. newlibをconfigureします。
+
+```bash
+cd libraries/newlib
+./configure
+```
+
+4. mochiOSをビルドします。（実行を兼ねます）
+
+```bash
+./scripts/runner.sh build
+```
+
 ### Status
 
 mochiOSは現在開発中です。

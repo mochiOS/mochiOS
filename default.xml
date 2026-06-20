@@ -1,29 +1,49 @@
-<project
-        name="mochiOS/boot.git"
-        path="boot"
-        revision="main"
-/>
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+    <remote
+            name="github"
+            fetch="https://github.com/"
+    />
 
-<project
-name="mochiOS/mnu.git"
-path="core"
-revision="master"
-/>
+    <remote
+            name="sourceware"
+            fetch="https://sourceware.org/git/"
+    />
 
-<project
-name="mochiOS/syscalls.git"
-path="user"
-revision="main"
-/>
+    <default
+            remote="github"
+            sync-c="true"
+            sync-j="4"
+    />
 
-<project
-name="mochiOS/services.git"
-path="services"
-revision="main"
-/>
+    <project
+            name="mochiOS/boot.git"
+            path="boot"
+            revision="main"
+    />
 
-<project
-name="newlib-cygwin.git"
-path="libraries/newlib"
-remote="sourceware"
-/>
+    <project
+            name="mochiOS/mnu.git"
+            path="core"
+            revision="master"
+    />
+
+    <project
+            name="mochiOS/syscalls.git"
+            path="user"
+            revision="main"
+    />
+
+    <project
+            name="mochiOS/services.git"
+            path="services"
+            revision="main"
+    />
+
+    <project
+            name="newlib-cygwin.git"
+            path="libraries/newlib"
+            remote="sourceware"
+            revision="master"
+    />
+</manifest>

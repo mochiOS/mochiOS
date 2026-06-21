@@ -1,11 +1,14 @@
 SCRIPTS	= $(shell pwd)/scripts
 OUT		= $(shell pwd)/out
 
-.PHONY: all clean
-all: run
+.PHONY: all build run clean
+all: build
+
+build:
+	@$(SCRIPTS)/build.sh
 
 run:
-	@$(SCRIPTS)/runner.sh
+	@$(SCRIPTS)/run.sh
 
 clean:
 	@rm -rf $(OUT)/*

@@ -1,0 +1,122 @@
+name: Build mochiOS
+
+on:
+  push:
+    branches:
+      - master
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mochios-build-number
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build mochiOS
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout manifest repository
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update
+
+          sudo apt-get install --yes \
+            autoconf \
+            automake \
+            binutils \
+            bison \
+            build-essential \
+            dosfstools \
+            e2fsprogs \
+            flex \
+            gawk \
+            libgmp-dev \
+            libmpc-dev \
+            libmpfr-dev \
+            libtool \
+            mtools \
+            openssl \
+            perl \
+            repo \
+            texinfo \
+            xz-utils
+
+      - name: Install Rust toolchain
+        run: |
+          set -euo pipefail
+
+          rustup toolchain install nightly-2026-05-14 \
+            --profile minimal \
+            --component rust-src
+
+      - name: Initialize repo workspace
+        run: |
+          set -euo pipefail
+
+          git config --global protocol.file.allow always
+
+          git branch --force ci-manifest HEAD
+
+          repo init \
+            --manifest-url="file://${GITHUB_WORKSPACE}" \
+            --manifest-branch=ci-manifest \
+            --manifest-name=default.xml \
+            --depth=1
+
+          repo sync \
+            --current-branch \
+            --no-clone-bundle \
+            --no-tags \
+            --jobs="$(nproc)"
+
+      - name: Check cross toolchain
+        run: |
+          set -euo pipefail
+
+          command -v x86_64-elf-gcc
+          command -v x86_64-elf-ar
+          command -v x86_64-elf-ranlib
+
+          x86_64-elf-gcc --version
+
+      - name: Build mochiOS
+        id: build
+        run: |
+          set -euo pipefail
+          bash scripts/ci-build.sh
+
+      - name: Commit build number
+        env:
+          BUILD_NUMBER: ${{ steps.build.outputs.build }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "mochiOS Build Bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add version.toml
+
+          git commit \
+            -m "build: advance to build ${BUILD_NUMBER} [skip ci]"
+
+          git push origin HEAD:master
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mochios-${{ steps.build.outputs.release }}-${{ steps.build.outputs.codename }}-build-${{ steps.build.outputs.build }}
+          path: out/artifacts/
+          if-no-files-found: error
+          retention-days: 14

@@ -11,6 +11,8 @@ OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
 OVMF_VARS="${RUN_DIR}/OVMF_VARS_4M.fd"
 
+$ROOT_DIR/scripts/build.sh
+
 die() {
     echo "fatal: $*" >&2
     exit 1

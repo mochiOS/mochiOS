@@ -1,0 +1,13 @@
+# This file contains the version information for the mochiOS release.
+#
+# release: The version of the os release.
+# date: The release date of the os release.
+# codename: The codename of the os release.
+# channel: The release channel of the os release. (stable, beta, developer-preview)
+# build: The build number of the os release. (do not edit manually)
+
+release = "26.0.0"
+build_date = "YYYY-MM-DD HH:MM:SS"
+codename = "Kinako"
+channel = "developer-preview"
+build = 0

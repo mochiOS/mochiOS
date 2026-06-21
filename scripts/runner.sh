@@ -58,9 +58,9 @@ need_file "${CORE_ROOT}/examples/plugkit/test/about.toml"
 need_file "${CORE_ROOT}/scripts/generate_testdata.pl"
 need_file "${CORE_ROOT}/scripts/rootfs.sh"
 need_file "${CORE_ROOT}/scripts/signature_db.pl"
-need_file "${CORE_ROOT}/scripts/cexts.sh"
 need_file "${SCRIPT_DIR}/build-hello.sh"
 need_file "${SCRIPT_DIR}/build-bootloader.sh"
+need_file "${SCRIPT_DIR}/stage-cext-bundles.sh"
 need_file "${OVMF_CODE}"
 need_file "${OVMF_VARS_TEMPLATE}"
 
@@ -68,9 +68,6 @@ mkdir -p "${RUN_DIR}" "${ESP_DIR}/EFI/BOOT" "${INITFS_STAGE}" "${ROOTFS_STAGE}"
 
 echo "[step] build user/newlib runtime"
 "${SCRIPT_DIR}/build-hello.sh"
-
-# shellcheck disable=SC1091
-source "${CORE_ROOT}/scripts/cexts.sh"
 
 echo "[step] generate test data"
 (
@@ -137,11 +134,12 @@ install -m 0644 "${BOOT_BIN}" "${ESP_DIR}/EFI/BOOT/BOOTX64.EFI"
 install -m 0755 "${USER_BIN}" "${INITFS_STAGE}/core.service"
 install -m 0755 "${HELLO_ELF}" "${INITFS_STAGE}/captest.bin"
 install -m 0755 "${HELLO_ELF}" "${INITFS_STAGE}/unsigned.bin"
-install -m 0755 "${HELLO_ELF}" "${INITFS_STAGE}/bin/hello"
 install -m 0644 "${CORE_ROOT}/examples/plugkit/test/about.toml" "${INITFS_STAGE}/plugkit/test/about.toml"
 install -m 0755 "${PLUGKIT_TEST_BIN}" "${INITFS_STAGE}/plugkit/test/entry.elf"
+install -m 0755 "${HELLO_ELF}" "${INITFS_STAGE}/bin/hello"
 
-ROOT_DIR="${CORE_ROOT}" INITFS_STAGE="${INITFS_STAGE}" stage_module_cexts
+echo "[step] stage cext bundles"
+mapfile -t CEXT_SIGNATURE_ENTRIES < <(INITFS_STAGE="${INITFS_STAGE}" bash "${SCRIPT_DIR}/stage-cext-bundles.sh")
 
 echo "[step] build signature db"
 SIGNATURE_DB_ARGS=(
@@ -151,10 +149,9 @@ SIGNATURE_DB_ARGS=(
     --entry "/captest.bin=${HELLO_ELF}"
     --entry "/bin/hello=${HELLO_ELF}"
 )
-while IFS= read -r -d '' module_path; do
-    module_name="$(basename "${module_path}")"
-    SIGNATURE_DB_ARGS+=(--entry "/Modules/${module_name}=${module_path}")
-done < <(find "${INITFS_STAGE}/Modules" -maxdepth 1 -type f -name '*.cext' -print0 2>/dev/null || true)
+for entry in "${CEXT_SIGNATURE_ENTRIES[@]}"; do
+    SIGNATURE_DB_ARGS+=(--entry "${entry}")
+done
 perl "${CORE_ROOT}/scripts/signature_db.pl" "${SIGNATURE_DB_ARGS[@]}"
 
 echo "[step] build rootfs"
@@ -166,6 +163,8 @@ ROOTFS_CLEAN_INITFS=0 \
 SIGNATURE_DB_SRC="${SIGNATURE_DB_STAGE}" \
 bash "${CORE_ROOT}/scripts/rootfs.sh"
 install -D -m 0755 "${HELLO_ELF}" "${ROOTFS_STAGE}/bin/hello"
+install -m 0644 "${SIGNATURE_DB_STAGE}" "${ROOTFS_STAGE}/signature.db"
+mke2fs -q -t ext2 -b 1024 -d "${ROOTFS_STAGE}" -F "${RUN_DIR}/rootfs.img"
 
 echo "[step] build initfs"
 truncate -s 16M "${RUN_DIR}/initfs.img"

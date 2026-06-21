@@ -47,6 +47,12 @@
     />
 
     <project
+            name="mochiOS/drivers"
+            path="drivers"
+            revision="main"
+    />
+
+    <project
             name="newlib-cygwin"
             path="libraries/newlib"
             remote="sourceware"

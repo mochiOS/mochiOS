@@ -116,12 +116,14 @@ echo "[step] build bootloader"
 HELLO_ELF="${ROOT_DIR}/out/newlib-port/hello/hello.elf"
 KERNEL_BIN="${CORE_ROOT}/target/${KERNEL_TARGET}/release/kernel"
 USER_BIN="${USER_BUILD_DIR}/${USER_TARGET}/release/user"
+CAPTEST_BIN="${USER_BUILD_DIR}/${USER_TARGET}/release/captest"
 PLUGKIT_TEST_BIN="${PLUGKIT_BUILD_DIR}/${USER_TARGET}/release/entry"
 BOOT_BIN="$(find "${CORE_ROOT}/target/uefi/boot-build-temp/x86_64-unknown-uefi/release" -maxdepth 1 -type f \( -name 'boot' -o -name 'boot.efi' \) | head -n 1)"
 
 need_file "${HELLO_ELF}"
 need_file "${KERNEL_BIN}"
 need_file "${USER_BIN}"
+need_file "${CAPTEST_BIN}"
 need_file "${PLUGKIT_TEST_BIN}"
 need_file "${BOOT_BIN}"
 
@@ -132,8 +134,8 @@ mkdir -p "${ESP_DIR}/EFI/BOOT" "${INITFS_STAGE}/bin" "${INITFS_STAGE}/plugkit/te
 install -m 0644 "${KERNEL_BIN}" "${ESP_DIR}/kernel"
 install -m 0644 "${BOOT_BIN}" "${ESP_DIR}/EFI/BOOT/BOOTX64.EFI"
 install -m 0755 "${USER_BIN}" "${INITFS_STAGE}/core.service"
-install -m 0755 "${HELLO_ELF}" "${INITFS_STAGE}/captest.bin"
-install -m 0755 "${HELLO_ELF}" "${INITFS_STAGE}/unsigned.bin"
+install -m 0755 "${CAPTEST_BIN}" "${INITFS_STAGE}/captest.bin"
+install -m 0755 "${CAPTEST_BIN}" "${INITFS_STAGE}/unsigned.bin"
 install -m 0644 "${CORE_ROOT}/examples/plugkit/test/about.toml" "${INITFS_STAGE}/plugkit/test/about.toml"
 install -m 0755 "${PLUGKIT_TEST_BIN}" "${INITFS_STAGE}/plugkit/test/entry.elf"
 install -m 0755 "${HELLO_ELF}" "${INITFS_STAGE}/bin/hello"
@@ -146,7 +148,7 @@ SIGNATURE_DB_ARGS=(
     --output "${SIGNATURE_DB_STAGE}"
     --entry "core.service=${USER_BIN}"
     --entry "/plugkit/test/entry.elf=${PLUGKIT_TEST_BIN}"
-    --entry "/captest.bin=${HELLO_ELF}"
+    --entry "/captest.bin=${CAPTEST_BIN}"
     --entry "/bin/hello=${HELLO_ELF}"
 )
 for entry in "${CEXT_SIGNATURE_ENTRIES[@]}"; do
@@ -220,12 +222,16 @@ trap cleanup EXIT
 HELLO_FOUND=0
 EXIT_FOUND=0
 PASS_FOUND=0
+ROOTFS_EXEC_FOUND=0
 NEXT_LINE=1
 
 for _ in $(seq 1 600); do
     while IFS= read -r line; do
         if [[ "${line}" == *"hello from mochiOS, argc="* ]]; then
             HELLO_FOUND=1
+        fi
+        if [[ "${line}" == *"execve: loaded '/bin/hello' from cext"* || "${line}" == *"exec: loaded '/bin/hello' from cext"* ]]; then
+            ROOTFS_EXEC_FOUND=1
         fi
         if [[ "${line}" == *"Process exiting with code: 0"* ]]; then
             EXIT_FOUND=1
@@ -243,7 +249,7 @@ for _ in $(seq 1 600); do
 
     NEXT_LINE="$(($(wc -l < "${SERIAL_LOG}") + 1))"
 
-    if [[ "${HELLO_FOUND}" -eq 1 && "${EXIT_FOUND}" -eq 1 && "${PASS_FOUND}" -eq 1 ]]; then
+    if [[ "${HELLO_FOUND}" -eq 1 && "${EXIT_FOUND}" -eq 1 && "${PASS_FOUND}" -eq 1 && "${ROOTFS_EXEC_FOUND}" -eq 1 ]]; then
         break
     fi
 
@@ -256,6 +262,9 @@ done
 
 if [[ "${HELLO_FOUND}" -ne 1 ]]; then
     die "hello output was not observed; see ${SERIAL_LOG}"
+fi
+if [[ "${ROOTFS_EXEC_FOUND}" -ne 1 ]]; then
+    die "/bin/hello was not loaded from cext/rootfs; see ${SERIAL_LOG}"
 fi
 if [[ "${EXIT_FOUND}" -ne 1 ]]; then
     die "process exit(0) was not observed; see ${SERIAL_LOG}"

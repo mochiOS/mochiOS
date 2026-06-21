@@ -51,7 +51,8 @@ jobs:
             perl \
             repo \
             texinfo \
-            xz-utils
+            xz-utils \
+            curl \
 
       - name: Install Rust toolchain
         run: |
@@ -80,6 +81,53 @@ jobs:
             --no-clone-bundle \
             --no-tags \
             --jobs="$(nproc)"
+
+      - name: Install Homebrew
+        run: |
+          set -euo pipefail
+
+          if ! command -v brew >/dev/null 2>&1; then
+            NONINTERACTIVE=1 /bin/bash -c \
+              "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+
+          if command -v brew >/dev/null 2>&1; then
+            BREW_BIN="$(command -v brew)"
+          else
+            BREW_BIN="/home/linuxbrew/.linuxbrew/bin/brew"
+          fi
+
+          test -x "${BREW_BIN}"
+
+          eval "$("${BREW_BIN}" shellenv)"
+
+          {
+            echo "HOMEBREW_PREFIX=${HOMEBREW_PREFIX}"
+            echo "HOMEBREW_CELLAR=${HOMEBREW_CELLAR}"
+            echo "HOMEBREW_REPOSITORY=${HOMEBREW_REPOSITORY}"
+          } >> "${GITHUB_ENV}"
+
+          echo "${HOMEBREW_PREFIX}/bin" >> "${GITHUB_PATH}"
+          echo "${HOMEBREW_PREFIX}/sbin" >> "${GITHUB_PATH}"
+
+      - name: Install x86_64 ELF toolchain
+        run: |
+          set -euo pipefail
+
+          brew install x86_64-elf-gcc
+
+      - name: Check x86_64 ELF toolchain
+        run: |
+          set -euo pipefail
+
+          command -v x86_64-elf-gcc
+          command -v x86_64-elf-ar
+          command -v x86_64-elf-ranlib
+          command -v x86_64-elf-ld
+          command -v x86_64-elf-nm
+          command -v x86_64-elf-readelf
+
+          x86_64-elf-gcc --version
 
       - name: Check cross toolchain
         run: |

@@ -35,4 +35,4 @@ install -m 0644 "${SIGNATURE_DB_SRC}" "${ROOTFS_STAGE}/signature.db"
 
 rm -f "${ROOTFS_IMG}"
 truncate -s 16M "${ROOTFS_IMG}"
-mke2fs -q -t ext2 -b 1024 -d "${ROOTFS_STAGE}" -F "${ROOTFS_IMG}"
+mke2fs -q -t ext2 -b 4096 -d "${ROOTFS_STAGE}" -F "${ROOTFS_IMG}"

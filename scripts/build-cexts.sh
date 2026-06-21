@@ -25,24 +25,29 @@ need_file() {
 
 build_module() {
     local package_name="$1"
-    local archive_name="$2"
+    local crate_stem="$2"
     local bundle_name="$3"
     shift 3
     local deps=("$@")
-    local archive_path elf_out entry_out bundle_dir manifest_src
+    local obj_pattern elf_out entry_out bundle_dir manifest_src newest_obj
     local pack_args
 
     echo "[build] cext ${bundle_name}"
-    cargo +"${NIGHTLY_TOOLCHAIN}" build \
+    cargo +"${NIGHTLY_TOOLCHAIN}" rustc \
         -Z build-std=core,compiler_builtins \
         --release \
         --target "${TARGET_TRIPLE}" \
         --target-dir "${TARGET_DIR}" \
         --manifest-path "${CEXTS_ROOT}/Cargo.toml" \
-        -p "${package_name}"
+        -p "${package_name}" \
+        -- \
+        --emit=obj \
+        -C relocation-model=pic \
+        -C panic=abort
 
-    archive_path="${TARGET_DIR}/${TARGET_TRIPLE}/release/${archive_name}"
-    [[ -f "${archive_path}" ]] || die "archive for ${package_name} was not produced"
+    obj_pattern="${crate_stem}-*.o"
+    newest_obj="$(find "${TARGET_DIR}/${TARGET_TRIPLE}/release/deps" -maxdepth 1 -type f -name "${obj_pattern}" | sort | tail -n 1)"
+    [[ -n "${newest_obj}" ]] || die "object file for ${package_name} was not produced"
 
     bundle_dir="${BUNDLES_DIR}/${bundle_name}.cext"
     elf_out="${bundle_dir}/${bundle_name}.elf"
@@ -50,9 +55,7 @@ build_module() {
     manifest_src="${CEXTS_ROOT}/${bundle_name}.cext/manifest.toml"
     mkdir -p "${bundle_dir}"
 
-    ld -shared -nostdlib -z noexecstack \
-        --whole-archive "${archive_path}" --no-whole-archive \
-        -o "${elf_out}"
+    ld -shared -nostdlib -z noexecstack -Bsymbolic -o "${elf_out}" "${newest_obj}"
     readelf -h "${elf_out}" >/dev/null
     if ! readelf -rW "${elf_out}" | awk '/R_X86_64_/ && $3 != "R_X86_64_RELATIVE" { bad = 1 } END { exit bad }'; then
         die "unsupported relocation remained in ${elf_out}"
@@ -88,7 +91,7 @@ need_file "${CEXTS_ROOT}/ext2.cext/manifest.toml"
 rm -rf "${BUNDLES_DIR}"
 mkdir -p "${BUNDLES_DIR}"
 
-build_module "mochi-disk-cext" "libmochi_disk_cext.a" "disk"
-build_module "mochi-ext2-cext" "libmochi_ext2_cext.a" "ext2" "disk"
+build_module "mochi-disk-cext" "mochi_disk_cext" "disk"
+build_module "mochi-ext2-cext" "mochi_ext2_cext" "ext2" "disk"
 
 echo "[done] ${BUNDLES_DIR}"

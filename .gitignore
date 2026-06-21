@@ -1,5 +1,11 @@
-/target/**
 /.idea/**
-/.repo/**
-/out/**
-*.lock
+.repo/
+
+boot/
+core/
+cexts/
+libraries/
+services/
+user/
+
+out/

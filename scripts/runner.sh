@@ -11,8 +11,6 @@ OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
 OVMF_VARS="${RUN_DIR}/OVMF_VARS_4M.fd"
 
-$ROOT_DIR/scripts/build.sh
-
 die() {
     echo "fatal: $*" >&2
     exit 1
@@ -79,6 +77,7 @@ ROOTFS_EXEC_FOUND=0
 HELLO_FOUND=0
 WAITPID_FOUND=0
 EXIT_FOUND=0
+PERSIST_FOUND=0
 NEXT_LINE=1
 
 for _ in $(seq 1 900); do
@@ -89,6 +88,7 @@ for _ in $(seq 1 900); do
         if [[ "${line}" == *"execve: loaded '/bin/hello' from cext"* || "${line}" == *"exec: loaded '/bin/hello' from cext"* ]]; then
             ROOTFS_EXEC_FOUND=1
         fi
+        [[ "${line}" == *"core.service: persist verified"* ]] && PERSIST_FOUND=1
         [[ "${line}" == *"hello from mochiOS, argc=2"* ]] && HELLO_FOUND=1
         [[ "${line}" == *"waitpid status=0 exited=1 code=0"* ]] && WAITPID_FOUND=1
         [[ "${line}" == *"Process exiting with code: 0"* ]] && EXIT_FOUND=1
@@ -99,7 +99,7 @@ for _ in $(seq 1 900); do
 
     NEXT_LINE="$(($(wc -l < "${SERIAL_LOG}") + 1))"
 
-    if [[ "${DISK_FOUND}" -eq 1 && "${EXT2_FOUND}" -eq 1 && "${SERVICE_FOUND}" -eq 1 && "${ROOTFS_EXEC_FOUND}" -eq 1 && "${HELLO_FOUND}" -eq 1 && "${WAITPID_FOUND}" -eq 1 && "${EXIT_FOUND}" -eq 1 ]]; then
+    if [[ "${DISK_FOUND}" -eq 1 && "${EXT2_FOUND}" -eq 1 && "${SERVICE_FOUND}" -eq 1 && "${ROOTFS_EXEC_FOUND}" -eq 1 && "${PERSIST_FOUND}" -eq 1 && "${HELLO_FOUND}" -eq 1 && "${WAITPID_FOUND}" -eq 1 && "${EXIT_FOUND}" -eq 1 ]]; then
         break
     fi
 
@@ -114,6 +114,7 @@ done
 [[ "${EXT2_FOUND}" -eq 1 ]] || die "ext2.cext load was not observed; see ${SERIAL_LOG}"
 [[ "${SERVICE_FOUND}" -eq 1 ]] || die "core.service launch was not observed; see ${SERIAL_LOG}"
 [[ "${ROOTFS_EXEC_FOUND}" -eq 1 ]] || die "/bin/hello was not loaded from ext2 rootfs; see ${SERIAL_LOG}"
+[[ "${PERSIST_FOUND}" -eq 1 ]] || die "rootfs persistence verification was not observed; see ${SERIAL_LOG}"
 [[ "${HELLO_FOUND}" -eq 1 ]] || die "hello output was not observed; see ${SERIAL_LOG}"
 [[ "${WAITPID_FOUND}" -eq 1 ]] || die "waitpid success output was not observed; see ${SERIAL_LOG}"
 [[ "${EXIT_FOUND}" -eq 1 ]] || die "process exit(0) was not observed; see ${SERIAL_LOG}"

@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 VERSION_FILE="${ROOT_DIR}/version.toml"
-BUILD_SCRIPT="${SCRIPT_DIR}/build.sh"
+BUILD_SCRIPT="${SCRIPT_DIR}/../build.sh"
 ARTIFACT_DIR="${ROOT_DIR}/out/artifacts"
 
 die() {

@@ -50,7 +50,9 @@ build_module() {
     manifest_src="${CEXTS_ROOT}/${bundle_name}.cext/manifest.toml"
     mkdir -p "${bundle_dir}"
 
-    ld -shared -nostdlib -z noexecstack -o "${elf_out}" "${archive_path}"
+    ld -shared -nostdlib -z noexecstack \
+        --whole-archive "${archive_path}" --no-whole-archive \
+        -o "${elf_out}"
     readelf -h "${elf_out}" >/dev/null
     if ! readelf -rW "${elf_out}" | awk '/R_X86_64_/ && $3 != "R_X86_64_RELATIVE" { bad = 1 } END { exit bad }'; then
         die "unsupported relocation remained in ${elf_out}"

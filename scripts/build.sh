@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CORE_ROOT="${ROOT_DIR}/core"
 
 KERNEL_TARGET="x86_64-unknown-none"
+NIGHTLY_TOOLCHAIN="${NIGHTLY_TOOLCHAIN:-nightly-2026-05-14}"
 BUILD_ROOT="${ROOT_DIR}/out/image-build"
 ARTIFACT_DIR="${ROOT_DIR}/out/artifacts"
 ESP_DIR="${BUILD_ROOT}/esp"
@@ -69,7 +70,7 @@ echo "[step] build cext bundles"
 echo "[step] build kernel"
 (
     cd "${CORE_ROOT}"
-    cargo build \
+    cargo +"${NIGHTLY_TOOLCHAIN}" build \
         --locked \
         --release \
         --target "${KERNEL_TARGET}" \

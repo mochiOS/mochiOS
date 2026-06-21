@@ -143,7 +143,7 @@ jobs:
         id: build
         run: |
           set -euo pipefail
-          bash scripts/ci-build.sh
+          bash scripts/ci/build.sh
 
       - name: Commit build number
         env:

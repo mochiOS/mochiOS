@@ -18,7 +18,7 @@ ROOTFS_STAGE="${BUILD_ROOT}/rootfs-root"
 ROOTFS_IMG="${BUILD_ROOT}/rootfs.img"
 SIGNATURE_DB_STAGE="${BUILD_ROOT}/signature.db"
 CEXT_BUNDLES_DIR="${ROOT_DIR}/out/cexts/bundles"
-DRIVERS_BUNDLE_ROOT="/drivers/usb/qemu-usb.driver"
+DRIVERS_BUNDLE_ROOT="/bin/drivers/usb/qemu-usb.driver"
 
 die() {
     echo "fatal: $*" >&2
@@ -134,7 +134,7 @@ echo "[step] build signature database"
 SIGNATURE_DB_ARGS=(
     --output "${SIGNATURE_DB_STAGE}"
     --entry "core.service=${SERVICE_BIN}"
-    --entry "/drivers.service=${DRIVERS_SERVICE_BIN}"
+    --entry "/system/services/drivers.service=${DRIVERS_SERVICE_BIN}"
     --entry "${DRIVERS_BUNDLE_ROOT}/entry.elf=${USB_DRIVER_BIN}"
     --entry "/bin/hello=${HELLO_ELF}"
 )

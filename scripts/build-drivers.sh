@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SERVICES_ROOT="${ROOT_DIR}/services"
+DRIVERS_ROOT="${ROOT_DIR}/drivers"
 OUT_ROOT="${ROOT_DIR}/out/services-build"
 TARGET_DIR="${OUT_ROOT}/target"
 TARGET_JSON="${ROOT_DIR}/services/core/x86_64-unknown-mochios.json"
@@ -12,6 +13,7 @@ CAPABILITY_STAGE="${OUT_ROOT}/stage/capability"
 USB_STAGE="${OUT_ROOT}/stage/usb-driver"
 NIGHTLY_TOOLCHAIN="${NIGHTLY_TOOLCHAIN:-nightly-2026-05-14}"
 USER_ROOT="${ROOT_DIR}/user"
+USB_DRIVER_ROOT="${DRIVERS_ROOT}/usb-driver"
 PLUGKIT_ROOT="${ROOT_DIR}/core/crates/PlugKit/plugkit"
 
 die() {
@@ -31,14 +33,14 @@ need_cmd cargo
 need_file "${SERVICES_ROOT}/Cargo.toml"
 need_file "${SERVICES_ROOT}/capability/Cargo.toml"
 need_file "${SERVICES_ROOT}/drivers/Cargo.toml"
-need_file "${SERVICES_ROOT}/usb-driver/Cargo.toml"
+need_file "${USB_DRIVER_ROOT}/Cargo.toml"
 need_file "${TARGET_JSON}"
 
 rm -rf "${OUT_ROOT}/stage"
 mkdir -p "${CAPABILITY_STAGE}" "${DRIVERS_STAGE}" "${USB_STAGE}"
 cp -R "${SERVICES_ROOT}/capability/." "${CAPABILITY_STAGE}/"
 cp -R "${SERVICES_ROOT}/drivers/." "${DRIVERS_STAGE}/"
-cp -R "${SERVICES_ROOT}/usb-driver/." "${USB_STAGE}/"
+cp -R "${USB_DRIVER_ROOT}/." "${USB_STAGE}/"
 rm -f "${CAPABILITY_STAGE}/Cargo.lock" "${DRIVERS_STAGE}/Cargo.lock" "${USB_STAGE}/Cargo.lock"
 perl -0pi -e "s#path = \"\\.\\./\\.\\./user/crates/platform\"#path = \"${USER_ROOT}/crates/platform\"#g; s#path = \"\\.\\./\\.\\./user/crates/runtime\"#path = \"${USER_ROOT}/crates/runtime\"#g; s#path = \"\\.\\./\\.\\./user/crates/syscall\"#path = \"${USER_ROOT}/crates/syscall\"#g" \
     "${CAPABILITY_STAGE}/Cargo.toml" "${DRIVERS_STAGE}/Cargo.toml" "${USB_STAGE}/Cargo.toml"

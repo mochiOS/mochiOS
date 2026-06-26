@@ -98,7 +98,7 @@ SERVICE_BIN="${ROOT_DIR}/out/services-core/target/x86_64-unknown-mochios/release
 DRIVERS_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/drivers"
 CAPABILITY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/capability"
 USB_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/entry"
-USB_DRIVER_MANIFEST_SRC="${ROOT_DIR}/services/usb-driver/about.toml"
+USB_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/usb-driver/about.toml"
 BOOT_RELEASE_DIR="${ROOT_DIR}/out/bootloader/target/x86_64-unknown-uefi/release"
 
 if [[ -f "${BOOT_RELEASE_DIR}/boot.efi" ]]; then

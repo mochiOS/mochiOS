@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-CEXTS_DIR="${CEXTS_DIR:-${ROOT_DIR}/cexts}"
+CEXTS_DIR="${CEXTS_DIR:-${ROOT_DIR}/out/cexts/bundles}"
 INITFS_STAGE="${INITFS_STAGE:?INITFS_STAGE is required}"
 
 die() {
@@ -16,6 +16,7 @@ need_file() {
 }
 
 mkdir -p "${INITFS_STAGE}"
+[[ -d "${CEXTS_DIR}" ]] || die "bundle directory not found: ${CEXTS_DIR}"
 
 while IFS= read -r -d '' bundle_dir; do
     bundle_name="$(basename "${bundle_dir}")"

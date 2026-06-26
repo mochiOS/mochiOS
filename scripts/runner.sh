@@ -52,8 +52,8 @@ QEMU_ARGS=(
     -drive "format=raw,file=${ARTIFACT_DIR}/esp.img"
     -drive "id=rootfs,if=none,format=raw,file=${ARTIFACT_DIR}/rootfs.img"
     -device "virtio-blk-pci,disable-modern=on,drive=rootfs"
-    -device "ich9-usb-uhci1"
-    -device "usb-tablet"
+    -device "qemu-xhci,id=xhci"
+    -device "usb-tablet,bus=xhci.0"
 )
 
 if [[ "${DEBUG:-0}" != "0" ]]; then

@@ -8,6 +8,7 @@ OUT_ROOT="${ROOT_DIR}/out/services-build"
 TARGET_DIR="${OUT_ROOT}/target"
 TARGET_JSON="${ROOT_DIR}/services/core/x86_64-unknown-mochios.json"
 DRIVERS_STAGE="${OUT_ROOT}/stage/drivers"
+CAPABILITY_STAGE="${OUT_ROOT}/stage/capability"
 USB_STAGE="${OUT_ROOT}/stage/usb-driver"
 NIGHTLY_TOOLCHAIN="${NIGHTLY_TOOLCHAIN:-nightly-2026-05-14}"
 USER_ROOT="${ROOT_DIR}/user"
@@ -28,19 +29,35 @@ need_file() {
 
 need_cmd cargo
 need_file "${SERVICES_ROOT}/Cargo.toml"
+need_file "${SERVICES_ROOT}/capability/Cargo.toml"
 need_file "${SERVICES_ROOT}/drivers/Cargo.toml"
 need_file "${SERVICES_ROOT}/usb-driver/Cargo.toml"
 need_file "${TARGET_JSON}"
 
 rm -rf "${OUT_ROOT}/stage"
-mkdir -p "${DRIVERS_STAGE}" "${USB_STAGE}"
+mkdir -p "${CAPABILITY_STAGE}" "${DRIVERS_STAGE}" "${USB_STAGE}"
+cp -R "${SERVICES_ROOT}/capability/." "${CAPABILITY_STAGE}/"
 cp -R "${SERVICES_ROOT}/drivers/." "${DRIVERS_STAGE}/"
 cp -R "${SERVICES_ROOT}/usb-driver/." "${USB_STAGE}/"
-rm -f "${DRIVERS_STAGE}/Cargo.lock" "${USB_STAGE}/Cargo.lock"
+rm -f "${CAPABILITY_STAGE}/Cargo.lock" "${DRIVERS_STAGE}/Cargo.lock" "${USB_STAGE}/Cargo.lock"
 perl -0pi -e "s#path = \"\\.\\./\\.\\./user/crates/platform\"#path = \"${USER_ROOT}/crates/platform\"#g; s#path = \"\\.\\./\\.\\./user/crates/runtime\"#path = \"${USER_ROOT}/crates/runtime\"#g; s#path = \"\\.\\./\\.\\./user/crates/syscall\"#path = \"${USER_ROOT}/crates/syscall\"#g" \
-    "${DRIVERS_STAGE}/Cargo.toml" "${USB_STAGE}/Cargo.toml"
+    "${CAPABILITY_STAGE}/Cargo.toml" "${DRIVERS_STAGE}/Cargo.toml" "${USB_STAGE}/Cargo.toml"
 perl -0pi -e "s#plugkit = \\{ git = \"https://github.com/mochiOS/mnu\", package = \"plugkit\" \\}#plugkit = { path = \"${PLUGKIT_ROOT}\" }#g" \
     "${USB_STAGE}/Cargo.toml"
+
+echo "[build] capability.service"
+cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \
+    --offline \
+    --manifest-path "${CAPABILITY_STAGE}/Cargo.toml"
+cargo +"${NIGHTLY_TOOLCHAIN}" build \
+    -Z build-std=core,alloc,compiler_builtins \
+    -Z json-target-spec \
+    --release \
+    --target "${TARGET_JSON}" \
+    --target-dir "${TARGET_DIR}" \
+    --locked \
+    --manifest-path "${CAPABILITY_STAGE}/Cargo.toml" \
+    -p capability
 
 echo "[build] drivers.service"
 cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \

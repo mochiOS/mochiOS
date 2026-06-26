@@ -9,6 +9,7 @@ ROOTFS_IMG="${ROOTFS_IMG:?ROOTFS_IMG is required}"
 HELLO_ELF="${HELLO_ELF:?HELLO_ELF is required}"
 SIGNATURE_DB_SRC="${SIGNATURE_DB_SRC:?SIGNATURE_DB_SRC is required}"
 CORE_SERVICE_BIN="${CORE_SERVICE_BIN:-}"
+CAPABILITY_SERVICE_BIN="${CAPABILITY_SERVICE_BIN:-}"
 DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN:-}"
 USB_DRIVER_MANIFEST_SRC="${USB_DRIVER_MANIFEST_SRC:-}"
 USB_DRIVER_ENTRY_BIN="${USB_DRIVER_ENTRY_BIN:-}"
@@ -38,8 +39,13 @@ mkdir -p "${ROOTFS_STAGE}/bin"
 install -m 0755 "${HELLO_ELF}" "${ROOTFS_STAGE}/bin/hello"
 install -m 0644 "${SIGNATURE_DB_SRC}" "${ROOTFS_STAGE}/signature.db"
 
-if [[ -n "${DRIVERS_SERVICE_BIN}" ]]; then
+if [[ -n "${CAPABILITY_SERVICE_BIN}" || -n "${DRIVERS_SERVICE_BIN}" ]]; then
     mkdir -p "${ROOTFS_STAGE}/system/services"
+fi
+if [[ -n "${CAPABILITY_SERVICE_BIN}" ]]; then
+    install -m 0755 "${CAPABILITY_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/capability.service"
+fi
+if [[ -n "${DRIVERS_SERVICE_BIN}" ]]; then
     install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/drivers.service"
 fi
 if [[ -n "${USB_DRIVER_MANIFEST_SRC}" && -n "${USB_DRIVER_ENTRY_BIN}" ]]; then

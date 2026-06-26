@@ -96,6 +96,7 @@ HELLO_ELF="${ROOT_DIR}/out/newlib-port/hello/hello.elf"
 KERNEL_BIN="${CORE_ROOT}/target/${KERNEL_TARGET}/release/kernel"
 SERVICE_BIN="${ROOT_DIR}/out/services-core/target/x86_64-unknown-mochios/release/core"
 DRIVERS_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/drivers"
+CAPABILITY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/capability"
 USB_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/entry"
 USB_DRIVER_MANIFEST_SRC="${ROOT_DIR}/services/usb-driver/about.toml"
 BOOT_RELEASE_DIR="${ROOT_DIR}/out/bootloader/target/x86_64-unknown-uefi/release"
@@ -112,6 +113,7 @@ need_file "${HELLO_ELF}"
 need_file "${KERNEL_BIN}"
 need_file "${SERVICE_BIN}"
 need_file "${DRIVERS_SERVICE_BIN}"
+need_file "${CAPABILITY_SERVICE_BIN}"
 need_file "${USB_DRIVER_BIN}"
 need_file "${USB_DRIVER_MANIFEST_SRC}"
 need_file "${BOOT_BIN}"
@@ -134,6 +136,7 @@ echo "[step] build signature database"
 SIGNATURE_DB_ARGS=(
     --output "${SIGNATURE_DB_STAGE}"
     --entry "core.service=${SERVICE_BIN}"
+    --entry "/system/services/capability.service=${CAPABILITY_SERVICE_BIN}"
     --entry "/system/services/drivers.service=${DRIVERS_SERVICE_BIN}"
     --entry "${DRIVERS_BUNDLE_ROOT}/entry.elf=${USB_DRIVER_BIN}"
     --entry "/bin/hello=${HELLO_ELF}"
@@ -149,6 +152,7 @@ ROOTFS_IMG="${ROOTFS_IMG}" \
 HELLO_ELF="${HELLO_ELF}" \
 SIGNATURE_DB_SRC="${SIGNATURE_DB_STAGE}" \
 CORE_SERVICE_BIN="${SERVICE_BIN}" \
+CAPABILITY_SERVICE_BIN="${CAPABILITY_SERVICE_BIN}" \
 DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN}" \
 USB_DRIVER_MANIFEST_SRC="${USB_DRIVER_MANIFEST_SRC}" \
 USB_DRIVER_ENTRY_BIN="${USB_DRIVER_BIN}" \
@@ -182,6 +186,7 @@ install -m 0644 "${ROOTFS_IMG}" "${ARTIFACT_DIR}/rootfs.img"
 install -m 0644 "${KERNEL_BIN}" "${ARTIFACT_DIR}/kernel.elf"
 install -m 0644 "${BOOT_BIN}" "${ARTIFACT_DIR}/BOOTX64.EFI"
 install -m 0755 "${SERVICE_BIN}" "${ARTIFACT_DIR}/core.service"
+install -m 0755 "${CAPABILITY_SERVICE_BIN}" "${ARTIFACT_DIR}/capability.service"
 install -m 0644 "${SIGNATURE_DB_STAGE}" "${ARTIFACT_DIR}/signature.db"
 install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ARTIFACT_DIR}/drivers.service"
 install -m 0755 "${USB_DRIVER_BIN}" "${ARTIFACT_DIR}/usb-driver.entry"

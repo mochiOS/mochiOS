@@ -8,7 +8,7 @@ build:
 	@$(SCRIPTS)/build.sh
 
 run:
-	@$(SCRIPTS)/run.sh
+	@$(SCRIPTS)/runner.sh
 
 clean:
 	@rm -rf $(OUT)/*

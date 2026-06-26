@@ -52,6 +52,8 @@ QEMU_ARGS=(
     -drive "format=raw,file=${ARTIFACT_DIR}/esp.img"
     -drive "id=rootfs,if=none,format=raw,file=${ARTIFACT_DIR}/rootfs.img"
     -device "virtio-blk-pci,disable-modern=on,drive=rootfs"
+    -device "ich9-usb-uhci1"
+    -device "usb-tablet"
 )
 
 if [[ "${DEBUG:-0}" != "0" ]]; then
@@ -73,11 +75,11 @@ trap cleanup EXIT
 DISK_FOUND=0
 EXT2_FOUND=0
 SERVICE_FOUND=0
-ROOTFS_EXEC_FOUND=0
-HELLO_FOUND=0
-WAITPID_FOUND=0
-EXIT_FOUND=0
-PERSIST_FOUND=0
+DRIVERS_SERVICE_FOUND=0
+USB_BUNDLE_FOUND=0
+USB_DRIVER_FOUND=0
+USB_CONTROLLER_FOUND=0
+USB_ENUM_DONE_FOUND=0
 NEXT_LINE=1
 
 for _ in $(seq 1 900); do
@@ -85,13 +87,11 @@ for _ in $(seq 1 900); do
         [[ "${line}" == *"cext: loaded bundle disk"* ]] && DISK_FOUND=1
         [[ "${line}" == *"cext: loaded bundle ext2"* ]] && EXT2_FOUND=1
         [[ "${line}" == *"exec: loaded 'core.service' from initfs"* ]] && SERVICE_FOUND=1
-        if [[ "${line}" == *"execve: loaded '/bin/hello' from cext"* || "${line}" == *"exec: loaded '/bin/hello' from cext"* ]]; then
-            ROOTFS_EXEC_FOUND=1
-        fi
-        [[ "${line}" == *"core.service: persist verified"* ]] && PERSIST_FOUND=1
-        [[ "${line}" == *"hello from mochiOS, argc=2"* ]] && HELLO_FOUND=1
-        [[ "${line}" == *"waitpid status=0 exited=1 code=0"* ]] && WAITPID_FOUND=1
-        [[ "${line}" == *"Process exiting with code: 0"* ]] && EXIT_FOUND=1
+        [[ "${line}" == *"core.service: drivers.service spawned pid="* ]] && DRIVERS_SERVICE_FOUND=1
+        [[ "${line}" == *"drivers.service: bundle verified"* ]] && USB_BUNDLE_FOUND=1
+        [[ "${line}" == *"drivers.service: spawned usb driver pid="* ]] && USB_DRIVER_FOUND=1
+        [[ "${line}" == *"usb-driver: PCI USB controller"* ]] && USB_CONTROLLER_FOUND=1
+        [[ "${line}" == *"usb-driver: enumeration complete"* ]] && USB_ENUM_DONE_FOUND=1
         if [[ "${line}" == *"PAGE FAULT"* || "${line}" == *"Faulting user context:"* || "${line}" == *"panic"* ]]; then
             die "fault or panic observed during QEMU run"
         fi
@@ -99,7 +99,7 @@ for _ in $(seq 1 900); do
 
     NEXT_LINE="$(($(wc -l < "${SERIAL_LOG}") + 1))"
 
-    if [[ "${DISK_FOUND}" -eq 1 && "${EXT2_FOUND}" -eq 1 && "${SERVICE_FOUND}" -eq 1 && "${ROOTFS_EXEC_FOUND}" -eq 1 && "${PERSIST_FOUND}" -eq 1 && "${HELLO_FOUND}" -eq 1 && "${WAITPID_FOUND}" -eq 1 && "${EXIT_FOUND}" -eq 1 ]]; then
+    if [[ "${DISK_FOUND}" -eq 1 && "${EXT2_FOUND}" -eq 1 && "${SERVICE_FOUND}" -eq 1 && "${DRIVERS_SERVICE_FOUND}" -eq 1 && "${USB_BUNDLE_FOUND}" -eq 1 && "${USB_DRIVER_FOUND}" -eq 1 && "${USB_CONTROLLER_FOUND}" -eq 1 && "${USB_ENUM_DONE_FOUND}" -eq 1 ]]; then
         break
     fi
 
@@ -113,11 +113,11 @@ done
 [[ "${DISK_FOUND}" -eq 1 ]] || die "disk.cext load was not observed; see ${SERIAL_LOG}"
 [[ "${EXT2_FOUND}" -eq 1 ]] || die "ext2.cext load was not observed; see ${SERIAL_LOG}"
 [[ "${SERVICE_FOUND}" -eq 1 ]] || die "core.service launch was not observed; see ${SERIAL_LOG}"
-[[ "${ROOTFS_EXEC_FOUND}" -eq 1 ]] || die "/bin/hello was not loaded from ext2 rootfs; see ${SERIAL_LOG}"
-[[ "${PERSIST_FOUND}" -eq 1 ]] || die "rootfs persistence verification was not observed; see ${SERIAL_LOG}"
-[[ "${HELLO_FOUND}" -eq 1 ]] || die "hello output was not observed; see ${SERIAL_LOG}"
-[[ "${WAITPID_FOUND}" -eq 1 ]] || die "waitpid success output was not observed; see ${SERIAL_LOG}"
-[[ "${EXIT_FOUND}" -eq 1 ]] || die "process exit(0) was not observed; see ${SERIAL_LOG}"
+[[ "${DRIVERS_SERVICE_FOUND}" -eq 1 ]] || die "drivers.service launch was not observed; see ${SERIAL_LOG}"
+[[ "${USB_BUNDLE_FOUND}" -eq 1 ]] || die "USB driver bundle verification was not observed; see ${SERIAL_LOG}"
+[[ "${USB_DRIVER_FOUND}" -eq 1 ]] || die "USB driver launch was not observed; see ${SERIAL_LOG}"
+[[ "${USB_CONTROLLER_FOUND}" -eq 1 ]] || die "USB controller detection was not observed; see ${SERIAL_LOG}"
+[[ "${USB_ENUM_DONE_FOUND}" -eq 1 ]] || die "USB driver completion was not observed; see ${SERIAL_LOG}"
 
 kill "${QEMU_PID}" 2>/dev/null || true
 wait "${QEMU_PID}" 2>/dev/null || true

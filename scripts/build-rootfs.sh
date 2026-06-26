@@ -8,6 +8,11 @@ ROOTFS_STAGE="${ROOTFS_STAGE:?ROOTFS_STAGE is required}"
 ROOTFS_IMG="${ROOTFS_IMG:?ROOTFS_IMG is required}"
 HELLO_ELF="${HELLO_ELF:?HELLO_ELF is required}"
 SIGNATURE_DB_SRC="${SIGNATURE_DB_SRC:?SIGNATURE_DB_SRC is required}"
+CORE_SERVICE_BIN="${CORE_SERVICE_BIN:-}"
+DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN:-}"
+USB_DRIVER_MANIFEST_SRC="${USB_DRIVER_MANIFEST_SRC:-}"
+USB_DRIVER_ENTRY_BIN="${USB_DRIVER_ENTRY_BIN:-}"
+USB_DRIVER_BUNDLE_ROOT="${USB_DRIVER_BUNDLE_ROOT:-/drivers/usb/qemu-usb.driver}"
 
 die() {
     echo "fatal: $*" >&2
@@ -32,6 +37,18 @@ mkdir -p "${ROOTFS_STAGE}/bin"
 
 install -m 0755 "${HELLO_ELF}" "${ROOTFS_STAGE}/bin/hello"
 install -m 0644 "${SIGNATURE_DB_SRC}" "${ROOTFS_STAGE}/signature.db"
+
+if [[ -n "${CORE_SERVICE_BIN}" ]]; then
+    install -m 0755 "${CORE_SERVICE_BIN}" "${ROOTFS_STAGE}/core.service"
+fi
+if [[ -n "${DRIVERS_SERVICE_BIN}" ]]; then
+    install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ROOTFS_STAGE}/drivers.service"
+fi
+if [[ -n "${USB_DRIVER_MANIFEST_SRC}" && -n "${USB_DRIVER_ENTRY_BIN}" ]]; then
+    mkdir -p "${ROOTFS_STAGE}${USB_DRIVER_BUNDLE_ROOT}"
+    install -m 0644 "${USB_DRIVER_MANIFEST_SRC}" "${ROOTFS_STAGE}${USB_DRIVER_BUNDLE_ROOT}/about.toml"
+    install -m 0755 "${USB_DRIVER_ENTRY_BIN}" "${ROOTFS_STAGE}${USB_DRIVER_BUNDLE_ROOT}/entry.elf"
+fi
 
 rm -f "${ROOTFS_IMG}"
 truncate -s 16M "${ROOTFS_IMG}"

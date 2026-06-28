@@ -100,6 +100,8 @@ KERNEL_BIN="${CORE_ROOT}/target/${KERNEL_TARGET}/release/kernel"
 SERVICE_BIN="${ROOT_DIR}/out/services-core/target/x86_64-unknown-mochios/release/core"
 DRIVERS_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/drivers"
 CAPABILITY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/capability"
+DRIVERS_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/drivers/about.toml"
+CAPABILITY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/capability/about.toml"
 USB_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/entry"
 USB_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/usb-driver/about.toml"
 PS2_KEYBOARD_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/ps2-keyboard-entry"
@@ -121,6 +123,8 @@ need_file "${KERNEL_BIN}"
 need_file "${SERVICE_BIN}"
 need_file "${DRIVERS_SERVICE_BIN}"
 need_file "${CAPABILITY_SERVICE_BIN}"
+need_file "${DRIVERS_SERVICE_MANIFEST_SRC}"
+need_file "${CAPABILITY_SERVICE_MANIFEST_SRC}"
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     need_file "${USB_DRIVER_BIN}"
     need_file "${USB_DRIVER_MANIFEST_SRC}"
@@ -170,7 +174,9 @@ HELLO_ELF="${HELLO_ELF}" \
 SIGNATURE_DB_SRC="${SIGNATURE_DB_STAGE}" \
 CORE_SERVICE_BIN="${SERVICE_BIN}" \
 CAPABILITY_SERVICE_BIN="${CAPABILITY_SERVICE_BIN}" \
+CAPABILITY_SERVICE_MANIFEST_SRC="${CAPABILITY_SERVICE_MANIFEST_SRC}" \
 DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN}" \
+DRIVERS_SERVICE_MANIFEST_SRC="${DRIVERS_SERVICE_MANIFEST_SRC}" \
 USB_DRIVER_MANIFEST_SRC="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_MANIFEST_SRC}")" \
 USB_DRIVER_ENTRY_BIN="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_BIN}")" \
 USB_DRIVER_BUNDLE_ROOT="${DRIVERS_BUNDLE_ROOT}" \

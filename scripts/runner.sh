@@ -10,6 +10,7 @@ SERIAL_LOG="${RUN_DIR}/serial.log"
 OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
 OVMF_VARS="${RUN_DIR}/OVMF_VARS_4M.fd"
+GUI_MODE=1
 
 die() {
     echo "fatal: $*" >&2
@@ -44,8 +45,6 @@ QEMU_ARGS=(
     -smp 4
     -cpu qemu64
     -serial stdio
-    -display none
-    -monitor none
     -no-reboot
     -drive "if=pflash,format=raw,readonly=on,file=${OVMF_CODE}"
     -drive "if=pflash,format=raw,file=${OVMF_VARS}"
@@ -55,6 +54,14 @@ QEMU_ARGS=(
     -device "qemu-xhci,id=xhci"
     -device "usb-tablet,bus=xhci.0"
 )
+
+if [[ "${NOGUI:-0}" == "1" ]]; then
+    GUI_MODE=0
+    QEMU_ARGS+=(
+        -display none
+        -monitor none
+    )
+fi
 
 if [[ "${DEBUG:-0}" != "0" ]]; then
     QEMU_ARGS+=(-s -S)
@@ -110,6 +117,13 @@ for _ in $(seq 1 900); do
     sleep 0.1
 done
 
+if [[ "${GUI_MODE}" -eq 1 ]]; then
+    trap - EXIT
+    echo "[done] serial log: ${SERIAL_LOG}"
+    wait "${QEMU_PID}"
+    exit 0
+fi
+
 [[ "${DISK_FOUND}" -eq 1 ]] || die "disk.cext load was not observed; see ${SERIAL_LOG}"
 [[ "${EXT2_FOUND}" -eq 1 ]] || die "ext2.cext load was not observed; see ${SERIAL_LOG}"
 [[ "${SERVICE_FOUND}" -eq 1 ]] || die "core.service launch was not observed; see ${SERIAL_LOG}"
@@ -117,6 +131,7 @@ done
 [[ "${USB_BUNDLE_FOUND}" -eq 1 ]] || die "USB driver bundle verification was not observed; see ${SERIAL_LOG}"
 [[ "${USB_DRIVER_FOUND}" -eq 1 ]] || die "USB driver launch was not observed; see ${SERIAL_LOG}"
 [[ "${USB_CONTROLLER_FOUND}" -eq 1 ]] || die "USB controller detection was not observed; see ${SERIAL_LOG}"
+
 [[ "${USB_ENUM_DONE_FOUND}" -eq 1 ]] || die "USB driver completion was not observed; see ${SERIAL_LOG}"
 
 kill "${QEMU_PID}" 2>/dev/null || true

@@ -11,9 +11,13 @@ TARGET_JSON="${ROOT_DIR}/services/core/x86_64-unknown-mochios.json"
 DRIVERS_STAGE="${OUT_ROOT}/stage/drivers"
 CAPABILITY_STAGE="${OUT_ROOT}/stage/capability"
 USB_STAGE="${OUT_ROOT}/stage/usb-driver"
+PS2_KEYBOARD_STAGE="${OUT_ROOT}/stage/ps2-keyboard-driver"
+PS2_MOUSE_STAGE="${OUT_ROOT}/stage/ps2-mouse-driver"
 NIGHTLY_TOOLCHAIN="${NIGHTLY_TOOLCHAIN:-nightly-2026-05-14}"
 USER_ROOT="${ROOT_DIR}/user"
 USB_DRIVER_ROOT="${DRIVERS_ROOT}/usb-driver"
+PS2_KEYBOARD_DRIVER_ROOT="${DRIVERS_ROOT}/ps2/keyboard-driver"
+PS2_MOUSE_DRIVER_ROOT="${DRIVERS_ROOT}/ps2/mouse-driver"
 PLUGKIT_ROOT="${ROOT_DIR}/core/crates/PlugKit/plugkit"
 
 die() {
@@ -34,18 +38,24 @@ need_file "${SERVICES_ROOT}/Cargo.toml"
 need_file "${SERVICES_ROOT}/capability/Cargo.toml"
 need_file "${SERVICES_ROOT}/drivers/Cargo.toml"
 need_file "${USB_DRIVER_ROOT}/Cargo.toml"
+need_file "${PS2_KEYBOARD_DRIVER_ROOT}/Cargo.toml"
+need_file "${PS2_MOUSE_DRIVER_ROOT}/Cargo.toml"
 need_file "${TARGET_JSON}"
 
 rm -rf "${OUT_ROOT}/stage"
-mkdir -p "${CAPABILITY_STAGE}" "${DRIVERS_STAGE}" "${USB_STAGE}"
+mkdir -p "${CAPABILITY_STAGE}" "${DRIVERS_STAGE}" "${USB_STAGE}" "${PS2_KEYBOARD_STAGE}" "${PS2_MOUSE_STAGE}"
 cp -R "${SERVICES_ROOT}/capability/." "${CAPABILITY_STAGE}/"
 cp -R "${SERVICES_ROOT}/drivers/." "${DRIVERS_STAGE}/"
 cp -R "${USB_DRIVER_ROOT}/." "${USB_STAGE}/"
-rm -f "${CAPABILITY_STAGE}/Cargo.lock" "${DRIVERS_STAGE}/Cargo.lock" "${USB_STAGE}/Cargo.lock"
+cp -R "${PS2_KEYBOARD_DRIVER_ROOT}/." "${PS2_KEYBOARD_STAGE}/"
+cp -R "${PS2_MOUSE_DRIVER_ROOT}/." "${PS2_MOUSE_STAGE}/"
+rm -f "${CAPABILITY_STAGE}/Cargo.lock" "${DRIVERS_STAGE}/Cargo.lock" "${USB_STAGE}/Cargo.lock" "${PS2_KEYBOARD_STAGE}/Cargo.lock" "${PS2_MOUSE_STAGE}/Cargo.lock"
 perl -0pi -e "s#path = \"\\.\\./\\.\\./user/crates/platform\"#path = \"${USER_ROOT}/crates/platform\"#g; s#path = \"\\.\\./\\.\\./user/crates/runtime\"#path = \"${USER_ROOT}/crates/runtime\"#g; s#path = \"\\.\\./\\.\\./user/crates/syscall\"#path = \"${USER_ROOT}/crates/syscall\"#g" \
     "${CAPABILITY_STAGE}/Cargo.toml" "${DRIVERS_STAGE}/Cargo.toml" "${USB_STAGE}/Cargo.toml"
+perl -0pi -e "s#path = \"\\.\\./\\.\\./\\.\\./user/crates/platform\"#path = \"${USER_ROOT}/crates/platform\"#g; s#path = \"\\.\\./\\.\\./\\.\\./user/crates/runtime\"#path = \"${USER_ROOT}/crates/runtime\"#g; s#path = \"\\.\\./\\.\\./\\.\\./user/crates/syscall\"#path = \"${USER_ROOT}/crates/syscall\"#g" \
+    "${PS2_KEYBOARD_STAGE}/Cargo.toml" "${PS2_MOUSE_STAGE}/Cargo.toml"
 perl -0pi -e "s#plugkit = \\{ git = \"https://github.com/mochiOS/mnu\", package = \"plugkit\" \\}#plugkit = { path = \"${PLUGKIT_ROOT}\" }#g" \
-    "${USB_STAGE}/Cargo.toml"
+    "${USB_STAGE}/Cargo.toml" "${PS2_KEYBOARD_STAGE}/Cargo.toml" "${PS2_MOUSE_STAGE}/Cargo.toml"
 
 echo "[build] capability.service"
 cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \
@@ -88,5 +98,33 @@ cargo +"${NIGHTLY_TOOLCHAIN}" build \
     --locked \
     --manifest-path "${USB_STAGE}/Cargo.toml" \
     -p usb-driver
+
+echo "[build] ps2 keyboard driver bundle"
+cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \
+    --offline \
+    --manifest-path "${PS2_KEYBOARD_STAGE}/Cargo.toml"
+cargo +"${NIGHTLY_TOOLCHAIN}" build \
+    -Z build-std=core,alloc,compiler_builtins \
+    -Z json-target-spec \
+    --release \
+    --target "${TARGET_JSON}" \
+    --target-dir "${TARGET_DIR}" \
+    --locked \
+    --manifest-path "${PS2_KEYBOARD_STAGE}/Cargo.toml" \
+    -p ps2-keyboard-driver
+
+echo "[build] ps2 mouse driver bundle"
+cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \
+    --offline \
+    --manifest-path "${PS2_MOUSE_STAGE}/Cargo.toml"
+cargo +"${NIGHTLY_TOOLCHAIN}" build \
+    -Z build-std=core,alloc,compiler_builtins \
+    -Z json-target-spec \
+    --release \
+    --target "${TARGET_JSON}" \
+    --target-dir "${TARGET_DIR}" \
+    --locked \
+    --manifest-path "${PS2_MOUSE_STAGE}/Cargo.toml" \
+    -p ps2-mouse-driver
 
 echo "[done] ${TARGET_DIR}/x86_64-unknown-mochios/release"

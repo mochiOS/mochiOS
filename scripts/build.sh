@@ -19,6 +19,9 @@ ROOTFS_IMG="${BUILD_ROOT}/rootfs.img"
 SIGNATURE_DB_STAGE="${BUILD_ROOT}/signature.db"
 CEXT_BUNDLES_DIR="${ROOT_DIR}/out/cexts/bundles"
 DRIVERS_BUNDLE_ROOT="/bin/drivers/usb/qemu-usb.driver"
+PS2_KEYBOARD_BUNDLE_ROOT="/bin/drivers/ps2/keyboard.driver"
+PS2_MOUSE_BUNDLE_ROOT="/bin/drivers/ps2/mouse.driver"
+ENABLE_XHCI="${ENABLE_XHCI:-0}"
 
 die() {
     echo "fatal: $*" >&2
@@ -86,7 +89,7 @@ echo "[step] build kernel"
 echo "[step] build core.service"
 "${SCRIPT_DIR}/build-core-service.sh"
 
-echo "[step] build drivers.service and usb driver bundle"
+echo "[step] build drivers.service and driver bundles"
 bash "${SCRIPT_DIR}/build-drivers.sh"
 
 echo "[step] build bootloader"
@@ -99,6 +102,10 @@ DRIVERS_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochio
 CAPABILITY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/capability"
 USB_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/entry"
 USB_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/usb-driver/about.toml"
+PS2_KEYBOARD_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/ps2-keyboard-entry"
+PS2_KEYBOARD_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/ps2/keyboard-driver/about.toml"
+PS2_MOUSE_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/ps2-mouse-entry"
+PS2_MOUSE_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/ps2/mouse-driver/about.toml"
 BOOT_RELEASE_DIR="${ROOT_DIR}/out/bootloader/target/x86_64-unknown-uefi/release"
 
 if [[ -f "${BOOT_RELEASE_DIR}/boot.efi" ]]; then
@@ -114,8 +121,14 @@ need_file "${KERNEL_BIN}"
 need_file "${SERVICE_BIN}"
 need_file "${DRIVERS_SERVICE_BIN}"
 need_file "${CAPABILITY_SERVICE_BIN}"
-need_file "${USB_DRIVER_BIN}"
-need_file "${USB_DRIVER_MANIFEST_SRC}"
+if [[ "${ENABLE_XHCI}" == "1" ]]; then
+    need_file "${USB_DRIVER_BIN}"
+    need_file "${USB_DRIVER_MANIFEST_SRC}"
+fi
+need_file "${PS2_KEYBOARD_DRIVER_BIN}"
+need_file "${PS2_KEYBOARD_DRIVER_MANIFEST_SRC}"
+need_file "${PS2_MOUSE_DRIVER_BIN}"
+need_file "${PS2_MOUSE_DRIVER_MANIFEST_SRC}"
 need_file "${BOOT_BIN}"
 need_dir "${CEXT_BUNDLES_DIR}"
 
@@ -138,9 +151,13 @@ SIGNATURE_DB_ARGS=(
     --entry "core.service=${SERVICE_BIN}"
     --entry "/system/services/capability.service=${CAPABILITY_SERVICE_BIN}"
     --entry "/system/services/drivers.service=${DRIVERS_SERVICE_BIN}"
-    --entry "${DRIVERS_BUNDLE_ROOT}/entry.elf=${USB_DRIVER_BIN}"
+    --entry "${PS2_KEYBOARD_BUNDLE_ROOT}/entry.elf=${PS2_KEYBOARD_DRIVER_BIN}"
+    --entry "${PS2_MOUSE_BUNDLE_ROOT}/entry.elf=${PS2_MOUSE_DRIVER_BIN}"
     --entry "/bin/hello=${HELLO_ELF}"
 )
+if [[ "${ENABLE_XHCI}" == "1" ]]; then
+    SIGNATURE_DB_ARGS+=(--entry "${DRIVERS_BUNDLE_ROOT}/entry.elf=${USB_DRIVER_BIN}")
+fi
 for entry in "${CEXT_SIGNATURE_ENTRIES[@]}"; do
     SIGNATURE_DB_ARGS+=(--entry "${entry}")
 done
@@ -154,9 +171,15 @@ SIGNATURE_DB_SRC="${SIGNATURE_DB_STAGE}" \
 CORE_SERVICE_BIN="${SERVICE_BIN}" \
 CAPABILITY_SERVICE_BIN="${CAPABILITY_SERVICE_BIN}" \
 DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN}" \
-USB_DRIVER_MANIFEST_SRC="${USB_DRIVER_MANIFEST_SRC}" \
-USB_DRIVER_ENTRY_BIN="${USB_DRIVER_BIN}" \
+USB_DRIVER_MANIFEST_SRC="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_MANIFEST_SRC}")" \
+USB_DRIVER_ENTRY_BIN="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_BIN}")" \
 USB_DRIVER_BUNDLE_ROOT="${DRIVERS_BUNDLE_ROOT}" \
+PS2_KEYBOARD_DRIVER_MANIFEST_SRC="${PS2_KEYBOARD_DRIVER_MANIFEST_SRC}" \
+PS2_KEYBOARD_DRIVER_ENTRY_BIN="${PS2_KEYBOARD_DRIVER_BIN}" \
+PS2_KEYBOARD_DRIVER_BUNDLE_ROOT="${PS2_KEYBOARD_BUNDLE_ROOT}" \
+PS2_MOUSE_DRIVER_MANIFEST_SRC="${PS2_MOUSE_DRIVER_MANIFEST_SRC}" \
+PS2_MOUSE_DRIVER_ENTRY_BIN="${PS2_MOUSE_DRIVER_BIN}" \
+PS2_MOUSE_DRIVER_BUNDLE_ROOT="${PS2_MOUSE_BUNDLE_ROOT}" \
 bash "${SCRIPT_DIR}/build-rootfs.sh"
 
 echo "[step] build initfs image"
@@ -189,7 +212,11 @@ install -m 0755 "${SERVICE_BIN}" "${ARTIFACT_DIR}/core.service"
 install -m 0755 "${CAPABILITY_SERVICE_BIN}" "${ARTIFACT_DIR}/capability.service"
 install -m 0644 "${SIGNATURE_DB_STAGE}" "${ARTIFACT_DIR}/signature.db"
 install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ARTIFACT_DIR}/drivers.service"
-install -m 0755 "${USB_DRIVER_BIN}" "${ARTIFACT_DIR}/usb-driver.entry"
+if [[ "${ENABLE_XHCI}" == "1" ]]; then
+    install -m 0755 "${USB_DRIVER_BIN}" "${ARTIFACT_DIR}/usb-driver.entry"
+fi
+install -m 0755 "${PS2_KEYBOARD_DRIVER_BIN}" "${ARTIFACT_DIR}/ps2-keyboard-driver.entry"
+install -m 0755 "${PS2_MOUSE_DRIVER_BIN}" "${ARTIFACT_DIR}/ps2-mouse-driver.entry"
 
 echo "[step] record exact repo manifest"
 (
@@ -221,12 +248,20 @@ echo "[step] generate checksums"
         BOOTX64.EFI \
         core.service \
         drivers.service \
-        usb-driver.entry \
+        ps2-keyboard-driver.entry \
+        ps2-mouse-driver.entry \
         signature.db \
         manifest.xml \
         build-info.txt \
         > SHA256SUMS
 )
+
+if [[ "${ENABLE_XHCI}" == "1" ]]; then
+    (
+        cd "${ARTIFACT_DIR}"
+        sha256sum usb-driver.entry >> SHA256SUMS
+    )
+fi
 
 echo "[done] artifacts:"
 find "${ARTIFACT_DIR}" -maxdepth 1 -type f -printf '  %f\n' | sort

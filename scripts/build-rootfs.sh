@@ -14,6 +14,12 @@ DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN:-}"
 USB_DRIVER_MANIFEST_SRC="${USB_DRIVER_MANIFEST_SRC:-}"
 USB_DRIVER_ENTRY_BIN="${USB_DRIVER_ENTRY_BIN:-}"
 USB_DRIVER_BUNDLE_ROOT="${USB_DRIVER_BUNDLE_ROOT:-/bin/drivers/usb/qemu-usb.driver}"
+PS2_KEYBOARD_DRIVER_MANIFEST_SRC="${PS2_KEYBOARD_DRIVER_MANIFEST_SRC:-}"
+PS2_KEYBOARD_DRIVER_ENTRY_BIN="${PS2_KEYBOARD_DRIVER_ENTRY_BIN:-}"
+PS2_KEYBOARD_DRIVER_BUNDLE_ROOT="${PS2_KEYBOARD_DRIVER_BUNDLE_ROOT:-/bin/drivers/ps2/keyboard.driver}"
+PS2_MOUSE_DRIVER_MANIFEST_SRC="${PS2_MOUSE_DRIVER_MANIFEST_SRC:-}"
+PS2_MOUSE_DRIVER_ENTRY_BIN="${PS2_MOUSE_DRIVER_ENTRY_BIN:-}"
+PS2_MOUSE_DRIVER_BUNDLE_ROOT="${PS2_MOUSE_DRIVER_BUNDLE_ROOT:-/bin/drivers/ps2/mouse.driver}"
 
 die() {
     echo "fatal: $*" >&2
@@ -33,6 +39,18 @@ need_cmd mke2fs
 need_file "${HELLO_ELF}"
 need_file "${SIGNATURE_DB_SRC}"
 
+stage_driver_bundle() {
+    local manifest_src="$1"
+    local entry_bin="$2"
+    local bundle_root="$3"
+    if [[ -z "${manifest_src}" || -z "${entry_bin}" ]]; then
+        return
+    fi
+    mkdir -p "${ROOTFS_STAGE}${bundle_root}"
+    install -m 0644 "${manifest_src}" "${ROOTFS_STAGE}${bundle_root}/about.toml"
+    install -m 0755 "${entry_bin}" "${ROOTFS_STAGE}${bundle_root}/entry.elf"
+}
+
 rm -rf "${ROOTFS_STAGE}"
 mkdir -p "${ROOTFS_STAGE}/bin"
 
@@ -48,11 +66,9 @@ fi
 if [[ -n "${DRIVERS_SERVICE_BIN}" ]]; then
     install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/drivers.service"
 fi
-if [[ -n "${USB_DRIVER_MANIFEST_SRC}" && -n "${USB_DRIVER_ENTRY_BIN}" ]]; then
-    mkdir -p "${ROOTFS_STAGE}${USB_DRIVER_BUNDLE_ROOT}"
-    install -m 0644 "${USB_DRIVER_MANIFEST_SRC}" "${ROOTFS_STAGE}${USB_DRIVER_BUNDLE_ROOT}/about.toml"
-    install -m 0755 "${USB_DRIVER_ENTRY_BIN}" "${ROOTFS_STAGE}${USB_DRIVER_BUNDLE_ROOT}/entry.elf"
-fi
+stage_driver_bundle "${USB_DRIVER_MANIFEST_SRC}" "${USB_DRIVER_ENTRY_BIN}" "${USB_DRIVER_BUNDLE_ROOT}"
+stage_driver_bundle "${PS2_KEYBOARD_DRIVER_MANIFEST_SRC}" "${PS2_KEYBOARD_DRIVER_ENTRY_BIN}" "${PS2_KEYBOARD_DRIVER_BUNDLE_ROOT}"
+stage_driver_bundle "${PS2_MOUSE_DRIVER_MANIFEST_SRC}" "${PS2_MOUSE_DRIVER_ENTRY_BIN}" "${PS2_MOUSE_DRIVER_BUNDLE_ROOT}"
 
 rm -f "${ROOTFS_IMG}"
 truncate -s 16M "${ROOTFS_IMG}"

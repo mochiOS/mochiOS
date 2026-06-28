@@ -11,6 +11,7 @@ OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
 OVMF_VARS="${RUN_DIR}/OVMF_VARS_4M.fd"
 GUI_MODE=1
+ENABLE_XHCI="${ENABLE_XHCI:-0}"
 
 die() {
     echo "fatal: $*" >&2
@@ -51,9 +52,14 @@ QEMU_ARGS=(
     -drive "format=raw,file=${ARTIFACT_DIR}/esp.img"
     -drive "id=rootfs,if=none,format=raw,file=${ARTIFACT_DIR}/rootfs.img"
     -device "virtio-blk-pci,disable-modern=on,drive=rootfs"
-    -device "qemu-xhci,id=xhci"
-    -device "usb-tablet,bus=xhci.0"
 )
+
+if [[ "${ENABLE_XHCI}" == "1" ]]; then
+    QEMU_ARGS+=(
+        -device "qemu-xhci,id=xhci"
+        -device "usb-tablet,bus=xhci.0"
+    )
+fi
 
 if [[ "${NOGUI:-0}" == "1" ]]; then
     GUI_MODE=0
@@ -95,10 +101,12 @@ for _ in $(seq 1 900); do
         [[ "${line}" == *"cext: loaded bundle ext2"* ]] && EXT2_FOUND=1
         [[ "${line}" == *"exec: loaded 'core.service' from initfs"* ]] && SERVICE_FOUND=1
         [[ "${line}" == *"core.service: drivers.service spawned pid="* ]] && DRIVERS_SERVICE_FOUND=1
-        [[ "${line}" == *"drivers.service: bundle verified"* ]] && USB_BUNDLE_FOUND=1
-        [[ "${line}" == *"drivers.service: spawned usb driver pid="* ]] && USB_DRIVER_FOUND=1
-        [[ "${line}" == *"usb-driver: PCI USB controller"* ]] && USB_CONTROLLER_FOUND=1
-        [[ "${line}" == *"usb-driver: enumeration complete"* ]] && USB_ENUM_DONE_FOUND=1
+        if [[ "${ENABLE_XHCI}" == "1" ]]; then
+            [[ "${line}" == *"drivers.service: bundle verified /bin/drivers/usb/"* ]] && USB_BUNDLE_FOUND=1
+            [[ "${line}" == *"drivers.service: spawned driver pid="* ]] && USB_DRIVER_FOUND=1
+            [[ "${line}" == *"usb-driver: PCI USB controller"* ]] && USB_CONTROLLER_FOUND=1
+            [[ "${line}" == *"usb-driver: enumeration complete"* ]] && USB_ENUM_DONE_FOUND=1
+        fi
         if [[ "${line}" == *"PAGE FAULT"* || "${line}" == *"Faulting user context:"* || "${line}" == *"panic"* ]]; then
             die "fault or panic observed during QEMU run"
         fi
@@ -106,8 +114,10 @@ for _ in $(seq 1 900); do
 
     NEXT_LINE="$(($(wc -l < "${SERIAL_LOG}") + 1))"
 
-    if [[ "${DISK_FOUND}" -eq 1 && "${EXT2_FOUND}" -eq 1 && "${SERVICE_FOUND}" -eq 1 && "${DRIVERS_SERVICE_FOUND}" -eq 1 && "${USB_BUNDLE_FOUND}" -eq 1 && "${USB_DRIVER_FOUND}" -eq 1 && "${USB_CONTROLLER_FOUND}" -eq 1 && "${USB_ENUM_DONE_FOUND}" -eq 1 ]]; then
-        break
+    if [[ "${DISK_FOUND}" -eq 1 && "${EXT2_FOUND}" -eq 1 && "${SERVICE_FOUND}" -eq 1 && "${DRIVERS_SERVICE_FOUND}" -eq 1 ]]; then
+        if [[ "${ENABLE_XHCI}" != "1" || ( "${USB_BUNDLE_FOUND}" -eq 1 && "${USB_DRIVER_FOUND}" -eq 1 && "${USB_CONTROLLER_FOUND}" -eq 1 && "${USB_ENUM_DONE_FOUND}" -eq 1 ) ]]; then
+            break
+        fi
     fi
 
     if ! kill -0 "${QEMU_PID}" 2>/dev/null; then
@@ -128,11 +138,12 @@ fi
 [[ "${EXT2_FOUND}" -eq 1 ]] || die "ext2.cext load was not observed; see ${SERIAL_LOG}"
 [[ "${SERVICE_FOUND}" -eq 1 ]] || die "core.service launch was not observed; see ${SERIAL_LOG}"
 [[ "${DRIVERS_SERVICE_FOUND}" -eq 1 ]] || die "drivers.service launch was not observed; see ${SERIAL_LOG}"
-[[ "${USB_BUNDLE_FOUND}" -eq 1 ]] || die "USB driver bundle verification was not observed; see ${SERIAL_LOG}"
-[[ "${USB_DRIVER_FOUND}" -eq 1 ]] || die "USB driver launch was not observed; see ${SERIAL_LOG}"
-[[ "${USB_CONTROLLER_FOUND}" -eq 1 ]] || die "USB controller detection was not observed; see ${SERIAL_LOG}"
-
-[[ "${USB_ENUM_DONE_FOUND}" -eq 1 ]] || die "USB driver completion was not observed; see ${SERIAL_LOG}"
+if [[ "${ENABLE_XHCI}" == "1" ]]; then
+    [[ "${USB_BUNDLE_FOUND}" -eq 1 ]] || die "USB driver bundle verification was not observed; see ${SERIAL_LOG}"
+    [[ "${USB_DRIVER_FOUND}" -eq 1 ]] || die "USB driver launch was not observed; see ${SERIAL_LOG}"
+    [[ "${USB_CONTROLLER_FOUND}" -eq 1 ]] || die "USB controller detection was not observed; see ${SERIAL_LOG}"
+    [[ "${USB_ENUM_DONE_FOUND}" -eq 1 ]] || die "USB driver completion was not observed; see ${SERIAL_LOG}"
+fi
 
 kill "${QEMU_PID}" 2>/dev/null || true
 wait "${QEMU_PID}" 2>/dev/null || true

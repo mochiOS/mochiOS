@@ -78,7 +78,6 @@ echo "[step] build kernel"
     env RUSTFLAGS="--cfg curve25519_dalek_backend=\"serial\"" \
     cargo +"${NIGHTLY_TOOLCHAIN}" build \
         -Z build-std=core,alloc,compiler_builtins \
-        --locked \
         --release \
         --target "${KERNEL_TARGET}" \
         --features kernel-bin \

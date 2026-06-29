@@ -66,7 +66,6 @@ cargo +"${NIGHTLY_TOOLCHAIN}" build \
     --release \
     --target "${TARGET_JSON}" \
     --target-dir "${TARGET_DIR}" \
-    --locked \
     --manifest-path "${CAPABILITY_STAGE}/Cargo.toml" \
     -p capability
 
@@ -80,7 +79,6 @@ cargo +"${NIGHTLY_TOOLCHAIN}" build \
     --release \
     --target "${TARGET_JSON}" \
     --target-dir "${TARGET_DIR}" \
-    --locked \
     --manifest-path "${DRIVERS_STAGE}/Cargo.toml" \
     -p drivers
 
@@ -94,7 +92,6 @@ cargo +"${NIGHTLY_TOOLCHAIN}" build \
     --release \
     --target "${TARGET_JSON}" \
     --target-dir "${TARGET_DIR}" \
-    --locked \
     --manifest-path "${INPUT_STAGE}/Cargo.toml" \
     -p input
 
@@ -108,7 +105,6 @@ cargo +"${NIGHTLY_TOOLCHAIN}" build \
     --release \
     --target "${TARGET_JSON}" \
     --target-dir "${TARGET_DIR}" \
-    --locked \
     --manifest-path "${USB_STAGE}/Cargo.toml" \
     -p usb-driver
 
@@ -122,7 +118,6 @@ cargo +"${NIGHTLY_TOOLCHAIN}" build \
     --release \
     --target "${TARGET_JSON}" \
     --target-dir "${TARGET_DIR}" \
-    --locked \
     --manifest-path "${I8042_STAGE}/Cargo.toml" \
     -p i8042-driver
 

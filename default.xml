@@ -58,4 +58,11 @@
             remote="sourceware"
             revision="master"
     />
+
+    <project
+            path="libraries/rust"
+            name="mochiOS/rust"
+            revision="staging"
+            remote="github"
+    />
 </manifest>

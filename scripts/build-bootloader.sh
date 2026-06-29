@@ -26,7 +26,6 @@ need_file "${BOOT_ROOT}/Cargo.toml"
 echo "[build] bootloader"
 env RUSTFLAGS="--cfg curve25519_dalek_backend=\"serial\"" \
 cargo +nightly build \
-    --offline \
     --release \
     --target x86_64-unknown-uefi \
     --target-dir "${TARGET_DIR}" \

@@ -13,6 +13,8 @@ CAPABILITY_SERVICE_BIN="${CAPABILITY_SERVICE_BIN:-}"
 CAPABILITY_SERVICE_MANIFEST_SRC="${CAPABILITY_SERVICE_MANIFEST_SRC:-}"
 DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN:-}"
 DRIVERS_SERVICE_MANIFEST_SRC="${DRIVERS_SERVICE_MANIFEST_SRC:-}"
+INPUT_SERVICE_BIN="${INPUT_SERVICE_BIN:-}"
+INPUT_SERVICE_MANIFEST_SRC="${INPUT_SERVICE_MANIFEST_SRC:-}"
 USB_DRIVER_MANIFEST_SRC="${USB_DRIVER_MANIFEST_SRC:-}"
 USB_DRIVER_ENTRY_BIN="${USB_DRIVER_ENTRY_BIN:-}"
 USB_DRIVER_BUNDLE_ROOT="${USB_DRIVER_BUNDLE_ROOT:-/bin/drivers/usb/qemu-usb.driver}"
@@ -56,7 +58,7 @@ mkdir -p "${ROOTFS_STAGE}/bin"
 install -m 0755 "${HELLO_ELF}" "${ROOTFS_STAGE}/bin/hello"
 install -m 0644 "${SIGNATURE_DB_SRC}" "${ROOTFS_STAGE}/signature.db"
 
-if [[ -n "${CAPABILITY_SERVICE_BIN}" || -n "${DRIVERS_SERVICE_BIN}" ]]; then
+if [[ -n "${CAPABILITY_SERVICE_BIN}" || -n "${DRIVERS_SERVICE_BIN}" || -n "${INPUT_SERVICE_BIN}" ]]; then
     mkdir -p "${ROOTFS_STAGE}/system/services"
 fi
 if [[ -n "${CAPABILITY_SERVICE_BIN}" ]]; then
@@ -70,6 +72,12 @@ if [[ -n "${DRIVERS_SERVICE_BIN}" ]]; then
 fi
 if [[ -n "${DRIVERS_SERVICE_MANIFEST_SRC}" ]]; then
     install -m 0644 "${DRIVERS_SERVICE_MANIFEST_SRC}" "${ROOTFS_STAGE}/system/services/drivers.service.toml"
+fi
+if [[ -n "${INPUT_SERVICE_BIN}" ]]; then
+    install -m 0755 "${INPUT_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/input.service"
+fi
+if [[ -n "${INPUT_SERVICE_MANIFEST_SRC}" ]]; then
+    install -m 0644 "${INPUT_SERVICE_MANIFEST_SRC}" "${ROOTFS_STAGE}/system/services/input.service.toml"
 fi
 stage_driver_bundle "${USB_DRIVER_MANIFEST_SRC}" "${USB_DRIVER_ENTRY_BIN}" "${USB_DRIVER_BUNDLE_ROOT}"
 stage_driver_bundle "${I8042_DRIVER_MANIFEST_SRC}" "${I8042_DRIVER_ENTRY_BIN}" "${I8042_DRIVER_BUNDLE_ROOT}"

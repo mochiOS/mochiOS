@@ -7,6 +7,10 @@ on:
 
   workflow_dispatch:
 
+  repository_dispatch:
+    types:
+      - dependency-updated
+
 permissions:
   contents: write
 
@@ -19,6 +23,11 @@ jobs:
     name: Build mochiOS
     runs-on: ubuntu-24.04
 
+    env:
+      RUSTUP_TOOLCHAIN: nightly-2026-05-14
+      CARGO_TERM_COLOR: always
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+
     steps:
       - name: Checkout manifest repository
         uses: actions/checkout@v4
@@ -26,18 +35,36 @@ jobs:
           ref: master
           fetch-depth: 0
 
+      - name: Show build trigger
+        env:
+          SOURCE_REPOSITORY: ${{ github.event.client_payload.repository }}
+          SOURCE_SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          set -euo pipefail
+          
+          echo "Event: ${GITHUB_EVENT_NAME}"
+          
+          if [ "${GITHUB_EVENT_NAME}" = "repository_dispatch" ]; then
+            echo "Source repository: ${SOURCE_REPOSITORY}"
+            echo "Source commit: ${SOURCE_SHA}"
+          else
+            echo "Source repository: ${GITHUB_REPOSITORY}"
+            echo "Source commit: ${GITHUB_SHA}"
+          fi
+
       - name: Install build dependencies
         run: |
           set -euo pipefail
-
+          
           sudo apt-get update
-
+          
           sudo apt-get install --yes \
             autoconf \
             automake \
             binutils \
             bison \
             build-essential \
+            curl \
             dosfstools \
             e2fsprogs \
             flex \
@@ -51,98 +78,154 @@ jobs:
             perl \
             repo \
             texinfo \
-            xz-utils \
-            curl \
+            xz-utils
 
       - name: Install Rust toolchain
         run: |
           set -euo pipefail
-
-          rustup toolchain install nightly-2026-05-14 \
+          
+          rustup toolchain install "${RUSTUP_TOOLCHAIN}" \
             --profile minimal \
             --component rust-src
+          
+          rustup default "${RUSTUP_TOOLCHAIN}"
+          
+          rustc --version
+          cargo --version
 
       - name: Initialize repo workspace
         run: |
           set -euo pipefail
-
+          
           git config --global protocol.file.allow always
-
+          
           git branch --force ci-manifest HEAD
-
+          
           repo init \
             --manifest-url="file://${GITHUB_WORKSPACE}" \
             --manifest-branch=ci-manifest \
             --manifest-name=default.xml \
             --depth=1
-
+          
           repo sync \
             --current-branch \
             --no-clone-bundle \
             --no-tags \
             --jobs="$(nproc)"
 
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ env.RUSTUP_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ env.RUSTUP_TOOLCHAIN }}-
+            cargo-${{ runner.os }}-
+
+      - name: Fetch Rust dependencies
+        env:
+          CARGO_NET_OFFLINE: "false"
+        run: |
+          set -euo pipefail
+          
+          lockfile_count=0
+          
+          while IFS= read -r -d '' lockfile; do
+            project_dir="$(dirname "${lockfile}")"
+            manifest="${project_dir}/Cargo.toml"
+          
+            if [ ! -f "${manifest}" ]; then
+              echo "Skipping ${lockfile}: Cargo.toml was not found"
+              continue
+            fi
+          
+            echo "Fetching dependencies for ${manifest}"
+          
+            cargo fetch \
+              --locked \
+              --manifest-path "${manifest}"
+          
+            lockfile_count=$((lockfile_count + 1))
+          done < <(
+            find "${GITHUB_WORKSPACE}" \
+              \( \
+                -path "*/.git" \
+                -o -path "*/.repo" \
+                -o -path "*/target" \
+              \) \
+              -prune \
+              -o \
+              -type f \
+              -name Cargo.lock \
+              -print0
+          )
+          
+          if [ "${lockfile_count}" -eq 0 ]; then
+            echo "No usable Cargo.lock files were found"
+            exit 1
+          fi
+          
+          echo "Fetched dependencies for ${lockfile_count} Cargo projects"
+
       - name: Install Homebrew
         run: |
           set -euo pipefail
-
+          
           if ! command -v brew >/dev/null 2>&1; then
             NONINTERACTIVE=1 /bin/bash -c \
               "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           fi
-
+          
           if command -v brew >/dev/null 2>&1; then
             BREW_BIN="$(command -v brew)"
           else
             BREW_BIN="/home/linuxbrew/.linuxbrew/bin/brew"
           fi
-
+          
           test -x "${BREW_BIN}"
-
+          
           eval "$("${BREW_BIN}" shellenv)"
-
+          
           {
             echo "HOMEBREW_PREFIX=${HOMEBREW_PREFIX}"
             echo "HOMEBREW_CELLAR=${HOMEBREW_CELLAR}"
             echo "HOMEBREW_REPOSITORY=${HOMEBREW_REPOSITORY}"
           } >> "${GITHUB_ENV}"
-
+          
           echo "${HOMEBREW_PREFIX}/bin" >> "${GITHUB_PATH}"
           echo "${HOMEBREW_PREFIX}/sbin" >> "${GITHUB_PATH}"
 
       - name: Install x86_64 ELF toolchain
         run: |
           set -euo pipefail
-
+          
           brew install x86_64-elf-gcc
 
-      - name: Check x86_64 ELF toolchain
+      - name: Check build toolchains
         run: |
           set -euo pipefail
-
+          
+          command -v rustc
+          command -v cargo
+          
           command -v x86_64-elf-gcc
           command -v x86_64-elf-ar
           command -v x86_64-elf-ranlib
           command -v x86_64-elf-ld
           command -v x86_64-elf-nm
           command -v x86_64-elf-readelf
-
-          x86_64-elf-gcc --version
-
-      - name: Check cross toolchain
-        run: |
-          set -euo pipefail
-
-          command -v x86_64-elf-gcc
-          command -v x86_64-elf-ar
-          command -v x86_64-elf-ranlib
-
+          
+          rustc --version
+          cargo --version
           x86_64-elf-gcc --version
 
       - name: Build mochiOS
         id: build
         run: |
           set -euo pipefail
+          
           bash scripts/ci/build.sh
 
       - name: Commit build number
@@ -150,15 +233,25 @@ jobs:
           BUILD_NUMBER: ${{ steps.build.outputs.build }}
         run: |
           set -euo pipefail
-
+          
+          if [ -z "${BUILD_NUMBER}" ]; then
+            echo "Build number output is empty"
+            exit 1
+          fi
+          
           git config user.name "mochiOS Build Bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
+          
           git add version.toml
-
+          
+          if git diff --cached --quiet; then
+            echo "version.toml has no changes"
+            exit 0
+          fi
+          
           git commit \
             -m "build: advance to build ${BUILD_NUMBER} [skip ci]"
-
+          
           git push origin HEAD:master
 
       - name: Upload build artifacts

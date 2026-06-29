@@ -124,51 +124,6 @@ jobs:
             cargo-${{ runner.os }}-${{ env.RUSTUP_TOOLCHAIN }}-
             cargo-${{ runner.os }}-
 
-      - name: Fetch Rust dependencies
-        env:
-          CARGO_NET_OFFLINE: "false"
-        run: |
-          set -euo pipefail
-          
-          lockfile_count=0
-          
-          while IFS= read -r -d '' lockfile; do
-            project_dir="$(dirname "${lockfile}")"
-            manifest="${project_dir}/Cargo.toml"
-          
-            if [ ! -f "${manifest}" ]; then
-              echo "Skipping ${lockfile}: Cargo.toml was not found"
-              continue
-            fi
-          
-            echo "Fetching dependencies for ${manifest}"
-          
-            cargo fetch \
-              --locked \
-              --manifest-path "${manifest}"
-          
-            lockfile_count=$((lockfile_count + 1))
-          done < <(
-            find "${GITHUB_WORKSPACE}" \
-              \( \
-                -path "*/.git" \
-                -o -path "*/.repo" \
-                -o -path "*/target" \
-              \) \
-              -prune \
-              -o \
-              -type f \
-              -name Cargo.lock \
-              -print0
-          )
-          
-          if [ "${lockfile_count}" -eq 0 ]; then
-            echo "No usable Cargo.lock files were found"
-            exit 1
-          fi
-          
-          echo "Fetched dependencies for ${lockfile_count} Cargo projects"
-
       - name: Install Homebrew
         run: |
           set -euo pipefail

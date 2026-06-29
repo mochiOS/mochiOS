@@ -19,8 +19,7 @@ ROOTFS_IMG="${BUILD_ROOT}/rootfs.img"
 SIGNATURE_DB_STAGE="${BUILD_ROOT}/signature.db"
 CEXT_BUNDLES_DIR="${ROOT_DIR}/out/cexts/bundles"
 DRIVERS_BUNDLE_ROOT="/bin/drivers/usb/qemu-usb.driver"
-PS2_KEYBOARD_BUNDLE_ROOT="/bin/drivers/ps2/keyboard.driver"
-PS2_MOUSE_BUNDLE_ROOT="/bin/drivers/ps2/mouse.driver"
+I8042_BUNDLE_ROOT="/bin/drivers/ps2/i8042.driver"
 ENABLE_XHCI="${ENABLE_XHCI:-0}"
 
 die() {
@@ -104,10 +103,8 @@ DRIVERS_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/drivers/about.toml"
 CAPABILITY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/capability/about.toml"
 USB_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/entry"
 USB_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/usb-driver/about.toml"
-PS2_KEYBOARD_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/ps2-keyboard-entry"
-PS2_KEYBOARD_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/ps2/keyboard-driver/about.toml"
-PS2_MOUSE_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/ps2-mouse-entry"
-PS2_MOUSE_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/ps2/mouse-driver/about.toml"
+I8042_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/i8042-entry"
+I8042_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/ps2/i8042-driver/about.toml"
 BOOT_RELEASE_DIR="${ROOT_DIR}/out/bootloader/target/x86_64-unknown-uefi/release"
 
 if [[ -f "${BOOT_RELEASE_DIR}/boot.efi" ]]; then
@@ -129,10 +126,8 @@ if [[ "${ENABLE_XHCI}" == "1" ]]; then
     need_file "${USB_DRIVER_BIN}"
     need_file "${USB_DRIVER_MANIFEST_SRC}"
 fi
-need_file "${PS2_KEYBOARD_DRIVER_BIN}"
-need_file "${PS2_KEYBOARD_DRIVER_MANIFEST_SRC}"
-need_file "${PS2_MOUSE_DRIVER_BIN}"
-need_file "${PS2_MOUSE_DRIVER_MANIFEST_SRC}"
+need_file "${I8042_DRIVER_BIN}"
+need_file "${I8042_DRIVER_MANIFEST_SRC}"
 need_file "${BOOT_BIN}"
 need_dir "${CEXT_BUNDLES_DIR}"
 
@@ -155,8 +150,7 @@ SIGNATURE_DB_ARGS=(
     --entry "core.service=${SERVICE_BIN}"
     --entry "/system/services/capability.service=${CAPABILITY_SERVICE_BIN}"
     --entry "/system/services/drivers.service=${DRIVERS_SERVICE_BIN}"
-    --entry "${PS2_KEYBOARD_BUNDLE_ROOT}/entry.elf=${PS2_KEYBOARD_DRIVER_BIN}"
-    --entry "${PS2_MOUSE_BUNDLE_ROOT}/entry.elf=${PS2_MOUSE_DRIVER_BIN}"
+    --entry "${I8042_BUNDLE_ROOT}/entry.elf=${I8042_DRIVER_BIN}"
     --entry "/bin/hello=${HELLO_ELF}"
 )
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
@@ -180,12 +174,9 @@ DRIVERS_SERVICE_MANIFEST_SRC="${DRIVERS_SERVICE_MANIFEST_SRC}" \
 USB_DRIVER_MANIFEST_SRC="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_MANIFEST_SRC}")" \
 USB_DRIVER_ENTRY_BIN="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_BIN}")" \
 USB_DRIVER_BUNDLE_ROOT="${DRIVERS_BUNDLE_ROOT}" \
-PS2_KEYBOARD_DRIVER_MANIFEST_SRC="${PS2_KEYBOARD_DRIVER_MANIFEST_SRC}" \
-PS2_KEYBOARD_DRIVER_ENTRY_BIN="${PS2_KEYBOARD_DRIVER_BIN}" \
-PS2_KEYBOARD_DRIVER_BUNDLE_ROOT="${PS2_KEYBOARD_BUNDLE_ROOT}" \
-PS2_MOUSE_DRIVER_MANIFEST_SRC="${PS2_MOUSE_DRIVER_MANIFEST_SRC}" \
-PS2_MOUSE_DRIVER_ENTRY_BIN="${PS2_MOUSE_DRIVER_BIN}" \
-PS2_MOUSE_DRIVER_BUNDLE_ROOT="${PS2_MOUSE_BUNDLE_ROOT}" \
+I8042_DRIVER_MANIFEST_SRC="${I8042_DRIVER_MANIFEST_SRC}" \
+I8042_DRIVER_ENTRY_BIN="${I8042_DRIVER_BIN}" \
+I8042_DRIVER_BUNDLE_ROOT="${I8042_BUNDLE_ROOT}" \
 bash "${SCRIPT_DIR}/build-rootfs.sh"
 
 echo "[step] build initfs image"
@@ -221,8 +212,7 @@ install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ARTIFACT_DIR}/drivers.service"
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     install -m 0755 "${USB_DRIVER_BIN}" "${ARTIFACT_DIR}/usb-driver.entry"
 fi
-install -m 0755 "${PS2_KEYBOARD_DRIVER_BIN}" "${ARTIFACT_DIR}/ps2-keyboard-driver.entry"
-install -m 0755 "${PS2_MOUSE_DRIVER_BIN}" "${ARTIFACT_DIR}/ps2-mouse-driver.entry"
+install -m 0755 "${I8042_DRIVER_BIN}" "${ARTIFACT_DIR}/i8042-driver.entry"
 
 echo "[step] record exact repo manifest"
 (
@@ -254,8 +244,7 @@ echo "[step] generate checksums"
         BOOTX64.EFI \
         core.service \
         drivers.service \
-        ps2-keyboard-driver.entry \
-        ps2-mouse-driver.entry \
+        i8042-driver.entry \
         signature.db \
         manifest.xml \
         build-info.txt \

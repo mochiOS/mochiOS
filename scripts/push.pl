@@ -29,11 +29,6 @@ for my $line (@projects) {
     $revision //= '';
     $revision =~ s{^refs/heads/}{};
 
-    unless ($revision eq 'main' || $revision eq 'master') {
-        print "[skip] $path: push先がmain/masterではありません: $revision\n";
-        next;
-    }
-
     $remote ||= 'github';
 
     unless (git_remote_exists($path, $remote)) {

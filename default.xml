@@ -65,4 +65,11 @@
             revision="staging"
             remote="github"
     />
+
+    <project
+            path="libraries/libc"
+            name="mochiOS/libc"
+            revision="main"
+            remote="github"
+    />
 </manifest>

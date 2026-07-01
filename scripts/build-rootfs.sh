@@ -7,6 +7,8 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ROOTFS_STAGE="${ROOTFS_STAGE:?ROOTFS_STAGE is required}"
 ROOTFS_IMG="${ROOTFS_IMG:?ROOTFS_IMG is required}"
 HELLO_ELF="${HELLO_ELF:?HELLO_ELF is required}"
+RUST_STD_DEMO_BIN="${RUST_STD_DEMO_BIN:-}"
+RUST_STD_DEMO_MANIFEST_SRC="${RUST_STD_DEMO_MANIFEST_SRC:-}"
 SIGNATURE_DB_SRC="${SIGNATURE_DB_SRC:?SIGNATURE_DB_SRC is required}"
 CORE_SERVICE_BIN="${CORE_SERVICE_BIN:-}"
 CAPABILITY_SERVICE_BIN="${CAPABILITY_SERVICE_BIN:-}"
@@ -39,6 +41,9 @@ need_cmd dd
 need_cmd mke2fs
 need_file "${HELLO_ELF}"
 need_file "${SIGNATURE_DB_SRC}"
+if [[ -n "${RUST_STD_DEMO_BIN}" ]]; then
+    need_file "${RUST_STD_DEMO_BIN}"
+fi
 
 stage_driver_bundle() {
     local manifest_src="$1"
@@ -56,6 +61,13 @@ rm -rf "${ROOTFS_STAGE}"
 mkdir -p "${ROOTFS_STAGE}/bin"
 
 install -m 0755 "${HELLO_ELF}" "${ROOTFS_STAGE}/bin/hello"
+if [[ -n "${RUST_STD_DEMO_BIN}" ]]; then
+    install -m 0755 "${RUST_STD_DEMO_BIN}" "${ROOTFS_STAGE}/bin/rust-std-demo"
+    : > "${ROOTFS_STAGE}/rust.txt"
+fi
+if [[ -n "${RUST_STD_DEMO_MANIFEST_SRC}" ]]; then
+    install -m 0644 "${RUST_STD_DEMO_MANIFEST_SRC}" "${ROOTFS_STAGE}/bin/rust-std-demo.toml"
+fi
 install -m 0644 "${SIGNATURE_DB_SRC}" "${ROOTFS_STAGE}/signature.db"
 
 if [[ -n "${CAPABILITY_SERVICE_BIN}" || -n "${DRIVERS_SERVICE_BIN}" || -n "${INPUT_SERVICE_BIN}" ]]; then

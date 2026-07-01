@@ -54,6 +54,7 @@ need_cmd truncate
 need_dir "${ROOT_DIR}/.repo"
 need_file "${CORE_ROOT}/Cargo.toml"
 need_file "${SCRIPT_DIR}/build-hello.sh"
+need_file "${SCRIPT_DIR}/build-rust-std.sh"
 need_file "${SCRIPT_DIR}/build-bootloader.sh"
 need_file "${SCRIPT_DIR}/build-core-service.sh"
 need_file "${SCRIPT_DIR}/build-drivers.sh"
@@ -68,6 +69,9 @@ mkdir -p "${ESP_DIR}/EFI/BOOT" "${ESP_DIR}/system" "${INITFS_STAGE}" "${ROOTFS_S
 
 echo "[step] build user runtime and newlib"
 "${SCRIPT_DIR}/build-hello.sh"
+
+echo "[step] build Rust std demo"
+bash "${SCRIPT_DIR}/build-rust-std.sh"
 
 echo "[step] build cext bundles"
 "${SCRIPT_DIR}/build-cexts.sh"
@@ -94,6 +98,8 @@ echo "[step] build bootloader"
 "${SCRIPT_DIR}/build-bootloader.sh"
 
 HELLO_ELF="${ROOT_DIR}/out/newlib-port/hello/hello.elf"
+RUST_STD_DEMO_BIN="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release/rust-std-demo"
+RUST_STD_DEMO_MANIFEST_SRC="${ROOT_DIR}/user/apps/rust-std-demo/about.toml"
 KERNEL_BIN="${CORE_ROOT}/target/${KERNEL_TARGET}/release/kernel"
 SERVICE_BIN="${ROOT_DIR}/out/services-core/target/x86_64-unknown-mochios/release/core"
 DRIVERS_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/drivers"
@@ -117,6 +123,8 @@ else
 fi
 
 need_file "${HELLO_ELF}"
+need_file "${RUST_STD_DEMO_BIN}"
+need_file "${RUST_STD_DEMO_MANIFEST_SRC}"
 need_file "${KERNEL_BIN}"
 need_file "${SERVICE_BIN}"
 need_file "${DRIVERS_SERVICE_BIN}"
@@ -156,6 +164,7 @@ SIGNATURE_DB_ARGS=(
     --entry "/system/services/input.service=${INPUT_SERVICE_BIN}"
     --entry "${I8042_BUNDLE_ROOT}/entry.elf=${I8042_DRIVER_BIN}"
     --entry "/bin/hello=${HELLO_ELF}"
+    --entry "/bin/rust-std-demo=${RUST_STD_DEMO_BIN}"
 )
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     SIGNATURE_DB_ARGS+=(--entry "${DRIVERS_BUNDLE_ROOT}/entry.elf=${USB_DRIVER_BIN}")
@@ -169,6 +178,8 @@ echo "[step] build rootfs"
 ROOTFS_STAGE="${ROOTFS_STAGE}" \
 ROOTFS_IMG="${ROOTFS_IMG}" \
 HELLO_ELF="${HELLO_ELF}" \
+RUST_STD_DEMO_BIN="${RUST_STD_DEMO_BIN}" \
+RUST_STD_DEMO_MANIFEST_SRC="${RUST_STD_DEMO_MANIFEST_SRC}" \
 SIGNATURE_DB_SRC="${SIGNATURE_DB_STAGE}" \
 CORE_SERVICE_BIN="${SERVICE_BIN}" \
 CAPABILITY_SERVICE_BIN="${CAPABILITY_SERVICE_BIN}" \
@@ -214,6 +225,7 @@ install -m 0644 "${BOOT_BIN}" "${ARTIFACT_DIR}/BOOTX64.EFI"
 install -m 0755 "${SERVICE_BIN}" "${ARTIFACT_DIR}/core.service"
 install -m 0755 "${CAPABILITY_SERVICE_BIN}" "${ARTIFACT_DIR}/capability.service"
 install -m 0755 "${INPUT_SERVICE_BIN}" "${ARTIFACT_DIR}/input.service"
+install -m 0755 "${RUST_STD_DEMO_BIN}" "${ARTIFACT_DIR}/rust-std-demo"
 install -m 0644 "${SIGNATURE_DB_STAGE}" "${ARTIFACT_DIR}/signature.db"
 install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ARTIFACT_DIR}/drivers.service"
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
@@ -252,6 +264,7 @@ echo "[step] generate checksums"
         core.service \
         drivers.service \
         input.service \
+        rust-std-demo \
         i8042-driver.entry \
         signature.db \
         manifest.xml \

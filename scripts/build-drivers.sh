@@ -57,7 +57,7 @@ perl -0pi -e "s#plugkit = \\{ git = \"https://github.com/mochiOS/mnu\", package 
     "${USB_STAGE}/Cargo.toml" "${I8042_STAGE}/Cargo.toml"
 
 echo "[build] capability.service"
-cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \
+cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile --offline \
     --manifest-path "${CAPABILITY_STAGE}/Cargo.toml"
 cargo +"${NIGHTLY_TOOLCHAIN}" build \
     -Z build-std=core,alloc,compiler_builtins \
@@ -69,7 +69,7 @@ cargo +"${NIGHTLY_TOOLCHAIN}" build \
     -p capability
 
 echo "[build] drivers.service"
-cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \
+cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile --offline \
     --manifest-path "${DRIVERS_STAGE}/Cargo.toml"
 cargo +"${NIGHTLY_TOOLCHAIN}" build \
     -Z build-std=core,alloc,compiler_builtins \
@@ -81,7 +81,7 @@ cargo +"${NIGHTLY_TOOLCHAIN}" build \
     -p drivers
 
 echo "[build] input.service"
-cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \
+cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile --offline \
     --manifest-path "${INPUT_STAGE}/Cargo.toml"
 cargo +"${NIGHTLY_TOOLCHAIN}" build \
     -Z build-std=core,alloc,compiler_builtins \
@@ -93,7 +93,7 @@ cargo +"${NIGHTLY_TOOLCHAIN}" build \
     -p input
 
 echo "[build] usb driver bundle"
-cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \
+cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile --offline \
     --manifest-path "${USB_STAGE}/Cargo.toml"
 cargo +"${NIGHTLY_TOOLCHAIN}" build \
     -Z build-std=core,alloc,compiler_builtins \
@@ -105,7 +105,7 @@ cargo +"${NIGHTLY_TOOLCHAIN}" build \
     -p usb-driver
 
 echo "[build] i8042 driver bundle"
-cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \
+cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile --offline \
     --manifest-path "${I8042_STAGE}/Cargo.toml"
 cargo +"${NIGHTLY_TOOLCHAIN}" build \
     -Z build-std=core,alloc,compiler_builtins \

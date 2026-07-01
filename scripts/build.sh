@@ -105,13 +105,18 @@ SERVICE_BIN="${ROOT_DIR}/out/services-core/target/x86_64-unknown-mochios/release
 DRIVERS_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/drivers"
 CAPABILITY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/capability"
 INPUT_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/input"
+TTY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/tty"
 DRIVERS_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/drivers/about.toml"
 CAPABILITY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/capability/about.toml"
 INPUT_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/input/about.toml"
+TTY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/tty/about.toml"
 USB_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/entry"
 USB_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/usb-driver/about.toml"
 I8042_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/i8042-entry"
 I8042_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/ps2/i8042-driver/about.toml"
+MSH_BIN="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release/msh"
+MSH_MANIFEST_SRC="${ROOT_DIR}/binaries/msh/about.toml"
+MSH_FONT_SRC="${ROOT_DIR}/binaries/msh/resources/ter-u12b.bdf"
 BOOT_RELEASE_DIR="${ROOT_DIR}/out/bootloader/target/x86_64-unknown-uefi/release"
 
 if [[ -f "${BOOT_RELEASE_DIR}/boot.efi" ]]; then
@@ -130,9 +135,14 @@ need_file "${SERVICE_BIN}"
 need_file "${DRIVERS_SERVICE_BIN}"
 need_file "${CAPABILITY_SERVICE_BIN}"
 need_file "${INPUT_SERVICE_BIN}"
+need_file "${TTY_SERVICE_BIN}"
 need_file "${DRIVERS_SERVICE_MANIFEST_SRC}"
 need_file "${CAPABILITY_SERVICE_MANIFEST_SRC}"
 need_file "${INPUT_SERVICE_MANIFEST_SRC}"
+need_file "${TTY_SERVICE_MANIFEST_SRC}"
+need_file "${MSH_BIN}"
+need_file "${MSH_MANIFEST_SRC}"
+need_file "${MSH_FONT_SRC}"
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     need_file "${USB_DRIVER_BIN}"
     need_file "${USB_DRIVER_MANIFEST_SRC}"
@@ -162,9 +172,11 @@ SIGNATURE_DB_ARGS=(
     --entry "/system/services/capability.service=${CAPABILITY_SERVICE_BIN}"
     --entry "/system/services/drivers.service=${DRIVERS_SERVICE_BIN}"
     --entry "/system/services/input.service=${INPUT_SERVICE_BIN}"
+    --entry "/system/services/tty.service=${TTY_SERVICE_BIN}"
     --entry "${I8042_BUNDLE_ROOT}/entry.elf=${I8042_DRIVER_BIN}"
     --entry "/bin/hello=${HELLO_ELF}"
     --entry "/bin/rust-std-demo=${RUST_STD_DEMO_BIN}"
+    --entry "/bin/msh=${MSH_BIN}"
 )
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     SIGNATURE_DB_ARGS+=(--entry "${DRIVERS_BUNDLE_ROOT}/entry.elf=${USB_DRIVER_BIN}")
@@ -188,6 +200,11 @@ DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN}" \
 DRIVERS_SERVICE_MANIFEST_SRC="${DRIVERS_SERVICE_MANIFEST_SRC}" \
 INPUT_SERVICE_BIN="${INPUT_SERVICE_BIN}" \
 INPUT_SERVICE_MANIFEST_SRC="${INPUT_SERVICE_MANIFEST_SRC}" \
+TTY_SERVICE_BIN="${TTY_SERVICE_BIN}" \
+TTY_SERVICE_MANIFEST_SRC="${TTY_SERVICE_MANIFEST_SRC}" \
+MSH_BIN="${MSH_BIN}" \
+MSH_MANIFEST_SRC="${MSH_MANIFEST_SRC}" \
+MSH_FONT_SRC="${MSH_FONT_SRC}" \
 USB_DRIVER_MANIFEST_SRC="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_MANIFEST_SRC}")" \
 USB_DRIVER_ENTRY_BIN="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_BIN}")" \
 USB_DRIVER_BUNDLE_ROOT="${DRIVERS_BUNDLE_ROOT}" \
@@ -225,7 +242,9 @@ install -m 0644 "${BOOT_BIN}" "${ARTIFACT_DIR}/BOOTX64.EFI"
 install -m 0755 "${SERVICE_BIN}" "${ARTIFACT_DIR}/core.service"
 install -m 0755 "${CAPABILITY_SERVICE_BIN}" "${ARTIFACT_DIR}/capability.service"
 install -m 0755 "${INPUT_SERVICE_BIN}" "${ARTIFACT_DIR}/input.service"
+install -m 0755 "${TTY_SERVICE_BIN}" "${ARTIFACT_DIR}/tty.service"
 install -m 0755 "${RUST_STD_DEMO_BIN}" "${ARTIFACT_DIR}/rust-std-demo"
+install -m 0755 "${MSH_BIN}" "${ARTIFACT_DIR}/msh"
 install -m 0644 "${SIGNATURE_DB_STAGE}" "${ARTIFACT_DIR}/signature.db"
 install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ARTIFACT_DIR}/drivers.service"
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
@@ -264,6 +283,8 @@ echo "[step] generate checksums"
         core.service \
         drivers.service \
         input.service \
+        tty.service \
+        msh \
         rust-std-demo \
         i8042-driver.entry \
         signature.db \

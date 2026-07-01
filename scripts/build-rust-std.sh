@@ -9,8 +9,6 @@ TARGET_JSON="${USER_ROOT}/targets/x86_64-unknown-mochios.json"
 TOOLCHAIN="${NIGHTLY_TOOLCHAIN:-nightly}"
 BOOTSTRAP_TARGET="x86_64-elf"
 SYSROOT_DIR="${ROOT_DIR}/out/newlib-port/toolchain/${BOOTSTRAP_TARGET}"
-APP_MANIFEST="${USER_ROOT}/apps/rust-std-demo/Cargo.toml"
-APP_NAME="rust-std-demo"
 CRT0_O="${ROOT_DIR}/out/newlib-port/hello/crt0.o"
 RUNTIME_LIB="${ROOT_DIR}/out/newlib-port/cargo-target/x86_64-unknown-mochios/release/libmochi_user_newlib_runtime.a"
 LINKER_SCRIPT="${USER_ROOT}/runtime/linker.ld"
@@ -18,9 +16,7 @@ SYSROOT_OVERLAY="${OUT_ROOT}/sysroot-overlay"
 LIBC_OVERRIDE_PATH="${ROOT_DIR}/libraries/libc"
 LIBC_BUILD_HASH="$(cksum "${LIBC_OVERRIDE_PATH}/build.rs" | awk '{print $1}')"
 TARGET_DIR="${OUT_ROOT}/target-libc-patch-${LIBC_BUILD_HASH}"
-APP_OUT="${TARGET_DIR}/x86_64-unknown-mochios/release/${APP_NAME}"
 STABLE_TARGET_DIR="${OUT_ROOT}/target"
-STABLE_APP_OUT="${STABLE_TARGET_DIR}/x86_64-unknown-mochios/release/${APP_NAME}"
 RUSTUP_HOME_LOCAL="${OUT_ROOT}/rustup-home-${LIBC_BUILD_HASH}"
 OVERLAY_TOOLCHAIN="mochios-overlay-${LIBC_BUILD_HASH}"
 
@@ -176,7 +172,6 @@ need_cmd rustc
 need_cmd rustup
 need_cmd x86_64-elf-gcc
 need_file "${TARGET_JSON}"
-need_file "${APP_MANIFEST}"
 need_dir "${ROOT_DIR}/libraries/rust/library"
 need_file "${LIBC_OVERRIDE_PATH}/Cargo.toml"
 need_file "${LINKER_SCRIPT}"
@@ -216,19 +211,30 @@ RUSTFLAGS=(
     "-C" "link-arg=-Wl,--end-group"
 )
 
-echo "[build] rust std demo"
-env RUSTUP_HOME="${RUSTUP_HOME_LOCAL}" RUSTFLAGS="${RUSTFLAGS[*]}" \
-    rustup run "${OVERLAY_TOOLCHAIN}" cargo build \
-        -Z build-std=std,panic_abort,compiler_builtins \
-        -Z json-target-spec \
-        --config "patch.crates-io.libc.path='${LIBC_OVERRIDE_PATH}'" \
-        --offline \
-        --manifest-path "${APP_MANIFEST}" \
-        --release \
-        --target "${TARGET_JSON}" \
-        --target-dir "${TARGET_DIR}"
+build_std_app() {
+    local manifest_path="$1"
+    local app_name="$2"
+    local app_out="${TARGET_DIR}/x86_64-unknown-mochios/release/${app_name}"
+    local stable_app_out="${STABLE_TARGET_DIR}/x86_64-unknown-mochios/release/${app_name}"
 
-need_file "${APP_OUT}"
-mkdir -p "$(dirname "${STABLE_APP_OUT}")"
-cp "${APP_OUT}" "${STABLE_APP_OUT}"
-echo "[done] ${APP_OUT}"
+    need_file "${manifest_path}"
+    echo "[build] ${app_name}"
+    env RUSTUP_HOME="${RUSTUP_HOME_LOCAL}" RUSTFLAGS="${RUSTFLAGS[*]}" \
+        rustup run "${OVERLAY_TOOLCHAIN}" cargo build \
+            -Z build-std=std,panic_abort,compiler_builtins \
+            -Z json-target-spec \
+            --config "patch.crates-io.libc.path='${LIBC_OVERRIDE_PATH}'" \
+            --offline \
+            --manifest-path "${manifest_path}" \
+            --release \
+            --target "${TARGET_JSON}" \
+            --target-dir "${TARGET_DIR}"
+
+    need_file "${app_out}"
+    mkdir -p "$(dirname "${stable_app_out}")"
+    cp "${app_out}" "${stable_app_out}"
+    echo "[done] ${app_out}"
+}
+
+build_std_app "${USER_ROOT}/apps/rust-std-demo/Cargo.toml" "rust-std-demo"
+build_std_app "${ROOT_DIR}/binaries/msh/Cargo.toml" "msh"

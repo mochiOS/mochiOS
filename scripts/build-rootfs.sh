@@ -17,6 +17,11 @@ DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN:-}"
 DRIVERS_SERVICE_MANIFEST_SRC="${DRIVERS_SERVICE_MANIFEST_SRC:-}"
 INPUT_SERVICE_BIN="${INPUT_SERVICE_BIN:-}"
 INPUT_SERVICE_MANIFEST_SRC="${INPUT_SERVICE_MANIFEST_SRC:-}"
+TTY_SERVICE_BIN="${TTY_SERVICE_BIN:-}"
+TTY_SERVICE_MANIFEST_SRC="${TTY_SERVICE_MANIFEST_SRC:-}"
+MSH_BIN="${MSH_BIN:-}"
+MSH_MANIFEST_SRC="${MSH_MANIFEST_SRC:-}"
+MSH_FONT_SRC="${MSH_FONT_SRC:-}"
 USB_DRIVER_MANIFEST_SRC="${USB_DRIVER_MANIFEST_SRC:-}"
 USB_DRIVER_ENTRY_BIN="${USB_DRIVER_ENTRY_BIN:-}"
 USB_DRIVER_BUNDLE_ROOT="${USB_DRIVER_BUNDLE_ROOT:-/bin/drivers/usb/qemu-usb.driver}"
@@ -68,9 +73,19 @@ fi
 if [[ -n "${RUST_STD_DEMO_MANIFEST_SRC}" ]]; then
     install -m 0644 "${RUST_STD_DEMO_MANIFEST_SRC}" "${ROOTFS_STAGE}/bin/rust-std-demo.toml"
 fi
+if [[ -n "${MSH_BIN}" ]]; then
+    install -m 0755 "${MSH_BIN}" "${ROOTFS_STAGE}/bin/msh"
+fi
+if [[ -n "${MSH_MANIFEST_SRC}" ]]; then
+    install -m 0644 "${MSH_MANIFEST_SRC}" "${ROOTFS_STAGE}/bin/msh.toml"
+fi
+if [[ -n "${MSH_FONT_SRC}" ]]; then
+    mkdir -p "${ROOTFS_STAGE}/system/resources/msh"
+    install -m 0644 "${MSH_FONT_SRC}" "${ROOTFS_STAGE}/system/resources/msh/ter-u12b.bdf"
+fi
 install -m 0644 "${SIGNATURE_DB_SRC}" "${ROOTFS_STAGE}/signature.db"
 
-if [[ -n "${CAPABILITY_SERVICE_BIN}" || -n "${DRIVERS_SERVICE_BIN}" || -n "${INPUT_SERVICE_BIN}" ]]; then
+if [[ -n "${CAPABILITY_SERVICE_BIN}" || -n "${DRIVERS_SERVICE_BIN}" || -n "${INPUT_SERVICE_BIN}" || -n "${TTY_SERVICE_BIN}" ]]; then
     mkdir -p "${ROOTFS_STAGE}/system/services"
 fi
 if [[ -n "${CAPABILITY_SERVICE_BIN}" ]]; then
@@ -90,6 +105,12 @@ if [[ -n "${INPUT_SERVICE_BIN}" ]]; then
 fi
 if [[ -n "${INPUT_SERVICE_MANIFEST_SRC}" ]]; then
     install -m 0644 "${INPUT_SERVICE_MANIFEST_SRC}" "${ROOTFS_STAGE}/system/services/input.service.toml"
+fi
+if [[ -n "${TTY_SERVICE_BIN}" ]]; then
+    install -m 0755 "${TTY_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/tty.service"
+fi
+if [[ -n "${TTY_SERVICE_MANIFEST_SRC}" ]]; then
+    install -m 0644 "${TTY_SERVICE_MANIFEST_SRC}" "${ROOTFS_STAGE}/system/services/tty.service.toml"
 fi
 stage_driver_bundle "${USB_DRIVER_MANIFEST_SRC}" "${USB_DRIVER_ENTRY_BIN}" "${USB_DRIVER_BUNDLE_ROOT}"
 stage_driver_bundle "${I8042_DRIVER_MANIFEST_SRC}" "${I8042_DRIVER_ENTRY_BIN}" "${I8042_DRIVER_BUNDLE_ROOT}"

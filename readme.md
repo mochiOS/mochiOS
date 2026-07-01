@@ -67,10 +67,10 @@ cd libraries/newlib
 ./configure
 ```
 
-4. mochiOSをビルドします。（実行を兼ねます）
+4. mochiOSをビルドします。
 
 ```bash
-./scripts/runner.sh build
+make build
 ```
 
 ### Status

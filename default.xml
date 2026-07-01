@@ -72,4 +72,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="binaries/msh"
+            name="mochiOS/msh"
+            revision="main"
+            remote="github"
+    />
 </manifest>

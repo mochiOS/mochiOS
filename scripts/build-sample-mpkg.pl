@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use File::Basename qw(dirname);
+use File::Basename qw(basename dirname);
 use File::Copy qw(copy);
 use File::Path qw(make_path);
 use File::Temp qw(tempdir);
@@ -92,6 +92,13 @@ make_path($payload_dir) or die "failed to create payload dir\n";
 copy($payload_bin, $payload_path) or die "failed to copy payload binary: $!\n";
 chmod 0755, $payload_path;
 
+my $payload_sha = run_cmd_capture('sha256sum', $payload_path);
+$payload_sha =~ s/\s.*\z//s;
+$payload_sha =~ /^[0-9a-f]{64}$/ or die "invalid sha256 output\n";
+my $payload_size = -s $payload_path;
+defined $payload_size or die "failed to stat payload binary\n";
+my $payload_name = basename($binary_path);
+
 open(my $manifest_fh, '>', "$pkg_root/manifest.toml") or die "failed to open manifest\n";
 binmode($manifest_fh) or die "failed to set binary mode on manifest\n";
 print {$manifest_fh} <<EOF;
@@ -107,8 +114,16 @@ kind = "binary"
 architecture = "x86_64"
 abi = "mochios-1"
 
+[[file]]
+id = "main"
+path = "\$/$payload_name"
+digest = "sha256:$payload_sha"
+size = $payload_size
+mode = "0755"
+
 [[binary]]
 path = "$binary_path"
+file = "main"
 kind = "application"
 EOF
 close($manifest_fh) or die "failed to close manifest\n";

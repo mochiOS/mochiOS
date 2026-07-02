@@ -20,6 +20,10 @@ LOGGER_SERVICE_BIN="${LOGGER_SERVICE_BIN:-}"
 LOGGER_SERVICE_MANIFEST_SRC="${LOGGER_SERVICE_MANIFEST_SRC:-}"
 INPUT_SERVICE_BIN="${INPUT_SERVICE_BIN:-}"
 INPUT_SERVICE_MANIFEST_SRC="${INPUT_SERVICE_MANIFEST_SRC:-}"
+PACKAGE_SERVICE_BIN="${PACKAGE_SERVICE_BIN:-}"
+PACKAGE_SERVICE_MANIFEST_SRC="${PACKAGE_SERVICE_MANIFEST_SRC:-}"
+SIGNATURE_SERVICE_BIN="${SIGNATURE_SERVICE_BIN:-}"
+SIGNATURE_SERVICE_MANIFEST_SRC="${SIGNATURE_SERVICE_MANIFEST_SRC:-}"
 TTY_SERVICE_BIN="${TTY_SERVICE_BIN:-}"
 TTY_SERVICE_MANIFEST_SRC="${TTY_SERVICE_MANIFEST_SRC:-}"
 MSH_BIN="${MSH_BIN:-}"
@@ -102,7 +106,7 @@ stage_package_manifest "${RUST_STD_DEMO_MANIFEST_SRC}" "/system/packages/rust-st
 stage_package_manifest "${MSH_MANIFEST_SRC}" "/system/packages/msh/manifest.toml"
 stage_package_manifest "${COREUTILS_MANIFEST_SRC}" "/system/packages/coreutils/manifest.toml"
 
-if [[ -n "${CAPABILITY_SERVICE_BIN}" || -n "${DRIVERS_SERVICE_BIN}" || -n "${LOGGER_SERVICE_BIN}" || -n "${INPUT_SERVICE_BIN}" || -n "${TTY_SERVICE_BIN}" ]]; then
+if [[ -n "${CAPABILITY_SERVICE_BIN}" || -n "${DRIVERS_SERVICE_BIN}" || -n "${LOGGER_SERVICE_BIN}" || -n "${INPUT_SERVICE_BIN}" || -n "${PACKAGE_SERVICE_BIN}" || -n "${SIGNATURE_SERVICE_BIN}" || -n "${TTY_SERVICE_BIN}" ]]; then
     mkdir -p "${ROOTFS_STAGE}/system/services"
 fi
 if [[ -n "${CAPABILITY_SERVICE_BIN}" ]]; then
@@ -117,6 +121,12 @@ fi
 if [[ -n "${INPUT_SERVICE_BIN}" ]]; then
     install -m 0755 "${INPUT_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/input.service"
 fi
+if [[ -n "${PACKAGE_SERVICE_BIN}" ]]; then
+    install -m 0755 "${PACKAGE_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/package.service"
+fi
+if [[ -n "${SIGNATURE_SERVICE_BIN}" ]]; then
+    install -m 0755 "${SIGNATURE_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/signature.service"
+fi
 if [[ -n "${TTY_SERVICE_BIN}" ]]; then
     install -m 0755 "${TTY_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/tty.service"
 fi
@@ -125,6 +135,8 @@ stage_package_manifest "${CAPABILITY_SERVICE_MANIFEST_SRC}" "/system/packages/ca
 stage_package_manifest "${DRIVERS_SERVICE_MANIFEST_SRC}" "/system/packages/drivers/manifest.toml"
 stage_package_manifest "${LOGGER_SERVICE_MANIFEST_SRC}" "/system/packages/logger/manifest.toml"
 stage_package_manifest "${INPUT_SERVICE_MANIFEST_SRC}" "/system/packages/input/manifest.toml"
+stage_package_manifest "${PACKAGE_SERVICE_MANIFEST_SRC}" "/system/packages/package/manifest.toml"
+stage_package_manifest "${SIGNATURE_SERVICE_MANIFEST_SRC}" "/system/packages/signature/manifest.toml"
 stage_package_manifest "${TTY_SERVICE_MANIFEST_SRC}" "/system/packages/tty/manifest.toml"
 stage_package_manifest "${USB_DRIVER_MANIFEST_SRC}" "/system/packages${USB_DRIVER_BUNDLE_ROOT#/bin}/manifest.toml"
 stage_package_manifest "${I8042_DRIVER_MANIFEST_SRC}" "/system/packages${I8042_DRIVER_BUNDLE_ROOT#/bin}/manifest.toml"

@@ -107,10 +107,14 @@ CAPABILITY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-moc
 LOGGER_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/logger"
 INPUT_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/input"
 TTY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/tty"
+PACKAGE_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/package"
+SIGNATURE_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/signature"
 DRIVERS_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/drivers/manifest.toml"
 CAPABILITY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/capability/manifest.toml"
 LOGGER_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/logger/manifest.toml"
 INPUT_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/input/manifest.toml"
+PACKAGE_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/package/manifest.toml"
+SIGNATURE_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/signature/manifest.toml"
 TTY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/tty/manifest.toml"
 USB_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/entry"
 USB_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/usb-driver/manifest.toml"
@@ -140,11 +144,15 @@ need_file "${DRIVERS_SERVICE_BIN}"
 need_file "${CAPABILITY_SERVICE_BIN}"
 need_file "${LOGGER_SERVICE_BIN}"
 need_file "${INPUT_SERVICE_BIN}"
+need_file "${PACKAGE_SERVICE_BIN}"
+need_file "${SIGNATURE_SERVICE_BIN}"
 need_file "${TTY_SERVICE_BIN}"
 need_file "${DRIVERS_SERVICE_MANIFEST_SRC}"
 need_file "${CAPABILITY_SERVICE_MANIFEST_SRC}"
 need_file "${LOGGER_SERVICE_MANIFEST_SRC}"
 need_file "${INPUT_SERVICE_MANIFEST_SRC}"
+need_file "${PACKAGE_SERVICE_MANIFEST_SRC}"
+need_file "${SIGNATURE_SERVICE_MANIFEST_SRC}"
 need_file "${TTY_SERVICE_MANIFEST_SRC}"
 need_file "${MSH_BIN}"
 need_file "${MSH_MANIFEST_SRC}"
@@ -183,6 +191,8 @@ SIGNATURE_DB_ARGS=(
     --entry "/system/services/drivers.service=${DRIVERS_SERVICE_BIN}"
     --entry "/system/services/logger.service=${LOGGER_SERVICE_BIN}"
     --entry "/system/services/input.service=${INPUT_SERVICE_BIN}"
+    --entry "/system/services/package.service=${PACKAGE_SERVICE_BIN}"
+    --entry "/system/services/signature.service=${SIGNATURE_SERVICE_BIN}"
     --entry "/system/services/tty.service=${TTY_SERVICE_BIN}"
     --entry "${I8042_BUNDLE_ROOT}/entry.elf=${I8042_DRIVER_BIN}"
     --entry "/bin/hello=${HELLO_ELF}"
@@ -220,6 +230,10 @@ LOGGER_SERVICE_BIN="${LOGGER_SERVICE_BIN}" \
 LOGGER_SERVICE_MANIFEST_SRC="${LOGGER_SERVICE_MANIFEST_SRC}" \
 INPUT_SERVICE_BIN="${INPUT_SERVICE_BIN}" \
 INPUT_SERVICE_MANIFEST_SRC="${INPUT_SERVICE_MANIFEST_SRC}" \
+PACKAGE_SERVICE_BIN="${PACKAGE_SERVICE_BIN}" \
+PACKAGE_SERVICE_MANIFEST_SRC="${PACKAGE_SERVICE_MANIFEST_SRC}" \
+SIGNATURE_SERVICE_BIN="${SIGNATURE_SERVICE_BIN}" \
+SIGNATURE_SERVICE_MANIFEST_SRC="${SIGNATURE_SERVICE_MANIFEST_SRC}" \
 TTY_SERVICE_BIN="${TTY_SERVICE_BIN}" \
 TTY_SERVICE_MANIFEST_SRC="${TTY_SERVICE_MANIFEST_SRC}" \
 MSH_BIN="${MSH_BIN}" \

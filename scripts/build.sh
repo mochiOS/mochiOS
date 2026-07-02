@@ -99,7 +99,7 @@ echo "[step] build bootloader"
 
 HELLO_ELF="${ROOT_DIR}/out/newlib-port/hello/hello.elf"
 RUST_STD_DEMO_BIN="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release/rust-std-demo"
-RUST_STD_DEMO_MANIFEST_SRC="${ROOT_DIR}/user/apps/rust-std-demo/about.toml"
+RUST_STD_DEMO_MANIFEST_SRC="${ROOT_DIR}/user/apps/rust-std-demo/manifest.toml"
 KERNEL_BIN="${CORE_ROOT}/target/${KERNEL_TARGET}/release/kernel"
 SERVICE_BIN="${ROOT_DIR}/out/services-core/target/x86_64-unknown-mochios/release/core"
 DRIVERS_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/drivers"
@@ -107,20 +107,20 @@ CAPABILITY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-moc
 LOGGER_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/logger"
 INPUT_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/input"
 TTY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/tty"
-DRIVERS_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/drivers/about.toml"
-CAPABILITY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/capability/about.toml"
-LOGGER_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/logger/about.toml"
-INPUT_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/input/about.toml"
-TTY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/tty/about.toml"
+DRIVERS_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/drivers/manifest.toml"
+CAPABILITY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/capability/manifest.toml"
+LOGGER_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/logger/manifest.toml"
+INPUT_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/input/manifest.toml"
+TTY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/tty/manifest.toml"
 USB_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/entry"
-USB_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/usb-driver/about.toml"
+USB_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/usb-driver/manifest.toml"
 I8042_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/i8042-entry"
-I8042_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/ps2/i8042-driver/about.toml"
+I8042_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/ps2/i8042-driver/manifest.toml"
 MSH_BIN="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release/msh"
-MSH_MANIFEST_SRC="${ROOT_DIR}/binaries/msh/about.toml"
+MSH_MANIFEST_SRC="${ROOT_DIR}/binaries/msh/manifest.toml"
 MSH_FONT_SRC="${ROOT_DIR}/binaries/msh/resources/ter-u12b.bdf"
 COREUTILS_BIN_DIR="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release"
-COREUTILS_MANIFEST_DIR="${ROOT_DIR}/binaries/coreutils/manifests"
+COREUTILS_MANIFEST_SRC="${ROOT_DIR}/binaries/coreutils/manifest.toml"
 BOOT_RELEASE_DIR="${ROOT_DIR}/out/bootloader/target/x86_64-unknown-uefi/release"
 
 if [[ -f "${BOOT_RELEASE_DIR}/boot.efi" ]]; then
@@ -149,9 +149,9 @@ need_file "${TTY_SERVICE_MANIFEST_SRC}"
 need_file "${MSH_BIN}"
 need_file "${MSH_MANIFEST_SRC}"
 need_file "${MSH_FONT_SRC}"
+need_file "${COREUTILS_MANIFEST_SRC}"
 for coreutil in echo pwd true false cat touch rm; do
     need_file "${COREUTILS_BIN_DIR}/${coreutil}"
-    need_file "${COREUTILS_MANIFEST_DIR}/${coreutil}.toml"
 done
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     need_file "${USB_DRIVER_BIN}"
@@ -226,7 +226,7 @@ MSH_BIN="${MSH_BIN}" \
 MSH_MANIFEST_SRC="${MSH_MANIFEST_SRC}" \
 MSH_FONT_SRC="${MSH_FONT_SRC}" \
 COREUTILS_BIN_DIR="${COREUTILS_BIN_DIR}" \
-COREUTILS_MANIFEST_DIR="${COREUTILS_MANIFEST_DIR}" \
+COREUTILS_MANIFEST_SRC="${COREUTILS_MANIFEST_SRC}" \
 USB_DRIVER_MANIFEST_SRC="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_MANIFEST_SRC}")" \
 USB_DRIVER_ENTRY_BIN="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_BIN}")" \
 USB_DRIVER_BUNDLE_ROOT="${DRIVERS_BUNDLE_ROOT}" \

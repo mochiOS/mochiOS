@@ -224,7 +224,6 @@ build_std_app() {
             -Z build-std=std,panic_abort,compiler_builtins \
             -Z json-target-spec \
             --config "patch.crates-io.libc.path='${LIBC_OVERRIDE_PATH}'" \
-            --offline \
             --manifest-path "${manifest_path}" \
             --release \
             --target "${TARGET_JSON}" \

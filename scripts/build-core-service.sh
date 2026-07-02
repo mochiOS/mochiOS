@@ -38,12 +38,10 @@ perl -0pi -e "s#path = \"\\.\\./\\.\\./user/crates/platform\"#path = \"${USER_RO
 
 echo "[build] core.service"
 cargo +"${NIGHTLY_TOOLCHAIN}" generate-lockfile \
-    --offline \
     --manifest-path "${STAGE_ROOT}/Cargo.toml"
 cargo +"${NIGHTLY_TOOLCHAIN}" build \
     -Z build-std=core,alloc,compiler_builtins \
     -Z json-target-spec \
-    --offline \
     --release \
     --target "${TARGET_JSON}" \
     --target-dir "${TARGET_DIR}" \

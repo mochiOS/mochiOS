@@ -104,10 +104,12 @@ KERNEL_BIN="${CORE_ROOT}/target/${KERNEL_TARGET}/release/kernel"
 SERVICE_BIN="${ROOT_DIR}/out/services-core/target/x86_64-unknown-mochios/release/core"
 DRIVERS_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/drivers"
 CAPABILITY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/capability"
+LOGGER_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/logger"
 INPUT_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/input"
 TTY_SERVICE_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/tty"
 DRIVERS_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/drivers/about.toml"
 CAPABILITY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/capability/about.toml"
+LOGGER_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/logger/about.toml"
 INPUT_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/input/about.toml"
 TTY_SERVICE_MANIFEST_SRC="${ROOT_DIR}/services/tty/about.toml"
 USB_DRIVER_BIN="${ROOT_DIR}/out/services-build/target/x86_64-unknown-mochios/release/entry"
@@ -134,10 +136,12 @@ need_file "${KERNEL_BIN}"
 need_file "${SERVICE_BIN}"
 need_file "${DRIVERS_SERVICE_BIN}"
 need_file "${CAPABILITY_SERVICE_BIN}"
+need_file "${LOGGER_SERVICE_BIN}"
 need_file "${INPUT_SERVICE_BIN}"
 need_file "${TTY_SERVICE_BIN}"
 need_file "${DRIVERS_SERVICE_MANIFEST_SRC}"
 need_file "${CAPABILITY_SERVICE_MANIFEST_SRC}"
+need_file "${LOGGER_SERVICE_MANIFEST_SRC}"
 need_file "${INPUT_SERVICE_MANIFEST_SRC}"
 need_file "${TTY_SERVICE_MANIFEST_SRC}"
 need_file "${MSH_BIN}"
@@ -171,6 +175,7 @@ SIGNATURE_DB_ARGS=(
     --entry "core.service=${SERVICE_BIN}"
     --entry "/system/services/capability.service=${CAPABILITY_SERVICE_BIN}"
     --entry "/system/services/drivers.service=${DRIVERS_SERVICE_BIN}"
+    --entry "/system/services/logger.service=${LOGGER_SERVICE_BIN}"
     --entry "/system/services/input.service=${INPUT_SERVICE_BIN}"
     --entry "/system/services/tty.service=${TTY_SERVICE_BIN}"
     --entry "${I8042_BUNDLE_ROOT}/entry.elf=${I8042_DRIVER_BIN}"
@@ -198,6 +203,8 @@ CAPABILITY_SERVICE_BIN="${CAPABILITY_SERVICE_BIN}" \
 CAPABILITY_SERVICE_MANIFEST_SRC="${CAPABILITY_SERVICE_MANIFEST_SRC}" \
 DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN}" \
 DRIVERS_SERVICE_MANIFEST_SRC="${DRIVERS_SERVICE_MANIFEST_SRC}" \
+LOGGER_SERVICE_BIN="${LOGGER_SERVICE_BIN}" \
+LOGGER_SERVICE_MANIFEST_SRC="${LOGGER_SERVICE_MANIFEST_SRC}" \
 INPUT_SERVICE_BIN="${INPUT_SERVICE_BIN}" \
 INPUT_SERVICE_MANIFEST_SRC="${INPUT_SERVICE_MANIFEST_SRC}" \
 TTY_SERVICE_BIN="${TTY_SERVICE_BIN}" \
@@ -243,6 +250,7 @@ install -m 0755 "${SERVICE_BIN}" "${ARTIFACT_DIR}/core.service"
 install -m 0755 "${CAPABILITY_SERVICE_BIN}" "${ARTIFACT_DIR}/capability.service"
 install -m 0755 "${INPUT_SERVICE_BIN}" "${ARTIFACT_DIR}/input.service"
 install -m 0755 "${TTY_SERVICE_BIN}" "${ARTIFACT_DIR}/tty.service"
+install -m 0755 "${LOGGER_SERVICE_BIN}" "${ARTIFACT_DIR}/logger.service"
 install -m 0755 "${RUST_STD_DEMO_BIN}" "${ARTIFACT_DIR}/rust-std-demo"
 install -m 0755 "${MSH_BIN}" "${ARTIFACT_DIR}/msh"
 install -m 0644 "${SIGNATURE_DB_STAGE}" "${ARTIFACT_DIR}/signature.db"

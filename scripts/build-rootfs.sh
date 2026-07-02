@@ -15,6 +15,8 @@ CAPABILITY_SERVICE_BIN="${CAPABILITY_SERVICE_BIN:-}"
 CAPABILITY_SERVICE_MANIFEST_SRC="${CAPABILITY_SERVICE_MANIFEST_SRC:-}"
 DRIVERS_SERVICE_BIN="${DRIVERS_SERVICE_BIN:-}"
 DRIVERS_SERVICE_MANIFEST_SRC="${DRIVERS_SERVICE_MANIFEST_SRC:-}"
+LOGGER_SERVICE_BIN="${LOGGER_SERVICE_BIN:-}"
+LOGGER_SERVICE_MANIFEST_SRC="${LOGGER_SERVICE_MANIFEST_SRC:-}"
 INPUT_SERVICE_BIN="${INPUT_SERVICE_BIN:-}"
 INPUT_SERVICE_MANIFEST_SRC="${INPUT_SERVICE_MANIFEST_SRC:-}"
 TTY_SERVICE_BIN="${TTY_SERVICE_BIN:-}"
@@ -85,7 +87,7 @@ if [[ -n "${MSH_FONT_SRC}" ]]; then
 fi
 install -m 0644 "${SIGNATURE_DB_SRC}" "${ROOTFS_STAGE}/signature.db"
 
-if [[ -n "${CAPABILITY_SERVICE_BIN}" || -n "${DRIVERS_SERVICE_BIN}" || -n "${INPUT_SERVICE_BIN}" || -n "${TTY_SERVICE_BIN}" ]]; then
+if [[ -n "${CAPABILITY_SERVICE_BIN}" || -n "${DRIVERS_SERVICE_BIN}" || -n "${LOGGER_SERVICE_BIN}" || -n "${INPUT_SERVICE_BIN}" || -n "${TTY_SERVICE_BIN}" ]]; then
     mkdir -p "${ROOTFS_STAGE}/system/services"
 fi
 if [[ -n "${CAPABILITY_SERVICE_BIN}" ]]; then
@@ -99,6 +101,12 @@ if [[ -n "${DRIVERS_SERVICE_BIN}" ]]; then
 fi
 if [[ -n "${DRIVERS_SERVICE_MANIFEST_SRC}" ]]; then
     install -m 0644 "${DRIVERS_SERVICE_MANIFEST_SRC}" "${ROOTFS_STAGE}/system/services/drivers.service.toml"
+fi
+if [[ -n "${LOGGER_SERVICE_BIN}" ]]; then
+    install -m 0755 "${LOGGER_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/logger.service"
+fi
+if [[ -n "${LOGGER_SERVICE_MANIFEST_SRC}" ]]; then
+    install -m 0644 "${LOGGER_SERVICE_MANIFEST_SRC}" "${ROOTFS_STAGE}/system/services/logger.service.toml"
 fi
 if [[ -n "${INPUT_SERVICE_BIN}" ]]; then
     install -m 0755 "${INPUT_SERVICE_BIN}" "${ROOTFS_STAGE}/system/services/input.service"
@@ -114,6 +122,10 @@ if [[ -n "${TTY_SERVICE_MANIFEST_SRC}" ]]; then
 fi
 stage_driver_bundle "${USB_DRIVER_MANIFEST_SRC}" "${USB_DRIVER_ENTRY_BIN}" "${USB_DRIVER_BUNDLE_ROOT}"
 stage_driver_bundle "${I8042_DRIVER_MANIFEST_SRC}" "${I8042_DRIVER_ENTRY_BIN}" "${I8042_DRIVER_BUNDLE_ROOT}"
+
+for service_dir in core capability drivers logger input tty i8042 usb-driver misc; do
+    mkdir -p "${ROOTFS_STAGE}/system/services/${service_dir}"
+done
 
 rm -f "${ROOTFS_IMG}"
 truncate -s 16M "${ROOTFS_IMG}"

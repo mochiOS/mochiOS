@@ -10,6 +10,8 @@ HELLO_ELF="${HELLO_ELF:?HELLO_ELF is required}"
 RUST_STD_DEMO_BIN="${RUST_STD_DEMO_BIN:-}"
 RUST_STD_DEMO_MANIFEST_SRC="${RUST_STD_DEMO_MANIFEST_SRC:-}"
 COREUTILS_MANIFEST_SRC="${COREUTILS_MANIFEST_SRC:-}"
+MPK_DEMO_MPKG_SRC="${MPK_DEMO_MPKG_SRC:-}"
+MPK_TEST_MPKG_SRC="${MPK_TEST_MPKG_SRC:-}"
 SIGNATURE_DB_SRC="${SIGNATURE_DB_SRC:?SIGNATURE_DB_SRC is required}"
 CORE_SERVICE_BIN="${CORE_SERVICE_BIN:-}"
 CAPABILITY_SERVICE_BIN="${CAPABILITY_SERVICE_BIN:-}"
@@ -95,13 +97,21 @@ if [[ -n "${MSH_FONT_SRC}" ]]; then
     install -m 0644 "${MSH_FONT_SRC}" "${ROOTFS_STAGE}/system/resources/msh/ter-u12b.bdf"
 fi
 if [[ -n "${COREUTILS_BIN_DIR}" ]]; then
-    for coreutil in echo pwd true false cat touch rm; do
+    for coreutil in echo ls pwd true false cat touch rm mpk; do
         install -m 0755 "${COREUTILS_BIN_DIR}/${coreutil}" "${ROOTFS_STAGE}/bin/${coreutil}"
     done
 fi
 install -m 0644 "${SIGNATURE_DB_SRC}" "${ROOTFS_STAGE}/signature.db"
 
 mkdir -p "${ROOTFS_STAGE}/system/packages"
+if [[ -n "${MPK_DEMO_MPKG_SRC}" ]]; then
+    mkdir -p "${ROOTFS_STAGE}/system/samples"
+    install -m 0644 "${MPK_DEMO_MPKG_SRC}" "${ROOTFS_STAGE}/system/samples/mpk-demo.mpkg"
+fi
+if [[ -n "${MPK_TEST_MPKG_SRC}" ]]; then
+    mkdir -p "${ROOTFS_STAGE}/system/samples"
+    install -m 0644 "${MPK_TEST_MPKG_SRC}" "${ROOTFS_STAGE}/system/samples/mpk-test.mpkg"
+fi
 stage_package_manifest "${RUST_STD_DEMO_MANIFEST_SRC}" "/system/packages/rust-std-demo/manifest.toml"
 stage_package_manifest "${MSH_MANIFEST_SRC}" "/system/packages/msh/manifest.toml"
 stage_package_manifest "${COREUTILS_MANIFEST_SRC}" "/system/packages/coreutils/manifest.toml"

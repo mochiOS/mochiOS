@@ -21,6 +21,9 @@ CEXT_BUNDLES_DIR="${ROOT_DIR}/out/cexts/bundles"
 DRIVERS_BUNDLE_ROOT="/bin/drivers/usb/qemu-usb.driver"
 I8042_BUNDLE_ROOT="/bin/drivers/ps2/i8042.driver"
 ENABLE_XHCI="${ENABLE_XHCI:-0}"
+COREUTILS_BIN_DIR="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release"
+MPK_DEMO_MPKG="${BUILD_ROOT}/mpk-demo.mpkg"
+MPK_TEST_MPKG="${BUILD_ROOT}/mpk-test.mpkg"
 
 die() {
     echo "fatal: $*" >&2
@@ -47,6 +50,7 @@ need_cmd mkfs.fat
 need_cmd mmd
 need_cmd openssl
 need_cmd perl
+need_cmd tar
 need_cmd repo
 need_cmd sha256sum
 need_cmd truncate
@@ -60,6 +64,7 @@ need_file "${SCRIPT_DIR}/build-core-service.sh"
 need_file "${SCRIPT_DIR}/build-drivers.sh"
 need_file "${SCRIPT_DIR}/build-rootfs.sh"
 need_file "${SCRIPT_DIR}/build-signature-db.pl"
+need_file "${SCRIPT_DIR}/build-sample-mpkg.pl"
 need_file "${SCRIPT_DIR}/build-cexts.sh"
 need_file "${SCRIPT_DIR}/stage-cext-bundles.sh"
 
@@ -72,6 +77,26 @@ echo "[step] build user runtime and newlib"
 
 echo "[step] build Rust std demo"
 bash "${SCRIPT_DIR}/build-rust-std.sh"
+
+echo "[step] build sample mpkg"
+perl "${SCRIPT_DIR}/build-sample-mpkg.pl" \
+    --output "${MPK_DEMO_MPKG}" \
+    --payload-bin "${COREUTILS_BIN_DIR}/echo" \
+    --binary-path "/bin/mpk-demo" \
+    --package-id "org.mochios.mpkdemo" \
+    --package-name "mpk-demo" \
+    --package-version "0.1.0" \
+    --vendor "mochiOS Project"
+need_file "${MPK_DEMO_MPKG}"
+perl "${SCRIPT_DIR}/build-sample-mpkg.pl" \
+    --output "${MPK_TEST_MPKG}" \
+    --payload-bin "${COREUTILS_BIN_DIR}/echo" \
+    --binary-path "/bin/mpk-test" \
+    --package-id "org.mochios.tests.mpk" \
+    --package-name "mpk-test" \
+    --package-version "0.1.0" \
+    --vendor "mochiOS Project"
+need_file "${MPK_TEST_MPKG}"
 
 echo "[step] build cext bundles"
 "${SCRIPT_DIR}/build-cexts.sh"
@@ -123,7 +148,6 @@ I8042_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/ps2/i8042-driver/manifest.toml"
 MSH_BIN="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release/msh"
 MSH_MANIFEST_SRC="${ROOT_DIR}/binaries/msh/manifest.toml"
 MSH_FONT_SRC="${ROOT_DIR}/binaries/msh/resources/ter-u12b.bdf"
-COREUTILS_BIN_DIR="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release"
 COREUTILS_MANIFEST_SRC="${ROOT_DIR}/binaries/coreutils/manifest.toml"
 BOOT_RELEASE_DIR="${ROOT_DIR}/out/bootloader/target/x86_64-unknown-uefi/release"
 
@@ -158,7 +182,7 @@ need_file "${MSH_BIN}"
 need_file "${MSH_MANIFEST_SRC}"
 need_file "${MSH_FONT_SRC}"
 need_file "${COREUTILS_MANIFEST_SRC}"
-for coreutil in echo pwd true false cat touch rm; do
+for coreutil in echo ls pwd true false cat touch rm mpk; do
     need_file "${COREUTILS_BIN_DIR}/${coreutil}"
 done
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
@@ -199,12 +223,14 @@ SIGNATURE_DB_ARGS=(
     --entry "/bin/rust-std-demo=${RUST_STD_DEMO_BIN}"
     --entry "/bin/msh=${MSH_BIN}"
     --entry "/bin/echo=${COREUTILS_BIN_DIR}/echo"
+    --entry "/bin/ls=${COREUTILS_BIN_DIR}/ls"
     --entry "/bin/pwd=${COREUTILS_BIN_DIR}/pwd"
     --entry "/bin/true=${COREUTILS_BIN_DIR}/true"
     --entry "/bin/false=${COREUTILS_BIN_DIR}/false"
     --entry "/bin/cat=${COREUTILS_BIN_DIR}/cat"
     --entry "/bin/touch=${COREUTILS_BIN_DIR}/touch"
     --entry "/bin/rm=${COREUTILS_BIN_DIR}/rm"
+    --entry "/bin/mpk=${COREUTILS_BIN_DIR}/mpk"
 )
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     SIGNATURE_DB_ARGS+=(--entry "${DRIVERS_BUNDLE_ROOT}/entry.elf=${USB_DRIVER_BIN}")
@@ -213,6 +239,7 @@ for entry in "${CEXT_SIGNATURE_ENTRIES[@]}"; do
     SIGNATURE_DB_ARGS+=(--entry "${entry}")
 done
 perl "${SCRIPT_DIR}/build-signature-db.pl" "${SIGNATURE_DB_ARGS[@]}"
+grep -q '^record /bin/mpk ' "${SIGNATURE_DB_STAGE}" || die "signature db missing /bin/mpk"
 
 echo "[step] build rootfs"
 ROOTFS_STAGE="${ROOTFS_STAGE}" \
@@ -241,6 +268,8 @@ MSH_MANIFEST_SRC="${MSH_MANIFEST_SRC}" \
 MSH_FONT_SRC="${MSH_FONT_SRC}" \
 COREUTILS_BIN_DIR="${COREUTILS_BIN_DIR}" \
 COREUTILS_MANIFEST_SRC="${COREUTILS_MANIFEST_SRC}" \
+MPK_DEMO_MPKG_SRC="${MPK_DEMO_MPKG}" \
+MPK_TEST_MPKG_SRC="${MPK_TEST_MPKG}" \
 USB_DRIVER_MANIFEST_SRC="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_MANIFEST_SRC}")" \
 USB_DRIVER_ENTRY_BIN="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_BIN}")" \
 USB_DRIVER_BUNDLE_ROOT="${DRIVERS_BUNDLE_ROOT}" \
@@ -282,9 +311,11 @@ install -m 0755 "${TTY_SERVICE_BIN}" "${ARTIFACT_DIR}/tty.service"
 install -m 0755 "${LOGGER_SERVICE_BIN}" "${ARTIFACT_DIR}/logger.service"
 install -m 0755 "${RUST_STD_DEMO_BIN}" "${ARTIFACT_DIR}/rust-std-demo"
 install -m 0755 "${MSH_BIN}" "${ARTIFACT_DIR}/msh"
-for coreutil in echo pwd true false cat touch rm; do
+for coreutil in echo ls pwd true false cat touch rm mpk; do
     install -m 0755 "${COREUTILS_BIN_DIR}/${coreutil}" "${ARTIFACT_DIR}/${coreutil}"
 done
+install -m 0644 "${MPK_DEMO_MPKG}" "${ARTIFACT_DIR}/mpk-demo.mpkg"
+install -m 0644 "${MPK_TEST_MPKG}" "${ARTIFACT_DIR}/mpk-test.mpkg"
 install -m 0644 "${SIGNATURE_DB_STAGE}" "${ARTIFACT_DIR}/signature.db"
 install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ARTIFACT_DIR}/drivers.service"
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
@@ -325,7 +356,11 @@ echo "[step] generate checksums"
         input.service \
         tty.service \
         msh \
+        ls \
         rust-std-demo \
+        mpk \
+        mpk-demo.mpkg \
+        mpk-test.mpkg \
         i8042-driver.entry \
         signature.db \
         manifest.xml \

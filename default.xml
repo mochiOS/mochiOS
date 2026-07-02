@@ -79,4 +79,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="binaries/coreutils"
+            name="mochiOS/coreutils"
+            revision="main"
+            remote="github"
+    />
 </manifest>

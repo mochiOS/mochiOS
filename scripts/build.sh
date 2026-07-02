@@ -119,6 +119,8 @@ I8042_DRIVER_MANIFEST_SRC="${ROOT_DIR}/drivers/ps2/i8042-driver/about.toml"
 MSH_BIN="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release/msh"
 MSH_MANIFEST_SRC="${ROOT_DIR}/binaries/msh/about.toml"
 MSH_FONT_SRC="${ROOT_DIR}/binaries/msh/resources/ter-u12b.bdf"
+COREUTILS_BIN_DIR="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release"
+COREUTILS_MANIFEST_DIR="${ROOT_DIR}/binaries/coreutils/manifests"
 BOOT_RELEASE_DIR="${ROOT_DIR}/out/bootloader/target/x86_64-unknown-uefi/release"
 
 if [[ -f "${BOOT_RELEASE_DIR}/boot.efi" ]]; then
@@ -147,6 +149,10 @@ need_file "${TTY_SERVICE_MANIFEST_SRC}"
 need_file "${MSH_BIN}"
 need_file "${MSH_MANIFEST_SRC}"
 need_file "${MSH_FONT_SRC}"
+for coreutil in echo pwd true false cat touch rm; do
+    need_file "${COREUTILS_BIN_DIR}/${coreutil}"
+    need_file "${COREUTILS_MANIFEST_DIR}/${coreutil}.toml"
+done
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     need_file "${USB_DRIVER_BIN}"
     need_file "${USB_DRIVER_MANIFEST_SRC}"
@@ -182,6 +188,13 @@ SIGNATURE_DB_ARGS=(
     --entry "/bin/hello=${HELLO_ELF}"
     --entry "/bin/rust-std-demo=${RUST_STD_DEMO_BIN}"
     --entry "/bin/msh=${MSH_BIN}"
+    --entry "/bin/echo=${COREUTILS_BIN_DIR}/echo"
+    --entry "/bin/pwd=${COREUTILS_BIN_DIR}/pwd"
+    --entry "/bin/true=${COREUTILS_BIN_DIR}/true"
+    --entry "/bin/false=${COREUTILS_BIN_DIR}/false"
+    --entry "/bin/cat=${COREUTILS_BIN_DIR}/cat"
+    --entry "/bin/touch=${COREUTILS_BIN_DIR}/touch"
+    --entry "/bin/rm=${COREUTILS_BIN_DIR}/rm"
 )
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     SIGNATURE_DB_ARGS+=(--entry "${DRIVERS_BUNDLE_ROOT}/entry.elf=${USB_DRIVER_BIN}")
@@ -212,6 +225,8 @@ TTY_SERVICE_MANIFEST_SRC="${TTY_SERVICE_MANIFEST_SRC}" \
 MSH_BIN="${MSH_BIN}" \
 MSH_MANIFEST_SRC="${MSH_MANIFEST_SRC}" \
 MSH_FONT_SRC="${MSH_FONT_SRC}" \
+COREUTILS_BIN_DIR="${COREUTILS_BIN_DIR}" \
+COREUTILS_MANIFEST_DIR="${COREUTILS_MANIFEST_DIR}" \
 USB_DRIVER_MANIFEST_SRC="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_MANIFEST_SRC}")" \
 USB_DRIVER_ENTRY_BIN="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_BIN}")" \
 USB_DRIVER_BUNDLE_ROOT="${DRIVERS_BUNDLE_ROOT}" \
@@ -253,6 +268,9 @@ install -m 0755 "${TTY_SERVICE_BIN}" "${ARTIFACT_DIR}/tty.service"
 install -m 0755 "${LOGGER_SERVICE_BIN}" "${ARTIFACT_DIR}/logger.service"
 install -m 0755 "${RUST_STD_DEMO_BIN}" "${ARTIFACT_DIR}/rust-std-demo"
 install -m 0755 "${MSH_BIN}" "${ARTIFACT_DIR}/msh"
+for coreutil in echo pwd true false cat touch rm; do
+    install -m 0755 "${COREUTILS_BIN_DIR}/${coreutil}" "${ARTIFACT_DIR}/${coreutil}"
+done
 install -m 0644 "${SIGNATURE_DB_STAGE}" "${ARTIFACT_DIR}/signature.db"
 install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ARTIFACT_DIR}/drivers.service"
 if [[ "${ENABLE_XHCI}" == "1" ]]; then

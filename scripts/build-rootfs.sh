@@ -24,6 +24,8 @@ TTY_SERVICE_MANIFEST_SRC="${TTY_SERVICE_MANIFEST_SRC:-}"
 MSH_BIN="${MSH_BIN:-}"
 MSH_MANIFEST_SRC="${MSH_MANIFEST_SRC:-}"
 MSH_FONT_SRC="${MSH_FONT_SRC:-}"
+COREUTILS_BIN_DIR="${COREUTILS_BIN_DIR:-}"
+COREUTILS_MANIFEST_DIR="${COREUTILS_MANIFEST_DIR:-}"
 USB_DRIVER_MANIFEST_SRC="${USB_DRIVER_MANIFEST_SRC:-}"
 USB_DRIVER_ENTRY_BIN="${USB_DRIVER_ENTRY_BIN:-}"
 USB_DRIVER_BUNDLE_ROOT="${USB_DRIVER_BUNDLE_ROOT:-/bin/drivers/usb/qemu-usb.driver}"
@@ -84,6 +86,12 @@ fi
 if [[ -n "${MSH_FONT_SRC}" ]]; then
     mkdir -p "${ROOTFS_STAGE}/system/resources/msh"
     install -m 0644 "${MSH_FONT_SRC}" "${ROOTFS_STAGE}/system/resources/msh/ter-u12b.bdf"
+fi
+if [[ -n "${COREUTILS_BIN_DIR}" && -n "${COREUTILS_MANIFEST_DIR}" ]]; then
+    for coreutil in echo pwd true false cat touch rm; do
+        install -m 0755 "${COREUTILS_BIN_DIR}/${coreutil}" "${ROOTFS_STAGE}/bin/${coreutil}"
+        install -m 0644 "${COREUTILS_MANIFEST_DIR}/${coreutil}.toml" "${ROOTFS_STAGE}/bin/${coreutil}.toml"
+    done
 fi
 install -m 0644 "${SIGNATURE_DB_SRC}" "${ROOTFS_STAGE}/signature.db"
 

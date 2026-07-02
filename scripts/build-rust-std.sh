@@ -225,6 +225,7 @@ build_std_app() {
             -Z json-target-spec \
             --config "patch.crates-io.libc.path='${LIBC_OVERRIDE_PATH}'" \
             --manifest-path "${manifest_path}" \
+            --bin "${app_name}" \
             --release \
             --target "${TARGET_JSON}" \
             --target-dir "${TARGET_DIR}"
@@ -237,3 +238,10 @@ build_std_app() {
 
 build_std_app "${USER_ROOT}/apps/rust-std-demo/Cargo.toml" "rust-std-demo"
 build_std_app "${ROOT_DIR}/binaries/msh/Cargo.toml" "msh"
+build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "echo"
+build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "pwd"
+build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "true"
+build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "false"
+build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "cat"
+build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "touch"
+build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "rm"

@@ -626,6 +626,8 @@ sub build_services_and_drivers {
     my $plugkit_root = "$root_dir/core/crates/PlugKit/plugkit";
     my %service_packages = (
         capability => 'capability',
+        compositor => 'compositor',
+        display    => 'display',
         drivers    => 'drivers',
         logger     => 'logger',
         input      => 'input',
@@ -759,8 +761,9 @@ sub build_rootfs {
     stage_package_manifest($rootfs_stage, $path->{coreutils_manifest}, '/system/packages/coreutils/manifest.toml');
 
     make_path("$rootfs_stage/system/services");
-    for my $service (qw(capability drivers logger input package signature tty)) {
-        install_file('0755', $path->{"${service}_service_bin"}, "$rootfs_stage/system/services/$service.service");
+    for my $service (qw(capability display compositor drivers logger input package signature tty)) {
+        my $service_name = $service eq 'display' ? 'display.driver' : "$service.service";
+        install_file('0755', $path->{"${service}_service_bin"}, "$rootfs_stage/system/services/$service_name");
         stage_package_manifest($rootfs_stage, $path->{"${service}_service_manifest"}, "/system/packages/$service/manifest.toml");
     }
     if (config_enabled($config->{CONFIG_XHCI})) {
@@ -833,7 +836,7 @@ my $enable_i8042 = config_to_01($config{CONFIG_I8042});
 my $coreutils_bin_dir = "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release";
 my $mpk_demo_mpkg = "$build_root/mpk-demo.mpkg";
 my $mpk_test_mpkg = "$build_root/mpk-test.mpkg";
-my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk);
+my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk test_gui);
 push @coreutils_bins, qw(selftest-capability selftest-process)
     if config_enabled($config{CONFIG_BUILD_SELFTESTS});
 
@@ -940,6 +943,8 @@ my %path = (
     kernel_bin                  => "$core_root/target/$kernel_target/release/kernel",
     service_bin                 => "$root_dir/out/services-core/target/x86_64-unknown-mochios/release/core",
     drivers_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/drivers",
+    compositor_service_bin      => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/compositor",
+    display_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/display",
     capability_service_bin      => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/capability",
     logger_service_bin          => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/logger",
     input_service_bin           => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/input",
@@ -947,6 +952,8 @@ my %path = (
     package_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/package",
     signature_service_bin       => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/signature",
     drivers_service_manifest    => "$root_dir/services/drivers/manifest.toml",
+    compositor_service_manifest => "$root_dir/services/compositor/manifest.toml",
+    display_service_manifest    => "$root_dir/services/display/manifest.toml",
     capability_service_manifest => "$root_dir/services/capability/manifest.toml",
     logger_service_manifest     => "$root_dir/services/logger/manifest.toml",
     input_service_manifest      => "$root_dir/services/input/manifest.toml",
@@ -977,7 +984,7 @@ else {
 }
 
 for my $key (
-    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src kernel_bin service_bin drivers_service_bin capability_service_bin logger_service_bin input_service_bin package_service_bin signature_service_bin tty_service_bin drivers_service_manifest capability_service_manifest logger_service_manifest input_service_manifest package_service_manifest signature_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
+    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin package_service_bin signature_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest package_service_manifest signature_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
 ) {
     need_file($path{$key});
 }
@@ -1015,6 +1022,10 @@ my @signature_db_args = (
     '--entry',
     "/system/services/drivers.service=$path{drivers_service_bin}",
     '--entry',
+    "/system/services/display.driver=$path{display_service_bin}",
+    '--entry',
+    "/system/services/compositor.service=$path{compositor_service_bin}",
+    '--entry',
     "/system/services/logger.service=$path{logger_service_bin}",
     '--entry',
     "/system/services/input.service=$path{input_service_bin}",
@@ -1031,7 +1042,7 @@ my @signature_db_args = (
     '--entry',
     "/bin/msh=$path{msh_bin}",
 );
-for my $bin (qw(echo ls pwd true false cat touch rm mpk)) {
+for my $bin (qw(echo ls pwd true false cat touch rm mpk test_gui)) {
     push @signature_db_args, '--entry', "/bin/$bin=$coreutils_bin_dir/$bin";
 }
 if (config_enabled($config{CONFIG_BUILD_SELFTESTS})) {

@@ -97,7 +97,7 @@ if [[ -n "${MSH_FONT_SRC}" ]]; then
     install -m 0644 "${MSH_FONT_SRC}" "${ROOTFS_STAGE}/system/resources/msh/ter-u12b.bdf"
 fi
 if [[ -n "${COREUTILS_BIN_DIR}" ]]; then
-    for coreutil in echo ls pwd true false cat touch rm mpk selftest-capability; do
+    for coreutil in echo ls pwd true false cat touch rm mpk selftest-capability selftest-process; do
         install -m 0755 "${COREUTILS_BIN_DIR}/${coreutil}" "${ROOTFS_STAGE}/bin/${coreutil}"
     done
 fi

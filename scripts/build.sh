@@ -182,7 +182,7 @@ need_file "${MSH_BIN}"
 need_file "${MSH_MANIFEST_SRC}"
 need_file "${MSH_FONT_SRC}"
 need_file "${COREUTILS_MANIFEST_SRC}"
-for coreutil in echo ls pwd true false cat touch rm mpk selftest-capability; do
+for coreutil in echo ls pwd true false cat touch rm mpk selftest-capability selftest-process; do
     need_file "${COREUTILS_BIN_DIR}/${coreutil}"
 done
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
@@ -232,6 +232,7 @@ SIGNATURE_DB_ARGS=(
     --entry "/bin/rm=${COREUTILS_BIN_DIR}/rm"
     --entry "/bin/mpk=${COREUTILS_BIN_DIR}/mpk"
     --entry "/bin/selftest-capability=${COREUTILS_BIN_DIR}/selftest-capability"
+    --entry "/bin/selftest-process=${COREUTILS_BIN_DIR}/selftest-process"
 )
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     SIGNATURE_DB_ARGS+=(--entry "${DRIVERS_BUNDLE_ROOT}/entry.elf=${USB_DRIVER_BIN}")
@@ -312,7 +313,7 @@ install -m 0755 "${TTY_SERVICE_BIN}" "${ARTIFACT_DIR}/tty.service"
 install -m 0755 "${LOGGER_SERVICE_BIN}" "${ARTIFACT_DIR}/logger.service"
 install -m 0755 "${RUST_STD_DEMO_BIN}" "${ARTIFACT_DIR}/rust-std-demo"
 install -m 0755 "${MSH_BIN}" "${ARTIFACT_DIR}/msh"
-for coreutil in echo ls pwd true false cat touch rm mpk selftest-capability; do
+for coreutil in echo ls pwd true false cat touch rm mpk selftest-capability selftest-process; do
     install -m 0755 "${COREUTILS_BIN_DIR}/${coreutil}" "${ARTIFACT_DIR}/${coreutil}"
 done
 install -m 0644 "${MPK_DEMO_MPKG}" "${ARTIFACT_DIR}/mpk-demo.mpkg"

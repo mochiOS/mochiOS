@@ -36,6 +36,7 @@ ARTIFACT_DIR="${ROOT_DIR}/out/artifacts"
 SERVICES_BUILD_ROOT="${ROOT_DIR}/out/services-build"
 ESP_DIR="${BUILD_ROOT}/esp"
 ESP_IMG="${BUILD_ROOT}/esp.img"
+DISK_IMG="${BUILD_ROOT}/disk.img"
 INITFS_STAGE="${BUILD_ROOT}/initfs-root"
 INITFS_IMG="${BUILD_ROOT}/initfs.img"
 ROOTFS_STAGE="${BUILD_ROOT}/rootfs-root"
@@ -82,6 +83,7 @@ need_cmd perl
 need_cmd tar
 need_cmd repo
 need_cmd sha256sum
+need_cmd sfdisk
 need_cmd truncate
 
 need_dir "${ROOT_DIR}/.repo"
@@ -96,6 +98,11 @@ need_file "${SCRIPT_DIR}/build-signature-db.pl"
 need_file "${SCRIPT_DIR}/build-sample-mpkg.pl"
 need_file "${SCRIPT_DIR}/build-cexts.sh"
 need_file "${SCRIPT_DIR}/stage-cext-bundles.sh"
+
+if (( CONFIG_DISK_SIZE_MB <= CONFIG_ESP_SIZE_MB + 2 )); then
+    die "CONFIG_DISK_SIZE_MB must be larger than CONFIG_ESP_SIZE_MB + 2"
+fi
+ROOTFS_PART_SIZE_MB="$((CONFIG_DISK_SIZE_MB - CONFIG_ESP_SIZE_MB - 2))"
 
 echo "[clean] build directories"
 rm -rf "${BUILD_ROOT}" "${ARTIFACT_DIR}"
@@ -312,7 +319,7 @@ COREUTILS_BINS="${COREUTILS_BINS[*]}" \
 COREUTILS_MANIFEST_SRC="${COREUTILS_MANIFEST_SRC}" \
 MPK_DEMO_MPKG_SRC="$([[ "${CONFIG_BUILD_MPK_SAMPLES}" == "y" ]] && printf '%s' "${MPK_DEMO_MPKG}")" \
 MPK_TEST_MPKG_SRC="$([[ "${CONFIG_BUILD_MPK_SAMPLES}" == "y" ]] && printf '%s' "${MPK_TEST_MPKG}")" \
-ROOTFS_SIZE_MB="${CONFIG_ROOTFS_SIZE_MB}" \
+ROOTFS_SIZE_MB="${ROOTFS_PART_SIZE_MB}" \
 USB_DRIVER_MANIFEST_SRC="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_MANIFEST_SRC}")" \
 USB_DRIVER_ENTRY_BIN="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_BIN}")" \
 USB_DRIVER_BUNDLE_ROOT="${DRIVERS_BUNDLE_ROOT}" \
@@ -341,10 +348,28 @@ MTOOLS_SKIP_CHECK=1 mcopy -i "${ESP_IMG}" "${ESP_DIR}/EFI/BOOT/BOOTX64.EFI" ::/E
 MTOOLS_SKIP_CHECK=1 mcopy -i "${ESP_IMG}" "${ESP_DIR}/system/kernel.elf" ::/system/kernel.elf
 MTOOLS_SKIP_CHECK=1 mcopy -i "${ESP_IMG}" "${ESP_DIR}/system/initfs.img" ::/system/initfs.img
 
+echo "[step] build GPT disk image"
+ESP_START_SECTOR=2048
+ESP_SIZE_SECTORS="$((CONFIG_ESP_SIZE_MB * 2048))"
+ROOTFS_START_SECTOR="$((ESP_START_SECTOR + ESP_SIZE_SECTORS))"
+ROOTFS_SIZE_SECTORS="$((ROOTFS_PART_SIZE_MB * 2048))"
+rm -f "${DISK_IMG}"
+truncate -s "${CONFIG_DISK_SIZE_MB}M" "${DISK_IMG}"
+sfdisk "${DISK_IMG}" >/dev/null <<EOF
+label: gpt
+unit: sectors
+first-lba: 2048
+sector-size: 512
+
+${ESP_START_SECTOR},${ESP_SIZE_SECTORS},U,*
+${ROOTFS_START_SECTOR},${ROOTFS_SIZE_SECTORS},L
+EOF
+dd if="${ESP_IMG}" of="${DISK_IMG}" bs=512 seek="${ESP_START_SECTOR}" conv=notrunc status=none
+dd if="${ROOTFS_IMG}" of="${DISK_IMG}" bs=512 seek="${ROOTFS_START_SECTOR}" conv=notrunc status=none
+
 echo "[step] collect artifacts"
-install -m 0644 "${ESP_IMG}" "${ARTIFACT_DIR}/esp.img"
+install -m 0644 "${DISK_IMG}" "${ARTIFACT_DIR}/disk.img"
 install -m 0644 "${INITFS_IMG}" "${ARTIFACT_DIR}/initfs.img"
-install -m 0644 "${ROOTFS_IMG}" "${ARTIFACT_DIR}/rootfs.img"
 install -m 0644 "${KERNEL_BIN}" "${ARTIFACT_DIR}/kernel.elf"
 install -m 0644 "${BOOT_BIN}" "${ARTIFACT_DIR}/BOOTX64.EFI"
 install -m 0755 "${SERVICE_BIN}" "${ARTIFACT_DIR}/core.service"
@@ -393,9 +418,8 @@ echo "[step] generate checksums"
 (
     cd "${ARTIFACT_DIR}"
     CHECKSUM_FILES=(
-        esp.img
+        disk.img
         initfs.img
-        rootfs.img
         kernel.elf
         BOOTX64.EFI
         core.service

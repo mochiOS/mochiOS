@@ -40,8 +40,7 @@ need_cmd sed
 need_cmd tee
 need_cmd wc
 
-need_file "${ARTIFACT_DIR}/esp.img"
-need_file "${ARTIFACT_DIR}/rootfs.img"
+need_file "${ARTIFACT_DIR}/disk.img"
 need_file "${OVMF_CODE}"
 need_file "${OVMF_VARS_TEMPLATE}"
 
@@ -58,9 +57,8 @@ QEMU_ARGS=(
     -no-reboot
     -drive "if=pflash,format=raw,readonly=on,file=${OVMF_CODE}"
     -drive "if=pflash,format=raw,file=${OVMF_VARS}"
-    -drive "format=raw,file=${ARTIFACT_DIR}/esp.img"
-    -drive "id=rootfs,if=none,format=raw,file=${ARTIFACT_DIR}/rootfs.img"
-    -device "virtio-blk-pci,disable-modern=on,drive=rootfs"
+    -drive "id=osdisk,if=none,format=raw,file=${ARTIFACT_DIR}/disk.img"
+    -device "virtio-blk-pci,disable-modern=on,drive=osdisk,bootindex=1"
 )
 
 if [[ "${ENABLE_XHCI}" == "1" ]]; then

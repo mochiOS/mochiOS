@@ -4,9 +4,33 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CORE_ROOT="${ROOT_DIR}/core"
+CONFIG_ENV="${SCRIPT_DIR}/config/config.env"
+
+if [[ ! -f "${CONFIG_ENV}" ]]; then
+    perl "${SCRIPT_DIR}/config/merge-config.pl" \
+        --default "${SCRIPT_DIR}/config/defaults.config" \
+        --in "${ROOT_DIR}/.config" \
+        --out "${ROOT_DIR}/.config" \
+        --mk "${SCRIPT_DIR}/config/config.mk" \
+        --env "${CONFIG_ENV}"
+fi
+# shellcheck disable=SC1090
+source "${CONFIG_ENV}"
+
+config_enabled() {
+    [[ "$1" == "y" ]]
+}
+
+config_to_01() {
+    if config_enabled "$1"; then
+        printf '1'
+    else
+        printf '0'
+    fi
+}
 
 KERNEL_TARGET="x86_64-unknown-none"
-NIGHTLY_TOOLCHAIN="${NIGHTLY_TOOLCHAIN:-nightly-2026-05-14}"
+NIGHTLY_TOOLCHAIN="${CONFIG_KERNEL_TOOLCHAIN}"
 BUILD_ROOT="${ROOT_DIR}/out/image-build"
 ARTIFACT_DIR="${ROOT_DIR}/out/artifacts"
 SERVICES_BUILD_ROOT="${ROOT_DIR}/out/services-build"
@@ -20,10 +44,15 @@ SIGNATURE_DB_STAGE="${BUILD_ROOT}/signature.db"
 CEXT_BUNDLES_DIR="${ROOT_DIR}/out/cexts/bundles"
 DRIVERS_BUNDLE_ROOT="/bin/drivers/usb/qemu-usb.driver"
 I8042_BUNDLE_ROOT="/bin/drivers/ps2/i8042.driver"
-ENABLE_XHCI="${ENABLE_XHCI:-0}"
+ENABLE_XHCI="$(config_to_01 "${CONFIG_XHCI}")"
+ENABLE_I8042="$(config_to_01 "${CONFIG_I8042}")"
 COREUTILS_BIN_DIR="${ROOT_DIR}/out/rust-std/target/x86_64-unknown-mochios/release"
 MPK_DEMO_MPKG="${BUILD_ROOT}/mpk-demo.mpkg"
 MPK_TEST_MPKG="${BUILD_ROOT}/mpk-test.mpkg"
+COREUTILS_BINS=(echo ls pwd true false cat touch rm mpk)
+if config_enabled "${CONFIG_BUILD_SELFTESTS}"; then
+    COREUTILS_BINS+=(selftest-capability selftest-process)
+fi
 
 die() {
     echo "fatal: $*" >&2
@@ -78,25 +107,27 @@ echo "[step] build user runtime and newlib"
 echo "[step] build Rust std demo"
 bash "${SCRIPT_DIR}/build-rust-std.sh"
 
-echo "[step] build sample mpkg"
-perl "${SCRIPT_DIR}/build-sample-mpkg.pl" \
-    --output "${MPK_DEMO_MPKG}" \
-    --payload-bin "${COREUTILS_BIN_DIR}/echo" \
-    --binary-path "/bin/mpk-demo" \
-    --package-id "org.mochios.mpkdemo" \
-    --package-name "mpk-demo" \
-    --package-version "0.1.0" \
-    --vendor "mochiOS Project"
-need_file "${MPK_DEMO_MPKG}"
-perl "${SCRIPT_DIR}/build-sample-mpkg.pl" \
-    --output "${MPK_TEST_MPKG}" \
-    --payload-bin "${COREUTILS_BIN_DIR}/echo" \
-    --binary-path "/bin/mpk-test" \
-    --package-id "org.mochios.tests.mpk" \
-    --package-name "mpk-test" \
-    --package-version "0.1.0" \
-    --vendor "mochiOS Project"
-need_file "${MPK_TEST_MPKG}"
+if config_enabled "${CONFIG_BUILD_MPK_SAMPLES}"; then
+    echo "[step] build sample mpkg"
+    perl "${SCRIPT_DIR}/build-sample-mpkg.pl" \
+        --output "${MPK_DEMO_MPKG}" \
+        --payload-bin "${COREUTILS_BIN_DIR}/echo" \
+        --binary-path "/bin/mpk-demo" \
+        --package-id "org.mochios.mpkdemo" \
+        --package-name "mpk-demo" \
+        --package-version "0.1.0" \
+        --vendor "mochiOS Project"
+    need_file "${MPK_DEMO_MPKG}"
+    perl "${SCRIPT_DIR}/build-sample-mpkg.pl" \
+        --output "${MPK_TEST_MPKG}" \
+        --payload-bin "${COREUTILS_BIN_DIR}/echo" \
+        --binary-path "/bin/mpk-test" \
+        --package-id "org.mochios.tests.mpk" \
+        --package-name "mpk-test" \
+        --package-version "0.1.0" \
+        --vendor "mochiOS Project"
+    need_file "${MPK_TEST_MPKG}"
+fi
 
 echo "[step] build cext bundles"
 "${SCRIPT_DIR}/build-cexts.sh"
@@ -182,15 +213,17 @@ need_file "${MSH_BIN}"
 need_file "${MSH_MANIFEST_SRC}"
 need_file "${MSH_FONT_SRC}"
 need_file "${COREUTILS_MANIFEST_SRC}"
-for coreutil in echo ls pwd true false cat touch rm mpk selftest-capability selftest-process; do
+for coreutil in "${COREUTILS_BINS[@]}"; do
     need_file "${COREUTILS_BIN_DIR}/${coreutil}"
 done
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     need_file "${USB_DRIVER_BIN}"
     need_file "${USB_DRIVER_MANIFEST_SRC}"
 fi
-need_file "${I8042_DRIVER_BIN}"
-need_file "${I8042_DRIVER_MANIFEST_SRC}"
+if [[ "${ENABLE_I8042}" == "1" ]]; then
+    need_file "${I8042_DRIVER_BIN}"
+    need_file "${I8042_DRIVER_MANIFEST_SRC}"
+fi
 need_file "${BOOT_BIN}"
 need_dir "${CEXT_BUNDLES_DIR}"
 
@@ -218,7 +251,6 @@ SIGNATURE_DB_ARGS=(
     --entry "/system/services/package.service=${PACKAGE_SERVICE_BIN}"
     --entry "/system/services/signature.service=${SIGNATURE_SERVICE_BIN}"
     --entry "/system/services/tty.service=${TTY_SERVICE_BIN}"
-    --entry "${I8042_BUNDLE_ROOT}/entry.elf=${I8042_DRIVER_BIN}"
     --entry "/bin/hello=${HELLO_ELF}"
     --entry "/bin/rust-std-demo=${RUST_STD_DEMO_BIN}"
     --entry "/bin/msh=${MSH_BIN}"
@@ -231,11 +263,18 @@ SIGNATURE_DB_ARGS=(
     --entry "/bin/touch=${COREUTILS_BIN_DIR}/touch"
     --entry "/bin/rm=${COREUTILS_BIN_DIR}/rm"
     --entry "/bin/mpk=${COREUTILS_BIN_DIR}/mpk"
-    --entry "/bin/selftest-capability=${COREUTILS_BIN_DIR}/selftest-capability"
-    --entry "/bin/selftest-process=${COREUTILS_BIN_DIR}/selftest-process"
 )
+if config_enabled "${CONFIG_BUILD_SELFTESTS}"; then
+    SIGNATURE_DB_ARGS+=(
+        --entry "/bin/selftest-capability=${COREUTILS_BIN_DIR}/selftest-capability"
+        --entry "/bin/selftest-process=${COREUTILS_BIN_DIR}/selftest-process"
+    )
+fi
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     SIGNATURE_DB_ARGS+=(--entry "${DRIVERS_BUNDLE_ROOT}/entry.elf=${USB_DRIVER_BIN}")
+fi
+if [[ "${ENABLE_I8042}" == "1" ]]; then
+    SIGNATURE_DB_ARGS+=(--entry "${I8042_BUNDLE_ROOT}/entry.elf=${I8042_DRIVER_BIN}")
 fi
 for entry in "${CEXT_SIGNATURE_ENTRIES[@]}"; do
     SIGNATURE_DB_ARGS+=(--entry "${entry}")
@@ -269,19 +308,21 @@ MSH_BIN="${MSH_BIN}" \
 MSH_MANIFEST_SRC="${MSH_MANIFEST_SRC}" \
 MSH_FONT_SRC="${MSH_FONT_SRC}" \
 COREUTILS_BIN_DIR="${COREUTILS_BIN_DIR}" \
+COREUTILS_BINS="${COREUTILS_BINS[*]}" \
 COREUTILS_MANIFEST_SRC="${COREUTILS_MANIFEST_SRC}" \
-MPK_DEMO_MPKG_SRC="${MPK_DEMO_MPKG}" \
-MPK_TEST_MPKG_SRC="${MPK_TEST_MPKG}" \
+MPK_DEMO_MPKG_SRC="$([[ "${CONFIG_BUILD_MPK_SAMPLES}" == "y" ]] && printf '%s' "${MPK_DEMO_MPKG}")" \
+MPK_TEST_MPKG_SRC="$([[ "${CONFIG_BUILD_MPK_SAMPLES}" == "y" ]] && printf '%s' "${MPK_TEST_MPKG}")" \
+ROOTFS_SIZE_MB="${CONFIG_ROOTFS_SIZE_MB}" \
 USB_DRIVER_MANIFEST_SRC="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_MANIFEST_SRC}")" \
 USB_DRIVER_ENTRY_BIN="$([[ "${ENABLE_XHCI}" == "1" ]] && printf '%s' "${USB_DRIVER_BIN}")" \
 USB_DRIVER_BUNDLE_ROOT="${DRIVERS_BUNDLE_ROOT}" \
-I8042_DRIVER_MANIFEST_SRC="${I8042_DRIVER_MANIFEST_SRC}" \
-I8042_DRIVER_ENTRY_BIN="${I8042_DRIVER_BIN}" \
+I8042_DRIVER_MANIFEST_SRC="$([[ "${ENABLE_I8042}" == "1" ]] && printf '%s' "${I8042_DRIVER_MANIFEST_SRC}")" \
+I8042_DRIVER_ENTRY_BIN="$([[ "${ENABLE_I8042}" == "1" ]] && printf '%s' "${I8042_DRIVER_BIN}")" \
 I8042_DRIVER_BUNDLE_ROOT="${I8042_BUNDLE_ROOT}" \
 bash "${SCRIPT_DIR}/build-rootfs.sh"
 
 echo "[step] build initfs image"
-truncate -s 16M "${INITFS_IMG}"
+truncate -s "${CONFIG_INITFS_SIZE_MB}M" "${INITFS_IMG}"
 mke2fs -q -t ext2 -b 1024 -d "${INITFS_STAGE}" -F "${INITFS_IMG}"
 
 echo "[step] build esp image"
@@ -291,7 +332,7 @@ install -m 0644 "${BOOT_BIN}" "${ESP_DIR}/EFI/BOOT/BOOTX64.EFI"
 install -m 0644 "${KERNEL_BIN}" "${ESP_DIR}/system/kernel.elf"
 install -m 0644 "${INITFS_IMG}" "${ESP_DIR}/system/initfs.img"
 
-truncate -s 128M "${ESP_IMG}"
+truncate -s "${CONFIG_ESP_SIZE_MB}M" "${ESP_IMG}"
 mkfs.fat -F 32 -n EFI "${ESP_IMG}" >/dev/null
 MTOOLS_SKIP_CHECK=1 mmd -i "${ESP_IMG}" ::/EFI
 MTOOLS_SKIP_CHECK=1 mmd -i "${ESP_IMG}" ::/EFI/BOOT
@@ -313,17 +354,21 @@ install -m 0755 "${TTY_SERVICE_BIN}" "${ARTIFACT_DIR}/tty.service"
 install -m 0755 "${LOGGER_SERVICE_BIN}" "${ARTIFACT_DIR}/logger.service"
 install -m 0755 "${RUST_STD_DEMO_BIN}" "${ARTIFACT_DIR}/rust-std-demo"
 install -m 0755 "${MSH_BIN}" "${ARTIFACT_DIR}/msh"
-for coreutil in echo ls pwd true false cat touch rm mpk selftest-capability selftest-process; do
+for coreutil in "${COREUTILS_BINS[@]}"; do
     install -m 0755 "${COREUTILS_BIN_DIR}/${coreutil}" "${ARTIFACT_DIR}/${coreutil}"
 done
-install -m 0644 "${MPK_DEMO_MPKG}" "${ARTIFACT_DIR}/mpk-demo.mpkg"
-install -m 0644 "${MPK_TEST_MPKG}" "${ARTIFACT_DIR}/mpk-test.mpkg"
+if config_enabled "${CONFIG_BUILD_MPK_SAMPLES}"; then
+    install -m 0644 "${MPK_DEMO_MPKG}" "${ARTIFACT_DIR}/mpk-demo.mpkg"
+    install -m 0644 "${MPK_TEST_MPKG}" "${ARTIFACT_DIR}/mpk-test.mpkg"
+fi
 install -m 0644 "${SIGNATURE_DB_STAGE}" "${ARTIFACT_DIR}/signature.db"
 install -m 0755 "${DRIVERS_SERVICE_BIN}" "${ARTIFACT_DIR}/drivers.service"
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     install -m 0755 "${USB_DRIVER_BIN}" "${ARTIFACT_DIR}/usb-driver.entry"
 fi
-install -m 0755 "${I8042_DRIVER_BIN}" "${ARTIFACT_DIR}/i8042-driver.entry"
+if [[ "${ENABLE_I8042}" == "1" ]]; then
+    install -m 0755 "${I8042_DRIVER_BIN}" "${ARTIFACT_DIR}/i8042-driver.entry"
+fi
 
 echo "[step] record exact repo manifest"
 (
@@ -347,27 +392,31 @@ EOF
 echo "[step] generate checksums"
 (
     cd "${ARTIFACT_DIR}"
-    sha256sum \
-        esp.img \
-        initfs.img \
-        rootfs.img \
-        kernel.elf \
-        BOOTX64.EFI \
-        core.service \
-        drivers.service \
-        input.service \
-        tty.service \
-        msh \
-        ls \
-        rust-std-demo \
-        mpk \
-        mpk-demo.mpkg \
-        mpk-test.mpkg \
-        i8042-driver.entry \
-        signature.db \
-        manifest.xml \
-        build-info.txt \
-        > SHA256SUMS
+    CHECKSUM_FILES=(
+        esp.img
+        initfs.img
+        rootfs.img
+        kernel.elf
+        BOOTX64.EFI
+        core.service
+        drivers.service
+        input.service
+        tty.service
+        msh
+        ls
+        rust-std-demo
+        mpk
+        signature.db
+        manifest.xml
+        build-info.txt
+    )
+    if [[ "${ENABLE_I8042}" == "1" ]]; then
+        CHECKSUM_FILES+=(i8042-driver.entry)
+    fi
+    if [[ "${CONFIG_BUILD_MPK_SAMPLES}" == "y" ]]; then
+        CHECKSUM_FILES+=(mpk-demo.mpkg mpk-test.mpkg)
+    fi
+    sha256sum "${CHECKSUM_FILES[@]}" > SHA256SUMS
 )
 
 if [[ "${ENABLE_XHCI}" == "1" ]]; then

@@ -3,6 +3,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+CONFIG_ENV="${SCRIPT_DIR}/config/config.env"
+if [[ -f "${CONFIG_ENV}" ]]; then
+    # shellcheck disable=SC1090
+    source "${CONFIG_ENV}"
+fi
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
 RUN_ID="workspace-$(date +%s)-$$"
 RUN_DIR="${ROOT_DIR}/out/runner/${RUN_ID}"
@@ -11,7 +16,11 @@ OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
 OVMF_VARS="${RUN_DIR}/OVMF_VARS_4M.fd"
 GUI_MODE=1
-ENABLE_XHCI="${ENABLE_XHCI:-0}"
+if [[ "${CONFIG_XHCI:-n}" == "y" ]]; then
+    ENABLE_XHCI="1"
+else
+    ENABLE_XHCI="0"
+fi
 
 die() {
     echo "fatal: $*" >&2
@@ -61,7 +70,7 @@ if [[ "${ENABLE_XHCI}" == "1" ]]; then
     )
 fi
 
-if [[ "${NOGUI:-0}" == "1" ]]; then
+if [[ "${CONFIG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     GUI_MODE=0
     QEMU_ARGS+=(
         -display none
@@ -69,7 +78,7 @@ if [[ "${NOGUI:-0}" == "1" ]]; then
     )
 fi
 
-if [[ "${DEBUG:-0}" != "0" ]]; then
+if [[ "${CONFIG_QEMU_DEBUG:-n}" == "y" || "${DEBUG:-0}" != "0" ]]; then
     QEMU_ARGS+=(-s -S)
 fi
 

@@ -3,10 +3,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+CONFIG_ENV="${SCRIPT_DIR}/config/config.env"
+if [[ -f "${CONFIG_ENV}" ]]; then
+    # shellcheck disable=SC1090
+    source "${CONFIG_ENV}"
+fi
 USER_ROOT="${ROOT_DIR}/user"
 OUT_ROOT="${ROOT_DIR}/out/rust-std"
 TARGET_JSON="${USER_ROOT}/targets/x86_64-unknown-mochios.json"
-TOOLCHAIN="${NIGHTLY_TOOLCHAIN:-nightly}"
+TOOLCHAIN="${NIGHTLY_TOOLCHAIN:-${CONFIG_RUST_STD_TOOLCHAIN:-nightly}}"
 BOOTSTRAP_TARGET="x86_64-elf"
 SYSROOT_DIR="${ROOT_DIR}/out/newlib-port/toolchain/${BOOTSTRAP_TARGET}"
 CRT0_O="${ROOT_DIR}/out/newlib-port/hello/crt0.o"
@@ -247,5 +252,7 @@ build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "cat"
 build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "touch"
 build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "rm"
 build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "mpk"
-build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "selftest-capability"
-build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "selftest-process"
+if [[ "${CONFIG_BUILD_SELFTESTS:-y}" == "y" ]]; then
+    build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "selftest-capability"
+    build_std_app "${ROOT_DIR}/binaries/coreutils/Cargo.toml" "selftest-process"
+fi

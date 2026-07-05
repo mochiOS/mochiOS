@@ -32,6 +32,8 @@ MSH_BIN="${MSH_BIN:-}"
 MSH_MANIFEST_SRC="${MSH_MANIFEST_SRC:-}"
 MSH_FONT_SRC="${MSH_FONT_SRC:-}"
 COREUTILS_BIN_DIR="${COREUTILS_BIN_DIR:-}"
+COREUTILS_BINS="${COREUTILS_BINS:-echo ls pwd true false cat touch rm mpk selftest-capability selftest-process}"
+ROOTFS_SIZE_MB="${ROOTFS_SIZE_MB:-16}"
 USB_DRIVER_MANIFEST_SRC="${USB_DRIVER_MANIFEST_SRC:-}"
 USB_DRIVER_ENTRY_BIN="${USB_DRIVER_ENTRY_BIN:-}"
 USB_DRIVER_BUNDLE_ROOT="${USB_DRIVER_BUNDLE_ROOT:-/bin/drivers/usb/qemu-usb.driver}"
@@ -97,7 +99,7 @@ if [[ -n "${MSH_FONT_SRC}" ]]; then
     install -m 0644 "${MSH_FONT_SRC}" "${ROOTFS_STAGE}/system/resources/msh/ter-u12b.bdf"
 fi
 if [[ -n "${COREUTILS_BIN_DIR}" ]]; then
-    for coreutil in echo ls pwd true false cat touch rm mpk selftest-capability selftest-process; do
+    for coreutil in ${COREUTILS_BINS}; do
         install -m 0755 "${COREUTILS_BIN_DIR}/${coreutil}" "${ROOTFS_STAGE}/bin/${coreutil}"
     done
 fi
@@ -154,5 +156,5 @@ stage_driver_bundle "${USB_DRIVER_MANIFEST_SRC}" "${USB_DRIVER_ENTRY_BIN}" "${US
 stage_driver_bundle "${I8042_DRIVER_MANIFEST_SRC}" "${I8042_DRIVER_ENTRY_BIN}" "${I8042_DRIVER_BUNDLE_ROOT}"
 
 rm -f "${ROOTFS_IMG}"
-truncate -s 16M "${ROOTFS_IMG}"
+truncate -s "${ROOTFS_SIZE_MB}M" "${ROOTFS_IMG}"
 mke2fs -q -t ext2 -b 4096 -d "${ROOTFS_STAGE}" -F "${ROOTFS_IMG}"

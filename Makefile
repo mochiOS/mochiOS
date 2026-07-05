@@ -1,13 +1,24 @@
 SCRIPTS	= $(shell pwd)/scripts
 OUT		= $(shell pwd)/out
 
-.PHONY: all build run clean repo-init
+.PHONY: all build run clean olddefconfig menuconfig repo-init
 all: build
 
-build:
+olddefconfig:
+	@perl $(SCRIPTS)/config/merge-config.pl \
+		--default $(SCRIPTS)/config/defaults.config \
+		--in .config \
+		--out .config \
+		--mk $(SCRIPTS)/config/config.mk \
+		--env $(SCRIPTS)/config/config.env
+
+menuconfig:
+	@echo "menuconfig TUI is not implemented yet; run make olddefconfig for now."
+
+build: olddefconfig
 	@$(SCRIPTS)/build.sh
 
-run:
+run: olddefconfig
 	@$(SCRIPTS)/runner.sh
 
 clean:

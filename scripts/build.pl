@@ -836,7 +836,7 @@ my $enable_i8042 = config_to_01($config{CONFIG_I8042});
 my $coreutils_bin_dir = "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release";
 my $mpk_demo_mpkg = "$build_root/mpk-demo.mpkg";
 my $mpk_test_mpkg = "$build_root/mpk-test.mpkg";
-my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk test_gui);
+my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk test_gui test_desktop);
 push @coreutils_bins, qw(selftest-capability selftest-process)
     if config_enabled($config{CONFIG_BUILD_SELFTESTS});
 
@@ -1042,7 +1042,7 @@ my @signature_db_args = (
     '--entry',
     "/bin/msh=$path{msh_bin}",
 );
-for my $bin (qw(echo ls pwd true false cat touch rm mpk test_gui)) {
+for my $bin (qw(echo ls pwd true false cat touch rm mpk test_gui test_desktop)) {
     push @signature_db_args, '--entry', "/bin/$bin=$coreutils_bin_dir/$bin";
 }
 if (config_enabled($config{CONFIG_BUILD_SELFTESTS})) {

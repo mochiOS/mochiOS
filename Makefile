@@ -17,7 +17,7 @@ menuconfig:
 	@$(MAKE) -C build menuconfig \
 		ROOT=$(shell pwd) \
 		OUT=$(OUT) \
-		SCHEMA=$(SCRIPTS)/config/schema.conf \
+		SCHEMA=$(shell pwd)/build/schema.conf \
 		CONFIG=$(shell pwd)/.config
 	@$(MAKE) olddefconfig
 

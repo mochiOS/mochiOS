@@ -501,6 +501,8 @@ sub build_rust_std_apps {
     );
 
     build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$user_root/apps/rust-std-demo/Cargo.toml", 'rust-std-demo');
+    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
+    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
     build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
     for my $bin (@{$coreutils_bins}) {
         build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/binaries/coreutils/Cargo.toml", $bin);
@@ -724,6 +726,31 @@ sub stage_package_manifest {
     install_file('0644', $manifest_src, "$rootfs_stage$manifest_dst");
 }
 
+sub stage_binder_app_bundle {
+    my ($rootfs_stage, $path) = @_;
+    my $bundle_root = "$rootfs_stage/applications/Binder.app";
+    remove_tree($bundle_root);
+    make_path($bundle_root);
+    install_file('0755', $path->{binder_bin}, "$bundle_root/entry.elf");
+    install_file('0644', $path->{binder_about}, "$bundle_root/about.toml");
+    install_file('0644', $path->{binder_manifest}, "$bundle_root/manifest.toml");
+    for my $resource (qw(appicon.svg close.svg maximize.svg minimize.svg mochios.svg)) {
+        install_file('0644', "$path->{binder_resources_dir}/$resource", "$bundle_root/$resource");
+    }
+}
+
+sub stage_binder_sample_apps {
+    my ($rootfs_stage, $source_root) = @_;
+    return if !-d $source_root;
+    opendir my $dh, $source_root or dief("opendir $source_root: $!");
+    my @apps = sort grep {/\.app\z/ && -d "$source_root/$_"} readdir $dh;
+    closedir $dh;
+    make_path("$rootfs_stage/applications");
+    for my $app (@apps) {
+        copy_tree("$source_root/$app", "$rootfs_stage/applications/$app");
+    }
+}
+
 sub stage_driver_bundle {
     my ($rootfs_stage, $manifest_src, $entry_bin, $bundle_root) = @_;
     return if !defined($manifest_src) || $manifest_src eq '' || !defined($entry_bin) || $entry_bin eq '';
@@ -740,6 +767,7 @@ sub build_rootfs {
     make_path("$rootfs_stage/bin");
     install_file('0755', $path->{hello_elf}, "$rootfs_stage/bin/hello");
     install_file('0755', $path->{rust_std_demo_bin}, "$rootfs_stage/bin/rust-std-demo");
+    install_file('0755', $path->{test_app_bin}, "$rootfs_stage/bin/test_app");
     open my $rust_txt, '>', "$rootfs_stage/rust.txt" or dief("open rust.txt: $!");
     close $rust_txt;
     install_file('0755', $path->{msh_bin}, "$rootfs_stage/bin/msh");
@@ -759,6 +787,9 @@ sub build_rootfs {
     stage_package_manifest($rootfs_stage, $path->{rust_std_demo_manifest_src}, '/system/packages/rust-std-demo/manifest.toml');
     stage_package_manifest($rootfs_stage, $path->{msh_manifest}, '/system/packages/msh/manifest.toml');
     stage_package_manifest($rootfs_stage, $path->{coreutils_manifest}, '/system/packages/coreutils/manifest.toml');
+    stage_package_manifest($rootfs_stage, $path->{binder_manifest}, '/system/packages/binder/manifest.toml');
+    stage_binder_sample_apps($rootfs_stage, $path->{binder_sample_apps_dir});
+    stage_binder_app_bundle($rootfs_stage, $path);
 
     make_path("$rootfs_stage/system/services");
     for my $service (qw(capability display compositor drivers logger input package signature tty)) {
@@ -964,6 +995,12 @@ my %path = (
     usb_driver_manifest         => "$root_dir/drivers/usb-driver/manifest.toml",
     i8042_driver_bin            => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/i8042-entry",
     i8042_driver_manifest       => "$root_dir/drivers/ps2/i8042-driver/manifest.toml",
+    binder_bin             => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/binder",
+    binder_about           => "$root_dir/applications/binder/about.toml",
+    binder_manifest        => "$root_dir/applications/binder/manifest.toml",
+    binder_resources_dir   => "$root_dir/applications/binder/resources",
+    binder_sample_apps_dir => "$root_dir/applications/binder/resources/apps",
+    test_app_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/test_app",
     msh_bin                     => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/msh",
     msh_manifest                => "$root_dir/binaries/msh/manifest.toml",
     msh_font                    => "$root_dir/binaries/msh/resources/ter-u12b.bdf",
@@ -984,10 +1021,11 @@ else {
 }
 
 for my $key (
-    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin package_service_bin signature_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest package_service_manifest signature_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
+    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src test_app_bin binder_bin binder_about binder_manifest kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin package_service_bin signature_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest package_service_manifest signature_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
 ) {
     need_file($path{$key});
 }
+need_dir($path{binder_resources_dir});
 for my $coreutil (@coreutils_bins) {
     need_file("$coreutils_bin_dir/$coreutil");
 }
@@ -1040,10 +1078,13 @@ my @signature_db_args = (
     '--entry',
     "/bin/rust-std-demo=$path{rust_std_demo_bin}",
     '--entry',
+    "/applications/Binder.app/entry.elf=$path{binder_bin}",
+    '--entry',
     "/bin/msh=$path{msh_bin}",
 );
-for my $bin (qw(echo ls pwd true false cat touch rm mpk test_gui test_desktop)) {
-    push @signature_db_args, '--entry', "/bin/$bin=$coreutils_bin_dir/$bin";
+for my $bin (qw(echo ls pwd true false cat touch rm mpk test_gui test_app test_desktop)) {
+    my $bin_path = $bin eq 'test_app' ? $path{test_app_bin} : "$coreutils_bin_dir/$bin";
+    push @signature_db_args, '--entry', "/bin/$bin=$bin_path";
 }
 if (config_enabled($config{CONFIG_BUILD_SELFTESTS})) {
     push @signature_db_args, '--entry', "/bin/selftest-capability=$coreutils_bin_dir/selftest-capability";
@@ -1125,6 +1166,8 @@ install_file('0755', $path{input_service_bin}, "$artifact_dir/input.service");
 install_file('0755', $path{tty_service_bin}, "$artifact_dir/tty.service");
 install_file('0755', $path{logger_service_bin}, "$artifact_dir/logger.service");
 install_file('0755', $path{rust_std_demo_bin}, "$artifact_dir/rust-std-demo");
+install_file('0755', $path{test_app_bin}, "$artifact_dir/test_app");
+install_file('0755', $path{binder_bin}, "$artifact_dir/binder");
 install_file('0755', $path{msh_bin}, "$artifact_dir/msh");
 for my $coreutil (@coreutils_bins) {
     install_file('0755', "$coreutils_bin_dir/$coreutil", "$artifact_dir/$coreutil");

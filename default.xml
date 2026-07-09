@@ -107,4 +107,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="applications/test.app"
+            name="mochiOS/test-application"
+            revision="master"
+            remote="github"
+    />
 </manifest>

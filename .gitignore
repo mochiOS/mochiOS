@@ -10,6 +10,7 @@ services/
 user/
 msh/
 memo/
+applications/
 
 out/
 scripts/config/config.env

@@ -7,11 +7,11 @@ all: build
 
 olddefconfig:
 	@perl $(SCRIPTS)/config/merge-config.pl \
-		--default $(SCRIPTS)/config/defaults.config \
+		--default $(shell pwd)/build/defaults.config \
 		--in .config \
 		--out .config \
-		--mk $(SCRIPTS)/config/config.mk \
-		--env $(SCRIPTS)/config/config.env
+		--mk $(shell pwd)/build/config.mk \
+		--env $(shell pwd)/build/config.env
 
 menuconfig:
 	@$(MAKE) -C build menuconfig \

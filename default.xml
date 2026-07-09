@@ -93,4 +93,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="libraries/viewkit"
+            name="mochiOS/ViewKit"
+            revision="main"
+            remote="github"
+    />
 </manifest>

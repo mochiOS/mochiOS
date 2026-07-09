@@ -1,7 +1,13 @@
-SCRIPTS	= $(shell pwd)/scripts
-OUT		= $(shell pwd)/out
+SCRIPTS = $(shell pwd)/scripts
+OUT     = $(shell pwd)/out
 
-.PHONY: all build run clean olddefconfig menuconfig repo-init
+MANIFEST_URL    ?= https://github.com/mochiOS/mochiOS.git
+MANIFEST_BRANCH ?= master
+MANIFEST_FILE   ?= default.xml
+REPO_JOBS       ?= 4
+
+.PHONY: all build run clean olddefconfig menuconfig repo-init repo
+
 all: build
 
 olddefconfig:
@@ -25,5 +31,11 @@ clean:
 	@rm -rf $(OUT)/*
 
 repo-init:
-	@repo init -m default.xml -u $(git rev-parse --show-toplevel) -b $(git rev-parse HEAD)
-	@repo sync -j4
+	@repo init \
+		-u $(MANIFEST_URL) \
+		-b $(MANIFEST_BRANCH) \
+		-m $(MANIFEST_FILE)
+	@repo sync -j$(REPO_JOBS)
+
+repo:
+	@repo sync -j$(REPO_JOBS)

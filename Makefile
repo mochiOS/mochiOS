@@ -1,12 +1,7 @@
-SCRIPTS = $(shell pwd)/scripts
-OUT     = $(shell pwd)/out
+SCRIPTS	= $(shell pwd)/scripts
+OUT		= $(shell pwd)/out
 
-MANIFEST_URL    ?= https://github.com/mochiOS/mochiOS.git
-MANIFEST_BRANCH ?= master
-MANIFEST_FILE   ?= default.xml
-REPO_JOBS       ?= 4
-
-.PHONY: all build run clean olddefconfig menuconfig repo-init repo
+.PHONY: all build run clean olddefconfig menuconfig repo-init
 
 all: build
 
@@ -19,7 +14,12 @@ olddefconfig:
 		--env $(SCRIPTS)/config/config.env
 
 menuconfig:
-	@echo "menuconfig TUI is not implemented yet; run make olddefconfig for now."
+	@$(MAKE) -C build menuconfig \
+		ROOT=$(shell pwd) \
+		OUT=$(OUT) \
+		SCHEMA=$(SCRIPTS)/config/schema.conf \
+		CONFIG=$(shell pwd)/.config
+	@$(MAKE) olddefconfig
 
 build: olddefconfig
 	@$(SCRIPTS)/build.sh
@@ -31,11 +31,5 @@ clean:
 	@rm -rf $(OUT)/*
 
 repo-init:
-	@repo init \
-		-u $(MANIFEST_URL) \
-		-b $(MANIFEST_BRANCH) \
-		-m $(MANIFEST_FILE)
-	@repo sync -j$(REPO_JOBS)
-
-repo:
-	@repo sync -j$(REPO_JOBS)
+	@repo init -m default.xml -u $(git rev-parse --show-toplevel) -b $(git rev-parse HEAD)
+	@repo sync -j4

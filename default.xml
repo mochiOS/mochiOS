@@ -86,4 +86,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="applications/binder"
+            name="mochiOS/Binder"
+            revision="main"
+            remote="github"
+    />
 </manifest>

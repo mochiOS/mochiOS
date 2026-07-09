@@ -100,4 +100,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="build"
+            name="mochiOS/buildtools"
+            revision="main"
+            remote="github"
+    />
 </manifest>

@@ -172,6 +172,29 @@ sub copy_tree {
     run('cp', '-R', "$src/.", $dst);
 }
 
+sub stage_font_assets {
+    my ($fonts_src, $fonts_dst) = @_;
+    need_dir($fonts_src);
+    remove_tree($fonts_dst);
+    make_path($fonts_dst);
+
+    opendir my $dh, $fonts_src or dief("opendir $fonts_src: $!");
+    for my $name (sort grep { $_ ne '.' && $_ ne '..' && $_ ne '.installed' } readdir $dh) {
+        my $src = "$fonts_src/$name";
+        my $dst = "$fonts_dst/$name";
+        if (-d $src) {
+            copy_tree($src, $dst);
+        }
+        elsif (-f $src) {
+            install_file('0644', $src, $dst);
+        }
+        else {
+            dief("unsupported font artifact: $src");
+        }
+    }
+    closedir $dh;
+}
+
 sub rewrite_cargo_paths {
     my ($cargo_toml, $prefix, $user_root, $plugkit_root) = @_;
     open my $fh, '<', $cargo_toml or dief("open $cargo_toml: $!");
@@ -695,6 +718,15 @@ sub build_bootloader {
     print "[done] $boot_release_dir\n";
 }
 
+sub build_fonts {
+    my ($root_dir) = @_;
+    my $fonts_root = "$root_dir/libraries/fonts";
+    need_cmd('make');
+    print "[build] fonts\n";
+    run_in_dir($root_dir, 'make', 'fonts');
+    print "[done] $fonts_root/out/fonts\n";
+}
+
 sub stage_cext_bundles {
     my ($cexts_dir, $initfs_stage) = @_;
     dief("bundle directory not found: $cexts_dir") if !-d $cexts_dir;
@@ -759,7 +791,7 @@ sub stage_driver_bundle {
 }
 
 sub build_rootfs {
-    my ($rootfs_stage, $rootfs_img, $rootfs_size_mb, $path, $coreutils_bin_dir, $coreutils_bins, $config, $mpk_demo_mpkg, $mpk_test_mpkg, $drivers_bundle_root, $i8042_bundle_root) = @_;
+    my ($rootfs_stage, $rootfs_img, $rootfs_size_mb, $path, $coreutils_bin_dir, $coreutils_bins, $config, $mpk_demo_mpkg, $mpk_test_mpkg, $drivers_bundle_root, $i8042_bundle_root, $fonts_src) = @_;
     need_cmd('mke2fs');
     need_file($path->{hello_elf});
     need_file($path->{signature_db});
@@ -771,6 +803,7 @@ sub build_rootfs {
     open my $rust_txt, '>', "$rootfs_stage/rust.txt" or dief("open rust.txt: $!");
     close $rust_txt;
     install_file('0755', $path->{msh_bin}, "$rootfs_stage/bin/msh");
+    stage_font_assets($fonts_src, "$rootfs_stage/libraries/fonts");
     make_path("$rootfs_stage/system/resources/msh");
     install_file('0644', $path->{msh_font}, "$rootfs_stage/system/resources/msh/ter-u12b.bdf");
     for my $coreutil (@{$coreutils_bins}) {
@@ -876,6 +909,7 @@ for my $cmd (qw(cargo cp install mcopy mke2fs mkfs.fat mmd openssl perl tar repo
 }
 
 need_dir("$root_dir/.repo");
+need_dir("$root_dir/libraries/fonts");
 need_file("$core_root/Cargo.toml");
 for my $script (qw(build-signature-db.pl build-sample-mpkg.pl pack-cext.pl)) {
     need_file("$script_dir/$script");
@@ -966,6 +1000,9 @@ build_services_and_drivers($root_dir, \%config, $nightly_toolchain);
 
 print "[step] build bootloader\n";
 build_bootloader($root_dir);
+
+print "[step] build fonts\n";
+build_fonts($root_dir);
 
 my %path = (
     hello_elf                   => "$root_dir/out/newlib-port/hello/hello.elf",
@@ -1122,6 +1159,7 @@ build_rootfs(
     $mpk_test_mpkg,
     $drivers_bundle_root,
     $i8042_bundle_root,
+    "$root_dir/libraries/fonts/out/fonts",
 );
 
 print "[step] build initfs image\n";

@@ -1,7 +1,7 @@
 SCRIPTS	= $(shell pwd)/scripts
 OUT		= $(shell pwd)/out
 
-.PHONY: all build run clean olddefconfig menuconfig repo-init
+.PHONY: all build run clean olddefconfig menuconfig fonts repo-init
 
 all: build
 
@@ -23,6 +23,9 @@ menuconfig:
 
 build: olddefconfig
 	@$(SCRIPTS)/build.sh
+
+fonts:
+	@$(MAKE) -C libraries/fonts fonts
 
 run: olddefconfig
 	@$(SCRIPTS)/runner.sh

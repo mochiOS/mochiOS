@@ -114,4 +114,11 @@
             revision="master"
             remote="github"
     />
+
+    <project
+            path="libraries/fonts"
+            name="mochiOS/fonts"
+            revision="main"
+            remote="github"
+    />
 </manifest>

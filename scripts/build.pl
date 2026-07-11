@@ -212,6 +212,26 @@ sub stage_font_assets {
     closedir $dh;
 }
 
+sub stage_system_icons {
+    my ($icons_src, $icons_dst) = @_;
+    need_dir($icons_src);
+    remove_tree($icons_dst);
+    make_path($icons_dst);
+
+    opendir my $dh, $icons_src or dief("opendir $icons_src: $!");
+    for my $name (sort grep { $_ ne '.' && $_ ne '..' } readdir $dh) {
+        my $src = "$icons_src/$name";
+        my $dst = "$icons_dst/$name";
+        if (-f $src) {
+            install_file('0644', $src, $dst);
+        }
+        else {
+            dief("unsupported icon artifact: $src");
+        }
+    }
+    closedir $dh;
+}
+
 sub rewrite_cargo_paths {
     my ($cargo_toml, $prefix, $user_root, $plugkit_root) = @_;
     open my $fh, '<', $cargo_toml or dief("open $cargo_toml: $!");
@@ -860,6 +880,7 @@ sub build_rootfs {
     close $rust_txt;
     install_file('0755', $path->{msh_bin}, "$rootfs_stage/bin/msh");
     stage_font_assets($fonts_src, "$rootfs_stage/libraries/fonts");
+    stage_system_icons($path->{system_icons_dir}, "$rootfs_stage/system/icons");
     make_path("$rootfs_stage/system/resources/msh");
     install_file('0644', $path->{msh_font}, "$rootfs_stage/system/resources/msh/ter-u12b.bdf");
     for my $coreutil (@{$coreutils_bins}) {
@@ -1098,6 +1119,7 @@ my %path = (
     binder_manifest        => "$root_dir/applications/binder/manifest.toml",
     binder_resources_dir   => "$root_dir/applications/binder/resources",
     binder_sample_apps_dir => "$root_dir/applications/binder/resources/apps",
+    system_icons_dir       => "$root_dir/resources/system/icons",
     test_app_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/test_app",
     msh_bin                     => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/msh",
     msh_manifest                => "$root_dir/binaries/msh/manifest.toml",
@@ -1124,6 +1146,7 @@ for my $key (
     need_file($path{$key});
 }
 need_dir($path{binder_resources_dir});
+need_dir($path{system_icons_dir});
 for my $coreutil (@coreutils_bins) {
     need_file("$coreutils_bin_dir/$coreutil");
 }

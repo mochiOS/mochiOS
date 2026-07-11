@@ -11,6 +11,17 @@ my $script_dir = dirname(abs_path($0));
 my $root_dir = abs_path("$script_dir/..");
 my $core_root = "$root_dir/core";
 my $config_env = "$script_dir/config/config.env";
+my %build_options = (
+    cached => 0,
+);
+
+for my $arg (@ARGV) {
+    if ($arg eq '--cached') {
+        $build_options{cached} = 1;
+        next;
+    }
+    die "fatal: unknown build option: $arg\n";
+}
 
 sub dief {
     die "fatal: @_\n";
@@ -26,6 +37,12 @@ sub run_env {
     my ($env, @cmd) = @_;
     local %ENV = (%ENV, %{$env});
     run(@cmd);
+}
+
+sub cargo_env {
+    my (%extra) = @_;
+    $extra{CARGO_NET_OFFLINE} = 'true' if $build_options{cached};
+    return \%extra;
 }
 
 sub run_quiet {
@@ -251,51 +268,60 @@ sub build_newlib_runtime {
     make_path($out_root, $runtime_target_dir, $hello_dir);
 
     print "[test] user existing tests\n";
-    run(
+    run_env(
+        cargo_env(),
         'cargo', "+$toolchain", 'test',
         '--manifest-path', "$user_root/Cargo.toml",
         '-p', 'mochi-user-syscall',
     );
 
-    remove_tree($newlib_build_dir, $install_root);
-    make_path($newlib_build_dir, $install_root);
+    my $newlib_ready = -f "$sysroot_dir/lib/libc.a"
+        && -f "$sysroot_dir/lib/libm.a"
+        && -d "$sysroot_dir/include";
+    if ($build_options{cached} && $newlib_ready) {
+        print "[cache] reuse newlib toolchain\n";
+    } else {
+        remove_tree($newlib_build_dir, $install_root);
+        make_path($newlib_build_dir, $install_root);
 
-    print "[build] configure newlib\n";
-    run_in_dir(
-        $newlib_build_dir,
-        'env',
-        'CC_FOR_TARGET=x86_64-elf-gcc',
-        'AR_FOR_TARGET=x86_64-elf-ar',
-        'RANLIB_FOR_TARGET=x86_64-elf-ranlib',
-        "$newlib_root/configure",
-        "--target=$bootstrap_target",
-        "--prefix=$install_root",
-        '--disable-binutils',
-        '--disable-gas',
-        '--disable-gdb',
-        '--disable-gprof',
-        '--disable-libgloss',
-        '--disable-multilib',
-        '--disable-nls',
-        '--disable-shared',
-        '--disable-sim',
-        '--disable-werror',
-        '--disable-newlib-supplied-syscalls',
-        '--enable-newlib-multithread=no',
-        '--enable-newlib-retargetable-locking',
-    );
+        print "[build] configure newlib\n";
+        run_in_dir(
+            $newlib_build_dir,
+            'env',
+            'CC_FOR_TARGET=x86_64-elf-gcc',
+            'AR_FOR_TARGET=x86_64-elf-ar',
+            'RANLIB_FOR_TARGET=x86_64-elf-ranlib',
+            "$newlib_root/configure",
+            "--target=$bootstrap_target",
+            "--prefix=$install_root",
+            '--disable-binutils',
+            '--disable-gas',
+            '--disable-gdb',
+            '--disable-gprof',
+            '--disable-libgloss',
+            '--disable-multilib',
+            '--disable-nls',
+            '--disable-shared',
+            '--disable-sim',
+            '--disable-werror',
+            '--disable-newlib-supplied-syscalls',
+            '--enable-newlib-multithread=no',
+            '--enable-newlib-retargetable-locking',
+        );
 
-    print "[build] newlib\n";
-    my $jobs = capture_stdout('nproc');
-    chomp $jobs;
-    $jobs = 1 if $jobs !~ /^\d+$/ || $jobs < 1;
-    run('make', '-C', $newlib_build_dir, "-j$jobs", 'all-target-newlib');
+        print "[build] newlib\n";
+        my $jobs = capture_stdout('nproc');
+        chomp $jobs;
+        $jobs = 1 if $jobs !~ /^\d+$/ || $jobs < 1;
+        run('make', '-C', $newlib_build_dir, "-j$jobs", 'all-target-newlib');
 
-    print "[build] install newlib\n";
-    run('make', '-C', $newlib_build_dir, 'install-target-newlib');
+        print "[build] install newlib\n";
+        run('make', '-C', $newlib_build_dir, 'install-target-newlib');
+    }
 
     print "[build] mochiOS runtime\n";
-    run(
+    run_env(
+        cargo_env(),
         'cargo', "+$toolchain", 'build',
         '-Z', 'json-target-spec',
         '-Z', 'build-std=core,compiler_builtins',
@@ -360,6 +386,11 @@ sub build_newlib_runtime {
 
 sub prepare_rust_sysroot_overlay {
     my ($root_dir, $toolchain, $out_root, $sysroot_overlay) = @_;
+    if ($build_options{cached} && -x "$sysroot_overlay/bin/rustc" && -d "$sysroot_overlay/lib/rustlib/src/rust") {
+        print "[cache] reuse Rust sysroot overlay\n";
+        return;
+    }
+
     my $base_sysroot = capture_stdout('rustc', "+$toolchain", '--print', 'sysroot');
     chomp $base_sysroot;
     dief("rust sysroot not found: $base_sysroot") if !-d $base_sysroot;
@@ -446,11 +477,13 @@ sub build_std_app {
     my $stable_app_out = "$stable_target_dir/x86_64-unknown-mochios/release/$app_name";
     need_file($manifest_path);
     print "[build] $app_name\n";
+    my %cargo_env = (
+        RUSTUP_HOME => $rustup_home,
+        RUSTFLAGS   => join(' ', @{$rustflags}),
+    );
+    $cargo_env{CARGO_NET_OFFLINE} = 'true' if $build_options{cached};
     run_env(
-        {
-            RUSTUP_HOME => $rustup_home,
-            RUSTFLAGS   => join(' ', @{$rustflags}),
-        },
+        \%cargo_env,
         'rustup', 'run', $overlay_toolchain, 'cargo', 'build',
         '-Z', 'build-std=std,panic_abort,compiler_builtins',
         '-Z', 'json-target-spec',
@@ -483,6 +516,7 @@ sub build_rust_std_apps {
     $libc_build_hash =~ s/\s.*\z//s;
     my $target_dir = "$out_root/target-libc-patch-$libc_build_hash";
     my $stable_target_dir = "$out_root/target";
+    my $viewkit_test_stable_target_dir = "$out_root/viewkit-test/target";
     my $rustup_home = "$out_root/rustup-home-$libc_build_hash";
     my $overlay_toolchain = "mochios-overlay-$libc_build_hash";
 
@@ -524,7 +558,7 @@ sub build_rust_std_apps {
     );
 
     build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$user_root/apps/rust-std-demo/Cargo.toml", 'rust-std-demo');
-    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
+    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $viewkit_test_stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
     build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
     build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
     for my $bin (@{$coreutils_bins}) {
@@ -536,7 +570,8 @@ sub build_cext_module {
     my ($root_dir, $toolchain, $target_dir, $bundles_dir, $package_name, $crate_stem, $bundle_name, @deps) = @_;
     my $cexts_root = "$root_dir/cexts";
     print "[build] cext $bundle_name\n";
-    run(
+    run_env(
+        cargo_env(),
         'cargo', "+$toolchain", 'rustc',
         '-Z', 'build-std=core,compiler_builtins',
         '--release',
@@ -609,8 +644,9 @@ sub build_core_service {
     unlink "$stage_root/Cargo.lock" if -e "$stage_root/Cargo.lock";
     rewrite_cargo_paths("$stage_root/Cargo.toml", '../..', $user_root, undef);
     print "[build] core.service\n";
-    run('cargo', "+$toolchain", 'generate-lockfile', '--manifest-path', "$stage_root/Cargo.toml");
-    run(
+    run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', '--manifest-path', "$stage_root/Cargo.toml");
+    run_env(
+        cargo_env(),
         'cargo', "+$toolchain", 'build',
         '-Z', 'build-std=core,alloc,compiler_builtins',
         '-Z', 'json-target-spec',
@@ -626,7 +662,7 @@ sub build_core_service {
 
 sub build_staged_cargo_bin {
     my ($toolchain, $target_json, $target_dir, $stage, $package) = @_;
-    run('cargo', "+$toolchain", 'generate-lockfile', '--manifest-path', "$stage/Cargo.toml");
+    run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', '--manifest-path', "$stage/Cargo.toml");
     my @cmd = (
         'cargo', "+$toolchain", 'build',
         '-Z', 'build-std=core,alloc,compiler_builtins',
@@ -637,7 +673,7 @@ sub build_staged_cargo_bin {
         '--manifest-path', "$stage/Cargo.toml",
         '-p', $package,
     );
-    run(@cmd);
+    run_env(cargo_env(), @cmd);
 }
 
 sub build_services_and_drivers {
@@ -706,7 +742,7 @@ sub build_bootloader {
     need_file("$boot_root/Cargo.toml");
     print "[build] bootloader\n";
     run_env(
-        { RUSTFLAGS => '--cfg curve25519_dalek_backend="serial"' },
+        cargo_env(RUSTFLAGS => '--cfg curve25519_dalek_backend="serial"'),
         'cargo', '+nightly', 'build',
         '--release',
         '--target', 'x86_64-unknown-uefi',
@@ -771,6 +807,26 @@ sub stage_binder_app_bundle {
     }
 }
 
+sub stage_viewkit_test_bundle {
+    my ($rootfs_stage, $path) = @_;
+    stage_application_bundle(
+        $rootfs_stage,
+        "$rootfs_stage/applications/test.app",
+        $path->{viewkit_test_bin},
+        $path->{viewkit_test_about},
+        $path->{viewkit_test_manifest},
+    );
+}
+
+sub stage_application_bundle {
+    my ($rootfs_stage, $bundle_root, $entry_bin, $about_src, $manifest_src) = @_;
+    remove_tree($bundle_root);
+    make_path($bundle_root);
+    install_file('0755', $entry_bin, "$bundle_root/entry.elf");
+    install_file('0644', $about_src, "$bundle_root/about.toml");
+    install_file('0644', $manifest_src, "$bundle_root/manifest.toml");
+}
+
 sub stage_binder_sample_apps {
     my ($rootfs_stage, $source_root) = @_;
     return if !-d $source_root;
@@ -818,11 +874,13 @@ sub build_rootfs {
         install_file('0644', $mpk_test_mpkg, "$rootfs_stage/system/samples/mpk-test.mpkg");
     }
     stage_package_manifest($rootfs_stage, $path->{rust_std_demo_manifest_src}, '/system/packages/rust-std-demo/manifest.toml');
+    stage_package_manifest($rootfs_stage, $path->{viewkit_test_manifest}, '/system/packages/viewkit-test/manifest.toml');
     stage_package_manifest($rootfs_stage, $path->{msh_manifest}, '/system/packages/msh/manifest.toml');
     stage_package_manifest($rootfs_stage, $path->{coreutils_manifest}, '/system/packages/coreutils/manifest.toml');
     stage_package_manifest($rootfs_stage, $path->{binder_manifest}, '/system/packages/binder/manifest.toml');
     stage_binder_sample_apps($rootfs_stage, $path->{binder_sample_apps_dir});
     stage_binder_app_bundle($rootfs_stage, $path);
+    stage_viewkit_test_bundle($rootfs_stage, $path);
 
     make_path("$rootfs_stage/system/services");
     for my $service (qw(capability display compositor drivers logger input package signature tty)) {
@@ -977,7 +1035,7 @@ build_cexts($root_dir, $nightly_toolchain);
 
 print "[step] build kernel\n";
 run_env(
-    { RUSTFLAGS => '--cfg curve25519_dalek_backend="serial"' },
+    cargo_env(RUSTFLAGS => '--cfg curve25519_dalek_backend="serial"'),
     'cargo',
     "+$nightly_toolchain",
     'build',
@@ -1008,6 +1066,9 @@ my %path = (
     hello_elf                   => "$root_dir/out/newlib-port/hello/hello.elf",
     rust_std_demo_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/rust-std-demo",
     rust_std_demo_manifest_src  => "$root_dir/user/apps/rust-std-demo/manifest.toml",
+    viewkit_test_bin            => "$root_dir/out/rust-std/viewkit-test/target/x86_64-unknown-mochios/release/test_app",
+    viewkit_test_about          => "$root_dir/applications/test.app/about.toml",
+    viewkit_test_manifest       => "$root_dir/applications/test.app/manifest.toml",
     kernel_bin                  => "$core_root/target/$kernel_target/release/kernel",
     service_bin                 => "$root_dir/out/services-core/target/x86_64-unknown-mochios/release/core",
     drivers_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/drivers",
@@ -1058,7 +1119,7 @@ else {
 }
 
 for my $key (
-    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src test_app_bin binder_bin binder_about binder_manifest kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin package_service_bin signature_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest package_service_manifest signature_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
+    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin package_service_bin signature_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest package_service_manifest signature_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
 ) {
     need_file($path{$key});
 }
@@ -1116,6 +1177,8 @@ my @signature_db_args = (
     "/bin/rust-std-demo=$path{rust_std_demo_bin}",
     '--entry',
     "/applications/Binder.app/entry.elf=$path{binder_bin}",
+    '--entry',
+    "/applications/test.app/entry.elf=$path{viewkit_test_bin}",
     '--entry',
     "/bin/msh=$path{msh_bin}",
 );

@@ -33,7 +33,7 @@ build-cached: olddefconfig
 fonts:
 	@$(MAKE) -C libraries/fonts fonts
 
-run: olddefconfig
+run: olddefconfig all
 	@$(SCRIPTS)/runner.sh
 
 clean:

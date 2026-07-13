@@ -1165,8 +1165,10 @@ print "[step] stage initfs\n";
 remove_tree($initfs_stage);
 make_path($initfs_stage);
 install_file('0755', $path{service_bin}, "$initfs_stage/core.service");
+make_path("$initfs_stage/config");
+install_file('0644', "$core_root/config/kernel.conf", "$initfs_stage/config/kernel.conf");
 my @cext_signature_entries = stage_cext_bundles($cext_bundles_dir, $initfs_stage);
-for my $unexpected (qw(bin captest.bin unsigned.bin plugkit testdata hello.txt config)) {
+for my $unexpected (qw(bin captest.bin unsigned.bin plugkit testdata hello.txt)) {
     dief("unexpected initfs payload: $unexpected") if -e "$initfs_stage/$unexpected";
 }
 

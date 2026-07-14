@@ -31,3 +31,11 @@ path = "tools/mws"
 hash = "25d502a8ce1c6c74609d9c90c5450a3922d0ff29"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "restoreを実装"
+
+[[entries]]
+date = "2026-07-14T18:12:32.367539949+09:00"
+snapshot = "2e867e5fbf99f9fbfcaee2dc"
+path = "tools/mws"
+hash = "bd8e69e7ba0f0aa1f480cce19c62faf4dae197e3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "restore latestを実装"

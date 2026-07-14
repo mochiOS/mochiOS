@@ -1,0 +1,8 @@
+version = 1
+
+[[entries]]
+date = "2026-07-14T17:52:31.558731618+09:00"
+snapshot = "affa7c829a338232214ad576"
+path = "tools/mws"
+message = "gitのようなログ表示を実装"
+hash = "862767fa843951db45df90c085d113522864c26f"

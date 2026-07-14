@@ -39,3 +39,11 @@ path = "tools/mws"
 hash = "bd8e69e7ba0f0aa1f480cce19c62faf4dae197e3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "restore latestを実装"
+
+[[entries]]
+date = "2026-07-14T18:18:36.066347102+09:00"
+snapshot = "ecde40eb890f802d9e1899da"
+path = "tools/mws"
+hash = "ac217315d4edd4ba42ea859fac1a838b565aa07f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "restore --workでブランチを作成してrestoreができるように"

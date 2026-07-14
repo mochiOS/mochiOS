@@ -1,9 +1,0 @@
-version = 1
-
-[[entries]]
-date = "2026-07-14T17:54:48.446412059+09:00"
-snapshot = "57b8b41b7a69730cf373e8df"
-path = "tools/mws"
-hash = "2f3bbe76cdaa77ebd912b948e0f44adc1f8ec7aa"
-author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
-message = "リファクタ"

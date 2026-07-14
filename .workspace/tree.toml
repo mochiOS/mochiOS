@@ -119,3 +119,11 @@ path = "core"
 hash = "f635af371b70479aa0514a6a804a5b7ffb2c4aee"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Merge branch 'posix-spawn-execve' into mws/dev"
+
+[[entries]]
+date = "2026-07-14T19:46:09.615265241+09:00"
+snapshot = "4ad9195ae5ede45243a39637"
+path = "core"
+hash = "d0058943ff0a9aa58a5ceb524e43c919eae6f66c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "lock"

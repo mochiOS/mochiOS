@@ -103,3 +103,11 @@ path = "applications/test.app"
 hash = "41492aa7ecbfd4602da814fbcb9fd3cbf8c88ff6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "lock"
+
+[[entries]]
+date = "2026-07-14T19:15:09.772096932+09:00"
+snapshot = "d49a4f5a2fcbb6951118222d"
+path = "user"
+hash = "91fd4503577d6c74aa18a0690af239c5028c2c25"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix libc"

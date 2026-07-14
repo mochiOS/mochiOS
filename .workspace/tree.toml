@@ -23,3 +23,11 @@ path = "tools/mws"
 hash = "87efab216161a49f3abecb7fcc0ab91616d29145"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "ANSIエスケープが聞かなかった問題を修正"
+
+[[entries]]
+date = "2026-07-14T18:05:42.431102419+09:00"
+snapshot = "d6c75aa563a05a102616270d"
+path = "tools/mws"
+hash = "25d502a8ce1c6c74609d9c90c5450a3922d0ff29"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "restoreを実装"

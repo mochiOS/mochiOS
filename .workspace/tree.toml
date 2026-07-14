@@ -95,3 +95,11 @@ path = "tools/mws"
 hash = "696b66e0a8589ff2b957b5fbce1e193f37a2082d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "--dry-runの実装"
+
+[[entries]]
+date = "2026-07-14T19:04:45.291857664+09:00"
+snapshot = "d20633df45f884852af25838"
+path = "applications/test.app"
+hash = "41492aa7ecbfd4602da814fbcb9fd3cbf8c88ff6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "lock"

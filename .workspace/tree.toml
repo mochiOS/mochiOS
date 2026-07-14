@@ -15,3 +15,11 @@ path = "tools/mws"
 hash = "e9a7e2cc85f7302eaf2d91d79adddc6eaf75e0e8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "パスを修正"
+
+[[entries]]
+date = "2026-07-14T17:57:36.393038079+09:00"
+snapshot = "4cb8fb96e85a25c952bff475"
+path = "tools/mws"
+hash = "87efab216161a49f3abecb7fcc0ab91616d29145"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "ANSIエスケープが聞かなかった問題を修正"

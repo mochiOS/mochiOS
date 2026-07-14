@@ -135,3 +135,11 @@ path = "binaries/msh"
 hash = "61e598776bf08ac5c9176d5a7777e2161386cbd8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Accept tty input events by payload"
+
+[[entries]]
+date = "2026-07-15T07:45:11.310985449+09:00"
+snapshot = "a96b76a98cc866f093c15a84"
+path = "build"
+hash = "49a3bb569d8ef577525b2f12ecf7f81acfa75783"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "デフォルトコンフィグのツールチェーンバージョンを修正"

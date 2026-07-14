@@ -87,3 +87,11 @@ path = "tools/mws"
 hash = "e34877bea95d9e3639458cd4a575767dacbf26fe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "mws statusの改善"
+
+[[entries]]
+date = "2026-07-14T18:42:34.511210901+09:00"
+snapshot = "0e945e4d4cbc2f35b5297617"
+path = "tools/mws"
+hash = "696b66e0a8589ff2b957b5fbce1e193f37a2082d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "--dry-runの実装"

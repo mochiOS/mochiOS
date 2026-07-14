@@ -79,3 +79,11 @@ path = "tools/mws"
 hash = "79ae08312ab8de21dd2c9e4a9bc04df746ebd022"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "mws work listを作成"
+
+[[entries]]
+date = "2026-07-14T18:38:31.947111205+09:00"
+snapshot = "8b10df23e8a7c472ff5a7d25"
+path = "tools/mws"
+hash = "e34877bea95d9e3639458cd4a575767dacbf26fe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "mws statusの改善"

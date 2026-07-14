@@ -63,6 +63,11 @@ repo init \
 repo sync
 ```
 
+4. mwsをインストールします。
+```bash
+make install
+```
+
 3. newlibをconfigureします。
 
 ```bash

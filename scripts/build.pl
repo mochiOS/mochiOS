@@ -10,7 +10,7 @@ use POSIX qw(strftime);
 my $script_dir = dirname(abs_path($0));
 my $root_dir = abs_path("$script_dir/..");
 my $core_root = "$root_dir/core";
-my $config_env = "$script_dir/config/config.env";
+my $config_file = "$root_dir/.config";
 my %build_options = (
     cached => 0,
 );
@@ -110,18 +110,35 @@ sub config_to_01 {
     return config_enabled($value) ? '1' : '0';
 }
 
-sub read_config_env {
+sub unquote_config_value {
+    my ($value) = @_;
+
+    $value =~ s/^\s+//;
+    $value =~ s/\s+$//;
+
+    if ($value =~ /^"(.*)"$/s) {
+        $value = $1;
+        $value =~ s/\\n/\n/g;
+        $value =~ s/\\t/\t/g;
+        $value =~ s/\\"/"/g;
+        $value =~ s/\\\\/\\/g;
+    }
+
+    return $value;
+}
+
+sub read_config {
     my ($path) = @_;
     my %config;
     open my $fh, '<', $path or dief("open $path: $!");
     while (my $line = <$fh>) {
         chomp $line;
         next if $line =~ /^\s*#/ || $line =~ /^\s*$/;
-        if ($line =~ /^export\s+(CONFIG_[A-Za-z0-9_]+)='([^']*)'$/) {
-            $config{$1} = $2;
+        if ($line =~ /^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$/) {
+            $config{$1} = unquote_config_value($2);
             next;
         }
-        dief("invalid generated config line: $line");
+        dief("invalid config line in $path: $line");
     }
     close $fh;
     return %config;
@@ -722,8 +739,8 @@ sub build_services_and_drivers {
         need_file("$services_root/$service/Cargo.toml");
     }
     need_file($target_json);
-    need_file("$drivers_root/usb-driver/Cargo.toml") if config_enabled($config->{CONFIG_XHCI});
-    need_file("$drivers_root/ps2/i8042-driver/Cargo.toml") if config_enabled($config->{CONFIG_I8042});
+    need_file("$drivers_root/usb-driver/Cargo.toml") if config_enabled($config->{DRIVER_XHCI});
+    need_file("$drivers_root/ps2/i8042-driver/Cargo.toml") if config_enabled($config->{DRIVER_I8042});
 
     remove_tree("$out_root/stage");
     for my $service (sort keys %service_packages) {
@@ -735,7 +752,7 @@ sub build_services_and_drivers {
         build_staged_cargo_bin($toolchain, $target_json, $target_dir, $stage, $service_packages{$service});
     }
 
-    if (config_enabled($config->{CONFIG_XHCI})) {
+    if (config_enabled($config->{DRIVER_XHCI})) {
         my $stage = "$out_root/stage/usb-driver";
         copy_tree("$drivers_root/usb-driver", $stage);
         unlink "$stage/Cargo.lock" if -e "$stage/Cargo.lock";
@@ -743,7 +760,7 @@ sub build_services_and_drivers {
         print "[build] usb driver bundle\n";
         build_staged_cargo_bin($toolchain, $target_json, $target_dir, $stage, 'usb-driver');
     }
-    if (config_enabled($config->{CONFIG_I8042})) {
+    if (config_enabled($config->{DRIVER_I8042})) {
         my $stage = "$out_root/stage/i8042-driver";
         copy_tree("$drivers_root/ps2/i8042-driver", $stage);
         unlink "$stage/Cargo.lock" if -e "$stage/Cargo.lock";
@@ -889,7 +906,7 @@ sub build_rootfs {
     install_file('0644', $path->{signature_db}, "$rootfs_stage/signature.db");
 
     make_path("$rootfs_stage/system/packages");
-    if (config_enabled($config->{CONFIG_BUILD_MPK_SAMPLES})) {
+    if (config_enabled($config->{USER_BUILD_MPK_SAMPLES})) {
         make_path("$rootfs_stage/system/samples");
         install_file('0644', $mpk_demo_mpkg, "$rootfs_stage/system/samples/mpk-demo.mpkg");
         install_file('0644', $mpk_test_mpkg, "$rootfs_stage/system/samples/mpk-test.mpkg");
@@ -909,11 +926,11 @@ sub build_rootfs {
         install_file('0755', $path->{"${service}_service_bin"}, "$rootfs_stage/system/services/$service_name");
         stage_package_manifest($rootfs_stage, $path->{"${service}_service_manifest"}, "/system/packages/$service/manifest.toml");
     }
-    if (config_enabled($config->{CONFIG_XHCI})) {
+    if (config_enabled($config->{DRIVER_XHCI})) {
         stage_package_manifest($rootfs_stage, $path->{usb_driver_manifest}, "/system/packages@{[ $drivers_bundle_root =~ s#^/bin##r ]}/manifest.toml");
         stage_driver_bundle($rootfs_stage, $path->{usb_driver_manifest}, $path->{usb_driver_bin}, $drivers_bundle_root);
     }
-    if (config_enabled($config->{CONFIG_I8042})) {
+    if (config_enabled($config->{DRIVER_I8042})) {
         stage_package_manifest($rootfs_stage, $path->{i8042_driver_manifest}, "/system/packages@{[ $i8042_bundle_root =~ s#^/bin##r ]}/manifest.toml");
         stage_driver_bundle($rootfs_stage, $path->{i8042_driver_manifest}, $path->{i8042_driver_bin}, $i8042_bundle_root);
     }
@@ -940,27 +957,25 @@ sub write_gpt {
     dief("sfdisk failed") if !$ok;
 }
 
-if (!-f $config_env) {
+if (!-f $config_file) {
     run(
         'perl',
         "$script_dir/config/merge-config.pl",
         '--default',
-        "$script_dir/config/defaults.config",
+        "$root_dir/build/defaults.config",
         '--in',
-        "$root_dir/.config",
+        $config_file,
         '--out',
-        "$root_dir/.config",
+        $config_file,
         '--mk',
-        "$script_dir/config/config.mk",
-        '--env',
-        $config_env,
+        "$root_dir/build/config.mk",
     );
 }
 
-my %config = read_config_env($config_env);
+my %config = read_config($config_file);
 
 my $kernel_target = 'x86_64-unknown-none';
-my $nightly_toolchain = $config{CONFIG_KERNEL_TOOLCHAIN};
+my $nightly_toolchain = $config{KERNEL_RUST_TOOLCHAIN};
 my $build_root = "$root_dir/out/image-build";
 my $artifact_dir = "$root_dir/out/artifacts";
 my $esp_dir = "$build_root/esp";
@@ -974,14 +989,14 @@ my $signature_db_stage = "$build_root/signature.db";
 my $cext_bundles_dir = "$root_dir/out/cexts/bundles";
 my $drivers_bundle_root = '/bin/drivers/usb/qemu-usb.driver';
 my $i8042_bundle_root = '/bin/drivers/ps2/i8042.driver';
-my $enable_xhci = config_to_01($config{CONFIG_XHCI});
-my $enable_i8042 = config_to_01($config{CONFIG_I8042});
+my $enable_xhci = config_to_01($config{DRIVER_XHCI});
+my $enable_i8042 = config_to_01($config{DRIVER_I8042});
 my $coreutils_bin_dir = "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release";
 my $mpk_demo_mpkg = "$build_root/mpk-demo.mpkg";
 my $mpk_test_mpkg = "$build_root/mpk-test.mpkg";
 my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk test_gui test_desktop);
 push @coreutils_bins, qw(selftest-capability selftest-process)
-    if config_enabled($config{CONFIG_BUILD_SELFTESTS});
+    if config_enabled($config{USER_BUILD_SELFTESTS});
 
 for my $cmd (qw(cargo cp install mcopy mke2fs mkfs.fat mmd openssl perl tar repo sha256sum sfdisk truncate dd find sort)) {
     need_cmd($cmd);
@@ -994,10 +1009,10 @@ for my $script (qw(build-signature-db.pl build-sample-mpkg.pl pack-cext.pl)) {
     need_file("$script_dir/$script");
 }
 
-if ($config{CONFIG_DISK_SIZE_MB} <= $config{CONFIG_ESP_SIZE_MB} + 2) {
-    dief('CONFIG_DISK_SIZE_MB must be larger than CONFIG_ESP_SIZE_MB + 2');
+if ($config{IMAGE_DISK_SIZE_MB} <= $config{IMAGE_ESP_SIZE_MB} + 2) {
+    dief('IMAGE_DISK_SIZE_MB must be larger than IMAGE_ESP_SIZE_MB + 2');
 }
-my $rootfs_part_size_mb = $config{CONFIG_DISK_SIZE_MB} - $config{CONFIG_ESP_SIZE_MB} - 2;
+my $rootfs_part_size_mb = $config{IMAGE_DISK_SIZE_MB} - $config{IMAGE_ESP_SIZE_MB} - 2;
 
 print "[clean] build directories\n";
 remove_tree($build_root, $artifact_dir);
@@ -1007,9 +1022,9 @@ print "[step] build user runtime and newlib\n";
 build_newlib_runtime($root_dir, $nightly_toolchain);
 
 print "[step] build Rust std demo\n";
-build_rust_std_apps($root_dir, \%config, $config{CONFIG_RUST_STD_TOOLCHAIN}, \@coreutils_bins);
+build_rust_std_apps($root_dir, \%config, $config{USER_RUST_STD_TOOLCHAIN}, \@coreutils_bins);
 
-if (config_enabled($config{CONFIG_BUILD_MPK_SAMPLES})) {
+if (config_enabled($config{USER_BUILD_MPK_SAMPLES})) {
     print "[step] build sample mpkg\n";
     run(
         'perl',
@@ -1211,7 +1226,7 @@ for my $bin (qw(echo ls pwd true false cat touch rm mpk test_gui test_app test_d
     my $bin_path = $bin eq 'test_app' ? $path{test_app_bin} : "$coreutils_bin_dir/$bin";
     push @signature_db_args, '--entry', "/bin/$bin=$bin_path";
 }
-if (config_enabled($config{CONFIG_BUILD_SELFTESTS})) {
+if (config_enabled($config{USER_BUILD_SELFTESTS})) {
     push @signature_db_args, '--entry', "/bin/selftest-capability=$coreutils_bin_dir/selftest-capability";
     push @signature_db_args, '--entry', "/bin/selftest-process=$coreutils_bin_dir/selftest-process";
 }
@@ -1251,7 +1266,7 @@ build_rootfs(
 );
 
 print "[step] build initfs image\n";
-run('truncate', '-s', "$config{CONFIG_INITFS_SIZE_MB}M", $initfs_img);
+run('truncate', '-s', "$config{IMAGE_INITFS_SIZE_MB}M", $initfs_img);
 run('mke2fs', '-q', '-t', 'ext2', '-b', '1024', '-d', $initfs_stage, '-F', $initfs_img);
 
 print "[step] build esp image\n";
@@ -1260,7 +1275,7 @@ make_path("$esp_dir/EFI/BOOT", "$esp_dir/system");
 install_file('0644', $boot_bin, "$esp_dir/EFI/BOOT/BOOTX64.EFI");
 install_file('0644', $path{kernel_bin}, "$esp_dir/system/kernel.elf");
 install_file('0644', $initfs_img, "$esp_dir/system/initfs.img");
-run('truncate', '-s', "$config{CONFIG_ESP_SIZE_MB}M", $esp_img);
+run('truncate', '-s', "$config{IMAGE_ESP_SIZE_MB}M", $esp_img);
 run_quiet('mkfs.fat', '-F', '32', '-n', 'EFI', $esp_img);
 my $mtools_env = { MTOOLS_SKIP_CHECK => '1' };
 run_env($mtools_env, 'mmd', '-i', $esp_img, '::/EFI');
@@ -1272,11 +1287,11 @@ run_env($mtools_env, 'mcopy', '-i', $esp_img, "$esp_dir/system/initfs.img", '::/
 
 print "[step] build GPT disk image\n";
 my $esp_start_sector = 2048;
-my $esp_size_sectors = $config{CONFIG_ESP_SIZE_MB} * 2048;
+my $esp_size_sectors = $config{IMAGE_ESP_SIZE_MB} * 2048;
 my $rootfs_start_sector = $esp_start_sector + $esp_size_sectors;
 my $rootfs_size_sectors = $rootfs_part_size_mb * 2048;
 unlink $disk_img if -e $disk_img;
-run('truncate', '-s', "$config{CONFIG_DISK_SIZE_MB}M", $disk_img);
+run('truncate', '-s', "$config{IMAGE_DISK_SIZE_MB}M", $disk_img);
 write_gpt($disk_img, $esp_start_sector, $esp_size_sectors, $rootfs_start_sector, $rootfs_size_sectors);
 run('dd', "if=$esp_img", "of=$disk_img", 'bs=512', "seek=$esp_start_sector", 'conv=notrunc', 'status=none');
 run('dd', "if=$rootfs_img", "of=$disk_img", 'bs=512', "seek=$rootfs_start_sector", 'conv=notrunc', 'status=none');
@@ -1298,7 +1313,7 @@ install_file('0755', $path{msh_bin}, "$artifact_dir/msh");
 for my $coreutil (@coreutils_bins) {
     install_file('0755', "$coreutils_bin_dir/$coreutil", "$artifact_dir/$coreutil");
 }
-if (config_enabled($config{CONFIG_BUILD_MPK_SAMPLES})) {
+if (config_enabled($config{USER_BUILD_MPK_SAMPLES})) {
     install_file('0644', $mpk_demo_mpkg, "$artifact_dir/mpk-demo.mpkg");
     install_file('0644', $mpk_test_mpkg, "$artifact_dir/mpk-test.mpkg");
 }
@@ -1331,7 +1346,7 @@ my @checksum_files = qw(
     build-info.txt
 );
 push @checksum_files, 'i8042-driver.entry' if $enable_i8042 eq '1';
-push @checksum_files, qw(mpk-demo.mpkg mpk-test.mpkg) if config_enabled($config{CONFIG_BUILD_MPK_SAMPLES});
+push @checksum_files, qw(mpk-demo.mpkg mpk-test.mpkg) if config_enabled($config{USER_BUILD_MPK_SAMPLES});
 write_checksums($artifact_dir, @checksum_files);
 append_checksum($artifact_dir, 'usb-driver.entry') if $enable_xhci eq '1';
 

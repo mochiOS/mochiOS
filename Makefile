@@ -11,8 +11,7 @@ olddefconfig:
 		--default $(shell pwd)/build/defaults.config \
 		--in .config \
 		--out .config \
-		--mk $(shell pwd)/build/config.mk \
-		--env $(shell pwd)/build/config.env
+		--mk $(shell pwd)/build/config.mk
 
 menuconfig:
 	@$(MAKE) -C build menuconfig \

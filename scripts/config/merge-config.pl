@@ -9,15 +9,13 @@ my $default_path = '';
 my $input_path = '';
 my $output_path = '';
 my $emit_mk = '';
-my $emit_env = '';
 
 GetOptions(
     'default=s' => \$default_path,
     'in=s'      => \$input_path,
     'out=s'     => \$output_path,
     'mk=s'      => \$emit_mk,
-    'env=s'     => \$emit_env,
-) or die "usage: merge-config.pl --default defaults.config [--in .config] --out .config [--mk config.mk] [--env config.env]\n";
+) or die "usage: merge-config.pl --default defaults.config [--in .config] --out .config [--mk config.mk]\n";
 
 die "--default is required\n" if $default_path eq '';
 die "--out is required\n" if $output_path eq '';
@@ -148,14 +146,6 @@ sub validate_value {
     }
 }
 
-sub shell_quote {
-    my ($value) = @_;
-
-    $value =~ s/'/'"'"'/g;
-
-    return "'$value'";
-}
-
 my ($defaults, $default_order) = read_config($default_path, 1);
 my ($input, undef) = read_config($input_path, 0);
 
@@ -197,17 +187,4 @@ if ($emit_mk ne '') {
     }
 
     close $mk;
-}
-
-if ($emit_env ne '') {
-    make_path(dirname($emit_env));
-
-    open my $env, '>', $emit_env or die "open $emit_env: $!\n";
-    print {$env} "# Automatically generated. Do not edit.\n";
-
-    for my $key (@{$default_order}) {
-        print {$env} "export $key=", shell_quote($merged{$key}), "\n";
-    }
-
-    close $env;
 }

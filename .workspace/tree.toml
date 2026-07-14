@@ -63,3 +63,11 @@ path = "tools/mws"
 hash = "a0c00f88a7c4c709e113a29f7a9964101e2956e2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "mws/からはじまるブランチを削除できるmws work cleanを追加"
+
+[[entries]]
+date = "2026-07-14T18:30:56.842934038+09:00"
+snapshot = "449bd2579320ec10d93da8fc"
+path = "tools/mws"
+hash = "cee23b69f5bd6ed9954c334e0a381bf9ba88e3bd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "mws/からはじまるブランチを削除できるmws work cleanを追加"

@@ -55,3 +55,11 @@ path = "tools/mws"
 hash = "f148ad4c8b10cebf98c585551d4e9c87b298f4fc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "mws logのコミットIDをshortにしてmws statusを作成"
+
+[[entries]]
+date = "2026-07-14T18:30:15.893583867+09:00"
+snapshot = "e20ad559c4ded610beca5f89"
+path = "tools/mws"
+hash = "a0c00f88a7c4c709e113a29f7a9964101e2956e2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "mws/からはじまるブランチを削除できるmws work cleanを追加"

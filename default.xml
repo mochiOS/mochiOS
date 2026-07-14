@@ -121,4 +121,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="tools/mws"
+            name="mochiOS/mws"
+            revision="main"
+            remote="github"
+    />
 </manifest>

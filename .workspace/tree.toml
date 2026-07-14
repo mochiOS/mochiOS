@@ -7,3 +7,11 @@ path = "tools/mws"
 hash = "2f3bbe76cdaa77ebd912b948e0f44adc1f8ec7aa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "リファクタ"
+
+[[entries]]
+date = "2026-07-14T17:56:48.544296197+09:00"
+snapshot = "6c6118e8ab0a7d849fbd345d"
+path = "tools/mws"
+hash = "e9a7e2cc85f7302eaf2d91d79adddc6eaf75e0e8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "パスを修正"

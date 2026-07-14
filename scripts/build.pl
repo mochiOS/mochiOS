@@ -553,7 +553,6 @@ sub build_rust_std_apps {
     $libc_build_hash =~ s/\s.*\z//s;
     my $target_dir = "$out_root/target-libc-patch-$libc_build_hash";
     my $stable_target_dir = "$out_root/target";
-    my $viewkit_test_stable_target_dir = "$out_root/viewkit-test/target";
     my $rustup_home = "$out_root/rustup-home-$libc_build_hash";
     my $overlay_toolchain = "mochios-overlay-$libc_build_hash";
 
@@ -595,7 +594,7 @@ sub build_rust_std_apps {
     );
 
     build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$user_root/apps/rust-std-demo/Cargo.toml", 'rust-std-demo');
-    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $viewkit_test_stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
+    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
     build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
     build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
     for my $bin (@{$coreutils_bins}) {

@@ -159,3 +159,11 @@ path = "libraries/libc"
 hash = "cad838a22ee3f37ac80f7b0b26d62da1a999fa79"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix"
+
+[[entries]]
+date = "2026-07-15T17:26:36.888130985+09:00"
+snapshot = "d4d18d0b6a90f4758a8af9ab"
+path = "libraries/libc"
+hash = "4427f76efdf92eb05b3e0b824ef90120ca587f6d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix"

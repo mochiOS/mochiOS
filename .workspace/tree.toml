@@ -167,3 +167,11 @@ path = "libraries/libc"
 hash = "4427f76efdf92eb05b3e0b824ef90120ca587f6d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix"
+
+[[entries]]
+date = "2026-07-15T20:34:03.869094492+09:00"
+snapshot = "05b16175626a3732f69e4f41"
+path = "libraries/rust"
+hash = "7a585153c0fab05ed14c66e53a7f7229c6a3e050"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix make build"

@@ -143,3 +143,11 @@ path = "build"
 hash = "49a3bb569d8ef577525b2f12ecf7f81acfa75783"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "デフォルトコンフィグのツールチェーンバージョンを修正"
+
+[[entries]]
+date = "2026-07-15T17:05:44.485786059+09:00"
+snapshot = "4a0c4447dc8f2f4ac3b2dbd3"
+path = "libraries/libc"
+hash = "8c17d796e4cdbc2be35ad0e1f74ddf2eb14a5c25"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix"

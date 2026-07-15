@@ -127,3 +127,11 @@ path = "core"
 hash = "d0058943ff0a9aa58a5ceb524e43c919eae6f66c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "lock"
+
+[[entries]]
+date = "2026-07-15T15:32:30.725873433+09:00"
+snapshot = "af356fd1b83c0b4209f99beb"
+path = "binaries/msh"
+hash = "61e598776bf08ac5c9176d5a7777e2161386cbd8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Accept tty input events by payload"

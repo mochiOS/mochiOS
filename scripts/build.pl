@@ -40,9 +40,8 @@ sub run_env {
 }
 
 sub cargo_env {
-    my (%extra) = @_;
-    $extra{CARGO_NET_OFFLINE} = 'true' if $build_options{cached};
-    return \%extra;
+	my (%extra) = @_;
+	return \%extra;
 }
 
 sub run_quiet {
@@ -250,7 +249,7 @@ sub stage_system_icons {
 }
 
 sub rewrite_cargo_paths {
-    my ($cargo_toml, $prefix, $user_root, $plugkit_root) = @_;
+    my ($cargo_toml, $prefix, $user_root, $plugkit_root, $mnu_abi_root) = @_;
     open my $fh, '<', $cargo_toml or dief("open $cargo_toml: $!");
     local $/;
     my $text = <$fh>;
@@ -260,6 +259,9 @@ sub rewrite_cargo_paths {
     $text =~ s#path = "\Q$prefix\E/user/crates/syscall"#path = "$user_root/crates/syscall"#g;
     $text =~ s#plugkit = \{ git = "https://github.com/mochiOS/mnu", package = "plugkit" \}#plugkit = { path = "$plugkit_root" }#g
         if defined $plugkit_root;
+    if (defined $mnu_abi_root && $text !~ /^\s*mnu-abi\s*=/m) {
+        $text .= "\n[patch.crates-io]\nmnu-abi = { path = \"$mnu_abi_root\" }\n";
+    }
     open my $out, '>', $cargo_toml or dief("open $cargo_toml: $!");
     print {$out} $text;
     close $out;
@@ -423,7 +425,46 @@ sub build_newlib_runtime {
 
 sub prepare_rust_sysroot_overlay {
     my ($root_dir, $toolchain, $out_root, $sysroot_overlay) = @_;
-    if ($build_options{cached} && -x "$sysroot_overlay/bin/rustc" && -d "$sysroot_overlay/lib/rustlib/src/rust") {
+    my @overrides = qw(
+        library/std/src/sys/pal/unix/mod.rs
+        library/std/build.rs
+        library/std/src/sys/args/unix.rs
+        library/std/src/os/unix/mod.rs
+        library/std/src/os/linux/mod.rs
+        library/std/src/os/linux/fs.rs
+        library/std/src/os/unix/fs.rs
+        library/std/src/os/mod.rs
+        library/std/src/sys/paths/unix.rs
+        library/std/src/sys/random/mod.rs
+        library/std/src/sys/fs/unix.rs
+        library/std/src/sys/sync/mutex/mod.rs
+        library/std/src/sys/sync/condvar/mod.rs
+        library/std/src/sys/sync/thread_parking/mod.rs
+        library/std/src/sys/sync/once/mod.rs
+        library/std/src/sys/sync/rwlock/mod.rs
+        library/std/src/sys/thread/mod.rs
+        library/std/src/sys/thread_local/mod.rs
+        library/proc_macro/Cargo.toml
+        library/Cargo.toml
+    );
+
+    my $overlay_stamp = "$sysroot_overlay/.mochios-overlay-stamp";
+    my $overlay_fresh = $build_options{cached}
+        && -x "$sysroot_overlay/bin/rustc"
+        && -d "$sysroot_overlay/lib/rustlib/src/rust"
+        && -f $overlay_stamp;
+    if ($overlay_fresh) {
+        my $stamp_mtime = (stat($overlay_stamp))[9] // 0;
+        for my $rel (@overrides) {
+            my $src = "$root_dir/libraries/rust/$rel";
+            my $src_mtime = (stat($src))[9] // 0;
+            if ($src_mtime > $stamp_mtime) {
+                $overlay_fresh = 0;
+                last;
+            }
+        }
+    }
+    if ($overlay_fresh) {
         print "[cache] reuse Rust sysroot overlay\n";
         return;
     }
@@ -468,28 +509,6 @@ sub prepare_rust_sysroot_overlay {
 
     make_path("$rustlib_overlay/src");
     run('cp', '-rs', "$base_sysroot/lib/rustlib/src/rust", "$rustlib_overlay/src/");
-
-    my @overrides = qw(
-        library/std/src/sys/pal/unix/mod.rs
-        library/std/build.rs
-        library/std/src/sys/args/unix.rs
-        library/std/src/os/unix/mod.rs
-        library/std/src/os/linux/mod.rs
-        library/std/src/os/linux/fs.rs
-        library/std/src/os/unix/fs.rs
-        library/std/src/os/mod.rs
-        library/std/src/sys/paths/unix.rs
-        library/std/src/sys/random/mod.rs
-        library/std/src/sys/fs/unix.rs
-        library/std/src/sys/sync/mutex/mod.rs
-        library/std/src/sys/sync/condvar/mod.rs
-        library/std/src/sys/sync/thread_parking/mod.rs
-        library/std/src/sys/sync/once/mod.rs
-        library/std/src/sys/sync/rwlock/mod.rs
-        library/std/src/sys/thread_local/mod.rs
-        library/proc_macro/Cargo.toml
-        library/Cargo.toml
-    );
     for my $rel (@overrides) {
         my $dst = "$rustlib_overlay/src/rust/$rel";
         unlink $dst or dief("unlink $dst: $!") if -e $dst || -l $dst;
@@ -501,30 +520,119 @@ sub prepare_rust_sysroot_overlay {
         unlink $cargo_config_dst or dief("unlink $cargo_config_dst: $!") if -e $cargo_config_dst || -l $cargo_config_dst;
         copy($cargo_config_src, $cargo_config_dst) or dief("copy library .cargo/config.toml: $!");
     }
-    make_path("$rustlib_overlay/src/rust/vendor");
-    copy_tree("$root_dir/libraries/rust/vendor/rustc-literal-escaper", "$rustlib_overlay/src/rust/vendor/rustc-literal-escaper");
+	my $vendor_root = "$root_dir/libraries/rust/vendor";
+	my $literal_escaper_src = "$vendor_root/rustc-literal-escaper";
+
+	if (!-d $literal_escaper_src) {
+		print "[fetch] rustc-literal-escaper\n";
+
+		my $fetch_root = "$out_root/rustc-literal-escaper-fetch";
+		my $fetch_src = "$fetch_root/src";
+
+		remove_tree($fetch_root);
+		make_path($fetch_src);
+
+		open my $manifest, '>', "$fetch_root/Cargo.toml"
+			or dief("open $fetch_root/Cargo.toml: $!");
+		print {$manifest} <<'EOF';
+[package]
+name = "mochios-rustc-literal-fetch"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+rustc-literal-escaper = "*"
+EOF
+		close $manifest;
+
+		open my $lib, '>', "$fetch_src/lib.rs"
+			or dief("open $fetch_src/lib.rs: $!");
+		close $lib;
+
+		my $cargo_home = $ENV{CARGO_HOME} // "$ENV{HOME}/.cargo";
+
+		run(
+			'cargo',
+			"+$toolchain",
+			'fetch',
+			'--manifest-path',
+			"$fetch_root/Cargo.toml",
+		);
+
+		my @matches = glob(
+			"$cargo_home/registry/src/*/rustc-literal-escaper-*"
+		);
+		dief('downloaded rustc-literal-escaper source was not found')
+			if !@matches;
+
+		@matches = sort @matches;
+		make_path($vendor_root);
+		copy_tree($matches[-1], $literal_escaper_src);
+	}
+
+	make_path("$rustlib_overlay/src/rust/vendor");
+	copy_tree(
+		$literal_escaper_src,
+		"$rustlib_overlay/src/rust/vendor/rustc-literal-escaper",
+	);
 
     remove_tree($sysroot_overlay);
     rename "$sysroot_overlay.tmp", $sysroot_overlay or dief("rename sysroot overlay: $!");
+    open my $stamp_fh, '>', $overlay_stamp or dief("open overlay stamp: $!");
+    print {$stamp_fh} "ok\n";
+    close $stamp_fh;
 }
 
 sub build_std_app {
-    my ($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, $rustflags, $manifest_path, $app_name) = @_;
+    my ($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, $rustflags, $manifest_path, $app_name) = @_;
     my $app_out = "$target_dir/x86_64-unknown-mochios/release/$app_name";
     my $stable_app_out = "$stable_target_dir/x86_64-unknown-mochios/release/$app_name";
+    my $rust_src_root = "$sysroot_overlay/lib/rustlib/src/rust";
+    my $library_root = "$rust_src_root/library";
+    my $vendor_dir = "$library_root/vendor";
     need_file($manifest_path);
+    need_dir($vendor_dir);
+    need_dir("$library_root/rustc-std-workspace-core");
+    need_dir("$library_root/rustc-std-workspace-alloc");
+    need_dir("$library_root/rustc-std-workspace-std");
+    my @cargo_configs = (
+        "patch.crates-io.libc.path='$libc_override_path'",
+        "patch.crates-io.rustc-std-workspace-core.path='$library_root/rustc-std-workspace-core'",
+        "patch.crates-io.rustc-std-workspace-alloc.path='$library_root/rustc-std-workspace-alloc'",
+        "patch.crates-io.rustc-std-workspace-std.path='$library_root/rustc-std-workspace-std'",
+    );
+    push @cargo_configs, 'net.offline=true' if $build_options{cached};
+    opendir my $vendor_dh, $vendor_dir or dief("opendir $vendor_dir: $!");
+    for my $entry (sort grep {$_ ne '.' && $_ ne '..'} readdir $vendor_dh) {
+        my $crate_dir = "$vendor_dir/$entry";
+        my $manifest = "$crate_dir/Cargo.toml";
+        next if !-f $manifest;
+        open my $fh, '<', $manifest or dief("open $manifest: $!");
+        my $package_name;
+        while (my $line = <$fh>) {
+            if ($line =~ /^\s*name\s*=\s*"([^"]+)"/) {
+                $package_name = $1;
+                last;
+            }
+        }
+        close $fh;
+        next if !defined $package_name;
+        next if $package_name eq 'libc';
+        push @cargo_configs, "patch.crates-io.$package_name.path='$crate_dir'";
+    }
+    closedir $vendor_dh;
     print "[build] $app_name\n";
     my %cargo_env = (
         RUSTUP_HOME => $rustup_home,
         RUSTFLAGS   => join(' ', @{$rustflags}),
     );
-    $cargo_env{CARGO_NET_OFFLINE} = 'true' if $build_options{cached};
+    my @cargo_config_args = map { ('--config', $_) } @cargo_configs;
     run_env(
         \%cargo_env,
         'rustup', 'run', $overlay_toolchain, 'cargo', 'build',
         '-Z', 'build-std=std,panic_abort,compiler_builtins',
         '-Z', 'json-target-spec',
-        '--config', "patch.crates-io.libc.path='$libc_override_path'",
+        @cargo_config_args,
         '--manifest-path', $manifest_path,
         '--bin', $app_name,
         '--release',
@@ -555,6 +663,8 @@ sub build_rust_std_apps {
     my $stable_target_dir = "$out_root/target";
     my $rustup_home = "$out_root/rustup-home-$libc_build_hash";
     my $overlay_toolchain = "mochios-overlay-$libc_build_hash";
+
+    relink_libc_src($libc_override_path);
 
     for my $cmd (qw(cargo rustc rustup x86_64-elf-gcc cksum)) {
         need_cmd($cmd);
@@ -593,12 +703,12 @@ sub build_rust_std_apps {
         '-C', 'link-arg=-Wl,--end-group',
     );
 
-    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$user_root/apps/rust-std-demo/Cargo.toml", 'rust-std-demo');
-    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
-    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
-    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
+    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$user_root/apps/rust-std-demo/Cargo.toml", 'rust-std-demo');
+    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
+    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
+    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
     for my $bin (@{$coreutils_bins}) {
-        build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $libc_override_path, \@rustflags, "$root_dir/binaries/coreutils/Cargo.toml", $bin);
+        build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/coreutils/Cargo.toml", $bin);
     }
 }
 
@@ -673,12 +783,13 @@ sub build_core_service {
     my $target_dir = "$root_dir/out/services-core/target";
     my $stage_root = "$root_dir/out/services-core/stage";
     my $user_root = "$root_dir/user";
+    my $mnu_abi_root = "$root_dir/core/crates/abi";
     need_cmd('cargo');
     need_file("$service_root/Cargo.toml");
     need_file($target_json);
     copy_tree($service_root, $stage_root);
     unlink "$stage_root/Cargo.lock" if -e "$stage_root/Cargo.lock";
-    rewrite_cargo_paths("$stage_root/Cargo.toml", '../..', $user_root, undef);
+    rewrite_cargo_paths("$stage_root/Cargo.toml", '../..', $user_root, undef, $mnu_abi_root);
     print "[build] core.service\n";
     run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', '--manifest-path', "$stage_root/Cargo.toml");
     run_env(
@@ -721,6 +832,7 @@ sub build_services_and_drivers {
     my $target_json = "$root_dir/services/core/x86_64-unknown-mochios.json";
     my $user_root = "$root_dir/user";
     my $plugkit_root = "$root_dir/core/crates/PlugKit/plugkit";
+    my $mnu_abi_root = "$root_dir/core/crates/abi";
     my %service_packages = (
         capability => 'capability',
         compositor => 'compositor',
@@ -746,7 +858,7 @@ sub build_services_and_drivers {
         my $stage = "$out_root/stage/$service";
         copy_tree("$services_root/$service", $stage);
         unlink "$stage/Cargo.lock" if -e "$stage/Cargo.lock";
-        rewrite_cargo_paths("$stage/Cargo.toml", '../..', $user_root, undef);
+        rewrite_cargo_paths("$stage/Cargo.toml", '../..', $user_root, undef, $mnu_abi_root);
         print "[build] $service.service\n";
         build_staged_cargo_bin($toolchain, $target_json, $target_dir, $stage, $service_packages{$service});
     }
@@ -755,7 +867,7 @@ sub build_services_and_drivers {
         my $stage = "$out_root/stage/usb-driver";
         copy_tree("$drivers_root/usb-driver", $stage);
         unlink "$stage/Cargo.lock" if -e "$stage/Cargo.lock";
-        rewrite_cargo_paths("$stage/Cargo.toml", '../..', $user_root, $plugkit_root);
+        rewrite_cargo_paths("$stage/Cargo.toml", '../..', $user_root, $plugkit_root, $mnu_abi_root);
         print "[build] usb driver bundle\n";
         build_staged_cargo_bin($toolchain, $target_json, $target_dir, $stage, 'usb-driver');
     }
@@ -763,7 +875,7 @@ sub build_services_and_drivers {
         my $stage = "$out_root/stage/i8042-driver";
         copy_tree("$drivers_root/ps2/i8042-driver", $stage);
         unlink "$stage/Cargo.lock" if -e "$stage/Cargo.lock";
-        rewrite_cargo_paths("$stage/Cargo.toml", '../../..', $user_root, $plugkit_root);
+        rewrite_cargo_paths("$stage/Cargo.toml", '../../..', $user_root, $plugkit_root, $mnu_abi_root);
         print "[build] i8042 driver bundle\n";
         build_staged_cargo_bin($toolchain, $target_json, $target_dir, $stage, 'i8042-driver');
     }
@@ -779,7 +891,8 @@ sub build_bootloader {
     print "[build] bootloader\n";
     run_env(
         cargo_env(RUSTFLAGS => '--cfg curve25519_dalek_backend="serial"'),
-        'cargo', '+nightly', 'build',
+        'cargo', '+nightly-2026-05-14', 'build',
+        '-Z', 'build-std=core,alloc,compiler_builtins',
         '--release',
         '--target', 'x86_64-unknown-uefi',
         '--target-dir', $target_dir,
@@ -956,6 +1069,75 @@ sub write_gpt {
     dief("sfdisk failed") if !$ok;
 }
 
+sub relink_libc_src {
+	my ($libc_root) = @_;
+
+	my $cargo_home = $ENV{CARGO_HOME} // "$ENV{HOME}/.cargo";
+	my @matches = sort glob(
+		"$cargo_home/registry/src/*/libc-0.2.185"
+	);
+
+	my $registry_root;
+
+	for my $candidate (@matches) {
+		my $mod_path =
+			"$candidate/src/unix/newlib/mod.rs";
+
+		next if !-f $mod_path;
+
+		open my $fh, '<', $mod_path
+			or dief("open $mod_path: $!");
+
+		local $/;
+		my $source = <$fh> // '';
+		close $fh;
+
+		next if $source !~ /\bmod generic;/;
+		next if $source !~ /target_arch = "aarch64"/;
+		next if $source !~ /target_arch_not_implemented/;
+
+		$registry_root = $candidate;
+		last;
+	}
+
+	dief('valid libc 0.2.185 source was not found in Cargo registry')
+		if !defined $registry_root;
+
+	my $registry_src = "$registry_root/src";
+	my $override_src = "$libc_root/newlib";
+	my $libc_src = "$libc_root/src";
+	my $generated_root = "$libc_root/.generated";
+	my $upstream_mod =
+		"$registry_src/unix/newlib/mod.rs";
+
+	need_file("$override_src/mod.rs");
+	need_file("$override_src/generic.rs");
+	need_file("$override_src/mochios.rs");
+	need_file($upstream_mod);
+
+	remove_tree($generated_root);
+	make_path($generated_root);
+
+	copy(
+		$upstream_mod,
+		"$generated_root/upstream-newlib-mod.rs",
+	) or dief("copy upstream newlib/mod.rs: $!");
+
+	remove_tree($libc_src);
+	run('cp', '-rs', $registry_src, $libc_root);
+
+	my $wrapper_dst = "$libc_src/unix/newlib/mod.rs";
+
+	unlink $wrapper_dst
+		or dief("unlink $wrapper_dst: $!")
+		if -e $wrapper_dst || -l $wrapper_dst;
+
+	copy("$override_src/mod.rs", $wrapper_dst)
+		or dief("copy newlib/mod.rs: $!");
+
+	print "[link] prepared libc sources\n";
+}
+
 if (!-f $config_file) {
     run(
         'perl',
@@ -1101,7 +1283,7 @@ my %path = (
     hello_elf                   => "$root_dir/out/newlib-port/hello/hello.elf",
     rust_std_demo_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/rust-std-demo",
     rust_std_demo_manifest_src  => "$root_dir/user/apps/rust-std-demo/manifest.toml",
-    viewkit_test_bin            => "$root_dir/out/rust-std/viewkit-test/target/x86_64-unknown-mochios/release/test_app",
+    viewkit_test_bin            => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/test_app",
     viewkit_test_about          => "$root_dir/applications/test.app/about.toml",
     viewkit_test_manifest       => "$root_dir/applications/test.app/manifest.toml",
     kernel_bin                  => "$core_root/target/$kernel_target/release/kernel",

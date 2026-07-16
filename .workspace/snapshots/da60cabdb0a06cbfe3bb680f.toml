@@ -1,0 +1,96 @@
+version = 1
+id = "da60cabdb0a06cbfe3bb680f"
+created = "2026-07-16T12:53:29.974893106+09:00"
+
+[trigger]
+name = "mochiOS/mnu"
+path = "core"
+repository = "/home/jnix/mochiOS/core"
+head = "4f485dcf0e8a267ed5dd95dc26253195884bf17c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix"
+
+[[projects]]
+name = "mochiOS/boot"
+path = "boot"
+head = "45c2c544362a1fa95ad59432f0a2777e620fa024"
+
+[[projects]]
+name = "mochiOS/mnu"
+path = "core"
+head = "4f485dcf0e8a267ed5dd95dc26253195884bf17c"
+
+[[projects]]
+name = "mochiOS/syscalls"
+path = "user"
+head = "876a8d11c19848b54183bff9abcda3aa4e73f476"
+
+[[projects]]
+name = "mochiOS/services"
+path = "services"
+head = "9cc3a64a71672f4978bb18cb68de431cb8da5673"
+
+[[projects]]
+name = "mochiOS/cexts"
+path = "cexts"
+head = "c5db5491c5530031afc9908cbda0daba1f7fa127"
+
+[[projects]]
+name = "mochiOS/drivers"
+path = "drivers"
+head = "cbdd5891f3b2380809d51cbc0f1922b32c40bf2c"
+
+[[projects]]
+name = "newlib-cygwin"
+path = "libraries/newlib"
+head = "6f47864214658e3bb31776eded6dfd44c3237bb6"
+
+[[projects]]
+name = "mochiOS/rust"
+path = "libraries/rust"
+head = "7a585153c0fab05ed14c66e53a7f7229c6a3e050"
+
+[[projects]]
+name = "mochiOS/libc"
+path = "libraries/libc"
+head = "d2072c233a70c5044bc9adc1d6c60cafc3e663e1"
+
+[[projects]]
+name = "mochiOS/msh"
+path = "binaries/msh"
+head = "7672afe79078ddcc937405f79018b1a6e2eda36e"
+
+[[projects]]
+name = "mochiOS/coreutils"
+path = "binaries/coreutils"
+head = "98eb6ddafa8962234db4b2409b87ab2c700cd8e1"
+
+[[projects]]
+name = "mochiOS/Binder"
+path = "applications/binder"
+head = "cce7a0b1d89d631a7cc18e6f6257c4ff2e076306"
+
+[[projects]]
+name = "mochiOS/ViewKit"
+path = "libraries/viewkit"
+head = "84c83173932cddceb66af796236ddd107f3d0093"
+
+[[projects]]
+name = "mochiOS/buildtools"
+path = "build"
+head = "240f62d29b52fdb09427f70d3ca6f786ed5dcfaf"
+
+[[projects]]
+name = "mochiOS/test-application"
+path = "applications/test.app"
+head = "de72d10cc4134d781106701bded70afb9d85c19c"
+
+[[projects]]
+name = "mochiOS/fonts"
+path = "libraries/fonts"
+head = "e34529b27589b2415352925d186661dc07327ea1"
+
+[[projects]]
+name = "mochiOS/mws"
+path = "tools/mws"
+head = "1830eeeb35f08b6c0d4050adc052f06d807b1c9d"

@@ -175,3 +175,11 @@ path = "libraries/rust"
 hash = "7a585153c0fab05ed14c66e53a7f7229c6a3e050"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix make build"
+
+[[entries]]
+date = "2026-07-16T12:53:29.974893106+09:00"
+snapshot = "da60cabdb0a06cbfe3bb680f"
+path = "core"
+hash = "4f485dcf0e8a267ed5dd95dc26253195884bf17c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix"

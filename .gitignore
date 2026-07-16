@@ -2,16 +2,6 @@
 .repo/
 .config
 
-boot/
-core/
-cexts/
-libraries/
-services/
-user/
-msh/
-memo/
-applications/
-
 out/
 scripts/config/config.env
 scripts/config/config.mk

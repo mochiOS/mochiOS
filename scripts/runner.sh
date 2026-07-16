@@ -21,6 +21,18 @@ if [[ "${DRIVER_XHCI:-n}" == "y" ]]; then
 else
     ENABLE_XHCI="0"
 fi
+if [[ "${DEBUG_QEMU_KVM:-y}" == "y" || "${KVM:-0}" == "1" ]]; then
+    ENABLE_KVM="1"
+else
+    ENABLE_KVM="0"
+fi
+if [[ "${ENABLE_KVM}" == "1" ]]; then
+    QEMU_ACCEL="kvm"
+    QEMU_CPU="host"
+else
+    QEMU_ACCEL="tcg"
+    QEMU_CPU="qemu64"
+fi
 
 die() {
     echo "fatal: $*" >&2
@@ -48,11 +60,15 @@ mkdir -p "${RUN_DIR}"
 cp "${OVMF_VARS_TEMPLATE}" "${OVMF_VARS}"
 : > "${SERIAL_LOG}"
 
+if [[ "${ENABLE_KVM}" == "1" && ( ! -r /dev/kvm || ! -w /dev/kvm ) ]]; then
+    die "KVM requested but /dev/kvm is not readable/writable; set DEBUG_QEMU_KVM=n or fix /dev/kvm permissions"
+fi
+
 QEMU_ARGS=(
-    -machine q35
+    -machine "q35,accel=${QEMU_ACCEL}"
     -m 512M
     -smp 4
-    -cpu qemu64
+    -cpu "${QEMU_CPU}"
     -serial stdio
     -no-reboot
     -drive "if=pflash,format=raw,readonly=on,file=${OVMF_CODE}"

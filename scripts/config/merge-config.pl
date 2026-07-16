@@ -135,7 +135,7 @@ sub validate_value {
         return;
     }
 
-    if ($key =~ /^(DEBUG_QEMU_GUI|DEBUG_QEMU_DEBUG)$/) {
+    if ($key =~ /^(DEBUG_QEMU_GUI|DEBUG_QEMU_DEBUG|DEBUG_QEMU_KVM)$/) {
         validate_bool($key, $value);
         return;
     }

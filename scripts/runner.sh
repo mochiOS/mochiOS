@@ -148,7 +148,7 @@ for _ in $(seq 1 900); do
     if log_has "cext: loaded bundle disk" \
         && log_has "cext: loaded bundle ext2" \
         && log_has "exec: loaded 'core.service' from initfs" \
-        && { log_has "core.service: drivers.service spawned pid=" || log_has "exec: loaded '/system/services/drivers.service'"; }; then
+        && log_has "core.service: drivers.service spawned pid="; then
         if [[ "${DEBUG_QEMU_REQUIRE_USB:-n}" != "y" ]] || { log_has "drivers.service: bundle verified /bin/drivers/usb/" \
             && log_has "drivers.service: spawned driver pid=" \
             && log_has "usb-driver: PCI USB controller" \
@@ -174,9 +174,7 @@ fi
 log_has "cext: loaded bundle disk" || die "disk.cext load was not observed; see ${SERIAL_LOG}"
 log_has "cext: loaded bundle ext2" || die "ext2.cext load was not observed; see ${SERIAL_LOG}"
 log_has "exec: loaded 'core.service' from initfs" || die "core.service launch was not observed; see ${SERIAL_LOG}"
-if ! log_has "core.service: drivers.service spawned pid=" && ! log_has "exec: loaded '/system/services/drivers.service'"; then
-    die "drivers.service launch was not observed; see ${SERIAL_LOG}"
-fi
+log_has "core.service: drivers.service spawned pid=" || die "drivers.service launch was not observed; see ${SERIAL_LOG}"
 if [[ "${DEBUG_QEMU_REQUIRE_USB:-n}" == "y" ]]; then
     log_has "drivers.service: bundle verified /bin/drivers/usb/" || die "USB driver bundle verification was not observed; see ${SERIAL_LOG}"
     log_has "drivers.service: spawned driver pid=" || die "USB driver launch was not observed; see ${SERIAL_LOG}"

@@ -1251,8 +1251,12 @@ print "[step] build cext bundles\n";
 build_cexts($root_dir, $nightly_toolchain);
 
 print "[step] build kernel\n";
+my @kernel_rustflags = ('--cfg curve25519_dalek_backend="serial"');
+if (($config{DEBUG_QEMU_KVM} // 'n') eq 'y') {
+    push @kernel_rustflags, '--cfg mochios_qemu_kvm';
+}
 run_env(
-    cargo_env(RUSTFLAGS => '--cfg curve25519_dalek_backend="serial"'),
+    cargo_env(RUSTFLAGS => join(' ', @kernel_rustflags)),
     'cargo',
     "+$nightly_toolchain",
     'build',

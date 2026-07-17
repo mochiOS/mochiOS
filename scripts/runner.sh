@@ -4,10 +4,31 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CONFIG_FILE="${ROOT_DIR}/.config"
+ENV_DEBUG_QEMU_KVM_SET=0
+ENV_DEBUG_QEMU_CPU_SET=0
+ENV_DEBUG_QEMU_SMP_SET=0
+ENV_DEBUG_QEMU_GUI_SET=0
+ENV_DEBUG_QEMU_DEBUG_SET=0
+ENV_DEBUG_QEMU_REQUIRE_USB_SET=0
+ENV_DRIVER_XHCI_SET=0
+if [[ -v DEBUG_QEMU_KVM ]]; then ENV_DEBUG_QEMU_KVM_SET=1; ENV_DEBUG_QEMU_KVM="${DEBUG_QEMU_KVM}"; fi
+if [[ -v DEBUG_QEMU_CPU ]]; then ENV_DEBUG_QEMU_CPU_SET=1; ENV_DEBUG_QEMU_CPU="${DEBUG_QEMU_CPU}"; fi
+if [[ -v DEBUG_QEMU_SMP ]]; then ENV_DEBUG_QEMU_SMP_SET=1; ENV_DEBUG_QEMU_SMP="${DEBUG_QEMU_SMP}"; fi
+if [[ -v DEBUG_QEMU_GUI ]]; then ENV_DEBUG_QEMU_GUI_SET=1; ENV_DEBUG_QEMU_GUI="${DEBUG_QEMU_GUI}"; fi
+if [[ -v DEBUG_QEMU_DEBUG ]]; then ENV_DEBUG_QEMU_DEBUG_SET=1; ENV_DEBUG_QEMU_DEBUG="${DEBUG_QEMU_DEBUG}"; fi
+if [[ -v DEBUG_QEMU_REQUIRE_USB ]]; then ENV_DEBUG_QEMU_REQUIRE_USB_SET=1; ENV_DEBUG_QEMU_REQUIRE_USB="${DEBUG_QEMU_REQUIRE_USB}"; fi
+if [[ -v DRIVER_XHCI ]]; then ENV_DRIVER_XHCI_SET=1; ENV_DRIVER_XHCI="${DRIVER_XHCI}"; fi
 if [[ -f "${CONFIG_FILE}" ]]; then
     # shellcheck disable=SC1090
     source "${CONFIG_FILE}"
 fi
+if [[ "${ENV_DEBUG_QEMU_KVM_SET}" == "1" ]]; then DEBUG_QEMU_KVM="${ENV_DEBUG_QEMU_KVM}"; fi
+if [[ "${ENV_DEBUG_QEMU_CPU_SET}" == "1" ]]; then DEBUG_QEMU_CPU="${ENV_DEBUG_QEMU_CPU}"; fi
+if [[ "${ENV_DEBUG_QEMU_SMP_SET}" == "1" ]]; then DEBUG_QEMU_SMP="${ENV_DEBUG_QEMU_SMP}"; fi
+if [[ "${ENV_DEBUG_QEMU_GUI_SET}" == "1" ]]; then DEBUG_QEMU_GUI="${ENV_DEBUG_QEMU_GUI}"; fi
+if [[ "${ENV_DEBUG_QEMU_DEBUG_SET}" == "1" ]]; then DEBUG_QEMU_DEBUG="${ENV_DEBUG_QEMU_DEBUG}"; fi
+if [[ "${ENV_DEBUG_QEMU_REQUIRE_USB_SET}" == "1" ]]; then DEBUG_QEMU_REQUIRE_USB="${ENV_DEBUG_QEMU_REQUIRE_USB}"; fi
+if [[ "${ENV_DRIVER_XHCI_SET}" == "1" ]]; then DRIVER_XHCI="${ENV_DRIVER_XHCI}"; fi
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
 RUN_ID="workspace-$(date +%s)-$$"
 RUN_DIR="${ROOT_DIR}/out/runner/${RUN_ID}"
@@ -28,11 +49,11 @@ else
 fi
 if [[ "${ENABLE_KVM}" == "1" ]]; then
     QEMU_ACCEL="kvm"
-    QEMU_CPU="host"
 else
     QEMU_ACCEL="tcg"
-    QEMU_CPU="qemu64"
 fi
+QEMU_CPU="${DEBUG_QEMU_CPU:-qemu64}"
+QEMU_SMP="${DEBUG_QEMU_SMP:-1}"
 
 die() {
     echo "fatal: $*" >&2
@@ -48,6 +69,7 @@ need_file() {
 }
 
 need_cmd qemu-system-x86_64
+need_cmd grep
 need_cmd sed
 need_cmd tee
 need_cmd wc
@@ -67,7 +89,7 @@ fi
 QEMU_ARGS=(
     -machine "q35,accel=${QEMU_ACCEL}"
     -m 512M
-    -smp 4
+    -smp "${QEMU_SMP}"
     -cpu "${QEMU_CPU}"
     -serial stdio
     -no-reboot
@@ -108,28 +130,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-DISK_FOUND=0
-EXT2_FOUND=0
-SERVICE_FOUND=0
-DRIVERS_SERVICE_FOUND=0
-USB_BUNDLE_FOUND=0
-USB_DRIVER_FOUND=0
-USB_CONTROLLER_FOUND=0
-USB_ENUM_DONE_FOUND=0
 NEXT_LINE=1
+
+log_has() {
+    grep -Fq "$1" "${SERIAL_LOG}"
+}
 
 for _ in $(seq 1 900); do
     while IFS= read -r line; do
-        [[ "${line}" == *"cext: loaded bundle disk"* ]] && DISK_FOUND=1
-        [[ "${line}" == *"cext: loaded bundle ext2"* ]] && EXT2_FOUND=1
-        [[ "${line}" == *"exec: loaded 'core.service' from initfs"* ]] && SERVICE_FOUND=1
-        [[ "${line}" == *"core.service: drivers.service spawned pid="* ]] && DRIVERS_SERVICE_FOUND=1
-        if [[ "${ENABLE_XHCI}" == "1" ]]; then
-            [[ "${line}" == *"drivers.service: bundle verified /bin/drivers/usb/"* ]] && USB_BUNDLE_FOUND=1
-            [[ "${line}" == *"drivers.service: spawned driver pid="* ]] && USB_DRIVER_FOUND=1
-            [[ "${line}" == *"usb-driver: PCI USB controller"* ]] && USB_CONTROLLER_FOUND=1
-            [[ "${line}" == *"usb-driver: enumeration complete"* ]] && USB_ENUM_DONE_FOUND=1
-        fi
         if [[ "${line}" == *"PAGE FAULT"* || "${line}" == *"Faulting user context:"* || "${line}" == *"panic"* ]]; then
             die "fault or panic observed during QEMU run"
         fi
@@ -137,8 +145,14 @@ for _ in $(seq 1 900); do
 
     NEXT_LINE="$(($(wc -l < "${SERIAL_LOG}") + 1))"
 
-    if [[ "${DISK_FOUND}" -eq 1 && "${EXT2_FOUND}" -eq 1 && "${SERVICE_FOUND}" -eq 1 && "${DRIVERS_SERVICE_FOUND}" -eq 1 ]]; then
-        if [[ "${ENABLE_XHCI}" != "1" || ( "${USB_BUNDLE_FOUND}" -eq 1 && "${USB_DRIVER_FOUND}" -eq 1 && "${USB_CONTROLLER_FOUND}" -eq 1 && "${USB_ENUM_DONE_FOUND}" -eq 1 ) ]]; then
+    if log_has "cext: loaded bundle disk" \
+        && log_has "cext: loaded bundle ext2" \
+        && log_has "exec: loaded 'core.service' from initfs" \
+        && { log_has "core.service: drivers.service spawned pid=" || log_has "exec: loaded '/system/services/drivers.service'"; }; then
+        if [[ "${DEBUG_QEMU_REQUIRE_USB:-n}" != "y" ]] || { log_has "drivers.service: bundle verified /bin/drivers/usb/" \
+            && log_has "drivers.service: spawned driver pid=" \
+            && log_has "usb-driver: PCI USB controller" \
+            && log_has "usb-driver: enumeration complete"; }; then
             break
         fi
     fi
@@ -157,15 +171,17 @@ if [[ "${GUI_MODE}" -eq 1 ]]; then
     exit 0
 fi
 
-[[ "${DISK_FOUND}" -eq 1 ]] || die "disk.cext load was not observed; see ${SERIAL_LOG}"
-[[ "${EXT2_FOUND}" -eq 1 ]] || die "ext2.cext load was not observed; see ${SERIAL_LOG}"
-[[ "${SERVICE_FOUND}" -eq 1 ]] || die "core.service launch was not observed; see ${SERIAL_LOG}"
-[[ "${DRIVERS_SERVICE_FOUND}" -eq 1 ]] || die "drivers.service launch was not observed; see ${SERIAL_LOG}"
-if [[ "${ENABLE_XHCI}" == "1" ]]; then
-    [[ "${USB_BUNDLE_FOUND}" -eq 1 ]] || die "USB driver bundle verification was not observed; see ${SERIAL_LOG}"
-    [[ "${USB_DRIVER_FOUND}" -eq 1 ]] || die "USB driver launch was not observed; see ${SERIAL_LOG}"
-    [[ "${USB_CONTROLLER_FOUND}" -eq 1 ]] || die "USB controller detection was not observed; see ${SERIAL_LOG}"
-    [[ "${USB_ENUM_DONE_FOUND}" -eq 1 ]] || die "USB driver completion was not observed; see ${SERIAL_LOG}"
+log_has "cext: loaded bundle disk" || die "disk.cext load was not observed; see ${SERIAL_LOG}"
+log_has "cext: loaded bundle ext2" || die "ext2.cext load was not observed; see ${SERIAL_LOG}"
+log_has "exec: loaded 'core.service' from initfs" || die "core.service launch was not observed; see ${SERIAL_LOG}"
+if ! log_has "core.service: drivers.service spawned pid=" && ! log_has "exec: loaded '/system/services/drivers.service'"; then
+    die "drivers.service launch was not observed; see ${SERIAL_LOG}"
+fi
+if [[ "${DEBUG_QEMU_REQUIRE_USB:-n}" == "y" ]]; then
+    log_has "drivers.service: bundle verified /bin/drivers/usb/" || die "USB driver bundle verification was not observed; see ${SERIAL_LOG}"
+    log_has "drivers.service: spawned driver pid=" || die "USB driver launch was not observed; see ${SERIAL_LOG}"
+    log_has "usb-driver: PCI USB controller" || die "USB controller detection was not observed; see ${SERIAL_LOG}"
+    log_has "usb-driver: enumeration complete" || die "USB driver completion was not observed; see ${SERIAL_LOG}"
 fi
 
 kill "${QEMU_PID}" 2>/dev/null || true

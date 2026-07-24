@@ -255,3 +255,11 @@ path = "binaries/coreutils"
 hash = "5da8fafb73a626825d1a28a6fff3797b58a65e47"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover ext2 write edge cases"
+
+[[entries]]
+date = "2026-07-24T19:03:52.393094841+09:00"
+snapshot = "505940addcd0211f15071086"
+path = "cexts"
+hash = "52638f5f79ff17ce5c7a257e7cdcc574fc59cb61"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: order ext2 write rollback safely"

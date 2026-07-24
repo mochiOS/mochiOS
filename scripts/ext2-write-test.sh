@@ -32,7 +32,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for command in qemu-system-x86_64 dd debugfs e2fsck; do
+for command in qemu-system-x86_64 dd debugfs dumpe2fs e2fsck; do
     command -v "${command}" >/dev/null 2>&1 || die "required command not found: ${command}"
 done
 [[ -f "${ARTIFACT_DIR}/disk.img" ]] || die "missing ${ARTIFACT_DIR}/disk.img"
@@ -86,6 +86,9 @@ wait_for_log() {
     until grep -Fq "${pattern}" "${log}"; do
         ((SECONDS < deadline)) || die "timed out waiting for '${pattern}' in ${log}"
         kill -0 "${QEMU_PID}" 2>/dev/null || die "QEMU exited while waiting for '${pattern}'"
+        if grep -Fq 'Process exiting with code: 1' "${log}"; then
+            die "guest self-test failed while waiting for '${pattern}' in ${log}"
+        fi
         sleep 0.1
     done
 }
@@ -108,12 +111,46 @@ boot_and_wait() {
     QEMU_PID=$!
 
     wait_for_log "${log}" "selftest-ext2-write: pass ${mode}"
+    grep -Fq "exec: loaded '/system/services/tty.service'" "${log}" ||
+        die "existing tty.service did not execute during ${mode} boot"
     if grep -Eq 'PAGE FAULT|Faulting user context:|panic' "${log}"; then
         die "fault or panic during selftest-ext2-write ${mode}"
     fi
     kill -TERM "${QEMU_PID}"
     wait "${QEMU_PID}" 2>/dev/null || true
     QEMU_PID=""
+}
+
+free_blocks() {
+    local line
+    line="$(dumpe2fs -h "${ROOTFS_IMAGE}" 2>/dev/null | grep '^Free blocks:')"
+    line="${line#*:}"
+    echo "${line//[[:space:]]/}"
+}
+
+prepare_enospc_disk() {
+    local marker_source="${RUN_DIR}/enospc.mode"
+    local filler_source="${RUN_DIR}/enospc.filler"
+    local before
+    local filler_blocks
+    local after
+
+    extract_rootfs
+    printf 'enospc\n' >"${marker_source}"
+    debugfs -w -R "write ${marker_source} /tmp/ext2-write-enospc.mode" \
+        "${ROOTFS_IMAGE}" >/dev/null 2>&1
+    before="$(free_blocks)"
+    ((before > 128)) || die "not enough free blocks to prepare ENOSPC fixture"
+    filler_blocks=$((before - 128))
+    dd if=/dev/urandom of="${filler_source}" bs=4096 count="${filler_blocks}" status=none
+    debugfs -w -R "write ${filler_source} /ext2-write-enospc-filler" \
+        "${ROOTFS_IMAGE}" >/dev/null 2>&1
+    after="$(free_blocks)"
+    ((after > 0 && after < 1036)) ||
+        die "ENOSPC fixture left unexpected free block count: ${after}"
+    e2fsck -fn "${ROOTFS_IMAGE}" >/dev/null || die "e2fsck failed before ENOSPC boot"
+    dd if="${ROOTFS_IMAGE}" of="${DISK_IMAGE}" bs=512 \
+        seek="${ROOTFS_START_SECTOR}" conv=notrunc status=none
 }
 
 extract_and_check() {
@@ -129,5 +166,9 @@ boot_and_wait prepare
 extract_and_check /tmp/ext2-write-prepare.pass
 boot_and_wait verify
 extract_and_check /tmp/ext2-write-verify.pass
+prepare_enospc_disk
+boot_and_wait enospc
+extract_rootfs
+e2fsck -fn "${ROOTFS_IMAGE}" >/dev/null || die "e2fsck failed after ENOSPC boot"
 
 echo "ext2 write persistence test passed (${QEMU_ACCEL})"

@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHECKER="${SCRIPT_DIR}/../check-smoke-logs.sh"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "${TMP_DIR}"' EXIT
+
+SERIAL_LOG="${TMP_DIR}/serial.log"
+SERVICE_MANAGER_LOG="${TMP_DIR}/service-manager.log"
+DRIVERS_LOG="${TMP_DIR}/drivers.log"
+
+write_valid_logs() {
+    cat > "${SERIAL_LOG}" <<'EOF'
+[INFO] exec: loaded 'core.service' from initfs
+[INFO] exec: loaded '/system/services/capability.service' from cext
+[ERROR] signature allow test failed: ret=0xfffffffffffffffe
+[INFO] exec: loaded '/system/services/service-manager.service' from cext
+[INFO] exec: loaded '/system/services/drivers.service' from cext
+[INFO] exec: loaded '/system/services/input.service' from cext
+[INFO] exec: loaded '/system/services/display.driver' from cext
+[INFO] exec: loaded '/system/services/compositor.service' from cext
+[INFO] exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf' from cext
+[INFO] exec: loaded '/system/services/tty.service' from cext
+EOF
+    cat > "${SERVICE_MANAGER_LOG}" <<'EOF'
+service-manager.service: start
+service-manager.service: drivers.service spawned pid=8
+service-manager.service: registered drivers.service as driver delegate
+service-manager.service: waiting for drivers.service hello
+service-manager.service: drivers.service hello received
+service-manager.service: input.service spawned pid=9
+service-manager.service: display.driver spawned pid=10
+service-manager.service: waiting for display.driver ready
+service-manager.service: display.driver ready
+service-manager.service: waiting for input.service ready
+service-manager.service: input.service ready
+service-manager.service: compositor.service spawned pid=11
+service-manager.service: driver discovery requested
+service-manager.service: driver discovery complete
+service-manager.service: tty.service spawned pid=13
+service-manager.service: resident phase reason=Running
+EOF
+    cat > "${DRIVERS_LOG}" <<'EOF'
+drivers.service: start
+drivers.service: matched bundle=/bin/drivers/usb/qemu-usb.driver package=org.mochios.usb.qemu root=/bin/drivers/usb
+drivers.service: spawn failed /bin/drivers/usb/qemu-usb.driver/entry.elf errno=22
+drivers.service: matched bundle=/bin/drivers/ps2/i8042.driver package=org.mochios.ps2.i8042 root=/bin/drivers/ps2
+drivers.service: spawned driver pid=12
+EOF
+}
+
+expect_failure() {
+    local name="$1"
+    local expected="$2"
+    local output="${TMP_DIR}/${name}.out"
+
+    if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" > "${output}" 2>&1; then
+        echo "fatal: ${name} unexpectedly passed" >&2
+        exit 1
+    fi
+    grep -Fq "${expected}" "${output}" || {
+        echo "fatal: ${name} did not report '${expected}'" >&2
+        cat "${output}" >&2
+        exit 1
+    }
+}
+
+write_valid_logs
+"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" >/dev/null
+
+write_valid_logs
+sed -i '/service-manager.service: display.driver ready/d' "${SERVICE_MANAGER_LOG}"
+expect_failure "missing" "missing required log 'display ready'"
+
+write_valid_logs
+printf '%s\n' 'service-manager.service: input.service spawned pid=99' >> "${SERVICE_MANAGER_LOG}"
+expect_failure "duplicate" "duplicate log 'input spawn'"
+
+write_valid_logs
+sed -i '/service-manager.service: display.driver ready/d' "${SERVICE_MANAGER_LOG}"
+sed -i '/service-manager.service: input.service ready/a service-manager.service: display.driver ready' "${SERVICE_MANAGER_LOG}"
+expect_failure "order" "order violation in service-manager.service log"
+
+write_valid_logs
+printf '%s\n' '[ERROR] kernel panic: test fixture' >> "${SERIAL_LOG}"
+expect_failure "panic" "forbidden log 'boot failure'"
+
+echo "[test] smoke log checker fixtures passed"

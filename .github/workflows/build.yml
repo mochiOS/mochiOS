@@ -75,7 +75,9 @@ jobs:
             libtool \
             mtools \
             openssl \
+            ovmf \
             perl \
+            qemu-system-x86 \
             repo \
             texinfo \
             xz-utils
@@ -182,6 +184,12 @@ jobs:
           set -euo pipefail
           
           bash scripts/ci/build.sh
+
+      - name: QEMU smoke test (TCG)
+        run: |
+          set -euo pipefail
+
+          make smoke-test-tcg
 
       - name: Commit build number
         env:

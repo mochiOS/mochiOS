@@ -33,6 +33,9 @@ ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
 RUN_ID="workspace-$(date +%s)-$$"
 RUN_DIR="${ROOT_DIR}/out/runner/${RUN_ID}"
 SERIAL_LOG="${RUN_DIR}/serial.log"
+DRIVERS_LOG="${RUN_DIR}/drivers.log"
+SERVICE_MANAGER_LOG="${RUN_DIR}/service-manager.log"
+ROOTFS_IMAGE="${RUN_DIR}/rootfs.img"
 OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
 OVMF_VARS="${RUN_DIR}/OVMF_VARS_4M.fd"
@@ -41,16 +44,6 @@ if [[ "${DRIVER_XHCI:-n}" == "y" ]]; then
     ENABLE_XHCI="1"
 else
     ENABLE_XHCI="0"
-fi
-if [[ "${DEBUG_QEMU_KVM:-y}" == "y" || "${KVM:-0}" == "1" ]]; then
-    ENABLE_KVM="1"
-else
-    ENABLE_KVM="0"
-fi
-if [[ "${ENABLE_KVM}" == "1" ]]; then
-    QEMU_ACCEL="kvm"
-else
-    QEMU_ACCEL="tcg"
 fi
 QEMU_CPU="${DEBUG_QEMU_CPU:-qemu64}"
 QEMU_SMP="${DEBUG_QEMU_SMP:-1}"
@@ -68,23 +61,48 @@ need_file() {
     [[ -f "$1" ]] || die "required file not found: $1"
 }
 
+QEMU_ACCEL="${QEMU_ACCELERATOR:-}"
+if [[ -z "${QEMU_ACCEL}" ]]; then
+    if [[ "${DEBUG_QEMU_KVM:-y}" == "y" || "${KVM:-0}" == "1" ]]; then
+        QEMU_ACCEL="kvm"
+    else
+        QEMU_ACCEL="tcg"
+    fi
+fi
+case "${QEMU_ACCEL}" in
+    kvm)
+        [[ -r /dev/kvm && -w /dev/kvm ]] ||
+            die "KVM requested but /dev/kvm is not readable and writable"
+        ;;
+    tcg) ;;
+    *) die "QEMU_ACCELERATOR must be 'kvm' or 'tcg': ${QEMU_ACCEL}" ;;
+esac
+
 need_cmd qemu-system-x86_64
+need_cmd dd
+need_cmd debugfs
 need_cmd grep
 need_cmd sed
 need_cmd tee
 need_cmd wc
 
+QEMU_TIMEOUT_SECONDS="${QEMU_TIMEOUT_SECONDS:-120}"
+[[ "${QEMU_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
+    die "QEMU_TIMEOUT_SECONDS must be a positive integer"
+
 need_file "${ARTIFACT_DIR}/disk.img"
 need_file "${OVMF_CODE}"
 need_file "${OVMF_VARS_TEMPLATE}"
+need_file "${SCRIPT_DIR}/check-smoke-logs.sh"
 
 mkdir -p "${RUN_DIR}"
 cp "${OVMF_VARS_TEMPLATE}" "${OVMF_VARS}"
-: > "${SERIAL_LOG}"
-
-if [[ "${ENABLE_KVM}" == "1" && ( ! -r /dev/kvm || ! -w /dev/kvm ) ]]; then
-    die "KVM requested but /dev/kvm is not readable/writable; set DEBUG_QEMU_KVM=n or fix /dev/kvm permissions"
+OS_DISK="${ARTIFACT_DIR}/disk.img"
+if [[ "${SMOKE_TEST:-0}" == "1" ]]; then
+    OS_DISK="${RUN_DIR}/disk.img"
+    cp "${ARTIFACT_DIR}/disk.img" "${OS_DISK}"
 fi
+: > "${SERIAL_LOG}"
 
 QEMU_ARGS=(
     -machine "q35,accel=${QEMU_ACCEL}"
@@ -95,7 +113,7 @@ QEMU_ARGS=(
     -no-reboot
     -drive "if=pflash,format=raw,readonly=on,file=${OVMF_CODE}"
     -drive "if=pflash,format=raw,file=${OVMF_VARS}"
-    -drive "id=osdisk,if=none,format=raw,file=${ARTIFACT_DIR}/disk.img"
+    -drive "id=osdisk,if=none,format=raw,file=${OS_DISK}"
     -device "virtio-blk-pci,disable-modern=on,drive=osdisk,bootindex=1"
 )
 
@@ -118,25 +136,59 @@ if [[ "${DEBUG_QEMU_DEBUG:-n}" == "y" || "${DEBUG:-0}" != "0" ]]; then
     QEMU_ARGS+=(-s -S)
 fi
 
-echo "[run] qemu"
-qemu-system-x86_64 "${QEMU_ARGS[@]}" > >(tee -a "${SERIAL_LOG}") 2>&1 &
-QEMU_PID=$!
+QEMU_PID=""
 
 cleanup() {
     if [[ -n "${QEMU_PID:-}" ]]; then
-        kill "${QEMU_PID}" 2>/dev/null || true
+        kill -TERM "${QEMU_PID}" 2>/dev/null || true
+        for _ in {1..20}; do
+            if ! kill -0 "${QEMU_PID}" 2>/dev/null; then
+                break
+            fi
+            sleep 0.1
+        done
+        kill -KILL "${QEMU_PID}" 2>/dev/null || true
         wait "${QEMU_PID}" 2>/dev/null || true
     fi
 }
-trap cleanup EXIT
 
-NEXT_LINE=1
+cleanup_files() {
+    if [[ "${SMOKE_TEST:-0}" == "1" ]]; then
+        rm -f "${OS_DISK}" "${ROOTFS_IMAGE}" "${OVMF_VARS}"
+    fi
+}
+
+cleanup_all() {
+    cleanup
+    cleanup_files
+}
+trap cleanup_all EXIT
 
 log_has() {
     grep -Fq "$1" "${SERIAL_LOG}"
 }
 
-for _ in $(seq 1 900); do
+start_qemu() {
+    echo "[run] qemu accelerator=${QEMU_ACCEL}"
+    qemu-system-x86_64 "${QEMU_ARGS[@]}" > >(tee -a "${SERIAL_LOG}") 2>&1 &
+    QEMU_PID=$!
+}
+
+start_qemu
+
+if [[ "${GUI_MODE}" -eq 1 ]]; then
+    echo "[done] serial log: ${SERIAL_LOG}"
+    set +e
+    wait "${QEMU_PID}"
+    QEMU_STATUS=$?
+    set -e
+    exit "${QEMU_STATUS}"
+fi
+
+NEXT_LINE=1
+COMPLETED=0
+DEADLINE=$((SECONDS + QEMU_TIMEOUT_SECONDS))
+while ((SECONDS < DEADLINE)); do
     while IFS= read -r line; do
         if [[ "${line}" == *"PAGE FAULT"* || "${line}" == *"Faulting user context:"* || "${line}" == *"panic"* ]]; then
             die "fault or panic observed during QEMU run"
@@ -147,43 +199,45 @@ for _ in $(seq 1 900); do
 
     if log_has "cext: loaded bundle disk" \
         && log_has "cext: loaded bundle ext2" \
+        && log_has "Kernel initialization complete. Entering idle loop" \
         && log_has "exec: loaded 'core.service' from initfs" \
-        && log_has "core.service: drivers.service spawned pid="; then
-        if [[ "${DEBUG_QEMU_REQUIRE_USB:-n}" != "y" ]] || { log_has "drivers.service: bundle verified /bin/drivers/usb/" \
-            && log_has "drivers.service: spawned driver pid=" \
-            && log_has "usb-driver: PCI USB controller" \
-            && log_has "usb-driver: enumeration complete"; }; then
-            break
-        fi
+        && log_has "exec: loaded '/system/services/logger.service'" \
+        && log_has "exec: loaded '/system/services/capability.service'" \
+        && log_has "exec: loaded '/system/services/service-manager.service'" \
+        && log_has "exec: loaded '/system/services/drivers.service'" \
+        && log_has "exec: loaded '/system/services/input.service'" \
+        && log_has "exec: loaded '/system/services/display.driver'" \
+        && log_has "exec: loaded '/system/services/compositor.service'" \
+        && log_has "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
+        && log_has "exec: loaded '/system/services/tty.service'"; then
+        COMPLETED=1
+        break
     fi
 
     if ! kill -0 "${QEMU_PID}" 2>/dev/null; then
-        break
+        die "QEMU exited before the smoke-test completion logs were observed; see ${SERIAL_LOG}"
     fi
 
     sleep 0.1
 done
 
-if [[ "${GUI_MODE}" -eq 1 ]]; then
-    trap - EXIT
-    echo "[done] serial log: ${SERIAL_LOG}"
-    wait "${QEMU_PID}"
-    exit 0
-fi
+[[ "${COMPLETED}" == "1" ]] ||
+    die "QEMU smoke test timed out after ${QEMU_TIMEOUT_SECONDS}s; see ${SERIAL_LOG}"
 
-log_has "cext: loaded bundle disk" || die "disk.cext load was not observed; see ${SERIAL_LOG}"
-log_has "cext: loaded bundle ext2" || die "ext2.cext load was not observed; see ${SERIAL_LOG}"
-log_has "exec: loaded 'core.service' from initfs" || die "core.service launch was not observed; see ${SERIAL_LOG}"
-log_has "core.service: drivers.service spawned pid=" || die "drivers.service launch was not observed; see ${SERIAL_LOG}"
-if [[ "${DEBUG_QEMU_REQUIRE_USB:-n}" == "y" ]]; then
-    log_has "drivers.service: bundle verified /bin/drivers/usb/" || die "USB driver bundle verification was not observed; see ${SERIAL_LOG}"
-    log_has "drivers.service: spawned driver pid=" || die "USB driver launch was not observed; see ${SERIAL_LOG}"
-    log_has "usb-driver: PCI USB controller" || die "USB controller detection was not observed; see ${SERIAL_LOG}"
-    log_has "usb-driver: enumeration complete" || die "USB driver completion was not observed; see ${SERIAL_LOG}"
-fi
+sleep 1
+cleanup
+QEMU_PID=""
 
-kill "${QEMU_PID}" 2>/dev/null || true
-wait "${QEMU_PID}" 2>/dev/null || true
-trap - EXIT
+ROOTFS_START_SECTOR=$((2048 + IMAGE_ESP_SIZE_MB * 2048))
+ROOTFS_SIZE_SECTORS=$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))
+dd if="${OS_DISK}" of="${ROOTFS_IMAGE}" bs=512 \
+    skip="${ROOTFS_START_SECTOR}" count="${ROOTFS_SIZE_SECTORS}" status=none
+debugfs -R 'cat /system/logs/services/drivers.log' "${ROOTFS_IMAGE}" \
+    > "${DRIVERS_LOG}" 2>/dev/null || die "drivers.service log could not be read"
+debugfs -R 'cat /system/logs/services/service-manager.log' "${ROOTFS_IMAGE}" \
+    > "${SERVICE_MANAGER_LOG}" 2>/dev/null || die "service-manager.service log could not be read"
+
+"${SCRIPT_DIR}/check-smoke-logs.sh" \
+    "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}"
 
 echo "[done] serial log: ${SERIAL_LOG}"

@@ -223,3 +223,11 @@ path = "services"
 hash = "7240ad9782475c972aec315489ab56affad10e5b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: add service manager orchestration"
+
+[[entries]]
+date = "2026-07-24T16:05:09.357587671+09:00"
+snapshot = "456b584404438bcee46bf0ff"
+path = "services"
+hash = "1296ca28687e034f836ad53990087ed6a8d55e0c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor: transfer bootstrap ownership to service manager"

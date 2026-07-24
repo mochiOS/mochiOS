@@ -14,7 +14,6 @@ write_valid_logs() {
     cat > "${SERIAL_LOG}" <<'EOF'
 [INFO] exec: loaded 'core.service' from initfs
 [INFO] exec: loaded '/system/services/capability.service' from cext
-[ERROR] signature allow test failed: ret=0xfffffffffffffffe
 [INFO] exec: loaded '/system/services/service-manager.service' from cext
 [INFO] exec: loaded '/system/services/drivers.service' from cext
 [INFO] exec: loaded '/system/services/input.service' from cext
@@ -85,5 +84,9 @@ expect_failure "order" "order violation in service-manager.service log"
 write_valid_logs
 printf '%s\n' '[ERROR] kernel panic: test fixture' >> "${SERIAL_LOG}"
 expect_failure "panic" "forbidden log 'boot failure'"
+
+write_valid_logs
+printf '%s\n' "[WARN] execve: signature verification failed for '/bin/test'" >> "${SERIAL_LOG}"
+expect_failure "signature" "forbidden log 'signature failure'"
 
 echo "[test] smoke log checker fixtures passed"

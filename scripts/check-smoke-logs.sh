@@ -98,6 +98,15 @@ for fatal_pattern in "PAGE FAULT" "Faulting user context:" "EXCEPTION:" "panicke
     assert_absent_case_insensitive "boot failure" "${SERIAL_LOG}" "${fatal_pattern}"
 done
 
+for signature_pattern in \
+    "signature allow test" \
+    "signature deny test" \
+    "signature verification failed" \
+    "signature: missing /signature.db" \
+    "signature: invalid /signature.db"; do
+    assert_absent_case_insensitive "signature failure" "${SERIAL_LOG}" "${signature_pattern}"
+done
+
 assert_order "serial boot log" "${SERIAL_LOG}" \
     "core.service" "exec: loaded 'core.service' from initfs" \
     "capability.service" "exec: loaded '/system/services/capability.service'" \

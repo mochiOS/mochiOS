@@ -231,3 +231,11 @@ path = "services"
 hash = "1296ca28687e034f836ad53990087ed6a8d55e0c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor: transfer bootstrap ownership to service manager"
+
+[[entries]]
+date = "2026-07-24T16:51:30.825196174+09:00"
+snapshot = "e428464b02595ba829aa451e"
+path = "core"
+hash = "9205820ee92487523efac4ff3e5d579b61f9c912"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: separate signature self test from boot"

@@ -207,3 +207,11 @@ path = "user"
 hash = "789dc1734f26194ade7e73cda4d2249023f0cd92"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "protocol: add driver control wire format"
+
+[[entries]]
+date = "2026-07-24T13:09:02.977125092+09:00"
+snapshot = "5a8a65573e247e07e8728ac5"
+path = "services"
+hash = "3bb45b90c969ae768c827ff7f295d1288309703d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor: make drivers discovery one-shot controlled"

@@ -257,6 +257,7 @@ sub rewrite_cargo_paths {
     $text =~ s#path = "\Q$prefix\E/user/crates/platform"#path = "$user_root/crates/platform"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/runtime"#path = "$user_root/crates/runtime"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/syscall"#path = "$user_root/crates/syscall"#g;
+    $text =~ s#path = "\Q$prefix\E/user/crates/driver-control-protocol"#path = "$user_root/crates/driver-control-protocol"#g;
     $text =~ s#plugkit = \{ git = "https://github.com/mochiOS/mnu", package = "plugkit" \}#plugkit = { path = "$plugkit_root" }#g
         if defined $plugkit_root;
     if (defined $mnu_abi_root && $text !~ /^\s*mnu-abi\s*=/m) {

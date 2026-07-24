@@ -1,0 +1,17 @@
+[package]
+id = "org.mochios.msh"
+name = "mochi shell"
+version = "0.1.0"
+vendor = "mochiOS Project"
+
+[[binary]]
+path = "/bin/msh"
+kind = "application"
+requires = [
+    "fs.read.all",
+    "fs.read.tmp",
+    "fs.write.tmp",
+    "ipc.client",
+    "ipc.server",
+    "process.spawn",
+]

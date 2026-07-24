@@ -1,0 +1,25 @@
+[package]
+id = "org.mochios.service-manager"
+name = "Service Manager"
+version = "1"
+vendor = "mochiOS"
+
+[[binary]]
+path = "/system/services/service-manager.service"
+kind = "service"
+requires = [
+    "fs.read.all",
+    "fs.read.tmp",
+    "fs.write.tmp",
+    "process.spawn",
+    "service.register",
+    "device.input",
+    "display.read",
+    "input.keyboard",
+    "input.pointer",
+    "ipc.client",
+    "ipc.server",
+    "usb.access",
+    "window.create",
+    "window.overlay",
+]

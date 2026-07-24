@@ -1,0 +1,17 @@
+[package]
+id = "org.mochios.tty"
+name = "TTY Service"
+version = "1"
+vendor = "mochiOS"
+
+[[binary]]
+path = "/system/services/tty.service"
+kind = "service"
+requires = [
+    "fs.read.all",
+    "fs.read.tmp",
+    "fs.write.tmp",
+    "process.spawn",
+    "ipc.client",
+    "ipc.server",
+]

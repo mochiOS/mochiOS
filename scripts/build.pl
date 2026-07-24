@@ -1004,6 +1004,7 @@ sub build_rootfs {
     need_file($path->{signature_db});
     remove_tree($rootfs_stage);
     make_path("$rootfs_stage/bin");
+    make_path("$rootfs_stage/tmp");
     install_file('0755', $path->{hello_elf}, "$rootfs_stage/bin/hello");
     install_file('0755', $path->{rust_std_demo_bin}, "$rootfs_stage/bin/rust-std-demo");
     install_file('0755', $path->{test_app_bin}, "$rootfs_stage/bin/test_app");
@@ -1180,7 +1181,7 @@ my $coreutils_bin_dir = "$root_dir/out/rust-std/target/x86_64-unknown-mochios/re
 my $mpk_demo_mpkg = "$build_root/mpk-demo.mpkg";
 my $mpk_test_mpkg = "$build_root/mpk-test.mpkg";
 my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk test_gui test_desktop);
-push @coreutils_bins, qw(selftest-capability selftest-process)
+push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
 
 for my $cmd (qw(cargo cp install mcopy mke2fs mkfs.fat mmd openssl perl tar repo sha256sum sfdisk truncate dd find sort)) {
@@ -1418,6 +1419,7 @@ for my $bin (qw(echo ls pwd true false cat touch rm mpk test_gui test_app test_d
 if (config_enabled($config{USER_BUILD_SELFTESTS})) {
     push @signature_db_args, '--entry', "/bin/selftest-capability=$coreutils_bin_dir/selftest-capability";
     push @signature_db_args, '--entry', "/bin/selftest-process=$coreutils_bin_dir/selftest-process";
+    push @signature_db_args, '--entry', "/bin/selftest-ext2-write=$coreutils_bin_dir/selftest-ext2-write";
 }
 push @signature_db_args, '--entry', "$drivers_bundle_root/entry.elf=$path{usb_driver_bin}"
     if $enable_xhci eq '1';

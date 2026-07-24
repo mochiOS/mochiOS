@@ -2,7 +2,7 @@ SCRIPTS	= $(shell pwd)/scripts
 OUT		= $(shell pwd)/out
 MWS		= $(shell pwd)/tools/mws
 
-.PHONY: all build full build-cached run smoke-log-test smoke-test smoke-test-kvm smoke-test-tcg clean olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached run smoke-log-test smoke-test smoke-test-kvm smoke-test-tcg ext2-write-test ext2-write-test-tcg clean olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -47,6 +47,12 @@ smoke-test-kvm: build smoke-log-test
 
 smoke-test-tcg: build smoke-log-test
 	@QEMU_ACCELERATOR=tcg $(SCRIPTS)/smoke-test.sh
+
+ext2-write-test: build
+	@QEMU_ACCELERATOR=kvm $(SCRIPTS)/ext2-write-test.sh
+
+ext2-write-test-tcg: build
+	@QEMU_ACCELERATOR=tcg $(SCRIPTS)/ext2-write-test.sh
 
 clean:
 	@rm -rf $(OUT)/*

@@ -199,3 +199,11 @@ path = "services"
 hash = "12dcaf886f67299567a570725d58b65dc35fc7e9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "protocol: share capability resolution messages"
+
+[[entries]]
+date = "2026-07-24T12:49:18.565492832+09:00"
+snapshot = "482533b67cb01361f74639a8"
+path = "user"
+hash = "789dc1734f26194ade7e73cda4d2249023f0cd92"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "protocol: add driver control wire format"

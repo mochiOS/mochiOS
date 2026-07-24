@@ -239,3 +239,11 @@ path = "core"
 hash = "9205820ee92487523efac4ff3e5d579b61f9c912"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: separate signature self test from boot"
+
+[[entries]]
+date = "2026-07-24T18:14:05.415700626+09:00"
+snapshot = "7b3806c2d135535a315b3274"
+path = "binaries/coreutils"
+hash = "810a57cba174684fcd750fc4e5070461b3740cf1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: add ext2 regular file writes"

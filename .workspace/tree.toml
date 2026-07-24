@@ -215,3 +215,11 @@ path = "services"
 hash = "3bb45b90c969ae768c827ff7f295d1288309703d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor: make drivers discovery one-shot controlled"
+
+[[entries]]
+date = "2026-07-24T15:32:08.199294531+09:00"
+snapshot = "4454e33948c641e46ccfa3ce"
+path = "services"
+hash = "7240ad9782475c972aec315489ab56affad10e5b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: add service manager orchestration"

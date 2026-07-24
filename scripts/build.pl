@@ -842,6 +842,7 @@ sub build_services_and_drivers {
         logger     => 'logger',
         input      => 'input',
         package    => 'package',
+        'service-manager' => 'service-manager',
         signature  => 'signature@0.1.0',
         tty        => 'tty',
     );
@@ -1039,6 +1040,8 @@ sub build_rootfs {
         install_file('0755', $path->{"${service}_service_bin"}, "$rootfs_stage/system/services/$service_name");
         stage_package_manifest($rootfs_stage, $path->{"${service}_service_manifest"}, "/system/packages/$service/manifest.toml");
     }
+    install_file('0755', $path->{service_manager_service_bin}, "$rootfs_stage/system/services/service-manager.service");
+    stage_package_manifest($rootfs_stage, $path->{service_manager_service_manifest}, '/system/packages/service-manager/manifest.toml');
     if (config_enabled($config->{DRIVER_XHCI})) {
         stage_package_manifest($rootfs_stage, $path->{usb_driver_manifest}, "/system/packages@{[ $drivers_bundle_root =~ s#^/bin##r ]}/manifest.toml");
         stage_driver_bundle($rootfs_stage, $path->{usb_driver_manifest}, $path->{usb_driver_bin}, $drivers_bundle_root);
@@ -1298,6 +1301,7 @@ my %path = (
     tty_service_bin             => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/tty",
     package_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/package",
     signature_service_bin       => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/signature",
+    service_manager_service_bin => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/service-manager",
     drivers_service_manifest    => "$root_dir/services/drivers/manifest.toml",
     compositor_service_manifest => "$root_dir/services/compositor/manifest.toml",
     display_service_manifest    => "$root_dir/services/display/manifest.toml",
@@ -1306,6 +1310,7 @@ my %path = (
     input_service_manifest      => "$root_dir/services/input/manifest.toml",
     package_service_manifest    => "$root_dir/services/package/manifest.toml",
     signature_service_manifest  => "$root_dir/services/signature/manifest.toml",
+    service_manager_service_manifest => "$root_dir/services/service-manager/manifest.toml",
     tty_service_manifest        => "$root_dir/services/tty/manifest.toml",
     usb_driver_bin              => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/entry",
     usb_driver_manifest         => "$root_dir/drivers/usb-driver/manifest.toml",
@@ -1338,7 +1343,7 @@ else {
 }
 
 for my $key (
-    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin package_service_bin signature_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest package_service_manifest signature_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
+    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin package_service_bin signature_service_bin service_manager_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
 ) {
     need_file($path{$key});
 }
@@ -1391,6 +1396,8 @@ my @signature_db_args = (
     "/system/services/package.service=$path{package_service_bin}",
     '--entry',
     "/system/services/signature.service=$path{signature_service_bin}",
+    '--entry',
+    "/system/services/service-manager.service=$path{service_manager_service_bin}",
     '--entry',
     "/system/services/tty.service=$path{tty_service_bin}",
     '--entry',
@@ -1485,6 +1492,7 @@ install_file('0644', $path{kernel_bin}, "$artifact_dir/kernel.elf");
 install_file('0644', $boot_bin, "$artifact_dir/BOOTX64.EFI");
 install_file('0755', $path{service_bin}, "$artifact_dir/core.service");
 install_file('0755', $path{capability_service_bin}, "$artifact_dir/capability.service");
+install_file('0755', $path{service_manager_service_bin}, "$artifact_dir/service-manager.service");
 install_file('0755', $path{input_service_bin}, "$artifact_dir/input.service");
 install_file('0755', $path{tty_service_bin}, "$artifact_dir/tty.service");
 install_file('0755', $path{logger_service_bin}, "$artifact_dir/logger.service");
@@ -1516,6 +1524,7 @@ my @checksum_files = qw(
     kernel.elf
     BOOTX64.EFI
     core.service
+    service-manager.service
     drivers.service
     input.service
     tty.service

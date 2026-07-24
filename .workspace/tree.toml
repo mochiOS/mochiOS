@@ -263,3 +263,11 @@ path = "cexts"
 hash = "52638f5f79ff17ce5c7a257e7cdcc574fc59cb61"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: order ext2 write rollback safely"
+
+[[entries]]
+date = "2026-07-24T19:21:19.475263057+09:00"
+snapshot = "40bd51df8cd21963f6675d6b"
+path = "binaries/coreutils"
+hash = "afcfd71ca288ce83a17ff490b7e43000e5bdfee6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: exercise ext2 partial ENOSPC writes"

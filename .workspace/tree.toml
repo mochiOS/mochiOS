@@ -295,3 +295,11 @@ path = "services"
 hash = "ecb0bcc87320d934e305ffeda468fbab7ca90b07"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: stabilize compositor window interaction"
+
+[[entries]]
+date = "2026-07-25T21:26:32.878451837+09:00"
+snapshot = "f8847904221dd47af4bf2914"
+path = "core"
+hash = "895b332d2bb748739cc628ef1e914d8473f0a517"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "plugkit: add virtio pci transport support"

@@ -1,1 +1,1 @@
-paths = ["libraries/libc"]
+paths = ["libraries/libc", "libraries/viewkit"]

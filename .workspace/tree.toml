@@ -335,3 +335,11 @@ path = "user"
 hash = "d10caa3eb60e3c974e2a1004f3cdb4264d430aaa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "protocol: support virtio gpu scanout disable"
+
+[[entries]]
+date = "2026-07-25T21:40:43.286823326+09:00"
+snapshot = "40d7803e22c16d1eb361d2cb"
+path = "core"
+hash = "c44310d000e0756d01d0d7b90a8225bb4f80fe53"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "plugkit: expose virtqueue discovery"

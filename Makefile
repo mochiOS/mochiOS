@@ -45,6 +45,9 @@ smoke-test: build smoke-log-test
 smoke-test-kvm: build smoke-log-test
 	@QEMU_ACCELERATOR=kvm $(SCRIPTS)/smoke-test.sh
 
+smoke-test-virtio-gpu: build smoke-log-test
+	@DEBUG_QEMU_VIRTIO_GPU=y QEMU_ACCELERATOR=kvm $(SCRIPTS)/smoke-test.sh
+
 smoke-test-tcg: build smoke-log-test
 	@QEMU_ACCELERATOR=tcg $(SCRIPTS)/smoke-test.sh
 

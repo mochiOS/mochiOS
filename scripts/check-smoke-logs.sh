@@ -26,7 +26,7 @@ require_once() {
     local matches
     local lines
 
-    matches="$(grep -FnF -- "${pattern}" "${file}" || true)"
+    matches="$(grep -aFnF -- "${pattern}" "${file}" || true)"
     if [[ -z "${matches}" ]]; then
         die "missing required log '${label}': pattern='${pattern}' file=${file}"
     fi
@@ -43,7 +43,7 @@ assert_absent() {
     local pattern="$3"
     local matches
 
-    matches="$(grep -FnF -- "${pattern}" "${file}" || true)"
+    matches="$(grep -aFnF -- "${pattern}" "${file}" || true)"
     [[ -z "${matches}" ]] ||
         die "forbidden log '${label}': lines=$(printf '%s\n' "${matches}" | cut -d: -f1 | paste -sd, -) pattern='${pattern}' file=${file}"
 }
@@ -54,7 +54,7 @@ assert_absent_case_insensitive() {
     local pattern="$3"
     local matches
 
-    matches="$(grep -FinF -- "${pattern}" "${file}" || true)"
+    matches="$(grep -aFinF -- "${pattern}" "${file}" || true)"
     [[ -z "${matches}" ]] ||
         die "forbidden log '${label}': lines=$(printf '%s\n' "${matches}" | cut -d: -f1 | paste -sd, -) pattern='${pattern}' file=${file}"
 }

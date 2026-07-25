@@ -258,6 +258,9 @@ sub rewrite_cargo_paths {
     $text =~ s#path = "\Q$prefix\E/user/crates/runtime"#path = "$user_root/crates/runtime"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/syscall"#path = "$user_root/crates/syscall"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/driver-control-protocol"#path = "$user_root/crates/driver-control-protocol"#g;
+    $text =~ s#path = "\Q$prefix\E/user/crates/virtio-gpu-protocol"#path = "$user_root/crates/virtio-gpu-protocol"#g;
+    $text =~ s#path = "\Q$prefix\E/core/crates/PlugKit/plugkit"#path = "$plugkit_root"#g
+        if defined $plugkit_root;
     $text =~ s#plugkit = \{ git = "https://github.com/mochiOS/mnu", package = "plugkit" \}#plugkit = { path = "$plugkit_root" }#g
         if defined $plugkit_root;
     if (defined $mnu_abi_root && $text !~ /^\s*mnu-abi\s*=/m) {
@@ -860,7 +863,7 @@ sub build_services_and_drivers {
         my $stage = "$out_root/stage/$service";
         copy_tree("$services_root/$service", $stage);
         unlink "$stage/Cargo.lock" if -e "$stage/Cargo.lock";
-        rewrite_cargo_paths("$stage/Cargo.toml", '../..', $user_root, undef, $mnu_abi_root);
+        rewrite_cargo_paths("$stage/Cargo.toml", '../..', $user_root, $plugkit_root, $mnu_abi_root);
         print "[build] $service.service\n";
         build_staged_cargo_bin($toolchain, $target_json, $target_dir, $stage, $service_packages{$service});
     }

@@ -367,3 +367,11 @@ path = "services"
 hash = "5ed5cfde3cf7e6564b0d3425edb5bd8e9646e9a5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "display: integrate virtio gpu backend"
+
+[[entries]]
+date = "2026-07-26T08:26:53.676934140+09:00"
+snapshot = "473585723db1fcd9e0a1bf84"
+path = "services"
+hash = "d7ea5a1e6393cb4006ffa4f2ef24074b37aa590d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "compositor: initialize complete present frame"

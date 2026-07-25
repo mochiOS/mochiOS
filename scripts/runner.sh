@@ -10,6 +10,7 @@ ENV_DEBUG_QEMU_SMP_SET=0
 ENV_DEBUG_QEMU_GUI_SET=0
 ENV_DEBUG_QEMU_DEBUG_SET=0
 ENV_DEBUG_QEMU_REQUIRE_USB_SET=0
+ENV_DEBUG_QEMU_VIRTIO_GPU_SET=0
 ENV_DRIVER_XHCI_SET=0
 if [[ -v DEBUG_QEMU_KVM ]]; then ENV_DEBUG_QEMU_KVM_SET=1; ENV_DEBUG_QEMU_KVM="${DEBUG_QEMU_KVM}"; fi
 if [[ -v DEBUG_QEMU_CPU ]]; then ENV_DEBUG_QEMU_CPU_SET=1; ENV_DEBUG_QEMU_CPU="${DEBUG_QEMU_CPU}"; fi
@@ -17,6 +18,7 @@ if [[ -v DEBUG_QEMU_SMP ]]; then ENV_DEBUG_QEMU_SMP_SET=1; ENV_DEBUG_QEMU_SMP="$
 if [[ -v DEBUG_QEMU_GUI ]]; then ENV_DEBUG_QEMU_GUI_SET=1; ENV_DEBUG_QEMU_GUI="${DEBUG_QEMU_GUI}"; fi
 if [[ -v DEBUG_QEMU_DEBUG ]]; then ENV_DEBUG_QEMU_DEBUG_SET=1; ENV_DEBUG_QEMU_DEBUG="${DEBUG_QEMU_DEBUG}"; fi
 if [[ -v DEBUG_QEMU_REQUIRE_USB ]]; then ENV_DEBUG_QEMU_REQUIRE_USB_SET=1; ENV_DEBUG_QEMU_REQUIRE_USB="${DEBUG_QEMU_REQUIRE_USB}"; fi
+if [[ -v DEBUG_QEMU_VIRTIO_GPU ]]; then ENV_DEBUG_QEMU_VIRTIO_GPU_SET=1; ENV_DEBUG_QEMU_VIRTIO_GPU="${DEBUG_QEMU_VIRTIO_GPU}"; fi
 if [[ -v DRIVER_XHCI ]]; then ENV_DRIVER_XHCI_SET=1; ENV_DRIVER_XHCI="${DRIVER_XHCI}"; fi
 if [[ -f "${CONFIG_FILE}" ]]; then
     # shellcheck disable=SC1090
@@ -28,13 +30,17 @@ if [[ "${ENV_DEBUG_QEMU_SMP_SET}" == "1" ]]; then DEBUG_QEMU_SMP="${ENV_DEBUG_QE
 if [[ "${ENV_DEBUG_QEMU_GUI_SET}" == "1" ]]; then DEBUG_QEMU_GUI="${ENV_DEBUG_QEMU_GUI}"; fi
 if [[ "${ENV_DEBUG_QEMU_DEBUG_SET}" == "1" ]]; then DEBUG_QEMU_DEBUG="${ENV_DEBUG_QEMU_DEBUG}"; fi
 if [[ "${ENV_DEBUG_QEMU_REQUIRE_USB_SET}" == "1" ]]; then DEBUG_QEMU_REQUIRE_USB="${ENV_DEBUG_QEMU_REQUIRE_USB}"; fi
+if [[ "${ENV_DEBUG_QEMU_VIRTIO_GPU_SET}" == "1" ]]; then DEBUG_QEMU_VIRTIO_GPU="${ENV_DEBUG_QEMU_VIRTIO_GPU}"; fi
 if [[ "${ENV_DRIVER_XHCI_SET}" == "1" ]]; then DRIVER_XHCI="${ENV_DRIVER_XHCI}"; fi
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
 RUN_ID="workspace-$(date +%s)-$$"
 RUN_DIR="${ROOT_DIR}/out/runner/${RUN_ID}"
 SERIAL_LOG="${RUN_DIR}/serial.log"
 DRIVERS_LOG="${RUN_DIR}/drivers.log"
+DISPLAY_LOG="${RUN_DIR}/display.driver.log"
 SERVICE_MANAGER_LOG="${RUN_DIR}/service-manager.log"
+MONITOR_SOCKET="${RUN_DIR}/monitor.sock"
+GPU_SCREENSHOT="${RUN_DIR}/virtio-gpu.ppm"
 ROOTFS_IMAGE="${RUN_DIR}/rootfs.img"
 OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
@@ -117,6 +123,13 @@ QEMU_ARGS=(
     -device "virtio-blk-pci,disable-modern=on,drive=osdisk,bootindex=1"
 )
 
+if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
+    need_cmd nc
+    QEMU_ARGS+=(
+        -device "virtio-gpu-pci,id=virtio-gpu"
+    )
+fi
+
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
     QEMU_ARGS+=(
         -device "qemu-xhci,id=xhci"
@@ -126,10 +139,12 @@ fi
 
 if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     GUI_MODE=0
-    QEMU_ARGS+=(
-        -display none
-        -monitor none
-    )
+    QEMU_ARGS+=(-display none)
+    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
+        QEMU_ARGS+=(-monitor "unix:${MONITOR_SOCKET},server=on,wait=off")
+    else
+        QEMU_ARGS+=(-monitor none)
+    fi
 fi
 
 if [[ "${DEBUG_QEMU_DEBUG:-n}" == "y" || "${DEBUG:-0}" != "0" ]]; then
@@ -165,7 +180,11 @@ cleanup_all() {
 trap cleanup_all EXIT
 
 log_has() {
-    grep -Fq "$1" "${SERIAL_LOG}"
+    grep -aFq "$1" "${SERIAL_LOG}"
+}
+
+hmp_command() {
+    printf '%s\n' "$1" | nc -U -q 0 -w 2 "${MONITOR_SOCKET}" >/dev/null
 }
 
 start_qemu() {
@@ -224,6 +243,45 @@ done
 [[ "${COMPLETED}" == "1" ]] ||
     die "QEMU smoke test timed out after ${QEMU_TIMEOUT_SECONDS}s; see ${SERIAL_LOG}"
 
+if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
+    sleep 1
+    for key in t e s t dot a p p ret; do
+        hmp_command "sendkey ${key}"
+        sleep 0.15
+    done
+    APP_DEADLINE=$((SECONDS + 30))
+    while ((SECONDS < APP_DEADLINE)); do
+        if log_has "exec: loaded '/applications/test.app/entry.elf'"; then
+            break
+        fi
+        sleep 0.1
+    done
+    log_has "exec: loaded '/applications/test.app/entry.elf'" ||
+        die "ViewKit test application did not launch; see ${SERIAL_LOG}"
+    sleep 2
+    for _ in {1..12}; do
+        hmp_command "mouse_move 1 1"
+        sleep 0.05
+    done
+
+    PIXELS_READY=0
+    for _ in {1..300}; do
+        printf 'screendump %s virtio-gpu 0\n' "${GPU_SCREENSHOT}" |
+            nc -U -q 0 -w 2 "${MONITOR_SOCKET}" >/dev/null
+        if [[ -s "${GPU_SCREENSHOT}" ]] \
+            && "${SCRIPT_DIR}/check-virtio-gpu-pixels.pl" \
+                "${GPU_SCREENSHOT}" >/dev/null 2>&1; then
+            PIXELS_READY=1
+            break
+        fi
+        sleep 0.1
+    done
+    need_file "${GPU_SCREENSHOT}"
+    [[ "${PIXELS_READY}" == "1" ]] ||
+        die "virtio-gpu scanout did not reach the expected test scene"
+    "${SCRIPT_DIR}/check-virtio-gpu-pixels.pl" "${GPU_SCREENSHOT}"
+fi
+
 sleep 1
 cleanup
 QEMU_PID=""
@@ -234,8 +292,18 @@ dd if="${OS_DISK}" of="${ROOTFS_IMAGE}" bs=512 \
     skip="${ROOTFS_START_SECTOR}" count="${ROOTFS_SIZE_SECTORS}" status=none
 debugfs -R 'cat /system/logs/services/drivers.log' "${ROOTFS_IMAGE}" \
     > "${DRIVERS_LOG}" 2>/dev/null || die "drivers.service log could not be read"
+debugfs -R 'cat /system/logs/services/display.driver.log' "${ROOTFS_IMAGE}" \
+    > "${DISPLAY_LOG}" 2>/dev/null || die "display.driver log could not be read"
 debugfs -R 'cat /system/logs/services/service-manager.log' "${ROOTFS_IMAGE}" \
     > "${SERVICE_MANAGER_LOG}" 2>/dev/null || die "service-manager.service log could not be read"
+
+if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
+    grep -Fq "display.driver: backend=virtio-gpu" "${DISPLAY_LOG}" ||
+        die "display.driver did not select the virtio-gpu backend; see ${DISPLAY_LOG}"
+    if grep -Fq "using framebuffer fallback" "${DISPLAY_LOG}"; then
+        die "display.driver unexpectedly selected framebuffer fallback; see ${DISPLAY_LOG}"
+    fi
+fi
 
 "${SCRIPT_DIR}/check-smoke-logs.sh" \
     "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}"

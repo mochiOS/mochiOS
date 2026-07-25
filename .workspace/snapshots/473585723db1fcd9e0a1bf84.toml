@@ -1,0 +1,96 @@
+version = 1
+id = "473585723db1fcd9e0a1bf84"
+created = "2026-07-26T08:26:53.676934140+09:00"
+
+[trigger]
+name = "mochiOS/services"
+path = "services"
+repository = "/home/jnix/mochiOS/services"
+head = "d7ea5a1e6393cb4006ffa4f2ef24074b37aa590d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "compositor: initialize complete present frame"
+
+[[projects]]
+name = "mochiOS/boot"
+path = "boot"
+head = "45c2c544362a1fa95ad59432f0a2777e620fa024"
+
+[[projects]]
+name = "mochiOS/mnu"
+path = "core"
+head = "f6cbcc4ae333c40210928ed6731c80a338991e24"
+
+[[projects]]
+name = "mochiOS/syscalls"
+path = "user"
+head = "d10caa3eb60e3c974e2a1004f3cdb4264d430aaa"
+
+[[projects]]
+name = "mochiOS/services"
+path = "services"
+head = "d7ea5a1e6393cb4006ffa4f2ef24074b37aa590d"
+
+[[projects]]
+name = "mochiOS/cexts"
+path = "cexts"
+head = "a80735c0f6bbcfab1f0c515da43314ee8c4d3d32"
+
+[[projects]]
+name = "mochiOS/drivers"
+path = "drivers"
+head = "cbdd5891f3b2380809d51cbc0f1922b32c40bf2c"
+
+[[projects]]
+name = "newlib-cygwin"
+path = "libraries/newlib"
+head = "6f47864214658e3bb31776eded6dfd44c3237bb6"
+
+[[projects]]
+name = "mochiOS/rust"
+path = "libraries/rust"
+head = "7a585153c0fab05ed14c66e53a7f7229c6a3e050"
+
+[[projects]]
+name = "mochiOS/libc"
+path = "libraries/libc"
+head = "d2072c233a70c5044bc9adc1d6c60cafc3e663e1"
+
+[[projects]]
+name = "mochiOS/msh"
+path = "binaries/msh"
+head = "a3004abb6a3126bec2e67489b63e9cc446ea9016"
+
+[[projects]]
+name = "mochiOS/coreutils"
+path = "binaries/coreutils"
+head = "afcfd71ca288ce83a17ff490b7e43000e5bdfee6"
+
+[[projects]]
+name = "mochiOS/Binder"
+path = "applications/binder"
+head = "4ec27b99e2c457722fd56aa6e6e5298152f7957b"
+
+[[projects]]
+name = "mochiOS/ViewKit"
+path = "libraries/viewkit"
+head = "80fc18e7633ddb04608dc61620d4e00381a2e23f"
+
+[[projects]]
+name = "mochiOS/buildtools"
+path = "build"
+head = "94d854699c556ed59cd72a5bdcd7b5fe802560cf"
+
+[[projects]]
+name = "mochiOS/test-application"
+path = "applications/test.app"
+head = "657320d0fca78a5461e66640e14d43ccebdf5470"
+
+[[projects]]
+name = "mochiOS/fonts"
+path = "libraries/fonts"
+head = "e34529b27589b2415352925d186661dc07327ea1"
+
+[[projects]]
+name = "mochiOS/mws"
+path = "tools/mws"
+head = "1830eeeb35f08b6c0d4050adc052f06d807b1c9d"

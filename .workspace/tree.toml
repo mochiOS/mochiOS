@@ -271,3 +271,11 @@ path = "binaries/coreutils"
 hash = "afcfd71ca288ce83a17ff490b7e43000e5bdfee6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: exercise ext2 partial ENOSPC writes"
+
+[[entries]]
+date = "2026-07-25T16:15:08.324850725+09:00"
+snapshot = "985cf4a52a610bc877dbfae3"
+path = "applications/binder"
+hash = "9e115a4cbc2236dca1405d4efcc2f0f169f2e1ee"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: stabilize Binder desktop on mochios"

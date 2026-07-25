@@ -1,0 +1,96 @@
+version = 1
+id = "985cf4a52a610bc877dbfae3"
+created = "2026-07-25T16:15:08.324850725+09:00"
+
+[trigger]
+name = "mochiOS/Binder"
+path = "applications/binder"
+repository = "/home/jnix/mochiOS/applications/binder"
+head = "9e115a4cbc2236dca1405d4efcc2f0f169f2e1ee"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: stabilize Binder desktop on mochios"
+
+[[projects]]
+name = "mochiOS/boot"
+path = "boot"
+head = "45c2c544362a1fa95ad59432f0a2777e620fa024"
+
+[[projects]]
+name = "mochiOS/mnu"
+path = "core"
+head = "f127568b9e904da534866d53987cbaff1ca85f62"
+
+[[projects]]
+name = "mochiOS/syscalls"
+path = "user"
+head = "16bed1c7d7080be7da587e85bf85bd16a904e54f"
+
+[[projects]]
+name = "mochiOS/services"
+path = "services"
+head = "1296ca28687e034f836ad53990087ed6a8d55e0c"
+
+[[projects]]
+name = "mochiOS/cexts"
+path = "cexts"
+head = "a80735c0f6bbcfab1f0c515da43314ee8c4d3d32"
+
+[[projects]]
+name = "mochiOS/drivers"
+path = "drivers"
+head = "cbdd5891f3b2380809d51cbc0f1922b32c40bf2c"
+
+[[projects]]
+name = "newlib-cygwin"
+path = "libraries/newlib"
+head = "6f47864214658e3bb31776eded6dfd44c3237bb6"
+
+[[projects]]
+name = "mochiOS/rust"
+path = "libraries/rust"
+head = "7a585153c0fab05ed14c66e53a7f7229c6a3e050"
+
+[[projects]]
+name = "mochiOS/libc"
+path = "libraries/libc"
+head = "d2072c233a70c5044bc9adc1d6c60cafc3e663e1"
+
+[[projects]]
+name = "mochiOS/msh"
+path = "binaries/msh"
+head = "a3004abb6a3126bec2e67489b63e9cc446ea9016"
+
+[[projects]]
+name = "mochiOS/coreutils"
+path = "binaries/coreutils"
+head = "afcfd71ca288ce83a17ff490b7e43000e5bdfee6"
+
+[[projects]]
+name = "mochiOS/Binder"
+path = "applications/binder"
+head = "9e115a4cbc2236dca1405d4efcc2f0f169f2e1ee"
+
+[[projects]]
+name = "mochiOS/ViewKit"
+path = "libraries/viewkit"
+head = "f67eee5be7181718b833b8b5237e750a4cefadaa"
+
+[[projects]]
+name = "mochiOS/buildtools"
+path = "build"
+head = "94d854699c556ed59cd72a5bdcd7b5fe802560cf"
+
+[[projects]]
+name = "mochiOS/test-application"
+path = "applications/test.app"
+head = "657320d0fca78a5461e66640e14d43ccebdf5470"
+
+[[projects]]
+name = "mochiOS/fonts"
+path = "libraries/fonts"
+head = "e34529b27589b2415352925d186661dc07327ea1"
+
+[[projects]]
+name = "mochiOS/mws"
+path = "tools/mws"
+head = "1830eeeb35f08b6c0d4050adc052f06d807b1c9d"

@@ -343,3 +343,11 @@ path = "core"
 hash = "c44310d000e0756d01d0d7b90a8225bb4f80fe53"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "plugkit: expose virtqueue discovery"
+
+[[entries]]
+date = "2026-07-25T21:41:53.930290918+09:00"
+snapshot = "a2d9e0554af19c61b80bec98"
+path = "core"
+hash = "2f066800216186e3869cbd58e51216dea4fa3552"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "security: scope gpu device access"

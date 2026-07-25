@@ -375,3 +375,11 @@ path = "services"
 hash = "d7ea5a1e6393cb4006ffa4f2ef24074b37aa590d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "compositor: initialize complete present frame"
+
+[[entries]]
+date = "2026-07-26T08:56:45.548492774+09:00"
+snapshot = "2908843f74b74632081ea2fc"
+path = "services"
+hash = "32e4f9354dc5e17df69a75701aaa0dfcce8c3ef0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "perf: coalesce compositor pointer motion"

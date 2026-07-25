@@ -311,3 +311,11 @@ path = "core"
 hash = "250c86fe82ee3dd9767f0d184b7e00023c33159d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "plugkit: add virtqueue management"
+
+[[entries]]
+date = "2026-07-25T21:35:36.067849382+09:00"
+snapshot = "9c499ab6bd3e88dfaf991ddd"
+path = "user"
+hash = "cd0182b04da235d2c1d89ace25de990f13eac413"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "protocol: add virtio gpu 2d messages"

@@ -319,3 +319,11 @@ path = "user"
 hash = "cd0182b04da235d2c1d89ace25de990f13eac413"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "protocol: add virtio gpu 2d messages"
+
+[[entries]]
+date = "2026-07-25T21:38:33.138644554+09:00"
+snapshot = "427bf61fba4ca2e2a1b1adbb"
+path = "core"
+hash = "ed9f6fb917ac7c7b4ef2dded8dd71edb9cf5fd93"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "plugkit: add pci device discovery"

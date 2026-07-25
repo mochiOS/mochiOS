@@ -287,3 +287,11 @@ path = "services"
 hash = "b9421dd4091f7779477ee1b1d6d048d77b544be2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: limit decoration metadata to toplevel windows"
+
+[[entries]]
+date = "2026-07-25T21:14:04.747923833+09:00"
+snapshot = "09bf0ee13ba5dce4163f2c05"
+path = "services"
+hash = "ecb0bcc87320d934e305ffeda468fbab7ca90b07"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: stabilize compositor window interaction"

@@ -351,3 +351,11 @@ path = "core"
 hash = "2f066800216186e3869cbd58e51216dea4fa3552"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "security: scope gpu device access"
+
+[[entries]]
+date = "2026-07-25T21:43:24.463032799+09:00"
+snapshot = "a1dec91ed2aeea794dc9f5e6"
+path = "services"
+hash = "808324529cac5c47ddc5031427e3649d8345f14b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "security: isolate display device capabilities"

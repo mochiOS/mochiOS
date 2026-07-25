@@ -327,3 +327,11 @@ path = "core"
 hash = "ed9f6fb917ac7c7b4ef2dded8dd71edb9cf5fd93"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "plugkit: add pci device discovery"
+
+[[entries]]
+date = "2026-07-25T21:39:50.081881566+09:00"
+snapshot = "c8d2fe696ac0fecf6df2d540"
+path = "user"
+hash = "d10caa3eb60e3c974e2a1004f3cdb4264d430aaa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "protocol: support virtio gpu scanout disable"

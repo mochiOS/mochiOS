@@ -279,3 +279,11 @@ path = "applications/binder"
 hash = "9e115a4cbc2236dca1405d4efcc2f0f169f2e1ee"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: stabilize Binder desktop on mochios"
+
+[[entries]]
+date = "2026-07-25T16:49:56.109430249+09:00"
+snapshot = "0acb81f26ac9ec0596c24fef"
+path = "services"
+hash = "b9421dd4091f7779477ee1b1d6d048d77b544be2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: limit decoration metadata to toplevel windows"

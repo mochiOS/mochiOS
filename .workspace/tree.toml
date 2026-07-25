@@ -303,3 +303,11 @@ path = "core"
 hash = "895b332d2bb748739cc628ef1e914d8473f0a517"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "plugkit: add virtio pci transport support"
+
+[[entries]]
+date = "2026-07-25T21:29:55.090149484+09:00"
+snapshot = "e8e67ea7582d4f63aa6dce7b"
+path = "core"
+hash = "250c86fe82ee3dd9767f0d184b7e00023c33159d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "plugkit: add virtqueue management"

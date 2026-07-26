@@ -119,7 +119,14 @@ VIRTIO_GPU_TEST_KEYS="${VIRTIO_GPU_TEST_KEYS:-t e s t dot a p p ret}"
 VIRTIO_GPU_TEST_APP_PATH="${VIRTIO_GPU_TEST_APP_PATH:-/applications/test.app/entry.elf}"
 VIRTIO_GPU_POINTER_STRESS="${VIRTIO_GPU_POINTER_STRESS:-n}"
 VIRTIO_GPU_STRESS_SWEEPS="${VIRTIO_GPU_STRESS_SWEEPS:-12}"
-VIRTIO_GPU_PIXEL_CHECK="${VIRTIO_GPU_PIXEL_CHECK:-y}"
+if [[ -z "${VIRTIO_GPU_PIXEL_CHECK+x}" ]]; then
+    if [[ "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
+        VIRTIO_GPU_PIXEL_CHECK=n
+        echo "[skip] virgl pixel capture: QEMU GL scanout has no HMP DisplaySurface"
+    else
+        VIRTIO_GPU_PIXEL_CHECK=y
+    fi
+fi
 [[ "${VIRTIO_GPU_STRESS_SWEEPS}" =~ ^[1-9][0-9]*$ ]] ||
     die "VIRTIO_GPU_STRESS_SWEEPS must be a positive integer"
 
@@ -214,7 +221,7 @@ cleanup() {
 }
 
 cleanup_files() {
-    if [[ "${SMOKE_TEST:-0}" == "1" ]]; then
+    if [[ "${SMOKE_TEST:-0}" == "1" && "${KEEP_SMOKE_ARTIFACTS:-0}" != "1" ]]; then
         rm -f "${OS_DISK}" "${ROOTFS_IMAGE}" "${OVMF_VARS}"
     fi
 }
@@ -233,9 +240,14 @@ hmp_command() {
     printf '%s\n' "$1" | nc -U -q 0 -w 2 "${MONITOR_SOCKET}" >/dev/null
 }
 
+hmp_screendump() {
+    printf 'screendump %s virtio-gpu 0\n' "${GPU_SCREENSHOT}" |
+        nc -U -q 0 -w 2 "${MONITOR_SOCKET}"
+}
+
 start_qemu() {
     echo "[run] qemu accelerator=${QEMU_ACCEL} gpu=${QEMU_GPU_BACKEND} gl-display=${QEMU_GL_DISPLAY}"
-    
+
     GALLIUM_DRIVER=d3d12 \
     MESA_D3D12_DEFAULT_ADAPTER_NAME=AMD \
     qemu-system-x86_64 "${QEMU_ARGS[@]}" > >(tee -a "${SERIAL_LOG}") 2>&1 &
@@ -335,9 +347,9 @@ if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
 
     if [[ "${VIRTIO_GPU_PIXEL_CHECK}" == "y" ]]; then
         PIXELS_READY=0
+        SCREENSHOT_RESPONSE=""
         for _ in {1..300}; do
-            printf 'screendump %s virtio-gpu 0\n' "${GPU_SCREENSHOT}" |
-                nc -U -q 0 -w 2 "${MONITOR_SOCKET}" >/dev/null
+            SCREENSHOT_RESPONSE="$(hmp_screendump 2>&1 || true)"
             if [[ -s "${GPU_SCREENSHOT}" ]] \
                 && "${SCRIPT_DIR}/check-virtio-gpu-pixels.pl" \
                     "${GPU_SCREENSHOT}" >/dev/null 2>&1; then
@@ -346,13 +358,17 @@ if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
             fi
             sleep 0.1
         done
-        need_file "${GPU_SCREENSHOT}"
+        if [[ ! -f "${GPU_SCREENSHOT}" ]]; then
+            if [[ "${SCREENSHOT_RESPONSE}" == *"Error: no surface"* ]]; then
+                die "virtio-gpu screendump failed: QEMU reported no DisplaySurface"
+            fi
+            die "virtio-gpu screendump failed; monitor returned no image"
+        fi
         [[ "${PIXELS_READY}" == "1" ]] ||
             die "virtio-gpu scanout did not reach the expected test scene"
         "${SCRIPT_DIR}/check-virtio-gpu-pixels.pl" "${GPU_SCREENSHOT}"
     else
-        printf 'screendump %s virtio-gpu 0\n' "${GPU_SCREENSHOT}" |
-            nc -U -q 0 -w 2 "${MONITOR_SOCKET}" >/dev/null
+        hmp_screendump >/dev/null
     fi
 fi
 

@@ -415,3 +415,11 @@ path = "services"
 hash = "5e8eaa6d10c014afe06048e5a0cc8cf8c6ff8d4b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover display frame validation"
+
+[[entries]]
+date = "2026-07-26T09:19:09.206242139+09:00"
+snapshot = "eecf42699d507c948bc5af4c"
+path = "user"
+hash = "b1fc01b3c90aa434574b64a6b402d48bb06377d2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover virtio gpu backing entries"

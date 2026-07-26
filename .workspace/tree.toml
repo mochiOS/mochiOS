@@ -431,3 +431,11 @@ path = "core"
 hash = "9875d0271490264992b4b4462006266ee2035b54"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: preserve SIMD state across context switches"
+
+[[entries]]
+date = "2026-07-26T10:23:10.110971807+09:00"
+snapshot = "7566ee1748dd347460b59c85"
+path = "services"
+hash = "a2c6def076feb03da13c5d79f3db3438faecfd05"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: add active compositor window styling"

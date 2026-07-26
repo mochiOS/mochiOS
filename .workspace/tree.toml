@@ -399,3 +399,11 @@ path = "libraries/viewkit"
 hash = "6d938d97e2f3a849c84fbbf61890743275cce0e3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: destroy mochios compositor surfaces on exit"
+
+[[entries]]
+date = "2026-07-26T09:14:50.891021082+09:00"
+snapshot = "b5576ece9f5833ec2b0b1d9c"
+path = "services"
+hash = "541e7e991f51c9dc3f3cd6ae51939b35b78cc55c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: clean up partial virtio gpu initialization"

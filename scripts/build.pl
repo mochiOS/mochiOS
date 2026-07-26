@@ -259,6 +259,7 @@ sub rewrite_cargo_paths {
     $text =~ s#path = "\Q$prefix\E/user/crates/syscall"#path = "$user_root/crates/syscall"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/driver-control-protocol"#path = "$user_root/crates/driver-control-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/virtio-gpu-protocol"#path = "$user_root/crates/virtio-gpu-protocol"#g;
+    $text =~ s#path = "\Q$prefix\E/user/crates/viewkit-gpu-protocol"#path = "$user_root/crates/viewkit-gpu-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/core/crates/PlugKit/plugkit"#path = "$plugkit_root"#g
         if defined $plugkit_root;
     $text =~ s#plugkit = \{ git = "https://github.com/mochiOS/mnu", package = "plugkit" \}#plugkit = { path = "$plugkit_root" }#g

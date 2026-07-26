@@ -383,3 +383,11 @@ path = "services"
 hash = "32e4f9354dc5e17df69a75701aaa0dfcce8c3ef0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "perf: coalesce compositor pointer motion"
+
+[[entries]]
+date = "2026-07-26T09:10:45.253038165+09:00"
+snapshot = "ea5d0f9441b88e28da70e135"
+path = "libraries/viewkit"
+hash = "df23bfac0d69cec4bb468b8418d0df76833753ac"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor: split mochios backend responsibilities"

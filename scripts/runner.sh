@@ -235,7 +235,11 @@ hmp_command() {
 
 start_qemu() {
     echo "[run] qemu accelerator=${QEMU_ACCEL} gpu=${QEMU_GPU_BACKEND} gl-display=${QEMU_GL_DISPLAY}"
+    
+    GALLIUM_DRIVER=d3d12 \
+    MESA_D3D12_DEFAULT_ADAPTER_NAME=AMD \
     qemu-system-x86_64 "${QEMU_ARGS[@]}" > >(tee -a "${SERIAL_LOG}") 2>&1 &
+    
     QEMU_PID=$!
 }
 

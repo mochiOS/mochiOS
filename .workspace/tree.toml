@@ -463,3 +463,11 @@ path = "applications/binder"
 hash = "326bebf652d17d912bb799ae7008a58b9cc97f52"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: match compositor decorations to Binder"
+
+[[entries]]
+date = "2026-07-26T17:57:09.085344475+09:00"
+snapshot = "9e32485582431b98c736837b"
+path = "core"
+hash = "01d8538bc4a27b06d47c1b1c39a5cb249e45c52a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: preserve filesystem create errno"

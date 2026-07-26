@@ -5,6 +5,7 @@ use Cwd qw(abs_path getcwd);
 use File::Basename qw(dirname);
 use File::Copy qw(copy);
 use File::Path qw(make_path remove_tree);
+use MIME::Base64 qw(decode_base64);
 use POSIX qw(strftime);
 
 my $script_dir = dirname(abs_path($0));
@@ -257,6 +258,8 @@ sub rewrite_cargo_paths {
     $text =~ s#path = "\Q$prefix\E/user/crates/platform"#path = "$user_root/crates/platform"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/runtime"#path = "$user_root/crates/runtime"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/syscall"#path = "$user_root/crates/syscall"#g;
+    $text =~ s#path = "\Q$prefix\E/user/crates/certificate"#path = "$user_root/crates/certificate"#g;
+    $text =~ s#path = "\Q$prefix\E/user/crates/signature-protocol"#path = "$user_root/crates/signature-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/driver-control-protocol"#path = "$user_root/crates/driver-control-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/virtio-gpu-protocol"#path = "$user_root/crates/virtio-gpu-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/viewkit-gpu-protocol"#path = "$user_root/crates/viewkit-gpu-protocol"#g;
@@ -1022,7 +1025,7 @@ sub build_rootfs {
     for my $coreutil (@{$coreutils_bins}) {
         install_file('0755', "$coreutils_bin_dir/$coreutil", "$rootfs_stage/bin/$coreutil");
     }
-    install_file('0644', $path->{signature_db}, "$rootfs_stage/signature.db");
+    install_file('0644', $path->{signature_db}, "$rootfs_stage/execution.allowlist");
 
     make_path("$rootfs_stage/system/packages");
     if (config_enabled($config->{USER_BUILD_MPK_SAMPLES})) {
@@ -1175,7 +1178,7 @@ my $initfs_stage = "$build_root/initfs-root";
 my $initfs_img = "$build_root/initfs.img";
 my $rootfs_stage = "$build_root/rootfs-root";
 my $rootfs_img = "$build_root/rootfs.img";
-my $signature_db_stage = "$build_root/signature.db";
+my $signature_db_stage = "$build_root/execution.allowlist";
 my $cext_bundles_dir = "$root_dir/out/cexts/bundles";
 my $drivers_bundle_root = '/bin/drivers/usb/qemu-usb.driver';
 my $i8042_bundle_root = '/bin/drivers/ps2/i8042.driver';
@@ -1184,6 +1187,10 @@ my $enable_i8042 = config_to_01($config{DRIVER_I8042});
 my $coreutils_bin_dir = "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release";
 my $mpk_demo_mpkg = "$build_root/mpk-demo.mpkg";
 my $mpk_test_mpkg = "$build_root/mpk-test.mpkg";
+my $devkit_root = "$root_dir/tools/devkit";
+my $development_fixture_root = "$devkit_root/fixtures/development";
+my $development_certificate = "$build_root/developer.cert";
+my $msign_bin = "$root_dir/out/devkit-target/release/msign";
 my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk test_gui test_desktop);
 push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
@@ -1216,6 +1223,29 @@ build_rust_std_apps($root_dir, \%config, $config{USER_RUST_STD_TOOLCHAIN}, \@cor
 
 if (config_enabled($config{USER_BUILD_MPK_SAMPLES})) {
     print "[step] build sample mpkg\n";
+    need_file("$devkit_root/Cargo.toml");
+    need_file("$development_fixture_root/developer.key");
+    need_file("$development_fixture_root/developer.cert.b64");
+    run(
+        'cargo', 'build', '--release',
+        '--manifest-path', "$devkit_root/Cargo.toml",
+        '--target-dir', "$root_dir/out/devkit-target",
+        '-p', 'msign',
+    );
+    need_file($msign_bin);
+    open my $certificate_in, '<', "$development_fixture_root/developer.cert.b64"
+        or dief("open development certificate: $!");
+    local $/;
+    my $certificate_base64 = <$certificate_in> // '';
+    close $certificate_in;
+    my $certificate_bytes = decode_base64($certificate_base64);
+    length($certificate_bytes) > 0 or dief('development certificate is empty');
+    open my $certificate_out, '>', $development_certificate
+        or dief("write development certificate: $!");
+    binmode $certificate_out;
+    print {$certificate_out} $certificate_bytes
+        or dief("write development certificate: $!");
+    close $certificate_out or dief("close development certificate: $!");
     run(
         'perl',
         "$script_dir/build-sample-mpkg.pl",
@@ -1236,6 +1266,11 @@ if (config_enabled($config{USER_BUILD_MPK_SAMPLES})) {
     );
     need_file($mpk_demo_mpkg);
     run(
+        $msign_bin, 'package', 'sign', $mpk_demo_mpkg,
+        '--certificate', $development_certificate,
+        '--key', "$development_fixture_root/developer.key",
+    );
+    run(
         'perl',
         "$script_dir/build-sample-mpkg.pl",
         '--output',
@@ -1254,6 +1289,11 @@ if (config_enabled($config{USER_BUILD_MPK_SAMPLES})) {
         'mochiOS Project',
     );
     need_file($mpk_test_mpkg);
+    run(
+        $msign_bin, 'package', 'sign', $mpk_test_mpkg,
+        '--certificate', $development_certificate,
+        '--key', "$development_fixture_root/developer.key",
+    );
 }
 
 print "[step] build cext bundles\n";
@@ -1513,7 +1553,7 @@ if (config_enabled($config{USER_BUILD_MPK_SAMPLES})) {
     install_file('0644', $mpk_demo_mpkg, "$artifact_dir/mpk-demo.mpkg");
     install_file('0644', $mpk_test_mpkg, "$artifact_dir/mpk-test.mpkg");
 }
-install_file('0644', $signature_db_stage, "$artifact_dir/signature.db");
+install_file('0644', $signature_db_stage, "$artifact_dir/execution.allowlist");
 install_file('0755', $path{drivers_service_bin}, "$artifact_dir/drivers.service");
 install_file('0755', $path{usb_driver_bin}, "$artifact_dir/usb-driver.entry") if $enable_xhci eq '1';
 install_file('0755', $path{i8042_driver_bin}, "$artifact_dir/i8042-driver.entry") if $enable_i8042 eq '1';
@@ -1538,7 +1578,7 @@ my @checksum_files = qw(
     ls
     rust-std-demo
     mpk
-    signature.db
+    execution.allowlist
     manifest.xml
     build-info.txt
 );

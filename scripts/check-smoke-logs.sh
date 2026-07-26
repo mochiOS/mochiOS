@@ -102,8 +102,8 @@ for signature_pattern in \
     "signature allow test" \
     "signature deny test" \
     "signature verification failed" \
-    "signature: missing /signature.db" \
-    "signature: invalid /signature.db"; do
+    "execution allowlist: missing /execution.allowlist" \
+    "execution allowlist: invalid /execution.allowlist"; do
     assert_absent_case_insensitive "signature failure" "${SERIAL_LOG}" "${signature_pattern}"
 done
 

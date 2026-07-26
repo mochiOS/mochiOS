@@ -1,917 +1,238 @@
 # mochiOS Package Format
 
-> **正本文書:** `.mpkg`のコンテナ形式、manifest、配置規則および検証手順はこの文書を正本とします。Root Certificate、Developer Certificate、証明書チェーンおよび失効確認の実装状況は[mochiOSの証明書と署名検証](certificates.md)を参照してください。
+この文書を `.mpkg` のコンテナ形式、manifest、署名、配置規則の正本とします。
+証明書の wire format、信頼境界、失効および Root ローテーションは
+[mochiOS の証明書と署名検証](certificates.md)を参照してください。
 
-## 1. 概要
+## 1. 現行バージョン
 
-`.mpkg`は、mochiOSへアプリケーションまたはシステムコンポーネントを配布・インストールするためのパッケージ形式です。
+現行実装は MPKG v1 です。コンテナは 32 bytes の MPKG header と、無圧縮の
+ustar stream で構成します。Zstandard を示す compression 値 `1` は header の
+予約値として解析できますが、`signature.service` と `package.service` は
+`ENOTSUP` で拒否します。
 
-* 署名済み`manifest.toml`
-* Developer Certificate
-* 証明書チェーン
-* manifest署名
-* インストール対象ファイル
-* バイナリごとのCapability要求
-* サービスやドライバーの定義
+## 2. MPKG header
 
-`.mpkg`は配布用コンテナです。インストール後に`.mpkg`ファイル自体を実行時の信頼根拠として使用しません。
-
-## 2. パッケージ種別
-
-v1では、次の2種類を定義します。
-
-application
-binary
-
-`application`は、単一の`.app`バンドルを`applications`ディレクトリにインストールします。
-`binary`は、CLI、ライブラリ、サービス、ドライバーなどをシステム内へ配置します。
-
-サービスやドライバーは独立したパッケージ種別にしません。
-サービスやドライバーであることは、manifest内の`[[service]]`または`[[driver]]`で表現します。
-
-これにより、1つのbinaryパッケージへ複数のバイナリ、サービス、ライブラリを含められます。
-
-## 3. コンテナ形式
-
-`.mpkg`は次の構造を持ちます。
-
-- MPKG header
-- tar stream
-
-tarストリームは圧縮できます。
-v1では次の圧縮形式を定義します。
-
-- 0 = 無圧縮
-- 1 = Zstandard
-
-通常のパッケージはZstandardを使用します。
-
-## 4. MPKGヘッダー
-
-ヘッダーは32バイト固定です。
-すべての整数はリトルエンディアンです。
+整数はすべて little-endian です。
 
 ```text
 Offset  Size  内容
-0x00    4     Magic: "MPKG"
-0x04    2     Major version
-0x06    2     Minor version
-0x08    2     Header size
-0x0A    1     Compression
-0x0B    1     Flags
-0x0C    8     展開後tarストリームのサイズ
-0x14    12    Reserved
+0x00    4     magic: "MPKG"
+0x04    2     major version: 1
+0x06    2     minor version: 0
+0x08    2     header size: 32
+0x0a    1     compression: 0
+0x0b    1     flags: 0
+0x0c    8     tar stream の byte 数
+0x14    12    reserved: すべて 0
 ```
 
-v1の値は次のとおりです。
+magic、version、header size、flags、reserved、実際の tar stream 長が一致しない
+パッケージは拒否します。
+
+## 3. コンテナ構造
 
 ```text
-Magic              = 4D 50 4B 47
-Major version      = 1
-Minor version      = 0
-Header size        = 32
-Compression        = 0 または 1
-Flags              = 0
-Reserved           = すべて0
-```
-
-未対応のmajor versionは拒否します。
-
-未知のflagsが設定されている場合も拒否します。
-
-展開後サイズは、展開爆弾への対策として使用します。実際の展開サイズが一致しない場合は拒否します。
-
-## 5. tarストリームの制限
-
-v1では、tarのすべての機能を許可しません。
-
-使用できるエントリは次のとおりです。
-
-- 通常ファイル
-- ディレクトリ
-
-次は禁止します。
-
-- シンボリックリンク
-- ハードリンク
-- デバイスファイル
-- FIFO
-- ソケット
-- sparse file
-- GNU tar拡張
-- PAX拡張
-
-ディレクトリエントリは省略できます。package.serviceは、ファイルパスから必要なディレクトリを生成します。
-
-tarヘッダー内の次の情報は信頼しません。
-
-- uid
-- gid
-- uname
-- gname
-- mode
-- mtime
-
-実際のファイルモードは`manifest.toml`から取得します。
-
-パスはUTF-8でなければなりません。
-
-次のパスは拒否します。
-
-- 絶対パス
-- 空文字列
-- "."または".."を含むパス
-- 連続したスラッシュ
-- 末尾がスラッシュの通常ファイル
-- バックスラッシュ
-- NUL文字
-- Unicode正規化後に重複するパス
-- 大文字小文字の正規化後に衝突するパス
-
-同一パスのエントリが複数存在する場合は、後勝ちにせずパッケージ全体を拒否します。
-
-## 6. コンテナ内部構造
-
-すべてのmpkgは次の構成を持ちます。
-
-```
 manifest.toml
 signatures/
-├─ manifest.sig
-├─ developer.cert
-└─ chain/
-   ├─ 000.cert
-   ├─ 001.cert
-   └─ ...
+|-- manifest.sig
+`-- developer.cert
 payload/
-└─ ...
+|-- root/
+`-- bundle/
 ```
 
-次のファイルは必須です。
+必須ファイルは次の 3 個です。
 
-- manifest.toml
-- signatures/manifest.sig
-- signatures/developer.cert
+- `manifest.toml`
+- `signatures/manifest.sig`
+- `signatures/developer.cert`
 
-証明書チェーンが不要な場合、`signatures/chain/`は省略できます。
+v1 は Root から Developer Certificate への 1 段だけを扱います。
+`signatures/chain/`、および上記以外の `signatures/` 内エントリは拒否します。
 
-`manifest.toml`はコンテナ内に1つだけ存在しなければなりません。
+## 4. ustar 制約
 
-## 7. 署名方式
+現行 parser が受理する typeflag は通常ファイル (`0` または NUL) と
+ディレクトリ (`5`) だけです。symlink、hard link、device、FIFO、PAX、GNU 拡張は
+拒否します。
 
-mpkg v1では次のアルゴリズムを固定します。
+各 path は UTF-8 の相対 path とし、次を拒否します。
 
-- ダイジェスト: SHA-256
-- 署名: Ed25519
+- 空 path、絶対 path、末尾 `/`
+- `.` または `..` segment
+- `//`、backslash、NUL
+- 同じ byte 列の path の重複
+- `manifest.toml`、`signatures/`、`payload/` 以外の top-level entry
 
-アルゴリズムをmanifest内で指定する方式にはしません。
+現行 parser は Unicode normalization や case folding を行いません。したがって
+package producer は path に ASCII を使うべきです。
 
-これにより、署名検証前の未検証manifestを見てアルゴリズムを選択する必要がなくなります。
+tar の uid、gid、uname、gname、mtime はインストール属性に使用しません。
+mode は manifest の `[[file]].mode` を使います。
 
-`manifest.sig`は64バイトのEd25519署名です。
+## 5. manifest.toml
 
-署名対象は次のバイト列です。
+現行 parser がインストールと Capability 解決に使用する基本形式は次です。
+
+```toml
+format = 1
+
+[package]
+id = "org.example.tool"
+name = "example-tool"
+version = "1.0.0"
+vendor = "Example Developer"
+kind = "binary"
+architecture = "x86_64"
+abi = "mochios-1"
+
+[[file]]
+id = "main"
+path = "$/example-tool"
+digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+size = 123456
+mode = "0755"
+
+[[binary]]
+path = "/bin/example-tool"
+file = "main"
+kind = "application"
+requires = ["process.basic"]
+```
+
+`package.id`、`package.name`、`package.version` は必須です。`package.id` は小文字の
+逆 domain 形式を使用します。`package.kind` は `binary` または `application` です。
+kind がない古い manifest は binary として扱います。
+
+`[[file]]` は少なくとも 1 個必要です。各 entry の `path`、`size`、完全な
+SHA-256 digest、mode と payload を照合します。manifest にない payload 通常
+ファイル、および payload がない `[[file]]` は拒否します。mode は `0o000` から
+`0o777` だけを許可し、setuid、setgid、sticky bit は拒否します。
+
+`[[binary]].requires` はその binary の必須 Capability 一覧です。現行 v1 には
+optional request の表現はありません。1 個でも Developer Certificate の
+`allowed_capabilities` または Binary Policy を超える場合、起動時の Capability
+解決全体を拒否します。
+
+## 6. payload path と配置先
+
+`[[file]].path` には、明示的な絶対配置先または `$/` 形式を使用します。
+
+### binary
+
+```text
+path = "$/tool"
+container: payload/root/bin/tool
+install:   /bin/tool
+```
+
+```text
+path = "/system/services/example.service"
+container: payload/root/system/services/example.service
+install:   /system/services/example.service
+```
+
+binary package の配置先は次の prefix に限定します。
+
+- `/bin/`
+- `/libraries/`
+- `/binary/services/`
+- `/binary/resources/`
+- `/system/services/`
+
+### application
+
+```text
+[package]
+name = "Example"
+kind = "application"
+
+[[file]]
+path = "$/entry.elf"
+```
+
+この場合の container path は `payload/bundle/entry.elf`、配置先は
+`/applications/Example.app/entry.elf` です。application package は
+`/applications/` の外へ配置できません。生成後の絶対 path についても空 segment、
+`.`、`..`、backslash を拒否します。
+
+## 7. 署名
+
+ダイジェストは SHA-256、署名は Ed25519 に固定します。
+`manifest.sig` は次の byte 列に対する 64 bytes の署名です。
 
 ```text
 "mochios-mpkg-manifest-v1\0"
-+
-SHA-256(manifest.tomlの正確なバイト列)
+|| SHA-256(manifest.toml の正確な byte 列)
 ```
 
-`manifest.toml`は解析後に再生成してはいけません。
+`developer.cert` は `MCER` v1 の Developer Certificate です。検証順は次です。
 
-署名検証には、コンテナ内に保存されている正確なバイト列を使用します。
+1. MPKG header、ustar、Developer Certificate の構文を検証
+2. 埋め込み Root 公開鍵で Developer Certificate を検証
+3. validity、key usage、Package ID scope、失効 serial を検証
+4. Developer 公開鍵で `manifest.sig` を検証
+5. manifest と全 payload の size、SHA-256 を照合
 
-## 8. manifest.tomlの形式
+`package.service` は読み込んだ同一の MPKG byte 列を chunk protocol で
+`signature.service` へ渡します。署名検証後に path を開き直しません。
 
-manifestはTOML形式とします。
+## 8. インストールと有効化
 
-基本構造は次のとおりです。
+署名、manifest、全 payload、配置先、mode、既存 path との衝突を、書き込み開始前に
+検証します。現行 ext2 CExt には rename transaction がないため、v1 installer は
+既存 package の更新と既存 file の上書きを `EEXIST` で拒否します。
 
-```toml
-format = 1
+新規インストールは次の順です。
 
-[package]
-id = "org.mochios.coreutils"
-name = "coreutils"
-version = "0.1.0"
-revision = 1
-vendor = "mochiOS Project"
-kind = "binary"
-architecture = "x86_64"
-abi = "mochios-1"
+1. payload を配置
+2. `/system/packages/<package-id>/verification.bin` を配置
+3. 検証済みの `manifest.toml` を最後に配置
 
-[compatibility]
-os = ">=26.0.0"
-```
+manifest を activation marker とし、Capability resolver は manifest digest と
+`verification.bin` を再照合します。途中失敗した orphan file の自動 rollback は、
+ext2 の remove/rename 実装後の課題です。orphan は有効なインストールとして扱いません。
 
-## 9. packageセクション
+## 9. verification.bin
 
-### package.id
+`verification.bin` は `mochios-signature-protocol` の `VERIFIED` message を
+`request_id = 0` で encode したものです。次を保持します。
 
-パッケージの一意な識別子です。
+- developer ID
+- certificate serial
+- subject key ID
+- verified package ID
+- certificate が許可した Capability 一覧
+- manifest digest
+- package digest
 
-逆ドメイン形式を使用します。
+これは package payload の代替署名ではなく、`signature.service` の検証結果を
+`capability.service` へ引き渡す内部 record です。
 
-使用可能な文字は`a-z`、`0-9`、`.`、`-`です。
+## 10. 開発ツール
 
-パッケージIDは大文字小文字を区別しません。manifestには小文字だけを使用します。
-
-### package.name
-
-表示および管理用のパッケージ名です。
-
-一意性の判定には使用しません。
-
-### package.version
-
-ソフトウェアバージョンです。
+workspace に登録された `tools/devkit` の `msign` を使用します。
 
 ```text
-1.0.0
-1.2.0-beta.1
+msign key generate
+msign certificate issue
+msign certificate inspect
+msign package sign
+msign package verify
 ```
 
-### package.revision
-
-同じversionに対するパッケージ再ビルド番号です。
-
-```text
-version = "1.0.0"
-revision = 2
-```
-
-### package.kind
-
-次のどちらかです。
-
-```text
-application
-binary
-```
-
-### package.architecture
-
-v1では次の値を使用します。
-
-```text
-x86_64
-any
-```
-
-`any`は、アーキテクチャ非依存データだけを含むパッケージに使用します。
-
-### package.abi
-
-対象となるmochiOS ABIを示します。
-
-```text
-mochios-1
-```
-
-## 10. ファイル定義
-
-パッケージに含まれるすべてのインストール対象ファイルを`[[file]]`へ記録します。
-
-```toml
-[[file]]
-id = "ls"
-path = "$/ls"
-digest = "sha256:0123456789abcdef"
-size = 123456
-mode = "0755"
-```
-
-$は、インストールルートを示すプレースホルダです。
-
-### file.id
-
-manifest内で一意な識別子です。
-
-`[[binary]]`、`[[service]]`などから参照します。
-
-### file.path
-
-インストールルートからの相対パスです。
-
-絶対パスは使用しません。
-
-`package.kind`によってインストールルートが変わります。
-
-- binary: インストールルートは /bin/
-
-- application: インストールルートは /applications/<bundle>.app/
-
-### file.digest
-
-次の形式を使用します。
-
-```text
-sha256:<16進数64文字>
-```
-
-### file.size
-
-展開後のファイルサイズです。
-
-圧縮後のサイズではありません。
-
-### file.mode
-
-インストール後のパーミッションです。
-
-8進数文字列で指定します。
-
-```text
-0644
-0755
-```
-
-setuid、setgid、sticky bitはv1では許可しません。
-
-## 11. payload内のファイル配置
-
-payload内のパスは、パッケージ種別によって固定します。
-
-### binaryパッケージ
-
-```text
-payload/root/<file.path>
-```
-
-例:
-
-```text
-payload/root/bin/ls
-payload/root/bin/cp
-payload/root/bin/mv
-```
-
-### applicationパッケージ
-
-```text
-payload/bundle/<file.path>
-```
-
-例:
-
-```text
-payload/bundle/entry
-payload/bundle/about.toml
-payload/bundle/resources/icon.png
-```
-
-manifest内のすべての`[[file]]`に対応するpayloadエントリが必要です。
-
-manifestに記載されていないpayloadファイルが存在する場合は拒否します。
-
-payloadに存在しないファイルがmanifestへ記載されている場合も拒否します。
-
-## 12. バイナリ定義
-
-実行可能ファイルは`[[binary]]`で定義します。
-
-```toml
-[[binary]]
-id = "ls"
-file = "ls"
-capability_profile = "coreutils.ls"
-```
-
-### binary.id
-
-パッケージ内で一意なバイナリ識別子です。
-
-### binary.file
-
-`[[file]]`のidを参照します。
-
-参照先ファイルは`0755`などの実行可能modeを持たなければなりません。
-
-### binary.capability_profile
-
-起動時に使用するCapability Profileです。
-
-存在しないProfileを参照した場合は、パッケージ全体を拒否します。
-
-## 13. applicationパッケージ
-
-applicationパッケージには`[application]`が必要です。
-
-```toml
-[application]
-bundle = "Example.app"
-entry = "main"
-about = "about.toml"
-```
-
-### application.bundle
-
-インストールされるバンドルディレクトリ名です。
-
-必ず`.app`で終わる必要があります。
-
-```text
-Example.app
-Editor.app
-Browser.app
-```
-
-スラッシュや`..`は使用できません。
-
-### application.entry
-
-起動時に使用する`[[binary]].id`です。
-
-### application.about
-
-表示用メタデータのパスです。
-
-バンドルルートからの相対パスです。
-
-通常は次の値を使用します。
-
-```text
-about.toml
-```
-
-`about.toml`も`[[file]]`へ登録し、ダイジェスト検証対象に含めます。
-
-ただし、Capability付与や署名者判定の根拠には使用しません。
-
-## 14. applicationパッケージの例
-
-コンテナ内部:
-
-```text
-Example-1.0.0.mpkg
-├─ manifest.toml
-├─ signatures/
-│  ├─ manifest.sig
-│  ├─ developer.cert
-│  └─ chain/
-│     └─ 000.cert
-└─ payload/
-   └─ bundle/
-      ├─ entry
-      ├─ about.toml
-      └─ resources/
-         └─ icon.png
-```
-
-manifest:
-
-```toml
-format = 1
-
-[package]
-id = "com.example.application"
-name = "Example"
-version = "1.0.0"
-revision = 1
-vendor = "Example Developer"
-kind = "application"
-architecture = "x86_64"
-abi = "mochios-1"
-
-[compatibility]
-os = ">=26.0.0"
-
-[application]
-bundle = "Example.app"
-entry = "main"
-about = "about.toml"
-
-[[file]]
-id = "entry"
-path = "entry"
-digest = "sha256:0123456789abcdef"
-size = 123456
-mode = "0755"
-
-[[file]]
-id = "about"
-path = "about.toml"
-digest = "sha256:0123456789abcdef"
-size = 456
-mode = "0644"
-
-[[file]]
-id = "icon"
-path = "resources/icon.png"
-digest = "sha256:0123456789abcdef"
-size = 12345
-mode = "0644"
-
-[[binary]]
-id = "main"
-file = "entry"
-capability_profile = "application.main"
-
-[[capability_profiles."application.main".request]]
-name = "process.basic"
-source = "binary"
-required = true
-
-[[capability_profiles."application.main".request]]
-name = "window.create"
-source = "binary"
-required = true
-
-[[capability_profiles."application.main".request]]
-name = "filebinary.read"
-source = "caller"
-scope = "selected-files"
-required = false
-```
-
-インストール後:
-
-```text
-/applications/
-└─ Example.app/
-   ├─ manifest.toml
-   ├─ about.toml
-   ├─ entry
-   ├─ resources/
-   │  └─ icon.png
-   └─ signatures/
-      ├─ manifest.sig
-      ├─ developer.cert
-      └─ chain/
-         └─ 000.cert
-```
-
-コンテナ内の`manifest.toml`は、バイト列を変更せずに次へ配置します。
-
-```text
-/applications/Example.app/manifest.toml
-```
-
-## 15. binaryパッケージ
-
-binaryパッケージには、`[application]`を含めません。
-
-coreutilsの例:
-
-```text
-coreutils-0.1.0.mpkg
-├─ manifest.toml
-├─ signatures/
-│  ├─ manifest.sig
-│  ├─ developer.cert
-│  └─ chain/
-└─ payload/
-   └─ root/
-      └─ bin/
-         ├─ ls
-         ├─ cp
-         └─ mv
-```
-
-manifest:
-
-```toml
-format = 1
-
-[package]
-id = "org.mochios.coreutils"
-name = "coreutils"
-version = "0.1.0"
-revision = 1
-vendor = "mochiOS Project"
-kind = "binary"
-architecture = "x86_64"
-abi = "mochios-1"
-
-[compatibility]
-os = ">=26.0.0"
-
-[[file]]
-id = "ls"
-path = "bin/ls"
-digest = "sha256:0123456789abcdef"
-size = 123456
-mode = "0755"
-
-[[file]]
-id = "cp"
-path = "bin/cp"
-digest = "sha256:0123456789abcdef"
-size = 123456
-mode = "0755"
-
-[[file]]
-id = "mv"
-path = "bin/mv"
-digest = "sha256:0123456789abcdef"
-size = 123456
-mode = "0755"
-
-[[binary]]
-id = "ls"
-file = "ls"
-capability_profile = "coreutils.ls"
-
-[[binary]]
-id = "cp"
-file = "cp"
-capability_profile = "coreutils.cp"
-
-[[binary]]
-id = "mv"
-file = "mv"
-capability_profile = "coreutils.mv"
-```
-
-インストール後:
-
-```text
-/bin/
-├─ ls
-├─ cp
-└─ mv
-
-/binary/packages/
-└─ org.mochios.coreutils/
-   ├─ manifest.toml
-   └─ signatures/
-      ├─ manifest.sig
-      ├─ developer.cert
-      └─ chain/
-```
-
-binaryパッケージのmanifestは次へ配置します。
-
-```text
-/binary/packages/<package.id>/manifest.toml
-```
-
-## 16. service定義
-
-binaryパッケージはサービスを定義できます。
-
-```toml
-[[service]]
-id = "org.mochios.input"
-binary = "input"
-startup = "binary"
-restart = "on-failure"
-after = ["org.mochios.drivers"]
-requires = ["org.mochios.logger"]
-provides = ["org.mochios.input"]
-```
-
-`binary`は`[[binary]].id`を参照します。
-
-`startup`は次の値を使用します。
-
-```text
-binary
-manual
-on-demand
-```
-
-`restart`は次の値を使用します。
-
-```text
-never
-on-failure
-always
-```
-
-サービス定義はservice-manager.serviceが使用します。
-
-manifestにサービス定義が存在することだけを理由に、そのサービスを信頼してはいけません。署名検証とCapability判定を通過する必要があります。
-
-## 17. driver定義
-
-ドライバーパッケージは`[[driver]]`を使用します。
-
-```toml
-[[driver]]
-id = "org.mochios.driver.i8042"
-binary = "i8042"
-class = "input"
-matches = [
-    "platform:i8042"
-]
-```
-
-ドライバーの起動はdrivers.serviceが要求しますが、実際の署名検証とCapability判定は通常のlaunch.service経路を使用します。
-
-## 18. Capability Profile
-
-Capability要求はmanifestへ含めます。
-
-```toml
-[[capability_profiles."coreutils.ls".request]]
-name = "stdio"
-source = "caller"
-required = true
-
-[[capability_profiles."coreutils.ls".request]]
-name = "filebinary.enumerate"
-source = "caller"
-scope = "launch-paths"
-required = true
-```
-
-`source`は次のいずれかです。
-
-```text
-caller
-binary
-service
-```
-
-manifestに記載されているCapabilityを無条件に付与してはいけません。
-
-実際の付与結果は次で決定します。
-
-```text
-Requested
-∩ CertificateAllowed
-∩ binaryPolicy
-∩ Delegatable
-```
-
-不明なCapability名は拒否します。
-
-## 19. 依存関係
-
-パッケージ依存関係は`[[dependency]]`で定義します。
-
-```toml
-[[dependency]]
-package = "org.mochios.libc"
-version = ">=0.1.0"
-required = true
-```
-
-v1では、依存関係はパッケージIDとバージョンだけで判定します。
-
-自動的な外部リポジトリ検索やダウンロードは、mpkg形式自体には含めません。
-
-## 20. インストール可能なパス
-
-applicationパッケージは、`.app`バンドル外へファイルを配置できません。
-
-binaryパッケージは、v1では次の領域だけへファイルを配置できます。
-
-```text
-/bin/
-/libraries/
-/binary/services/
-/binary/resources/
-```
-
-次の領域へpayloadから直接配置することは禁止します。
-
-```text
-/binary/packages/
-/applications/
-/var/
-/run/
-/mnt/
-/boot/
-```
-
-`/binary/packages/<package.id>/`はpackage-installer.serviceが作成し、manifestと署名情報だけを配置します。
-
-`/var`や`/run`に必要なディレクトリは、将来的に宣言的なruntime directory定義で作成します。
-
-パッケージpayloadへ可変データを含めてはいけません。
-
-## 21. インストール処理
-
-インストールは次の順序で行います。
-
-```text
-MPKGヘッダーを検証
-    ↓
-サイズ上限を検証
-    ↓
-tarストリームを展開
-    ↓
-エントリ名と重複を検証
-    ↓
-manifest署名を検証
-    ↓
-Developer Certificateを検証
-    ↓
-証明書チェーンと失効状態を検証
-    ↓
-manifestスキーマを検証
-    ↓
-payloadとfile定義を照合
-    ↓
-全ファイルのサイズとダイジェストを検証
-    ↓
-既存パッケージとの所有権衝突を検証
-    ↓
-ステージング領域へ展開
-    ↓
-最終配置へアトミックに切り替え
-    ↓
-manifestと署名情報を配置
-    ↓
-パッケージインデックスを更新
-```
-
-検証前に、payloadを最終配置先へ書き込んではいけません。
-
-## 22. ファイル所有権
-
-1つの通常ファイルを複数のパッケージが所有してはいけません。
-
-既に別のパッケージが所有するパスへインストールしようとした場合は拒否します。
-
-ディレクトリは複数パッケージで共有できます。
-
-パッケージの所有ファイル一覧は、署名済みmanifestを基準とします。
-
-インストール状態や高速検索用データは、次のような派生データとして管理します。
-
-```text
-/var/lib/mpkg/
-```
-
-このデータベースは信頼の根拠にはしません。
-
-## 23. 更新
-
-更新パッケージは、既存パッケージと同じ`package.id`を持たなければなりません。
-
-次を確認します。
-
-```text
-新しいversionまたはrevisionである
-証明書が有効である
-証明書がパッケージIDを署名可能である
-すべての新しいファイルが検証済みである
-他パッケージのファイルと衝突しない
-```
-
-更新はステージング領域を使用し、途中失敗時に旧バージョンを保持します。
-
-## 24. 削除
-
-削除時は、インストール済みの署名済みmanifestへ記載されているファイルだけを削除します。
-
-アプリケーションでは、対象`.app`バンドル全体を削除できます。
-
-ただし、アプリケーションの可変データは別領域に保存します。
-
-```text
-/var/appdata/<package.id>/
-```
-
-通常のアンインストールでは、このデータを自動削除しません。
-
-## 25. v1で禁止する機能
-
-v1では次を実装しません。
-
-```text
-post-installスクリプト
-pre-installスクリプト
-uninstallスクリプト
-任意コードによるインストール処理
-シンボリックリンク
-ハードリンク
-setuid
-setgid
-複数アプリケーションを含む単一mpkg
-applicationとbinaryの混在
-manifest未登録ファイル
-署名されていない開発者パッケージ
-```
-
-必要なインストール処理は、将来的に宣言的なmanifestフィールドとして追加します。
-
-## 26. MIMEタイプと命名
-
-MIMEタイプは次とします。
-
-```text
-application/vnd.mochios.mpkg
-```
-
-推奨ファイル名は次です。
-
-```text
-<name>-<version>-<architecture>.mpkg
-```
-
-例:
-
-```text
-coreutils-0.1.0-x86_64.mpkg
-Example-1.0.0-x86_64.mpkg
-fonts-1.0.0-any.mpkg
-```
-
-ファイル名は識別や信頼の根拠には使用しません。
-
-パッケージの正式な識別には、manifest内の`package.id`を使用します。
+従来の Kome 用 `msign keygen`、`msign sign`、`msign verify` は互換性のため残して
+あります。開発 fixture は `tools/devkit/fixtures/development/` にあり、製品用 Root
+秘密鍵は repository や通常 build 環境へ置きません。
+
+## 11. 未実装事項
+
+- Zstandard 展開
+- 既存 package の atomic upgrade、rollback、uninstall
+- intermediate CA
+- online time source による起動後の期限再評価
+- Unicode normalization と case-fold collision 検査
+- optional Capability request
+
+これらは現行 v1 の成功条件として扱いません。

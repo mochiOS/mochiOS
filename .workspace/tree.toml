@@ -471,3 +471,11 @@ path = "core"
 hash = "01d8538bc4a27b06d47c1b1c39a5cb249e45c52a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: preserve filesystem create errno"
+
+[[entries]]
+date = "2026-07-26T20:20:19.595260314+09:00"
+snapshot = "bd724dd4d7bf7b4fc2116f89"
+path = "services"
+hash = "dc643476f6648ba88588e6885c852a6b9b840050"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "security: harden package verification and install"

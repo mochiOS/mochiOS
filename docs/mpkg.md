@@ -1,6 +1,6 @@
 # mochiOS Package Format
 
-> **実装状況:** この文書には目標仕様を含みます。Root Certificate、Developer Certificateの証明書形式、チェーン検証および失効確認は未実装です。現在のコードが行う検証は[mochiOSの証明書と署名検証](certificates.md)を参照してください。
+> **正本文書:** `.mpkg`のコンテナ形式、manifest、配置規則および検証手順はこの文書を正本とします。Root Certificate、Developer Certificate、証明書チェーンおよび失効確認の実装状況は[mochiOSの証明書と署名検証](certificates.md)を参照してください。
 
 ## 1. 概要
 

@@ -1,7 +1,7 @@
 /.idea/**
 .repo/
 .config
-
+memo/
 out/
 scripts/config/config.env
 scripts/config/config.mk

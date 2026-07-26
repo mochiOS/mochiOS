@@ -1,7 +1,7 @@
 # mochiOSの証明書と署名検証
 
-この文書は、mochiOSにおけるRoot CertificateとDeveloper Certificateの**現在の実装**を説明します。
-将来仕様を記した[mpkg形式](mpkg.md)および[パッケージ概要](packages.md)とは区別し、2026年7月時点のコードを正本とします。
+この文書は、mochiOSにおけるRoot CertificateとDeveloper Certificateの**現在の実装状況**を説明します。
+パッケージ形式の正本は[mochiOS Package Format](mpkg.md)です。この文書では、同仕様のうち証明書関連で実装済みの範囲と未実装の範囲を、2026年7月時点のコードに基づいて明確にします。
 
 ## 結論
 
@@ -160,7 +160,7 @@ manifest.sig
 
 ### 既存文書との関係
 
-`docs/mpkg.md`にはDeveloper Certificate、証明書チェーン、失効状態、`CertificateAllowed`によるCapability制限が記載されています。これらは目標仕様であり、現在の`signature.service`には未実装です。
+`docs/mpkg.md`は、Developer Certificate、証明書チェーン、失効状態、`CertificateAllowed`によるCapability制限をパッケージ形式の要件として定めています。現在の`signature.service`はこのうち証明書チェーン、失効確認、Capability上限をまだ実装していません。
 
 Root Certificateを実装する際は、少なくとも次を仕様として固定する必要があります。
 

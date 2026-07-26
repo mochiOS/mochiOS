@@ -11,6 +11,7 @@ ENV_DEBUG_QEMU_GUI_SET=0
 ENV_DEBUG_QEMU_DEBUG_SET=0
 ENV_DEBUG_QEMU_REQUIRE_USB_SET=0
 ENV_DEBUG_QEMU_VIRTIO_GPU_SET=0
+ENV_QEMU_GPU_BACKEND_SET=0
 ENV_DRIVER_XHCI_SET=0
 if [[ -v DEBUG_QEMU_KVM ]]; then ENV_DEBUG_QEMU_KVM_SET=1; ENV_DEBUG_QEMU_KVM="${DEBUG_QEMU_KVM}"; fi
 if [[ -v DEBUG_QEMU_CPU ]]; then ENV_DEBUG_QEMU_CPU_SET=1; ENV_DEBUG_QEMU_CPU="${DEBUG_QEMU_CPU}"; fi
@@ -19,6 +20,7 @@ if [[ -v DEBUG_QEMU_GUI ]]; then ENV_DEBUG_QEMU_GUI_SET=1; ENV_DEBUG_QEMU_GUI="$
 if [[ -v DEBUG_QEMU_DEBUG ]]; then ENV_DEBUG_QEMU_DEBUG_SET=1; ENV_DEBUG_QEMU_DEBUG="${DEBUG_QEMU_DEBUG}"; fi
 if [[ -v DEBUG_QEMU_REQUIRE_USB ]]; then ENV_DEBUG_QEMU_REQUIRE_USB_SET=1; ENV_DEBUG_QEMU_REQUIRE_USB="${DEBUG_QEMU_REQUIRE_USB}"; fi
 if [[ -v DEBUG_QEMU_VIRTIO_GPU ]]; then ENV_DEBUG_QEMU_VIRTIO_GPU_SET=1; ENV_DEBUG_QEMU_VIRTIO_GPU="${DEBUG_QEMU_VIRTIO_GPU}"; fi
+if [[ -v QEMU_GPU_BACKEND ]]; then ENV_QEMU_GPU_BACKEND_SET=1; ENV_QEMU_GPU_BACKEND="${QEMU_GPU_BACKEND}"; fi
 if [[ -v DRIVER_XHCI ]]; then ENV_DRIVER_XHCI_SET=1; ENV_DRIVER_XHCI="${DRIVER_XHCI}"; fi
 if [[ -f "${CONFIG_FILE}" ]]; then
     # shellcheck disable=SC1090
@@ -31,6 +33,7 @@ if [[ "${ENV_DEBUG_QEMU_GUI_SET}" == "1" ]]; then DEBUG_QEMU_GUI="${ENV_DEBUG_QE
 if [[ "${ENV_DEBUG_QEMU_DEBUG_SET}" == "1" ]]; then DEBUG_QEMU_DEBUG="${ENV_DEBUG_QEMU_DEBUG}"; fi
 if [[ "${ENV_DEBUG_QEMU_REQUIRE_USB_SET}" == "1" ]]; then DEBUG_QEMU_REQUIRE_USB="${ENV_DEBUG_QEMU_REQUIRE_USB}"; fi
 if [[ "${ENV_DEBUG_QEMU_VIRTIO_GPU_SET}" == "1" ]]; then DEBUG_QEMU_VIRTIO_GPU="${ENV_DEBUG_QEMU_VIRTIO_GPU}"; fi
+if [[ "${ENV_QEMU_GPU_BACKEND_SET}" == "1" ]]; then QEMU_GPU_BACKEND="${ENV_QEMU_GPU_BACKEND}"; fi
 if [[ "${ENV_DRIVER_XHCI_SET}" == "1" ]]; then DRIVER_XHCI="${ENV_DRIVER_XHCI}"; fi
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
 RUN_ID="workspace-$(date +%s)-$$"
@@ -53,6 +56,7 @@ else
 fi
 QEMU_CPU="${DEBUG_QEMU_CPU:-qemu64}"
 QEMU_SMP="${DEBUG_QEMU_SMP:-1}"
+QEMU_GPU_BACKEND="${QEMU_GPU_BACKEND:-2d}"
 
 die() {
     echo "fatal: $*" >&2
@@ -82,6 +86,10 @@ case "${QEMU_ACCEL}" in
         ;;
     tcg) ;;
     *) die "QEMU_ACCELERATOR must be 'kvm' or 'tcg': ${QEMU_ACCEL}" ;;
+esac
+case "${QEMU_GPU_BACKEND}" in
+    2d | virgl) ;;
+    *) die "QEMU_GPU_BACKEND must be '2d' or 'virgl': ${QEMU_GPU_BACKEND}" ;;
 esac
 
 need_cmd qemu-system-x86_64
@@ -132,9 +140,11 @@ QEMU_ARGS=(
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
     need_cmd nc
-    QEMU_ARGS+=(
-        -device "virtio-gpu-pci,id=virtio-gpu"
-    )
+    if [[ "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
+        QEMU_ARGS+=(-device "virtio-gpu-gl-pci,id=virtio-gpu")
+    else
+        QEMU_ARGS+=(-device "virtio-gpu-pci,id=virtio-gpu")
+    fi
 fi
 
 if [[ "${ENABLE_XHCI}" == "1" ]]; then
@@ -146,12 +156,18 @@ fi
 
 if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     GUI_MODE=0
-    QEMU_ARGS+=(-display none)
+    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" && "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
+        QEMU_ARGS+=(-display egl-headless)
+    else
+        QEMU_ARGS+=(-display none)
+    fi
     if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
         QEMU_ARGS+=(-monitor "unix:${MONITOR_SOCKET},server=on,wait=off")
     else
         QEMU_ARGS+=(-monitor none)
     fi
+elif [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" && "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
+    QEMU_ARGS+=(-display gtk,gl=on)
 fi
 
 if [[ "${DEBUG_QEMU_DEBUG:-n}" == "y" || "${DEBUG:-0}" != "0" ]]; then
@@ -195,7 +211,7 @@ hmp_command() {
 }
 
 start_qemu() {
-    echo "[run] qemu accelerator=${QEMU_ACCEL}"
+    echo "[run] qemu accelerator=${QEMU_ACCEL} gpu=${QEMU_GPU_BACKEND}"
     qemu-system-x86_64 "${QEMU_ARGS[@]}" > >(tee -a "${SERIAL_LOG}") 2>&1 &
     QEMU_PID=$!
 }
@@ -333,6 +349,10 @@ if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
         grep -E "backend=|using framebuffer fallback" | tail -n 1)"
     [[ "${LAST_DISPLAY_BACKEND}" == *"backend=virtio-gpu"* ]] ||
         die "display.driver did not select the virtio-gpu backend; see ${DISPLAY_LOG}"
+    if [[ "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
+        grep -Fq "display.driver: virgl capset=" "${DISPLAY_LOG}" ||
+            die "display.driver did not negotiate a virgl capset; see ${DISPLAY_LOG}"
+    fi
 fi
 
 "${SCRIPT_DIR}/check-smoke-logs.sh" \

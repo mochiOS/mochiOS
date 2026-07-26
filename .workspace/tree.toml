@@ -439,3 +439,11 @@ path = "services"
 hash = "a2c6def076feb03da13c5d79f3db3438faecfd05"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: add active compositor window styling"
+
+[[entries]]
+date = "2026-07-26T11:12:04.050073805+09:00"
+snapshot = "3a4aa7a826cc2b2c9b7ac550"
+path = "services"
+hash = "5b5827c7c66c69f512e4fd4744602fc7ffbb1305"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: negotiate virgl gpu contexts"

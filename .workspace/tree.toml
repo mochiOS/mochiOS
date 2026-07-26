@@ -479,3 +479,11 @@ path = "services"
 hash = "dc643476f6648ba88588e6885c852a6b9b840050"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "security: harden package verification and install"
+
+[[entries]]
+date = "2026-07-26T21:15:42.549954105+09:00"
+snapshot = "951167999559b83027b81577"
+path = "build"
+hash = "6b9a4b58c458aed3928e3d81d4c7484990aad7a9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: enable virtio network driver"

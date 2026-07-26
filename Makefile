@@ -1,8 +1,10 @@
 SCRIPTS	= $(shell pwd)/scripts
 OUT		= $(shell pwd)/out
 MWS		= $(shell pwd)/tools/mws
+RELEASE_DIR	= $(OUT)/releases
+RELEASE_IMAGE	= $(RELEASE_DIR)/mochiOS.img
 
-.PHONY: all build full build-cached run smoke-log-test smoke-test smoke-test-kvm smoke-test-tcg ext2-write-test ext2-write-test-tcg clean olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached release run smoke-log-test smoke-test smoke-test-kvm smoke-test-tcg ext2-write-test ext2-write-test-tcg clean olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -29,6 +31,11 @@ full: olddefconfig
 
 build-cached: olddefconfig
 	@$(SCRIPTS)/build.sh --cached
+
+release: full
+	@mkdir -p $(RELEASE_DIR)
+	@install -m 0644 $(OUT)/artifacts/disk.img $(RELEASE_IMAGE)
+	@echo "[done] release image: $(RELEASE_IMAGE)"
 
 fonts:
 	@$(MAKE) -C libraries/fonts fonts

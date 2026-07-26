@@ -423,3 +423,11 @@ path = "user"
 hash = "b1fc01b3c90aa434574b64a6b402d48bb06377d2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover virtio gpu backing entries"
+
+[[entries]]
+date = "2026-07-26T10:01:26.671853816+09:00"
+snapshot = "ad1c190609252c9b517557d7"
+path = "core"
+hash = "9875d0271490264992b4b4462006266ee2035b54"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: preserve SIMD state across context switches"

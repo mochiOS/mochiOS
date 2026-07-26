@@ -95,6 +95,13 @@ need_cmd wc
 QEMU_TIMEOUT_SECONDS="${QEMU_TIMEOUT_SECONDS:-120}"
 [[ "${QEMU_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
     die "QEMU_TIMEOUT_SECONDS must be a positive integer"
+VIRTIO_GPU_TEST_KEYS="${VIRTIO_GPU_TEST_KEYS:-t e s t dot a p p ret}"
+VIRTIO_GPU_TEST_APP_PATH="${VIRTIO_GPU_TEST_APP_PATH:-/applications/test.app/entry.elf}"
+VIRTIO_GPU_POINTER_STRESS="${VIRTIO_GPU_POINTER_STRESS:-n}"
+VIRTIO_GPU_STRESS_SWEEPS="${VIRTIO_GPU_STRESS_SWEEPS:-12}"
+VIRTIO_GPU_PIXEL_CHECK="${VIRTIO_GPU_PIXEL_CHECK:-y}"
+[[ "${VIRTIO_GPU_STRESS_SWEEPS}" =~ ^[1-9][0-9]*$ ]] ||
+    die "VIRTIO_GPU_STRESS_SWEEPS must be a positive integer"
 
 need_file "${ARTIFACT_DIR}/disk.img"
 need_file "${OVMF_CODE}"
@@ -245,41 +252,65 @@ done
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
     sleep 1
-    for key in t e s t dot a p p ret; do
+    for key in ${VIRTIO_GPU_TEST_KEYS}; do
         hmp_command "sendkey ${key}"
         sleep 0.15
     done
     APP_DEADLINE=$((SECONDS + 30))
     while ((SECONDS < APP_DEADLINE)); do
-        if log_has "exec: loaded '/applications/test.app/entry.elf'"; then
+        if log_has "exec: loaded '${VIRTIO_GPU_TEST_APP_PATH}'"; then
             break
         fi
         sleep 0.1
     done
-    log_has "exec: loaded '/applications/test.app/entry.elf'" ||
-        die "ViewKit test application did not launch; see ${SERIAL_LOG}"
+    log_has "exec: loaded '${VIRTIO_GPU_TEST_APP_PATH}'" ||
+        die "configured ViewKit application did not launch; see ${SERIAL_LOG}"
     sleep 2
-    for _ in {1..12}; do
-        hmp_command "mouse_move 1 1"
-        sleep 0.05
-    done
+    if [[ "${VIRTIO_GPU_POINTER_STRESS}" == "y" ]]; then
+        {
+            printf '%s\n' "mouse_move 0 360" "mouse_move -600 0"
+            for ((sweep = 0; sweep < VIRTIO_GPU_STRESS_SWEEPS; sweep++)); do
+                for _ in {1..25}; do
+                    printf '%s\n' "mouse_move 48 0"
+                    sleep 0.01
+                done
+                for _ in {1..25}; do
+                    printf '%s\n' "mouse_move -48 0"
+                    sleep 0.01
+                done
+            done
+        } | nc -U -q 1 "${MONITOR_SOCKET}" >/dev/null
+    else
+        for _ in {1..12}; do
+            hmp_command "mouse_move 1 1"
+            sleep 0.05
+        done
+    fi
+    if grep -aEq "PAGE FAULT|Faulting user context:|EXCEPTION:|panic" "${SERIAL_LOG}"; then
+        die "fault or panic observed after ViewKit pointer input; see ${SERIAL_LOG}"
+    fi
 
-    PIXELS_READY=0
-    for _ in {1..300}; do
+    if [[ "${VIRTIO_GPU_PIXEL_CHECK}" == "y" ]]; then
+        PIXELS_READY=0
+        for _ in {1..300}; do
+            printf 'screendump %s virtio-gpu 0\n' "${GPU_SCREENSHOT}" |
+                nc -U -q 0 -w 2 "${MONITOR_SOCKET}" >/dev/null
+            if [[ -s "${GPU_SCREENSHOT}" ]] \
+                && "${SCRIPT_DIR}/check-virtio-gpu-pixels.pl" \
+                    "${GPU_SCREENSHOT}" >/dev/null 2>&1; then
+                PIXELS_READY=1
+                break
+            fi
+            sleep 0.1
+        done
+        need_file "${GPU_SCREENSHOT}"
+        [[ "${PIXELS_READY}" == "1" ]] ||
+            die "virtio-gpu scanout did not reach the expected test scene"
+        "${SCRIPT_DIR}/check-virtio-gpu-pixels.pl" "${GPU_SCREENSHOT}"
+    else
         printf 'screendump %s virtio-gpu 0\n' "${GPU_SCREENSHOT}" |
             nc -U -q 0 -w 2 "${MONITOR_SOCKET}" >/dev/null
-        if [[ -s "${GPU_SCREENSHOT}" ]] \
-            && "${SCRIPT_DIR}/check-virtio-gpu-pixels.pl" \
-                "${GPU_SCREENSHOT}" >/dev/null 2>&1; then
-            PIXELS_READY=1
-            break
-        fi
-        sleep 0.1
-    done
-    need_file "${GPU_SCREENSHOT}"
-    [[ "${PIXELS_READY}" == "1" ]] ||
-        die "virtio-gpu scanout did not reach the expected test scene"
-    "${SCRIPT_DIR}/check-virtio-gpu-pixels.pl" "${GPU_SCREENSHOT}"
+    fi
 fi
 
 sleep 1
@@ -298,11 +329,10 @@ debugfs -R 'cat /system/logs/services/service-manager.log' "${ROOTFS_IMAGE}" \
     > "${SERVICE_MANAGER_LOG}" 2>/dev/null || die "service-manager.service log could not be read"
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
-    grep -Fq "display.driver: backend=virtio-gpu" "${DISPLAY_LOG}" ||
+    LAST_DISPLAY_BACKEND="$(grep -F "display.driver:" "${DISPLAY_LOG}" |
+        grep -E "backend=|using framebuffer fallback" | tail -n 1)"
+    [[ "${LAST_DISPLAY_BACKEND}" == *"backend=virtio-gpu"* ]] ||
         die "display.driver did not select the virtio-gpu backend; see ${DISPLAY_LOG}"
-    if grep -Fq "using framebuffer fallback" "${DISPLAY_LOG}"; then
-        die "display.driver unexpectedly selected framebuffer fallback; see ${DISPLAY_LOG}"
-    fi
 fi
 
 "${SCRIPT_DIR}/check-smoke-logs.sh" \

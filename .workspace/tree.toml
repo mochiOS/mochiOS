@@ -407,3 +407,11 @@ path = "services"
 hash = "541e7e991f51c9dc3f3cd6ae51939b35b78cc55c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: clean up partial virtio gpu initialization"
+
+[[entries]]
+date = "2026-07-26T09:17:17.403330898+09:00"
+snapshot = "62d92389108b0f17ac33fe27"
+path = "services"
+hash = "5e8eaa6d10c014afe06048e5a0cc8cf8c6ff8d4b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover display frame validation"

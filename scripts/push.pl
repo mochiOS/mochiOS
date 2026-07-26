@@ -18,6 +18,7 @@ if ($? != 0) {
     die "error: repoからプロジェクト情報を取得できませんでした\n";
 }
 
+my @targets;
 for my $line (@projects) {
     chomp $line;
 
@@ -28,6 +29,10 @@ for my $line (@projects) {
 
     $revision //= '';
     $revision =~ s{^refs/heads/}{};
+    if ($revision eq '') {
+        print STDERR "[error] $path: push先branchを特定できません\n";
+        next;
+    }
 
     $remote ||= 'github';
 
@@ -41,49 +46,60 @@ for my $line (@projects) {
         }
     }
 
-    while (1) {
-        print "\n";
-        print "[$project]\n";
-        print "  path:   $path\n";
-        print "  push:   HEAD -> $remote/$revision\n";
-        print "pushしますか？ [Y/n]: ";
+    next unless git_needs_push($path, $remote, $revision);
+    push @targets, {
+        project  => $project,
+        path     => $path,
+        remote   => $remote,
+        revision => $revision,
+    };
+}
 
-        my $answer = <STDIN>;
+if (!@targets) {
+    print "push対象のリポジトリはありません\n";
+    exit 0;
+}
 
-        if (!defined $answer) {
-            print "\n入力が終了したため中断します\n";
-            exit 1;
-        }
+print "push対象のリポジトリ:\n";
+for my $target (@targets) {
+    print "  $target->{project} ($target->{path}) -> $target->{remote}/$target->{revision}\n";
+}
 
-        chomp $answer;
-        $answer =~ s/^\s+|\s+$//g;
-        $answer = lc $answer;
+while (1) {
+    print "\n上記", scalar(@targets), "リポジトリをpushしますか？ [Y/n]: ";
 
-        if ($answer eq '' || $answer eq 'y' || $answer eq 'yes') {
-            print "[push] $path -> $remote/$revision\n";
+    my $answer = <STDIN>;
+    if (!defined $answer) {
+        print "\n入力が終了したため中断します\n";
+        exit 1;
+    }
 
-            my $result = system(
-                'git',
-                '-C', $path,
-                'push',
-                $remote,
-                "HEAD:refs/heads/$revision",
-            );
+    chomp $answer;
+    $answer =~ s/^\s+|\s+$//g;
+    $answer = lc $answer;
 
-            if ($result != 0) {
-                print STDERR "[error] $path のpushに失敗しました\n";
-                exit 1;
-            }
+    if ($answer eq 'n' || $answer eq 'no') {
+        print "[cancel] pushを中断しました\n";
+        exit 0;
+    }
+    last if $answer eq '' || $answer eq 'y' || $answer eq 'yes';
+    print "y、n、または空欄で入力してください\n";
+}
 
-            last;
-        }
+for my $target (@targets) {
+    print "[push] $target->{path} -> $target->{remote}/$target->{revision}\n";
 
-        if ($answer eq 'n' || $answer eq 'no') {
-            print "[skip] $path\n";
-            last;
-        }
+    my $result = system(
+        'git',
+        '-C', $target->{path},
+        'push',
+        $target->{remote},
+        "HEAD:refs/heads/$target->{revision}",
+    );
 
-        print "y、n、または空欄で入力してください\n";
+    if ($result != 0) {
+        print STDERR "[error] $target->{path} のpushに失敗しました\n";
+        exit 1;
     }
 }
 
@@ -91,12 +107,32 @@ print "\n[done] 処理が完了しました\n";
 
 sub git_remote_exists {
     my ($path, $remote) = @_;
+    my $remotes = git_output('git', '-C', $path, 'remote');
+    return 0 unless defined $remotes;
+    return scalar grep { $_ eq $remote } split /\n/, $remotes;
+}
 
-    return system(
-        'git',
-        '-C', $path,
-        'remote',
-        'get-url',
-        $remote,
-    ) == 0;
+sub git_needs_push {
+    my ($path, $remote, $revision) = @_;
+    my $remote_ref = "$remote/$revision";
+    my $remote_head =
+        git_output('git', '-C', $path, 'rev-parse', '--verify', '--quiet', $remote_ref);
+    return 1 unless defined $remote_head;
+
+    my $count = git_output(
+        'git', '-C', $path,
+        'rev-list', '--count', "$remote_ref..HEAD",
+    );
+    return !defined($count) || $count =~ /^[1-9][0-9]*$/;
+}
+
+sub git_output {
+    my (@command) = @_;
+    open my $fh, '-|', @command or return undef;
+    local $/;
+    my $output = <$fh>;
+    close $fh or return undef;
+    $output //= '';
+    $output =~ s/\s+\z//;
+    return $output;
 }

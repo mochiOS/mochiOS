@@ -191,8 +191,10 @@ path = "$/entry.elf"
 3. 検証済みの `manifest.toml` を最後に配置
 
 manifest を activation marker とし、Capability resolver は manifest digest と
-`verification.bin` を再照合します。途中失敗した orphan file の自動 rollback は、
-ext2 の remove/rename 実装後の課題です。orphan は有効なインストールとして扱いません。
+`verification.bin` を再照合します。各ファイルは `O_CREAT | O_EXCL` で新規作成し、
+途中で失敗した場合は、その要求で作成済みのpayloadとverification recordを逆順に
+削除します。空の親directoryが残る場合はありますが、manifestが存在しないため
+有効なインストールとして扱いません。
 
 ## 9. verification.bin
 
@@ -226,10 +228,13 @@ msign package verify
 あります。開発 fixture は `tools/devkit/fixtures/development/` にあり、製品用 Root
 秘密鍵は repository や通常 build 環境へ置きません。
 
+サンプルMPKG生成器は一時鍵を生成しません。署名前のコンテナだけを決定的に作り、
+`msign package sign`が開発用Developer Certificateと対応する鍵で署名します。
+
 ## 11. 未実装事項
 
 - Zstandard 展開
-- 既存 package の atomic upgrade、rollback、uninstall
+- 既存 package の atomic upgrade、uninstall
 - intermediate CA
 - online time source による起動後の期限再評価
 - Unicode normalization と case-fold collision 検査

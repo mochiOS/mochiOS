@@ -76,15 +76,9 @@ length($binary_path) && $binary_path =~ m{^/} or die "binary path must be absolu
 my $tmpdir = tempdir(CLEANUP => 1);
 my $pkg_root = "$tmpdir/pkg";
 my $payload_root = "$pkg_root/payload/root";
-my $signatures_root = "$pkg_root/signatures";
-my $private_key = "$tmpdir/ed25519.key";
-my $pub_der = "$tmpdir/pub.der";
-my $digest = "$tmpdir/digest.bin";
-my $message = "$tmpdir/message.bin";
-my $sig = "$tmpdir/manifest.sig";
 my $tarfile = "$tmpdir/payload.tar";
 
-make_path("$payload_root", "$signatures_root") or die "failed to create package root\n";
+make_path($payload_root) or die "failed to create package root\n";
 
 my $payload_path = $payload_root . $binary_path;
 my $payload_dir = dirname($payload_path);
@@ -128,52 +122,6 @@ kind = "application"
 EOF
 close($manifest_fh) or die "failed to close manifest\n";
 
-run_cmd('openssl', 'genpkey', '-algorithm', 'ed25519', '-out', $private_key);
-my $pubout = run_cmd_capture('openssl', 'pkey', '-in', $private_key, '-pubout', '-outform', 'DER');
-length($pubout) >= 32 or die "public key output too short\n";
-open(my $pub_fh, '>', $pub_der) or die "failed to open pub der\n";
-binmode($pub_fh) or die "failed to set binary mode on pub der\n";
-print {$pub_fh} $pubout or die "failed to write pub der\n";
-close($pub_fh) or die "failed to close pub der\n";
-
-run_cmd('openssl', 'dgst', '-sha256', '-binary', '-out', $digest, "$pkg_root/manifest.toml");
-open(my $msg_fh, '>', $message) or die "failed to open message\n";
-binmode($msg_fh) or die "failed to set binary mode on message\n";
-print {$msg_fh} "mochios-mpkg-manifest-v1\0" or die "failed to write prefix\n";
-open(my $digest_fh, '<', $digest) or die "failed to open digest\n";
-binmode($digest_fh) or die "failed to set binary mode on digest\n";
-local $/;
-my $digest_bytes = <$digest_fh>;
-close($digest_fh) or die "failed to close digest\n";
-print {$msg_fh} $digest_bytes or die "failed to write digest\n";
-close($msg_fh) or die "failed to close message\n";
-
-run_cmd(
-    'openssl', 'pkeyutl',
-    '-sign',
-    '-rawin',
-    '-inkey', $private_key,
-    '-in', $message,
-    '-out', $sig,
-);
-
-open(my $sig_fh, '<', $sig) or die "failed to open signature\n";
-binmode($sig_fh) or die "failed to set binary mode on signature\n";
-local $/;
-my $sig_bytes = <$sig_fh>;
-close($sig_fh) or die "failed to close signature\n";
-length($sig_bytes) == 64 or die "unexpected signature length\n";
-
-open(my $cert_fh, '>', "$signatures_root/developer.cert") or die "failed to open cert\n";
-binmode($cert_fh) or die "failed to set binary mode on cert\n";
-print {$cert_fh} substr($pubout, -32) or die "failed to write cert\n";
-close($cert_fh) or die "failed to close cert\n";
-
-open(my $manifest_sig_fh, '>', "$signatures_root/manifest.sig") or die "failed to open manifest sig\n";
-binmode($manifest_sig_fh) or die "failed to set binary mode on manifest sig\n";
-print {$manifest_sig_fh} $sig_bytes or die "failed to write manifest sig\n";
-close($manifest_sig_fh) or die "failed to close manifest sig\n";
-
 my $output_dir = dirname($output);
 if (defined $output_dir && length($output_dir) && !-d $output_dir) {
     make_path($output_dir) or die "failed to create output dir: $!\n";
@@ -191,8 +139,6 @@ run_cmd(
     '-cf',
     $tarfile,
     'manifest.toml',
-    'signatures/manifest.sig',
-    'signatures/developer.cert',
     $payload_rel,
 );
 

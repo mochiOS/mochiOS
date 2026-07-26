@@ -1195,7 +1195,7 @@ my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk test_gui test_de
 push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
 
-for my $cmd (qw(cargo cp install mcopy mke2fs mkfs.fat mmd openssl perl tar repo sha256sum sfdisk truncate dd find sort)) {
+for my $cmd (qw(cargo cp install mcopy mke2fs mkfs.fat mmd perl tar repo sha256sum sfdisk truncate dd find sort)) {
     need_cmd($cmd);
 }
 

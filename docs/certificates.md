@@ -102,6 +102,8 @@ MOCHIOS_REVOKED_CERTIFICATE_SERIALS=12,38,105
 
 IPCの1メッセージ上限に合わせ、`package.service`が保持するMPKG bytesを`VERIFY_BEGIN`、連番offset付き`VERIFY_CHUNK`、`VERIFY_FINISH`で転送します。`signature.service`はパスを受け取らずファイルを再オープンしません。検証対象とインストール対象は同じ`Vec<u8>`です。各chunkは応答でflow controlされ、全体長とpackage digestも照合します。
 
+`signature.service`はIPC senderの所有プロセスに`package.install`が付与されていることをカーネルへ照会し、権限のない直接検証要求を拒否します。通常経路ではこの権限を持つ`package.service`が、読み込んだ同一のMPKG bytesを検証へ送ります。
+
 検証結果は`/system/packages/<package-id>/verification.bin`へ保存します。`capability.service`はmanifest digestとPackage IDを再確認し、要求Capabilityが証明書のallowed Capabilityに完全一致しなければ拒否します。現行manifestの`requires`はすべて必須要求なので、許可されない要求を黙って除去しません。
 
 ## msign

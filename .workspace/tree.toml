@@ -455,3 +455,11 @@ path = "libraries/viewkit"
 hash = "6aec344d00b61b5673264d3030bf80a7def2332a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "perf: skip clean ViewKit clip masks"
+
+[[entries]]
+date = "2026-07-26T16:02:45.107996146+09:00"
+snapshot = "a7584060720bc99b981536ba"
+path = "applications/binder"
+hash = "326bebf652d17d912bb799ae7008a58b9cc97f52"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: match compositor decorations to Binder"

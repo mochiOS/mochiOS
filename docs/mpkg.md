@@ -1,5 +1,7 @@
 # mochiOS Package Format
 
+> **実装状況:** この文書には目標仕様を含みます。Root Certificate、Developer Certificateの証明書形式、チェーン検証および失効確認は未実装です。現在のコードが行う検証は[mochiOSの証明書と署名検証](certificates.md)を参照してください。
+
 ## 1. 概要
 
 `.mpkg`は、mochiOSへアプリケーションまたはシステムコンポーネントを配布・インストールするためのパッケージ形式です。

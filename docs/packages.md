@@ -1,5 +1,7 @@
 # Package and mpkg Format
 
+> **実装状況:** 証明書と信頼チェーンに関する記述には目標仕様を含みます。現在の実装範囲と制約は[mochiOSの証明書と署名検証](certificates.md)を参照してください。
+
 mochiOS では、アプリケーション、サービス、ドライバを「パッケージ単位」で扱います。
 実行バイナリと個別の `.toml` を `/bin` 直下へ並べる方式は廃止し、信頼情報と配布情報は
 `/system/packages/<package>/manifest.toml` に集約します。
@@ -183,4 +185,3 @@ process_spawn
 - driver/service ごとの分散した署名判定
 
 今後は、パッケージ単位の manifest と `.mpkg` を正規の入力にします。
-

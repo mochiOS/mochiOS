@@ -57,6 +57,14 @@ fi
 QEMU_CPU="${DEBUG_QEMU_CPU:-qemu64}"
 QEMU_SMP="${DEBUG_QEMU_SMP:-1}"
 QEMU_GPU_BACKEND="${QEMU_GPU_BACKEND:-2d}"
+QEMU_GL_DISPLAY="${QEMU_GL_DISPLAY:-auto}"
+DRM_RENDER_NODE=""
+for candidate in /dev/dri/renderD*; do
+    if [[ -r "${candidate}" && -w "${candidate}" ]]; then
+        DRM_RENDER_NODE="${candidate}"
+        break
+    fi
+done
 
 die() {
     echo "fatal: $*" >&2
@@ -90,6 +98,10 @@ esac
 case "${QEMU_GPU_BACKEND}" in
     2d | virgl) ;;
     *) die "QEMU_GPU_BACKEND must be '2d' or 'virgl': ${QEMU_GPU_BACKEND}" ;;
+esac
+case "${QEMU_GL_DISPLAY}" in
+    auto | egl-headless | gtk | sdl) ;;
+    *) die "QEMU_GL_DISPLAY must be 'auto', 'egl-headless', 'gtk', or 'sdl': ${QEMU_GL_DISPLAY}" ;;
 esac
 
 need_cmd qemu-system-x86_64
@@ -157,7 +169,18 @@ fi
 if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     GUI_MODE=0
     if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" && "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
-        QEMU_ARGS+=(-display egl-headless)
+        if [[ "${QEMU_GL_DISPLAY}" == "auto" ]]; then
+            if [[ -n "${DRM_RENDER_NODE}" ]]; then
+                QEMU_GL_DISPLAY="egl-headless"
+            else
+                die "headless virgl requires an accessible DRM render node; no usable /dev/dri/renderD* was found (set QEMU_GL_DISPLAY=gtk only for an explicit desktop GL run)"
+            fi
+        fi
+        case "${QEMU_GL_DISPLAY}" in
+            egl-headless) QEMU_ARGS+=(-display egl-headless) ;;
+            gtk) QEMU_ARGS+=(-display gtk,gl=on) ;;
+            sdl) QEMU_ARGS+=(-display sdl,gl=on) ;;
+        esac
     else
         QEMU_ARGS+=(-display none)
     fi
@@ -211,7 +234,7 @@ hmp_command() {
 }
 
 start_qemu() {
-    echo "[run] qemu accelerator=${QEMU_ACCEL} gpu=${QEMU_GPU_BACKEND}"
+    echo "[run] qemu accelerator=${QEMU_ACCEL} gpu=${QEMU_GPU_BACKEND} gl-display=${QEMU_GL_DISPLAY}"
     qemu-system-x86_64 "${QEMU_ARGS[@]}" > >(tee -a "${SERIAL_LOG}") 2>&1 &
     QEMU_PID=$!
 }

@@ -391,3 +391,11 @@ path = "libraries/viewkit"
 hash = "df23bfac0d69cec4bb468b8418d0df76833753ac"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor: split mochios backend responsibilities"
+
+[[entries]]
+date = "2026-07-26T09:12:50.182331243+09:00"
+snapshot = "5240f98d17ca53bf18109d24"
+path = "libraries/viewkit"
+hash = "6d938d97e2f3a849c84fbbf61890743275cce0e3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: destroy mochios compositor surfaces on exit"

@@ -447,3 +447,11 @@ path = "services"
 hash = "5b5827c7c66c69f512e4fd4744602fc7ffbb1305"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: negotiate virgl gpu contexts"
+
+[[entries]]
+date = "2026-07-26T12:00:15.919292248+09:00"
+snapshot = "558a9a571deea128a2b1155c"
+path = "libraries/viewkit"
+hash = "6aec344d00b61b5673264d3030bf80a7def2332a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "perf: skip clean ViewKit clip masks"

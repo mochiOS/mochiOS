@@ -17,11 +17,14 @@
 - DHCPv4 client
 - DHCPで得たDNS serverを使うA record stub resolverとTTL cache
 - outbound専用TCP client（connect、send、receive、close）
+- TLS 1.3 client（Web PKI、SNI、X25519、ChaCha20-Poly1305/AES-128-GCM）
+- TLS上のHTTP/1.1 client（GET、POST、Content-Length、chunked）
 - connected subnetとdefault gatewayのrouting
 
-IPv6、DNS over TCP、DNSSEC、TCP listen/accept、TLS、HTTP、Wi-Fi、実機NIC、NAT、firewall、
-packet forwarding、promiscuous modeは実装していません。DNSの詳細は
-[DNS resolver](network/dns.md)、TCPの詳細は[TCP client](network/tcp.md)を参照してください。
+IPv6、DNS over TCP、DNSSEC、TCP listen/accept、TLS 1.2、HTTP/2、QUIC、Wi-Fi、実機NIC、NAT、
+firewall、packet forwarding、promiscuous modeは実装していません。DNSの詳細は
+[DNS resolver](network/dns.md)、TCPは[TCP client](network/tcp.md)、TLSは
+[TLS 1.3 client](network/tls.md)、HTTPは[HTTP/1.1 client](network/http.md)を参照してください。
 
 ## 2. 責務境界
 
@@ -32,10 +35,10 @@ QEMU virtio-net PCI device
 virtio-net.driver       PCI、feature、DMA、RX/TX virtqueue、Ethernet frame IPC
         |
         v
-network.service         Ethernet、ARP、IPv4、ICMP、UDP、DHCP、DNS、TCP、routing、timer
+network.service         Ethernet、ARP、IPv4、ICMP、UDP、DHCP、DNS、TCP、TLS、HTTP、timer
         |
         v
-net                     ping、resolve、TCP client、統計の診断CLI
+net                     ping、resolve、TCP/TLS/HTTPS、統計の診断CLI
 ```
 
 driverはEthernet payloadより上のprotocolを解釈しません。`network.service`はPCI register、
@@ -95,6 +98,23 @@ scripts/smoke-test.sh
 
 runnerは`virtio-net-pci,disable-legacy=on`とQEMU user networkingを使用します。
 
+通常の`make run`では、QEMU networkingが有効ならhost loopbackのport 20000にTCP echo serverも起動します。
+runnerが次のようにguestから接続するaddressとportを表示します。
+
+```text
+[run] TCP echo server guest=10.0.2.2:20000 mode=persistent
+```
+
+mochiOSのshellから、表示されたportを指定して複数回確認できます。
+
+```text
+/ $ net tcp-send 10.0.2.2 20000 mochios-test
+```
+
+別のportを使用する場合は`QEMU_TCP_ECHO_PORT=23456 make run`、serverを無効にする場合は
+`QEMU_TCP_ECHO_SERVER=n make run`を使用します。Smoke Testでも同じserverを複数接続可能な状態で
+起動し、接続直後のcloseとpayload echoを別々の接続で検証します。
+
 ## 6. 診断
 
 shellからgatewayまたは任意のIPv4 addressへEcho Requestを送信できます。
@@ -112,10 +132,20 @@ Connected to 10.0.2.2:8080 (10.0.2.2)
 / $ net tcp-send 10.0.2.2 8080 mochios-tcp-smoke
 sent=17 received=17 data=mochios-tcp-smoke
 
+/ $ net tls-connect accounts.mochios.org 443
+Connected to accounts.mochios.org:443 (...)
+TLS version: TLS 1.3
+
+/ $ net https-get https://accounts.mochios.org/health
+Status: 200
+Content-Type: application/json
+Body:
+{"service":"accounts","status":"ok"}
+
 / $ net stats
 ```
 
-`net stats`はRX/TX、drop/error、ARP、IPv4 checksum、ICMP、DHCP、DNS、TCPを
+`net stats`はRX/TX、drop/error、ARP、IPv4 checksum、ICMP、DHCP、DNS、TCP、TLS、HTTPを
 表示します。service logは`/system/logs/services/network.log`に保存されます。通常動作では
 packet単位のlogは出さず、interface情報と主要な接続状態だけを記録します。
 
@@ -123,6 +153,10 @@ packet単位のlogは出さず、interface情報と主要な接続状態だけ�
 bounded echo serverへguestから`10.0.2.2`経由で接続します。SYN、SYN+ACK、Established、17 bytesの
 送信、ACK、同一payloadの受信、FIN完了を実状態のlogとserver側byte数で検査します。外部HTTP
 serverには依存しません。
+
+TLS/HTTP専用の決定的検証は`make tls-http-smoke-test`です。test Rootを本番bundleから分離し、
+正常なContent-Length/chunkedと証明書・record・HTTP framingの失敗系を確認します。公開endpointの
+追加検証は`make accounts-https-smoke-test`です。
 
 ## 7. セキュリティ上の制限
 
@@ -135,7 +169,9 @@ serverには依存しません。
 - DNS message/cache/retryとTCP connection/send/receive queue/timerも固定上限です。
 - checksum offload、GSO、multiple queueを受理しないため、software checksumを使用します。
 
-TCP clientはTLSを提供しません。secret、credential、認証tokenを平文で送る用途には使用しません。
+raw TCPの`net.connect`、TLSの`net.tls.connect`、HTTPの`net.http.request`は別Capabilityです。
+Web PKIはDeveloper Certificate用Rootと分離され、UTCまたはCSPRNGが利用不能ならTLSを拒否します。
+raw TCPへsecret、credential、認証tokenを平文で送ってはいけません。
 
 現行のQEMU user networkingは開発・検証用です。実機NIC、外部公開service、firewallは未実装であり、
 この構成を境界networkへ直接接続することは想定していません。

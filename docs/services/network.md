@@ -14,7 +14,9 @@
 - DHCP clientとlease timer
 - DNS resolverとTTL cache
 - outbound TCP connection table、buffer、再送timer
-- application向けPing/DNS/TCP/Statistics IPC
+- TLS 1.3 connection、Web PKI検証、owner、bounded record buffer
+- HTTP/1.1 request/response、bounded header/body、stream read
+- application向けPing/DNS/TCP/TLS/HTTP/Statistics IPC
 
 PCI、MMIO、DMA、virtqueueは扱いません。
 
@@ -53,6 +55,12 @@ IPv4 option、fragment、未知protocolはfail closedで破棄します。UDP ch
 | TCP IPC transfer | 4096 bytes/request |
 | TCP retransmit | 初期500 ms、5 retries、指数backoff |
 | TCP TIME_WAIT | 30 seconds |
+| TLS connection | 16 connections |
+| TLS plaintext | 16 KiB |
+| TLS handshake/certificate chain | 64 KiB |
+| HTTP response handle | 8 responses |
+| HTTP header/body | 16 KiB / 1 MiB |
+| HTTP chunk/trailer | 256 KiB / 8 KiB |
 | 1 loopのRX処理 | 32 frames |
 
 UDP port 0をbindすると49152から65535の範囲で未使用ephemeral portを割り当てます。同じportの
@@ -90,12 +98,15 @@ network-readyを通知します。`status=0`はDHCP boundを表し、将来の�
 - `TcpSend`: handle、bounded payload、timeout。結果はACK済みbyte数。
 - `TcpReceive`: handle、最大長、timeout。結果はpayloadとpeer close flag。
 - `TcpClose`: handle、timeout。FIN handshake開始と完了。
-- `GetStackStatistics`: RX/TX、ARP、IPv4 checksum、ICMP、DHCP統計。
+- `TlsConnect/TlsSend/TlsReceive/TlsClose`: DNS名、TLS owner handle、bounded data、timeout。
+- `HttpRequest/HttpRead/HttpClose`: HTTPS GET/POST、response handle、header/body分割read。
+- `GetStackStatistics/GetSecurityStatistics`: network、TLS、HTTP統計。
 
 request IDはreplyへそのまま返します。magic、version、opcode、declared length、reserved、固定長を
 検証し、余分なbyteは拒否します。connectionはIPC sender threadが所有し、別senderのhandle操作は
-`EACCES`です。`net` CLIのmanifestは`net.connect`と`ipc.client`を要求します。shellからの
-exec chainも親Capabilityの部分集合規則に従って`net.connect`を委譲します。
+`EACCES`です。TLSには`net.tls.connect`、HTTPには`net.http.request`を別に要求します。raw TCPの
+`net.connect`だけでは上位操作を許可しません。`network.service`はTLS用に`system.random.read`と
+`system.time.read`を持ちます。shellからのexec chainも親Capabilityの部分集合規則に従います。
 
 DNSはDHCP Bound後、TCPはIPv4設定後に利用できます。driver IPCが失敗した場合はinterface設定と
 保留packetを破棄し、全TCP connectionを失敗させます。
@@ -111,7 +122,11 @@ gateway ARP、最初のEcho Replyは`/system/logs/services/network.log`に記録
 / $ net resolve localhost
 / $ net tcp-connect 10.0.2.2 8080
 / $ net tcp-send 10.0.2.2 8080 test
+/ $ net tls-connect accounts.mochios.org 443
+/ $ net https-get https://accounts.mochios.org/health
 / $ net stats
 ```
 
-QEMU設定、pcap取得、未対応protocolは[mochiOS Networking](../networking.md)を参照してください。
+TLSの暗号・証明書境界は[TLS 1.3 client](../network/tls.md)、HTTP framingは
+[HTTP/1.1 client](../network/http.md)、QEMU設定とpcapは
+[mochiOS Networking](../networking.md)を参照してください。

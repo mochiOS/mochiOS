@@ -4,7 +4,8 @@
 
 現行実装はIPv4上のoutbound clientだけを提供します。`connect、send、receive、close`に対応し、
 listen、accept、server、IPv6、SACK、window scaling、advanced congestion control、fast retransmit、
-Nagle、keepalive、TLS、HTTPは未対応です。
+Nagle、keepaliveは未対応です。TLSとHTTPはこのclientの上位層として
+[TLS 1.3 client](tls.md)と[HTTP/1.1 client](http.md)に実装します。
 
 ## 状態と識別
 
@@ -21,6 +22,8 @@ Closed -> SynSent -> Established -> FinWait1 -> FinWait2 -> TimeWait -> Closed
 SYNとFINはsequenceを1消費します。ACK範囲はwraparoundを考慮して検証します。duplicate ACKとsegmentを
 識別し、out-of-order payloadはapplicationへ渡さず現在のACKを返して再送を促します。reassembly queueは
 ありません。TIME_WAITは30秒保持し、その間4-tupleとephemeral portを再利用しません。
+peer FIN後の`CloseWait`でも送信halfを維持し、TLS close_notifyなどの残りdataを送信してACKされた後に
+local FINを送ります。
 
 local portは49152から65535で、乱数seedから探索して使用中portとの衝突を避けます。initial sequenceと
 64-bit handleもplatform tokenをseedにします。handle衝突時はboundedな別候補探索を行います。
@@ -69,4 +72,5 @@ tcp_close(handle, timeout)
 SYN+ACK、Established、payload ACK、同一payload受信、FINとserver側の17-byte echoを検査します。
 
 `net stats`はconnection attempt/established/failure、segment send/receive、retransmission、checksum、
-RST、timeout、send/receive dropを表示します。TLSがないためsecretや認証情報を送信してはいけません。
+RST、timeout、send/receive dropを表示します。raw TCPでsecretや認証情報を送信せず、上位TLS APIを
+使用してください。

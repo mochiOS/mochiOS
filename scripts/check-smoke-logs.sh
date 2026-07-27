@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "$#" -ne 5 ]]; then
-    echo "usage: $0 <serial-log> <service-manager-log> <drivers-log> <network-log> <network-client-smoke>" >&2
+if [[ "$#" -lt 5 || "$#" -gt 7 ]]; then
+    echo "usage: $0 <serial-log> <service-manager-log> <drivers-log> <network-log> <network-client-smoke> [tls-http-client-smoke] [accounts-https-smoke]" >&2
     exit 2
 fi
 
@@ -11,6 +11,8 @@ SERVICE_MANAGER_LOG="$2"
 DRIVERS_LOG="$3"
 NETWORK_LOG="$4"
 NETWORK_CLIENT_SMOKE="$5"
+TLS_HTTP_CLIENT_SMOKE="${6:-0}"
+ACCOUNTS_HTTPS_SMOKE="${7:-0}"
 
 die() {
     echo "fatal: $*" >&2
@@ -20,6 +22,14 @@ die() {
 case "${NETWORK_CLIENT_SMOKE}" in
     0|1) ;;
     *) die "network-client-smoke must be 0 or 1" ;;
+esac
+case "${TLS_HTTP_CLIENT_SMOKE}" in
+    0|1) ;;
+    *) die "tls-http-client-smoke must be 0 or 1" ;;
+esac
+case "${ACCOUNTS_HTTPS_SMOKE}" in
+    0|1) ;;
+    *) die "accounts-https-smoke must be 0 or 1" ;;
 esac
 
 for log in "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}"; do
@@ -42,6 +52,18 @@ require_once() {
         die "duplicate log '${label}': lines=$(printf '%s,' "${lines[@]%%:*}" | sed 's/,$//') pattern='${pattern}' file=${file}"
     fi
     printf '%s\n' "${lines[0]%%:*}"
+}
+
+require_count() {
+    local label="$1"
+    local file="$2"
+    local pattern="$3"
+    local expected="$4"
+    local actual
+
+    actual="$(grep -aFc -- "${pattern}" "${file}" || true)"
+    [[ "${actual}" -eq "${expected}" ]] ||
+        die "wrong log count '${label}': expected=${expected} actual=${actual} pattern='${pattern}' file=${file}"
 }
 
 assert_absent() {
@@ -139,18 +161,41 @@ assert_order "network state transitions" "${NETWORK_LOG}" \
 
 if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
     require_once "DNS CLI result" "${SERIAL_LOG}" "localhost -> 127.0.0.1" >/dev/null
+    require_count "TCP CLI connect" "${SERIAL_LOG}" \
+        "Connected to 10.0.2.2:" 2
     require_once "TCP CLI echo" "${SERIAL_LOG}" \
         "sent=17 received=17 data=mochios-tcp-smoke" >/dev/null
-    assert_order "DNS and TCP client lifecycle" "${NETWORK_LOG}" \
-        "DNS query" "network.service: DNS query sent name=localhost attempt=1" \
-        "DNS response" "network.service: DNS response received name=localhost" \
-        "DNS resolution" "network.service: DNS resolved name=localhost address=127.0.0.1" \
-        "TCP SYN" "network.service: TCP SYN sent" \
-        "TCP SYN+ACK" "network.service: TCP SYN+ACK received" \
-        "TCP established" "network.service: TCP Established remote=10.0.2.2:" \
-        "TCP payload ACK" "network.service: TCP payload acknowledged bytes=17" \
-        "TCP payload receive" "network.service: TCP payload received bytes=17" \
-        "TCP FIN" "network.service: TCP FIN close complete"
+    if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "0" && "${ACCOUNTS_HTTPS_SMOKE}" == "0" ]]; then
+        assert_order "DNS client lifecycle" "${NETWORK_LOG}" \
+            "DNS query" "network.service: DNS query sent name=localhost attempt=1" \
+            "DNS response" "network.service: DNS response received name=localhost" \
+            "DNS resolution" "network.service: DNS resolved name=localhost address=127.0.0.1"
+        require_count "TCP SYN" "${NETWORK_LOG}" "network.service: TCP SYN sent" 2
+        require_count "TCP SYN+ACK" "${NETWORK_LOG}" \
+            "network.service: TCP SYN+ACK received" 2
+        require_count "TCP established" "${NETWORK_LOG}" \
+            "network.service: TCP Established remote=10.0.2.2:" 2
+        require_count "TCP payload ACK" "${NETWORK_LOG}" \
+            "network.service: TCP payload acknowledged bytes=17" 1
+        require_count "TCP payload receive" "${NETWORK_LOG}" \
+            "network.service: TCP payload received bytes=17" 1
+        require_count "TCP FIN" "${NETWORK_LOG}" \
+            "network.service: TCP FIN close complete" 2
+    else
+        for pattern in \
+            "network.service: DNS query sent name=localhost attempt=1" \
+            "network.service: DNS response received name=localhost" \
+            "network.service: DNS resolved name=localhost address=127.0.0.1" \
+            "network.service: TCP SYN sent" \
+            "network.service: TCP SYN+ACK received" \
+            "network.service: TCP Established remote=10.0.2.2:" \
+            "network.service: TCP payload acknowledged bytes=17" \
+            "network.service: TCP payload received bytes=17" \
+            "network.service: TCP FIN close complete"; do
+            grep -aFq -- "${pattern}" "${NETWORK_LOG}" ||
+                die "missing network lifecycle log in extended network smoke: ${pattern}"
+        done
+    fi
 fi
 
 assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \

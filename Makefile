@@ -4,7 +4,7 @@ MWS		= $(shell pwd)/tools/mws
 RELEASE_DIR	= $(OUT)/releases
 RELEASE_IMAGE	= $(RELEASE_DIR)/mochiOS.img
 
-.PHONY: all build full build-cached release run smoke-log-test smoke-test smoke-test-kvm smoke-test-tcg ext2-write-test ext2-write-test-tcg clean olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached release run smoke-log-test smoke-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -57,6 +57,12 @@ smoke-test-virtio-gpu: build smoke-log-test
 
 smoke-test-tcg: build smoke-log-test
 	@QEMU_ACCELERATOR=tcg $(SCRIPTS)/smoke-test.sh
+
+tls-http-smoke-test: olddefconfig smoke-log-test
+	@$(SCRIPTS)/tls-http-smoke-test.sh
+
+accounts-https-smoke-test: build smoke-log-test
+	@$(SCRIPTS)/accounts-https-smoke-test.sh
 
 ext2-write-test: build
 	@QEMU_ACCELERATOR=kvm $(SCRIPTS)/ext2-write-test.sh

@@ -51,6 +51,11 @@ SERVICE_MANAGER_LOG="${RUN_DIR}/service-manager.log"
 NETWORK_LOG="${RUN_DIR}/network.log"
 NETWORK_SERVER_LOG="${RUN_DIR}/network-smoke-server.log"
 NETWORK_SERVER_READY="${RUN_DIR}/network-smoke-server.ready"
+TLS_HTTP_SERVER_LOG="${RUN_DIR}/tls-http-smoke-server.log"
+TLS_HTTP_SERVER_READY="${RUN_DIR}/tls-http-smoke-server.ready"
+TLS_BAD_CV_SERVER_LOG="${RUN_DIR}/tls-bad-cv-server.log"
+TLS_BAD_CV_SERVER_READY="${RUN_DIR}/tls-bad-cv-server.ready"
+TLS_BAD_CV_SERVER="${ROOT_DIR}/out/tls-http-smoke-host-target/release/mochios-tls-bad-cv-server"
 MONITOR_SOCKET="${RUN_DIR}/monitor.sock"
 GPU_SCREENSHOT="${RUN_DIR}/virtio-gpu.ppm"
 ROOTFS_IMAGE="${RUN_DIR}/rootfs.img"
@@ -66,6 +71,7 @@ fi
 QEMU_NETWORK="${QEMU_NETWORK:-${DRIVER_VIRTIO_NET:-y}}"
 QEMU_NETWORK_MAC="${QEMU_NETWORK_MAC:-52:54:00:12:34:56}"
 QEMU_NETWORK_PCAP="${QEMU_NETWORK_PCAP:-}"
+QEMU_TCP_ECHO_SERVER="${QEMU_TCP_ECHO_SERVER:-${QEMU_NETWORK}}"
 QEMU_CPU="${DEBUG_QEMU_CPU:-qemu64}"
 QEMU_SMP="${DEBUG_QEMU_SMP:-1}"
 QEMU_GPU_BACKEND="${QEMU_GPU_BACKEND:-2d}"
@@ -92,6 +98,10 @@ need_file() {
 }
 
 case "${QEMU_NETWORK}" in y|n) ;; *) die "QEMU_NETWORK must be 'y' or 'n'" ;; esac
+case "${QEMU_TCP_ECHO_SERVER}" in
+    y|n) ;;
+    *) die "QEMU_TCP_ECHO_SERVER must be 'y' or 'n'" ;;
+esac
 [[ "${QEMU_NETWORK_MAC}" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] ||
     die "QEMU_NETWORK_MAC must be a MAC address: ${QEMU_NETWORK_MAC}"
 
@@ -136,11 +146,27 @@ QEMU_NETWORK_SETTLE_SECONDS="${QEMU_NETWORK_SETTLE_SECONDS:-5}"
     die "QEMU_NETWORK_SETTLE_SECONDS must be a non-negative integer"
 NETWORK_CLIENT_SMOKE="${NETWORK_CLIENT_SMOKE:-${SMOKE_TEST:-0}}"
 case "${NETWORK_CLIENT_SMOKE}" in 0|1) ;; *) die "NETWORK_CLIENT_SMOKE must be 0 or 1" ;; esac
-NETWORK_SMOKE_PORT="${NETWORK_SMOKE_PORT:-$((20000 + $$ % 20000))}"
-[[ "${NETWORK_SMOKE_PORT}" =~ ^[1-9][0-9]*$ && "${NETWORK_SMOKE_PORT}" -le 65535 ]] ||
-    die "NETWORK_SMOKE_PORT must be a valid TCP port"
-if [[ "${NETWORK_CLIENT_SMOKE}" == "1" && "${QEMU_NETWORK}" != "y" ]]; then
-    die "NETWORK_CLIENT_SMOKE requires QEMU_NETWORK=y"
+TLS_HTTP_CLIENT_SMOKE="${TLS_HTTP_CLIENT_SMOKE:-0}"
+case "${TLS_HTTP_CLIENT_SMOKE}" in 0|1) ;; *) die "TLS_HTTP_CLIENT_SMOKE must be 0 or 1" ;; esac
+ACCOUNTS_HTTPS_SMOKE="${ACCOUNTS_HTTPS_SMOKE:-0}"
+case "${ACCOUNTS_HTTPS_SMOKE}" in 0|1) ;; *) die "ACCOUNTS_HTTPS_SMOKE must be 0 or 1" ;; esac
+if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
+    default_tcp_echo_port=$((20000 + $$ % 20000))
+else
+    default_tcp_echo_port=20000
+fi
+QEMU_TCP_ECHO_PORT="${QEMU_TCP_ECHO_PORT:-${NETWORK_SMOKE_PORT:-${default_tcp_echo_port}}}"
+[[ "${QEMU_TCP_ECHO_PORT}" =~ ^[1-9][0-9]*$ && "${QEMU_TCP_ECHO_PORT}" -le 65535 ]] ||
+    die "QEMU_TCP_ECHO_PORT must be a valid TCP port"
+NETWORK_SMOKE_PORT="${QEMU_TCP_ECHO_PORT}"
+TLS_HTTP_SMOKE_PORT="${TLS_HTTP_SMOKE_PORT:-$((40000 + $$ % 20000))}"
+[[ "${TLS_HTTP_SMOKE_PORT}" =~ ^[1-9][0-9]*$ && "${TLS_HTTP_SMOKE_PORT}" -le 65530 ]] ||
+    die "TLS_HTTP_SMOKE_PORT must be a valid base port with room for six listeners"
+if [[ "${QEMU_TCP_ECHO_SERVER}" == "y" && "${QEMU_NETWORK}" != "y" ]]; then
+    die "QEMU_TCP_ECHO_SERVER=y requires QEMU_NETWORK=y"
+fi
+if [[ "${NETWORK_CLIENT_SMOKE}" == "1" && "${QEMU_TCP_ECHO_SERVER}" != "y" ]]; then
+    die "NETWORK_CLIENT_SMOKE requires QEMU_TCP_ECHO_SERVER=y"
 fi
 VIRTIO_GPU_TEST_KEYS="${VIRTIO_GPU_TEST_KEYS:-t e s t dot a p p ret}"
 VIRTIO_GPU_TEST_APP_PATH="${VIRTIO_GPU_TEST_APP_PATH:-/applications/test.app/entry.elf}"
@@ -161,10 +187,17 @@ need_file "${ARTIFACT_DIR}/disk.img"
 need_file "${OVMF_CODE}"
 need_file "${OVMF_VARS_TEMPLATE}"
 need_file "${SCRIPT_DIR}/check-smoke-logs.sh"
-if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
+if [[ "${QEMU_TCP_ECHO_SERVER}" == "y" ]]; then
     need_cmd perl
-    need_cmd nc
     need_file "${SCRIPT_DIR}/network-smoke-server.pl"
+fi
+if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
+    need_cmd nc
+fi
+if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
+    need_cmd python3
+    need_file "${SCRIPT_DIR}/tls-http-smoke-server.py"
+    need_file "${TLS_BAD_CV_SERVER}"
 fi
 
 mkdir -p "${RUN_DIR}"
@@ -181,12 +214,15 @@ QEMU_ARGS=(
     -m 512M
     -smp "${QEMU_SMP}"
     -cpu "${QEMU_CPU}"
+    -rtc base=utc,clock=host
     -serial stdio
     -no-reboot
     -drive "if=pflash,format=raw,readonly=on,file=${OVMF_CODE}"
     -drive "if=pflash,format=raw,file=${OVMF_VARS}"
     -drive "id=osdisk,if=none,format=raw,file=${OS_DISK}"
     -device "virtio-blk-pci,disable-modern=on,drive=osdisk,bootindex=1"
+    -object "rng-random,id=rng0,filename=/dev/urandom"
+    -device "virtio-rng-pci,rng=rng0"
 )
 
 if [[ "${QEMU_NETWORK}" == "y" ]]; then
@@ -235,7 +271,7 @@ if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     else
         QEMU_ARGS+=(-display none)
     fi
-    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" || "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
+    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" || "${NETWORK_CLIENT_SMOKE}" == "1" || "${TLS_HTTP_CLIENT_SMOKE}" == "1" || "${ACCOUNTS_HTTPS_SMOKE}" == "1" ]]; then
         QEMU_ARGS+=(-monitor "unix:${MONITOR_SOCKET},server=on,wait=off")
     else
         QEMU_ARGS+=(-monitor none)
@@ -250,6 +286,8 @@ fi
 
 QEMU_PID=""
 NETWORK_SERVER_PID=""
+TLS_HTTP_SERVER_PID=""
+TLS_BAD_CV_SERVER_PID=""
 
 cleanup() {
     if [[ -n "${QEMU_PID:-}" ]]; then
@@ -267,6 +305,16 @@ cleanup() {
         kill -TERM "${NETWORK_SERVER_PID}" 2>/dev/null || true
         wait "${NETWORK_SERVER_PID}" 2>/dev/null || true
         NETWORK_SERVER_PID=""
+    fi
+    if [[ -n "${TLS_HTTP_SERVER_PID:-}" ]]; then
+        kill -TERM "${TLS_HTTP_SERVER_PID}" 2>/dev/null || true
+        wait "${TLS_HTTP_SERVER_PID}" 2>/dev/null || true
+        TLS_HTTP_SERVER_PID=""
+    fi
+    if [[ -n "${TLS_BAD_CV_SERVER_PID:-}" ]]; then
+        kill -TERM "${TLS_BAD_CV_SERVER_PID}" 2>/dev/null || true
+        wait "${TLS_BAD_CV_SERVER_PID}" 2>/dev/null || true
+        TLS_BAD_CV_SERVER_PID=""
     fi
 }
 
@@ -306,6 +354,8 @@ hmp_type_text() {
             ' ') key="spc" ;;
             '.') key="dot" ;;
             '-') key="minus" ;;
+            '/') key="slash" ;;
+            ':') key="shift-semicolon" ;;
             [a-z0-9]) key="${character}" ;;
             *) die "unsupported smoke-test keyboard character: ${character}" ;;
         esac
@@ -329,19 +379,105 @@ wait_for_log() {
     die "timed out waiting for ${label}: pattern='${pattern}' log=${SERIAL_LOG}"
 }
 
-start_network_smoke_server() {
+wait_for_new_log() {
+    local label="$1"
+    local first_line="$2"
+    local pattern="$3"
+    local timeout="$4"
+    local deadline=$((SECONDS + timeout))
+    while ((SECONDS < deadline)); do
+        if sed -n "${first_line},\$p" "${SERIAL_LOG}" | grep -aFq -- "${pattern}"; then
+            return 0
+        fi
+        kill -0 "${QEMU_PID}" 2>/dev/null ||
+            die "QEMU exited while waiting for ${label}; see ${SERIAL_LOG}"
+        sleep 0.1
+    done
+    die "timed out waiting for ${label}: pattern='${pattern}' log=${SERIAL_LOG}"
+}
+
+run_guest_command() {
+    local expected_exit="$1"
+    local command="$2"
+    shift 2
+    local first_line=$(($(wc -l < "${SERIAL_LOG}") + 1))
+    local exit_relative
+    local prompt_line
+    local pattern
+    hmp_type_text "${command}"
+    for pattern in "$@"; do
+        wait_for_new_log "guest command '${command}'" "${first_line}" "${pattern}" 30
+    done
+    wait_for_new_log "guest command exit '${command}'" "${first_line}" \
+        "Process exiting with code: ${expected_exit}" 30
+    exit_relative="$(
+        sed -n "${first_line},\$p" "${SERIAL_LOG}" |
+            grep -anF -- "Process exiting with code: ${expected_exit}" |
+            tail -n 1 |
+            cut -d: -f1
+    )"
+    [[ -n "${exit_relative}" ]] || die "could not locate guest command exit line"
+    prompt_line=$((first_line + exit_relative))
+    wait_for_new_log "shell prompt after '${command}'" "${prompt_line}" "/ $" 10
+}
+
+start_network_echo_server() {
+    local mode="persistent"
     : > "${NETWORK_SERVER_LOG}"
     perl "${SCRIPT_DIR}/network-smoke-server.pl" \
-        "${NETWORK_SMOKE_PORT}" "${NETWORK_SERVER_READY}" \
+        "${NETWORK_SMOKE_PORT}" "${NETWORK_SERVER_READY}" "${mode}" \
         > "${NETWORK_SERVER_LOG}" 2>&1 &
     NETWORK_SERVER_PID=$!
     for _ in {1..100}; do
-        [[ -s "${NETWORK_SERVER_READY}" ]] && return 0
+        if [[ -s "${NETWORK_SERVER_READY}" ]]; then
+            echo "[run] TCP echo server guest=10.0.2.2:${NETWORK_SMOKE_PORT} mode=${mode}"
+            return 0
+        fi
         kill -0 "${NETWORK_SERVER_PID}" 2>/dev/null ||
             die "network smoke server exited before becoming ready; see ${NETWORK_SERVER_LOG}"
         sleep 0.05
     done
     die "network smoke server did not become ready; see ${NETWORK_SERVER_LOG}"
+}
+
+start_tls_http_server() {
+    : > "${TLS_HTTP_SERVER_LOG}"
+    rm -f "${TLS_HTTP_SERVER_READY}"
+    python3 "${SCRIPT_DIR}/tls-http-smoke-server.py" \
+        "${TLS_HTTP_SMOKE_PORT}" "${TLS_HTTP_SERVER_READY}" \
+        > "${TLS_HTTP_SERVER_LOG}" 2>&1 &
+    TLS_HTTP_SERVER_PID=$!
+    for _ in {1..100}; do
+        if [[ -s "${TLS_HTTP_SERVER_READY}" ]]; then
+            echo "[run] TLS HTTP smoke server guest=10.0.2.2:${TLS_HTTP_SMOKE_PORT}"
+            return 0
+        fi
+        kill -0 "${TLS_HTTP_SERVER_PID}" 2>/dev/null ||
+            die "TLS HTTP smoke server exited before becoming ready; see ${TLS_HTTP_SERVER_LOG}"
+        sleep 0.05
+    done
+    die "TLS HTTP smoke server did not become ready; see ${TLS_HTTP_SERVER_LOG}"
+}
+
+start_tls_bad_cv_server() {
+    : > "${TLS_BAD_CV_SERVER_LOG}"
+    rm -f "${TLS_BAD_CV_SERVER_READY}"
+    "${TLS_BAD_CV_SERVER}" \
+        "$((TLS_HTTP_SMOKE_PORT + 4))" "${TLS_BAD_CV_SERVER_READY}" \
+        "${ROOT_DIR}/user/crates/tls-client/test-fixtures/server.cert.pem" \
+        "${ROOT_DIR}/user/crates/tls-client/test-fixtures/server.key.pem" \
+        > "${TLS_BAD_CV_SERVER_LOG}" 2>&1 &
+    TLS_BAD_CV_SERVER_PID=$!
+    for _ in {1..100}; do
+        if [[ -s "${TLS_BAD_CV_SERVER_READY}" ]]; then
+            echo "[run] bad CertificateVerify server guest=10.0.2.2:$((TLS_HTTP_SMOKE_PORT + 4))"
+            return 0
+        fi
+        kill -0 "${TLS_BAD_CV_SERVER_PID}" 2>/dev/null ||
+            die "bad CertificateVerify server exited before becoming ready; see ${TLS_BAD_CV_SERVER_LOG}"
+        sleep 0.05
+    done
+    die "bad CertificateVerify server did not become ready; see ${TLS_BAD_CV_SERVER_LOG}"
 }
 
 start_qemu() {
@@ -354,9 +490,14 @@ start_qemu() {
     QEMU_PID=$!
 }
 
-if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
-    start_network_smoke_server
+if [[ "${QEMU_TCP_ECHO_SERVER}" == "y" ]]; then
+    start_network_echo_server
 fi
+if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
+    start_tls_http_server
+    start_tls_bad_cv_server
+fi
+
 start_qemu
 
 if [[ "${GUI_MODE}" -eq 1 ]]; then
@@ -415,24 +556,87 @@ if [[ "${QEMU_NETWORK}" == "y" && "${QEMU_NETWORK_SETTLE_SECONDS}" -gt 0 ]]; the
 fi
 
 if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
-    hmp_type_text "net resolve localhost"
-    wait_for_log "DNS resolution" "localhost -> 127.0.0.1" 30
-    hmp_type_text "net tcp-send 10.0.2.2 ${NETWORK_SMOKE_PORT} mochios-tcp-smoke"
-    wait_for_log "TCP echo" "sent=17 received=17 data=mochios-tcp-smoke" 30
+    run_guest_command 0 "net resolve localhost" "localhost -> 127.0.0.1"
+    run_guest_command 0 \
+        "net tcp-connect 10.0.2.2 ${NETWORK_SMOKE_PORT}" \
+        "Connected to 10.0.2.2:${NETWORK_SMOKE_PORT}"
+    run_guest_command 0 \
+        "net tcp-send 10.0.2.2 ${NETWORK_SMOKE_PORT} mochios-tcp-smoke" \
+        "sent=17 received=17 data=mochios-tcp-smoke"
     for _ in {1..100}; do
-        if ! kill -0 "${NETWORK_SERVER_PID}" 2>/dev/null; then
-            break
-        fi
+        [[ "$(grep -Fc 'network-smoke-server: echoed=' "${NETWORK_SERVER_LOG}")" -ge 2 ]] && break
         sleep 0.05
     done
-    if kill -0 "${NETWORK_SERVER_PID}" 2>/dev/null; then
-        die "network smoke server did not observe the guest FIN"
-    fi
-    wait "${NETWORK_SERVER_PID}" ||
-        die "network smoke server failed; see ${NETWORK_SERVER_LOG}"
-    NETWORK_SERVER_PID=""
+    grep -Fq "network-smoke-server: echoed=0" "${NETWORK_SERVER_LOG}" ||
+        die "network smoke server did not observe the connect-only guest FIN"
     grep -Fq "network-smoke-server: echoed=17" "${NETWORK_SERVER_LOG}" ||
         die "network smoke server did not echo the expected payload"
+fi
+
+if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
+    run_guest_command 0 \
+        "net tls-connect tls.test.mochios ${TLS_HTTP_SMOKE_PORT}" \
+        "TLS version: TLS 1.3" \
+        "Server hostname: tls.test.mochios" \
+        "Certificate issuer:"
+    run_guest_command 0 \
+        "net https-get https://tls.test.mochios:${TLS_HTTP_SMOKE_PORT}/content-length" \
+        "Status: 200" \
+        'Body:' \
+        '"framing":"content-length"'
+    run_guest_command 0 \
+        "net https-get https://tls.test.mochios:${TLS_HTTP_SMOKE_PORT}/chunked" \
+        "Status: 200" \
+        "mochiOS chunked smoke"
+    run_guest_command 1 \
+        "net tls-connect untrusted.test.mochios $((TLS_HTTP_SMOKE_PORT + 1))" \
+        "TLS failure: CertificateInvalid"
+    run_guest_command 1 \
+        "net tls-connect mismatch.test.mochios ${TLS_HTTP_SMOKE_PORT}" \
+        "TLS failure: HostnameMismatch"
+    run_guest_command 1 \
+        "net tls-connect expired.test.mochios $((TLS_HTTP_SMOKE_PORT + 2))" \
+        "TLS failure: CertificateInvalid"
+    run_guest_command 1 \
+        "net tls-connect tls.test.mochios $((TLS_HTTP_SMOKE_PORT + 4))" \
+        "TLS failure: CertificateInvalid"
+    run_guest_command 1 \
+        "net tls-connect tls.test.mochios $((TLS_HTTP_SMOKE_PORT + 5))" \
+        "TLS failure: Timeout"
+    run_guest_command 1 \
+        "net https-get https://tls.test.mochios:$((TLS_HTTP_SMOKE_PORT + 3))/content-length" \
+        "HTTP failure: Tls"
+    run_guest_command 1 \
+        "net https-get https://tls.test.mochios:${TLS_HTTP_SMOKE_PORT}/header-overflow" \
+        "HTTP failure: HeaderLimit"
+    run_guest_command 1 \
+        "net https-get https://tls.test.mochios:${TLS_HTTP_SMOKE_PORT}/bad-content-length" \
+        "HTTP failure: InvalidResponse"
+    run_guest_command 1 \
+        "net https-get https://tls.test.mochios:${TLS_HTTP_SMOKE_PORT}/bad-chunk" \
+        "HTTP failure: ChunkError"
+    run_guest_command 1 \
+        "net https-get https://tls.test.mochios:${TLS_HTTP_SMOKE_PORT}/redirect-http" \
+        "HTTP failure: RedirectRejected"
+    run_guest_command 1 \
+        "net https-get https://tls.test.mochios:${TLS_HTTP_SMOKE_PORT}/body-overflow" \
+        "HTTP failure: BodyLimit"
+    run_guest_command 0 "net stats" \
+        "tls_connections_attempted=" \
+        "tls_decrypt_failures=1" \
+        "http_requests="
+fi
+
+if [[ "${ACCOUNTS_HTTPS_SMOKE}" == "1" ]]; then
+    run_guest_command 0 \
+        "net tls-connect accounts.mochios.org 443" \
+        "TLS version: TLS 1.3" \
+        "Server hostname: accounts.mochios.org"
+    run_guest_command 0 \
+        "net https-get https://accounts.mochios.org/health" \
+        "Status: 200" \
+        '"service":"accounts"' \
+        '"status":"ok"'
 fi
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
@@ -506,6 +710,21 @@ sleep 1
 cleanup
 QEMU_PID=""
 
+if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
+    grep -Fq "path=/content-length close-notify=complete" "${TLS_HTTP_SERVER_LOG}" ||
+        die "TLS HTTP server did not complete close_notify for Content-Length response"
+    grep -Fq "path=/chunked close-notify=complete" "${TLS_HTTP_SERVER_LOG}" ||
+        die "TLS HTTP server did not complete close_notify for chunked response"
+    for path in /header-overflow /bad-content-length /bad-chunk /redirect-http /body-overflow; do
+        grep -Fq "path=${path} request=received" "${TLS_HTTP_SERVER_LOG}" ||
+            die "TLS HTTP server did not receive expected failure request ${path}"
+    done
+    grep -Fq "record=tampered" "${TLS_HTTP_SERVER_LOG}" ||
+        die "TLS record tamper proxy did not alter an encrypted server record"
+    grep -Fq "bad-certificate-verify=sent" "${TLS_BAD_CV_SERVER_LOG}" ||
+        die "bad CertificateVerify server did not send the altered signature"
+fi
+
 ROOTFS_START_SECTOR=$((2048 + IMAGE_ESP_SIZE_MB * 2048))
 ROOTFS_SIZE_SECTORS=$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))
 dd if="${OS_DISK}" of="${ROOTFS_IMAGE}" bs=512 \
@@ -532,6 +751,6 @@ fi
 
 "${SCRIPT_DIR}/check-smoke-logs.sh" \
     "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" \
-    "${NETWORK_CLIENT_SMOKE}"
+    "${NETWORK_CLIENT_SMOKE}" "${TLS_HTTP_CLIENT_SMOKE}" "${ACCOUNTS_HTTPS_SMOKE}"
 
 echo "[done] serial log: ${SERIAL_LOG}"

@@ -92,13 +92,20 @@ write_valid_logs
 cat >> "${SERIAL_LOG}" <<'EOF'
 / $ net resolve localhost
 localhost -> 127.0.0.1
+/ $ net tcp-connect 10.0.2.2 20000
+Connected to 10.0.2.2:20000 (10.0.2.2)
 / $ net tcp-send 10.0.2.2 20000 mochios-tcp-smoke
+Connected to 10.0.2.2:20000 (10.0.2.2)
 sent=17 received=17 data=mochios-tcp-smoke
 EOF
 cat >> "${NETWORK_LOG}" <<'EOF'
 network.service: DNS query sent name=localhost attempt=1
 network.service: DNS response received name=localhost
 network.service: DNS resolved name=localhost address=127.0.0.1
+network.service: TCP SYN sent
+network.service: TCP SYN+ACK received
+network.service: TCP Established remote=10.0.2.2:20000
+network.service: TCP FIN close complete
 network.service: TCP SYN sent
 network.service: TCP SYN+ACK received
 network.service: TCP Established remote=10.0.2.2:20000
@@ -114,7 +121,7 @@ if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NET
     echo "fatal: missing network lifecycle log unexpectedly passed" >&2
     exit 1
 fi
-grep -Fq "missing required log 'TCP payload receive'" "${TMP_DIR}/network-missing.out"
+grep -Fq "wrong log count 'TCP payload receive'" "${TMP_DIR}/network-missing.out"
 
 write_valid_logs
 sed -i '/service-manager.service: display.driver ready/d' "${SERVICE_MANAGER_LOG}"

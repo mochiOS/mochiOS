@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "$#" -ne 4 ]]; then
-    echo "usage: $0 <serial-log> <service-manager-log> <drivers-log> <network-log>" >&2
+if [[ "$#" -ne 5 ]]; then
+    echo "usage: $0 <serial-log> <service-manager-log> <drivers-log> <network-log> <network-client-smoke>" >&2
     exit 2
 fi
 
@@ -10,11 +10,17 @@ SERIAL_LOG="$1"
 SERVICE_MANAGER_LOG="$2"
 DRIVERS_LOG="$3"
 NETWORK_LOG="$4"
+NETWORK_CLIENT_SMOKE="$5"
 
 die() {
     echo "fatal: $*" >&2
     exit 1
 }
+
+case "${NETWORK_CLIENT_SMOKE}" in
+    0|1) ;;
+    *) die "network-client-smoke must be 0 or 1" ;;
+esac
 
 for log in "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}"; do
     [[ -f "${log}" ]] || die "log file not found: ${log}"
@@ -130,6 +136,22 @@ assert_order "network state transitions" "${NETWORK_LOG}" \
     "IPv4 configured" "network.service: configured ip=" \
     "gateway ARP" "network.service: gateway ARP resolved ip=10.0.2.2" \
     "ICMP reply" "network.service: ICMP Echo Reply from 10.0.2.2"
+
+if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
+    require_once "DNS CLI result" "${SERIAL_LOG}" "localhost -> 127.0.0.1" >/dev/null
+    require_once "TCP CLI echo" "${SERIAL_LOG}" \
+        "sent=17 received=17 data=mochios-tcp-smoke" >/dev/null
+    assert_order "DNS and TCP client lifecycle" "${NETWORK_LOG}" \
+        "DNS query" "network.service: DNS query sent name=localhost attempt=1" \
+        "DNS response" "network.service: DNS response received name=localhost" \
+        "DNS resolution" "network.service: DNS resolved name=localhost address=127.0.0.1" \
+        "TCP SYN" "network.service: TCP SYN sent" \
+        "TCP SYN+ACK" "network.service: TCP SYN+ACK received" \
+        "TCP established" "network.service: TCP Established remote=10.0.2.2:" \
+        "TCP payload ACK" "network.service: TCP payload acknowledged bytes=17" \
+        "TCP payload receive" "network.service: TCP payload received bytes=17" \
+        "TCP FIN" "network.service: TCP FIN close complete"
+fi
 
 assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
     "service manager start" "service-manager.service: start" \

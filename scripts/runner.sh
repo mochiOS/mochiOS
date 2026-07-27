@@ -49,6 +49,8 @@ DRIVERS_LOG="${RUN_DIR}/drivers.log"
 DISPLAY_LOG="${RUN_DIR}/display.driver.log"
 SERVICE_MANAGER_LOG="${RUN_DIR}/service-manager.log"
 NETWORK_LOG="${RUN_DIR}/network.log"
+NETWORK_SERVER_LOG="${RUN_DIR}/network-smoke-server.log"
+NETWORK_SERVER_READY="${RUN_DIR}/network-smoke-server.ready"
 MONITOR_SOCKET="${RUN_DIR}/monitor.sock"
 GPU_SCREENSHOT="${RUN_DIR}/virtio-gpu.ppm"
 ROOTFS_IMAGE="${RUN_DIR}/rootfs.img"
@@ -132,6 +134,14 @@ QEMU_TIMEOUT_SECONDS="${QEMU_TIMEOUT_SECONDS:-120}"
 QEMU_NETWORK_SETTLE_SECONDS="${QEMU_NETWORK_SETTLE_SECONDS:-5}"
 [[ "${QEMU_NETWORK_SETTLE_SECONDS}" =~ ^[0-9]+$ ]] ||
     die "QEMU_NETWORK_SETTLE_SECONDS must be a non-negative integer"
+NETWORK_CLIENT_SMOKE="${NETWORK_CLIENT_SMOKE:-${SMOKE_TEST:-0}}"
+case "${NETWORK_CLIENT_SMOKE}" in 0|1) ;; *) die "NETWORK_CLIENT_SMOKE must be 0 or 1" ;; esac
+NETWORK_SMOKE_PORT="${NETWORK_SMOKE_PORT:-$((20000 + $$ % 20000))}"
+[[ "${NETWORK_SMOKE_PORT}" =~ ^[1-9][0-9]*$ && "${NETWORK_SMOKE_PORT}" -le 65535 ]] ||
+    die "NETWORK_SMOKE_PORT must be a valid TCP port"
+if [[ "${NETWORK_CLIENT_SMOKE}" == "1" && "${QEMU_NETWORK}" != "y" ]]; then
+    die "NETWORK_CLIENT_SMOKE requires QEMU_NETWORK=y"
+fi
 VIRTIO_GPU_TEST_KEYS="${VIRTIO_GPU_TEST_KEYS:-t e s t dot a p p ret}"
 VIRTIO_GPU_TEST_APP_PATH="${VIRTIO_GPU_TEST_APP_PATH:-/applications/test.app/entry.elf}"
 VIRTIO_GPU_POINTER_STRESS="${VIRTIO_GPU_POINTER_STRESS:-n}"
@@ -151,6 +161,11 @@ need_file "${ARTIFACT_DIR}/disk.img"
 need_file "${OVMF_CODE}"
 need_file "${OVMF_VARS_TEMPLATE}"
 need_file "${SCRIPT_DIR}/check-smoke-logs.sh"
+if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
+    need_cmd perl
+    need_cmd nc
+    need_file "${SCRIPT_DIR}/network-smoke-server.pl"
+fi
 
 mkdir -p "${RUN_DIR}"
 cp "${OVMF_VARS_TEMPLATE}" "${OVMF_VARS}"
@@ -220,7 +235,7 @@ if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     else
         QEMU_ARGS+=(-display none)
     fi
-    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
+    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" || "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
         QEMU_ARGS+=(-monitor "unix:${MONITOR_SOCKET},server=on,wait=off")
     else
         QEMU_ARGS+=(-monitor none)
@@ -234,6 +249,7 @@ if [[ "${DEBUG_QEMU_DEBUG:-n}" == "y" || "${DEBUG:-0}" != "0" ]]; then
 fi
 
 QEMU_PID=""
+NETWORK_SERVER_PID=""
 
 cleanup() {
     if [[ -n "${QEMU_PID:-}" ]]; then
@@ -246,6 +262,11 @@ cleanup() {
         done
         kill -KILL "${QEMU_PID}" 2>/dev/null || true
         wait "${QEMU_PID}" 2>/dev/null || true
+    fi
+    if [[ -n "${NETWORK_SERVER_PID:-}" ]]; then
+        kill -TERM "${NETWORK_SERVER_PID}" 2>/dev/null || true
+        wait "${NETWORK_SERVER_PID}" 2>/dev/null || true
+        NETWORK_SERVER_PID=""
     fi
 }
 
@@ -274,6 +295,55 @@ hmp_screendump() {
         nc -U -q 0 -w 2 "${MONITOR_SOCKET}"
 }
 
+hmp_type_text() {
+    local input="$1"
+    local character
+    local key
+    local index
+    for ((index = 0; index < ${#input}; index++)); do
+        character="${input:index:1}"
+        case "${character}" in
+            ' ') key="spc" ;;
+            '.') key="dot" ;;
+            '-') key="minus" ;;
+            [a-z0-9]) key="${character}" ;;
+            *) die "unsupported smoke-test keyboard character: ${character}" ;;
+        esac
+        hmp_command "sendkey ${key}"
+        sleep 0.05
+    done
+    hmp_command "sendkey ret"
+}
+
+wait_for_log() {
+    local label="$1"
+    local pattern="$2"
+    local timeout="$3"
+    local deadline=$((SECONDS + timeout))
+    while ((SECONDS < deadline)); do
+        log_has "${pattern}" && return 0
+        kill -0 "${QEMU_PID}" 2>/dev/null ||
+            die "QEMU exited while waiting for ${label}; see ${SERIAL_LOG}"
+        sleep 0.1
+    done
+    die "timed out waiting for ${label}: pattern='${pattern}' log=${SERIAL_LOG}"
+}
+
+start_network_smoke_server() {
+    : > "${NETWORK_SERVER_LOG}"
+    perl "${SCRIPT_DIR}/network-smoke-server.pl" \
+        "${NETWORK_SMOKE_PORT}" "${NETWORK_SERVER_READY}" \
+        > "${NETWORK_SERVER_LOG}" 2>&1 &
+    NETWORK_SERVER_PID=$!
+    for _ in {1..100}; do
+        [[ -s "${NETWORK_SERVER_READY}" ]] && return 0
+        kill -0 "${NETWORK_SERVER_PID}" 2>/dev/null ||
+            die "network smoke server exited before becoming ready; see ${NETWORK_SERVER_LOG}"
+        sleep 0.05
+    done
+    die "network smoke server did not become ready; see ${NETWORK_SERVER_LOG}"
+}
+
 start_qemu() {
     echo "[run] qemu accelerator=${QEMU_ACCEL} gpu=${QEMU_GPU_BACKEND} gl-display=${QEMU_GL_DISPLAY} network=${QEMU_NETWORK} mac=${QEMU_NETWORK_MAC}"
 
@@ -284,6 +354,9 @@ start_qemu() {
     QEMU_PID=$!
 }
 
+if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
+    start_network_smoke_server
+fi
 start_qemu
 
 if [[ "${GUI_MODE}" -eq 1 ]]; then
@@ -339,6 +412,27 @@ done
 
 if [[ "${QEMU_NETWORK}" == "y" && "${QEMU_NETWORK_SETTLE_SECONDS}" -gt 0 ]]; then
     sleep "${QEMU_NETWORK_SETTLE_SECONDS}"
+fi
+
+if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
+    hmp_type_text "net resolve localhost"
+    wait_for_log "DNS resolution" "localhost -> 127.0.0.1" 30
+    hmp_type_text "net tcp-send 10.0.2.2 ${NETWORK_SMOKE_PORT} mochios-tcp-smoke"
+    wait_for_log "TCP echo" "sent=17 received=17 data=mochios-tcp-smoke" 30
+    for _ in {1..100}; do
+        if ! kill -0 "${NETWORK_SERVER_PID}" 2>/dev/null; then
+            break
+        fi
+        sleep 0.05
+    done
+    if kill -0 "${NETWORK_SERVER_PID}" 2>/dev/null; then
+        die "network smoke server did not observe the guest FIN"
+    fi
+    wait "${NETWORK_SERVER_PID}" ||
+        die "network smoke server failed; see ${NETWORK_SERVER_LOG}"
+    NETWORK_SERVER_PID=""
+    grep -Fq "network-smoke-server: echoed=17" "${NETWORK_SERVER_LOG}" ||
+        die "network smoke server did not echo the expected payload"
 fi
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
@@ -437,6 +531,7 @@ if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
 fi
 
 "${SCRIPT_DIR}/check-smoke-logs.sh" \
-    "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}"
+    "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" \
+    "${NETWORK_CLIENT_SMOKE}"
 
 echo "[done] serial log: ${SERIAL_LOG}"

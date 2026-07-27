@@ -74,7 +74,7 @@ expect_failure() {
     local expected="$2"
     local output="${TMP_DIR}/${name}.out"
 
-    if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" > "${output}" 2>&1; then
+    if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 0 > "${output}" 2>&1; then
         echo "fatal: ${name} unexpectedly passed" >&2
         exit 1
     fi
@@ -86,7 +86,35 @@ expect_failure() {
 }
 
 write_valid_logs
-"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" >/dev/null
+"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 0 >/dev/null
+
+write_valid_logs
+cat >> "${SERIAL_LOG}" <<'EOF'
+/ $ net resolve localhost
+localhost -> 127.0.0.1
+/ $ net tcp-send 10.0.2.2 20000 mochios-tcp-smoke
+sent=17 received=17 data=mochios-tcp-smoke
+EOF
+cat >> "${NETWORK_LOG}" <<'EOF'
+network.service: DNS query sent name=localhost attempt=1
+network.service: DNS response received name=localhost
+network.service: DNS resolved name=localhost address=127.0.0.1
+network.service: TCP SYN sent
+network.service: TCP SYN+ACK received
+network.service: TCP Established remote=10.0.2.2:20000
+network.service: TCP payload acknowledged bytes=17
+network.service: TCP payload received bytes=17
+network.service: TCP FIN close complete
+EOF
+"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 1 >/dev/null
+
+sed -i '/TCP payload received/d' "${NETWORK_LOG}"
+if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 1 \
+    > "${TMP_DIR}/network-missing.out" 2>&1; then
+    echo "fatal: missing network lifecycle log unexpectedly passed" >&2
+    exit 1
+fi
+grep -Fq "missing required log 'TCP payload receive'" "${TMP_DIR}/network-missing.out"
 
 write_valid_logs
 sed -i '/service-manager.service: display.driver ready/d' "${SERVICE_MANAGER_LOG}"

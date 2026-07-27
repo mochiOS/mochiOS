@@ -503,3 +503,11 @@ path = "binaries/coreutils"
 hash = "909f9fa2c9b23f5fb9912622753a48b9d914ff30"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "commands: add DNS and TCP diagnostics"
+
+[[entries]]
+date = "2026-07-27T17:12:42.872987660+09:00"
+snapshot = "a2b3a54ac769a3c9906fd26e"
+path = "binaries/msh"
+hash = "105241cfa2984e99a1efdf888a46df3bb1edc88e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "security: delegate TLS and HTTP capabilities"

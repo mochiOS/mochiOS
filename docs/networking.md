@@ -1,0 +1,122 @@
+# mochiOS Networking
+
+この文書は、現行のmochiOS IPv4ネットワーク実装の全体像を説明します。driver固有の
+詳細は[virtio-net driver](drivers/virtio-net.md)、service内部は
+[network.service](services/network.md)を参照してください。
+
+## 1. 対応範囲
+
+現行実装はQEMUのmodern virtio-net PCI deviceとuser networkingを対象とします。
+`network.service`は次を実装しています。
+
+- Ethernet II
+- IPv4（optionおよびfragmentは未対応）
+- ARP request/reply、32件の期限付きcache、解決待ちpacket
+- ICMP Echo Request/Reply
+- UDP checksum、port binding、ephemeral port、bounded receive queue
+- DHCPv4 client
+- connected subnetとdefault gatewayのrouting
+
+IPv6、TCP、DNS resolver、TLS、HTTP、Wi-Fi、実機NIC、NAT、firewall、packet forwarding、
+promiscuous modeは実装していません。DNS server addressはDHCPから保持しますが、名前解決は
+行いません。
+
+## 2. 責務境界
+
+```text
+QEMU virtio-net PCI device
+        |
+        v
+virtio-net.driver       PCI、feature、DMA、RX/TX virtqueue、Ethernet frame IPC
+        |
+        v
+network.service         Ethernet、ARP、IPv4、ICMP、UDP、DHCP、routing、timer
+        |
+        v
+net                     pingおよび統計の診断CLI
+```
+
+driverはEthernet payloadより上のprotocolを解釈しません。`network.service`はPCI register、
+virtqueue、DMA addressを扱いません。
+
+## 3. 起動
+
+`drivers.service`はUSB、PS/2に続いて`/bin/drivers/network`を探索し、manifestが
+`bus=pci`、`class=network`に一致するvirtio-net driverを起動します。
+`service-manager.service`はdriver discovery完了後に`network.service`を起動します。
+
+`network.service`は有効なDHCPACKを受信した時点でnetwork-readyを通知します。TTYはその前に
+起動されるため、NIC不在、link down、DHCP timeoutでもOS全体のbootは停止しません。
+
+## 4. DHCPとrouting
+
+DHCP clientは次の状態を持ちます。
+
+```text
+Init -> Selecting -> Requesting -> Bound -> Renewing -> Rebinding
+                    |                         |             |
+                    +-------------------------+-------------+-> Failed
+Failed -- 30秒後 --> Selecting
+```
+
+transaction ID、client MAC、magic cookie、message type、option length、server identifier、
+offered addressを検証します。ACKは保存済みofferのaddressとserverが一致する場合だけ受理します。
+leaseの50%でrenewal、87.5%でrebindingを開始し、期限切れまたは再送上限到達後は一定時間待って
+再取得します。
+
+subnet maskが設定済みの場合、同一subnetは宛先IPをARP解決し、それ以外はdefault gatewayを
+ARP解決します。設定前の通常IPv4送信は拒否します。DHCPだけは0.0.0.0からbroadcastで送ります。
+
+## 5. QEMUでの起動
+
+通常のrunnerはnetworkを有効にし、固定MACを使用します。
+
+```sh
+QEMU_ACCELERATOR=tcg scripts/smoke-test.sh
+```
+
+明示設定は次のとおりです。
+
+```sh
+QEMU_NETWORK=y \
+QEMU_NETWORK_MAC=52:54:00:12:34:56 \
+scripts/runner.sh
+```
+
+無効化する場合は`QEMU_NETWORK=n`を指定します。packet診断ではpcap出力を指定できます。
+
+```sh
+QEMU_NETWORK_PCAP=/tmp/mochios-net.pcap \
+QEMU_ACCELERATOR=tcg \
+scripts/smoke-test.sh
+```
+
+runnerは`virtio-net-pci,disable-legacy=on`とQEMU user networkingを使用します。
+
+## 6. 診断
+
+shellからgatewayまたは任意のIPv4 addressへEcho Requestを送信できます。
+
+```text
+/ $ net ping 10.0.2.2
+reply from 10.0.2.2: time=0ms
+
+/ $ net stats
+```
+
+`net stats`はRX/TX、drop/error、ARP、IPv4 checksum、ICMP、DHCP attempt/success/failureを
+表示します。service logは`/system/logs/services/network.log`に保存されます。通常動作では
+packet単位のlogは出さず、interface情報とDHCP/ARP/ICMPの主要な状態遷移だけを記録します。
+
+## 7. セキュリティ上の制限
+
+- `drivers.service`は委譲のため、virtio-net driverはdevice操作のために
+  `device.net`と`dma.allocate`を持ちます。
+- `network.service`は`net.raw`を持ち、applicationは直接driver IPCを使用しません。
+- frame、各header、checksum、DHCP option、descriptor index、DMA範囲を検証します。
+- Ethernet sourceとARP senderが一致し、自分宛のARPだけをcacheへ登録します。
+- RX/TX buffer、受信frame、UDP queue、ARP cache、ARP解決待ちpacketは固定上限です。
+- checksum offload、GSO、multiple queueを受理しないため、software checksumを使用します。
+
+現行のQEMU user networkingは開発・検証用です。実機NIC、外部公開service、firewallは未実装であり、
+この構成を境界networkへ直接接続することは想定していません。

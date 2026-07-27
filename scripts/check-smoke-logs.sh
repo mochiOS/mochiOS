@@ -116,7 +116,20 @@ assert_order "serial boot log" "${SERIAL_LOG}" \
     "display.driver" "exec: loaded '/system/services/display.driver'" \
     "compositor.service" "exec: loaded '/system/services/compositor.service'" \
     "i8042 driver" "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
+    "virtio-net driver" "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
+    "network.service" "exec: loaded '/system/services/network.service'" \
     "tty.service" "exec: loaded '/system/services/tty.service'"
+
+assert_order "network state transitions" "${SERIAL_LOG}" \
+    "virtio-net detected" "virtio-net.driver: start" \
+    "virtio-net ready" "virtio-net.driver: ready mac=52:54:00:12:34:56" \
+    "DHCP discover" "network.service: DHCPDISCOVER sent" \
+    "DHCP offer" "network.service: DHCPOFFER received" \
+    "DHCP request" "network.service: DHCPREQUEST sent" \
+    "DHCP ack" "network.service: DHCPACK received" \
+    "IPv4 configured" "network.service: configured ip=" \
+    "gateway ARP" "network.service: gateway ARP resolved ip=10.0.2.2" \
+    "ICMP reply" "network.service: ICMP Echo Reply from 10.0.2.2"
 
 assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
     "service manager start" "service-manager.service: start" \
@@ -133,7 +146,10 @@ assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
     "compositor spawn" "service-manager.service: compositor.service spawned pid=" \
     "driver discovery request" "service-manager.service: driver discovery requested" \
     "driver discovery complete" "service-manager.service: driver discovery complete" \
+    "network spawn" "service-manager.service: network.service spawned pid=" \
     "tty spawn" "service-manager.service: tty.service spawned pid=" \
+    "network ready wait" "service-manager.service: waiting for network.service ready" \
+    "network ready" "service-manager.service: network.service ready" \
     "service manager resident" "service-manager.service: resident phase reason=Running"
 
 assert_order "drivers.service log" "${DRIVERS_LOG}" \
@@ -141,7 +157,9 @@ assert_order "drivers.service log" "${DRIVERS_LOG}" \
     "USB bundle discovery" "drivers.service: matched bundle=/bin/drivers/usb/" \
     "USB errno=22" "drivers.service: spawn failed /bin/drivers/usb/qemu-usb.driver/entry.elf errno=22" \
     "PS/2 bundle discovery" "drivers.service: matched bundle=/bin/drivers/ps2/" \
-    "i8042 driver spawn" "drivers.service: spawned driver pid="
+    "i8042 driver spawn" "drivers.service: active bundle=/bin/drivers/ps2/i8042.driver" \
+    "network bundle discovery" "drivers.service: matched bundle=/bin/drivers/network/virtio-net.driver" \
+    "virtio-net driver spawn" "drivers.service: active bundle=/bin/drivers/network/virtio-net.driver"
 
 assert_absent "legacy input spawn" "${DRIVERS_LOG}" "drivers.service: input.service spawned pid="
 assert_absent "legacy display spawn" "${DRIVERS_LOG}" "drivers.service: display.driver spawned pid="

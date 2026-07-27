@@ -130,7 +130,7 @@ sub validate_value {
         return;
     }
 
-    if ($key =~ /^(DRIVER_XHCI|DRIVER_I8042)$/) {
+    if ($key =~ /^(DRIVER_XHCI|DRIVER_I8042|DRIVER_VIRTIO_NET)$/) {
         validate_bool($key, $value);
         return;
     }

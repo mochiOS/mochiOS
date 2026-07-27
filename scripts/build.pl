@@ -261,6 +261,8 @@ sub rewrite_cargo_paths {
     $text =~ s#path = "\Q$prefix\E/user/crates/certificate"#path = "$user_root/crates/certificate"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/signature-protocol"#path = "$user_root/crates/signature-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/driver-control-protocol"#path = "$user_root/crates/driver-control-protocol"#g;
+    $text =~ s#path = "\Q$prefix\E/user/crates/net-device-protocol"#path = "$user_root/crates/net-device-protocol"#g;
+    $text =~ s#path = "\Q$prefix\E/user/crates/network-stack"#path = "$user_root/crates/network-stack"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/virtio-gpu-protocol"#path = "$user_root/crates/virtio-gpu-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/viewkit-gpu-protocol"#path = "$user_root/crates/viewkit-gpu-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/core/crates/PlugKit/plugkit"#path = "$plugkit_root"#g
@@ -848,6 +850,7 @@ sub build_services_and_drivers {
         drivers    => 'drivers',
         logger     => 'logger',
         input      => 'input',
+        network    => 'network',
         package    => 'package',
         'service-manager' => 'service-manager',
         signature  => 'signature@0.1.0',
@@ -861,6 +864,7 @@ sub build_services_and_drivers {
     need_file($target_json);
     need_file("$drivers_root/usb-driver/Cargo.toml") if config_enabled($config->{DRIVER_XHCI});
     need_file("$drivers_root/ps2/i8042-driver/Cargo.toml") if config_enabled($config->{DRIVER_I8042});
+    need_file("$drivers_root/virtio-net-driver/Cargo.toml") if config_enabled($config->{DRIVER_VIRTIO_NET});
 
     remove_tree("$out_root/stage");
     for my $service (sort keys %service_packages) {
@@ -887,6 +891,14 @@ sub build_services_and_drivers {
         rewrite_cargo_paths("$stage/Cargo.toml", '../../..', $user_root, $plugkit_root, $mnu_abi_root);
         print "[build] i8042 driver bundle\n";
         build_staged_cargo_bin($toolchain, $target_json, $target_dir, $stage, 'i8042-driver');
+    }
+    if (config_enabled($config->{DRIVER_VIRTIO_NET})) {
+        my $stage = "$out_root/stage/virtio-net-driver";
+        copy_tree("$drivers_root/virtio-net-driver", $stage);
+        unlink "$stage/Cargo.lock" if -e "$stage/Cargo.lock";
+        rewrite_cargo_paths("$stage/Cargo.toml", '../..', $user_root, $plugkit_root, $mnu_abi_root);
+        print "[build] virtio-net driver bundle\n";
+        build_staged_cargo_bin($toolchain, $target_json, $target_dir, $stage, 'virtio-net-driver');
     }
     print "[done] $target_dir/x86_64-unknown-mochios/release\n";
 }
@@ -998,14 +1010,15 @@ sub stage_binder_sample_apps {
 }
 
 sub stage_driver_bundle {
-    my ($rootfs_stage, $manifest_src, $entry_bin, $bundle_root) = @_;
+    my ($rootfs_stage, $manifest_src, $entry_bin, $bundle_root, $entry_name) = @_;
     return if !defined($manifest_src) || $manifest_src eq '' || !defined($entry_bin) || $entry_bin eq '';
     make_path("$rootfs_stage$bundle_root");
-    install_file('0755', $entry_bin, "$rootfs_stage$bundle_root/entry.elf");
+    $entry_name //= 'entry.elf';
+    install_file('0755', $entry_bin, "$rootfs_stage$bundle_root/$entry_name");
 }
 
 sub build_rootfs {
-    my ($rootfs_stage, $rootfs_img, $rootfs_size_mb, $path, $coreutils_bin_dir, $coreutils_bins, $config, $mpk_demo_mpkg, $mpk_test_mpkg, $drivers_bundle_root, $i8042_bundle_root, $fonts_src) = @_;
+    my ($rootfs_stage, $rootfs_img, $rootfs_size_mb, $path, $coreutils_bin_dir, $coreutils_bins, $config, $mpk_demo_mpkg, $mpk_test_mpkg, $drivers_bundle_root, $i8042_bundle_root, $virtio_net_bundle_root, $fonts_src) = @_;
     need_cmd('mke2fs');
     need_file($path->{hello_elf});
     need_file($path->{signature_db});
@@ -1043,7 +1056,7 @@ sub build_rootfs {
     stage_viewkit_test_bundle($rootfs_stage, $path);
 
     make_path("$rootfs_stage/system/services");
-    for my $service (qw(capability display compositor drivers logger input package signature tty)) {
+    for my $service (qw(capability display compositor drivers logger input network package signature tty)) {
         my $service_name = $service eq 'display' ? 'display.driver' : "$service.service";
         install_file('0755', $path->{"${service}_service_bin"}, "$rootfs_stage/system/services/$service_name");
         stage_package_manifest($rootfs_stage, $path->{"${service}_service_manifest"}, "/system/packages/$service/manifest.toml");
@@ -1057,6 +1070,10 @@ sub build_rootfs {
     if (config_enabled($config->{DRIVER_I8042})) {
         stage_package_manifest($rootfs_stage, $path->{i8042_driver_manifest}, "/system/packages@{[ $i8042_bundle_root =~ s#^/bin##r ]}/manifest.toml");
         stage_driver_bundle($rootfs_stage, $path->{i8042_driver_manifest}, $path->{i8042_driver_bin}, $i8042_bundle_root);
+    }
+    if (config_enabled($config->{DRIVER_VIRTIO_NET})) {
+        stage_package_manifest($rootfs_stage, $path->{virtio_net_driver_manifest}, "/system/packages@{[ $virtio_net_bundle_root =~ s#^/bin##r ]}/manifest.toml");
+        stage_driver_bundle($rootfs_stage, $path->{virtio_net_driver_manifest}, $path->{virtio_net_driver_bin}, $virtio_net_bundle_root, 'virtio-net.driver');
     }
 
     unlink $rootfs_img if -e $rootfs_img;
@@ -1182,8 +1199,10 @@ my $signature_db_stage = "$build_root/execution.allowlist";
 my $cext_bundles_dir = "$root_dir/out/cexts/bundles";
 my $drivers_bundle_root = '/bin/drivers/usb/qemu-usb.driver';
 my $i8042_bundle_root = '/bin/drivers/ps2/i8042.driver';
+my $virtio_net_bundle_root = '/bin/drivers/network/virtio-net.driver';
 my $enable_xhci = config_to_01($config{DRIVER_XHCI});
 my $enable_i8042 = config_to_01($config{DRIVER_I8042});
+my $enable_virtio_net = config_to_01($config{DRIVER_VIRTIO_NET});
 my $coreutils_bin_dir = "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release";
 my $mpk_demo_mpkg = "$build_root/mpk-demo.mpkg";
 my $mpk_test_mpkg = "$build_root/mpk-test.mpkg";
@@ -1191,7 +1210,7 @@ my $devkit_root = "$root_dir/tools/devkit";
 my $development_fixture_root = "$devkit_root/fixtures/development";
 my $development_certificate = "$build_root/developer.cert";
 my $msign_bin = "$root_dir/out/devkit-target/release/msign";
-my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk test_gui test_desktop);
+my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk net test_gui test_desktop);
 push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
 
@@ -1343,6 +1362,7 @@ my %path = (
     capability_service_bin      => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/capability",
     logger_service_bin          => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/logger",
     input_service_bin           => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/input",
+    network_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/network",
     tty_service_bin             => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/tty",
     package_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/package",
     signature_service_bin       => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/signature",
@@ -1353,6 +1373,7 @@ my %path = (
     capability_service_manifest => "$root_dir/services/capability/manifest.toml",
     logger_service_manifest     => "$root_dir/services/logger/manifest.toml",
     input_service_manifest      => "$root_dir/services/input/manifest.toml",
+    network_service_manifest    => "$root_dir/services/network/manifest.toml",
     package_service_manifest    => "$root_dir/services/package/manifest.toml",
     signature_service_manifest  => "$root_dir/services/signature/manifest.toml",
     service_manager_service_manifest => "$root_dir/services/service-manager/manifest.toml",
@@ -1361,6 +1382,8 @@ my %path = (
     usb_driver_manifest         => "$root_dir/drivers/usb-driver/manifest.toml",
     i8042_driver_bin            => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/i8042-entry",
     i8042_driver_manifest       => "$root_dir/drivers/ps2/i8042-driver/manifest.toml",
+    virtio_net_driver_bin       => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/virtio-net-driver",
+    virtio_net_driver_manifest  => "$root_dir/drivers/virtio-net-driver/manifest.toml",
     binder_bin             => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/binder",
     binder_about           => "$root_dir/applications/binder/about.toml",
     binder_manifest        => "$root_dir/applications/binder/manifest.toml",
@@ -1388,7 +1411,7 @@ else {
 }
 
 for my $key (
-    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin package_service_bin signature_service_bin service_manager_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
+    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin network_service_bin package_service_bin signature_service_bin service_manager_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest network_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
 ) {
     need_file($path{$key});
 }
@@ -1404,6 +1427,10 @@ if ($enable_xhci eq '1') {
 if ($enable_i8042 eq '1') {
     need_file($path{i8042_driver_bin});
     need_file($path{i8042_driver_manifest});
+}
+if ($enable_virtio_net eq '1') {
+    need_file($path{virtio_net_driver_bin});
+    need_file($path{virtio_net_driver_manifest});
 }
 need_file($boot_bin);
 need_dir($cext_bundles_dir);
@@ -1438,6 +1465,8 @@ my @signature_db_args = (
     '--entry',
     "/system/services/input.service=$path{input_service_bin}",
     '--entry',
+    "/system/services/network.service=$path{network_service_bin}",
+    '--entry',
     "/system/services/package.service=$path{package_service_bin}",
     '--entry',
     "/system/services/signature.service=$path{signature_service_bin}",
@@ -1456,7 +1485,7 @@ my @signature_db_args = (
     '--entry',
     "/bin/msh=$path{msh_bin}",
 );
-for my $bin (qw(echo ls pwd true false cat touch rm mpk test_gui test_app test_desktop)) {
+for my $bin (qw(echo ls pwd true false cat touch rm mpk net test_gui test_app test_desktop)) {
     my $bin_path = $bin eq 'test_app' ? $path{test_app_bin} : "$coreutils_bin_dir/$bin";
     push @signature_db_args, '--entry', "/bin/$bin=$bin_path";
 }
@@ -1469,6 +1498,8 @@ push @signature_db_args, '--entry', "$drivers_bundle_root/entry.elf=$path{usb_dr
     if $enable_xhci eq '1';
 push @signature_db_args, '--entry', "$i8042_bundle_root/entry.elf=$path{i8042_driver_bin}"
     if $enable_i8042 eq '1';
+push @signature_db_args, '--entry', "$virtio_net_bundle_root/virtio-net.driver=$path{virtio_net_driver_bin}"
+    if $enable_virtio_net eq '1';
 for my $entry (@cext_signature_entries) {
     push @signature_db_args, '--entry', $entry;
 }
@@ -1497,6 +1528,7 @@ build_rootfs(
     $mpk_test_mpkg,
     $drivers_bundle_root,
     $i8042_bundle_root,
+    $virtio_net_bundle_root,
     "$root_dir/libraries/fonts/out/fonts",
 );
 
@@ -1540,6 +1572,7 @@ install_file('0755', $path{service_bin}, "$artifact_dir/core.service");
 install_file('0755', $path{capability_service_bin}, "$artifact_dir/capability.service");
 install_file('0755', $path{service_manager_service_bin}, "$artifact_dir/service-manager.service");
 install_file('0755', $path{input_service_bin}, "$artifact_dir/input.service");
+install_file('0755', $path{network_service_bin}, "$artifact_dir/network.service");
 install_file('0755', $path{tty_service_bin}, "$artifact_dir/tty.service");
 install_file('0755', $path{logger_service_bin}, "$artifact_dir/logger.service");
 install_file('0755', $path{rust_std_demo_bin}, "$artifact_dir/rust-std-demo");
@@ -1557,6 +1590,7 @@ install_file('0644', $signature_db_stage, "$artifact_dir/execution.allowlist");
 install_file('0755', $path{drivers_service_bin}, "$artifact_dir/drivers.service");
 install_file('0755', $path{usb_driver_bin}, "$artifact_dir/usb-driver.entry") if $enable_xhci eq '1';
 install_file('0755', $path{i8042_driver_bin}, "$artifact_dir/i8042-driver.entry") if $enable_i8042 eq '1';
+install_file('0755', $path{virtio_net_driver_bin}, "$artifact_dir/virtio-net.driver") if $enable_virtio_net eq '1';
 
 print "[step] record exact repo manifest\n";
 run_in_dir($root_dir, 'repo', 'manifest', '-r', '-o', "$artifact_dir/manifest.xml");
@@ -1573,6 +1607,7 @@ my @checksum_files = qw(
     service-manager.service
     drivers.service
     input.service
+    network.service
     tty.service
     msh
     ls
@@ -1583,6 +1618,7 @@ my @checksum_files = qw(
     build-info.txt
 );
 push @checksum_files, 'i8042-driver.entry' if $enable_i8042 eq '1';
+push @checksum_files, 'virtio-net.driver' if $enable_virtio_net eq '1';
 push @checksum_files, qw(mpk-demo.mpkg mpk-test.mpkg) if config_enabled($config{USER_BUILD_MPK_SAMPLES});
 write_checksums($artifact_dir, @checksum_files);
 append_checksum($artifact_dir, 'usb-driver.entry') if $enable_xhci eq '1';

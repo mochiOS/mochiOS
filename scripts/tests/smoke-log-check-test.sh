@@ -20,6 +20,17 @@ write_valid_logs() {
 [INFO] exec: loaded '/system/services/display.driver' from cext
 [INFO] exec: loaded '/system/services/compositor.service' from cext
 [INFO] exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf' from cext
+[INFO] exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver' from cext
+[INFO] virtio-net.driver: start
+[INFO] virtio-net.driver: ready mac=52:54:00:12:34:56 link=true mtu=1500
+[INFO] exec: loaded '/system/services/network.service' from cext
+[INFO] network.service: DHCPDISCOVER sent
+[INFO] network.service: DHCPOFFER received
+[INFO] network.service: DHCPREQUEST sent
+[INFO] network.service: DHCPACK received
+[INFO] network.service: configured ip=10.0.2.15
+[INFO] network.service: gateway ARP resolved ip=10.0.2.2
+[INFO] network.service: ICMP Echo Reply from 10.0.2.2
 [INFO] exec: loaded '/system/services/tty.service' from cext
 EOF
     cat > "${SERVICE_MANAGER_LOG}" <<'EOF'
@@ -37,7 +48,10 @@ service-manager.service: input.service ready
 service-manager.service: compositor.service spawned pid=11
 service-manager.service: driver discovery requested
 service-manager.service: driver discovery complete
-service-manager.service: tty.service spawned pid=13
+service-manager.service: network.service spawned pid=13
+service-manager.service: tty.service spawned pid=14
+service-manager.service: waiting for network.service ready
+service-manager.service: network.service ready
 service-manager.service: resident phase reason=Running
 EOF
     cat > "${DRIVERS_LOG}" <<'EOF'
@@ -46,6 +60,10 @@ drivers.service: matched bundle=/bin/drivers/usb/qemu-usb.driver package=org.moc
 drivers.service: spawn failed /bin/drivers/usb/qemu-usb.driver/entry.elf errno=22
 drivers.service: matched bundle=/bin/drivers/ps2/i8042.driver package=org.mochios.ps2.i8042 root=/bin/drivers/ps2
 drivers.service: spawned driver pid=12
+drivers.service: active bundle=/bin/drivers/ps2/i8042.driver
+drivers.service: matched bundle=/bin/drivers/network/virtio-net.driver package=org.mochios.network.virtio-net root=/bin/drivers/network
+drivers.service: spawned driver pid=13
+drivers.service: active bundle=/bin/drivers/network/virtio-net.driver
 EOF
 }
 

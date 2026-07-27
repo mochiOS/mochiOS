@@ -13,6 +13,8 @@ ENV_DEBUG_QEMU_REQUIRE_USB_SET=0
 ENV_DEBUG_QEMU_VIRTIO_GPU_SET=0
 ENV_QEMU_GPU_BACKEND_SET=0
 ENV_DRIVER_XHCI_SET=0
+ENV_QEMU_NETWORK_SET=0
+ENV_QEMU_NETWORK_MAC_SET=0
 if [[ -v DEBUG_QEMU_KVM ]]; then ENV_DEBUG_QEMU_KVM_SET=1; ENV_DEBUG_QEMU_KVM="${DEBUG_QEMU_KVM}"; fi
 if [[ -v DEBUG_QEMU_CPU ]]; then ENV_DEBUG_QEMU_CPU_SET=1; ENV_DEBUG_QEMU_CPU="${DEBUG_QEMU_CPU}"; fi
 if [[ -v DEBUG_QEMU_SMP ]]; then ENV_DEBUG_QEMU_SMP_SET=1; ENV_DEBUG_QEMU_SMP="${DEBUG_QEMU_SMP}"; fi
@@ -22,6 +24,8 @@ if [[ -v DEBUG_QEMU_REQUIRE_USB ]]; then ENV_DEBUG_QEMU_REQUIRE_USB_SET=1; ENV_D
 if [[ -v DEBUG_QEMU_VIRTIO_GPU ]]; then ENV_DEBUG_QEMU_VIRTIO_GPU_SET=1; ENV_DEBUG_QEMU_VIRTIO_GPU="${DEBUG_QEMU_VIRTIO_GPU}"; fi
 if [[ -v QEMU_GPU_BACKEND ]]; then ENV_QEMU_GPU_BACKEND_SET=1; ENV_QEMU_GPU_BACKEND="${QEMU_GPU_BACKEND}"; fi
 if [[ -v DRIVER_XHCI ]]; then ENV_DRIVER_XHCI_SET=1; ENV_DRIVER_XHCI="${DRIVER_XHCI}"; fi
+if [[ -v QEMU_NETWORK ]]; then ENV_QEMU_NETWORK_SET=1; ENV_QEMU_NETWORK="${QEMU_NETWORK}"; fi
+if [[ -v QEMU_NETWORK_MAC ]]; then ENV_QEMU_NETWORK_MAC_SET=1; ENV_QEMU_NETWORK_MAC="${QEMU_NETWORK_MAC}"; fi
 if [[ -f "${CONFIG_FILE}" ]]; then
     # shellcheck disable=SC1090
     source "${CONFIG_FILE}"
@@ -35,6 +39,8 @@ if [[ "${ENV_DEBUG_QEMU_REQUIRE_USB_SET}" == "1" ]]; then DEBUG_QEMU_REQUIRE_USB
 if [[ "${ENV_DEBUG_QEMU_VIRTIO_GPU_SET}" == "1" ]]; then DEBUG_QEMU_VIRTIO_GPU="${ENV_DEBUG_QEMU_VIRTIO_GPU}"; fi
 if [[ "${ENV_QEMU_GPU_BACKEND_SET}" == "1" ]]; then QEMU_GPU_BACKEND="${ENV_QEMU_GPU_BACKEND}"; fi
 if [[ "${ENV_DRIVER_XHCI_SET}" == "1" ]]; then DRIVER_XHCI="${ENV_DRIVER_XHCI}"; fi
+if [[ "${ENV_QEMU_NETWORK_SET}" == "1" ]]; then QEMU_NETWORK="${ENV_QEMU_NETWORK}"; fi
+if [[ "${ENV_QEMU_NETWORK_MAC_SET}" == "1" ]]; then QEMU_NETWORK_MAC="${ENV_QEMU_NETWORK_MAC}"; fi
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
 RUN_ID="workspace-$(date +%s)-$$"
 RUN_DIR="${ROOT_DIR}/out/runner/${RUN_ID}"
@@ -54,6 +60,8 @@ if [[ "${DRIVER_XHCI:-n}" == "y" ]]; then
 else
     ENABLE_XHCI="0"
 fi
+QEMU_NETWORK="${QEMU_NETWORK:-${DRIVER_VIRTIO_NET:-y}}"
+QEMU_NETWORK_MAC="${QEMU_NETWORK_MAC:-52:54:00:12:34:56}"
 QEMU_CPU="${DEBUG_QEMU_CPU:-qemu64}"
 QEMU_SMP="${DEBUG_QEMU_SMP:-1}"
 QEMU_GPU_BACKEND="${QEMU_GPU_BACKEND:-2d}"
@@ -78,6 +86,10 @@ need_cmd() {
 need_file() {
     [[ -f "$1" ]] || die "required file not found: $1"
 }
+
+case "${QEMU_NETWORK}" in y|n) ;; *) die "QEMU_NETWORK must be 'y' or 'n'" ;; esac
+[[ "${QEMU_NETWORK_MAC}" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] ||
+    die "QEMU_NETWORK_MAC must be a MAC address: ${QEMU_NETWORK_MAC}"
 
 QEMU_ACCEL="${QEMU_ACCELERATOR:-}"
 if [[ -z "${QEMU_ACCEL}" ]]; then
@@ -156,6 +168,13 @@ QEMU_ARGS=(
     -drive "id=osdisk,if=none,format=raw,file=${OS_DISK}"
     -device "virtio-blk-pci,disable-modern=on,drive=osdisk,bootindex=1"
 )
+
+if [[ "${QEMU_NETWORK}" == "y" ]]; then
+    QEMU_ARGS+=(
+        -netdev "user,id=net0"
+        -device "virtio-net-pci,disable-legacy=on,netdev=net0,mac=${QEMU_NETWORK_MAC}"
+    )
+fi
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
     need_cmd nc
@@ -246,7 +265,7 @@ hmp_screendump() {
 }
 
 start_qemu() {
-    echo "[run] qemu accelerator=${QEMU_ACCEL} gpu=${QEMU_GPU_BACKEND} gl-display=${QEMU_GL_DISPLAY}"
+    echo "[run] qemu accelerator=${QEMU_ACCEL} gpu=${QEMU_GPU_BACKEND} gl-display=${QEMU_GL_DISPLAY} network=${QEMU_NETWORK} mac=${QEMU_NETWORK_MAC}"
 
     GALLIUM_DRIVER=d3d12 \
     MESA_D3D12_DEFAULT_ADAPTER_NAME=AMD \
@@ -290,6 +309,9 @@ while ((SECONDS < DEADLINE)); do
         && log_has "exec: loaded '/system/services/display.driver'" \
         && log_has "exec: loaded '/system/services/compositor.service'" \
         && log_has "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
+        && log_has "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
+        && log_has "exec: loaded '/system/services/network.service'" \
+        && log_has "network.service: ICMP Echo Reply from 10.0.2.2" \
         && log_has "exec: loaded '/system/services/tty.service'"; then
         COMPLETED=1
         break

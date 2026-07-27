@@ -9,6 +9,7 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 SERIAL_LOG="${TMP_DIR}/serial.log"
 SERVICE_MANAGER_LOG="${TMP_DIR}/service-manager.log"
 DRIVERS_LOG="${TMP_DIR}/drivers.log"
+NETWORK_LOG="${TMP_DIR}/network.log"
 
 write_valid_logs() {
     cat > "${SERIAL_LOG}" <<'EOF'
@@ -21,16 +22,7 @@ write_valid_logs() {
 [INFO] exec: loaded '/system/services/compositor.service' from cext
 [INFO] exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf' from cext
 [INFO] exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver' from cext
-[INFO] virtio-net.driver: start
-[INFO] virtio-net.driver: ready mac=52:54:00:12:34:56 link=true mtu=1500
 [INFO] exec: loaded '/system/services/network.service' from cext
-[INFO] network.service: DHCPDISCOVER sent
-[INFO] network.service: DHCPOFFER received
-[INFO] network.service: DHCPREQUEST sent
-[INFO] network.service: DHCPACK received
-[INFO] network.service: configured ip=10.0.2.15
-[INFO] network.service: gateway ARP resolved ip=10.0.2.2
-[INFO] network.service: ICMP Echo Reply from 10.0.2.2
 [INFO] exec: loaded '/system/services/tty.service' from cext
 EOF
     cat > "${SERVICE_MANAGER_LOG}" <<'EOF'
@@ -65,6 +57,16 @@ drivers.service: matched bundle=/bin/drivers/network/virtio-net.driver package=o
 drivers.service: spawned driver pid=13
 drivers.service: active bundle=/bin/drivers/network/virtio-net.driver
 EOF
+    cat > "${NETWORK_LOG}" <<'EOF'
+network.service: interface id=1 mac=52:54:00:12:34:56 link=true mtu=1500
+network.service: DHCPDISCOVER sent
+network.service: DHCPOFFER received
+network.service: DHCPREQUEST sent
+network.service: DHCPACK received
+network.service: configured ip=10.0.2.15
+network.service: gateway ARP resolved ip=10.0.2.2
+network.service: ICMP Echo Reply from 10.0.2.2
+EOF
 }
 
 expect_failure() {
@@ -72,7 +74,7 @@ expect_failure() {
     local expected="$2"
     local output="${TMP_DIR}/${name}.out"
 
-    if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" > "${output}" 2>&1; then
+    if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" > "${output}" 2>&1; then
         echo "fatal: ${name} unexpectedly passed" >&2
         exit 1
     fi
@@ -84,7 +86,7 @@ expect_failure() {
 }
 
 write_valid_logs
-"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" >/dev/null
+"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" >/dev/null
 
 write_valid_logs
 sed -i '/service-manager.service: display.driver ready/d' "${SERVICE_MANAGER_LOG}"

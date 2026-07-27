@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "$#" -ne 3 ]]; then
-    echo "usage: $0 <serial-log> <service-manager-log> <drivers-log>" >&2
+if [[ "$#" -ne 4 ]]; then
+    echo "usage: $0 <serial-log> <service-manager-log> <drivers-log> <network-log>" >&2
     exit 2
 fi
 
 SERIAL_LOG="$1"
 SERVICE_MANAGER_LOG="$2"
 DRIVERS_LOG="$3"
+NETWORK_LOG="$4"
 
 die() {
     echo "fatal: $*" >&2
     exit 1
 }
 
-for log in "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}"; do
+for log in "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}"; do
     [[ -f "${log}" ]] || die "log file not found: ${log}"
 done
 
@@ -120,9 +121,8 @@ assert_order "serial boot log" "${SERIAL_LOG}" \
     "network.service" "exec: loaded '/system/services/network.service'" \
     "tty.service" "exec: loaded '/system/services/tty.service'"
 
-assert_order "network state transitions" "${SERIAL_LOG}" \
-    "virtio-net detected" "virtio-net.driver: start" \
-    "virtio-net ready" "virtio-net.driver: ready mac=52:54:00:12:34:56" \
+assert_order "network state transitions" "${NETWORK_LOG}" \
+    "virtio-net ready" "network.service: interface id=1 mac=52:54:00:12:34:56 link=true mtu=1500" \
     "DHCP discover" "network.service: DHCPDISCOVER sent" \
     "DHCP offer" "network.service: DHCPOFFER received" \
     "DHCP request" "network.service: DHCPREQUEST sent" \

@@ -48,6 +48,7 @@ SERIAL_LOG="${RUN_DIR}/serial.log"
 DRIVERS_LOG="${RUN_DIR}/drivers.log"
 DISPLAY_LOG="${RUN_DIR}/display.driver.log"
 SERVICE_MANAGER_LOG="${RUN_DIR}/service-manager.log"
+NETWORK_LOG="${RUN_DIR}/network.log"
 MONITOR_SOCKET="${RUN_DIR}/monitor.sock"
 GPU_SCREENSHOT="${RUN_DIR}/virtio-gpu.ppm"
 ROOTFS_IMAGE="${RUN_DIR}/rootfs.img"
@@ -62,6 +63,7 @@ else
 fi
 QEMU_NETWORK="${QEMU_NETWORK:-${DRIVER_VIRTIO_NET:-y}}"
 QEMU_NETWORK_MAC="${QEMU_NETWORK_MAC:-52:54:00:12:34:56}"
+QEMU_NETWORK_PCAP="${QEMU_NETWORK_PCAP:-}"
 QEMU_CPU="${DEBUG_QEMU_CPU:-qemu64}"
 QEMU_SMP="${DEBUG_QEMU_SMP:-1}"
 QEMU_GPU_BACKEND="${QEMU_GPU_BACKEND:-2d}"
@@ -127,6 +129,9 @@ need_cmd wc
 QEMU_TIMEOUT_SECONDS="${QEMU_TIMEOUT_SECONDS:-120}"
 [[ "${QEMU_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
     die "QEMU_TIMEOUT_SECONDS must be a positive integer"
+QEMU_NETWORK_SETTLE_SECONDS="${QEMU_NETWORK_SETTLE_SECONDS:-5}"
+[[ "${QEMU_NETWORK_SETTLE_SECONDS}" =~ ^[0-9]+$ ]] ||
+    die "QEMU_NETWORK_SETTLE_SECONDS must be a non-negative integer"
 VIRTIO_GPU_TEST_KEYS="${VIRTIO_GPU_TEST_KEYS:-t e s t dot a p p ret}"
 VIRTIO_GPU_TEST_APP_PATH="${VIRTIO_GPU_TEST_APP_PATH:-/applications/test.app/entry.elf}"
 VIRTIO_GPU_POINTER_STRESS="${VIRTIO_GPU_POINTER_STRESS:-n}"
@@ -174,6 +179,11 @@ if [[ "${QEMU_NETWORK}" == "y" ]]; then
         -netdev "user,id=net0"
         -device "virtio-net-pci,disable-legacy=on,netdev=net0,mac=${QEMU_NETWORK_MAC}"
     )
+    if [[ -n "${QEMU_NETWORK_PCAP}" ]]; then
+        QEMU_ARGS+=(
+            -object "filter-dump,id=netdump,netdev=net0,file=${QEMU_NETWORK_PCAP}"
+        )
+    fi
 fi
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
@@ -311,8 +321,8 @@ while ((SECONDS < DEADLINE)); do
         && log_has "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
         && log_has "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
         && log_has "exec: loaded '/system/services/network.service'" \
-        && log_has "network.service: ICMP Echo Reply from 10.0.2.2" \
-        && log_has "exec: loaded '/system/services/tty.service'"; then
+        && log_has "exec: loaded '/system/services/tty.service'" \
+        && log_has "/ $"; then
         COMPLETED=1
         break
     fi
@@ -326,6 +336,10 @@ done
 
 [[ "${COMPLETED}" == "1" ]] ||
     die "QEMU smoke test timed out after ${QEMU_TIMEOUT_SECONDS}s; see ${SERIAL_LOG}"
+
+if [[ "${QEMU_NETWORK}" == "y" && "${QEMU_NETWORK_SETTLE_SECONDS}" -gt 0 ]]; then
+    sleep "${QEMU_NETWORK_SETTLE_SECONDS}"
+fi
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
     sleep 1
@@ -408,6 +422,8 @@ debugfs -R 'cat /system/logs/services/display.driver.log' "${ROOTFS_IMAGE}" \
     > "${DISPLAY_LOG}" 2>/dev/null || die "display.driver log could not be read"
 debugfs -R 'cat /system/logs/services/service-manager.log' "${ROOTFS_IMAGE}" \
     > "${SERVICE_MANAGER_LOG}" 2>/dev/null || die "service-manager.service log could not be read"
+debugfs -R 'cat /system/logs/services/network.log' "${ROOTFS_IMAGE}" \
+    > "${NETWORK_LOG}" 2>/dev/null || die "network.service log could not be read"
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
     LAST_DISPLAY_BACKEND="$(grep -F "display.driver:" "${DISPLAY_LOG}" |
@@ -421,6 +437,6 @@ if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
 fi
 
 "${SCRIPT_DIR}/check-smoke-logs.sh" \
-    "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}"
+    "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}"
 
 echo "[done] serial log: ${SERIAL_LOG}"

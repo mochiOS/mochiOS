@@ -15,11 +15,13 @@
 - ICMP Echo Request/Reply
 - UDP checksum、port binding、ephemeral port、bounded receive queue
 - DHCPv4 client
+- DHCPで得たDNS serverを使うA record stub resolverとTTL cache
+- outbound専用TCP client（connect、send、receive、close）
 - connected subnetとdefault gatewayのrouting
 
-IPv6、TCP、DNS resolver、TLS、HTTP、Wi-Fi、実機NIC、NAT、firewall、packet forwarding、
-promiscuous modeは実装していません。DNS server addressはDHCPから保持しますが、名前解決は
-行いません。
+IPv6、DNS over TCP、DNSSEC、TCP listen/accept、TLS、HTTP、Wi-Fi、実機NIC、NAT、firewall、
+packet forwarding、promiscuous modeは実装していません。DNSの詳細は
+[DNS resolver](network/dns.md)、TCPの詳細は[TCP client](network/tcp.md)を参照してください。
 
 ## 2. 責務境界
 
@@ -30,10 +32,10 @@ QEMU virtio-net PCI device
 virtio-net.driver       PCI、feature、DMA、RX/TX virtqueue、Ethernet frame IPC
         |
         v
-network.service         Ethernet、ARP、IPv4、ICMP、UDP、DHCP、routing、timer
+network.service         Ethernet、ARP、IPv4、ICMP、UDP、DHCP、DNS、TCP、routing、timer
         |
         v
-net                     pingおよび統計の診断CLI
+net                     ping、resolve、TCP client、統計の診断CLI
 ```
 
 driverはEthernet payloadより上のprotocolを解釈しません。`network.service`はPCI register、
@@ -101,12 +103,26 @@ shellからgatewayまたは任意のIPv4 addressへEcho Requestを送信でき�
 / $ net ping 10.0.2.2
 reply from 10.0.2.2: time=0ms
 
+/ $ net resolve localhost
+localhost -> 127.0.0.1
+
+/ $ net tcp-connect 10.0.2.2 8080
+Connected to 10.0.2.2:8080 (10.0.2.2)
+
+/ $ net tcp-send 10.0.2.2 8080 mochios-tcp-smoke
+sent=17 received=17 data=mochios-tcp-smoke
+
 / $ net stats
 ```
 
-`net stats`はRX/TX、drop/error、ARP、IPv4 checksum、ICMP、DHCP attempt/success/failureを
+`net stats`はRX/TX、drop/error、ARP、IPv4 checksum、ICMP、DHCP、DNS、TCPを
 表示します。service logは`/system/logs/services/network.log`に保存されます。通常動作では
-packet単位のlogは出さず、interface情報とDHCP/ARP/ICMPの主要な状態遷移だけを記録します。
+packet単位のlogは出さず、interface情報と主要な接続状態だけを記録します。
+
+正式な`make smoke-test`はQEMU DHCP DNSで`localhost`を解決し、runnerがloopbackへ起動した
+bounded echo serverへguestから`10.0.2.2`経由で接続します。SYN、SYN+ACK、Established、17 bytesの
+送信、ACK、同一payloadの受信、FIN完了を実状態のlogとserver側byte数で検査します。外部HTTP
+serverには依存しません。
 
 ## 7. セキュリティ上の制限
 
@@ -116,7 +132,10 @@ packet単位のlogは出さず、interface情報とDHCP/ARP/ICMPの主要な状�
 - frame、各header、checksum、DHCP option、descriptor index、DMA範囲を検証します。
 - Ethernet sourceとARP senderが一致し、自分宛のARPだけをcacheへ登録します。
 - RX/TX buffer、受信frame、UDP queue、ARP cache、ARP解決待ちpacketは固定上限です。
+- DNS message/cache/retryとTCP connection/send/receive queue/timerも固定上限です。
 - checksum offload、GSO、multiple queueを受理しないため、software checksumを使用します。
+
+TCP clientはTLSを提供しません。secret、credential、認証tokenを平文で送る用途には使用しません。
 
 現行のQEMU user networkingは開発・検証用です。実機NIC、外部公開service、firewallは未実装であり、
 この構成を境界networkへ直接接続することは想定していません。

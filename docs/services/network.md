@@ -12,7 +12,9 @@
 - ICMP Echo
 - UDP socket table
 - DHCP clientとlease timer
-- application向けPing/Statistics IPC
+- DNS resolverとTTL cache
+- outbound TCP connection table、buffer、再送timer
+- application向けPing/DNS/TCP/Statistics IPC
 
 PCI、MMIO、DMA、virtqueueは扱いません。
 
@@ -24,7 +26,7 @@ driverから1回に最大1 frameを取得し、1 loopで最大32 framesを処理
 2. 自分宛unicastまたはbroadcast以外を破棄
 3. ARPまたはIPv4へdemultiplex
 4. IPv4 version/IHL、total length、fragment、TTL、header checksumを検証
-5. ICMPまたはUDPへdemultiplex
+5. ICMP、UDPまたはTCPへdemultiplex
 
 IPv4 option、fragment、未知protocolはfail closedで破棄します。UDP checksumが0の場合はIPv4の
 規則に従って省略として受理し、非0の場合はpseudo headerを含めて検証します。
@@ -42,6 +44,15 @@ IPv4 option、fragment、未知protocolはfail closedで破棄します。UDP ch
 | UDP bindings | 8 ports |
 | UDP receive queue | portごとに8 datagrams |
 | UDP payload | 1472 bytes |
+| DNS message | 512 bytes |
+| DNS cache | 32 entries |
+| DNS retry | 3 attempts、初期500 msの指数backoff |
+| TCP connection | 16 connections |
+| TCP send buffer | connectionごとに16 KiB |
+| TCP receive buffer | connectionごとに16 KiB |
+| TCP IPC transfer | 4096 bytes/request |
+| TCP retransmit | 初期500 ms、5 retries、指数backoff |
+| TCP TIME_WAIT | 30 seconds |
 | 1 loopのRX処理 | 32 frames |
 
 UDP port 0をbindすると49152から65535の範囲で未使用ephemeral portを割り当てます。同じportの
@@ -74,10 +85,20 @@ network-readyを通知します。`status=0`はDHCP boundを表し、将来の�
 同じ共有wire v1で次を提供します。
 
 - `Ping`: IPv4 address、request ID。結果はstatusとRTT milliseconds。
+- `ResolveIpv4`: hostname、timeout、request ID。結果はIPv4 addressとcache hit flag。
+- `TcpConnect`: hostnameまたはIPv4、port、timeout。結果はowner固有connection handle。
+- `TcpSend`: handle、bounded payload、timeout。結果はACK済みbyte数。
+- `TcpReceive`: handle、最大長、timeout。結果はpayloadとpeer close flag。
+- `TcpClose`: handle、timeout。FIN handshake開始と完了。
 - `GetStackStatistics`: RX/TX、ARP、IPv4 checksum、ICMP、DHCP統計。
 
 request IDはreplyへそのまま返します。magic、version、opcode、declared length、reserved、固定長を
-検証し、余分なbyteは拒否します。`net` CLIのmanifestは`net.connect`と`ipc.client`を要求します。
+検証し、余分なbyteは拒否します。connectionはIPC sender threadが所有し、別senderのhandle操作は
+`EACCES`です。`net` CLIのmanifestは`net.connect`と`ipc.client`を要求します。shellからの
+exec chainも親Capabilityの部分集合規則に従って`net.connect`を委譲します。
+
+DNSはDHCP Bound後、TCPはIPv4設定後に利用できます。driver IPCが失敗した場合はinterface設定と
+保留packetを破棄し、全TCP connectionを失敗させます。
 
 ## 7. 起動とdebug
 
@@ -87,6 +108,9 @@ gateway ARP、最初のEcho Replyは`/system/logs/services/network.log`に記録
 
 ```text
 / $ net ping 10.0.2.2
+/ $ net resolve localhost
+/ $ net tcp-connect 10.0.2.2 8080
+/ $ net tcp-send 10.0.2.2 8080 test
 / $ net stats
 ```
 

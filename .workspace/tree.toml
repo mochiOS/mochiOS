@@ -511,3 +511,11 @@ path = "binaries/msh"
 hash = "105241cfa2984e99a1efdf888a46df3bb1edc88e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "security: delegate TLS and HTTP capabilities"
+
+[[entries]]
+date = "2026-07-27T17:23:47.682027413+09:00"
+snapshot = "aebf423c7fea69b258114a7d"
+path = "binaries/coreutils"
+hash = "f21cb21fed93c087f70f4980f271a257eda2ec3d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: normalize coreutils lockfile"

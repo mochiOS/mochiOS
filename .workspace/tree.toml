@@ -495,3 +495,11 @@ path = "binaries/coreutils"
 hash = "a345adfe588f8d74e72dba640e6f87a198ee817f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "net: report DHCP outcome statistics"
+
+[[entries]]
+date = "2026-07-27T11:17:58.452291207+09:00"
+snapshot = "68523988b714d634134cb2b4"
+path = "binaries/coreutils"
+hash = "909f9fa2c9b23f5fb9912622753a48b9d914ff30"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "commands: add DNS and TCP diagnostics"

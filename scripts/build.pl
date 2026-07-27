@@ -263,6 +263,8 @@ sub rewrite_cargo_paths {
     $text =~ s#path = "\Q$prefix\E/user/crates/driver-control-protocol"#path = "$user_root/crates/driver-control-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/net-device-protocol"#path = "$user_root/crates/net-device-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/network-stack"#path = "$user_root/crates/network-stack"#g;
+    $text =~ s#path = "\Q$prefix\E/user/crates/tls-client"#path = "$user_root/crates/tls-client"#g;
+    $text =~ s#path = "\Q$prefix\E/user/crates/http-client"#path = "$user_root/crates/http-client"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/virtio-gpu-protocol"#path = "$user_root/crates/virtio-gpu-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/user/crates/viewkit-gpu-protocol"#path = "$user_root/crates/viewkit-gpu-protocol"#g;
     $text =~ s#path = "\Q$prefix\E/core/crates/PlugKit/plugkit"#path = "$plugkit_root"#g
@@ -818,7 +820,7 @@ sub build_core_service {
 }
 
 sub build_staged_cargo_bin {
-    my ($toolchain, $target_json, $target_dir, $stage, $package) = @_;
+    my ($toolchain, $target_json, $target_dir, $stage, $package, @features) = @_;
     run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', '--manifest-path', "$stage/Cargo.toml");
     my @cmd = (
         'cargo', "+$toolchain", 'build',
@@ -830,6 +832,7 @@ sub build_staged_cargo_bin {
         '--manifest-path', "$stage/Cargo.toml",
         '-p', $package,
     );
+    push @cmd, '--features', join(',', @features) if @features;
     run_env(cargo_env(), @cmd);
 }
 
@@ -873,7 +876,18 @@ sub build_services_and_drivers {
         unlink "$stage/Cargo.lock" if -e "$stage/Cargo.lock";
         rewrite_cargo_paths("$stage/Cargo.toml", '../..', $user_root, $plugkit_root, $mnu_abi_root);
         print "[build] $service.service\n";
-        build_staged_cargo_bin($toolchain, $target_json, $target_dir, $stage, $service_packages{$service});
+        my @features = ();
+        if ($service eq 'network' && ($ENV{MOCHIOS_NETWORK_TEST_WEB_PKI} // '') eq '1') {
+            @features = ('test-web-pki');
+        }
+        build_staged_cargo_bin(
+            $toolchain,
+            $target_json,
+            $target_dir,
+            $stage,
+            $service_packages{$service},
+            @features,
+        );
     }
 
     if (config_enabled($config->{DRIVER_XHCI})) {

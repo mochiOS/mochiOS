@@ -487,3 +487,11 @@ path = "build"
 hash = "6b9a4b58c458aed3928e3d81d4c7484990aad7a9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: enable virtio network driver"
+
+[[entries]]
+date = "2026-07-27T10:01:41.687320501+09:00"
+snapshot = "938fdb878e5009eccd54b6b5"
+path = "binaries/coreutils"
+hash = "a345adfe588f8d74e72dba640e6f87a198ee817f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "net: report DHCP outcome statistics"

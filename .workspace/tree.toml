@@ -543,3 +543,11 @@ path = "tools/devkit"
 hash = "4689a3d9f7276d1acd71f4456f4b46cb78f0ffff"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "tests: cover devkit signing artifacts"
+
+[[entries]]
+date = "2026-07-28T18:58:19.925996608+09:00"
+snapshot = "1373b52dc4db940c81ba0b93"
+path = "tools/devkit"
+hash = "aadb4eb806c14e1fbd90a29b00c007eaa4353293"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "msign: reject MPKG dot segment paths"

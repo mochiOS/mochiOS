@@ -250,33 +250,7 @@ sub stage_system_icons {
 }
 
 sub rewrite_cargo_paths {
-    my ($cargo_toml, $prefix, $user_root, $plugkit_root, $mnu_abi_root) = @_;
-    open my $fh, '<', $cargo_toml or dief("open $cargo_toml: $!");
-    local $/;
-    my $text = <$fh>;
-    close $fh;
-    $text =~ s#path = "\Q$prefix\E/user/crates/platform"#path = "$user_root/crates/platform"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/runtime"#path = "$user_root/crates/runtime"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/syscall"#path = "$user_root/crates/syscall"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/certificate"#path = "$user_root/crates/certificate"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/signature-protocol"#path = "$user_root/crates/signature-protocol"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/driver-control-protocol"#path = "$user_root/crates/driver-control-protocol"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/net-device-protocol"#path = "$user_root/crates/net-device-protocol"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/network-stack"#path = "$user_root/crates/network-stack"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/tls-client"#path = "$user_root/crates/tls-client"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/http-client"#path = "$user_root/crates/http-client"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/virtio-gpu-protocol"#path = "$user_root/crates/virtio-gpu-protocol"#g;
-    $text =~ s#path = "\Q$prefix\E/user/crates/viewkit-gpu-protocol"#path = "$user_root/crates/viewkit-gpu-protocol"#g;
-    $text =~ s#path = "\Q$prefix\E/core/crates/PlugKit/plugkit"#path = "$plugkit_root"#g
-        if defined $plugkit_root;
-    $text =~ s#plugkit = \{ git = "https://github.com/mochiOS/mnu", package = "plugkit" \}#plugkit = { path = "$plugkit_root" }#g
-        if defined $plugkit_root;
-    if (defined $mnu_abi_root && $text !~ /^\s*mnu-abi\s*=/m) {
-        $text .= "\n[patch.crates-io]\nmnu-abi = { path = \"$mnu_abi_root\" }\n";
-    }
-    open my $out, '>', $cargo_toml or dief("open $cargo_toml: $!");
-    print {$out} $text;
-    close $out;
+    return;
 }
 
 sub latest_matching_file {

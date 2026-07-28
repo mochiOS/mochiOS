@@ -527,3 +527,11 @@ path = "user"
 hash = "e41ac7909a7ee11e9f89172d2e18db9a5a171f6f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: use git dependencies for user crates"
+
+[[entries]]
+date = "2026-07-28T18:34:21.008821565+09:00"
+snapshot = "0b05628c80c65cdd799cab09"
+path = "services"
+hash = "52e1ff9825e9ff42edf2e64ec4ad00d4ff389886"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "security: enforce MPKG ustar checks in services"

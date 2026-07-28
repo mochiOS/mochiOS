@@ -1,14 +1,14 @@
 version = 1
 id = "1556ef164054b99b8d900787"
-created = "2026-07-28T16:12:52.677648865+09:00"
+created = "2026-07-28T16:12:52.693484001+09:00"
 
 [trigger]
-name = "mochiOS/syscalls"
-path = "user"
-repository = "/home/jnix/mochiOS/user"
-head = "e41ac7909a7ee11e9f89172d2e18db9a5a171f6f"
+name = "mochiOS/services"
+path = "services"
+repository = "/home/jnix/mochiOS/services"
+head = "fcf089dd31a47201bdbef2d5f5fbbb432126b960"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
-message = "build: use git dependencies for user crates"
+message = "build: use git dependencies for services"
 
 [[projects]]
 name = "mochiOS/boot"

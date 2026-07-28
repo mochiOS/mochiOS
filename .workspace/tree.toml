@@ -551,3 +551,11 @@ path = "tools/devkit"
 hash = "aadb4eb806c14e1fbd90a29b00c007eaa4353293"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "msign: reject MPKG dot segment paths"
+
+[[entries]]
+date = "2026-07-28T19:04:20.724007435+09:00"
+snapshot = "98a7a0cb0747b01537ce92f0"
+path = "tools/devkit"
+hash = "ca23247409fb52210a9934dd15d43eb84d8db271"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "msign: require canonical obtained certificates"

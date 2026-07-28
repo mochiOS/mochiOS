@@ -575,3 +575,11 @@ path = "tools/devkit"
 hash = "903920a57806f9ce274cb087185e119f82250f70"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "msign: reject uninstallable MPKG manifests"
+
+[[entries]]
+date = "2026-07-28T19:34:40.377572876+09:00"
+snapshot = "551326044475ef5052da0fa9"
+path = "tools/devkit"
+hash = "864a23ac8d32be64769d9528cabf455bba278f4a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "msign: enforce MPKG size limit"

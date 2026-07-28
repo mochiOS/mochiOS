@@ -559,3 +559,11 @@ path = "tools/devkit"
 hash = "ca23247409fb52210a9934dd15d43eb84d8db271"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "msign: require canonical obtained certificates"
+
+[[entries]]
+date = "2026-07-28T19:09:51.114464123+09:00"
+snapshot = "3d0b54f179cf610109cdd818"
+path = "tools/devkit"
+hash = "8f2118b783f6bc08e084c2071c8a74a1cd584692"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: cover certificate obtain persistence"

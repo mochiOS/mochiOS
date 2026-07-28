@@ -583,3 +583,11 @@ path = "tools/devkit"
 hash = "864a23ac8d32be64769d9528cabf455bba278f4a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "msign: enforce MPKG size limit"
+
+[[entries]]
+date = "2026-07-28T21:50:14.842788996+09:00"
+snapshot = "654a316cdc4fc9a73c163202"
+path = "tools/devkit"
+hash = "98d363cdc202c2a4b58f5ef3b837fd4450890e70"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "docs: document MPKG size limit"

@@ -519,3 +519,11 @@ path = "binaries/coreutils"
 hash = "f21cb21fed93c087f70f4980f271a257eda2ec3d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: normalize coreutils lockfile"
+
+[[entries]]
+date = "2026-07-28T16:12:52.677648865+09:00"
+snapshot = "1556ef164054b99b8d900787"
+path = "user"
+hash = "e41ac7909a7ee11e9f89172d2e18db9a5a171f6f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: use git dependencies for user crates"

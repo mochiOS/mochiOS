@@ -567,3 +567,11 @@ path = "tools/devkit"
 hash = "8f2118b783f6bc08e084c2071c8a74a1cd584692"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "tests: cover certificate obtain persistence"
+
+[[entries]]
+date = "2026-07-28T19:16:41.583497446+09:00"
+snapshot = "131dfaab6f40bc959245a186"
+path = "tools/devkit"
+hash = "903920a57806f9ce274cb087185e119f82250f70"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "msign: reject uninstallable MPKG manifests"

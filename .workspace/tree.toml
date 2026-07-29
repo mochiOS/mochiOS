@@ -711,3 +711,11 @@ path = "tools/devkit"
 hash = "40a51421ef5e4efd21269ade6f20a671182d8318"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: align Kome with deployed authentication APIs"
+
+[[entries]]
+date = "2026-07-29T19:29:18.972911454+09:00"
+snapshot = "1f11005e4ce73efb8a1e7c1f"
+path = "tools/devkit"
+hash = "0423edb9af3411d85c067313d7db20794c2c1564"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: separate Kome refresh token response"

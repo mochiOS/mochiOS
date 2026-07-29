@@ -671,3 +671,11 @@ path = "applications/binder"
 hash = "53d224e360279c577d2985674cc65654ee41d375"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix"
+
+[[entries]]
+date = "2026-07-29T16:35:56.072637905+09:00"
+snapshot = "442b2aaa476f49cb9697eaf4"
+path = "user"
+hash = "e206629f3678a2862ad45c250af359bbc0e39514"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "certificate: enforce canonical developer and package identifiers"

@@ -687,3 +687,11 @@ path = "tools/devkit"
 hash = "15279a5d41738154a1b44bb44982af1f0fd495b1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "docs: document Kome login and signing"
+
+[[entries]]
+date = "2026-07-29T17:38:27.511358116+09:00"
+snapshot = "fa268049e18baeb125dc1297"
+path = "tools/devkit"
+hash = "42473b7268b58a729504b563f7a987c9f2d7c0ad"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: cover Kome account session commands"

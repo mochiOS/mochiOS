@@ -703,3 +703,11 @@ path = "user"
 hash = "3980a924899aaaa9de89273ae859e7c6382ae2ef"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix"
+
+[[entries]]
+date = "2026-07-29T19:20:22.935785882+09:00"
+snapshot = "1f5f74b06836067dd0c36e29"
+path = "tools/devkit"
+hash = "40a51421ef5e4efd21269ade6f20a671182d8318"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: align Kome with deployed authentication APIs"

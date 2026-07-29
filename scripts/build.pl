@@ -587,7 +587,6 @@ sub build_std_app {
         "patch.crates-io.rustc-std-workspace-alloc.path='$library_root/rustc-std-workspace-alloc'",
         "patch.crates-io.rustc-std-workspace-std.path='$library_root/rustc-std-workspace-std'",
     );
-    push @cargo_configs, 'net.offline=true' if $build_options{cached};
     opendir my $vendor_dh, $vendor_dir or dief("opendir $vendor_dir: $!");
     for my $entry (sort grep {$_ ne '.' && $_ ne '..'} readdir $vendor_dh) {
         my $crate_dir = "$vendor_dir/$entry";
@@ -776,8 +775,12 @@ sub build_core_service {
     copy_tree($service_root, $stage_root);
     unlink "$stage_root/Cargo.lock" if -e "$stage_root/Cargo.lock";
     rewrite_cargo_paths("$stage_root/Cargo.toml", '../..', $user_root, undef, $mnu_abi_root);
+    my @mnu_abi_patch = (
+        '--config',
+        q{patch.crates-io.mnu-abi.git='https://github.com/mochiOS/mnu'},
+    );
     print "[build] core.service\n";
-    run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', '--manifest-path', "$stage_root/Cargo.toml");
+    run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', @mnu_abi_patch, '--manifest-path', "$stage_root/Cargo.toml");
     run_env(
         cargo_env(),
         'cargo', "+$toolchain", 'build',
@@ -786,6 +789,7 @@ sub build_core_service {
         '--release',
         '--target', $target_json,
         '--target-dir', $target_dir,
+        @mnu_abi_patch,
         '--manifest-path', "$stage_root/Cargo.toml",
     );
     my $service_bin = "$target_dir/x86_64-unknown-mochios/release/core";
@@ -795,7 +799,11 @@ sub build_core_service {
 
 sub build_staged_cargo_bin {
     my ($toolchain, $target_json, $target_dir, $stage, $package, @features) = @_;
-    run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', '--manifest-path', "$stage/Cargo.toml");
+    my @mnu_abi_patch = (
+        '--config',
+        q{patch.crates-io.mnu-abi.git='https://github.com/mochiOS/mnu'},
+    );
+    run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', @mnu_abi_patch, '--manifest-path', "$stage/Cargo.toml");
     my @cmd = (
         'cargo', "+$toolchain", 'build',
         '-Z', 'build-std=core,alloc,compiler_builtins',
@@ -803,6 +811,7 @@ sub build_staged_cargo_bin {
         '--release',
         '--target', $target_json,
         '--target-dir', $target_dir,
+        @mnu_abi_patch,
         '--manifest-path', "$stage/Cargo.toml",
         '-p', $package,
     );

@@ -615,3 +615,11 @@ path = "tools/devkit"
 hash = "e3837d290be0528051022547266c3f4ed0960422"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "tests: cover MPKG signature requirements"
+
+[[entries]]
+date = "2026-07-29T14:49:49.196827429+09:00"
+snapshot = "da6306eb073e4f89e07bfecb"
+path = "tools/devkit"
+hash = "b938e75332352533e5b2c7f20c109f94f92f5120"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: verify MPKG header in e2e flow"

@@ -663,3 +663,11 @@ path = "tools/devkit"
 hash = "f74a178781f38ca6dc7f18d80c57f635f8fb422a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "msign: enforce DeveloperCA request limits"
+
+[[entries]]
+date = "2026-07-29T16:29:07.058989588+09:00"
+snapshot = "e2f65b6836b1d683aa141e2d"
+path = "applications/binder"
+hash = "53d224e360279c577d2985674cc65654ee41d375"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix"

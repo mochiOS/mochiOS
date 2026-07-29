@@ -719,3 +719,11 @@ path = "tools/devkit"
 hash = "0423edb9af3411d85c067313d7db20794c2c1564"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: separate Kome refresh token response"
+
+[[entries]]
+date = "2026-07-29T19:34:49.365099549+09:00"
+snapshot = "d5b9648da84200d873592ee4"
+path = "tools/devkit"
+hash = "6cf18e1e6211508c0af69de922859c33fd649176"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: decode DeveloperCA certificate errors"

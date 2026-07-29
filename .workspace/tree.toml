@@ -655,3 +655,11 @@ path = "tools/devkit"
 hash = "db4e743d410e898f087ea7a3cb0a611a1385c842"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kome: remove legacy package switches"
+
+[[entries]]
+date = "2026-07-29T15:50:37.316247011+09:00"
+snapshot = "4320d182b4a11f6f2ebaf511"
+path = "tools/devkit"
+hash = "f74a178781f38ca6dc7f18d80c57f635f8fb422a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "msign: enforce DeveloperCA request limits"

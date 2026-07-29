@@ -1,0 +1,101 @@
+version = 1
+id = "48c7c72406fd416879f23241"
+created = "2026-07-29T14:39:49.421072091+09:00"
+
+[trigger]
+name = "mochiOS/devkit"
+path = "tools/devkit"
+repository = "/home/jnix/mochiOS/tools/devkit"
+head = "8604c08c3c0c25b0365ffe23c0f8485ee955d11c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: strengthen MPKG e2e fixture"
+
+[[projects]]
+name = "mochiOS/boot"
+path = "boot"
+head = "1a18b8a5885dbb7e8d2ed85a6087fe59d7e915e4"
+
+[[projects]]
+name = "mochiOS/mnu"
+path = "core"
+head = "7460aa5cf1a12f4c69735644601775c38dcf21be"
+
+[[projects]]
+name = "mochiOS/syscalls"
+path = "user"
+head = "e41ac7909a7ee11e9f89172d2e18db9a5a171f6f"
+
+[[projects]]
+name = "mochiOS/services"
+path = "services"
+head = "52e1ff9825e9ff42edf2e64ec4ad00d4ff389886"
+
+[[projects]]
+name = "mochiOS/cexts"
+path = "cexts"
+head = "f682f46d5590fbe815214510ec39a01102e71862"
+
+[[projects]]
+name = "mochiOS/drivers"
+path = "drivers"
+head = "1c0783b67c9c22df7210ce2dc33c5041066eac3f"
+
+[[projects]]
+name = "newlib-cygwin"
+path = "libraries/newlib"
+head = "6f47864214658e3bb31776eded6dfd44c3237bb6"
+
+[[projects]]
+name = "mochiOS/rust"
+path = "libraries/rust"
+head = "7a585153c0fab05ed14c66e53a7f7229c6a3e050"
+
+[[projects]]
+name = "mochiOS/libc"
+path = "libraries/libc"
+head = "d2072c233a70c5044bc9adc1d6c60cafc3e663e1"
+
+[[projects]]
+name = "mochiOS/msh"
+path = "binaries/msh"
+head = "42718cc8a031ec4fe8dab7f7146ccf0698124e51"
+
+[[projects]]
+name = "mochiOS/coreutils"
+path = "binaries/coreutils"
+head = "b4c723ae064ca14dd1c1fda5018faf92a7490604"
+
+[[projects]]
+name = "mochiOS/Binder"
+path = "applications/binder"
+head = "9d52bcf598c3a95dcd0bac064182faea2e1e2a88"
+
+[[projects]]
+name = "mochiOS/ViewKit"
+path = "libraries/viewkit"
+head = "28e1dc99096b281105066ea0b821ad02499824ad"
+
+[[projects]]
+name = "mochiOS/buildtools"
+path = "build"
+head = "6b9a4b58c458aed3928e3d81d4c7484990aad7a9"
+
+[[projects]]
+name = "mochiOS/test-application"
+path = "applications/test.app"
+head = "657320d0fca78a5461e66640e14d43ccebdf5470"
+
+[[projects]]
+name = "mochiOS/fonts"
+path = "libraries/fonts"
+head = "e34529b27589b2415352925d186661dc07327ea1"
+
+[[projects]]
+name = "mochiOS/mws"
+path = "tools/mws"
+head = "1830eeeb35f08b6c0d4050adc052f06d807b1c9d"
+
+[[projects]]
+name = "mochiOS/devkit"
+path = "tools/devkit"
+head = "8604c08c3c0c25b0365ffe23c0f8485ee955d11c"

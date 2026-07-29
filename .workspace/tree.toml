@@ -599,3 +599,11 @@ path = "tools/devkit"
 hash = "c3720db7e7c0fa53ed6340d49974de819d5a2814"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "msign: align manifest mode parsing"
+
+[[entries]]
+date = "2026-07-29T14:39:49.421072091+09:00"
+snapshot = "48c7c72406fd416879f23241"
+path = "tools/devkit"
+hash = "8604c08c3c0c25b0365ffe23c0f8485ee955d11c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: strengthen MPKG e2e fixture"

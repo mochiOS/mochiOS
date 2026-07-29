@@ -639,3 +639,11 @@ path = "tools/devkit"
 hash = "efa50275541be6f56daf20aca4355ab77a2a1a98"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "msign: verify certificate capabilities"
+
+[[entries]]
+date = "2026-07-29T15:04:18.730951859+09:00"
+snapshot = "ff9c9103c59540e21155d5ae"
+path = "tools/devkit"
+hash = "372c8aab7bf032e4b1358f5bbf989ee09cf07a47"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: exercise certificate obtain in MPKG e2e"

@@ -591,3 +591,11 @@ path = "tools/devkit"
 hash = "98d363cdc202c2a4b58f5ef3b837fd4450890e70"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "docs: document MPKG size limit"
+
+[[entries]]
+date = "2026-07-29T14:34:36.349689094+09:00"
+snapshot = "a96edbca1954e79684bf0a07"
+path = "tools/devkit"
+hash = "c3720db7e7c0fa53ed6340d49974de819d5a2814"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "msign: align manifest mode parsing"

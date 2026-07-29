@@ -647,3 +647,11 @@ path = "tools/devkit"
 hash = "372c8aab7bf032e4b1358f5bbf989ee09cf07a47"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "tests: exercise certificate obtain in MPKG e2e"
+
+[[entries]]
+date = "2026-07-29T15:15:25.826322616+09:00"
+snapshot = "df6d2d1b5f5265374c68f95a"
+path = "tools/devkit"
+hash = "db4e743d410e898f087ea7a3cb0a611a1385c842"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kome: remove legacy package switches"

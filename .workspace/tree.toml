@@ -607,3 +607,11 @@ path = "tools/devkit"
 hash = "8604c08c3c0c25b0365ffe23c0f8485ee955d11c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "tests: strengthen MPKG e2e fixture"
+
+[[entries]]
+date = "2026-07-29T14:47:01.043691567+09:00"
+snapshot = "8257f3ca727dcd5ef3d01cc1"
+path = "tools/devkit"
+hash = "e3837d290be0528051022547266c3f4ed0960422"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: cover MPKG signature requirements"

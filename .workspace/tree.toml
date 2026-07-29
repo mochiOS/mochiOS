@@ -631,3 +631,11 @@ path = "tools/devkit"
 hash = "50e4d2bdef3439d849f99d18ef336bdb00d224e0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: normalize toml dependency versions"
+
+[[entries]]
+date = "2026-07-29T14:58:24.163668417+09:00"
+snapshot = "3e923690b1b686e188726f3f"
+path = "tools/devkit"
+hash = "efa50275541be6f56daf20aca4355ab77a2a1a98"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "msign: verify certificate capabilities"

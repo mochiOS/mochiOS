@@ -623,3 +623,11 @@ path = "tools/devkit"
 hash = "b938e75332352533e5b2c7f20c109f94f92f5120"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "tests: verify MPKG header in e2e flow"
+
+[[entries]]
+date = "2026-07-29T14:51:18.589735305+09:00"
+snapshot = "7a3181169d1f87a51962b9b3"
+path = "tools/devkit"
+hash = "50e4d2bdef3439d849f99d18ef336bdb00d224e0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: normalize toml dependency versions"

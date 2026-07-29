@@ -679,3 +679,11 @@ path = "user"
 hash = "e206629f3678a2862ad45c250af359bbc0e39514"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "certificate: enforce canonical developer and package identifiers"
+
+[[entries]]
+date = "2026-07-29T17:34:37.453355099+09:00"
+snapshot = "89dff4815386d33326a4ec4b"
+path = "tools/devkit"
+hash = "15279a5d41738154a1b44bb44982af1f0fd495b1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "docs: document Kome login and signing"

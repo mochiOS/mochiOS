@@ -847,3 +847,11 @@ path = "services"
 hash = "9d53b0790b54b9955ca39d6838cd898883e1fa4b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "update: embed Developer Root public keys"
+
+[[entries]]
+date = "2026-07-30T11:59:07.352356021+09:00"
+snapshot = "18ca9497b9943eb67d8bfe03"
+path = "user"
+hash = "8b64b3c9779fbf19bec4b43523971d3985225d73"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "platform: expose blocking thread sleep"

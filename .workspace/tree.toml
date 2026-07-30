@@ -1031,3 +1031,11 @@ path = "applications/binder"
 hash = "5d3b684986cd29621dd348652278ccde6a073d31"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: refine Binder app activation"
+
+[[entries]]
+date = "2026-07-30T17:10:23.234126379+09:00"
+snapshot = "df051b1c216740dc53f9e810"
+path = "applications/binder"
+hash = "2ce1ca9bae78810f77ed7d8a89b6a700c06f3b6c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: add Binder desktop keyboard commands"

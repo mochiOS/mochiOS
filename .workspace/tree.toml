@@ -1079,3 +1079,11 @@ path = "libraries/viewkit"
 hash = "c01cea76745f57e40d59a176e1a46d1d6af6a33b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "perf: localize scheduled GPU redraws"
+
+[[entries]]
+date = "2026-07-30T17:17:18.702381836+09:00"
+snapshot = "885f779a3adfbd2e294eccb2"
+path = "libraries/viewkit"
+hash = "5a13d1c47f1a6a78b4df02423b233158b303cafc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: antialias GPU rounded borders"

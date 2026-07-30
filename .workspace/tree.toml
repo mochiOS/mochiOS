@@ -775,3 +775,11 @@ path = "user"
 hash = "a0cc8d98ab4b11034b84e887f9d783fcd3bec68b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "trust: add certificate database A/B storage"
+
+[[entries]]
+date = "2026-07-30T11:15:23.531452774+09:00"
+snapshot = "24985c343174492fa4200ab4"
+path = "user"
+hash = "d4307775f12e38f9830f52e0ca592ff5e5583a6b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "platform: expose monotonic milliseconds"

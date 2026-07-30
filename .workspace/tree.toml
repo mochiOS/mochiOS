@@ -903,3 +903,11 @@ path = "services"
 hash = "e476b24ebec1cfd170a6e8c4537228348c4e7fd7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "signature: enforce synchronized certificate database"
+
+[[entries]]
+date = "2026-07-30T12:26:30.112798146+09:00"
+snapshot = "66494c0bf03c10033410b399"
+path = "services"
+hash = "4ebb41f8db289c20ce104505921dd592dee84d24"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: update shared service dependencies"

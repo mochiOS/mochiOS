@@ -799,3 +799,11 @@ path = "services"
 hash = "6b4022f5e2663b5a99c3dc117836f132cdac2793"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "update: fetch DeveloperCA snapshots over HTTPS"
+
+[[entries]]
+date = "2026-07-30T11:25:55.418187040+09:00"
+snapshot = "4ee6f5c2e58b80cf02fa95be"
+path = "services"
+hash = "9a26e59e506701a1e33f8a130e5a14c7b342fe14"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "update: coordinate trust and revocation synchronization"

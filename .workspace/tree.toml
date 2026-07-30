@@ -791,3 +791,11 @@ path = "services"
 hash = "e3db7985438efe3883e9670b870d90606821e50e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "update: schedule trust and revocation synchronization"
+
+[[entries]]
+date = "2026-07-30T11:22:34.352293751+09:00"
+snapshot = "0340d937bec6c13d2342116f"
+path = "services"
+hash = "6b4022f5e2663b5a99c3dc117836f132cdac2793"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "update: fetch DeveloperCA snapshots over HTTPS"

@@ -927,3 +927,11 @@ path = "binaries/coreutils"
 hash = "75195b84ea15b899fea31a092ac68759d8dd390e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: update coreutils syscall dependencies"
+
+[[entries]]
+date = "2026-07-30T13:22:31.346968338+09:00"
+snapshot = "7c3b25c174fdd29c7cc34dc0"
+path = "services"
+hash = "29c2da7f5bd0405f0305a3a7572edf04ddf4270b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: cover DeveloperCA synchronization end to end"

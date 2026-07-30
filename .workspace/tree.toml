@@ -815,3 +815,11 @@ path = "services"
 hash = "b6c9371d1705c7320bc41da01ea556f00597d23f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "update: use Rust std runtime"
+
+[[entries]]
+date = "2026-07-30T11:39:53.576663693+09:00"
+snapshot = "e7b9333671616bb6ee886961"
+path = "services"
+hash = "8e77d5f4ee2971974cb573f8fc038ee5501e3375"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "update: select the std platform runtime"

@@ -855,3 +855,11 @@ path = "user"
 hash = "8b64b3c9779fbf19bec4b43523971d3985225d73"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "platform: expose blocking thread sleep"
+
+[[entries]]
+date = "2026-07-30T12:06:03.758201859+09:00"
+snapshot = "503af6b9d855ea4d03aa02a4"
+path = "services"
+hash = "d3abfc5ced1c9a1c697e91e965e0e51cf099c84f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "update: run scheduled DeveloperCA synchronization"

@@ -911,3 +911,11 @@ path = "services"
 hash = "4ebb41f8db289c20ce104505921dd592dee84d24"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: update shared service dependencies"
+
+[[entries]]
+date = "2026-07-30T12:47:08.955731091+09:00"
+snapshot = "2048952f767ea14e85247922"
+path = "binaries/coreutils"
+hash = "572ec24394e910ee977b9f280dcb09a34fbf3ec7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: update coreutils syscall dependencies"

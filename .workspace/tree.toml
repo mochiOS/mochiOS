@@ -743,3 +743,11 @@ path = "user"
 hash = "a8acbc73389062d39b8b12914ffe65f11dc5dfd7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "trust: add certificate database state wire"
+
+[[entries]]
+date = "2026-07-30T10:57:20.846101033+09:00"
+snapshot = "0024a9c5544b3f5b96960740"
+path = "user"
+hash = "8eccb3b03517e6ca39f8e5fc92006b73d82cf4e4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "network: support conditional HTTP requests"

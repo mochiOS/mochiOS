@@ -12,6 +12,7 @@ my $script_dir = dirname(abs_path($0));
 my $root_dir = abs_path("$script_dir/..");
 my $core_root = "$root_dir/core";
 my $config_file = "$root_dir/.config";
+my $developer_root_public_key_file = "$root_dir/.pubkey";
 my %build_options = (
     cached => 0,
 );
@@ -27,6 +28,24 @@ for my $arg (@ARGV) {
 sub dief {
     die "fatal: @_\n";
 }
+
+sub configure_developer_root_public_key {
+    my ($path) = @_;
+    return if defined($ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX})
+        && $ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} ne '';
+
+    open my $fh, '<', $path or dief("open $path: $!");
+    local $/;
+    my $key = <$fh> // '';
+    close $fh or dief("close $path: $!");
+    $key =~ s/^\s+//;
+    $key =~ s/\s+$//;
+    dief("$path must contain exactly one 32-byte hexadecimal public key")
+        if $key !~ /\A[0-9A-Fa-f]{64}\z/;
+    $ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} = lc $key;
+}
+
+configure_developer_root_public_key($developer_root_public_key_file);
 
 sub run {
     my (@cmd) = @_;

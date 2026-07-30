@@ -1087,3 +1087,11 @@ path = "libraries/viewkit"
 hash = "5a13d1c47f1a6a78b4df02423b233158b303cafc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: antialias GPU rounded borders"
+
+[[entries]]
+date = "2026-07-30T17:17:50.452347087+09:00"
+snapshot = "0f6ebb7930fc8b401401231d"
+path = "libraries/viewkit"
+hash = "e34f82a430edf6fdd5bcf44eb1617b2c9847d57a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: add ViewKit keyboard command events"

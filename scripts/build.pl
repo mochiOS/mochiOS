@@ -570,7 +570,7 @@ EOF
 }
 
 sub build_std_binary {
-    my ($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, $rustflags, $manifest_path, $binary_name) = @_;
+    my ($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, $rustflags, $manifest_path, $binary_name, @features) = @_;
     my $binary_out = "$target_dir/x86_64-unknown-mochios/release/$binary_name";
     my $stable_binary_out = "$stable_target_dir/x86_64-unknown-mochios/release/$binary_name";
     my $rust_src_root = "$sysroot_overlay/lib/rustlib/src/rust";
@@ -587,6 +587,12 @@ sub build_std_binary {
         "patch.crates-io.rustc-std-workspace-alloc.path='$library_root/rustc-std-workspace-alloc'",
         "patch.crates-io.rustc-std-workspace-std.path='$library_root/rustc-std-workspace-std'",
     );
+    if (index($manifest_path, "$root_dir/services/") == 0
+        || index($manifest_path, '/services-stage/') >= 0) {
+        push @cargo_configs,
+            "patch.\"https://github.com/mochiOS/syscalls\".mochi-user-platform.path='$root_dir/user/crates/platform'",
+            "patch.\"https://github.com/mochiOS/syscalls\".mochios-tls-client.path='$root_dir/user/crates/tls-client'";
+    }
     opendir my $vendor_dh, $vendor_dir or dief("opendir $vendor_dir: $!");
     for my $entry (sort grep {$_ ne '.' && $_ ne '..'} readdir $vendor_dh) {
         my $crate_dir = "$vendor_dir/$entry";
@@ -612,8 +618,7 @@ sub build_std_binary {
         RUSTFLAGS   => join(' ', @{$rustflags}),
     );
     my @cargo_config_args = map { ('--config', $_) } @cargo_configs;
-    run_env(
-        \%cargo_env,
+    my @command = (
         'rustup', 'run', $overlay_toolchain, 'cargo', 'build',
         '-Z', 'build-std=std,panic_abort,compiler_builtins',
         '-Z', 'json-target-spec',
@@ -624,6 +629,8 @@ sub build_std_binary {
         '--target', $target_json,
         '--target-dir', $target_dir,
     );
+    push @command, '--features', join(',', @features) if @features;
+    run_env(\%cargo_env, @command);
     need_file($binary_out);
     make_path(dirname($stable_binary_out));
     copy($binary_out, $stable_binary_out) or dief("copy $binary_out: $!");
@@ -646,10 +653,18 @@ sub build_rust_std_programs {
     $libc_build_hash =~ s/\s.*\z//s;
     my $target_dir = "$out_root/target-libc-patch-$libc_build_hash";
     my $stable_target_dir = "$out_root/target";
+    my $services_stage = "$out_root/services-stage";
     my $rustup_home = "$out_root/rustup-home-$libc_build_hash";
     my $overlay_toolchain = "mochios-overlay-$libc_build_hash";
 
     relink_libc_src($libc_override_path);
+    remove_tree($services_stage);
+    make_path($services_stage);
+    install_file('0644', "$root_dir/services/Cargo.toml", "$services_stage/Cargo.toml");
+    install_file('0644', "$root_dir/services/Cargo.lock", "$services_stage/Cargo.lock");
+    for my $service (qw(capability compositor core display drivers input logger network package service-manager signature tty update)) {
+        copy_tree("$root_dir/services/$service", "$services_stage/$service");
+    }
 
     for my $cmd (qw(cargo rustc rustup x86_64-elf-gcc cksum)) {
         need_cmd($cmd);
@@ -689,11 +704,26 @@ sub build_rust_std_programs {
     );
 
     my @std_services = (
-        ["$root_dir/services/update/Cargo.toml", 'update'],
-        ["$root_dir/services/signature/Cargo.toml", 'signature'],
+        ["$services_stage/core/Cargo.toml", 'core'],
+        ["$services_stage/logger/Cargo.toml", 'logger'],
+        ["$services_stage/capability/Cargo.toml", 'capability'],
+        ["$services_stage/service-manager/Cargo.toml", 'service-manager'],
+        ["$services_stage/drivers/Cargo.toml", 'drivers'],
+        ["$services_stage/input/Cargo.toml", 'input'],
+        ["$services_stage/display/Cargo.toml", 'display'],
+        ["$services_stage/network/Cargo.toml", 'network'],
+        ["$services_stage/compositor/Cargo.toml", 'compositor'],
+        ["$services_stage/package/Cargo.toml", 'package'],
+        ["$services_stage/tty/Cargo.toml", 'tty'],
+        ["$services_stage/update/Cargo.toml", 'update'],
+        ["$services_stage/signature/Cargo.toml", 'signature'],
     );
     for my $service (@std_services) {
-        build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, @{$service});
+        my @features = ();
+        if ($service->[1] eq 'network' && ($ENV{MOCHIOS_NETWORK_TEST_WEB_PKI} // '') eq '1') {
+            @features = ('test-web-pki');
+        }
+        build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, @{$service}, @features);
     }
 
     build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$user_root/apps/rust-std-demo/Cargo.toml", 'rust-std-demo');
@@ -768,43 +798,6 @@ sub build_cexts {
     print "[done] $bundles_dir\n";
 }
 
-sub build_core_service {
-    my ($root_dir, $toolchain) = @_;
-    my $services_root = "$root_dir/services";
-    my $service_root = "$services_root/core";
-    my $target_json = "$service_root/x86_64-unknown-mochios.json";
-    my $target_dir = "$root_dir/out/services-core/target";
-    my $stage_root = "$root_dir/out/services-core/stage";
-    my $user_root = "$root_dir/user";
-    my $mnu_abi_root = "$root_dir/core/crates/abi";
-    need_cmd('cargo');
-    need_file("$service_root/Cargo.toml");
-    need_file($target_json);
-    copy_tree($service_root, $stage_root);
-    unlink "$stage_root/Cargo.lock" if -e "$stage_root/Cargo.lock";
-    rewrite_cargo_paths("$stage_root/Cargo.toml", '../..', $user_root, undef, $mnu_abi_root);
-    my @mnu_abi_patch = (
-        '--config',
-        q{patch.crates-io.mnu-abi.git='https://github.com/mochiOS/mnu'},
-    );
-    print "[build] core.service\n";
-    run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', @mnu_abi_patch, '--manifest-path', "$stage_root/Cargo.toml");
-    run_env(
-        cargo_env(),
-        'cargo', "+$toolchain", 'build',
-        '-Z', 'build-std=core,alloc,compiler_builtins',
-        '-Z', 'json-target-spec',
-        '--release',
-        '--target', $target_json,
-        '--target-dir', $target_dir,
-        @mnu_abi_patch,
-        '--manifest-path', "$stage_root/Cargo.toml",
-    );
-    my $service_bin = "$target_dir/x86_64-unknown-mochios/release/core";
-    need_file($service_bin);
-    print "[done] $service_bin\n";
-}
-
 sub build_staged_cargo_bin {
     my ($toolchain, $target_json, $target_dir, $stage, $package, @features) = @_;
     my @mnu_abi_patch = (
@@ -827,9 +820,8 @@ sub build_staged_cargo_bin {
     run_env(cargo_env(), @cmd);
 }
 
-sub build_services_and_drivers {
+sub build_driver_bundles {
     my ($root_dir, $config, $toolchain) = @_;
-    my $services_root = "$root_dir/services";
     my $drivers_root = "$root_dir/drivers";
     my $out_root = "$root_dir/out/services-build";
     my $target_dir = "$out_root/target";
@@ -837,48 +829,13 @@ sub build_services_and_drivers {
     my $user_root = "$root_dir/user";
     my $plugkit_root = "$root_dir/core/crates/PlugKit/plugkit";
     my $mnu_abi_root = "$root_dir/core/crates/abi";
-    my %service_packages = (
-        capability => 'capability',
-        compositor => 'compositor',
-        display    => 'display',
-        drivers    => 'drivers',
-        logger     => 'logger',
-        input      => 'input',
-        network    => 'network',
-        package    => 'package',
-        'service-manager' => 'service-manager',
-        tty        => 'tty',
-    );
     need_cmd('cargo');
-    need_file("$services_root/Cargo.toml");
-    for my $service (keys %service_packages) {
-        need_file("$services_root/$service/Cargo.toml");
-    }
     need_file($target_json);
     need_file("$drivers_root/usb-driver/Cargo.toml") if config_enabled($config->{DRIVER_XHCI});
     need_file("$drivers_root/ps2/i8042-driver/Cargo.toml") if config_enabled($config->{DRIVER_I8042});
     need_file("$drivers_root/virtio-net-driver/Cargo.toml") if config_enabled($config->{DRIVER_VIRTIO_NET});
 
     remove_tree("$out_root/stage");
-    for my $service (sort keys %service_packages) {
-        my $stage = "$out_root/stage/$service";
-        copy_tree("$services_root/$service", $stage);
-        unlink "$stage/Cargo.lock" if -e "$stage/Cargo.lock";
-        rewrite_cargo_paths("$stage/Cargo.toml", '../..', $user_root, $plugkit_root, $mnu_abi_root);
-        print "[build] $service.service\n";
-        my @features = ();
-        if ($service eq 'network' && ($ENV{MOCHIOS_NETWORK_TEST_WEB_PKI} // '') eq '1') {
-            @features = ('test-web-pki');
-        }
-        build_staged_cargo_bin(
-            $toolchain,
-            $target_json,
-            $target_dir,
-            $stage,
-            $service_packages{$service},
-            @features,
-        );
-    }
 
     if (config_enabled($config->{DRIVER_XHCI})) {
         my $stage = "$out_root/stage/usb-driver";
@@ -1347,11 +1304,8 @@ run_env(
     "$core_root/Cargo.toml",
 );
 
-print "[step] build core.service\n";
-build_core_service($root_dir, $nightly_toolchain);
-
-print "[step] build drivers.service and driver bundles\n";
-build_services_and_drivers($root_dir, \%config, $nightly_toolchain);
+print "[step] build driver bundles\n";
+build_driver_bundles($root_dir, \%config, $nightly_toolchain);
 
 print "[step] build bootloader\n";
 build_bootloader($root_dir);
@@ -1367,18 +1321,18 @@ my %path = (
     viewkit_test_about          => "$root_dir/applications/test.app/about.toml",
     viewkit_test_manifest       => "$root_dir/applications/test.app/manifest.toml",
     kernel_bin                  => "$core_root/target/$kernel_target/release/kernel",
-    service_bin                 => "$root_dir/out/services-core/target/x86_64-unknown-mochios/release/core",
-    drivers_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/drivers",
-    compositor_service_bin      => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/compositor",
-    display_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/display",
-    capability_service_bin      => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/capability",
-    logger_service_bin          => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/logger",
-    input_service_bin           => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/input",
-    network_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/network",
-    tty_service_bin             => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/tty",
-    package_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/package",
+    service_bin                 => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/core",
+    drivers_service_bin         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/drivers",
+    compositor_service_bin      => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/compositor",
+    display_service_bin         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/display",
+    capability_service_bin      => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/capability",
+    logger_service_bin          => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/logger",
+    input_service_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/input",
+    network_service_bin         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/network",
+    tty_service_bin             => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/tty",
+    package_service_bin         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/package",
     signature_service_bin       => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/signature",
-    service_manager_service_bin => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/service-manager",
+    service_manager_service_bin => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/service-manager",
     update_service_bin          => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/update",
     drivers_service_manifest    => "$root_dir/services/drivers/manifest.toml",
     compositor_service_manifest => "$root_dir/services/compositor/manifest.toml",

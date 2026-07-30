@@ -767,3 +767,11 @@ path = "user"
 hash = "3f7af2926044b3533bd7c99cdfa7337b2b5cff0a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "platform: expose file synchronization"
+
+[[entries]]
+date = "2026-07-30T11:13:14.634497400+09:00"
+snapshot = "5d21a2d3ad3e6ba3df043ce6"
+path = "user"
+hash = "a0cc8d98ab4b11034b84e887f9d783fcd3bec68b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "trust: add certificate database A/B storage"

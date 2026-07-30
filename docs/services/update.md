@@ -47,7 +47,7 @@ versionとgenerationだけを伝え、Snapshot bytesや「検証済み」フラ�
 ## 診断
 
 `/system/logs/services/update.log`に、Trust/Revocationのversion、生成・期限・最終確認時刻、ETag、
-active slot、失効件数、最終同期結果、次回deadline、試行・更新・304・失敗・署名拒否・rollback・
+active slot、失効件数、最終同期結果、最終同期エラー、次回deadline、試行・更新・304・失敗・署名拒否・rollback・
 期限・storage・復旧の各counterを記録します。鍵、token、署名値は記録しません。
 
 ## 検証
@@ -65,3 +65,11 @@ MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX=<production-root-hex> \
 
 この検査はDeveloperCAへTLS 1.3とWeb PKIで接続し、両APIの200、署名検証、永続保存、ETag付き304、
 再読込を要求します。TrustまたはRevocation Snapshotが未発行の場合は成功扱いしません。
+
+## 未実装事項
+
+システムイメージ、AppStore catalog、アプリケーション、firmware、Driverの更新とMPKGの取得・installは
+`update.service`の責務ではありません。version指定APIは診断・復旧用URLを生成できますが、通常同期では
+latest endpointだけを使用します。また、Revocation Snapshotは6時間周期と期限接近時に同期しますが、
+最終確認から24時間以上経過したMPKG installの直前に同期を強制するIPCはまだありません。install側は
+期限内のTrustとRevocationが揃わない場合にfail closedします。

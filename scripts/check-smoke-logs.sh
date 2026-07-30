@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "$#" -lt 5 || "$#" -gt 7 ]]; then
-    echo "usage: $0 <serial-log> <service-manager-log> <drivers-log> <network-log> <network-client-smoke> [tls-http-client-smoke] [accounts-https-smoke]" >&2
+if [[ "$#" -lt 6 || "$#" -gt 9 ]]; then
+    echo "usage: $0 <serial-log> <service-manager-log> <drivers-log> <network-log> <network-client-smoke> <xhci-enabled> [tls-http-client-smoke] [accounts-https-smoke] [mpkg-runtime-smoke]" >&2
     exit 2
 fi
 
@@ -11,8 +11,10 @@ SERVICE_MANAGER_LOG="$2"
 DRIVERS_LOG="$3"
 NETWORK_LOG="$4"
 NETWORK_CLIENT_SMOKE="$5"
-TLS_HTTP_CLIENT_SMOKE="${6:-0}"
-ACCOUNTS_HTTPS_SMOKE="${7:-0}"
+XHCI_ENABLED="$6"
+TLS_HTTP_CLIENT_SMOKE="${7:-0}"
+ACCOUNTS_HTTPS_SMOKE="${8:-0}"
+MPKG_RUNTIME_SMOKE="${9:-0}"
 
 die() {
     echo "fatal: $*" >&2
@@ -23,6 +25,10 @@ case "${NETWORK_CLIENT_SMOKE}" in
     0|1) ;;
     *) die "network-client-smoke must be 0 or 1" ;;
 esac
+case "${XHCI_ENABLED}" in
+    0|1) ;;
+    *) die "xhci-enabled must be 0 or 1" ;;
+esac
 case "${TLS_HTTP_CLIENT_SMOKE}" in
     0|1) ;;
     *) die "tls-http-client-smoke must be 0 or 1" ;;
@@ -30,6 +36,10 @@ esac
 case "${ACCOUNTS_HTTPS_SMOKE}" in
     0|1) ;;
     *) die "accounts-https-smoke must be 0 or 1" ;;
+esac
+case "${MPKG_RUNTIME_SMOKE}" in
+    0|1) ;;
+    *) die "mpkg-runtime-smoke must be 0 or 1" ;;
 esac
 
 for log in "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}"; do
@@ -64,6 +74,18 @@ require_count() {
     actual="$(grep -aFc -- "${pattern}" "${file}" || true)"
     [[ "${actual}" -eq "${expected}" ]] ||
         die "wrong log count '${label}': expected=${expected} actual=${actual} pattern='${pattern}' file=${file}"
+}
+
+require_at_least() {
+    local label="$1"
+    local file="$2"
+    local pattern="$3"
+    local minimum="$4"
+    local actual
+
+    actual="$(grep -aFc -- "${pattern}" "${file}" || true)"
+    [[ "${actual}" -ge "${minimum}" ]] ||
+        die "insufficient log count '${label}': minimum=${minimum} actual=${actual} pattern='${pattern}' file=${file}"
 }
 
 assert_absent() {
@@ -147,7 +169,8 @@ assert_order "serial boot log" "${SERIAL_LOG}" \
     "i8042 driver" "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
     "virtio-net driver" "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
     "network.service" "exec: loaded '/system/services/network.service'" \
-    "tty.service" "exec: loaded '/system/services/tty.service'"
+    "tty.service" "exec: loaded '/system/services/tty.service'" \
+    "update.service" "exec: loaded '/system/services/update.service'"
 
 assert_order "network state transitions" "${NETWORK_LOG}" \
     "virtio-net ready" "network.service: interface id=1 mac=52:54:00:12:34:56 link=true mtu=1500" \
@@ -170,16 +193,16 @@ if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
             "DNS query" "network.service: DNS query sent name=localhost attempt=1" \
             "DNS response" "network.service: DNS response received name=localhost" \
             "DNS resolution" "network.service: DNS resolved name=localhost address=127.0.0.1"
-        require_count "TCP SYN" "${NETWORK_LOG}" "network.service: TCP SYN sent" 2
-        require_count "TCP SYN+ACK" "${NETWORK_LOG}" \
+        require_at_least "TCP SYN" "${NETWORK_LOG}" "network.service: TCP SYN sent" 2
+        require_at_least "TCP SYN+ACK" "${NETWORK_LOG}" \
             "network.service: TCP SYN+ACK received" 2
-        require_count "TCP established" "${NETWORK_LOG}" \
+        require_count "TCP smoke connection" "${NETWORK_LOG}" \
             "network.service: TCP Established remote=10.0.2.2:" 2
         require_count "TCP payload ACK" "${NETWORK_LOG}" \
             "network.service: TCP payload acknowledged bytes=17" 1
         require_count "TCP payload receive" "${NETWORK_LOG}" \
             "network.service: TCP payload received bytes=17" 1
-        require_count "TCP FIN" "${NETWORK_LOG}" \
+        require_at_least "TCP FIN" "${NETWORK_LOG}" \
             "network.service: TCP FIN close complete" 2
     else
         for pattern in \
@@ -196,6 +219,11 @@ if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
                 die "missing network lifecycle log in extended network smoke: ${pattern}"
         done
     fi
+fi
+
+if [[ "${MPKG_RUNTIME_SMOKE}" == "1" ]]; then
+    require_once "MPKG installer load" "${SERIAL_LOG}" \
+        "execve: loaded '/bin/mpk'" >/dev/null
 fi
 
 assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
@@ -217,16 +245,28 @@ assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
     "tty spawn" "service-manager.service: tty.service spawned pid=" \
     "network ready wait" "service-manager.service: waiting for network.service ready" \
     "network ready" "service-manager.service: network.service ready" \
+    "update spawn" "service-manager.service: update.service spawned pid=" \
     "service manager resident" "service-manager.service: resident phase reason=Running"
 
-assert_order "drivers.service log" "${DRIVERS_LOG}" \
-    "drivers start" "drivers.service: start" \
-    "USB bundle discovery" "drivers.service: matched bundle=/bin/drivers/usb/" \
-    "USB errno=22" "drivers.service: spawn failed /bin/drivers/usb/qemu-usb.driver/entry.elf errno=22" \
-    "PS/2 bundle discovery" "drivers.service: matched bundle=/bin/drivers/ps2/" \
-    "i8042 driver spawn" "drivers.service: active bundle=/bin/drivers/ps2/i8042.driver" \
-    "network bundle discovery" "drivers.service: matched bundle=/bin/drivers/network/virtio-net.driver" \
-    "virtio-net driver spawn" "drivers.service: active bundle=/bin/drivers/network/virtio-net.driver"
+if [[ "${XHCI_ENABLED}" == "1" ]]; then
+    assert_order "drivers.service log" "${DRIVERS_LOG}" \
+        "drivers start" "drivers.service: start" \
+        "USB bundle discovery" "drivers.service: matched bundle=/bin/drivers/usb/" \
+        "USB errno=22" "drivers.service: spawn failed /bin/drivers/usb/qemu-usb.driver/entry.elf errno=22" \
+        "PS/2 bundle discovery" "drivers.service: matched bundle=/bin/drivers/ps2/" \
+        "i8042 driver spawn" "drivers.service: active bundle=/bin/drivers/ps2/i8042.driver" \
+        "network bundle discovery" "drivers.service: matched bundle=/bin/drivers/network/virtio-net.driver" \
+        "virtio-net driver spawn" "drivers.service: active bundle=/bin/drivers/network/virtio-net.driver"
+else
+    assert_order "drivers.service log" "${DRIVERS_LOG}" \
+        "drivers start" "drivers.service: start" \
+        "PS/2 bundle discovery" "drivers.service: matched bundle=/bin/drivers/ps2/" \
+        "i8042 driver spawn" "drivers.service: active bundle=/bin/drivers/ps2/i8042.driver" \
+        "network bundle discovery" "drivers.service: matched bundle=/bin/drivers/network/virtio-net.driver" \
+        "virtio-net driver spawn" "drivers.service: active bundle=/bin/drivers/network/virtio-net.driver"
+    assert_absent "disabled USB discovery" "${DRIVERS_LOG}" \
+        "drivers.service: matched bundle=/bin/drivers/usb/"
+fi
 
 assert_absent "legacy input spawn" "${DRIVERS_LOG}" "drivers.service: input.service spawned pid="
 assert_absent "legacy display spawn" "${DRIVERS_LOG}" "drivers.service: display.driver spawned pid="

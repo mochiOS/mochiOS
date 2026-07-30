@@ -24,6 +24,7 @@ write_valid_logs() {
 [INFO] exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver' from cext
 [INFO] exec: loaded '/system/services/network.service' from cext
 [INFO] exec: loaded '/system/services/tty.service' from cext
+[INFO] exec: loaded '/system/services/update.service' from cext
 EOF
     cat > "${SERVICE_MANAGER_LOG}" <<'EOF'
 service-manager.service: start
@@ -44,6 +45,7 @@ service-manager.service: network.service spawned pid=13
 service-manager.service: tty.service spawned pid=14
 service-manager.service: waiting for network.service ready
 service-manager.service: network.service ready
+service-manager.service: update.service spawned pid=15
 service-manager.service: resident phase reason=Running
 EOF
     cat > "${DRIVERS_LOG}" <<'EOF'
@@ -74,7 +76,7 @@ expect_failure() {
     local expected="$2"
     local output="${TMP_DIR}/${name}.out"
 
-    if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 0 > "${output}" 2>&1; then
+    if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 0 1 > "${output}" 2>&1; then
         echo "fatal: ${name} unexpectedly passed" >&2
         exit 1
     fi
@@ -85,8 +87,24 @@ expect_failure() {
     }
 }
 
+append_mpkg_success() {
+    cat >> "${SERIAL_LOG}" <<'EOF'
+/ $ mpk /system/samples/mpk-test.mpkg
+[INFO] execve: loaded '/bin/mpk' from cext
+Process exiting with code: 0
+EOF
+}
+
 write_valid_logs
-"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 0 >/dev/null
+"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 0 1 >/dev/null
+
+append_mpkg_success
+"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 0 1 0 0 1 >/dev/null
+
+write_valid_logs
+sed -i '/matched bundle=\/bin\/drivers\/usb\//d' "${DRIVERS_LOG}"
+sed -i '/spawn failed \/bin\/drivers\/usb\//d' "${DRIVERS_LOG}"
+"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 0 0 >/dev/null
 
 write_valid_logs
 cat >> "${SERIAL_LOG}" <<'EOF'
@@ -113,10 +131,18 @@ network.service: TCP payload acknowledged bytes=17
 network.service: TCP payload received bytes=17
 network.service: TCP FIN close complete
 EOF
-"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 1 >/dev/null
+"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 1 1 >/dev/null
+
+cat >> "${NETWORK_LOG}" <<'EOF'
+network.service: TCP SYN sent
+network.service: TCP SYN+ACK received
+network.service: TCP Established remote=203.0.113.10:443
+network.service: TCP FIN close complete
+EOF
+"${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 1 1 >/dev/null
 
 sed -i '/TCP payload received/d' "${NETWORK_LOG}"
-if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 1 \
+if "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 1 1 \
     > "${TMP_DIR}/network-missing.out" 2>&1; then
     echo "fatal: missing network lifecycle log unexpectedly passed" >&2
     exit 1

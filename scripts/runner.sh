@@ -156,6 +156,8 @@ TLS_HTTP_CLIENT_SMOKE="${TLS_HTTP_CLIENT_SMOKE:-0}"
 case "${TLS_HTTP_CLIENT_SMOKE}" in 0|1) ;; *) die "TLS_HTTP_CLIENT_SMOKE must be 0 or 1" ;; esac
 ACCOUNTS_HTTPS_SMOKE="${ACCOUNTS_HTTPS_SMOKE:-0}"
 case "${ACCOUNTS_HTTPS_SMOKE}" in 0|1) ;; *) die "ACCOUNTS_HTTPS_SMOKE must be 0 or 1" ;; esac
+MPKG_RUNTIME_SMOKE="${MPKG_RUNTIME_SMOKE:-${SMOKE_TEST:-0}}"
+case "${MPKG_RUNTIME_SMOKE}" in 0|1) ;; *) die "MPKG_RUNTIME_SMOKE must be 0 or 1" ;; esac
 if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
     default_tcp_echo_port=$((20000 + $$ % 20000))
 else
@@ -645,6 +647,10 @@ if [[ "${ACCOUNTS_HTTPS_SMOKE}" == "1" ]]; then
         '"status":"ok"'
 fi
 
+if [[ "${MPKG_RUNTIME_SMOKE}" == "1" ]]; then
+    run_guest_command 0 "mpk /system/samples/mpk-test.mpkg"
+fi
+
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
     sleep 1
     for key in ${VIRTIO_GPU_TEST_KEYS}; do
@@ -757,6 +763,7 @@ fi
 
 "${SCRIPT_DIR}/check-smoke-logs.sh" \
     "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" \
-    "${NETWORK_CLIENT_SMOKE}" "${TLS_HTTP_CLIENT_SMOKE}" "${ACCOUNTS_HTTPS_SMOKE}"
+    "${NETWORK_CLIENT_SMOKE}" "${ENABLE_XHCI}" "${TLS_HTTP_CLIENT_SMOKE}" \
+    "${ACCOUNTS_HTTPS_SMOKE}" "${MPKG_RUNTIME_SMOKE}"
 
 echo "[done] serial log: ${SERIAL_LOG}"

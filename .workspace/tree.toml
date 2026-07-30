@@ -895,3 +895,11 @@ path = "user"
 hash = "7bf2cbefb54c0f8bb9fd508b2af1122cf80702e4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "trust: support read-only database recovery"
+
+[[entries]]
+date = "2026-07-30T12:24:56.670739694+09:00"
+snapshot = "9008ed225fead3a906bc25ea"
+path = "services"
+hash = "e476b24ebec1cfd170a6e8c4537228348c4e7fd7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "signature: enforce synchronized certificate database"

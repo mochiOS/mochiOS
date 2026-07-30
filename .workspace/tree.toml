@@ -1015,3 +1015,11 @@ path = "libraries/viewkit"
 hash = "de4b424c97d7159b5318e994998a35e4b8a32633"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: antialias GPU rounded borders"
+
+[[entries]]
+date = "2026-07-30T16:39:09.806003550+09:00"
+snapshot = "a26e24729362d1ed85b63b19"
+path = "applications/binder"
+hash = "7bc16bbb8a14f2540d5f5b310814341d6c6f1039"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: redraw restored Binder windows"

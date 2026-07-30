@@ -967,3 +967,11 @@ path = "services"
 hash = "1040058ad9596ebd7ec3c36e280f4201021dd4b9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "tests: isolate service manager host entrypoint"
+
+[[entries]]
+date = "2026-07-30T14:22:09.387196660+09:00"
+snapshot = "f8a00aea29a521e66db05fdf"
+path = "services"
+hash = "ca879e9653b83944b375ad65529dff803005b319"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: enforce service manifest policy"

@@ -783,3 +783,11 @@ path = "user"
 hash = "d4307775f12e38f9830f52e0ca592ff5e5583a6b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "platform: expose monotonic milliseconds"
+
+[[entries]]
+date = "2026-07-30T11:17:45.353663872+09:00"
+snapshot = "9a8adf6e4b738780cd89f8ab"
+path = "services"
+hash = "e3db7985438efe3883e9670b870d90606821e50e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "update: schedule trust and revocation synchronization"

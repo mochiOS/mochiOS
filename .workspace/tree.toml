@@ -1071,3 +1071,11 @@ path = "libraries/viewkit"
 hash = "4f14be36391f3cc2183df2b7a32e1c9e8b166a8d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: accelerate mochiOS GPU scenes"
+
+[[entries]]
+date = "2026-07-30T17:17:18.252194454+09:00"
+snapshot = "312bcee81452cffb4c38b35c"
+path = "libraries/viewkit"
+hash = "c01cea76745f57e40d59a176e1a46d1d6af6a33b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "perf: localize scheduled GPU redraws"

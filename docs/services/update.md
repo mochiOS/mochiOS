@@ -50,3 +50,18 @@ versionとgenerationだけを伝え、Snapshot bytesや「検証済み」フラ�
 active slot、失効件数、最終同期結果、次回deadline、試行・更新・304・失敗・署名拒否・rollback・
 期限・storage・復旧の各counterを記録します。鍵、token、署名値は記録しません。
 
+## 検証
+
+外部サービスに依存しない決定的検証は`make developer-pki-sync-smoke-test`です。ホスト限定のtest Rootと
+Issuerを使うTLS 1.3 serverを起動し、v1取得、ETag/304、v2更新、rollback、不正Root/Issuer署名、
+失効serial、A/B保存、プロセス再起動相当のDB再読込を検査します。test秘密鍵はOSイメージへ収録しません。
+
+本番確認はproduction Offline Root公開鍵を指定して実行します。
+
+```text
+MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX=<production-root-hex> \
+  make developer-pki-production-e2e
+```
+
+この検査はDeveloperCAへTLS 1.3とWeb PKIで接続し、両APIの200、署名検証、永続保存、ETag付き304、
+再読込を要求します。TrustまたはRevocation Snapshotが未発行の場合は成功扱いしません。

@@ -1043,6 +1043,12 @@ sub build_rootfs {
         install_file('0755', "$coreutils_bin_dir/$coreutil", "$rootfs_stage/bin/$coreutil");
     }
     install_file('0644', $path->{signature_db}, "$rootfs_stage/execution.allowlist");
+    if (!defined($ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX})
+        || $ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} eq '') {
+        make_path("$rootfs_stage/libraries/certificate");
+        install_file('0644', $path->{development_trust_snapshot}, "$rootfs_stage/libraries/certificate/trust-a.json");
+        install_file('0644', $path->{development_revocation_snapshot}, "$rootfs_stage/libraries/certificate/revocations-a.json");
+    }
 
     make_path("$rootfs_stage/system/packages");
     if (config_enabled($config->{USER_BUILD_MPK_SAMPLES})) {
@@ -1404,6 +1410,8 @@ my %path = (
     msh_font                    => "$root_dir/binaries/msh/resources/ter-u12b.bdf",
     coreutils_manifest          => "$root_dir/binaries/coreutils/manifest.toml",
     signature_db                => $signature_db_stage,
+    development_trust_snapshot => "$development_fixture_root/trust-a.json",
+    development_revocation_snapshot => "$development_fixture_root/revocations-a.json",
 );
 
 my $boot_release_dir = "$root_dir/out/bootloader/target/x86_64-unknown-uefi/release";
@@ -1419,7 +1427,7 @@ else {
 }
 
 for my $key (
-    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin network_service_bin package_service_bin signature_service_bin service_manager_service_bin update_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest network_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest update_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest)
+    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin network_service_bin package_service_bin signature_service_bin service_manager_service_bin update_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest network_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest update_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest development_trust_snapshot development_revocation_snapshot)
 ) {
     need_file($path{$key});
 }

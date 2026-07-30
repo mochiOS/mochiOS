@@ -1023,3 +1023,11 @@ path = "applications/binder"
 hash = "7bc16bbb8a14f2540d5f5b310814341d6c6f1039"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: redraw restored Binder windows"
+
+[[entries]]
+date = "2026-07-30T16:53:07.287187313+09:00"
+snapshot = "3cb0e256cee9a88ad7de003d"
+path = "applications/binder"
+hash = "5d3b684986cd29621dd348652278ccde6a073d31"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: refine Binder app activation"

@@ -569,10 +569,10 @@ EOF
     close $stamp_fh;
 }
 
-sub build_std_app {
-    my ($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, $rustflags, $manifest_path, $app_name) = @_;
-    my $app_out = "$target_dir/x86_64-unknown-mochios/release/$app_name";
-    my $stable_app_out = "$stable_target_dir/x86_64-unknown-mochios/release/$app_name";
+sub build_std_binary {
+    my ($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, $rustflags, $manifest_path, $binary_name) = @_;
+    my $binary_out = "$target_dir/x86_64-unknown-mochios/release/$binary_name";
+    my $stable_binary_out = "$stable_target_dir/x86_64-unknown-mochios/release/$binary_name";
     my $rust_src_root = "$sysroot_overlay/lib/rustlib/src/rust";
     my $library_root = "$rust_src_root/library";
     my $vendor_dir = "$library_root/vendor";
@@ -606,7 +606,7 @@ sub build_std_app {
         push @cargo_configs, "patch.crates-io.$package_name.path='$crate_dir'";
     }
     closedir $vendor_dh;
-    print "[build] $app_name\n";
+    print "[build] $binary_name (std)\n";
     my %cargo_env = (
         RUSTUP_HOME => $rustup_home,
         RUSTFLAGS   => join(' ', @{$rustflags}),
@@ -619,18 +619,18 @@ sub build_std_app {
         '-Z', 'json-target-spec',
         @cargo_config_args,
         '--manifest-path', $manifest_path,
-        '--bin', $app_name,
+        '--bin', $binary_name,
         '--release',
         '--target', $target_json,
         '--target-dir', $target_dir,
     );
-    need_file($app_out);
-    make_path(dirname($stable_app_out));
-    copy($app_out, $stable_app_out) or dief("copy $app_out: $!");
-    print "[done] $app_out\n";
+    need_file($binary_out);
+    make_path(dirname($stable_binary_out));
+    copy($binary_out, $stable_binary_out) or dief("copy $binary_out: $!");
+    print "[done] $binary_out\n";
 }
 
-sub build_rust_std_apps {
+sub build_rust_std_programs {
     my ($root_dir, $config, $toolchain, $coreutils_bins) = @_;
     my $user_root = "$root_dir/user";
     my $out_root = "$root_dir/out/rust-std";
@@ -688,12 +688,19 @@ sub build_rust_std_apps {
         '-C', 'link-arg=-Wl,--end-group',
     );
 
-    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$user_root/apps/rust-std-demo/Cargo.toml", 'rust-std-demo');
-    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
-    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
-    build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
+    my @std_services = (
+        ["$root_dir/services/update/Cargo.toml", 'update'],
+    );
+    for my $service (@std_services) {
+        build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, @{$service});
+    }
+
+    build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$user_root/apps/rust-std-demo/Cargo.toml", 'rust-std-demo');
+    build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
+    build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
+    build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
     for my $bin (@{$coreutils_bins}) {
-        build_std_app($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/coreutils/Cargo.toml", $bin);
+        build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/coreutils/Cargo.toml", $bin);
     }
 }
 
@@ -1234,8 +1241,8 @@ make_path("$esp_dir/EFI/BOOT", "$esp_dir/system", $initfs_stage, $rootfs_stage, 
 print "[step] build user runtime and newlib\n";
 build_newlib_runtime($root_dir, $nightly_toolchain);
 
-print "[step] build Rust std demo\n";
-build_rust_std_apps($root_dir, \%config, $config{USER_RUST_STD_TOOLCHAIN}, \@coreutils_bins);
+print "[step] build Rust std user programs\n";
+build_rust_std_programs($root_dir, \%config, $config{USER_RUST_STD_TOOLCHAIN}, \@coreutils_bins);
 
 if (config_enabled($config{USER_BUILD_MPK_SAMPLES})) {
     print "[step] build sample mpkg\n";

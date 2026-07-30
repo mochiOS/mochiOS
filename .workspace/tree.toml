@@ -831,3 +831,11 @@ path = "services"
 hash = "1255b8a816c23feb697669d29e202315d5c835e4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "update: persist certificate snapshots in A/B slots"
+
+[[entries]]
+date = "2026-07-30T11:55:54.910264348+09:00"
+snapshot = "db5ab7e8111c39ac7be82ef1"
+path = "services"
+hash = "5dcef3bf0e0cabd790d0d614594ffb780563342f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "update: add synchronized certificate file storage"

@@ -887,3 +887,11 @@ path = "services"
 hash = "85b39d1401f3089a5bac0dfed0992b5cec78cffa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "update: use shared certificate file storage"
+
+[[entries]]
+date = "2026-07-30T12:16:04.314120054+09:00"
+snapshot = "3d5a7261c6c546ebf6e006fc"
+path = "user"
+hash = "7bf2cbefb54c0f8bb9fd508b2af1122cf80702e4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "trust: support read-only database recovery"

@@ -1039,3 +1039,11 @@ path = "applications/binder"
 hash = "2ce1ca9bae78810f77ed7d8a89b6a700c06f3b6c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: add Binder desktop keyboard commands"
+
+[[entries]]
+date = "2026-07-30T17:14:45.004118114+09:00"
+snapshot = "806ccde50c66984febbc62f0"
+path = "libraries/viewkit"
+hash = "0174b06d5a5975a3a03d7989cf4b91f67cc1eea7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: accelerate mochiOS GPU scenes"

@@ -735,3 +735,11 @@ path = "user"
 hash = "acf6ddaa6fbf938b71da57f4b5dfef5554ff00f0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "protocol: add certificate update notifications"
+
+[[entries]]
+date = "2026-07-30T10:56:05.508459541+09:00"
+snapshot = "d393dd6595e5257148d6a237"
+path = "user"
+hash = "a8acbc73389062d39b8b12914ffe65f11dc5dfd7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "trust: add certificate database state wire"

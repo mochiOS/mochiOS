@@ -983,3 +983,11 @@ path = "services"
 hash = "dab97e83d9481e3a9102f233c74c38f5ca7d64c0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "tests: handle empty 304 response bodies"
+
+[[entries]]
+date = "2026-07-30T16:12:13.520063339+09:00"
+snapshot = "de179e21ab53ef00c2fdff92"
+path = "applications/binder"
+hash = "ab1587adf91b9dcf5e3717eb5d108e724fd4603e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: add interactive GPU test windows"

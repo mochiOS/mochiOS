@@ -919,3 +919,11 @@ path = "binaries/coreutils"
 hash = "572ec24394e910ee977b9f280dcb09a34fbf3ec7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: update coreutils syscall dependencies"
+
+[[entries]]
+date = "2026-07-30T13:09:44.244439895+09:00"
+snapshot = "40645c1cbbbce2fce7e25d5b"
+path = "binaries/coreutils"
+hash = "75195b84ea15b899fea31a092ac68759d8dd390e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: update coreutils syscall dependencies"

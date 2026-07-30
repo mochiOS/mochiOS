@@ -1007,3 +1007,11 @@ path = "applications/binder"
 hash = "7fba099516c51d83f5cd18d6c94ee4b2ff2cbaf4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "perf: localize Binder window hover damage"
+
+[[entries]]
+date = "2026-07-30T16:32:46.216601585+09:00"
+snapshot = "e9c2c22b0561264258e33c77"
+path = "libraries/viewkit"
+hash = "de4b424c97d7159b5318e994998a35e4b8a32633"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: antialias GPU rounded borders"

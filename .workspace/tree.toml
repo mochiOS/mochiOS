@@ -871,3 +871,11 @@ path = "services"
 hash = "93549d3cc1acd42d9b3e3297510aa4c9446f77f5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "services: start update after network readiness"
+
+[[entries]]
+date = "2026-07-30T12:12:15.108626513+09:00"
+snapshot = "102ba504604aa0a3a1a5c772"
+path = "services"
+hash = "872d3ef55b48e50f8005a00d0910b28526aa7aae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "services: index update service package"

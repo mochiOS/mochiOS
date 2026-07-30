@@ -879,3 +879,11 @@ path = "services"
 hash = "872d3ef55b48e50f8005a00d0910b28526aa7aae"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "services: index update service package"
+
+[[entries]]
+date = "2026-07-30T12:14:22.689447782+09:00"
+snapshot = "bd6135d6452bb52542a4f305"
+path = "services"
+hash = "85b39d1401f3089a5bac0dfed0992b5cec78cffa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "update: use shared certificate file storage"

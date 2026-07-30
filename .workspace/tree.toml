@@ -751,3 +751,11 @@ path = "user"
 hash = "8eccb3b03517e6ca39f8e5fc92006b73d82cf4e4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "network: support conditional HTTP requests"
+
+[[entries]]
+date = "2026-07-30T11:04:39.864885548+09:00"
+snapshot = "d22d3704da928948376978fd"
+path = "binaries/coreutils"
+hash = "d4c725c5735a449ec8d6dfe8e24e733d7965d1ec"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "network: adapt net client to conditional request wire"

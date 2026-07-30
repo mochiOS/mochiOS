@@ -951,3 +951,11 @@ path = "services"
 hash = "66ef517e13802625bb6234359a9e2dabd7602dc8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "services: run fixed services with Rust std"
+
+[[entries]]
+date = "2026-07-30T14:04:25.420936430+09:00"
+snapshot = "8568423dd0d4652ecb2c137f"
+path = "services"
+hash = "60df7ee18334a5596d446702d84e302baeebf8d3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: refresh std service lockfile"

@@ -975,3 +975,11 @@ path = "services"
 hash = "ca879e9653b83944b375ad65529dff803005b319"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "tests: enforce service manifest policy"
+
+[[entries]]
+date = "2026-07-30T15:08:19.100842697+09:00"
+snapshot = "3b05400f214274e7f6d0bb31"
+path = "services"
+hash = "dab97e83d9481e3a9102f233c74c38f5ca7d64c0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: handle empty 304 response bodies"

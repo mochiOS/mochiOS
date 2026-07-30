@@ -839,3 +839,11 @@ path = "services"
 hash = "5dcef3bf0e0cabd790d0d614594ffb780563342f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "update: add synchronized certificate file storage"
+
+[[entries]]
+date = "2026-07-30T11:57:44.774709837+09:00"
+snapshot = "1c9872d4c6801c3f9be63d4f"
+path = "services"
+hash = "9d53b0790b54b9955ca39d6838cd898883e1fa4b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "update: embed Developer Root public keys"

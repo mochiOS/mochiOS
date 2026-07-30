@@ -959,3 +959,11 @@ path = "services"
 hash = "60df7ee18334a5596d446702d84e302baeebf8d3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: refresh std service lockfile"
+
+[[entries]]
+date = "2026-07-30T14:10:28.442828227+09:00"
+snapshot = "cba4e3454de2f613bb1b3062"
+path = "services"
+hash = "1040058ad9596ebd7ec3c36e280f4201021dd4b9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "tests: isolate service manager host entrypoint"

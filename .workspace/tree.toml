@@ -759,3 +759,11 @@ path = "binaries/coreutils"
 hash = "d4c725c5735a449ec8d6dfe8e24e733d7965d1ec"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "network: adapt net client to conditional request wire"
+
+[[entries]]
+date = "2026-07-30T11:06:10.726732244+09:00"
+snapshot = "ef9482140c4e67a58d9aeebf"
+path = "user"
+hash = "3f7af2926044b3533bd7c99cdfa7337b2b5cff0a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "platform: expose file synchronization"

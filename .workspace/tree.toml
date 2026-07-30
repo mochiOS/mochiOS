@@ -807,3 +807,11 @@ path = "services"
 hash = "9a26e59e506701a1e33f8a130e5a14c7b342fe14"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "update: coordinate trust and revocation synchronization"
+
+[[entries]]
+date = "2026-07-30T11:34:17.301436675+09:00"
+snapshot = "2a72b2001de3a1840436844f"
+path = "services"
+hash = "b6c9371d1705c7320bc41da01ea556f00597d23f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "update: use Rust std runtime"

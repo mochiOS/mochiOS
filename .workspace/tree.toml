@@ -727,3 +727,11 @@ path = "tools/devkit"
 hash = "6cf18e1e6211508c0af69de922859c33fd649176"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: decode DeveloperCA certificate errors"
+
+[[entries]]
+date = "2026-07-30T10:53:10.655666055+09:00"
+snapshot = "d19c2368febcb603b5d93580"
+path = "user"
+hash = "acf6ddaa6fbf938b71da57f4b5dfef5554ff00f0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "protocol: add certificate update notifications"

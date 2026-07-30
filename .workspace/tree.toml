@@ -935,3 +935,11 @@ path = "services"
 hash = "29c2da7f5bd0405f0305a3a7572edf04ddf4270b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "tests: cover DeveloperCA synchronization end to end"
+
+[[entries]]
+date = "2026-07-30T13:24:55.321702270+09:00"
+snapshot = "75ff7afe70a4b805978c3a9e"
+path = "user"
+hash = "ead56a56950db0f84613fbc9ff320755fd02f0c6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "protocol: satisfy signature wire clippy checks"

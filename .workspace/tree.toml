@@ -823,3 +823,11 @@ path = "services"
 hash = "8e77d5f4ee2971974cb573f8fc038ee5501e3375"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "update: select the std platform runtime"
+
+[[entries]]
+date = "2026-07-30T11:53:56.531574559+09:00"
+snapshot = "664f94eab217c36f5897427d"
+path = "services"
+hash = "1255b8a816c23feb697669d29e202315d5c835e4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "update: persist certificate snapshots in A/B slots"

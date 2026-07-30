@@ -943,3 +943,11 @@ path = "user"
 hash = "ead56a56950db0f84613fbc9ff320755fd02f0c6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "protocol: satisfy signature wire clippy checks"
+
+[[entries]]
+date = "2026-07-30T13:52:04.328096829+09:00"
+snapshot = "5a48a60b61ed989782230e79"
+path = "services"
+hash = "66ef517e13802625bb6234359a9e2dabd7602dc8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "services: run fixed services with Rust std"

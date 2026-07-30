@@ -170,10 +170,11 @@ path = "$/entry.elf"
 `developer.cert` は `MCER` v1 の Developer Certificate です。検証順は次です。
 
 1. MPKG header、ustar、Developer Certificate の構文を検証
-2. 埋め込み Root 公開鍵で Developer Certificate を検証
-3. validity、key usage、Package ID scope、失効 serial を検証
-4. Developer 公開鍵で `manifest.sig` を検証
-5. manifest と全 payload の size、SHA-256 を照合
+2. 埋め込み Offline Root で同期済み Trust Snapshot を検証
+3. Trust 内の active/retired Issuer で Developer Certificate を検証
+4. Snapshot と Certificate の validity、key usage、Package ID scope、失効 serial を検証
+5. Developer 公開鍵で `manifest.sig` を検証
+6. manifest と全 payload の size、SHA-256 を照合
 
 `package.service` は読み込んだ同一の MPKG byte 列を chunk protocol で
 `signature.service` へ渡します。署名検証後に path を開き直しません。
@@ -235,8 +236,8 @@ msign package verify
 
 - Zstandard 展開
 - 既存 package の atomic upgrade、uninstall
-- intermediate CA
-- online time source による起動後の期限再評価
+- MPKG 内に埋め込む任意の証明書 chain
+- OCSP
 - Unicode normalization と case-fold collision 検査
 - optional Capability request
 

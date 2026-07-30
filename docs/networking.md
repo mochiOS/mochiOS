@@ -52,6 +52,8 @@ virtqueue、DMA addressを扱いません。
 
 `network.service`は有効なDHCPACKを受信した時点でnetwork-readyを通知します。TTYはその前に
 起動されるため、NIC不在、link down、DHCP timeoutでもOS全体のbootは停止しません。
+network-ready確認後、`service-manager.service`は`update.service`を起動します。同サービスは
+`net.http.request`経由でDeveloperCAへ接続し、同期失敗時もbootを停止しません。
 
 ## 4. DHCPとrouting
 
@@ -152,7 +154,8 @@ packet単位のlogは出さず、interface情報と主要な接続状態だけ�
 正式な`make smoke-test`はQEMU DHCP DNSで`localhost`を解決し、runnerがloopbackへ起動した
 bounded echo serverへguestから`10.0.2.2`経由で接続します。SYN、SYN+ACK、Established、17 bytesの
 送信、ACK、同一payloadの受信、FIN完了を実状態のlogとserver側byte数で検査します。外部HTTP
-serverには依存しません。
+serverはCLI検査の成功条件に使用しません。boot後は`update.service`も並行してHTTPSを使用するため、
+共有TCP統計にはDeveloperCA接続が追加される場合があります。
 
 TLS/HTTP専用の決定的検証は`make tls-http-smoke-test`です。test Rootを本番bundleから分離し、
 正常なContent-Length/chunkedと証明書・record・HTTP framingの失敗系を確認します。公開endpointの

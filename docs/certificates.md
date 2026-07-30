@@ -4,19 +4,23 @@
 
 ## 信頼モデル
 
-MPKG v1の信頼チェーンは1段に限定します。
+MPKG v1の現在の信頼チェーンはDeveloperCAのIssuerを含みます。
 
 ```text
-signature.serviceへ組み込まれたRoot公開鍵
+signature.serviceへ組み込まれたOffline Root公開鍵
+        | Trust SnapshotへのEd25519署名
+        v
+DeveloperCA Issuer公開鍵
         | Ed25519署名
         v
-Developer Certificate v1
+Developer Certificate v1 / Revocation Snapshot
         | Ed25519署名
         v
 manifest.toml -> SHA-256で各payloadへ結合
 ```
 
-中間CAは実装しません。`signatures/chain/`にエントリがあるMPKGは拒否します。
+MPKG内に任意の証明書chainを埋め込む方式は実装しません。`signatures/chain/`にエントリがあるMPKGは
+拒否し、信頼するIssuerは同期済みTrust Snapshotだけから取得します。
 
 Root秘密鍵はOSイメージ、公開リポジトリ、通常のイメージビルド環境へ置きません。`tools/devkit/fixtures/development`には再現可能な開発イメージ専用のDeveloper秘密鍵、事前発行済み証明書、Root公開鍵だけがあります。この鍵は公開済みであり、製品identityには使用できません。
 
@@ -44,7 +48,10 @@ Root秘密鍵はOSイメージ、公開リポジトリ、通常のイメージ�
 | 140 | 2 | allowed Capability count |
 | 142 | 2 | reserved、0固定 |
 
-ヘッダー後にはdeveloper ID、Package ID scope、Capabilityを正規順で格納し、最後の64 bytesをRootによるEd25519署名とします。scopeは`kind: u8`、`reserved: u8 = 0`、`length: u16`、UTF-8値です。`1`は完全一致、`2`は`.`境界だけを認めるprefixです。Capabilityは`length: u16`とUTF-8値です。
+ヘッダー後にはdeveloper ID、Package ID scope、Capabilityを正規順で格納し、最後の64 bytesを
+DeveloperCA IssuerによるEd25519署名とします。scopeは`kind: u8`、`reserved: u8 = 0`、
+`length: u16`、UTF-8値です。`1`は完全一致、`2`は`.`境界だけを認めるprefixです。Capabilityは
+`length: u16`とUTF-8値です。
 
 署名対象は次です。
 
@@ -56,29 +63,26 @@ Subject Key IDとIssuer Key IDは公開鍵32 bytesのSHA-256です。key usage v
 
 Package ID prefixは`org.mochios`に対して`org.mochios.app`を許可しますが、`org.mochiosx`は許可しません。globと正規表現はありません。Capability名は完全一致だけです。
 
-## Root公開鍵と時刻
+## Root公開鍵、Trust Snapshotと時刻
 
-`signature.service`の`build.rs`がRoot公開鍵をバイナリへ埋め込みます。既定値はdevelopment Rootです。製品ビルドは次を指定します。
+`signature.service`と`update.service`の`build.rs`がOffline Root公開鍵をバイナリへ埋め込みます。
+既定値はdevelopment Rootです。製品ビルドは次を指定します。
 
 ```text
-MOCHIOS_ROOT_PUBLIC_KEYS_HEX=<64桁hex>[,<64桁hex>...]
-MOCHIOS_TRUST_DOMAIN=production
-SOURCE_DATE_EPOCH=<Unix time>
+MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX=<64桁hex>[,<64桁hex>...]
 ```
 
-旧Rootと新Rootを同時に列挙すると、両Rootで発行されたDeveloper Certificateを移行期間中に検証できます。移行後は旧Rootをリストから外します。単一鍵向けの`MOCHIOS_ROOT_PUBLIC_KEY_HEX`も互換入力です。
+旧Rootと新Rootを同時に列挙すると、両Rootが署名したTrust Snapshotを移行期間中に検証できます。
+移行後は旧Rootをリストから外します。
 
-現在OSには信頼できるwall clockがないため、期限検証には`SOURCE_DATE_EPOCH`、未指定時は`signature.service`のビルド時刻を使用します。期限判定自体は省略しませんが、実行中の時刻進行や時計同期を反映しない制約があります。
+期限検証は`system.time.read`で取得する実行時UTCを使用します。同期DBの形式、A/B保存、失効、期限切れ
+Policyは[Developer PKI同期](security/developer-pki-sync.md)を参照してください。
 
 ## 失効
 
-失効シリアル番号はビルド時に次で組み込みます。
-
-```text
-MOCHIOS_REVOKED_CERTIFICATE_SERIALS=12,38,105
-```
-
-値はソート・重複除去され、Root署名と期限を検証した後、manifest署名を検証する前に照合します。オンラインCRLやOCSPは未実装なので、失効状態の更新には`signature.service`を含むイメージ更新が必要です。
+失効serialはDeveloperCAのIssuer署名済み累積Revocation Snapshotから読みます。Snapshotは
+`update.service`が定期同期するため、`signature.service`を含むイメージ更新は不要です。OCSPは
+実装していません。
 
 ## MPKG検証順
 
@@ -87,8 +91,8 @@ MOCHIOS_REVOKED_CERTIFICATE_SERIALS=12,38,105
 1. MPKGヘッダーとtar構文
 2. 必須entry、重複、未知signature entry、`signatures/chain/`不在
 3. Developer Certificateの構文と正規形
-4. Issuer Key IDに対応する組み込みRootの選択
-5. Root署名、期限、key usage、Package ID scope
+4. Issuer Key IDに対応する同期済みIssuerの選択とstatus確認
+5. Issuer署名、Certificate期限、key usage、Package ID scope
 6. 証明書シリアルの失効状態
 7. Developer公開鍵による`manifest.sig`
 8. manifestに列挙されたpayloadのサイズとSHA-256

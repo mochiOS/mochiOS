@@ -690,6 +690,7 @@ sub build_rust_std_programs {
 
     my @std_services = (
         ["$root_dir/services/update/Cargo.toml", 'update'],
+        ["$root_dir/services/signature/Cargo.toml", 'signature'],
     );
     for my $service (@std_services) {
         build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, @{$service});
@@ -846,7 +847,6 @@ sub build_services_and_drivers {
         network    => 'network',
         package    => 'package',
         'service-manager' => 'service-manager',
-        signature  => 'signature@0.1.0',
         tty        => 'tty',
     );
     need_cmd('cargo');
@@ -1371,7 +1371,7 @@ my %path = (
     network_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/network",
     tty_service_bin             => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/tty",
     package_service_bin         => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/package",
-    signature_service_bin       => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/signature",
+    signature_service_bin       => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/signature",
     service_manager_service_bin => "$root_dir/out/services-build/target/x86_64-unknown-mochios/release/service-manager",
     update_service_bin          => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/update",
     drivers_service_manifest    => "$root_dir/services/drivers/manifest.toml",

@@ -1119,3 +1119,11 @@ path = "tools/mws"
 hash = "1241a48b9f170b5f8c1abc35712fdcc1a8d12dc7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: include local repo manifests in snapshots"
+
+[[entries]]
+date = "2026-07-31T16:38:48.085142911+09:00"
+snapshot = "67c8d156f29af16944e14f6e"
+path = "applications/terminal"
+hash = "5cc0c30e36e256267801831c6370a31f31b6a7a2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "perf: reduce terminal redraw work"

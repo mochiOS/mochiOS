@@ -543,8 +543,7 @@ while ((SECONDS < DEADLINE)); do
         && log_has "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
         && log_has "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
         && log_has "exec: loaded '/system/services/network.service'" \
-        && log_has "exec: loaded '/system/services/tty.service'" \
-        && log_has "/ $"; then
+        && log_has "exec: loaded '/applications/Binder.app/entry.elf'"; then
         COMPLETED=1
         break
     fi

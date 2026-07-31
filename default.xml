@@ -128,4 +128,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="applications/terminal"
+            name="mochiOS/Terminal"
+            revision="main"
+            remote="github"
+    />
 </manifest>

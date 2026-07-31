@@ -23,7 +23,7 @@ write_valid_logs() {
 [INFO] exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf' from cext
 [INFO] exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver' from cext
 [INFO] exec: loaded '/system/services/network.service' from cext
-[INFO] exec: loaded '/system/services/tty.service' from cext
+[INFO] exec: loaded '/applications/Binder.app/entry.elf' from cext
 [INFO] exec: loaded '/system/services/update.service' from cext
 EOF
     cat > "${SERVICE_MANAGER_LOG}" <<'EOF'
@@ -42,7 +42,7 @@ service-manager.service: compositor.service spawned pid=11
 service-manager.service: driver discovery requested
 service-manager.service: driver discovery complete
 service-manager.service: network.service spawned pid=13
-service-manager.service: tty.service spawned pid=14
+service-manager.service: Binder.app spawned pid=14
 service-manager.service: waiting for network.service ready
 service-manager.service: network.service ready
 service-manager.service: update.service spawned pid=15

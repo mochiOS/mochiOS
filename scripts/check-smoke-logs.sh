@@ -169,7 +169,7 @@ assert_order "serial boot log" "${SERIAL_LOG}" \
     "i8042 driver" "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
     "virtio-net driver" "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
     "network.service" "exec: loaded '/system/services/network.service'" \
-    "tty.service" "exec: loaded '/system/services/tty.service'" \
+    "Binder.app" "exec: loaded '/applications/Binder.app/entry.elf'" \
     "update.service" "exec: loaded '/system/services/update.service'"
 
 assert_order "network state transitions" "${NETWORK_LOG}" \
@@ -242,7 +242,7 @@ assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
     "driver discovery request" "service-manager.service: driver discovery requested" \
     "driver discovery complete" "service-manager.service: driver discovery complete" \
     "network spawn" "service-manager.service: network.service spawned pid=" \
-    "tty spawn" "service-manager.service: tty.service spawned pid=" \
+    "Binder spawn" "service-manager.service: Binder.app spawned pid=" \
     "network ready wait" "service-manager.service: waiting for network.service ready" \
     "network ready" "service-manager.service: network.service ready" \
     "update spawn" "service-manager.service: update.service spawned pid=" \
@@ -274,5 +274,6 @@ assert_absent "legacy display ready wait" "${DRIVERS_LOG}" "drivers.service: wai
 assert_absent "legacy input ready wait" "${DRIVERS_LOG}" "drivers.service: waiting for input.service ready"
 assert_absent "legacy compositor spawn" "${DRIVERS_LOG}" "drivers.service: compositor.service spawned pid="
 assert_absent "legacy tty spawn" "${DRIVERS_LOG}" "drivers.service: tty.service spawned pid="
+assert_absent "disabled VGA terminal" "${SERIAL_LOG}" "exec: loaded '/system/services/tty.service'"
 
 echo "[check] service-manager boot ordering verified"

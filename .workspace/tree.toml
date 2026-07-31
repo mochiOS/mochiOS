@@ -1127,3 +1127,11 @@ path = "applications/terminal"
 hash = "5cc0c30e36e256267801831c6370a31f31b6a7a2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "perf: reduce terminal redraw work"
+
+[[entries]]
+date = "2026-07-31T17:04:33.718777457+09:00"
+snapshot = "40c48ec43a05e957ff5f72fa"
+path = "build"
+hash = "52bf4836a1f33afdd1e81f8fd3e78901f26da991"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: keep SMP opt-in until AP scheduling is complete"

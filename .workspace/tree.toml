@@ -1103,3 +1103,11 @@ path = "services"
 hash = "f3b0bec444cba20ec6f668a007fbc651fbe480bb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: boot Binder and route window close requests"
+
+[[entries]]
+date = "2026-07-31T16:35:26.859258976+09:00"
+snapshot = "7cf43dfa673b2b3a781109cb"
+path = "build"
+hash = "8b206ad66593c73398845363c976c58973c32487"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: default QEMU to two CPUs"

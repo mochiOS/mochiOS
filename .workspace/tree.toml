@@ -1095,3 +1095,11 @@ path = "libraries/viewkit"
 hash = "e34f82a430edf6fdd5bcf44eb1617b2c9847d57a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: add ViewKit keyboard command events"
+
+[[entries]]
+date = "2026-07-31T14:48:49.923480141+09:00"
+snapshot = "c21a4ff63f087e9f3152be34"
+path = "services"
+hash = "f3b0bec444cba20ec6f668a007fbc651fbe480bb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: boot Binder and route window close requests"

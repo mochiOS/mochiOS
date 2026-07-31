@@ -1111,3 +1111,11 @@ path = "build"
 hash = "8b206ad66593c73398845363c976c58973c32487"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: default QEMU to two CPUs"
+
+[[entries]]
+date = "2026-07-31T16:38:21.207481505+09:00"
+snapshot = "9da1791ad59ba09521eafa37"
+path = "tools/mws"
+hash = "1241a48b9f170b5f8c1abc35712fdcc1a8d12dc7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: include local repo manifests in snapshots"

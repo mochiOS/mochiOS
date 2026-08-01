@@ -1143,3 +1143,11 @@ path = "binaries/coreutils"
 hash = "8d4eb776f0b80cccc3841d933f819c9d23477205"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update lock file"
+
+[[entries]]
+date = "2026-08-01T09:53:33.221664741+09:00"
+snapshot = "54c726d87ec85d544dcc3746"
+path = "applications/binder"
+hash = "75e4724b9c703d47aeaafa3bed13ad2eadf6b330"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "perf: limit Binder platform polling damage"

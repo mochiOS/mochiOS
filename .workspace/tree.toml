@@ -1151,3 +1151,11 @@ path = "applications/binder"
 hash = "75e4724b9c703d47aeaafa3bed13ad2eadf6b330"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "perf: limit Binder platform polling damage"
+
+[[entries]]
+date = "2026-08-01T10:02:25.435150157+09:00"
+snapshot = "b66cc8c29e4ad96bf67de1ae"
+path = "services"
+hash = "c325c938f9d67e45e017dc9f90a2a0de8625e655"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "policy: allow Binder to read system time"

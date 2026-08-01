@@ -1167,3 +1167,11 @@ path = "user"
 hash = "b48c44c12918797000aa925fecca08ad3e9f3c3d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor: move user test files under tmp"
+
+[[entries]]
+date = "2026-08-01T11:42:35.712411431+09:00"
+snapshot = "dcf46311ea61bf81e2e7cc83"
+path = "applications/file"
+hash = "536cf45bcb6b034dc0e49e35b1c48e3ff1591ca8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "apache 2.0ライセンスを追加"

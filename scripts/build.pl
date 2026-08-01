@@ -4,6 +4,7 @@ use warnings;
 use Cwd qw(abs_path getcwd);
 use File::Basename qw(dirname);
 use File::Copy qw(copy);
+use File::Find qw(find);
 use File::Path qw(make_path remove_tree);
 use MIME::Base64 qw(decode_base64);
 use POSIX qw(strftime);
@@ -222,7 +223,46 @@ sub copy_tree {
     my ($src, $dst) = @_;
     remove_tree($dst);
     make_path($dst);
-    run('cp', '-R', "$src/.", $dst);
+    run('cp', '-a', "$src/.", $dst);
+}
+
+sub cached_artifacts_current {
+    my ($root, $stamp, $disk_image) = @_;
+    return 0 if !$build_options{cached} || !-f $stamp || !-f $disk_image;
+
+    my $stamp_mtime = (stat($stamp))[9] // 0;
+    my $stale = 0;
+    find(
+        {
+            no_chdir => 1,
+            wanted => sub {
+                return if $stale;
+                my $path = $File::Find::name;
+                my $relative = $path eq $root
+                    ? ''
+                    : substr($path, length($root) + 1);
+
+                if (-d $path && ($relative eq 'out'
+                    || $relative eq '.repo'
+                    || $relative eq '.workspace'
+                    || $relative =~ m{(?:^|/)\.git\z}
+                    || $relative =~ m{(?:^|/)target\z}
+                    || $relative =~ m{(?:^|/)node_modules\z}
+                    || $relative eq 'libraries/libc/src'
+                    || $relative eq 'libraries/libc/.generated'
+                    || $relative eq 'libraries/fonts/out')) {
+                    $File::Find::prune = 1;
+                    return;
+                }
+
+                return if !-f $path;
+                my $mtime = (stat($path))[9] // 0;
+                $stale = 1 if $mtime > $stamp_mtime;
+            },
+        },
+        $root,
+    );
+    return !$stale;
 }
 
 sub stage_font_assets {
@@ -1150,10 +1190,7 @@ sub relink_libc_src {
 	remove_tree($generated_root);
 	make_path($generated_root);
 
-	copy(
-		$upstream_mod,
-		"$generated_root/upstream-newlib-mod.rs",
-	) or dief("copy upstream newlib/mod.rs: $!");
+	run('cp', '-p', $upstream_mod, "$generated_root/upstream-newlib-mod.rs");
 
 	remove_tree($libc_src);
 	run('cp', '-rs', $registry_src, $libc_root);
@@ -1164,8 +1201,7 @@ sub relink_libc_src {
 		or dief("unlink $wrapper_dst: $!")
 		if -e $wrapper_dst || -l $wrapper_dst;
 
-	copy("$override_src/mod.rs", $wrapper_dst)
-		or dief("copy newlib/mod.rs: $!");
+	run('cp', '-p', "$override_src/mod.rs", $wrapper_dst);
 
 	print "[link] prepared libc sources\n";
 }
@@ -1191,6 +1227,7 @@ my $kernel_target = 'x86_64-unknown-none';
 my $nightly_toolchain = $config{KERNEL_RUST_TOOLCHAIN};
 my $build_root = "$root_dir/out/image-build";
 my $artifact_dir = "$root_dir/out/artifacts";
+my $build_input_stamp = "$root_dir/out/.build-input-stamp";
 my $esp_dir = "$build_root/esp";
 my $esp_img = "$build_root/esp.img";
 my $disk_img = "$build_root/disk.img";
@@ -1216,6 +1253,11 @@ my $msign_bin = "$root_dir/out/devkit-target/release/msign";
 my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk net test_gui test_desktop);
 push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
+
+if (cached_artifacts_current($root_dir, $build_input_stamp, "$artifact_dir/disk.img")) {
+    print "[cache] reuse complete image: $artifact_dir/disk.img\n";
+    exit 0;
+}
 
 for my $cmd (qw(cargo cp install mcopy mke2fs mkfs.fat mmd perl tar repo sha256sum sfdisk truncate dd find sort)) {
     need_cmd($cmd);
@@ -1645,3 +1687,8 @@ for my $name (sort grep {-f "$artifact_dir/$_"} readdir $dh) {
     print "  $name\n";
 }
 closedir $dh;
+
+open my $stamp_fh, '>', $build_input_stamp
+    or dief("write build input stamp $build_input_stamp: $!");
+print {$stamp_fh} "ok\n";
+close $stamp_fh or dief("close build input stamp $build_input_stamp: $!");

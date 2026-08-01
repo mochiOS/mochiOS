@@ -1175,3 +1175,11 @@ path = "applications/file"
 hash = "536cf45bcb6b034dc0e49e35b1c48e3ff1591ca8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "apache 2.0ライセンスを追加"
+
+[[entries]]
+date = "2026-08-01T14:10:55.125678979+09:00"
+snapshot = "2c9514805dab6e33f21a9c02"
+path = "applications/file"
+hash = "5b37192b3e4fec60c3f17af33cd724305569ad08"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "assets: add Files application icon"

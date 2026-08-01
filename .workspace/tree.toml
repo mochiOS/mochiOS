@@ -1215,3 +1215,11 @@ path = "build"
 hash = "e610be119ad4dbbae272604b32fb104514de5ede"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: pin compatible userland Rust toolchain"
+
+[[entries]]
+date = "2026-08-01T20:35:00.783626853+09:00"
+snapshot = "8f48150e3b3ddf4edbe3c99c"
+path = "services"
+hash = "7cc78cc168d79d2cb4e616a11f2e6e2c54665191"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: add user management service"

@@ -1199,3 +1199,11 @@ path = "user"
 hash = "6e57fb9db501d2e17f74edf06623f1727c4c54a4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: add rmdir runtime support"
+
+[[entries]]
+date = "2026-08-01T17:45:24.289365399+09:00"
+snapshot = "489825486fe411e97fa1ac42"
+path = "libraries/viewkit"
+hash = "9ed9fc382321aac65993a43929f68da4243cc99b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "perf: optimize wallpaper image rendering"

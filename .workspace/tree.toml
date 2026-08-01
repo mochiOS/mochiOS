@@ -1183,3 +1183,11 @@ path = "applications/file"
 hash = "5b37192b3e4fec60c3f17af33cd724305569ad08"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "assets: add Files application icon"
+
+[[entries]]
+date = "2026-08-01T14:44:07.972376136+09:00"
+snapshot = "5ffd33f12bbf59651170f95d"
+path = "libraries/libc"
+hash = "94f53c5a1c476c5df2456d880dbdc110eb9344bd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: align mochiOS stat ABI"

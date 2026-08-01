@@ -1058,11 +1058,11 @@ sub build_rootfs {
     remove_tree($rootfs_stage);
     make_path("$rootfs_stage/bin");
     make_path("$rootfs_stage/tmp");
+    make_path("$rootfs_stage/libraries/system");
+    make_path("$rootfs_stage/system/logs");
     install_file('0755', $path->{hello_elf}, "$rootfs_stage/bin/hello");
     install_file('0755', $path->{rust_std_demo_bin}, "$rootfs_stage/bin/rust-std-demo");
     install_file('0755', $path->{test_app_bin}, "$rootfs_stage/bin/test_app");
-    open my $rust_txt, '>', "$rootfs_stage/rust.txt" or dief("open rust.txt: $!");
-    close $rust_txt;
     install_file('0755', $path->{msh_bin}, "$rootfs_stage/bin/msh");
     stage_font_assets($fonts_src, "$rootfs_stage/libraries/fonts");
     stage_system_icons($path->{system_icons_dir}, "$rootfs_stage/system/icons");
@@ -1071,7 +1071,11 @@ sub build_rootfs {
     for my $coreutil (@{$coreutils_bins}) {
         install_file('0755', "$coreutils_bin_dir/$coreutil", "$rootfs_stage/bin/$coreutil");
     }
-    install_file('0644', $path->{signature_db}, "$rootfs_stage/execution.allowlist");
+    install_file(
+        '0644',
+        $path->{signature_db},
+        "$rootfs_stage/libraries/system/execution.allowlist",
+    );
     if (!defined($ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX})
         || $ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} eq '') {
         make_path("$rootfs_stage/libraries/certificate");
@@ -1118,6 +1122,13 @@ sub build_rootfs {
         stage_package_manifest($rootfs_stage, $path->{virtio_net_driver_manifest}, "/system/packages@{[ $virtio_net_bundle_root =~ s#^/bin##r ]}/manifest.toml");
         stage_driver_bundle($rootfs_stage, $path->{virtio_net_driver_manifest}, $path->{virtio_net_driver_bin}, $virtio_net_bundle_root, 'virtio-net.driver');
     }
+
+    opendir my $root_dh, $rootfs_stage or dief("opendir $rootfs_stage: $!");
+    my @root_files = sort grep {
+        $_ ne '.' && $_ ne '..' && !-d "$rootfs_stage/$_"
+    } readdir $root_dh;
+    closedir $root_dh;
+    dief("rootfs root must contain directories only: @root_files") if @root_files;
 
     unlink $rootfs_img if -e $rootfs_img;
     run('truncate', '-s', "${rootfs_size_mb}M", $rootfs_img);

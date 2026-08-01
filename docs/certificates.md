@@ -129,7 +129,7 @@ msign package verify app.mpkg --root-public-key root.pub --unix-time 1750000000
 
 ## execution.allowlist
 
-`/execution.allowlist`はDeveloper Certificate PKIとは別のbootstrap機構です。カーネルがrootfs上で実行を許すpathとSHA-256をビルド時に固定します。
+`/libraries/system/execution.allowlist`はDeveloper Certificate PKIとは別のbootstrap機構です。カーネルがrootfs上で実行を許すpathとSHA-256をビルド時に固定します。
 
 ```text
 mochios-execution-allowlist v1

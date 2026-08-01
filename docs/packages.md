@@ -25,4 +25,4 @@ mochiOSでは、アプリケーション、サービス、ドライバー、CLI�
 
 `.mpkg`のコンテナ形式、manifest schema、署名対象、パス規則、インストール手順の正本は[mochiOS Package Format](mpkg.md)です。
 
-Root Certificate、Developer Certificate、失効、`/execution.allowlist`との境界は[mochiOSの証明書と署名検証](certificates.md)を参照してください。
+Root Certificate、Developer Certificate、失効、`/libraries/system/execution.allowlist`との境界は[mochiOSの証明書と署名検証](certificates.md)を参照してください。

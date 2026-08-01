@@ -153,8 +153,8 @@ for signature_pattern in \
     "signature allow test" \
     "signature deny test" \
     "signature verification failed" \
-    "execution allowlist: missing /execution.allowlist" \
-    "execution allowlist: invalid /execution.allowlist"; do
+    "execution allowlist: missing /libraries/system/execution.allowlist" \
+    "execution allowlist: invalid /libraries/system/execution.allowlist"; do
     assert_absent_case_insensitive "signature failure" "${SERIAL_LOG}" "${signature_pattern}"
 done
 

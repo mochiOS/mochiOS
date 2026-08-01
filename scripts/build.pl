@@ -502,9 +502,14 @@ sub prepare_rust_sysroot_overlay {
     );
 
     my $overlay_stamp = "$sysroot_overlay/.mochios-overlay-stamp";
+    my $overlay_vendor = "$sysroot_overlay/lib/rustlib/src/rust/library/vendor";
+    my $overlay_literal_escaper =
+        "$sysroot_overlay/lib/rustlib/src/rust/vendor/rustc-literal-escaper/Cargo.toml";
     my $overlay_fresh = $build_options{cached}
         && -x "$sysroot_overlay/bin/rustc"
         && -d "$sysroot_overlay/lib/rustlib/src/rust"
+        && -d $overlay_vendor
+        && -f $overlay_literal_escaper
         && -f $overlay_stamp;
     if ($overlay_fresh) {
         my $stamp_mtime = (stat($overlay_stamp))[9] // 0;
@@ -628,6 +633,7 @@ EOF
 		$literal_escaper_src,
 		"$rustlib_overlay/src/rust/vendor/rustc-literal-escaper",
 	);
+	make_path("$rustlib_overlay/src/rust/library/vendor");
 
     remove_tree($sysroot_overlay);
     rename "$sysroot_overlay.tmp", $sysroot_overlay or dief("rename sysroot overlay: $!");
@@ -654,6 +660,10 @@ sub build_std_binary {
         "patch.crates-io.rustc-std-workspace-alloc.path='$library_root/rustc-std-workspace-alloc'",
         "patch.crates-io.rustc-std-workspace-std.path='$library_root/rustc-std-workspace-std'",
     );
+    if ($manifest_path eq "$root_dir/binaries/coreutils/Cargo.toml") {
+        push @cargo_configs,
+            "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-database.path='$root_dir/user/crates/user-database'";
+    }
     if (index($manifest_path, "$root_dir/services/") == 0
         || index($manifest_path, '/services-stage/') >= 0) {
         push @cargo_configs,
@@ -1092,6 +1102,11 @@ sub build_rootfs {
     install_file('0755', $path->{msh_bin}, "$rootfs_stage/bin/msh");
     stage_font_assets($fonts_src, "$rootfs_stage/libraries/fonts");
     stage_resource_tree($path->{resources_dir}, $rootfs_stage);
+    chmod 0600, "$rootfs_stage/system/users/users.db"
+        or dief("chmod user database: $!");
+    for my $directory (qw(Desktop Documents Downloads Movies Music Pictures)) {
+        make_path("$rootfs_stage/home/root/$directory");
+    }
     make_path("$rootfs_stage/system/resources/msh");
     install_file('0644', $path->{msh_font}, "$rootfs_stage/system/resources/msh/ter-u12b.bdf");
     for my $coreutil (@{$coreutils_bins}) {
@@ -1289,7 +1304,7 @@ my $devkit_root = "$root_dir/tools/devkit";
 my $development_fixture_root = "$devkit_root/fixtures/development";
 my $development_certificate = "$build_root/developer.cert";
 my $msign_bin = "$root_dir/out/devkit-target/release/msign";
-my @coreutils_bins = qw(echo ls pwd true false cat touch rm mpk net test_gui test_desktop);
+my @coreutils_bins = qw(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net test_gui test_desktop);
 push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
 
@@ -1586,7 +1601,7 @@ my @signature_db_args = (
     '--entry',
     "/bin/msh=$path{msh_bin}",
 );
-for my $bin (qw(echo ls pwd true false cat touch rm mpk net test_gui test_app test_desktop)) {
+for my $bin (qw(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net test_gui test_app test_desktop)) {
     my $bin_path = $bin eq 'test_app' ? $path{test_app_bin} : "$coreutils_bin_dir/$bin";
     push @signature_db_args, '--entry', "/bin/$bin=$bin_path";
 }

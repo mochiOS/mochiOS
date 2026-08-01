@@ -169,6 +169,7 @@ assert_order "serial boot log" "${SERIAL_LOG}" \
     "i8042 driver" "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
     "virtio-net driver" "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
     "network.service" "exec: loaded '/system/services/network.service'" \
+    "user.service" "exec: loaded '/system/services/user.service'" \
     "Binder.app" "exec: loaded '/applications/Binder.app/entry.elf'" \
     "update.service" "exec: loaded '/system/services/update.service'"
 
@@ -242,6 +243,9 @@ assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
     "driver discovery request" "service-manager.service: driver discovery requested" \
     "driver discovery complete" "service-manager.service: driver discovery complete" \
     "network spawn" "service-manager.service: network.service spawned pid=" \
+    "user spawn" "service-manager.service: user.service spawned pid=" \
+    "user ready wait" "service-manager.service: waiting for user.service ready" \
+    "user ready" "service-manager.service: user.service ready" \
     "Binder spawn" "service-manager.service: Binder.app spawned pid=" \
     "network ready wait" "service-manager.service: waiting for network.service ready" \
     "network ready" "service-manager.service: network.service ready" \

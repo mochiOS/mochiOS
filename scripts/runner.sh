@@ -49,6 +49,7 @@ DRIVERS_LOG="${RUN_DIR}/drivers.log"
 DISPLAY_LOG="${RUN_DIR}/display.driver.log"
 SERVICE_MANAGER_LOG="${RUN_DIR}/service-manager.log"
 NETWORK_LOG="${RUN_DIR}/network.log"
+USER_LOG="${RUN_DIR}/user.log"
 NETWORK_SERVER_LOG="${RUN_DIR}/network-smoke-server.log"
 NETWORK_SERVER_READY="${RUN_DIR}/network-smoke-server.ready"
 TLS_HTTP_SERVER_LOG="${RUN_DIR}/tls-http-smoke-server.log"
@@ -543,6 +544,7 @@ while ((SECONDS < DEADLINE)); do
         && log_has "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
         && log_has "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
         && log_has "exec: loaded '/system/services/network.service'" \
+        && log_has "exec: loaded '/system/services/user.service'" \
         && log_has "exec: loaded '/applications/Binder.app/entry.elf'"; then
         COMPLETED=1
         break
@@ -748,6 +750,10 @@ debugfs -R 'cat /system/logs/services/service-manager.log' "${ROOTFS_IMAGE}" \
     > "${SERVICE_MANAGER_LOG}" 2>/dev/null || die "service-manager.service log could not be read"
 debugfs -R 'cat /system/logs/services/network.log' "${ROOTFS_IMAGE}" \
     > "${NETWORK_LOG}" 2>/dev/null || die "network.service log could not be read"
+debugfs -R 'cat /system/logs/services/user.log' "${ROOTFS_IMAGE}" \
+    > "${USER_LOG}" 2>/dev/null || die "user.service log could not be read"
+grep -Fq 'user.service: ready users=1' "${USER_LOG}" ||
+    die "user.service did not load its initial database; see ${USER_LOG}"
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
     LAST_DISPLAY_BACKEND="$(grep -F "display.driver:" "${DISPLAY_LOG}" |

@@ -1207,3 +1207,11 @@ path = "libraries/viewkit"
 hash = "9ed9fc382321aac65993a43929f68da4243cc99b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "perf: optimize wallpaper image rendering"
+
+[[entries]]
+date = "2026-08-01T18:28:19.738977103+09:00"
+snapshot = "50e4ad7c02a2cc14dfd60015"
+path = "build"
+hash = "e610be119ad4dbbae272604b32fb104514de5ede"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: pin compatible userland Rust toolchain"

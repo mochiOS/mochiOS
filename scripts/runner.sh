@@ -219,7 +219,7 @@ fi
 
 QEMU_ARGS=(
     -machine "q35,accel=${QEMU_ACCEL}"
-    -m 512M
+    -m 1G
     -smp "${QEMU_SMP}"
     -cpu "${QEMU_CPU}"
     -rtc base=utc,clock=host

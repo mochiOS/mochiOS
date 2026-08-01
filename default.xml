@@ -135,4 +135,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="applications/file"
+            name="mochiOS/Files.app"
+            revision="main"
+            remote="github"
+    />
 </manifest>

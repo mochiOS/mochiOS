@@ -288,6 +288,18 @@ sub stage_font_assets {
     closedir $dh;
 }
 
+sub stage_wallpaper_assets {
+    my ($wallpapers_src, $wallpapers_dst) = @_;
+    return if !-d $wallpapers_src;
+
+    for my $name (qw(default.png default.jpeg)) {
+        my $src = "$wallpapers_src/$name";
+        next if !-f $src;
+        make_path($wallpapers_dst);
+        install_file('0644', $src, "$wallpapers_dst/$name");
+    }
+}
+
 sub stage_system_icons {
     my ($icons_src, $icons_dst) = @_;
     need_dir($icons_src);
@@ -1083,6 +1095,10 @@ sub build_rootfs {
     install_file('0755', $path->{test_app_bin}, "$rootfs_stage/bin/test_app");
     install_file('0755', $path->{msh_bin}, "$rootfs_stage/bin/msh");
     stage_font_assets($fonts_src, "$rootfs_stage/libraries/fonts");
+    stage_wallpaper_assets(
+        $path->{wallpapers_dir},
+        "$rootfs_stage/libraries/wallpapers",
+    );
     stage_system_icons($path->{system_icons_dir}, "$rootfs_stage/system/icons");
     make_path("$rootfs_stage/system/resources/msh");
     install_file('0644', $path->{msh_font}, "$rootfs_stage/system/resources/msh/ter-u12b.bdf");
@@ -1474,6 +1490,7 @@ my %path = (
     files_icon             => "$root_dir/applications/file/appicon.svg",
     files_icons_dir        => "$root_dir/applications/file/resources/icons",
     system_icons_dir       => "$root_dir/resources/system/icons",
+    wallpapers_dir         => "$root_dir/libraries/wallpapers",
     test_app_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/test_app",
     msh_bin                     => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/msh",
     msh_manifest                => "$root_dir/binaries/msh/manifest.toml",

@@ -1191,3 +1191,11 @@ path = "libraries/libc"
 hash = "94f53c5a1c476c5df2456d880dbdc110eb9344bd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: align mochiOS stat ABI"
+
+[[entries]]
+date = "2026-08-01T17:16:15.484410202+09:00"
+snapshot = "93a346813e0ece780c8d1b03"
+path = "user"
+hash = "6e57fb9db501d2e17f74edf06623f1727c4c54a4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: add rmdir runtime support"

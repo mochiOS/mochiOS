@@ -288,36 +288,32 @@ sub stage_font_assets {
     closedir $dh;
 }
 
-sub stage_wallpaper_assets {
-    my ($wallpapers_src, $wallpapers_dst) = @_;
-    return if !-d $wallpapers_src;
-
-    for my $name (qw(default.png default.jpeg)) {
-        my $src = "$wallpapers_src/$name";
-        next if !-f $src;
-        make_path($wallpapers_dst);
-        install_file('0644', $src, "$wallpapers_dst/$name");
-    }
-}
-
-sub stage_system_icons {
-    my ($icons_src, $icons_dst) = @_;
-    need_dir($icons_src);
-    remove_tree($icons_dst);
-    make_path($icons_dst);
-
-    opendir my $dh, $icons_src or dief("opendir $icons_src: $!");
-    for my $name (sort grep { $_ ne '.' && $_ ne '..' } readdir $dh) {
-        my $src = "$icons_src/$name";
-        my $dst = "$icons_dst/$name";
-        if (-f $src) {
-            install_file('0644', $src, $dst);
-        }
-        else {
-            dief("unsupported icon artifact: $src");
-        }
-    }
-    closedir $dh;
+sub stage_resource_tree {
+    my ($resources_src, $rootfs_dst) = @_;
+    need_dir($resources_src);
+    find(
+        {
+            no_chdir => 1,
+            preprocess => sub { sort @_ },
+            wanted => sub {
+                my $src = $File::Find::name;
+                return if $src eq $resources_src;
+                my $relative = substr($src, length($resources_src) + 1);
+                my $dst = "$rootfs_dst/$relative";
+                dief("symbolic links are not supported in resources: $src") if -l $src;
+                if (-d $src) {
+                    make_path($dst);
+                }
+                elsif (-f $src) {
+                    install_file('0644', $src, $dst);
+                }
+                else {
+                    dief("unsupported resource artifact: $src");
+                }
+            },
+        },
+        $resources_src,
+    );
 }
 
 sub rewrite_cargo_paths {
@@ -1095,11 +1091,7 @@ sub build_rootfs {
     install_file('0755', $path->{test_app_bin}, "$rootfs_stage/bin/test_app");
     install_file('0755', $path->{msh_bin}, "$rootfs_stage/bin/msh");
     stage_font_assets($fonts_src, "$rootfs_stage/libraries/fonts");
-    stage_wallpaper_assets(
-        $path->{wallpapers_dir},
-        "$rootfs_stage/libraries/wallpapers",
-    );
-    stage_system_icons($path->{system_icons_dir}, "$rootfs_stage/system/icons");
+    stage_resource_tree($path->{resources_dir}, $rootfs_stage);
     make_path("$rootfs_stage/system/resources/msh");
     install_file('0644', $path->{msh_font}, "$rootfs_stage/system/resources/msh/ter-u12b.bdf");
     for my $coreutil (@{$coreutils_bins}) {
@@ -1489,8 +1481,7 @@ my %path = (
     files_manifest         => "$root_dir/applications/file/manifest.toml",
     files_icon             => "$root_dir/applications/file/appicon.svg",
     files_icons_dir        => "$root_dir/applications/file/resources/icons",
-    system_icons_dir       => "$root_dir/resources/system/icons",
-    wallpapers_dir         => "$root_dir/libraries/wallpapers",
+    resources_dir          => "$root_dir/resources",
     test_app_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/test_app",
     msh_bin                     => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/msh",
     msh_manifest                => "$root_dir/binaries/msh/manifest.toml",
@@ -1520,7 +1511,7 @@ for my $key (
 }
 need_dir($path{binder_resources_dir});
 need_dir($path{files_icons_dir});
-need_dir($path{system_icons_dir});
+need_dir($path{resources_dir});
 for my $coreutil (@coreutils_bins) {
     need_file("$coreutils_bin_dir/$coreutil");
 }

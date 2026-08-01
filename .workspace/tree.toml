@@ -1159,3 +1159,11 @@ path = "services"
 hash = "c325c938f9d67e45e017dc9f90a2a0de8625e655"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "policy: allow Binder to read system time"
+
+[[entries]]
+date = "2026-08-01T11:37:42.889225764+09:00"
+snapshot = "82b5cd62a710a2c5e848f8f6"
+path = "user"
+hash = "b48c44c12918797000aa925fecca08ad3e9f3c3d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor: move user test files under tmp"

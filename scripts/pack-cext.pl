@@ -31,7 +31,7 @@ for my $dep (@deps) {
 
 open my $out_fh, '>:raw', $out or die "open $out: $!";
 print {$out_fh} "MCEX";
-print {$out_fh} pack('v', 2);
+print {$out_fh} pack('v', 3);
 print {$out_fh} pack('v', $version);
 print {$out_fh} pack('v', $name_len);
 print {$out_fh} pack('v', $dep_count);

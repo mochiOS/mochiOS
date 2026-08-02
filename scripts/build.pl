@@ -323,9 +323,13 @@ sub rewrite_cargo_paths {
 sub latest_matching_file {
     my ($dir, $pattern) = @_;
     opendir my $dh, $dir or dief("opendir $dir: $!");
-    my @files = sort grep {/$pattern/ && -f "$dir/$_"} readdir $dh;
+    my @files = grep {/$pattern/ && -f "$dir/$_"} readdir $dh;
     closedir $dh;
     dief("no matching file in $dir: $pattern") if !@files;
+    @files = sort {
+        ((stat("$dir/$a"))[9] // 0) <=> ((stat("$dir/$b"))[9] // 0)
+            || $a cmp $b
+    } @files;
     return "$dir/$files[-1]";
 }
 
@@ -345,6 +349,12 @@ sub build_newlib_runtime {
     my $crt0_s = "$user_root/runtime/crt0.S";
     my $linker_script = "$user_root/runtime/linker.ld";
     my $hello_c = "$user_root/libc-port/tests/hello.c";
+    my @local_source_patches = (
+        '--config',
+        qq{patch."https://github.com/mochiOS/syscalls".mochi-user-syscall.path='$user_root/crates/syscall'},
+        '--config',
+        qq{patch."https://github.com/mochiOS/mnu".mnu-abi.path='$root_dir/core/crates/abi'},
+    );
 
     for my $cmd (qw(cargo make nm readelf x86_64-elf-ar x86_64-elf-gcc x86_64-elf-ranlib)) {
         need_cmd($cmd);
@@ -365,6 +375,7 @@ sub build_newlib_runtime {
         'cargo', "+$toolchain", 'test',
         '--manifest-path', "$user_root/Cargo.toml",
         '-p', 'mochi-user-syscall',
+        @local_source_patches,
     );
 
     my $newlib_ready = -f "$sysroot_dir/lib/libc.a"
@@ -422,6 +433,7 @@ sub build_newlib_runtime {
         '--release',
         '--target', $target_json,
         '--target-dir', $runtime_target_dir,
+        @local_source_patches,
     );
 
     my $runtime_lib = "$runtime_target_dir/$final_target/release/libmochi_user_newlib_runtime.a";
@@ -659,6 +671,7 @@ sub build_std_binary {
         "patch.crates-io.rustc-std-workspace-core.path='$library_root/rustc-std-workspace-core'",
         "patch.crates-io.rustc-std-workspace-alloc.path='$library_root/rustc-std-workspace-alloc'",
         "patch.crates-io.rustc-std-workspace-std.path='$library_root/rustc-std-workspace-std'",
+        "patch.\"https://github.com/mochiOS/mnu\".mnu-abi.path='$root_dir/core/crates/abi'",
     );
     if ($manifest_path eq "$root_dir/binaries/coreutils/Cargo.toml") {
         push @cargo_configs,
@@ -829,6 +842,8 @@ sub build_cext_module {
         '--release',
         '--target', 'x86_64-unknown-none',
         '--target-dir', $target_dir,
+        '--config',
+        qq{patch."https://github.com/mochiOS/cexts".mochi-cext-abi.path='$cexts_root/crates/cext-abi'},
         '--manifest-path', "$cexts_root/Cargo.toml",
         '-p', $package_name,
         '--',
@@ -885,7 +900,7 @@ sub build_staged_cargo_bin {
     my ($toolchain, $target_json, $target_dir, $stage, $package, @features) = @_;
     my @mnu_abi_patch = (
         '--config',
-        q{patch.crates-io.mnu-abi.git='https://github.com/mochiOS/mnu'},
+        qq{patch."https://github.com/mochiOS/mnu".mnu-abi.path='$root_dir/core/crates/abi'},
     );
     run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', @mnu_abi_patch, '--manifest-path', "$stage/Cargo.toml");
     my @cmd = (
@@ -1434,6 +1449,8 @@ run_env(
     $kernel_target,
     '--features',
     'kernel-bin',
+    '--config',
+    qq{patch."https://github.com/mochiOS/mnu".mnu-abi.path='$core_root/crates/abi'},
     '--manifest-path',
     "$core_root/Cargo.toml",
 );

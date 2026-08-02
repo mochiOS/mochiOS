@@ -495,6 +495,7 @@ sub prepare_rust_sysroot_overlay {
         library/std/build.rs
         library/std/src/sys/args/unix.rs
         library/std/src/os/unix/mod.rs
+        library/std/src/os/unix/xdg.rs
         library/std/src/os/linux/mod.rs
         library/std/src/os/linux/fs.rs
         library/std/src/os/unix/fs.rs
@@ -517,6 +518,16 @@ sub prepare_rust_sysroot_overlay {
     my $overlay_vendor = "$sysroot_overlay/lib/rustlib/src/rust/library/vendor";
     my $overlay_literal_escaper =
         "$sysroot_overlay/lib/rustlib/src/rust/vendor/rustc-literal-escaper/Cargo.toml";
+    my $rustc_version = capture_stdout('rustc', "+$toolchain", '-vV');
+    my @overlay_signature = ("toolchain=$toolchain", $rustc_version);
+    for my $rel (@overrides) {
+        my $src = "$root_dir/libraries/rust/$rel";
+        need_file($src);
+        my $checksum = capture_stdout('sha256sum', $src);
+        $checksum =~ s/\s.*\z//s;
+        push @overlay_signature, "$rel=$checksum";
+    }
+    my $expected_stamp = join("\n", @overlay_signature) . "\n";
     my $overlay_fresh = $build_options{cached}
         && -x "$sysroot_overlay/bin/rustc"
         && -d "$sysroot_overlay/lib/rustlib/src/rust"
@@ -524,15 +535,11 @@ sub prepare_rust_sysroot_overlay {
         && -f $overlay_literal_escaper
         && -f $overlay_stamp;
     if ($overlay_fresh) {
-        my $stamp_mtime = (stat($overlay_stamp))[9] // 0;
-        for my $rel (@overrides) {
-            my $src = "$root_dir/libraries/rust/$rel";
-            my $src_mtime = (stat($src))[9] // 0;
-            if ($src_mtime > $stamp_mtime) {
-                $overlay_fresh = 0;
-                last;
-            }
-        }
+        open my $stamp_fh, '<', $overlay_stamp or dief("open overlay stamp: $!");
+        local $/;
+        my $actual_stamp = <$stamp_fh> // '';
+        close $stamp_fh;
+        $overlay_fresh = 0 if $actual_stamp ne $expected_stamp;
     }
     if ($overlay_fresh) {
         print "[cache] reuse Rust sysroot overlay\n";
@@ -650,7 +657,7 @@ EOF
     remove_tree($sysroot_overlay);
     rename "$sysroot_overlay.tmp", $sysroot_overlay or dief("rename sysroot overlay: $!");
     open my $stamp_fh, '>', $overlay_stamp or dief("open overlay stamp: $!");
-    print {$stamp_fh} "ok\n";
+    print {$stamp_fh} $expected_stamp;
     close $stamp_fh;
 }
 

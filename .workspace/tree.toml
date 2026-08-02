@@ -1223,3 +1223,11 @@ path = "services"
 hash = "7cc78cc168d79d2cb4e616a11f2e6e2c54665191"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: add user management service"
+
+[[entries]]
+date = "2026-08-02T11:27:56.584182665+09:00"
+snapshot = "1d99bec0eb70e89421f34dc0"
+path = "cexts"
+hash = "87c49950042c8db97e520e6f0fbb60aba2ddef72"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: refresh cext dependency lockfile"

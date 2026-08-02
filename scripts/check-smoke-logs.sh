@@ -145,7 +145,7 @@ assert_order() {
     done
 }
 
-for fatal_pattern in "PAGE FAULT" "Faulting user context:" "EXCEPTION:" "panicked at" "kernel panic" "panic:"; do
+for fatal_pattern in "PAGE FAULT" "Faulting user context:" "EXCEPTION:" "panicked at" "kernel panic" "panic:" "Error: MochiOs("; do
     assert_absent_case_insensitive "boot failure" "${SERIAL_LOG}" "${fatal_pattern}"
 done
 
@@ -170,8 +170,7 @@ assert_order "serial boot log" "${SERIAL_LOG}" \
     "virtio-net driver" "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
     "network.service" "exec: loaded '/system/services/network.service'" \
     "user.service" "exec: loaded '/system/services/user.service'" \
-    "Binder.app" "exec: loaded '/applications/Binder.app/entry.elf'" \
-    "update.service" "exec: loaded '/system/services/update.service'"
+    "secure-ui.service" "exec: loaded '/system/services/secure-ui.service'"
 
 assert_order "network state transitions" "${NETWORK_LOG}" \
     "virtio-net ready" "network.service: interface id=1 mac=52:54:00:12:34:56 link=true mtu=1500" \
@@ -246,11 +245,11 @@ assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
     "user spawn" "service-manager.service: user.service spawned pid=" \
     "user ready wait" "service-manager.service: waiting for user.service ready" \
     "user ready" "service-manager.service: user.service ready" \
-    "Binder spawn" "service-manager.service: Binder.app spawned pid=" \
-    "network ready wait" "service-manager.service: waiting for network.service ready" \
-    "network ready" "service-manager.service: network.service ready" \
-    "update spawn" "service-manager.service: update.service spawned pid=" \
-    "service manager resident" "service-manager.service: resident phase reason=Running"
+    "secure UI spawn" "service-manager.service: secure-ui.service spawned pid=" \
+    "login wait" "service-manager.service: waiting for secure-ui.service login"
+
+assert_absent "desktop before login" "${SERIAL_LOG}" \
+    "exec: loaded '/applications/Binder.app/entry.elf'"
 
 if [[ "${XHCI_ENABLED}" == "1" ]]; then
     assert_order "drivers.service log" "${DRIVERS_LOG}" \

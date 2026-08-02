@@ -520,11 +520,12 @@ fi
 
 NEXT_LINE=1
 COMPLETED=0
+COMPLETION_OBSERVED_AT=0
 DEADLINE=$((SECONDS + QEMU_TIMEOUT_SECONDS))
 while ((SECONDS < DEADLINE)); do
     while IFS= read -r line; do
-        if [[ "${line}" == *"PAGE FAULT"* || "${line}" == *"Faulting user context:"* || "${line}" == *"panic"* ]]; then
-            die "fault or panic observed during QEMU run"
+        if [[ "${line}" == *"PAGE FAULT"* || "${line}" == *"Faulting user context:"* || "${line}" == *"panic"* || "${line}" == *"Error: MochiOs("* ]]; then
+            die "fatal runtime error observed during QEMU run"
         fi
     done < <(sed -n "${NEXT_LINE},\$p" "${SERIAL_LOG}")
 
@@ -545,9 +546,13 @@ while ((SECONDS < DEADLINE)); do
         && log_has "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
         && log_has "exec: loaded '/system/services/network.service'" \
         && log_has "exec: loaded '/system/services/user.service'" \
-        && log_has "exec: loaded '/applications/Binder.app/entry.elf'"; then
-        COMPLETED=1
-        break
+        && log_has "exec: loaded '/system/services/secure-ui.service'"; then
+        if [[ "${COMPLETION_OBSERVED_AT}" -eq 0 ]]; then
+            COMPLETION_OBSERVED_AT="${SECONDS}"
+        elif ((SECONDS - COMPLETION_OBSERVED_AT >= 2)); then
+            COMPLETED=1
+            break
+        fi
     fi
 
     if ! kill -0 "${QEMU_PID}" 2>/dev/null; then

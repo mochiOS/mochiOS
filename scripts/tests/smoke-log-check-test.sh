@@ -24,8 +24,7 @@ write_valid_logs() {
 [INFO] exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver' from cext
 [INFO] exec: loaded '/system/services/network.service' from cext
 [INFO] exec: loaded '/system/services/user.service' from cext
-[INFO] exec: loaded '/applications/Binder.app/entry.elf' from cext
-[INFO] exec: loaded '/system/services/update.service' from cext
+[INFO] exec: loaded '/system/services/secure-ui.service' from cext
 EOF
     cat > "${SERVICE_MANAGER_LOG}" <<'EOF'
 service-manager.service: start
@@ -46,11 +45,8 @@ service-manager.service: network.service spawned pid=13
 service-manager.service: user.service spawned pid=14
 service-manager.service: waiting for user.service ready
 service-manager.service: user.service ready
-service-manager.service: Binder.app spawned pid=15
-service-manager.service: waiting for network.service ready
-service-manager.service: network.service ready
-service-manager.service: update.service spawned pid=16
-service-manager.service: resident phase reason=Running
+service-manager.service: secure-ui.service spawned pid=15
+service-manager.service: waiting for secure-ui.service login
 EOF
     cat > "${DRIVERS_LOG}" <<'EOF'
 drivers.service: start
@@ -162,6 +158,10 @@ printf '%s\n' 'service-manager.service: input.service spawned pid=99' >> "${SERV
 expect_failure "duplicate" "duplicate log 'input spawn'"
 
 write_valid_logs
+printf '%s\n' "[INFO] exec: loaded '/applications/Binder.app/entry.elf' from cext" >> "${SERIAL_LOG}"
+expect_failure "desktop-before-login" "forbidden log 'desktop before login'"
+
+write_valid_logs
 sed -i '/service-manager.service: display.driver ready/d' "${SERVICE_MANAGER_LOG}"
 sed -i '/service-manager.service: input.service ready/a service-manager.service: display.driver ready' "${SERVICE_MANAGER_LOG}"
 expect_failure "order" "order violation in service-manager.service log"
@@ -169,6 +169,10 @@ expect_failure "order" "order violation in service-manager.service log"
 write_valid_logs
 printf '%s\n' '[ERROR] kernel panic: test fixture' >> "${SERIAL_LOG}"
 expect_failure "panic" "forbidden log 'boot failure'"
+
+write_valid_logs
+printf '%s\n' 'Error: MochiOs(Syscall(13))' >> "${SERIAL_LOG}"
+expect_failure "viewkit" "forbidden log 'boot failure'"
 
 write_valid_logs
 printf '%s\n' "[WARN] execve: signature verification failed for '/bin/test'" >> "${SERIAL_LOG}"

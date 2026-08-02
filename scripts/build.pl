@@ -672,6 +672,8 @@ sub build_std_binary {
         "patch.crates-io.rustc-std-workspace-alloc.path='$library_root/rustc-std-workspace-alloc'",
         "patch.crates-io.rustc-std-workspace-std.path='$library_root/rustc-std-workspace-std'",
         "patch.\"https://github.com/mochiOS/mnu\".mnu-abi.path='$root_dir/core/crates/abi'",
+        "patch.crates-io.viewkit.path='$root_dir/libraries/viewkit'",
+        "patch.\"https://github.com/mochiOS/viewkit\".viewkit.path='$root_dir/libraries/viewkit'",
     );
     if ($manifest_path eq "$root_dir/binaries/coreutils/Cargo.toml") {
         push @cargo_configs,
@@ -682,6 +684,7 @@ sub build_std_binary {
         || index($manifest_path, '/services-stage/') >= 0) {
         push @cargo_configs,
             "patch.\"https://github.com/mochiOS/syscalls\".mochi-user-platform.path='$root_dir/user/crates/platform'",
+            "patch.\"https://github.com/mochiOS/syscalls\".mochi-user-syscall.path='$root_dir/user/crates/syscall'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-tls-client.path='$root_dir/user/crates/tls-client'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-database.path='$root_dir/user/crates/user-database'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-protocol.path='$root_dir/user/crates/user-protocol'";
@@ -755,7 +758,7 @@ sub build_rust_std_programs {
     make_path($services_stage);
     install_file('0644', "$root_dir/services/Cargo.toml", "$services_stage/Cargo.toml");
     install_file('0644', "$root_dir/services/Cargo.lock", "$services_stage/Cargo.lock");
-    for my $service (qw(capability compositor core display drivers input logger network package service-manager signature tty update user)) {
+    for my $service (qw(capability compositor core display drivers input logger network package secure-ui service-manager signature tty update user)) {
         copy_tree("$root_dir/services/$service", "$services_stage/$service");
     }
 
@@ -807,6 +810,7 @@ sub build_rust_std_programs {
         ["$services_stage/network/Cargo.toml", 'network'],
         ["$services_stage/compositor/Cargo.toml", 'compositor'],
         ["$services_stage/package/Cargo.toml", 'package'],
+        ["$services_stage/secure-ui/Cargo.toml", 'secure-ui'],
         ["$services_stage/tty/Cargo.toml", 'tty'],
         ["$services_stage/update/Cargo.toml", 'update'],
         ["$services_stage/user/Cargo.toml", 'user-service'],
@@ -1170,6 +1174,8 @@ sub build_rootfs {
     }
     install_file('0755', $path->{service_manager_service_bin}, "$rootfs_stage/system/services/service-manager.service");
     stage_package_manifest($rootfs_stage, $path->{service_manager_service_manifest}, '/system/packages/service-manager/manifest.toml');
+    install_file('0755', $path->{secure_ui_service_bin}, "$rootfs_stage/system/services/secure-ui.service");
+    stage_package_manifest($rootfs_stage, $path->{secure_ui_service_manifest}, '/system/packages/secure-ui/manifest.toml');
     install_file('0755', $path->{update_service_bin}, "$rootfs_stage/system/services/update.service");
     stage_package_manifest($rootfs_stage, $path->{update_service_manifest}, '/system/packages/update/manifest.toml');
     if (config_enabled($config->{DRIVER_XHCI})) {
@@ -1484,6 +1490,7 @@ my %path = (
     package_service_bin         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/package",
     signature_service_bin       => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/signature",
     service_manager_service_bin => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/service-manager",
+    secure_ui_service_bin       => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/secure-ui",
     update_service_bin          => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/update",
     user_service_bin            => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/user-service",
     drivers_service_manifest    => "$root_dir/services/drivers/manifest.toml",
@@ -1496,6 +1503,7 @@ my %path = (
     package_service_manifest    => "$root_dir/services/package/manifest.toml",
     signature_service_manifest  => "$root_dir/services/signature/manifest.toml",
     service_manager_service_manifest => "$root_dir/services/service-manager/manifest.toml",
+    secure_ui_service_manifest => "$root_dir/services/secure-ui/manifest.toml",
     update_service_manifest     => "$root_dir/services/update/manifest.toml",
     user_service_manifest       => "$root_dir/services/user/manifest.toml",
     tty_service_manifest        => "$root_dir/services/tty/manifest.toml",
@@ -1543,7 +1551,7 @@ else {
 }
 
 for my $key (
-    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest terminal_bin terminal_about terminal_manifest terminal_icon files_bin files_about files_manifest files_icon kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin network_service_bin package_service_bin signature_service_bin service_manager_service_bin update_service_bin user_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest network_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest update_service_manifest user_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest development_trust_snapshot development_revocation_snapshot)
+    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest terminal_bin terminal_about terminal_manifest terminal_icon files_bin files_about files_manifest files_icon kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin network_service_bin package_service_bin signature_service_bin service_manager_service_bin secure_ui_service_bin update_service_bin user_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest network_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest secure_ui_service_manifest update_service_manifest user_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest development_trust_snapshot development_revocation_snapshot)
 ) {
     need_file($path{$key});
 }
@@ -1605,6 +1613,8 @@ my @signature_db_args = (
     "/system/services/signature.service=$path{signature_service_bin}",
     '--entry',
     "/system/services/service-manager.service=$path{service_manager_service_bin}",
+    '--entry',
+    "/system/services/secure-ui.service=$path{secure_ui_service_bin}",
     '--entry',
     "/system/services/update.service=$path{update_service_bin}",
     '--entry',
@@ -1712,6 +1722,7 @@ install_file('0644', $boot_bin, "$artifact_dir/BOOTX64.EFI");
 install_file('0755', $path{service_bin}, "$artifact_dir/core.service");
 install_file('0755', $path{capability_service_bin}, "$artifact_dir/capability.service");
 install_file('0755', $path{service_manager_service_bin}, "$artifact_dir/service-manager.service");
+install_file('0755', $path{secure_ui_service_bin}, "$artifact_dir/secure-ui.service");
 install_file('0755', $path{update_service_bin}, "$artifact_dir/update.service");
 install_file('0755', $path{user_service_bin}, "$artifact_dir/user.service");
 install_file('0755', $path{input_service_bin}, "$artifact_dir/input.service");
@@ -1750,6 +1761,7 @@ my @checksum_files = qw(
     BOOTX64.EFI
     core.service
     service-manager.service
+    secure-ui.service
     update.service
     user.service
     drivers.service

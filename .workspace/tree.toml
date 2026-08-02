@@ -1239,3 +1239,11 @@ path = "user"
 hash = "5d3fa560411ace519862cccb6111e7bc045ab6a2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: refresh Rust std dependency lockfile"
+
+[[entries]]
+date = "2026-08-02T18:30:49.356771953+09:00"
+snapshot = "8f84c93e0a62f1bab48668d5"
+path = "binaries/coreutils"
+hash = "59c576e16a4ea598bda6ab228e4f4b9b55b1551b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: refresh dependency lockfile"

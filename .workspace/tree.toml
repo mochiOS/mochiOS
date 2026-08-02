@@ -1231,3 +1231,11 @@ path = "cexts"
 hash = "87c49950042c8db97e520e6f0fbb60aba2ddef72"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: refresh cext dependency lockfile"
+
+[[entries]]
+date = "2026-08-02T12:06:46.299607867+09:00"
+snapshot = "98c928be2eeb1daaf133cf77"
+path = "user"
+hash = "5d3fa560411ace519862cccb6111e7bc045ab6a2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: refresh Rust std dependency lockfile"

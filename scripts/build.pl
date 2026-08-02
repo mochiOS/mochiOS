@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 use Cwd qw(abs_path getcwd);
+use Digest::SHA;
 use File::Basename qw(dirname);
 use File::Copy qw(copy);
 use File::Find qw(find);
@@ -224,6 +225,54 @@ sub copy_tree {
     remove_tree($dst);
     make_path($dst);
     run('cp', '-a', "$src/.", $dst);
+}
+
+sub copy_tree_dereferenced {
+    my ($src, $dst) = @_;
+    remove_tree($dst);
+    make_path($dst);
+    run('cp', '-aL', "$src/.", $dst);
+}
+
+sub tree_signature {
+    my ($root) = @_;
+    my @files;
+    find(
+        {
+            no_chdir => 1,
+            wanted => sub {
+                push @files, $File::Find::name if -f $File::Find::name;
+            },
+        },
+        $root,
+    );
+
+    my $digest = Digest::SHA->new(256);
+    for my $path (sort @files) {
+        my $relative = substr($path, length($root) + 1);
+        $digest->add($relative, "\0");
+        open my $fh, '<:raw', $path or dief("open $path: $!");
+        $digest->addfile($fh);
+        close $fh or dief("close $path: $!");
+        $digest->add("\0");
+    }
+    return $digest->hexdigest;
+}
+
+sub first_symlink {
+    my ($root) = @_;
+    my $found;
+    find(
+        {
+            no_chdir => 1,
+            wanted => sub {
+                return if defined $found;
+                $found = $File::Find::name if -l $File::Find::name;
+            },
+        },
+        $root,
+    );
+    return $found;
 }
 
 sub cached_artifacts_current {
@@ -490,50 +539,35 @@ sub build_newlib_runtime {
 
 sub prepare_rust_sysroot_overlay {
     my ($root_dir, $toolchain, $out_root, $sysroot_overlay) = @_;
-    my @overrides = qw(
-        library/std/src/sys/pal/unix/mod.rs
-        library/std/build.rs
-        library/std/src/sys/args/unix.rs
-        library/std/src/os/unix/mod.rs
-        library/std/src/os/unix/xdg.rs
-        library/std/src/os/linux/mod.rs
-        library/std/src/os/linux/fs.rs
-        library/std/src/os/unix/fs.rs
-        library/std/src/os/mod.rs
-        library/std/src/sys/paths/unix.rs
-        library/std/src/sys/random/mod.rs
-        library/std/src/sys/fs/unix.rs
-        library/std/src/sys/sync/mutex/mod.rs
-        library/std/src/sys/sync/condvar/mod.rs
-        library/std/src/sys/sync/thread_parking/mod.rs
-        library/std/src/sys/sync/once/mod.rs
-        library/std/src/sys/sync/rwlock/mod.rs
-        library/std/src/sys/thread/mod.rs
-        library/std/src/sys/thread_local/mod.rs
-        library/proc_macro/Cargo.toml
-        library/Cargo.toml
-    );
+    my $rust_fork = "$root_dir/libraries/rust";
+    my $fork_library = "$rust_fork/library";
+    my $fork_backtrace = "$rust_fork/src/mochios-backtrace";
+    my $fork_libunwind = "$rust_fork/src/mochios-libunwind";
+    need_dir($fork_library);
+    need_dir($fork_backtrace);
+    need_dir($fork_libunwind);
 
     my $overlay_stamp = "$sysroot_overlay/.mochios-overlay-stamp";
     my $overlay_vendor = "$sysroot_overlay/lib/rustlib/src/rust/library/vendor";
     my $overlay_literal_escaper =
         "$sysroot_overlay/lib/rustlib/src/rust/vendor/rustc-literal-escaper/Cargo.toml";
     my $rustc_version = capture_stdout('rustc', "+$toolchain", '-vV');
-    my @overlay_signature = ("toolchain=$toolchain", $rustc_version);
-    for my $rel (@overrides) {
-        my $src = "$root_dir/libraries/rust/$rel";
-        need_file($src);
-        my $checksum = capture_stdout('sha256sum', $src);
-        $checksum =~ s/\s.*\z//s;
-        push @overlay_signature, "$rel=$checksum";
-    }
+    my @overlay_signature = (
+        'layout=rust-fork-v1',
+        "toolchain=$toolchain",
+        $rustc_version,
+        'library=' . tree_signature($fork_library),
+        'backtrace=' . tree_signature($fork_backtrace),
+        'libunwind=' . tree_signature($fork_libunwind),
+    );
     my $expected_stamp = join("\n", @overlay_signature) . "\n";
     my $overlay_fresh = $build_options{cached}
         && -x "$sysroot_overlay/bin/rustc"
         && -d "$sysroot_overlay/lib/rustlib/src/rust"
         && -d $overlay_vendor
         && -f $overlay_literal_escaper
-        && -f $overlay_stamp;
+        && -f $overlay_stamp
+        && !defined(first_symlink($sysroot_overlay));
     if ($overlay_fresh) {
         open my $stamp_fh, '<', $overlay_stamp or dief("open overlay stamp: $!");
         local $/;
@@ -553,18 +587,11 @@ sub prepare_rust_sysroot_overlay {
     remove_tree("$sysroot_overlay.tmp");
     make_path("$sysroot_overlay.tmp");
 
-    opendir my $root_dh, $base_sysroot or dief("opendir $base_sysroot: $!");
-    for my $name (grep {$_ ne '.' && $_ ne '..'} readdir $root_dh) {
-        next if $name eq 'bin' || $name eq 'lib';
-        symlink("$base_sysroot/$name", "$sysroot_overlay.tmp/$name") or dief("symlink $name: $!");
-    }
-    closedir $root_dh;
-
     make_path("$sysroot_overlay.tmp/bin");
     opendir my $bin_dh, "$base_sysroot/bin" or dief("opendir $base_sysroot/bin: $!");
     for my $name (grep {$_ ne '.' && $_ ne '..'} readdir $bin_dh) {
         next if $name eq 'rustc' || $name eq 'rustdoc';
-        symlink("$base_sysroot/bin/$name", "$sysroot_overlay.tmp/bin/$name") or dief("symlink bin/$name: $!");
+        run('cp', '-aL', "$base_sysroot/bin/$name", "$sysroot_overlay.tmp/bin/$name");
     }
     closedir $bin_dh;
 
@@ -580,23 +607,17 @@ sub prepare_rust_sysroot_overlay {
     opendir my $rustlib_dh, "$base_sysroot/lib/rustlib" or dief("opendir rustlib: $!");
     for my $name (grep {$_ ne '.' && $_ ne '..'} readdir $rustlib_dh) {
         next if $name eq 'src';
-        symlink("$base_sysroot/lib/rustlib/$name", "$rustlib_overlay/$name") or dief("symlink rustlib/$name: $!");
+        run('cp', '-aL', "$base_sysroot/lib/rustlib/$name", "$rustlib_overlay/$name");
     }
     closedir $rustlib_dh;
 
-    make_path("$rustlib_overlay/src");
-    run('cp', '-rs', "$base_sysroot/lib/rustlib/src/rust", "$rustlib_overlay/src/");
-    for my $rel (@overrides) {
-        my $dst = "$rustlib_overlay/src/rust/$rel";
-        unlink $dst or dief("unlink $dst: $!") if -e $dst || -l $dst;
-        copy("$root_dir/libraries/rust/$rel", $dst) or dief("copy $rel: $!");
-    }
-    my $cargo_config_src = "$base_sysroot/lib/rustlib/src/rust/library/.cargo/config.toml";
-    my $cargo_config_dst = "$rustlib_overlay/src/rust/library/.cargo/config.toml";
-    if (-f $cargo_config_src) {
-        unlink $cargo_config_dst or dief("unlink $cargo_config_dst: $!") if -e $cargo_config_dst || -l $cargo_config_dst;
-        copy($cargo_config_src, $cargo_config_dst) or dief("copy library .cargo/config.toml: $!");
-    }
+    my $rust_src_overlay = "$rustlib_overlay/src/rust";
+    copy_tree_dereferenced($fork_library, "$rust_src_overlay/library");
+    copy_tree_dereferenced($fork_backtrace, "$rust_src_overlay/library/backtrace");
+    copy_tree_dereferenced(
+        $fork_libunwind,
+        "$rust_src_overlay/src/llvm-project/libunwind",
+    );
 	my $vendor_root = "$root_dir/libraries/rust/vendor";
 	my $literal_escaper_src = "$vendor_root/rustc-literal-escaper";
 
@@ -654,6 +675,10 @@ EOF
 	);
 	make_path("$rustlib_overlay/src/rust/library/vendor");
 
+    my $unexpected_symlink = first_symlink("$sysroot_overlay.tmp");
+    dief("Rust sysroot overlay contains symlink: $unexpected_symlink")
+        if defined $unexpected_symlink;
+
     remove_tree($sysroot_overlay);
     rename "$sysroot_overlay.tmp", $sysroot_overlay or dief("rename sysroot overlay: $!");
     open my $stamp_fh, '>', $overlay_stamp or dief("open overlay stamp: $!");
@@ -662,7 +687,7 @@ EOF
 }
 
 sub build_std_binary {
-    my ($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, $rustflags, $manifest_path, $binary_name, @features) = @_;
+    my ($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, $rustflags, $manifest_path, $binary_name, @features) = @_;
     my $binary_out = "$target_dir/x86_64-unknown-mochios/release/$binary_name";
     my $stable_binary_out = "$stable_target_dir/x86_64-unknown-mochios/release/$binary_name";
     my $rust_src_root = "$sysroot_overlay/lib/rustlib/src/rust";
@@ -717,12 +742,14 @@ sub build_std_binary {
     closedir $vendor_dh;
     print "[build] $binary_name (std)\n";
     my %cargo_env = (
-        RUSTUP_HOME => $rustup_home,
-        RUSTFLAGS   => join(' ', @{$rustflags}),
+        PATH      => "$sysroot_overlay/bin:" . ($ENV{PATH} // ''),
+        RUSTC     => "$sysroot_overlay/bin/rustc",
+        RUSTDOC   => "$sysroot_overlay/bin/rustdoc",
+        RUSTFLAGS => join(' ', @{$rustflags}),
     );
     my @cargo_config_args = map { ('--config', $_) } @cargo_configs;
     my @command = (
-        'rustup', 'run', $overlay_toolchain, 'cargo', 'build',
+        "$sysroot_overlay/bin/cargo", 'build',
         '-Z', 'build-std=std,panic_abort,compiler_builtins',
         '-Z', 'json-target-spec',
         @cargo_config_args,
@@ -754,11 +781,23 @@ sub build_rust_std_programs {
     my $libc_override_path = "$root_dir/libraries/libc";
     my $libc_build_hash = capture_stdout('cksum', "$libc_override_path/build.rs");
     $libc_build_hash =~ s/\s.*\z//s;
-    my $target_dir = "$out_root/target-libc-patch-$libc_build_hash";
+    my $std_source_hash = substr(
+        Digest::SHA::sha256_hex(
+            join(
+                "\n",
+                tree_signature("$root_dir/libraries/rust/library"),
+                tree_signature("$root_dir/libraries/rust/src/mochios-backtrace"),
+                tree_signature("$root_dir/libraries/rust/src/mochios-libunwind"),
+                tree_signature("$libc_override_path/newlib"),
+            ),
+        ),
+        0,
+        16,
+    );
+    my $target_dir = "$out_root/target-$libc_build_hash-$std_source_hash";
     my $stable_target_dir = "$out_root/target";
     my $services_stage = "$out_root/services-stage";
-    my $rustup_home = "$out_root/rustup-home-$libc_build_hash";
-    my $overlay_toolchain = "mochios-overlay-$libc_build_hash";
+    my $legacy_rustup_home = "$out_root/rustup-home-$libc_build_hash";
 
     relink_libc_src($libc_override_path);
     remove_tree($services_stage);
@@ -769,7 +808,7 @@ sub build_rust_std_programs {
         copy_tree("$root_dir/services/$service", "$services_stage/$service");
     }
 
-    for my $cmd (qw(cargo rustc rustup x86_64-elf-gcc cksum)) {
+    for my $cmd (qw(cargo rustc x86_64-elf-gcc cksum)) {
         need_cmd($cmd);
     }
     need_file($target_json);
@@ -782,10 +821,7 @@ sub build_rust_std_programs {
 
     make_path($out_root);
     prepare_rust_sysroot_overlay($root_dir, $toolchain, $out_root, $sysroot_overlay);
-    make_path($rustup_home);
-    if (!-e "$rustup_home/toolchains/$overlay_toolchain") {
-        run_env({ RUSTUP_HOME => $rustup_home }, 'rustup', 'toolchain', 'link', $overlay_toolchain, $sysroot_overlay);
-    }
+    remove_tree($legacy_rustup_home);
 
     my @rustflags = (
         '-C', 'linker=x86_64-elf-gcc',
@@ -828,17 +864,17 @@ sub build_rust_std_programs {
         if ($service->[1] eq 'network' && ($ENV{MOCHIOS_NETWORK_TEST_WEB_PKI} // '') eq '1') {
             @features = ('test-web-pki');
         }
-        build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, @{$service}, @features);
+        build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, @{$service}, @features);
     }
 
-    build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$user_root/apps/rust-std-demo/Cargo.toml", 'rust-std-demo');
-    build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
-    build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
-    build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/terminal/Cargo.toml", 'terminal');
-    build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/file/Cargo.toml", 'files');
-    build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
+    build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$user_root/apps/rust-std-demo/Cargo.toml", 'rust-std-demo');
+    build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/test.app/Cargo.toml", 'test_app');
+    build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
+    build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/terminal/Cargo.toml", 'terminal');
+    build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/file/Cargo.toml", 'files');
+    build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
     for my $bin (@{$coreutils_bins}) {
-        build_std_binary($root_dir, $rustup_home, $overlay_toolchain, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/coreutils/Cargo.toml", $bin);
+        build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/coreutils/Cargo.toml", $bin);
     }
 }
 
@@ -1279,7 +1315,7 @@ sub relink_libc_src {
 	run('cp', '-p', $upstream_mod, "$generated_root/upstream-newlib-mod.rs");
 
 	remove_tree($libc_src);
-	run('cp', '-rs', $registry_src, $libc_root);
+	copy_tree_dereferenced($registry_src, $libc_src);
 
 	my $wrapper_dst = "$libc_src/unix/newlib/mod.rs";
 
@@ -1289,7 +1325,7 @@ sub relink_libc_src {
 
 	run('cp', '-p', "$override_src/mod.rs", $wrapper_dst);
 
-	print "[link] prepared libc sources\n";
+	print "[copy] prepared libc sources\n";
 }
 
 if (!-f $config_file) {

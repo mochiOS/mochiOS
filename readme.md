@@ -41,10 +41,19 @@ mochiOSという名前は、日本のおもちから付けられています。
 
 mochiOSは複数のリポジトリに分かれて開発されており、それらの管理に[repo](https://gerrit.googlesource.com/git-repo)
 を使用しています。
-まずはrepoをインストールしてください。
+まずはrepoとビルドに必要なツールをインストールしてください。
 
-> dependencies:
-> `libncurses-dev`
+主な依存ツールは次のとおりです。
+
+```text
+git
+repo
+make
+perl
+rustup
+cargo
+libncurses-dev
+```
 
 1. このリポジトリをクローンします。
 
@@ -63,23 +72,57 @@ repo init \
 repo sync
 ```
 
+3. mochiOSが固定しているRust toolchainをインストールします。
+
+```bash
+rustup toolchain install nightly-2026-05-14 \
+    --component rust-src \
+    --component llvm-tools-preview
+rustup toolchain install "$(cat build/rust-std-toolchain)" \
+    --component rust-src
+```
+
+ユーザーランドの標準ライブラリは`libraries/rust`にあるmochiOSのRust forkからビルドします。
+このソースはrustcの内部APIを使用するため、任意のnightlyとは組み合わせられません。
+対応するtoolchainは`build/rust-std-toolchain`で固定されており、`make build`も必ずこの値を使用します。
+
 4. mwsをインストールします。
+
 ```bash
 make install
 ```
 
-3. newlibをconfigureします。
+5. newlibをconfigureします。
 
 ```bash
 cd libraries/newlib
 ./configure
+cd ../..
 ```
 
-4. mochiOSをビルドします。
+6. mochiOSをビルドします。
 
 ```bash
 make build
 ```
+
+`make build`はビルド前に`make olddefconfig`を実行します。以前のワークスペースに
+`USER_RUST_STD_TOOLCHAIN`が残っている場合、その設定は自動的に削除され、
+`build/rust-std-toolchain`の固定値へ移行します。
+
+次のような`rustc_comptime`、`offload_kernel`、または予約済み`rustc`属性のエラーが出た場合は、
+Rust forkとcompilerのversionが一致していません。
+
+```bash
+repo sync
+rustup toolchain install "$(cat build/rust-std-toolchain)" \
+    --component rust-src
+make olddefconfig
+make build
+```
+
+`nightly`や別の日付のtoolchainを指定して回避しないでください。標準ライブラリsourceと
+compilerを別versionにすると、coreのビルド時にcompiler組み込みmacroや内部属性を認識できません。
 
 ### Status
 

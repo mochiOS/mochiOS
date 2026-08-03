@@ -140,7 +140,7 @@ sub validate_value {
         return;
     }
 
-    if ($key =~ /^(KERNEL_RUST_TOOLCHAIN|USER_RUST_STD_TOOLCHAIN)$/) {
+    if ($key eq 'KERNEL_RUST_TOOLCHAIN') {
         validate_non_empty($key, $value);
         return;
     }

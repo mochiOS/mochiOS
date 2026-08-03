@@ -165,6 +165,19 @@ sub read_config {
     return %config;
 }
 
+sub read_toolchain_pin {
+    my ($path) = @_;
+    open my $fh, '<', $path or dief("open $path: $!");
+    my $toolchain = <$fh> // '';
+    close $fh or dief("close $path: $!");
+    chomp $toolchain;
+    $toolchain =~ s/\r\z//;
+    dief("Rust std toolchain pin is empty: $path") if $toolchain eq '';
+    dief("invalid Rust std toolchain pin: $toolchain")
+        if $toolchain !~ /\A[A-Za-z0-9_.+-]+\z/;
+    return $toolchain;
+}
+
 sub capture_lines_env {
     my ($env, @cmd) = @_;
     local %ENV = (%ENV, %{$env});
@@ -1347,6 +1360,7 @@ my %config = read_config($config_file);
 
 my $kernel_target = 'x86_64-unknown-none';
 my $nightly_toolchain = $config{KERNEL_RUST_TOOLCHAIN};
+my $rust_std_toolchain = read_toolchain_pin("$root_dir/build/rust-std-toolchain");
 my $build_root = "$root_dir/out/image-build";
 my $artifact_dir = "$root_dir/out/artifacts";
 my $build_input_stamp = "$root_dir/out/.build-input-stamp";
@@ -1405,7 +1419,7 @@ print "[step] build user runtime and newlib\n";
 build_newlib_runtime($root_dir, $nightly_toolchain);
 
 print "[step] build Rust std user programs\n";
-build_rust_std_programs($root_dir, \%config, $config{USER_RUST_STD_TOOLCHAIN}, \@coreutils_bins);
+build_rust_std_programs($root_dir, \%config, $rust_std_toolchain, \@coreutils_bins);
 
 if (config_enabled($config{USER_BUILD_MPK_SAMPLES})) {
     print "[step] build sample mpkg\n";

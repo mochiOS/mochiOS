@@ -1271,3 +1271,11 @@ path = "binaries/coreutils"
 hash = "3868a988a0668b8ceb7ce57595febb474fc9c4ea"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: refresh dependency lockfile"
+
+[[entries]]
+date = "2026-08-03T17:55:01.769327943+09:00"
+snapshot = "5be64393dddcc948614413cf"
+path = "services"
+hash = "f817471a441120f4dd828d8f67fc7eec070db6e2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: remove compositor service logging"

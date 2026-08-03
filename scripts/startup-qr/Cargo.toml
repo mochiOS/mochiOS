@@ -1,0 +1,9 @@
+[package]
+name = "mochios-startup-qr"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+png = "0.17.16"
+qrcode = { version = "0.14.1", default-features = false }

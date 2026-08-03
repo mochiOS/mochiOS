@@ -378,6 +378,24 @@ sub stage_resource_tree {
     );
 }
 
+sub generate_startup_qr_resources {
+    my ($root_dir, $build_root) = @_;
+    my $generated_root = "$build_root/generated-resources";
+    my $output_dir = "$generated_root/system/resources/startup";
+    make_path($output_dir);
+    run(
+        'cargo', 'run', '--quiet', '--release', '--locked',
+        '--manifest-path', "$root_dir/scripts/startup-qr/Cargo.toml",
+        '--target-dir', "$root_dir/out/host-tools/startup-qr",
+        '--',
+        'https://policy.mochios.org/terms/', "$output_dir/qr-terms.png",
+        'https://policy.mochios.org/privacy/', "$output_dir/qr-privacy.png",
+    );
+    need_file("$output_dir/qr-terms.png");
+    need_file("$output_dir/qr-privacy.png");
+    return $generated_root;
+}
+
 sub rewrite_cargo_paths {
     return;
 }
@@ -1181,6 +1199,7 @@ sub build_rootfs {
     install_file('0755', $path->{msh_bin}, "$rootfs_stage/bin/msh");
     stage_font_assets($fonts_src, "$rootfs_stage/libraries/fonts");
     stage_resource_tree($path->{resources_dir}, $rootfs_stage);
+    stage_resource_tree($path->{generated_resources_dir}, $rootfs_stage);
     chmod 0600, "$rootfs_stage/system/users/users.db"
         or dief("chmod user database: $!");
     for my $directory (qw(Desktop Documents Downloads Movies Music Pictures)) {
@@ -1415,6 +1434,9 @@ print "[clean] build directories\n";
 remove_tree($build_root, $artifact_dir);
 make_path("$esp_dir/EFI/BOOT", "$esp_dir/system", $initfs_stage, $rootfs_stage, $artifact_dir);
 
+print "[step] generate startup resources\n";
+my $generated_resources_dir = generate_startup_qr_resources($root_dir, $build_root);
+
 print "[step] build user runtime and newlib\n";
 build_newlib_runtime($root_dir, $nightly_toolchain);
 
@@ -1585,6 +1607,7 @@ my %path = (
     files_icon             => "$root_dir/applications/file/appicon.svg",
     files_icons_dir        => "$root_dir/applications/file/resources/icons",
     resources_dir          => "$root_dir/resources",
+    generated_resources_dir => $generated_resources_dir,
     test_app_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/test_app",
     msh_bin                     => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/msh",
     msh_manifest                => "$root_dir/binaries/msh/manifest.toml",

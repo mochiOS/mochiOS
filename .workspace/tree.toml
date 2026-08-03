@@ -1263,3 +1263,11 @@ path = "binaries/coreutils"
 hash = "c99d91ca0867cff370865c8fb587c1da660551b8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: refresh dependency lockfile"
+
+[[entries]]
+date = "2026-08-03T17:01:46.955451858+09:00"
+snapshot = "788c3c389ad9c4bc02a748f7"
+path = "binaries/coreutils"
+hash = "3868a988a0668b8ceb7ce57595febb474fc9c4ea"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: refresh dependency lockfile"

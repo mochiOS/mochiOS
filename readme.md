@@ -52,6 +52,8 @@ make
 perl
 rustup
 cargo
+e2fsprogs
+fakeroot
 libncurses-dev
 ```
 

@@ -1197,6 +1197,8 @@ sub build_rootfs {
     remove_tree($rootfs_stage);
     make_path("$rootfs_stage/bin");
     make_path("$rootfs_stage/tmp");
+    chmod 01777, "$rootfs_stage/tmp"
+        or dief("chmod temporary directory: $!");
     make_path("$rootfs_stage/libraries/system");
     make_path("$rootfs_stage/system/logs");
     install_file('0755', $path->{hello_elf}, "$rootfs_stage/bin/hello");
@@ -1210,6 +1212,12 @@ sub build_rootfs {
         or dief("chmod user database: $!");
     for my $directory (qw(Desktop Documents Downloads Movies Music Pictures)) {
         make_path("$rootfs_stage/home/root/$directory");
+    }
+    chmod 0700, "$rootfs_stage/home/root"
+        or dief("chmod root home: $!");
+    for my $directory (qw(Desktop Documents Downloads Movies Music Pictures)) {
+        chmod 0700, "$rootfs_stage/home/root/$directory"
+            or dief("chmod root home directory $directory: $!");
     }
     make_path("$rootfs_stage/system/resources/msh");
     install_file('0644', $path->{msh_font}, "$rootfs_stage/system/resources/msh/ter-u12b.bdf");
@@ -1281,7 +1289,12 @@ sub build_rootfs {
 
     unlink $rootfs_img if -e $rootfs_img;
     run('truncate', '-s', "${rootfs_size_mb}M", $rootfs_img);
-    run('mke2fs', '-q', '-t', 'ext2', '-b', '4096', '-d', $rootfs_stage, '-F', $rootfs_img);
+    run(
+        'fakeroot', '--', 'sh', '-c',
+        'stage=$1; shift; chown -R 0:0 "$stage" 2>/dev/null || true; test "$(stat -c %u:%g "$stage")" = 0:0 && exec "$@"',
+        'mochios-rootfs', $rootfs_stage,
+        'mke2fs', '-q', '-t', 'ext2', '-b', '4096', '-d', $rootfs_stage, '-F', $rootfs_img,
+    );
 }
 
 sub write_gpt {
@@ -1420,7 +1433,7 @@ if (cached_artifacts_current($root_dir, $build_input_stamp, "$artifact_dir/disk.
     exit 0;
 }
 
-for my $cmd (qw(cargo cp install mcopy mke2fs mkfs.fat mmd perl tar repo sha256sum sfdisk truncate dd find sort)) {
+for my $cmd (qw(cargo chown cp fakeroot install mcopy mke2fs mkfs.fat mmd perl sh stat tar repo sha256sum sfdisk truncate dd find sort)) {
     need_cmd($cmd);
 }
 
@@ -1771,7 +1784,12 @@ build_rootfs(
 
 print "[step] build initfs image\n";
 run('truncate', '-s', "$config{IMAGE_INITFS_SIZE_MB}M", $initfs_img);
-run('mke2fs', '-q', '-t', 'ext2', '-b', '1024', '-d', $initfs_stage, '-F', $initfs_img);
+run(
+    'fakeroot', '--', 'sh', '-c',
+    'stage=$1; shift; chown -R 0:0 "$stage" 2>/dev/null || true; test "$(stat -c %u:%g "$stage")" = 0:0 && exec "$@"',
+    'mochios-initfs', $initfs_stage,
+    'mke2fs', '-q', '-t', 'ext2', '-b', '1024', '-d', $initfs_stage, '-F', $initfs_img,
+);
 
 print "[step] build esp image\n";
 remove_tree($esp_dir);

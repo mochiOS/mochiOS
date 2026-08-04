@@ -67,6 +67,7 @@ jobs:
             curl \
             dosfstools \
             e2fsprogs \
+            fakeroot \
             flex \
             gawk \
             libgmp-dev \

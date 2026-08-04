@@ -1287,3 +1287,11 @@ path = "libraries/viewkit"
 hash = "257b0f19a2c13c6f7594060c1b72c769798a7b6f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: use repository-managed ViewKit fonts"
+
+[[entries]]
+date = "2026-08-04T12:16:28.593179711+09:00"
+snapshot = "b10b6f4a38befb2b38fab1b0"
+path = "binaries/coreutils"
+hash = "9c4d62416fc89a31ab80a1feda50b4d54f2f6243"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "security: declare coreutils filesystem access"

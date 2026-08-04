@@ -1,0 +1,111 @@
+version = 1
+id = "947350f9cc4a87bf95a9421f"
+created = "2026-08-04T11:43:10.649084400+09:00"
+
+[trigger]
+name = "mochiOS/ViewKit"
+path = "libraries/viewkit"
+repository = "/home/jnix/mochiOS/libraries/viewkit"
+head = "257b0f19a2c13c6f7594060c1b72c769798a7b6f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: use repository-managed ViewKit fonts"
+
+[[projects]]
+name = "mochiOS/boot"
+path = "boot"
+head = "1a18b8a5885dbb7e8d2ed85a6087fe59d7e915e4"
+
+[[projects]]
+name = "mochiOS/mnu"
+path = "core"
+head = "265770efeb23dbe8be828a1fff49aa2fc221227c"
+
+[[projects]]
+name = "mochiOS/syscalls"
+path = "user"
+head = "d3e25db5d91019c4f0a58b990dad00f4db2d0981"
+
+[[projects]]
+name = "mochiOS/services"
+path = "services"
+head = "8581b0fa526b00978995fdd08c4fa19880cc7a97"
+
+[[projects]]
+name = "mochiOS/cexts"
+path = "cexts"
+head = "87c49950042c8db97e520e6f0fbb60aba2ddef72"
+
+[[projects]]
+name = "mochiOS/drivers"
+path = "drivers"
+head = "cea09a39e3fc922dc540364df28695ede9b3c690"
+
+[[projects]]
+name = "newlib-cygwin"
+path = "libraries/newlib"
+head = "c5fb7a6e7da7327bea8f9eb7d8b29fc9a02b3c56"
+
+[[projects]]
+name = "mochiOS/rust"
+path = "libraries/rust"
+head = "349d5519d5370c4b3a079404b968589daf849fd8"
+
+[[projects]]
+name = "mochiOS/libc"
+path = "libraries/libc"
+head = "cb52345fa7f01bb0942741a0e843e39037e371e2"
+
+[[projects]]
+name = "mochiOS/msh"
+path = "binaries/msh"
+head = "317b535d903dfe53e169c740e605eb91faac699b"
+
+[[projects]]
+name = "mochiOS/coreutils"
+path = "binaries/coreutils"
+head = "92951cc30a293a29c16da433e7b09dfe35980dfb"
+
+[[projects]]
+name = "mochiOS/Binder"
+path = "applications/binder"
+head = "d86ddc71427897ade4d3ac8a6b5a9db6c1c2469e"
+
+[[projects]]
+name = "mochiOS/ViewKit"
+path = "libraries/viewkit"
+head = "257b0f19a2c13c6f7594060c1b72c769798a7b6f"
+
+[[projects]]
+name = "mochiOS/buildtools"
+path = "build"
+head = "20f522a181693e76ae90169bc0c4ac3d51738cbc"
+
+[[projects]]
+name = "mochiOS/test-application"
+path = "applications/test.app"
+head = "991b0cdc0e20d27dd90c497a3abaa0dd98e749fa"
+
+[[projects]]
+name = "mochiOS/fonts"
+path = "libraries/fonts"
+head = "e34529b27589b2415352925d186661dc07327ea1"
+
+[[projects]]
+name = "mochiOS/mws"
+path = "tools/mws"
+head = "bd13ee9f19a5a7fce4740902eba8999f9736642b"
+
+[[projects]]
+name = "mochiOS/Terminal"
+path = "applications/terminal"
+head = "dc55aacb7cf8e5f473ee8d8aebe3e55e3bb344f2"
+
+[[projects]]
+name = "mochiOS/devkit"
+path = "tools/devkit"
+head = "8f980d22783256591215fbd50f1e5eebf880dd25"
+
+[[projects]]
+name = "mochiOS/Files.app"
+path = "applications/file"
+head = "23addcf87c0ffc8199443fd676fd24775edfdc4b"

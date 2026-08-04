@@ -1279,3 +1279,11 @@ path = "services"
 hash = "f817471a441120f4dd828d8f67fc7eec070db6e2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: remove compositor service logging"
+
+[[entries]]
+date = "2026-08-04T11:43:10.649084400+09:00"
+snapshot = "947350f9cc4a87bf95a9421f"
+path = "libraries/viewkit"
+hash = "257b0f19a2c13c6f7594060c1b72c769798a7b6f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: use repository-managed ViewKit fonts"

@@ -584,7 +584,7 @@ sub prepare_rust_sysroot_overlay {
         "$sysroot_overlay/lib/rustlib/src/rust/vendor/rustc-literal-escaper/Cargo.toml";
     my $rustc_version = capture_stdout('rustc', "+$toolchain", '-vV');
     my @overlay_signature = (
-        'layout=rust-fork-v1',
+        'layout=rust-fork-v2',
         "toolchain=$toolchain",
         $rustc_version,
         'library=' . tree_signature($fork_library),
@@ -635,6 +635,11 @@ sub prepare_rust_sysroot_overlay {
 
     my $rustlib_overlay = "$sysroot_overlay.tmp/lib/rustlib";
     make_path($rustlib_overlay);
+    opendir my $lib_dh, "$base_sysroot/lib" or dief("opendir toolchain lib: $!");
+    for my $name (grep {$_ ne '.' && $_ ne '..' && $_ ne 'rustlib'} readdir $lib_dh) {
+        run('cp', '-aL', "$base_sysroot/lib/$name", "$sysroot_overlay.tmp/lib/$name");
+    }
+    closedir $lib_dh;
     opendir my $rustlib_dh, "$base_sysroot/lib/rustlib" or dief("opendir rustlib: $!");
     for my $name (grep {$_ ne '.' && $_ ne '..'} readdir $rustlib_dh) {
         next if $name eq 'src';
@@ -743,7 +748,8 @@ sub build_std_binary {
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-database.path='$root_dir/user/crates/user-database'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-protocol.path='$root_dir/user/crates/user-protocol'";
     }
-    if (index($manifest_path, "$root_dir/services/") == 0
+    if ($manifest_path eq "$root_dir/applications/binder/Cargo.toml"
+        || index($manifest_path, "$root_dir/services/") == 0
         || index($manifest_path, '/services-stage/') >= 0) {
         push @cargo_configs,
             "patch.\"https://github.com/mochiOS/syscalls\".mochi-user-platform.path='$root_dir/user/crates/platform'",
@@ -1437,6 +1443,9 @@ make_path("$esp_dir/EFI/BOOT", "$esp_dir/system", $initfs_stage, $rootfs_stage, 
 print "[step] generate startup resources\n";
 my $generated_resources_dir = generate_startup_qr_resources($root_dir, $build_root);
 
+print "[step] build fonts\n";
+build_fonts($root_dir);
+
 print "[step] build user runtime and newlib\n";
 build_newlib_runtime($root_dir, $nightly_toolchain);
 
@@ -1545,9 +1554,6 @@ build_driver_bundles($root_dir, \%config, $nightly_toolchain);
 
 print "[step] build bootloader\n";
 build_bootloader($root_dir);
-
-print "[step] build fonts\n";
-build_fonts($root_dir);
 
 my %path = (
     hello_elf                   => "$root_dir/out/newlib-port/hello/hello.elf",

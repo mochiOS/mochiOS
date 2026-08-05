@@ -1295,3 +1295,11 @@ path = "binaries/coreutils"
 hash = "9c4d62416fc89a31ab80a1feda50b4d54f2f6243"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "security: declare coreutils filesystem access"
+
+[[entries]]
+date = "2026-08-05T17:57:24.959429757+09:00"
+snapshot = "a7792deacb98bd92d26ac8d3"
+path = "mboot"
+hash = "7707efe51520169410a9ee0ee4c1e904172dc309"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: boot mochiOS through mBoot"

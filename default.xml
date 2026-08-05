@@ -17,6 +17,12 @@
     />
 
     <project
+            name="mochiOS/mBoot"
+            path="mboot"
+            revision="master"
+    />
+
+    <project
             name="mochiOS/boot"
             path="boot"
             revision="main"

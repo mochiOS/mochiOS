@@ -112,6 +112,34 @@ make build
 `USER_RUST_STD_TOOLCHAIN`が残っている場合、その設定は自動的に削除され、
 `build/rust-std-toolchain`の固定値へ移行します。
 
+物理PC向けのmBootイメージをビルドする場合は、次を実行します。
+
+```bash
+make mboot
+```
+
+このターゲットはmochiOSをビルド（キャッシュ済みのものがあればそれを使用します）し、その`out/artifacts/disk.img`を内包したmBootを
+Buildrootの既存outputを再利用してビルドします。初回のみBuildrootの設定と依存物の
+構築が必要です。
+
+mBoot自体をQEMUで起動し、その中でmochiOSを全画面実行する場合は次を使用します。
+
+```bash
+make run-boot
+```
+
+利用可能な環境では外側のQEMUにKVMを使用し、keyboardとmouseはmBootを経由して
+内側のmochiOSへ配送されます。
+
+配布用イメージは次で生成します。（キャッシュを参照しないので時間がかかります）
+
+```bash
+make release
+```
+
+`out/releases/mochiOS.img`はmBootとmochiOSを一つにまとめたraw GPTイメージです。
+USBメモリまたは専用ディスク全体へ書き込んで使用します。
+
 次のような`rustc_comptime`、`offload_kernel`、または予約済み`rustc`属性のエラーが出た場合は、
 Rust forkとcompilerのversionが一致していません。
 

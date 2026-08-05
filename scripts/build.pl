@@ -307,6 +307,7 @@ sub cached_artifacts_current {
                 if (-d $path && ($relative eq 'out'
                     || $relative eq '.repo'
                     || $relative eq '.workspace'
+                    || $relative eq 'mboot'
                     || $relative =~ m{(?:^|/)\.git\z}
                     || $relative =~ m{(?:^|/)target\z}
                     || $relative =~ m{(?:^|/)node_modules\z}

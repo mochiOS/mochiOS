@@ -1,10 +1,13 @@
 SCRIPTS	= $(shell pwd)/scripts
 OUT		= $(shell pwd)/out
 MWS		= $(shell pwd)/tools/mws
+MBOOT_DIR	= $(shell pwd)/mboot
 RELEASE_DIR	= $(OUT)/releases
 RELEASE_IMAGE	= $(RELEASE_DIR)/mochiOS.img
+MBOOT_GUEST_IMAGE	= $(OUT)/artifacts/disk.img
+MBOOT_OUTPUT_IMAGE	= $(MBOOT_DIR)/output/images/disk.img
 
-.PHONY: all build full build-cached release run smoke-log-test smoke-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached mboot mboot-image release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -32,9 +35,26 @@ full: olddefconfig
 build-cached: olddefconfig
 	@$(SCRIPTS)/build.sh --cached
 
+mboot: build-cached
+	@$(MAKE) mboot-image
+
+mboot-image:
+	@test -f $(MBOOT_DIR)/Makefile || { echo "fatal: mBoot repository was not found: $(MBOOT_DIR)" >&2; exit 1; }
+	@if [ ! -f $(MBOOT_DIR)/output/.config ]; then \
+		$(MAKE) -C $(MBOOT_DIR) defconfig; \
+	fi
+	@$(MAKE) -C $(MBOOT_DIR) build MOCHIOS=$(MBOOT_GUEST_IMAGE)
+	@MBOOT_MOCHIOS_IMAGE=$(MBOOT_GUEST_IMAGE) $(MBOOT_DIR)/scripts/check-image.sh
+
 release: full
+	@$(MAKE) mboot-image
 	@mkdir -p $(RELEASE_DIR)
-	@install -m 0644 $(OUT)/artifacts/disk.img $(RELEASE_IMAGE)
+	@set -eu; \
+		temporary=$(RELEASE_IMAGE).new; \
+		rm -f "$$temporary"; \
+		cp --sparse=always $(MBOOT_OUTPUT_IMAGE) "$$temporary"; \
+		chmod 0644 "$$temporary"; \
+		mv "$$temporary" $(RELEASE_IMAGE)
 	@echo "[done] release image: $(RELEASE_IMAGE)"
 
 fonts:
@@ -42,6 +62,9 @@ fonts:
 
 run: olddefconfig all
 	@$(SCRIPTS)/runner.sh
+
+run-boot: mboot
+	@$(MAKE) -C $(MBOOT_DIR) run-built MOCHIOS=$(MBOOT_GUEST_IMAGE)
 
 smoke-log-test:
 	@$(SCRIPTS)/tests/smoke-log-check-test.sh

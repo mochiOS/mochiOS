@@ -1303,3 +1303,11 @@ path = "mboot"
 hash = "7707efe51520169410a9ee0ee4c1e904172dc309"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: boot mochiOS through mBoot"
+
+[[entries]]
+date = "2026-08-06T11:36:26.972596653+09:00"
+snapshot = "ab041bd85a592af30f8aca1d"
+path = "mboot"
+hash = "a51c5f289f665c7846b8b89fe247d23274c5f4ad"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: add mBoot control protocol v1"

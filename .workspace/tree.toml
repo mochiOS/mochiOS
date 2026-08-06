@@ -1311,3 +1311,11 @@ path = "mboot"
 hash = "a51c5f289f665c7846b8b89fe247d23274c5f4ad"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: add mBoot control protocol v1"
+
+[[entries]]
+date = "2026-08-06T12:34:55.641446598+09:00"
+snapshot = "621f16f45bbfe840b882e61f"
+path = "core"
+hash = "e55d09ca8455e818572d80d8efb96f14c5f3f300"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: authorize serial device mappings"

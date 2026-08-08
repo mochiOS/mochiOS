@@ -1327,3 +1327,11 @@ path = "services"
 hash = "509a7be49e92c6348cd83e760fcba4150dfe8a64"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "一旦コミット"
+
+[[entries]]
+date = "2026-08-08T20:25:42.481674523+09:00"
+snapshot = "cd81bc963d9227ff13c054c7"
+path = "user"
+hash = "581229d2d5fe69de7731ec87de607c0dba9a522b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: provide newlib hard link stubs"

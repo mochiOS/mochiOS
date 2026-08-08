@@ -1335,3 +1335,11 @@ path = "user"
 hash = "581229d2d5fe69de7731ec87de607c0dba9a522b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: provide newlib hard link stubs"
+
+[[entries]]
+date = "2026-08-08T20:25:43.143522107+09:00"
+snapshot = "8261a03f41b3a16e5042e9ba"
+path = "mboot"
+hash = "a07a598482e1a79c408ee9b4001e3b2adc4c607a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: require advanced partition support"

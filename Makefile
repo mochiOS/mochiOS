@@ -7,7 +7,7 @@ RELEASE_IMAGE	= $(RELEASE_DIR)/mochiOS.img
 MBOOT_GUEST_IMAGE	= $(OUT)/artifacts/disk.img
 MBOOT_OUTPUT_IMAGE	= $(MBOOT_DIR)/output/images/disk.img
 
-.PHONY: all build full build-cached mboot mboot-image release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached mboot mboot-image release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -101,6 +101,9 @@ ext2-write-test-tcg: build
 
 clean:
 	@rm -rf $(OUT)/*
+
+clean-runner:
+	@rm -rf $(OUT)/runner
 
 repo-init:
 	@repo init -m default.xml -u $(git rev-parse --show-toplevel) -b $(git rev-parse HEAD)

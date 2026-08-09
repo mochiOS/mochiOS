@@ -737,6 +737,44 @@ sub read_mochios_version {
     dief("release version was not found in $path");
 }
 
+sub read_mnu_version {
+    my ($root_dir) = @_;
+    my $path = "$root_dir/core/Cargo.toml";
+    open my $fh, '<', $path or dief("open $path: $!");
+    my $in_package = 0;
+    while (my $line = <$fh>) {
+        $in_package = 1 if $line =~ /^\[package\]\s*$/;
+        next if !$in_package;
+        if ($line =~ /^version\s*=\s*"([0-9A-Za-z._+-]+)"\s*$/) {
+            close $fh;
+            return $1;
+        }
+    }
+    close $fh;
+    dief("mnu version was not found in $path");
+}
+
+sub read_mboot_version {
+    my ($root_dir) = @_;
+    my $path = "$root_dir/mboot/board/mboot/rootfs-overlay/etc/mboot-release";
+    open my $fh, '<', $path or dief("open $path: $!");
+    while (my $line = <$fh>) {
+        if ($line =~ /^MBOOT_VERSION=([0-9A-Za-z._+-]+)\s*$/) {
+            close $fh;
+            return $1;
+        }
+    }
+    close $fh;
+    dief("mBoot version was not found in $path");
+}
+
+sub read_build_id {
+    my ($root_dir) = @_;
+    my $build_id = capture_stdout('git', '-C', $root_dir, 'rev-parse', '--short=12', 'HEAD');
+    $build_id =~ s/\s+\z//;
+    return $build_id;
+}
+
 sub build_std_binary {
     my ($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, $rustflags, $manifest_path, $binary_name, @features) = @_;
     my $binary_out = "$target_dir/x86_64-unknown-mochios/release/$binary_name";
@@ -801,6 +839,9 @@ sub build_std_binary {
         RUSTDOC   => "$sysroot_overlay/bin/rustdoc",
         RUSTFLAGS => join(' ', @{$rustflags}),
         MOCHIOS_VERSION => read_mochios_version($root_dir),
+        MNU_VERSION => read_mnu_version($root_dir),
+        MBOOT_VERSION => read_mboot_version($root_dir),
+        MOCHIOS_BUILD_ID => read_build_id($root_dir),
     );
     my @cargo_config_args = map { ('--config', $_) } @cargo_configs;
     my @command = (

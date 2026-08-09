@@ -840,7 +840,7 @@ debugfs -R 'cat /system/logs/services/network.log' "${ROOTFS_IMAGE}" \
     > "${NETWORK_LOG}" 2>/dev/null || die "network.service log could not be read"
 debugfs -R 'cat /system/logs/services/user.log' "${ROOTFS_IMAGE}" \
     > "${USER_LOG}" 2>/dev/null || die "user.service log could not be read"
-grep -Fq 'user.service: ready users=1' "${USER_LOG}" ||
+grep -Fq 'user.service: ready users=2' "${USER_LOG}" ||
     die "user.service did not load its initial database; see ${USER_LOG}"
 
 if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then

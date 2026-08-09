@@ -25,6 +25,7 @@ write_valid_logs() {
 [INFO] exec: loaded '/system/services/network.service' from cext
 [INFO] exec: loaded '/system/services/user.service' from cext
 [INFO] exec: loaded '/system/services/secure-ui.service' from cext
+[INFO] exec: loaded '/applications/Binder.app/entry.elf' from cext
 EOF
     cat > "${SERVICE_MANAGER_LOG}" <<'EOF'
 service-manager.service: start
@@ -47,6 +48,8 @@ service-manager.service: waiting for user.service ready
 service-manager.service: user.service ready
 service-manager.service: secure-ui.service spawned pid=15
 service-manager.service: waiting for secure-ui.service login
+service-manager.service: secure-ui.service login complete
+service-manager.service: Binder.app spawned pid=16
 EOF
     cat > "${DRIVERS_LOG}" <<'EOF'
 drivers.service: start
@@ -158,8 +161,9 @@ printf '%s\n' 'service-manager.service: input.service spawned pid=99' >> "${SERV
 expect_failure "duplicate" "duplicate log 'input spawn'"
 
 write_valid_logs
-printf '%s\n' "[INFO] exec: loaded '/applications/Binder.app/entry.elf' from cext" >> "${SERIAL_LOG}"
-expect_failure "desktop-before-login" "forbidden log 'desktop before login'"
+sed -i '/service-manager.service: Binder.app spawned pid=/d' "${SERVICE_MANAGER_LOG}"
+sed -i '/service-manager.service: waiting for secure-ui.service login/a service-manager.service: Binder.app spawned pid=16' "${SERVICE_MANAGER_LOG}"
+expect_failure "desktop-before-login" "order violation in service-manager.service log"
 
 write_valid_logs
 sed -i '/service-manager.service: display.driver ready/d' "${SERVICE_MANAGER_LOG}"
@@ -169,6 +173,10 @@ expect_failure "order" "order violation in service-manager.service log"
 write_valid_logs
 printf '%s\n' '[ERROR] kernel panic: test fixture' >> "${SERIAL_LOG}"
 expect_failure "panic" "forbidden log 'boot failure'"
+
+write_valid_logs
+printf '%s\n' 'memory allocation of 1584 bytes failed' >> "${SERIAL_LOG}"
+expect_failure "allocation" "forbidden log 'boot failure'"
 
 write_valid_logs
 printf '%s\n' 'Error: MochiOs(Syscall(13))' >> "${SERIAL_LOG}"

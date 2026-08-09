@@ -145,7 +145,7 @@ assert_order() {
     done
 }
 
-for fatal_pattern in "PAGE FAULT" "Faulting user context:" "EXCEPTION:" "panicked at" "kernel panic" "panic:" "Error: MochiOs("; do
+for fatal_pattern in "PAGE FAULT" "Faulting user context:" "EXCEPTION:" "panicked at" "kernel panic" "panic:" "memory allocation of " "Error: MochiOs("; do
     assert_absent_case_insensitive "boot failure" "${SERIAL_LOG}" "${fatal_pattern}"
 done
 
@@ -246,10 +246,12 @@ assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
     "user ready wait" "service-manager.service: waiting for user.service ready" \
     "user ready" "service-manager.service: user.service ready" \
     "secure UI spawn" "service-manager.service: secure-ui.service spawned pid=" \
-    "login wait" "service-manager.service: waiting for secure-ui.service login"
+    "login wait" "service-manager.service: waiting for secure-ui.service login" \
+    "login complete" "service-manager.service: secure-ui.service login complete" \
+    "Binder spawn" "service-manager.service: Binder.app spawned pid="
 
-assert_absent "desktop before login" "${SERIAL_LOG}" \
-    "exec: loaded '/applications/Binder.app/entry.elf'"
+require_once "Binder application load" "${SERIAL_LOG}" \
+    "exec: loaded '/applications/Binder.app/entry.elf'" >/dev/null
 
 if [[ "${XHCI_ENABLED}" == "1" ]]; then
     assert_order "drivers.service log" "${DRIVERS_LOG}" \

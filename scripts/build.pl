@@ -803,7 +803,7 @@ sub build_std_binary {
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-protocol.path='$root_dir/user/crates/user-protocol'";
     }
     if ($manifest_path eq "$root_dir/applications/binder/Cargo.toml"
-        || $manifest_path eq "$root_dir/applications/settings/Cargo.toml"
+        || index($manifest_path, '/settings-stage/') >= 0
         || index($manifest_path, "$root_dir/services/") == 0
         || index($manifest_path, '/services-stage/') >= 0) {
         push @cargo_configs,
@@ -893,6 +893,7 @@ sub build_rust_std_programs {
     my $target_dir = "$out_root/target-$libc_build_hash-$std_source_hash";
     my $stable_target_dir = "$out_root/target";
     my $services_stage = "$out_root/services-stage";
+    my $settings_stage = "$out_root/settings-stage";
     my $legacy_rustup_home = "$out_root/rustup-home-$libc_build_hash";
 
     relink_libc_src($libc_override_path);
@@ -903,6 +904,11 @@ sub build_rust_std_programs {
     for my $service (qw(capability compositor core display drivers input logger mboot-agent network package secure-ui service-manager signature tty update user)) {
         copy_tree("$root_dir/services/$service", "$services_stage/$service");
     }
+    remove_tree($settings_stage);
+    make_path($settings_stage);
+    install_file('0644', "$root_dir/applications/settings/Cargo.toml", "$settings_stage/Cargo.toml");
+    install_file('0644', "$root_dir/applications/settings/Cargo.lock", "$settings_stage/Cargo.lock");
+    copy_tree("$root_dir/applications/settings/src", "$settings_stage/src");
 
     for my $cmd (qw(cargo rustc x86_64-elf-gcc cksum)) {
         need_cmd($cmd);
@@ -969,7 +975,7 @@ sub build_rust_std_programs {
     build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
     build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/terminal/Cargo.toml", 'terminal');
     build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/file/Cargo.toml", 'files');
-    build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/settings/Cargo.toml", 'settings');
+    build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$settings_stage/Cargo.toml", 'settings');
     build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
     for my $bin (@{$coreutils_bins}) {
         build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/coreutils/Cargo.toml", $bin);

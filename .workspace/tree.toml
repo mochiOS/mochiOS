@@ -1391,3 +1391,11 @@ path = "applications/binder"
 hash = "03693cc40e03966c9b848d3614f94ad24b90fc63"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: hide default App Library selection"
+
+[[entries]]
+date = "2026-08-09T14:41:20.295211132+09:00"
+snapshot = "2df134dc804f18442ea78138"
+path = "core"
+hash = "3e4a9a8ec2484fc6094c939552aef3c6e87f4282"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: normalize mnu abi lock entry"

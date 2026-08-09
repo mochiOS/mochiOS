@@ -1351,3 +1351,11 @@ path = "user"
 hash = "a198c188b5490b5d7874a5100083b5c247c428fb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: update mnu dependency lock"
+
+[[entries]]
+date = "2026-08-09T11:25:20.572485204+09:00"
+snapshot = "376f71db432c112812826642"
+path = "build"
+hash = "ca619ac7aac226aa1fcc85314230694c48f092f6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: enable SMP by default"

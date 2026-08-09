@@ -1218,6 +1218,7 @@ sub build_rootfs {
     chmod 01777, "$rootfs_stage/tmp"
         or dief("chmod temporary directory: $!");
     make_path("$rootfs_stage/libraries/system");
+    make_path("$rootfs_stage/libraries/applications");
     make_path("$rootfs_stage/system/logs");
     install_file('0755', $path->{hello_elf}, "$rootfs_stage/bin/hello");
     install_file('0755', $path->{rust_std_demo_bin}, "$rootfs_stage/bin/rust-std-demo");

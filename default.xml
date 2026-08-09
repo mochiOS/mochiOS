@@ -148,4 +148,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="applications/settings"
+            name="mochiOS/Settings.app"
+            revision="main"
+            remote="github"
+    />
 </manifest>

@@ -765,6 +765,7 @@ sub build_std_binary {
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-protocol.path='$root_dir/user/crates/user-protocol'";
     }
     if ($manifest_path eq "$root_dir/applications/binder/Cargo.toml"
+        || $manifest_path eq "$root_dir/applications/settings/Cargo.toml"
         || index($manifest_path, "$root_dir/services/") == 0
         || index($manifest_path, '/services-stage/') >= 0) {
         push @cargo_configs,
@@ -927,6 +928,7 @@ sub build_rust_std_programs {
     build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/binder/Cargo.toml", 'binder');
     build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/terminal/Cargo.toml", 'terminal');
     build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/file/Cargo.toml", 'files');
+    build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/applications/settings/Cargo.toml", 'settings');
     build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/msh/Cargo.toml", 'msh');
     for my $bin (@{$coreutils_bins}) {
         build_std_binary($root_dir, $target_json, $target_dir, $stable_target_dir, $sysroot_overlay, $libc_override_path, \@rustflags, "$root_dir/binaries/coreutils/Cargo.toml", $bin);
@@ -1178,6 +1180,19 @@ sub stage_files_app_bundle {
     }
 }
 
+sub stage_settings_app_bundle {
+    my ($rootfs_stage, $path) = @_;
+    my $bundle_root = "$rootfs_stage/applications/Settings.app";
+    stage_application_bundle(
+        $rootfs_stage,
+        $bundle_root,
+        $path->{settings_bin},
+        $path->{settings_about},
+        $path->{settings_manifest},
+    );
+    install_file('0644', $path->{settings_icon}, "$bundle_root/appicon.svg");
+}
+
 sub stage_application_bundle {
     my ($rootfs_stage, $bundle_root, $entry_bin, $about_src, $manifest_src) = @_;
     remove_tree($bundle_root);
@@ -1268,11 +1283,13 @@ sub build_rootfs {
     stage_package_manifest($rootfs_stage, $path->{binder_manifest}, '/system/packages/binder/manifest.toml');
     stage_package_manifest($rootfs_stage, $path->{terminal_manifest}, '/system/packages/terminal/manifest.toml');
     stage_package_manifest($rootfs_stage, $path->{files_manifest}, '/system/packages/files/manifest.toml');
+    stage_package_manifest($rootfs_stage, $path->{settings_manifest}, '/system/packages/settings/manifest.toml');
     stage_binder_sample_apps($rootfs_stage, $path->{binder_sample_apps_dir});
     stage_binder_app_bundle($rootfs_stage, $path);
     stage_viewkit_test_bundle($rootfs_stage, $path);
     stage_terminal_app_bundle($rootfs_stage, $path);
     stage_files_app_bundle($rootfs_stage, $path);
+    stage_settings_app_bundle($rootfs_stage, $path);
 
     make_path("$rootfs_stage/system/services");
     for my $service (qw(capability display compositor drivers logger input network package signature tty user)) {
@@ -1648,6 +1665,10 @@ my %path = (
     files_manifest         => "$root_dir/applications/file/manifest.toml",
     files_icon             => "$root_dir/applications/file/appicon.svg",
     files_icons_dir        => "$root_dir/applications/file/resources/icons",
+    settings_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/settings",
+    settings_about         => "$root_dir/applications/settings/about.toml",
+    settings_manifest      => "$root_dir/applications/settings/manifest.toml",
+    settings_icon          => "$root_dir/applications/settings/appicon.svg",
     resources_dir          => "$root_dir/resources",
     generated_resources_dir => $generated_resources_dir,
     test_app_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/test_app",
@@ -1673,7 +1694,7 @@ else {
 }
 
 for my $key (
-    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest terminal_bin terminal_about terminal_manifest terminal_icon files_bin files_about files_manifest files_icon kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin mboot_agent_service_bin network_service_bin package_service_bin signature_service_bin service_manager_service_bin secure_ui_service_bin update_service_bin user_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest mboot_agent_service_manifest network_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest secure_ui_service_manifest update_service_manifest user_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest development_trust_snapshot development_revocation_snapshot)
+    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest terminal_bin terminal_about terminal_manifest terminal_icon files_bin files_about files_manifest files_icon settings_bin settings_about settings_manifest settings_icon kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin mboot_agent_service_bin network_service_bin package_service_bin signature_service_bin service_manager_service_bin secure_ui_service_bin update_service_bin user_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest mboot_agent_service_manifest network_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest secure_ui_service_manifest update_service_manifest user_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest development_trust_snapshot development_revocation_snapshot)
 ) {
     need_file($path{$key});
 }
@@ -1757,6 +1778,8 @@ my @signature_db_args = (
     "/applications/Terminal.app/entry.elf=$path{terminal_bin}",
     '--entry',
     "/applications/Files.app/entry.elf=$path{files_bin}",
+    '--entry',
+    "/applications/Settings.app/entry.elf=$path{settings_bin}",
     '--entry',
     "/bin/msh=$path{msh_bin}",
 );
@@ -1864,6 +1887,7 @@ install_file('0755', $path{test_app_bin}, "$artifact_dir/test_app");
 install_file('0755', $path{binder_bin}, "$artifact_dir/binder");
 install_file('0755', $path{terminal_bin}, "$artifact_dir/terminal");
 install_file('0755', $path{files_bin}, "$artifact_dir/files");
+install_file('0755', $path{settings_bin}, "$artifact_dir/settings");
 install_file('0755', $path{msh_bin}, "$artifact_dir/msh");
 for my $coreutil (@coreutils_bins) {
     install_file('0755', "$coreutils_bin_dir/$coreutil", "$artifact_dir/$coreutil");

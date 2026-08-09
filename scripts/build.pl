@@ -1973,6 +1973,7 @@ my @checksum_files = qw(
     msh
     terminal
     files
+    settings
     ls
     rust-std-demo
     mpk

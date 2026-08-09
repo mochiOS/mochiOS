@@ -136,6 +136,13 @@
     />
 
     <project
+            path="tools/devkit"
+            name="mochiOS/devkit"
+            revision="master"
+            remote="github"
+    />
+
+    <project
             path="applications/terminal"
             name="mochiOS/Terminal"
             revision="main"

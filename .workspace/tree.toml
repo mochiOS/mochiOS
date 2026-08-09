@@ -1399,3 +1399,11 @@ path = "core"
 hash = "3e4a9a8ec2484fc6094c939552aef3c6e87f4282"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: normalize mnu abi lock entry"
+
+[[entries]]
+date = "2026-08-09T14:45:57.381781958+09:00"
+snapshot = "a33eef7e49901846802964c0"
+path = "applications/settings"
+hash = "4f5dfd2ebf6aadf7bea7bc3edd828e2d196c4fd2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: refresh Settings dependency lock"

@@ -1375,3 +1375,11 @@ path = "applications/binder"
 hash = "010c46be03716ea3cc4422e4bdf64030e04eb5ce"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: add persistent Dock and App Library"
+
+[[entries]]
+date = "2026-08-09T13:58:53.213576307+09:00"
+snapshot = "65bc0dcb9de0289b422a785e"
+path = "applications/binder"
+hash = "ed14ded4c03da66014b5322723c2cc67e6b53a9d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: add App Library search and navigation"

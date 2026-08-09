@@ -1415,3 +1415,11 @@ path = "applications/settings"
 hash = "bbcaaa4d9ed69f394ff383562def856e784c1bd3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "icon: update"
+
+[[entries]]
+date = "2026-08-09T17:36:51.014261867+09:00"
+snapshot = "39c0aa25eaa2c2cd6db21a53"
+path = "applications/settings"
+hash = "655a316c9f50ad69399a9de252200c9a608026be"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Update appicon.png"

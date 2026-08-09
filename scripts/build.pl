@@ -1237,7 +1237,7 @@ sub stage_settings_app_bundle {
         $path->{settings_about},
         $path->{settings_manifest},
     );
-    install_file('0644', $path->{settings_icon}, "$bundle_root/appicon.svg");
+    install_file('0644', $path->{settings_icon}, "$bundle_root/appicon.png");
 }
 
 sub stage_application_bundle {
@@ -1715,7 +1715,7 @@ my %path = (
     settings_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/settings",
     settings_about         => "$root_dir/applications/settings/about.toml",
     settings_manifest      => "$root_dir/applications/settings/manifest.toml",
-    settings_icon          => "$root_dir/applications/settings/appicon.svg",
+    settings_icon          => "$root_dir/applications/settings/appicon.png",
     resources_dir          => "$root_dir/resources",
     generated_resources_dir => $generated_resources_dir,
     test_app_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/test_app",

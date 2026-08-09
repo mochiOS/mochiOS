@@ -1383,3 +1383,11 @@ path = "applications/binder"
 hash = "ed14ded4c03da66014b5322723c2cc67e6b53a9d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: add App Library search and navigation"
+
+[[entries]]
+date = "2026-08-09T14:09:30.913734977+09:00"
+snapshot = "305587e51da78c860b5f7757"
+path = "applications/binder"
+hash = "03693cc40e03966c9b848d3614f94ad24b90fc63"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: hide default App Library selection"

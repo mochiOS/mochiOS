@@ -1343,3 +1343,11 @@ path = "mboot"
 hash = "a07a598482e1a79c408ee9b4001e3b2adc4c607a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: require advanced partition support"
+
+[[entries]]
+date = "2026-08-09T10:23:56.120749042+09:00"
+snapshot = "daf978cbc6e662190c362ff1"
+path = "user"
+hash = "a198c188b5490b5d7874a5100083b5c247c428fb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: update mnu dependency lock"

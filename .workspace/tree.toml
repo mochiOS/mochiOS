@@ -1359,3 +1359,11 @@ path = "build"
 hash = "ca619ac7aac226aa1fcc85314230694c48f092f6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: enable SMP by default"
+
+[[entries]]
+date = "2026-08-09T12:01:10.634664102+09:00"
+snapshot = "95160557846a19b241f3c51d"
+path = "core"
+hash = "2b5f227891de4a1bbff230659ba2c3ef33b49c1c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: resolve IPC senders for application launch"

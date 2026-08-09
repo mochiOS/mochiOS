@@ -1407,3 +1407,11 @@ path = "applications/settings"
 hash = "4f5dfd2ebf6aadf7bea7bc3edd828e2d196c4fd2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: refresh Settings dependency lock"
+
+[[entries]]
+date = "2026-08-09T16:25:06.016376300+09:00"
+snapshot = "690c1d91af047c05647f9eb7"
+path = "applications/settings"
+hash = "bbcaaa4d9ed69f394ff383562def856e784c1bd3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "icon: update"

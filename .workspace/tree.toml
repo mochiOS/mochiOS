@@ -1367,3 +1367,11 @@ path = "core"
 hash = "2b5f227891de4a1bbff230659ba2c3ef33b49c1c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: resolve IPC senders for application launch"
+
+[[entries]]
+date = "2026-08-09T13:47:22.222663060+09:00"
+snapshot = "4641ffb8d5bf2db6db5ac36f"
+path = "applications/binder"
+hash = "010c46be03716ea3cc4422e4bdf64030e04eb5ce"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: add persistent Dock and App Library"

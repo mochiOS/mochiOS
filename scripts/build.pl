@@ -1290,6 +1290,11 @@ sub build_rootfs {
     make_path("$rootfs_stage/var/config");
     chmod 0755, "$rootfs_stage/var", "$rootfs_stage/var/config"
         or dief("chmod settings directories: $!");
+    for my $category (qw(account appearance general input network security)) {
+        make_path("$rootfs_stage/var/config/$category");
+        chmod 0777, "$rootfs_stage/var/config/$category"
+            or dief("chmod $category settings directory: $!");
+    }
     make_path("$rootfs_stage/libraries/system");
     make_path("$rootfs_stage/libraries/applications");
     make_path("$rootfs_stage/system/logs");

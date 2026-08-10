@@ -1463,3 +1463,11 @@ path = "applications/binder"
 hash = "6646511782249bb9b6dec12ac304c53fffb7a5a1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: reload desktop appearance"
+
+[[entries]]
+date = "2026-08-10T14:39:39.012874445+09:00"
+snapshot = "15eb561be372f82c4b0a80c0"
+path = "services"
+hash = "c9a766415b125c3884c68030987630b73db9dd00"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: retry appearance change events"

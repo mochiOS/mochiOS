@@ -1287,6 +1287,9 @@ sub build_rootfs {
     make_path("$rootfs_stage/tmp");
     chmod 01777, "$rootfs_stage/tmp"
         or dief("chmod temporary directory: $!");
+    make_path("$rootfs_stage/var/config");
+    chmod 0755, "$rootfs_stage/var", "$rootfs_stage/var/config"
+        or dief("chmod settings directories: $!");
     make_path("$rootfs_stage/libraries/system");
     make_path("$rootfs_stage/libraries/applications");
     make_path("$rootfs_stage/system/logs");

@@ -1439,3 +1439,11 @@ path = "applications/settings"
 hash = "ca90a3d9e9bf43cd5d578cfa6046ba0d8376d915"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: rebuild settings interface"
+
+[[entries]]
+date = "2026-08-10T13:11:24.800403507+09:00"
+snapshot = "a8a11853949dcc51eb28ba3d"
+path = "services"
+hash = "015a1e4d6368e70b15c56fe93a445f724d8a19eb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: apply persisted session settings"

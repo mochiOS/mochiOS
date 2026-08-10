@@ -1431,3 +1431,11 @@ path = "core"
 hash = "96ab0591f821aa5bbd109fda3f8c9099cbe95397"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: update mnu dependency lock"
+
+[[entries]]
+date = "2026-08-10T12:55:01.884284325+09:00"
+snapshot = "b9fe3c9f8242f7c70fc2df66"
+path = "applications/settings"
+hash = "ca90a3d9e9bf43cd5d578cfa6046ba0d8376d915"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: rebuild settings interface"

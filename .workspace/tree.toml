@@ -1455,3 +1455,11 @@ path = "applications/settings"
 hash = "a99c84726d9e20eb696139cfb3320fb108759788"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: show actual system build metadata"
+
+[[entries]]
+date = "2026-08-10T14:35:16.434561786+09:00"
+snapshot = "8096858deb67691f01b96256"
+path = "applications/binder"
+hash = "6646511782249bb9b6dec12ac304c53fffb7a5a1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: reload desktop appearance"

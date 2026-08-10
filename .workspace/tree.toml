@@ -1423,3 +1423,11 @@ path = "applications/settings"
 hash = "655a316c9f50ad69399a9de252200c9a608026be"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update appicon.png"
+
+[[entries]]
+date = "2026-08-10T11:35:09.407105819+09:00"
+snapshot = "ec041a8ad6796c87f194253f"
+path = "core"
+hash = "96ab0591f821aa5bbd109fda3f8c9099cbe95397"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: update mnu dependency lock"

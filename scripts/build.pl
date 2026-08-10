@@ -768,11 +768,18 @@ sub read_mboot_version {
     dief("mBoot version was not found in $path");
 }
 
-sub read_build_id {
+sub read_build_number {
     my ($root_dir) = @_;
-    my $build_id = capture_stdout('git', '-C', $root_dir, 'rev-parse', '--short=12', 'HEAD');
-    $build_id =~ s/\s+\z//;
-    return $build_id;
+    my $path = "$root_dir/version.toml";
+    open my $fh, '<', $path or dief("open $path: $!");
+    while (my $line = <$fh>) {
+        if ($line =~ /^build\s*=\s*([0-9]+)\s*$/) {
+            close $fh;
+            return $1;
+        }
+    }
+    close $fh;
+    dief("build number was not found in $path");
 }
 
 sub build_std_binary {
@@ -841,7 +848,7 @@ sub build_std_binary {
         MOCHIOS_VERSION => read_mochios_version($root_dir),
         MNU_VERSION => read_mnu_version($root_dir),
         MBOOT_VERSION => read_mboot_version($root_dir),
-        MOCHIOS_BUILD_ID => read_build_id($root_dir),
+        MOCHIOS_BUILD_NUMBER => read_build_number($root_dir),
     );
     my @cargo_config_args = map { ('--config', $_) } @cargo_configs;
     my @command = (
@@ -908,6 +915,7 @@ sub build_rust_std_programs {
     make_path($settings_stage);
     install_file('0644', "$root_dir/applications/settings/Cargo.toml", "$settings_stage/Cargo.toml");
     install_file('0644', "$root_dir/applications/settings/Cargo.lock", "$settings_stage/Cargo.lock");
+    install_file('0644', "$root_dir/applications/settings/build.rs", "$settings_stage/build.rs");
     copy_tree("$root_dir/applications/settings/src", "$settings_stage/src");
 
     for my $cmd (qw(cargo rustc x86_64-elf-gcc cksum)) {

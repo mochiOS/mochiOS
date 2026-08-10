@@ -1447,3 +1447,11 @@ path = "services"
 hash = "015a1e4d6368e70b15c56fe93a445f724d8a19eb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: apply persisted session settings"
+
+[[entries]]
+date = "2026-08-10T14:07:33.235502521+09:00"
+snapshot = "d6f61dfd8ef7faed8834c853"
+path = "applications/settings"
+hash = "a99c84726d9e20eb696139cfb3320fb108759788"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: show actual system build metadata"

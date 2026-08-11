@@ -1479,3 +1479,11 @@ path = "services"
 hash = "ecbb3d4fc981fff16166a0e7f200936c1b23eed3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: bridge developer compilation to mBoot"
+
+[[entries]]
+date = "2026-08-11T12:11:30.599901988+09:00"
+snapshot = "2fd7764a705c040e4ae6cac6"
+path = "binaries/coreutils"
+hash = "dac74245ecf608284ad9554ccf86b8885529db17"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: refresh local dependency lockfile"

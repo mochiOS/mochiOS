@@ -1487,3 +1487,11 @@ path = "binaries/coreutils"
 hash = "dac74245ecf608284ad9554ccf86b8885529db17"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: refresh local dependency lockfile"
+
+[[entries]]
+date = "2026-08-11T12:42:50.246617036+09:00"
+snapshot = "d9e78cb2fe4cd4953988de6b"
+path = "binaries/coreutils"
+hash = "1addbead0538b4f799e467ff2d24b914db0f6a9b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor: drop gcc capability requirement"

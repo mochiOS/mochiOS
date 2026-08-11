@@ -806,6 +806,7 @@ sub build_std_binary {
     );
     if ($manifest_path eq "$root_dir/binaries/coreutils/Cargo.toml") {
         push @cargo_configs,
+            "patch.\"https://github.com/mochiOS/syscalls\".mochi-user-platform.path='$root_dir/user/crates/platform'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-database.path='$root_dir/user/crates/user-database'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-protocol.path='$root_dir/user/crates/user-protocol'";
     }
@@ -1525,7 +1526,7 @@ my $devkit_root = "$root_dir/tools/devkit";
 my $development_fixture_root = "$devkit_root/fixtures/development";
 my $development_certificate = "$build_root/developer.cert";
 my $msign_bin = "$root_dir/out/devkit-target/release/msign";
-my @coreutils_bins = qw(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net test_gui test_desktop);
+my @coreutils_bins = qw(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc test_gui test_desktop);
 push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
 
@@ -1846,7 +1847,7 @@ my @signature_db_args = (
     '--entry',
     "/bin/msh=$path{msh_bin}",
 );
-for my $bin (qw(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net test_gui test_app test_desktop)) {
+for my $bin (qw(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc test_gui test_app test_desktop)) {
     my $bin_path = $bin eq 'test_app' ? $path{test_app_bin} : "$coreutils_bin_dir/$bin";
     push @signature_db_args, '--entry', "/bin/$bin=$bin_path";
 }

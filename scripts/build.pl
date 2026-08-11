@@ -817,6 +817,7 @@ sub build_std_binary {
         push @cargo_configs,
             "patch.\"https://github.com/mochiOS/syscalls\".mochi-user-platform.path='$root_dir/user/crates/platform'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochi-user-syscall.path='$root_dir/user/crates/syscall'",
+            "patch.\"https://github.com/mochiOS/syscalls\".mochios-linux-gui-protocol.path='$root_dir/user/crates/linux-gui-protocol'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-tls-client.path='$root_dir/user/crates/tls-client'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-database.path='$root_dir/user/crates/user-database'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-protocol.path='$root_dir/user/crates/user-protocol'";
@@ -909,7 +910,7 @@ sub build_rust_std_programs {
     make_path($services_stage);
     install_file('0644', "$root_dir/services/Cargo.toml", "$services_stage/Cargo.toml");
     install_file('0644', "$root_dir/services/Cargo.lock", "$services_stage/Cargo.lock");
-    for my $service (qw(capability compositor core display drivers input logger mboot-agent network package secure-ui service-manager signature tty update user)) {
+    for my $service (qw(capability compositor core display drivers input linux logger mboot-agent network package secure-ui service-manager signature tty update user)) {
         copy_tree("$root_dir/services/$service", "$services_stage/$service");
     }
     remove_tree($settings_stage);
@@ -961,6 +962,7 @@ sub build_rust_std_programs {
         ["$services_stage/service-manager/Cargo.toml", 'service-manager'],
         ["$services_stage/drivers/Cargo.toml", 'drivers'],
         ["$services_stage/input/Cargo.toml", 'input'],
+        ["$services_stage/linux/Cargo.toml", 'linux'],
         ["$services_stage/display/Cargo.toml", 'display'],
         ["$services_stage/network/Cargo.toml", 'network'],
         ["$services_stage/compositor/Cargo.toml", 'compositor'],
@@ -1356,7 +1358,7 @@ sub build_rootfs {
     stage_settings_app_bundle($rootfs_stage, $path);
 
     make_path("$rootfs_stage/system/services");
-    for my $service (qw(capability display compositor drivers logger input network package signature tty user)) {
+    for my $service (qw(capability display compositor drivers logger input linux network package signature tty user)) {
         my $service_name = $service eq 'display' ? 'display.driver' : "$service.service";
         install_file('0755', $path->{"${service}_service_bin"}, "$rootfs_stage/system/services/$service_name");
         stage_package_manifest($rootfs_stage, $path->{"${service}_service_manifest"}, "/system/packages/$service/manifest.toml");
@@ -1685,6 +1687,7 @@ my %path = (
     capability_service_bin      => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/capability",
     logger_service_bin          => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/logger",
     input_service_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/input",
+    linux_service_bin           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/linux",
     network_service_bin         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/network",
     tty_service_bin             => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/tty",
     package_service_bin         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/package",
@@ -1700,6 +1703,7 @@ my %path = (
     capability_service_manifest => "$root_dir/services/capability/manifest.toml",
     logger_service_manifest     => "$root_dir/services/logger/manifest.toml",
     input_service_manifest      => "$root_dir/services/input/manifest.toml",
+    linux_service_manifest      => "$root_dir/services/linux/manifest.toml",
     network_service_manifest    => "$root_dir/services/network/manifest.toml",
     package_service_manifest    => "$root_dir/services/package/manifest.toml",
     signature_service_manifest  => "$root_dir/services/signature/manifest.toml",
@@ -1758,7 +1762,7 @@ else {
 }
 
 for my $key (
-    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest terminal_bin terminal_about terminal_manifest terminal_icon files_bin files_about files_manifest files_icon settings_bin settings_about settings_manifest settings_icon kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin mboot_agent_service_bin network_service_bin package_service_bin signature_service_bin service_manager_service_bin secure_ui_service_bin update_service_bin user_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest mboot_agent_service_manifest network_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest secure_ui_service_manifest update_service_manifest user_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest development_trust_snapshot development_revocation_snapshot)
+    qw(hello_elf rust_std_demo_bin rust_std_demo_manifest_src viewkit_test_bin viewkit_test_about viewkit_test_manifest test_app_bin binder_bin binder_about binder_manifest terminal_bin terminal_about terminal_manifest terminal_icon files_bin files_about files_manifest files_icon settings_bin settings_about settings_manifest settings_icon kernel_bin service_bin drivers_service_bin compositor_service_bin display_service_bin capability_service_bin logger_service_bin input_service_bin linux_service_bin mboot_agent_service_bin network_service_bin package_service_bin signature_service_bin service_manager_service_bin secure_ui_service_bin update_service_bin user_service_bin tty_service_bin drivers_service_manifest compositor_service_manifest display_service_manifest capability_service_manifest logger_service_manifest input_service_manifest linux_service_manifest mboot_agent_service_manifest network_service_manifest package_service_manifest signature_service_manifest service_manager_service_manifest secure_ui_service_manifest update_service_manifest user_service_manifest tty_service_manifest msh_bin msh_manifest msh_font coreutils_manifest development_trust_snapshot development_revocation_snapshot)
 ) {
     need_file($path{$key});
 }
@@ -1812,6 +1816,8 @@ my @signature_db_args = (
     "/system/services/logger.service=$path{logger_service_bin}",
     '--entry',
     "/system/services/input.service=$path{input_service_bin}",
+    '--entry',
+    "/system/services/linux.service=$path{linux_service_bin}",
     '--entry',
     "/system/services/network.service=$path{network_service_bin}",
     '--entry',
@@ -1939,6 +1945,7 @@ install_file('0755', $path{service_bin}, "$artifact_dir/core.service");
 install_file('0755', $path{capability_service_bin}, "$artifact_dir/capability.service");
 install_file('0755', $path{service_manager_service_bin}, "$artifact_dir/service-manager.service");
 install_file('0755', $path{mboot_agent_service_bin}, "$artifact_dir/mboot-agent.service");
+install_file('0755', $path{linux_service_bin}, "$artifact_dir/linux.service");
 install_file('0755', $path{secure_ui_service_bin}, "$artifact_dir/secure-ui.service");
 install_file('0755', $path{update_service_bin}, "$artifact_dir/update.service");
 install_file('0755', $path{user_service_bin}, "$artifact_dir/user.service");
@@ -1980,6 +1987,7 @@ my @checksum_files = qw(
     core.service
     service-manager.service
     mboot-agent.service
+    linux.service
     secure-ui.service
     update.service
     user.service

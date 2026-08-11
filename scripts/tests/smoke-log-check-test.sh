@@ -25,6 +25,7 @@ write_valid_logs() {
 [INFO] exec: loaded '/system/services/network.service' from cext
 [INFO] exec: loaded '/system/services/user.service' from cext
 [INFO] exec: loaded '/system/services/secure-ui.service' from cext
+[INFO] exec: loaded '/system/services/linux.service' from cext
 [INFO] exec: loaded '/applications/Binder.app/entry.elf' from cext
 EOF
     cat > "${SERVICE_MANAGER_LOG}" <<'EOF'
@@ -49,7 +50,8 @@ service-manager.service: user.service ready
 service-manager.service: secure-ui.service spawned pid=15
 service-manager.service: waiting for secure-ui.service login
 service-manager.service: secure-ui.service login complete
-service-manager.service: Binder.app spawned pid=16
+service-manager.service: linux.service spawned pid=16
+service-manager.service: Binder.app spawned pid=17
 EOF
     cat > "${DRIVERS_LOG}" <<'EOF'
 drivers.service: start

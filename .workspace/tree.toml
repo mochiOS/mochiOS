@@ -1495,3 +1495,11 @@ path = "binaries/coreutils"
 hash = "1addbead0538b4f799e467ff2d24b914db0f6a9b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor: drop gcc capability requirement"
+
+[[entries]]
+date = "2026-08-12T11:10:09.698307485+09:00"
+snapshot = "3e314a69fc17a185019a57ee"
+path = "tools/devkit"
+hash = "db4a6ebd8a3cca0fb65a223afa04ac334811c623"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: package Linux applications"

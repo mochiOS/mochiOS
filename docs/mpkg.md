@@ -213,8 +213,12 @@ directory grant画面を通過したread-only directoryは、`linux.service`がs
 rootから外れるentryを拒否し、転送完了後にそのdirectoryだけをread-only bind mount
 します。未許可または同期未完了のhost filesystemをbind mountすることはありません。
 
-write-backは未実装です。`portal_write_paths`が空でないpackageは、変更を保存できない
-状態で起動成功にしないため、Linux launchを`ENOTSUP`で明示的に拒否します。
+write grantは`/home/$USER`の直下ではなく、その配下のdirectoryだけに限定します。
+Linux process終了後、mBootはgrant directoryの完全なsnapshotを`linux.service`へ返し、
+mochiOS側は同じ親directory内の一時treeへ全entryを復元します。一時treeが完成した後だけ
+backup付きrenameで元directoryと置換するため、途中失敗時は元directoryを維持して
+write-backを再試行します。fileの追加・更新だけでなく、削除とrenameもsnapshot差分として
+反映されます。symlink、特殊file、grant外path、上限超過は両側で拒否します。
 
 ## 7. 署名
 
@@ -319,7 +323,6 @@ APT形式ではhostの`apt-get`と`dpkg-deb`、全形式で`mksquashfs`が必要
 - OCSP
 - Unicode normalization と case-fold collision 検査
 - optional Capability request
-- Linux applicationからmochiOSへ安全にwrite-backする`/mochios` write data plane
 - Linux applicationのnetwork、clipboard、device Capability portal
 
 これらは現行 v1 の成功条件として扱いません。

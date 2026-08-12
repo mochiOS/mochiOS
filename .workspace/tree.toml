@@ -1503,3 +1503,11 @@ path = "tools/devkit"
 hash = "db4a6ebd8a3cca0fb65a223afa04ac334811c623"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: package Linux applications"
+
+[[entries]]
+date = "2026-08-12T11:25:58.054654967+09:00"
+snapshot = "c38a0e51f3e34d59b84603ba"
+path = "user"
+hash = "2f3c88c70470fc78867a138a947f7cd9a51c3186"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "protocol: add Linux filesystem portal grants"

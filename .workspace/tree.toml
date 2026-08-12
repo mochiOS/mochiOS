@@ -1527,3 +1527,11 @@ path = "services"
 hash = "60375352fb05bb0188e0d1ccfb7e6da82a1cb3fa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: fix service manager policy fixtures"
+
+[[entries]]
+date = "2026-08-12T11:56:52.622382782+09:00"
+snapshot = "e0c3a897751ab3f62dd5172c"
+path = "services"
+hash = "6865cd2194ff1f807f52e2c8ad77bacabaaf05b8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: synchronize Linux portal directories"

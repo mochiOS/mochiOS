@@ -157,6 +157,51 @@ path = "$/entry.elf"
 `/applications/` の外へ配置できません。生成後の絶対 path についても空 segment、
 `.`、`..`、backslash を拒否します。
 
+### Linux application
+
+Linux applicationも`kind = "application"`として格納し、ABIを
+`mboot-linux-1`に固定します。実行可能ファイルをmochiOSから直接起動せず、署名済み
+payloadに含まれるread-only SquashFSを`linux.service`がmBootへ転送します。
+
+```toml
+[package]
+id = "org.example.editor"
+name = "Editor"
+version = "1.0.0"
+vendor = "Example Developer"
+kind = "application"
+architecture = "x86_64"
+abi = "mboot-linux-1"
+
+[linux]
+entrypoint = "/usr/bin/editor"
+rootfs_file = "linux-rootfs"
+writable_paths = ["/usr/share/editor", "/var/lib/editor"]
+
+[[file]]
+id = "linux-rootfs"
+path = "$/rootfs.squashfs"
+digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+size = 12345678
+mode = "0644"
+```
+
+`entrypoint`と`writable_paths`は正規化済み絶対pathだけを許可します。`/bin`、
+`/sbin`、`/lib*`、`/usr/bin`、`/usr/lib`、`/dev`、`/proc`、`/sys`、`/run`、
+`/tmp`、`/home`、`/mochios`は永続書き込み対象にできません。重複または親子関係に
+ある`writable_paths`も拒否します。
+
+mBootはrootfsを`/bin/mboot/<bundle-id>/rootfs.squashfs`へdigest付きで一度だけ
+stageし、bundleごとのmount/PID/IPC/UTS/network namespaceと専用Xvfbで起動します。
+processはUID/GID 65534へ降格し、rootfsとOverlayFSは`nosuid`でmountします。
+`/home/user`と宣言済みpathだけがOverlayFSとなり、upper/work directoryは
+`/libraries/users/<USER>/mboot/<bundle-id>/`に保存されます。その他のrootfsは
+read-only、`/tmp`はprocess終了時に破棄されるtmpfsです。
+
+package内に置かれた`/mochios`は信頼せず、現在は空のread-only tmpfsで必ず隠します。
+mochiOS filesystem portalとsecure-ui.serviceによるdirectory grantは別のbroker実装が
+必要であり、未許可のままhost filesystemをbind mountすることはありません。
+
 ## 7. 署名
 
 ダイジェストは SHA-256、署名は Ed25519 に固定します。
@@ -232,6 +277,26 @@ msign package verify
 サンプルMPKG生成器は一時鍵を生成しません。署名前のコンテナだけを決定的に作り、
 `msign package sign`が開発用Developer Certificateと対応する鍵で署名します。
 
+Linux application用の未署名containerは`mpack linux`で生成できます。APT package、
+単体Linux binary、既存rootfs directoryのいずれか一つをsourceにします。
+
+```sh
+mpack linux \
+  --bundle-id org.example.editor \
+  --name Editor \
+  --version 1.0.0 \
+  --vendor 'Example Developer' \
+  --apt-package editor \
+  --entrypoint /usr/bin/editor \
+  --writable-path /usr/share/editor \
+  --writable-path /var/lib/editor \
+  --icon appicon.png \
+  --output Editor.mpkg
+```
+
+APT形式ではhostの`apt-get`と`dpkg-deb`、全形式で`mksquashfs`が必要です。生成物は
+通常のMPKGと同様にDeveloper Certificateで署名してからインストールします。
+
 ## 11. 未実装事項
 
 - Zstandard 展開
@@ -240,5 +305,7 @@ msign package verify
 - OCSP
 - Unicode normalization と case-fold collision 検査
 - optional Capability request
+- Linux applicationからmochiOS filesystemを操作する`/mochios` broker
+- Linux applicationのnetwork、clipboard、device Capability portal
 
 これらは現行 v1 の成功条件として扱いません。

@@ -177,6 +177,8 @@ abi = "mboot-linux-1"
 entrypoint = "/usr/bin/editor"
 rootfs_file = "linux-rootfs"
 writable_paths = ["/usr/share/editor", "/var/lib/editor"]
+portal_read_paths = ["/applications", "/home/$USER/Develop"]
+portal_write_paths = ["/home/$USER/Develop"]
 
 [[file]]
 id = "linux-rootfs"
@@ -199,8 +201,16 @@ processはUID/GID 65534へ降格し、rootfsとOverlayFSは`nosuid`でmountし�
 read-only、`/tmp`はprocess終了時に破棄されるtmpfsです。
 
 package内に置かれた`/mochios`は信頼せず、現在は空のread-only tmpfsで必ず隠します。
-mochiOS filesystem portalとsecure-ui.serviceによるdirectory grantは別のbroker実装が
-必要であり、未許可のままhost filesystemをbind mountすることはありません。
+`portal_read_paths`と`portal_write_paths`は、将来`/mochios`以下へ公開するmochiOS側の
+directoryを宣言します。`$USER`はログイン済みuser名にだけ置換されます。readは
+`/applications`、`/libraries`、`/home/$USER`以下、writeは`/home/$USER`以下だけを
+宣言できます。
+
+service-managerによるsession/sender/path検証と、`secure-ui.service`の一回限りの
+directory grant画面は実装済みです。filesystem同期とwrite-backのdata planeはまだ
+Linux launchへ接続していないため、現時点では宣言しても`/mochios`は空のread-only
+tmpfsのままです。未許可または同期未完了のhost filesystemをbind mountすることは
+ありません。
 
 ## 7. 署名
 
@@ -305,7 +315,7 @@ APT形式ではhostの`apt-get`と`dpkg-deb`、全形式で`mksquashfs`が必要
 - OCSP
 - Unicode normalization と case-fold collision 検査
 - optional Capability request
-- Linux applicationからmochiOS filesystemを操作する`/mochios` broker
+- Linux applicationとmBoot間でdirectory内容を同期しwrite-backする`/mochios` data plane
 - Linux applicationのnetwork、clipboard、device Capability portal
 
 これらは現行 v1 の成功条件として扱いません。

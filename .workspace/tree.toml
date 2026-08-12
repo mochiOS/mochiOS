@@ -1511,3 +1511,11 @@ path = "user"
 hash = "2f3c88c70470fc78867a138a947f7cd9a51c3186"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "protocol: add Linux filesystem portal grants"
+
+[[entries]]
+date = "2026-08-12T11:36:04.842048387+09:00"
+snapshot = "c90a45cf54e35bf39bdf3082"
+path = "applications/binder"
+hash = "74d4557d7f3f7748bcbd5b727f87e6cc217b912b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: refresh Binder dependency lockfile"

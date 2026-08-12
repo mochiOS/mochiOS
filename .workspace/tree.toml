@@ -1535,3 +1535,11 @@ path = "services"
 hash = "6865cd2194ff1f807f52e2c8ad77bacabaaf05b8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: synchronize Linux portal directories"
+
+[[entries]]
+date = "2026-08-12T12:12:01.277634165+09:00"
+snapshot = "61c60ccfd11bd7d94a117dc8"
+path = "services"
+hash = "5e5b5cf8e4ac71825d4beb79784e76fe35680633"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: write back Linux portal directories"

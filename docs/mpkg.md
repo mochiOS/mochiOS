@@ -200,17 +200,21 @@ processはUID/GID 65534へ降格し、rootfsとOverlayFSは`nosuid`でmountし�
 `/libraries/users/<USER>/mboot/<bundle-id>/`に保存されます。その他のrootfsは
 read-only、`/tmp`はprocess終了時に破棄されるtmpfsです。
 
-package内に置かれた`/mochios`は信頼せず、現在は空のread-only tmpfsで必ず隠します。
-`portal_read_paths`と`portal_write_paths`は、将来`/mochios`以下へ公開するmochiOS側の
+package内に置かれた`/mochios`は信頼せず、空のread-only tmpfsで必ず隠してから、
+許可済みdirectoryだけを同じ絶対pathの`/mochios`以下へ個別にmountします。
+`portal_read_paths`と`portal_write_paths`は、`/mochios`以下へ公開するmochiOS側の
 directoryを宣言します。`$USER`はログイン済みuser名にだけ置換されます。readは
 `/applications`、`/libraries`、`/home/$USER`以下、writeは`/home/$USER`以下だけを
 宣言できます。
 
 service-managerによるsession/sender/path検証と、`secure-ui.service`の一回限りの
-directory grant画面は実装済みです。filesystem同期とwrite-backのdata planeはまだ
-Linux launchへ接続していないため、現時点では宣言しても`/mochios`は空のread-only
-tmpfsのままです。未許可または同期未完了のhost filesystemをbind mountすることは
-ありません。
+directory grant画面を通過したread-only directoryは、`linux.service`がsymlinkと
+特殊fileを拒否しながらmBootのinstance専用stagingへ転送します。mBoot側でもgrant
+rootから外れるentryを拒否し、転送完了後にそのdirectoryだけをread-only bind mount
+します。未許可または同期未完了のhost filesystemをbind mountすることはありません。
+
+write-backは未実装です。`portal_write_paths`が空でないpackageは、変更を保存できない
+状態で起動成功にしないため、Linux launchを`ENOTSUP`で明示的に拒否します。
 
 ## 7. 署名
 
@@ -315,7 +319,7 @@ APT形式ではhostの`apt-get`と`dpkg-deb`、全形式で`mksquashfs`が必要
 - OCSP
 - Unicode normalization と case-fold collision 検査
 - optional Capability request
-- Linux applicationとmBoot間でdirectory内容を同期しwrite-backする`/mochios` data plane
+- Linux applicationからmochiOSへ安全にwrite-backする`/mochios` write data plane
 - Linux applicationのnetwork、clipboard、device Capability portal
 
 これらは現行 v1 の成功条件として扱いません。

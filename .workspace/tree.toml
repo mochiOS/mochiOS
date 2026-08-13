@@ -1543,3 +1543,19 @@ path = "services"
 hash = "5e5b5cf8e4ac71825d4beb79784e76fe35680633"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: write back Linux portal directories"
+
+[[entries]]
+date = "2026-08-13T10:12:30.288982560+09:00"
+snapshot = "e9eabf2a7007431eb7d1da4b"
+path = "mboot"
+hash = "f18acbd8fb6ecb38b8a5f63869fe2408430d50eb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: flush mbootd lifecycle logs"
+
+[[entries]]
+date = "2026-08-13T10:15:48.700704009+09:00"
+snapshot = "db74e7611c68be14d9b48386"
+path = "applications/terminal"
+hash = "d55f1983736ef675593b927fe575c5eaf08e0126"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: refresh terminal dependency lockfile"

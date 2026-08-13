@@ -1559,3 +1559,11 @@ path = "applications/terminal"
 hash = "d55f1983736ef675593b927fe575c5eaf08e0126"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: refresh terminal dependency lockfile"
+
+[[entries]]
+date = "2026-08-13T14:49:45.553580006+09:00"
+snapshot = "a16b89339d28c6dd2c6578bf"
+path = "applications/terminal"
+hash = "017284e2e295593296f2c50dbcda37ab47982904"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: redraw terminal output without resizing"

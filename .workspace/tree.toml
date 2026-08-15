@@ -1567,3 +1567,11 @@ path = "applications/terminal"
 hash = "017284e2e295593296f2c50dbcda37ab47982904"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: redraw terminal output without resizing"
+
+[[entries]]
+date = "2026-08-15T21:20:32.593960962+09:00"
+snapshot = "7767ed43fe66d5edf0d4c11a"
+path = "user"
+hash = "5904791d3f8f6a20bdbba2c26d4cb4d827afbc35"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "perf: read files with larger buffers"

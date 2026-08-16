@@ -1591,3 +1591,11 @@ path = "mboot"
 hash = "46d0d6837dca1ad39ddaa7a8bec9ee0c3240bad3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: detect embedded image size portably"
+
+[[entries]]
+date = "2026-08-16T16:36:13.876465645+09:00"
+snapshot = "c5f0610d26fb882f38a912f3"
+path = "mboot"
+hash = "7d31c30bc62686a7d4abf60d81aec3f29461c6eb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: include stat in mboot image"

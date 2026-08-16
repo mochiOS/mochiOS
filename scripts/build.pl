@@ -820,6 +820,7 @@ sub build_std_binary {
             "patch.\"https://github.com/mochiOS/syscalls\".mochi-user-syscall.path='$root_dir/user/crates/syscall'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-linux-gui-protocol.path='$root_dir/user/crates/linux-gui-protocol'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-linux-portal-protocol.path='$root_dir/user/crates/linux-portal-protocol'",
+            "patch.\"https://github.com/mochiOS/syscalls\".mochios-signature-protocol.path='$root_dir/user/crates/signature-protocol'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-tls-client.path='$root_dir/user/crates/tls-client'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-database.path='$root_dir/user/crates/user-database'",
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-protocol.path='$root_dir/user/crates/user-protocol'";

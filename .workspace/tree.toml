@@ -1575,3 +1575,11 @@ path = "user"
 hash = "5904791d3f8f6a20bdbba2c26d4cb4d827afbc35"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "perf: read files with larger buffers"
+
+[[entries]]
+date = "2026-08-16T16:09:51.297372754+09:00"
+snapshot = "ea10bce82516ac0cf18b1979"
+path = "applications/binder"
+hash = "6b59cd475490f425fb11632751a3473b4f27b28c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: update dependency lockfile"

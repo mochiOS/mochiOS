@@ -1583,3 +1583,11 @@ path = "applications/binder"
 hash = "6b59cd475490f425fb11632751a3473b4f27b28c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: update dependency lockfile"
+
+[[entries]]
+date = "2026-08-16T16:25:28.903528146+09:00"
+snapshot = "2666592c7442e625d1e223c0"
+path = "mboot"
+hash = "46d0d6837dca1ad39ddaa7a8bec9ee0c3240bad3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: detect embedded image size portably"

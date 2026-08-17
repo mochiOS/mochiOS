@@ -21,8 +21,8 @@
 - TLS上のHTTP/1.1 client（GET、POST、Content-Length、chunked）
 - connected subnetとdefault gatewayのrouting
 
-IPv6、DNS over TCP、DNSSEC、TCP listen/accept、TLS 1.2、HTTP/2、QUIC、Wi-Fi、実機NIC、NAT、
-firewall、packet forwarding、promiscuous modeは実装していません。DNSの詳細は
+IPv6、DNS over TCP、DNSSEC、TCP listen/accept、TLS 1.2、HTTP/2、QUIC、mochiOSからの
+実機NIC直接駆動、firewall、packet forwarding、promiscuous modeは実装していません。DNSの詳細は
 [DNS resolver](network/dns.md)、TCPは[TCP client](network/tcp.md)、TLSは
 [TLS 1.3 client](network/tls.md)、HTTPは[HTTP/1.1 client](network/http.md)を参照してください。
 
@@ -41,6 +41,12 @@ network.service         Ethernet、ARP、IPv4、ICMP、UDP、DHCP、DNS、TCP、
 net                     ping、resolve、TCP/TLS/HTTPS、統計の診断CLI
 ```
 
+mBootで実機起動する場合、Wi-Fiデバイス、firmware、`wpa_supplicant`、DHCPはmBoot Linuxが
+所有します。Settings.appのNetwork画面は`mboot-agent.service`を経由してmBootへWi-Fiの
+状態取得、scan、接続、切断を依頼します。接続後のmochiOSは、従来どおりQEMUが提供する
+virtio-netとuser-mode NATを使用します。したがってWi-FiのdriverやcredentialをmochiOSの
+network.serviceへ重複して持ち込みません。
+
 driverはEthernet payloadより上のprotocolを解釈しません。`network.service`はPCI register、
 virtqueue、DMA addressを扱いません。
 
@@ -50,9 +56,9 @@ virtqueue、DMA addressを扱いません。
 `bus=pci`、`class=network`に一致するvirtio-net driverを起動します。
 `service-manager.service`はdriver discovery完了後に`network.service`を起動します。
 
-`network.service`は有効なDHCPACKを受信した時点でnetwork-readyを通知します。TTYはその前に
-起動されるため、NIC不在、link down、DHCP timeoutでもOS全体のbootは停止しません。
-network-ready確認後、`service-manager.service`は`update.service`を起動します。同サービスは
+`network.service`はIPC受付とnetwork stackの初期化が完了した時点でnetwork-readyを通知します。
+DHCP leaseの取得はその後も非同期に進むため、NIC不在、link down、DHCP timeoutでOS全体のbootは
+停止しません。network-ready確認後、`service-manager.service`は`update.service`を起動します。同サービスは
 `net.http.request`経由でDeveloperCAへ接続し、同期失敗時もbootを停止しません。
 
 ## 4. DHCPとrouting
@@ -99,6 +105,23 @@ scripts/smoke-test.sh
 ```
 
 runnerは`virtio-net-pci,disable-legacy=on`とQEMU user networkingを使用します。
+
+### mBoot実機Wi-Fi
+
+mBoot imageはIntel `iwlwifi`/`iwlmvm`、対応firmware、`iw`、`wpa_supplicant`を収録します。
+起動時に無線interfaceが存在すれば`wpa_supplicant`を開始し、Settings.appのNetwork画面から
+次を操作できます。
+
+- Wi-Fiの有効化と無効化
+- 周辺SSIDのscan
+- open networkまたはWPA2/WPA3 Personalへの接続
+- 現在のSSID、signal、mBoot側IP addressの表示
+- 切断
+
+802.1X/EAP、hidden SSIDの手動入力、複数profileの優先順位管理は現時点では未対応です。
+接続設定はmBootの`/var/lib/mboot/wpa_supplicant.conf`へmode `0600`で保存されます。
+Wi-Fi制御IPCは`settings.write` Capabilityを持つ呼出元だけが使用でき、SSIDとcredentialは
+hex encodingしたprotocol fieldとして転送されます。credentialをcommand lineやlogへ出力しません。
 
 通常の`make run`では、QEMU networkingが有効ならhost loopbackのport 20000にTCP echo serverも起動します。
 runnerが次のようにguestから接続するaddressとportを表示します。

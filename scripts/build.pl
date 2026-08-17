@@ -801,6 +801,7 @@ sub build_std_binary {
         "patch.crates-io.rustc-std-workspace-std.path='$library_root/rustc-std-workspace-std'",
         "patch.\"https://github.com/mochiOS/mnu\".mnu-abi.path='$root_dir/core/crates/abi'",
         "patch.\"https://github.com/mochiOS/mBoot\".mboot-protocol.path='$root_dir/mboot/crates/mboot-protocol'",
+        "patch.\"https://github.com/mochiOS/syscalls\".mochios-virtio-gpu-protocol.path='$root_dir/user/crates/virtio-gpu-protocol'",
         "patch.\"https://github.com/mochiOS/syscalls\".mochios-viewkit-gpu-protocol.path='$root_dir/user/crates/viewkit-gpu-protocol'",
         "patch.crates-io.viewkit.path='$root_dir/libraries/viewkit'",
         "patch.\"https://github.com/mochiOS/viewkit\".viewkit.path='$root_dir/libraries/viewkit'",

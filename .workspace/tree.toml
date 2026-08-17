@@ -1599,3 +1599,11 @@ path = "mboot"
 hash = "7d31c30bc62686a7d4abf60d81aec3f29461c6eb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: include stat in mboot image"
+
+[[entries]]
+date = "2026-08-17T21:30:59.460702148+09:00"
+snapshot = "5cfaee3b9c5d01969931ce57"
+path = "applications/settings"
+hash = "49193660988a7b437244bbc73d0217d7a0751898"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: ignore Settings build output"

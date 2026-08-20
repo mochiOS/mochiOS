@@ -1615,3 +1615,11 @@ path = "mboot"
 hash = "e2c194a104f49b0a1537a6669de413e10bba3caa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: reset DHCP state on Wi-Fi changes"
+
+[[entries]]
+date = "2026-08-20T15:49:41.065752161+09:00"
+snapshot = "4e9e466dc5ee6a68d079b991"
+path = "mboot"
+hash = "90ba498e38ab24efcf0b7c7955ed1b4466b19b3f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: preserve guest state during development deploys"

@@ -1607,3 +1607,11 @@ path = "applications/settings"
 hash = "49193660988a7b437244bbc73d0217d7a0751898"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: ignore Settings build output"
+
+[[entries]]
+date = "2026-08-20T10:34:34.905901601+09:00"
+snapshot = "a40081c496eb0809e56a7508"
+path = "mboot"
+hash = "e2c194a104f49b0a1537a6669de413e10bba3caa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: reset DHCP state on Wi-Fi changes"

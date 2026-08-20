@@ -55,7 +55,7 @@ logs)
 	mkdir -p "$DEBUG_DIR"
 	timestamp=$(date -u +%Y%m%dT%H%M%SZ)
 	output=$DEBUG_DIR/mboot-$timestamp.tar.gz
-	remote 'tar -C /var/log -czf - mboot' > "$output"
+	remote 'tar -C /var/log -cf - mboot' | gzip -n > "$output"
 	echo "[done] $output"
 	;;
 screenshot)
@@ -68,7 +68,7 @@ screenshot)
 	;;
 status)
 	require_development
-	remote 'hostname; ip -brief address; /etc/init.d/S80mbootd status; /etc/init.d/S90mboot status; cat /run/mboot/qemu.pid 2>/dev/null || true'
+	remote 'hostname; ip address show; ip route show; /etc/init.d/S80mbootd status; /etc/init.d/S90mboot status; cat /run/mboot/qemu.pid 2>/dev/null || true'
 	;;
 *)
 	echo 'usage: mboot-device.sh {deploy|rollback|restart|logs|screenshot|status}' >&2

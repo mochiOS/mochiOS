@@ -6,12 +6,17 @@ RELEASE_DIR	= $(OUT)/releases
 RELEASE_IMAGE	= $(RELEASE_DIR)/mochiOS.img
 MBOOT_GUEST_IMAGE	= $(OUT)/artifacts/disk.img
 MBOOT_OUTPUT_IMAGE	= $(MBOOT_DIR)/output/images/disk.img
+MBOOT_DEV_OUTPUT	= $(MBOOT_DIR)/output-dev
+MBOOT_DEV_OUTPUT_IMAGE	= $(MBOOT_DEV_OUTPUT)/images/disk.img
+MBOOT_DEV_AUTHORIZED_KEY ?= $(HOME)/.ssh/id_ed25519.pub
+DEVICE ?= mboot-dev.local
+SSH_IDENTITY ?=
 MBOOT_SDK_SYSROOT	= $(OUT)/newlib-port/toolchain/x86_64-elf
 MBOOT_SDK_CRT0		= $(OUT)/newlib-port/hello/crt0.o
 MBOOT_SDK_RUNTIME	= $(OUT)/newlib-port/cargo-target/x86_64-unknown-mochios/release/libmochi_user_newlib_runtime.a
 MBOOT_SDK_LINKER		= $(CURDIR)/user/runtime/linker.ld
 
-.PHONY: all build full build-cached mboot mboot-image release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached mboot mboot-image mboot-dev deploy-device device-rollback device-restart device-logs device-screenshot device-status release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -54,6 +59,40 @@ mboot-image:
 		MOCHIOS_SDK_RUNTIME=$(MBOOT_SDK_RUNTIME) \
 		MOCHIOS_SDK_LINKER=$(MBOOT_SDK_LINKER)
 	@MBOOT_MOCHIOS_IMAGE=$(MBOOT_GUEST_IMAGE) $(MBOOT_DIR)/scripts/check-image.sh
+
+mboot-dev: build-cached
+	@test -r "$(MBOOT_DEV_AUTHORIZED_KEY)" || { \
+		echo "fatal: SSH public key not found: $(MBOOT_DEV_AUTHORIZED_KEY)" >&2; exit 1; \
+	}
+	@$(MAKE) -C $(MBOOT_DIR) build \
+		OUTPUT_DIR=$(MBOOT_DEV_OUTPUT) \
+		MBOOT_DEVELOPMENT=1 \
+		MBOOT_DEV_AUTHORIZED_KEY="$(abspath $(MBOOT_DEV_AUTHORIZED_KEY))" \
+		MOCHIOS=$(MBOOT_GUEST_IMAGE) \
+		MOCHIOS_SDK_SYSROOT=$(MBOOT_SDK_SYSROOT) \
+		MOCHIOS_SDK_CRT0=$(MBOOT_SDK_CRT0) \
+		MOCHIOS_SDK_RUNTIME=$(MBOOT_SDK_RUNTIME) \
+		MOCHIOS_SDK_LINKER=$(MBOOT_SDK_LINKER)
+	@echo "[done] development image: $(MBOOT_DEV_OUTPUT_IMAGE)"
+
+deploy-device: build-cached
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) \
+		IMAGE=$(MBOOT_GUEST_IMAGE) $(SCRIPTS)/mboot-device.sh deploy
+
+device-rollback:
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) $(SCRIPTS)/mboot-device.sh rollback
+
+device-restart:
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) $(SCRIPTS)/mboot-device.sh restart
+
+device-logs:
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) $(SCRIPTS)/mboot-device.sh logs
+
+device-screenshot:
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) $(SCRIPTS)/mboot-device.sh screenshot
+
+device-status:
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) $(SCRIPTS)/mboot-device.sh status
 
 release: full
 	@$(MAKE) mboot-image

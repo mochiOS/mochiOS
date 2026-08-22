@@ -919,7 +919,7 @@ sub build_rust_std_programs {
     make_path($services_stage);
     install_file('0644', "$root_dir/services/Cargo.toml", "$services_stage/Cargo.toml");
     install_file('0644', "$root_dir/services/Cargo.lock", "$services_stage/Cargo.lock");
-    for my $service (qw(capability compositor core display drivers input linux logger mboot-agent network package secure-ui service-manager signature tty update user)) {
+    for my $service (qw(capability compositor core display drivers input linux logger mboot-agent network package permission-prompt-protocol secure-ui service-manager signature tty update user)) {
         copy_tree("$root_dir/services/$service", "$services_stage/$service");
     }
     remove_tree($settings_stage);

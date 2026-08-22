@@ -8,9 +8,10 @@ IMAGE=${IMAGE:-$ROOT/out/artifacts/disk.img}
 DEBUG_DIR=${DEBUG_DIR:-$ROOT/out/device-debug}
 SSH_IDENTITY=${SSH_IDENTITY:-}
 SSH_KNOWN_HOSTS=${SSH_KNOWN_HOSTS:-}
+SSH_CONFIG=${SSH_CONFIG:-/dev/null}
 
 case "$DEVICE" in *@*) TARGET=$DEVICE;; *) TARGET=root@$DEVICE;; esac
-SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new)
+SSH=(ssh -F "$SSH_CONFIG" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new)
 if [[ -n "$SSH_IDENTITY" ]]; then
 	SSH+=(-i "$SSH_IDENTITY")
 fi
@@ -42,8 +43,16 @@ deploy)
 		exit 1
 	}
 	hash=$(sha256sum "$IMAGE" | awk '{print $1}')
-	echo "[deploy] $IMAGE -> $TARGET:/var/lib/mboot/mochiOS.img.new"
-	cat "$IMAGE" | remote 'umask 077; cat > /var/lib/mboot/mochiOS.img.new'
+	# Development disk images contain large zero-filled and repeated regions.
+	# Prefer zstd when the mBoot image provides it and retain gzip compatibility
+	# with older development media.  The expanded-image hash is checked below.
+	if command -v zstd >/dev/null && remote 'command -v zstd >/dev/null'; then
+		echo "[deploy] $IMAGE -> $TARGET:/var/lib/mboot/mochiOS.img.new (zstd stream)"
+		zstd -1 -T0 -q -c "$IMAGE" | remote 'umask 077; zstd -d -q -c > /var/lib/mboot/mochiOS.img.new'
+	else
+		echo "[deploy] $IMAGE -> $TARGET:/var/lib/mboot/mochiOS.img.new (gzip stream)"
+		gzip -1 -c "$IMAGE" | remote 'umask 077; gzip -dc > /var/lib/mboot/mochiOS.img.new'
+	fi
 	remote "/usr/libexec/mboot-deploy install '$hash'"
 	;;
 rollback)

@@ -1639,3 +1639,11 @@ path = "applications/test.app"
 hash = "2d6d2340343f7ab10452b483d855da984087af8e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: lock ViewKit X11 dependencies"
+
+[[entries]]
+date = "2026-08-22T21:52:03.655754858+09:00"
+snapshot = "aeb262cdaf5c0cd8d79c3596"
+path = "user"
+hash = "4215a369a0db66876f20d0dfc8189cbc5cc999bf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Index mpkg payloads for streaming installation"

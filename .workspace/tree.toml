@@ -1623,3 +1623,11 @@ path = "mboot"
 hash = "90ba498e38ab24efcf0b7c7955ed1b4466b19b3f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: preserve guest state during development deploys"
+
+[[entries]]
+date = "2026-08-22T11:40:01.963657211+09:00"
+snapshot = "c03c0bd12b032aa5b65f7299"
+path = "mboot"
+hash = "209b992334cedf2a6fc01d3acb0a7aac05f5911d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: proxy sandboxed Linux application windows"

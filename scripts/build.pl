@@ -858,6 +858,8 @@ sub build_std_binary {
         MNU_VERSION => read_mnu_version($root_dir),
         MBOOT_VERSION => read_mboot_version($root_dir),
         MOCHIOS_BUILD_NUMBER => read_build_number($root_dir),
+        VIEWKIT_UI_FONT_PATH => "$root_dir/libraries/fonts/out/fonts/InterVariable.ttf",
+        VIEWKIT_MONOSPACE_FONT_PATH => "$root_dir/libraries/fonts/out/fonts/UDEVGothic-Regular.ttf",
     );
     my @cargo_config_args = map { ('--config', $_) } @cargo_configs;
     my @command = (

@@ -3,5 +3,6 @@
 .config
 memo/
 out/
+resources/system/samples/*.mpkg
 scripts/config/config.env
 scripts/config/config.mk

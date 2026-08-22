@@ -11,6 +11,7 @@ MBOOT_DEV_OUTPUT_IMAGE	= $(MBOOT_DEV_OUTPUT)/images/disk.img
 MBOOT_DEV_AUTHORIZED_KEY ?= $(HOME)/.ssh/id_ed25519.pub
 DEVICE ?= mboot-dev.local
 SSH_IDENTITY ?=
+SSH_KNOWN_HOSTS ?=
 MBOOT_SDK_SYSROOT	= $(OUT)/newlib-port/toolchain/x86_64-elf
 MBOOT_SDK_CRT0		= $(OUT)/newlib-port/hello/crt0.o
 MBOOT_SDK_RUNTIME	= $(OUT)/newlib-port/cargo-target/x86_64-unknown-mochios/release/libmochi_user_newlib_runtime.a
@@ -76,23 +77,23 @@ mboot-dev: build-cached
 	@echo "[done] development image: $(MBOOT_DEV_OUTPUT_IMAGE)"
 
 deploy-device: build-cached
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) \
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) \
 		IMAGE=$(MBOOT_GUEST_IMAGE) $(SCRIPTS)/mboot-device.sh deploy
 
 device-rollback:
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) $(SCRIPTS)/mboot-device.sh rollback
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) $(SCRIPTS)/mboot-device.sh rollback
 
 device-restart:
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) $(SCRIPTS)/mboot-device.sh restart
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) $(SCRIPTS)/mboot-device.sh restart
 
 device-logs:
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) $(SCRIPTS)/mboot-device.sh logs
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) $(SCRIPTS)/mboot-device.sh logs
 
 device-screenshot:
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) $(SCRIPTS)/mboot-device.sh screenshot
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) $(SCRIPTS)/mboot-device.sh screenshot
 
 device-status:
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) $(SCRIPTS)/mboot-device.sh status
+	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) $(SCRIPTS)/mboot-device.sh status
 
 release: full
 	@$(MAKE) mboot-image

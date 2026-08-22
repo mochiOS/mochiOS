@@ -15,6 +15,9 @@ my $root_dir = abs_path("$script_dir/..");
 my $core_root = "$root_dir/core";
 my $config_file = "$root_dir/.config";
 my $developer_root_public_key_file = "$root_dir/.pubkey";
+my $using_repository_development_root =
+    !defined($ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX})
+    || $ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} eq '';
 my %build_options = (
     cached => 0,
 );
@@ -1333,8 +1336,7 @@ sub build_rootfs {
         $path->{signature_db},
         "$rootfs_stage/libraries/system/execution.allowlist",
     );
-    if (!defined($ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX})
-        || $ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} eq '') {
+    if ($using_repository_development_root) {
         make_path("$rootfs_stage/libraries/certificate");
         install_file('0644', $path->{development_trust_snapshot}, "$rootfs_stage/libraries/certificate/trust-a.json");
         install_file('0644', $path->{development_revocation_snapshot}, "$rootfs_stage/libraries/certificate/revocations-a.json");
@@ -1532,9 +1534,32 @@ my $devkit_root = "$root_dir/tools/devkit";
 my $development_fixture_root = "$devkit_root/fixtures/development";
 my $development_certificate = "$build_root/developer.cert";
 my $msign_bin = "$root_dir/out/devkit-target/release/msign";
+my $development_pki_bin = "$root_dir/out/devkit-target/release/development-pki";
 my @coreutils_bins = qw(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc test_gui test_desktop);
 push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
+
+if ($using_repository_development_root) {
+    for my $key (qw(root.key issuer.key developer.key)) {
+        need_file("$development_fixture_root/$key");
+    }
+    run(
+        'cargo', 'build', '--release',
+        '--manifest-path', "$devkit_root/Cargo.toml",
+        '--target-dir', "$root_dir/out/devkit-target",
+        '-p', 'development-pki',
+    );
+    run($development_pki_bin, 'refresh', $development_fixture_root);
+
+    open my $root_public_fh, '<', "$development_fixture_root/root.pub"
+        or dief("open development Root public key: $!");
+    local $/;
+    my $root_public_base64 = <$root_public_fh> // '';
+    close $root_public_fh;
+    my $root_public_hex = unpack('H*', decode_base64($root_public_base64));
+    dief('development Root public key does not match .pubkey')
+        if lc($root_public_hex) ne lc($ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} // '');
+}
 
 if (cached_artifacts_current($root_dir, $build_input_stamp, "$artifact_dir/disk.img")) {
     print "[cache] reuse complete image: $artifact_dir/disk.img\n";

@@ -7,11 +7,15 @@ DEVICE=${DEVICE:-mboot-dev.local}
 IMAGE=${IMAGE:-$ROOT/out/artifacts/disk.img}
 DEBUG_DIR=${DEBUG_DIR:-$ROOT/out/device-debug}
 SSH_IDENTITY=${SSH_IDENTITY:-}
+SSH_KNOWN_HOSTS=${SSH_KNOWN_HOSTS:-}
 
 case "$DEVICE" in *@*) TARGET=$DEVICE;; *) TARGET=root@$DEVICE;; esac
 SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new)
 if [[ -n "$SSH_IDENTITY" ]]; then
 	SSH+=(-i "$SSH_IDENTITY")
+fi
+if [[ -n "$SSH_KNOWN_HOSTS" ]]; then
+	SSH+=(-o "UserKnownHostsFile=$SSH_KNOWN_HOSTS" -o StrictHostKeyChecking=yes)
 fi
 
 remote() {

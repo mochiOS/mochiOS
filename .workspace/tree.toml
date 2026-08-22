@@ -1631,3 +1631,11 @@ path = "mboot"
 hash = "209b992334cedf2a6fc01d3acb0a7aac05f5911d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: proxy sandboxed Linux application windows"
+
+[[entries]]
+date = "2026-08-22T11:54:40.094709587+09:00"
+snapshot = "9ba344e03af0ab4391e2f2e2"
+path = "applications/test.app"
+hash = "2d6d2340343f7ab10452b483d855da984087af8e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: lock ViewKit X11 dependencies"

@@ -1647,3 +1647,11 @@ path = "user"
 hash = "4215a369a0db66876f20d0dfc8189cbc5cc999bf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Index mpkg payloads for streaming installation"
+
+[[entries]]
+date = "2026-08-22T22:10:24.517255018+09:00"
+snapshot = "08bcc1b27834ffc97d4d75ad"
+path = "applications/binder"
+hash = "52d5936bc5f5a2fc5c526bd7b0b6bb6b14a04a63"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Dismiss App Library before launching applications"

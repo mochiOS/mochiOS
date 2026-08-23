@@ -1719,3 +1719,11 @@ path = "mboot"
 hash = "ea33af8c3cacc1ac66550d2648d6dcbdbcca19f4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement isolated Grant Table mappings"
+
+[[entries]]
+date = "2026-08-23T19:26:21.719209779+09:00"
+snapshot = "25836d4e9b243ff51be9e2f7"
+path = "mboot"
+hash = "955c1afb8984541526cb13fb13e5ba426d82d7f6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise Shared Ring data path"

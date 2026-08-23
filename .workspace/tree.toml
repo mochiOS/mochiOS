@@ -1703,3 +1703,11 @@ path = "mboot"
 hash = "6c7ede22365acfcd0c725d8095da4c77e50c016b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement manifest-bound Event Channels"
+
+[[entries]]
+date = "2026-08-23T19:02:23.027424650+09:00"
+snapshot = "10f97fe105bc2004befc0aee"
+path = "mboot"
+hash = "68e52910ed6e93e83a4bc2b66b26b2e567710e6e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Lock the published Event Channel ABI"

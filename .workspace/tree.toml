@@ -1679,3 +1679,11 @@ path = "mboot"
 hash = "3ac519a999750df1a6a541c9e13f6769d4d748f9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix Intel VMWRITE operand order"
+
+[[entries]]
+date = "2026-08-23T18:29:16.596846039+09:00"
+snapshot = "1e75480953cab67959b09070"
+path = "core"
+hash = "82d0380e455c4700c76d6e1242cf2b428b4708a9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add resident mochiOS System Domain entry"

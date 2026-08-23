@@ -1148,7 +1148,7 @@ sub build_bootloader {
         '--target', 'x86_64-unknown-uefi',
         '--target-dir', $target_dir,
         '--config',
-        qq{patch."https://github.com/mochiOS/mnu".mnu.path='$root_dir/core'},
+        qq{patch."https://github.com/mochiOS/mnu".mnu-abi.path='$root_dir/core/crates/abi'},
         '--manifest-path', "$boot_root/Cargo.toml",
     );
     my $boot_release_dir = "$target_dir/x86_64-unknown-uefi/release";

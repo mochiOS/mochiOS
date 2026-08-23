@@ -1751,3 +1751,11 @@ path = "mboot"
 hash = "060194cf7d288b47b69f050b37fc5568a8030d52"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Emulate the x2APIC MSR interface"
+
+[[entries]]
+date = "2026-08-24T08:58:54.962132464+09:00"
+snapshot = "a896bb3f9db2ae98626b3e71"
+path = "mboot"
+hash = "0b98649937a301149db87faed7ed8b9eecb88641"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Inject guest faults for rejected MSRs"

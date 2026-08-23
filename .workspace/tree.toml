@@ -1711,3 +1711,11 @@ path = "mboot"
 hash = "68e52910ed6e93e83a4bc2b66b26b2e567710e6e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Lock the published Event Channel ABI"
+
+[[entries]]
+date = "2026-08-23T19:15:59.334709512+09:00"
+snapshot = "64a42b724fa3577d58fab9d7"
+path = "mboot"
+hash = "ea33af8c3cacc1ac66550d2648d6dcbdbcca19f4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement isolated Grant Table mappings"

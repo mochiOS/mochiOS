@@ -1727,3 +1727,11 @@ path = "mboot"
 hash = "955c1afb8984541526cb13fb13e5ba426d82d7f6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise Shared Ring data path"
+
+[[entries]]
+date = "2026-08-23T19:55:56.543715361+09:00"
+snapshot = "8c5633c51b1afc4afa08429e"
+path = "mboot"
+hash = "1d13ff23ddaecc7da2660731e3a2de090ef4aec3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preempt vCPUs and deliver Event Channel IRQs"

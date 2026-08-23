@@ -1735,3 +1735,11 @@ path = "mboot"
 hash = "1d13ff23ddaecc7da2660731e3a2de090ef4aec3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preempt vCPUs and deliver Event Channel IRQs"
+
+[[entries]]
+date = "2026-08-23T20:17:58.540240761+09:00"
+snapshot = "3c78bb240b5dd567eaea744d"
+path = "mboot"
+hash = "cf7d6d676c6c5fa803f45a305d5f0c01353a534a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add per-vCPU virtual APIC state"

@@ -1743,3 +1743,11 @@ path = "mboot"
 hash = "cf7d6d676c6c5fa803f45a305d5f0c01353a534a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add per-vCPU virtual APIC state"
+
+[[entries]]
+date = "2026-08-23T20:42:07.202450200+09:00"
+snapshot = "daaf66de8a622e477d1143a7"
+path = "mboot"
+hash = "060194cf7d288b47b69f050b37fc5568a8030d52"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Emulate the x2APIC MSR interface"

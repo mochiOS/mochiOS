@@ -1655,3 +1655,11 @@ path = "applications/binder"
 hash = "52d5936bc5f5a2fc5c526bd7b0b6bb6b14a04a63"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Dismiss App Library before launching applications"
+
+[[entries]]
+date = "2026-08-23T17:21:09.749108265+09:00"
+snapshot = "eb69b70a06bfa3267007aaf5"
+path = "mboot"
+hash = "fd4cb568c8fa092452494250c80b96dca2a59792"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix Intel VMX control-region addressing"

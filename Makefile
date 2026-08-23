@@ -9,6 +9,8 @@ MBOOT_OUTPUT_IMAGE	= $(MBOOT_DIR)/output/images/disk.img
 MBOOT_DEV_OUTPUT	= $(MBOOT_DIR)/output-dev
 MBOOT_DEV_OUTPUT_IMAGE	= $(MBOOT_DEV_OUTPUT)/images/disk.img
 MBOOT_DEV_AUTHORIZED_KEY ?= $(HOME)/.ssh/id_ed25519.pub
+HV_CONFIG ?= $(MBOOT_DIR)/config/hypervisor/intel-hardware.toml
+HV_OUTPUT_IMAGE ?= $(OUT)/mochiOS.iso
 DEVICE ?= mboot-dev.local
 SSH_IDENTITY ?=
 SSH_KNOWN_HOSTS ?=
@@ -17,7 +19,7 @@ MBOOT_SDK_CRT0		= $(OUT)/newlib-port/hello/crt0.o
 MBOOT_SDK_RUNTIME	= $(OUT)/newlib-port/cargo-target/x86_64-unknown-mochios/release/libmochi_user_newlib_runtime.a
 MBOOT_SDK_LINKER		= $(CURDIR)/user/runtime/linker.ld
 
-.PHONY: all build full build-cached mboot mboot-image mboot-dev deploy-device device-rollback device-restart device-logs device-screenshot device-status release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached hv-image hv-image-test mboot mboot-image mboot-dev deploy-device device-rollback device-restart device-logs device-screenshot device-status release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -44,6 +46,18 @@ full: olddefconfig
 
 build-cached: olddefconfig
 	@$(SCRIPTS)/build.sh --cached
+
+hv-image:
+	@$(MAKE) -C $(MBOOT_DIR) hv-image \
+		HV_CONFIG="$(abspath $(HV_CONFIG))" \
+		MNU_DIR="$(CURDIR)/core" \
+		HV_OUTPUT_IMAGE="$(abspath $(HV_OUTPUT_IMAGE))"
+
+hv-image-test:
+	@$(MAKE) -C $(MBOOT_DIR) hv-image-test \
+		HV_CONFIG="$(abspath $(HV_CONFIG))" \
+		MNU_DIR="$(CURDIR)/core" \
+		HV_OUTPUT_IMAGE="$(abspath $(HV_OUTPUT_IMAGE))"
 
 mboot: build-cached
 	@$(MAKE) mboot-image

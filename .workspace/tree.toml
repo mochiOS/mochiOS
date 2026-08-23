@@ -1695,3 +1695,11 @@ path = "mboot"
 hash = "750cbae7388495d6c3a58b983c5afd858c0d3200"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Boot a resident mochiOS System Domain"
+
+[[entries]]
+date = "2026-08-23T18:47:35.039482693+09:00"
+snapshot = "3818e898ad064dbe9941f59c"
+path = "mboot"
+hash = "6c7ede22365acfcd0c725d8095da4c77e50c016b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement manifest-bound Event Channels"

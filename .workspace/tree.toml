@@ -1687,3 +1687,11 @@ path = "core"
 hash = "82d0380e455c4700c76d6e1242cf2b428b4708a9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add resident mochiOS System Domain entry"
+
+[[entries]]
+date = "2026-08-23T18:33:32.984177724+09:00"
+snapshot = "17e216cb39ff060905e7b35a"
+path = "mboot"
+hash = "750cbae7388495d6c3a58b983c5afd858c0d3200"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Boot a resident mochiOS System Domain"

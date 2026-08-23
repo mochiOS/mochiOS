@@ -1663,3 +1663,11 @@ path = "mboot"
 hash = "fd4cb568c8fa092452494250c80b96dca2a59792"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix Intel VMX control-region addressing"
+
+[[entries]]
+date = "2026-08-23T17:31:08.559186347+09:00"
+snapshot = "dbf035a2ba6f7b726b2399ed"
+path = "mboot"
+hash = "72f40dcf655a267807d6545be38fec99b41447ce"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report the failing Intel VMCS field"

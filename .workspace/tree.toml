@@ -1671,3 +1671,11 @@ path = "mboot"
 hash = "72f40dcf655a267807d6545be38fec99b41447ce"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report the failing Intel VMCS field"
+
+[[entries]]
+date = "2026-08-23T17:44:15.346169084+09:00"
+snapshot = "ab4fc5e7cb7342de298ea855"
+path = "mboot"
+hash = "3ac519a999750df1a6a541c9e13f6769d4d748f9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix Intel VMWRITE operand order"

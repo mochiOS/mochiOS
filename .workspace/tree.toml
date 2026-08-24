@@ -1839,3 +1839,11 @@ path = "mboot"
 hash = "a06457e2d37e77715a036094f54fe893a17284c4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve Intel firmware DMA reservations"
+
+[[entries]]
+date = "2026-08-24T10:54:20.654863749+09:00"
+snapshot = "3059f28bfd6ec6ece0de48b2"
+path = "mboot"
+hash = "5fd7bb88bec15c61bf47a4923af521871f92f64e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exclude PCI host bridges from DMA quarantine"

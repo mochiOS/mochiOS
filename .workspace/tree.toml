@@ -1935,3 +1935,11 @@ path = "mboot"
 hash = "9d9df680567934f65180ea49bcd52ac57d8a0bfe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Build mDriver reproducibly with Buildroot"
+
+[[entries]]
+date = "2026-08-24T18:39:16.050777878+09:00"
+snapshot = "1d729eb019f7b8b5c98d428d"
+path = "mboot"
+hash = "df88fe8835f98641de10ac9f436d4255a8dd3674"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Boot mDriver through its minimal init"

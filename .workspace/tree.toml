@@ -1903,3 +1903,11 @@ path = "mboot"
 hash = "f7ceeafcc68c71299a29825684629e033b940555"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Activate assigned PCI devices safely"
+
+[[entries]]
+date = "2026-08-24T13:35:33.898212672+09:00"
+snapshot = "18bb778556f7320dbdfd1ce3"
+path = "mboot"
+hash = "6efac5526e3fd761c47c4c9902a64e9dd15ef449"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise assigned devices with DMA and MSI-X"

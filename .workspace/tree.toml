@@ -1775,3 +1775,11 @@ path = "mboot"
 hash = "e895bbe176cb35baf1c6a59e6a05ae31ca8b9936"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Virtualize guest CPUID"
+
+[[entries]]
+date = "2026-08-24T09:42:12.370234568+09:00"
+snapshot = "beae4c0e13f022b3ff49ebb6"
+path = "mboot"
+hash = "7f2de48fd4ebbc07217ba4de0d4d639036feb08c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Isolate crashed domains"

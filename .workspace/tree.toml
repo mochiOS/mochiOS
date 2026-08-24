@@ -1767,3 +1767,11 @@ path = "mboot"
 hash = "9131fd87bef42c8905eea5d4842d75f23321592d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Deliver virtual APIC timers and self IPIs"
+
+[[entries]]
+date = "2026-08-24T09:27:13.333081634+09:00"
+snapshot = "e6a38f73676fc0864521f864"
+path = "mboot"
+hash = "e895bbe176cb35baf1c6a59e6a05ae31ca8b9936"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Virtualize guest CPUID"

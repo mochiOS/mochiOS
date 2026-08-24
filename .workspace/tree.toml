@@ -1783,3 +1783,11 @@ path = "mboot"
 hash = "7f2de48fd4ebbc07217ba4de0d4d639036feb08c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Isolate crashed domains"
+
+[[entries]]
+date = "2026-08-24T09:43:24.484311055+09:00"
+snapshot = "1520732985de4eb4ed925be6"
+path = "mboot"
+hash = "242eb3c4caf41485432e6e2fb8a9b25c2c996c7d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Show successful domain isolation"

@@ -1831,3 +1831,11 @@ path = "mboot"
 hash = "fcb0449aa0b06160ca16c1e7ceddc96c29a4c3b7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep PCI DMA failures visible"
+
+[[entries]]
+date = "2026-08-24T10:51:05.527785478+09:00"
+snapshot = "ece1250b160c1e6b675b0f81"
+path = "mboot"
+hash = "a06457e2d37e77715a036094f54fe893a17284c4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve Intel firmware DMA reservations"

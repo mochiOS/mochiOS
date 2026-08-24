@@ -1791,3 +1791,11 @@ path = "mboot"
 hash = "242eb3c4caf41485432e6e2fb8a9b25c2c996c7d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Show successful domain isolation"
+
+[[entries]]
+date = "2026-08-24T09:54:18.010839760+09:00"
+snapshot = "981112bb7ecc043e16c323b4"
+path = "mboot"
+hash = "97aca4a2f69c8e2cdaaca871b4d8e58e1e510efe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Restart failed application Domains"

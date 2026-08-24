@@ -19,7 +19,7 @@ MBOOT_SDK_CRT0		= $(OUT)/newlib-port/hello/crt0.o
 MBOOT_SDK_RUNTIME	= $(OUT)/newlib-port/cargo-target/x86_64-unknown-mochios/release/libmochi_user_newlib_runtime.a
 MBOOT_SDK_LINKER		= $(CURDIR)/user/runtime/linker.ld
 
-.PHONY: all build full build-cached hv-device-io-test hv-image hv-image-test mboot mboot-image mboot-dev deploy-device device-rollback device-restart device-logs device-screenshot device-status release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached hv-device-io-test hv-driver-linux-test hv-image hv-image-test mboot mboot-image mboot-dev deploy-device device-rollback device-restart device-logs device-screenshot device-status release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -61,6 +61,10 @@ hv-image-test:
 
 hv-device-io-test:
 	@$(MAKE) -C $(MBOOT_DIR) hv-device-io-test \
+		MNU_DIR="$(CURDIR)/core"
+
+hv-driver-linux-test:
+	@$(MAKE) -C $(MBOOT_DIR) hv-driver-linux-test \
 		MNU_DIR="$(CURDIR)/core"
 
 mboot: build-cached

@@ -1807,3 +1807,11 @@ path = "mboot"
 hash = "2b459de16d0e0437eaf6b8efb6fec81cf1e94bb8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Quarantine PCI DMA before Domain launch"
+
+[[entries]]
+date = "2026-08-24T10:23:11.654071010+09:00"
+snapshot = "de0cbf5d20dd57f8fff876c0"
+path = "mboot"
+hash = "a4579e098dc8a0214b7833f81111de298c1bd0d3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Enable deny-all IOMMU protection"

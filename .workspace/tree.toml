@@ -1847,3 +1847,11 @@ path = "mboot"
 hash = "5fd7bb88bec15c61bf47a4923af521871f92f64e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exclude PCI host bridges from DMA quarantine"
+
+[[entries]]
+date = "2026-08-24T11:05:17.194525616+09:00"
+snapshot = "47e1e936dfe5465e28105e1a"
+path = "mboot"
+hash = "d85d61a46744356d526bcf1e682f22bd8567f660"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Defer firmware display VT-d ownership"

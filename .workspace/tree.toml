@@ -1911,3 +1911,11 @@ path = "mboot"
 hash = "6efac5526e3fd761c47c4c9902a64e9dd15ef449"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise assigned devices with DMA and MSI-X"
+
+[[entries]]
+date = "2026-08-24T16:09:55.909833418+09:00"
+snapshot = "1a2d8355c6a102c1c63e99bf"
+path = "mboot"
+hash = "cd2ccdabb6efe69d7db690f87235b6ae2e824ac3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Boot the Driver Linux hardware domain"

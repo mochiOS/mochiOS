@@ -1759,3 +1759,11 @@ path = "mboot"
 hash = "0b98649937a301149db87faed7ed8b9eecb88641"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Inject guest faults for rejected MSRs"
+
+[[entries]]
+date = "2026-08-24T09:10:38.412811569+09:00"
+snapshot = "8b50e5d65a523ee3f8e24eac"
+path = "mboot"
+hash = "9131fd87bef42c8905eea5d4842d75f23321592d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Deliver virtual APIC timers and self IPIs"

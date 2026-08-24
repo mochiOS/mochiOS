@@ -1863,3 +1863,11 @@ path = "mboot"
 hash = "3a4e616a527bda442f2aedb203f9de4c638316f9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Launch a device-aware Hardware Domain"
+
+[[entries]]
+date = "2026-08-24T11:15:29.587354328+09:00"
+snapshot = "4a538504211383ead290b55e"
+path = "mboot"
+hash = "399b4964b11572b620e9dd62449290fd5769f9d4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Show Hardware Domain readiness"

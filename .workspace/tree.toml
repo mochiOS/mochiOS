@@ -1887,3 +1887,11 @@ path = "mboot"
 hash = "1977464bce4365dc115f8b9f30391c0367e37d1c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Enforce signed PCI device ownership"
+
+[[entries]]
+date = "2026-08-24T12:02:36.790695779+09:00"
+snapshot = "935c2b478b255602d56dcf63"
+path = "mboot"
+hash = "ab595fd48072d068a4ed2e0f1b616bff026e9f20"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Map claimed PCI devices through the IOMMU"

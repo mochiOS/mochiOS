@@ -1943,3 +1943,11 @@ path = "mboot"
 hash = "df88fe8835f98641de10ac9f436d4255a8dd3674"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Boot mDriver through its minimal init"
+
+[[entries]]
+date = "2026-08-24T20:00:26.473578604+09:00"
+snapshot = "26faea70e0b20388cf6a4ce8"
+path = "mboot"
+hash = "b0e1ba86a34b1aa4b067777086016547366609ee"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add the first mDriver control path"

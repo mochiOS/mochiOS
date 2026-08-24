@@ -1855,3 +1855,11 @@ path = "mboot"
 hash = "d85d61a46744356d526bcf1e682f22bd8567f660"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Defer firmware display VT-d ownership"
+
+[[entries]]
+date = "2026-08-24T11:14:52.085945733+09:00"
+snapshot = "e0b11f69027916699ff65ae2"
+path = "mboot"
+hash = "3a4e616a527bda442f2aedb203f9de4c638316f9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Launch a device-aware Hardware Domain"

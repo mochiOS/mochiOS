@@ -1919,3 +1919,11 @@ path = "mboot"
 hash = "cd2ccdabb6efe69d7db690f87235b6ae2e824ac3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Boot the Driver Linux hardware domain"
+
+[[entries]]
+date = "2026-08-24T17:16:13.329841190+09:00"
+snapshot = "211b78016ff1fe5b579c6451"
+path = "mboot"
+hash = "a1896b8b5556d472e4db94377db2e63002680897"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Replace the Linux mBoot with the Type-1 hypervisor"

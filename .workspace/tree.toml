@@ -1895,3 +1895,11 @@ path = "mboot"
 hash = "ab595fd48072d068a4ed2e0f1b616bff026e9f20"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Map claimed PCI devices through the IOMMU"
+
+[[entries]]
+date = "2026-08-24T12:52:16.584207940+09:00"
+snapshot = "9475629718bd09a7ab725571"
+path = "mboot"
+hash = "f7ceeafcc68c71299a29825684629e033b940555"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Activate assigned PCI devices safely"

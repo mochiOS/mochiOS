@@ -1815,3 +1815,11 @@ path = "mboot"
 hash = "a4579e098dc8a0214b7833f81111de298c1bd0d3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Enable deny-all IOMMU protection"
+
+[[entries]]
+date = "2026-08-24T10:36:00.959734675+09:00"
+snapshot = "91bb457141d3e65a0beca100"
+path = "mboot"
+hash = "e993bfb743c9cef830104e6b55cdd4212362ee6f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Allow IOMMU to contain active PCI DMA"

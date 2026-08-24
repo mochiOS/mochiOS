@@ -9,7 +9,7 @@ MBOOT_IMAGE ?= $(OUT)/mochiOS.iso
 MDRIVER_KERNEL ?= $(MBOOT_DIR)/mdriver/output/artifacts/vmlinux
 MDRIVER_INITRAMFS ?= $(MBOOT_DIR)/mdriver/output/artifacts/initramfs.cpio
 
-.PHONY: all build full build-cached hv-device-io-test hv-image hv-image-test mboot mboot-image mboot-setup mboot-test mdriver mdriver-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached hv-device-io-test hv-image hv-image-test image mboot mboot-image mboot-setup mboot-test mdriver mdriver-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -63,6 +63,8 @@ mdriver-test: mdriver
 		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))"
 
 mboot: mboot-image
+
+image: mboot-image
 
 mboot-setup:
 	@MNU_DIR="$(CURDIR)/core" $(MBOOT_DIR)/setup.sh

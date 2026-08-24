@@ -37,17 +37,21 @@ full: olddefconfig
 build-cached: olddefconfig
 	@$(SCRIPTS)/build.sh --cached
 
-hv-image:
+hv-image: mdriver
 	@$(MAKE) -C $(MBOOT_DIR) image \
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
-		IMAGE="$(abspath $(MBOOT_IMAGE))"
+		IMAGE="$(abspath $(MBOOT_IMAGE))" \
+		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
+		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))"
 
-hv-image-test:
+hv-image-test: mdriver
 	@$(MAKE) -C $(MBOOT_DIR) image-test \
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
-		IMAGE="$(abspath $(MBOOT_IMAGE))"
+		IMAGE="$(abspath $(MBOOT_IMAGE))" \
+		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
+		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))"
 
 hv-device-io-test:
 	@$(MAKE) -C $(MBOOT_DIR) device-io-test \
@@ -69,12 +73,14 @@ image: mboot-image
 mboot-setup:
 	@MNU_DIR="$(CURDIR)/core" $(MBOOT_DIR)/setup.sh
 
-mboot-image:
+mboot-image: mdriver
 	@test -f $(MBOOT_DIR)/Makefile || { echo "fatal: mBoot repository was not found: $(MBOOT_DIR)" >&2; exit 1; }
 	@$(MAKE) -C $(MBOOT_DIR) image \
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
-		IMAGE="$(abspath $(MBOOT_IMAGE))"
+		IMAGE="$(abspath $(MBOOT_IMAGE))" \
+		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
+		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))"
 
 mboot-test:
 	@$(MAKE) -C $(MBOOT_DIR) test MNU_DIR="$(CURDIR)/core"

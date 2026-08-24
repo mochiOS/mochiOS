@@ -16,7 +16,7 @@ flowchart TB
     hardware["物理マシン<br/>CPU / RAM / IOMMU / GPU / NVMe / USB / NIC / Audio"]
     mboot["mBoot<br/>CPU、メモリ、DMA、割り込み、PCIデバイス、Domainを管理"]
     mochios["mochiOS System Domain<br/>Binder / ViewKit / compositor / mochiOSアプリ"]
-    driver["Driver Linux Domain<br/>Linuxの物理ドライバと仮想デバイスbackend"]
+    driver["mDriver Hardware Domain<br/>Linuxの物理ドライバと仮想デバイスbackend"]
     apps["Linux Application Domain<br/>ChromiumなどのLinuxアプリ<br/>物理デバイス権限なし"]
 
     hardware --> mboot
@@ -37,7 +37,7 @@ mBootの上で動く仮想マシンを`Domain`と呼びます。
 | Domain | 役割 | 物理デバイス |
 |---|---|---|
 | mochiOS System Domain | デスクトップ、アプリ、権限、システムポリシー | 原則として持ちません |
-| Driver Linux Domain | Linuxのドライバを使って物理デバイスを動かします | mBootが許可したもののみ |
+| mDriver Hardware Domain | Linuxのドライバを使って物理デバイスを動かします | mBootが許可したもののみ |
 | Linux Application Domain | ChromiumなどのLinuxアプリを動かします | 持ちません |
 
 mochiOSとLinux Application Domainは兄弟関係にあり、Linux Application DomainがmochiOSの内部で動くわけではありません。mochiOSはmBootへ起動や停止を依頼し、mBootがDomainを管理します。
@@ -48,7 +48,7 @@ mBootは、物理マシン全体の資源を管理します。
 
 | 資源 | 分け方 |
 |---|---|
-| CPU | mochiOS、Driver Linux、Linux Application DomainへvCPUを割り当てます |
+| CPU | mochiOS、mDriver、Linux Application DomainへvCPUを割り当てます |
 | RAM | mBootと各Domainの専用領域に分け、許可したpageだけ共有します |
 | PCIデバイス | GPU、NVMe、xHCI、NICなどを、mBootが指定したDomainへ割り当てます |
 
@@ -82,7 +82,7 @@ mochiOSでは、次のものが動きます。
 - Linuxアプリの起動管理
 - 仮想デバイスのフロントエンド
 
-mochiOSは物理GPUや物理NVMeを直接操作しません。Driver Linuxが公開する以下の仮想デバイスを利用します。
+mochiOSは物理GPUや物理NVMeを直接操作しません。mDriverが公開する以下の仮想デバイスを利用します。
 
 - `virtio-net`
 - `virtio-blk`
@@ -90,15 +90,15 @@ mochiOSは物理GPUや物理NVMeを直接操作しません。Driver Linuxが公
 - `virtio-snd`
 - `virtio-gpu`
 
-このため、mochiOS側で大量の機種別ドライバを抱える必要がありません。mochiOSは少数の仮想デバイスを扱い、物理デバイスの違いはDriver Linuxが引き受けます。
+このため、mochiOS側で大量の機種別ドライバを抱える必要がありません。mochiOSは少数の仮想デバイスを扱い、物理デバイスの違いはmDriverが引き受けます。
 
 mochiOSはDomainの起動を管理しますが、mBootのメモリやIOMMUを直接変更できず、Application Domainの作成など、許可された操作だけをmBootへ依頼できます。
 
-## Driver Linux Domain
+## mDriver Hardware Domain
 
-Driver Linuxは、Linuxのドライバ資産を使うためのDomainです。Linuxデスクトップとしてユーザーが操作するものではありません。
+mDriverは、Linuxのドライバ資産を使うためのDomainです。Linuxデスクトップとしてユーザーが操作するものではありません。
 
-Driver Linuxには、次のドライバおよびモジュールが入っています。
+mDriverには、次のドライバおよびモジュールが入っています。
 
 - amdgpu、i915、nouveau
 - NVMe
@@ -109,23 +109,23 @@ Driver Linuxには、次のドライバおよびモジュールが入ってい�
 - DRMとKMS
 - mochiOS向けの仮想デバイスバックエンド
 
-Driver Linuxが操作できるのは、mBootから割り当てられたPCIデバイスだけです。Linuxから見えるメモリも、自分のRAMと明示的に共有された領域に限ります。
+mDriverが操作できるのは、mBootから割り当てられたPCIデバイスだけです。Linuxから見えるメモリも、自分のRAMと明示的に共有された領域に限ります。
 
 | DMAのアクセス先 | 結果 |
 |---|---|
-| Driver LinuxのRAM | 許可 |
+| mDriverのRAM | 許可 |
 | 共有I/Oバッファ | 許可 |
 | mochiOSの通常RAM | 拒否 |
 | Linux Application DomainのRAM | 拒否 |
 | mBootのRAM | 拒否 |
 
-IOMMUはメモリへの不正なDMAを防ぎます。ただし、Driver Linuxは入力、画面、disk、networkの内容を扱います。I/Oの内容については、Driver Linuxを信頼する必要があります。
+IOMMUはメモリへの不正なDMAを防ぎます。ただし、mDriverは入力、画面、disk、networkの内容を扱います。I/Oの内容については、mDriverを信頼する必要があります。
 
-Driver Linuxではアプリを動かさず、ログイン画面、一般ユーザー向けのシェル、パッケージマネージャー、外部から接続する管理サービスも置かずに必要なドライバ、ファームウェア、バックエンドだけを含むLinuxとして扱います。
+mDriverではアプリを動かさず、ログイン画面、一般ユーザー向けのシェル、パッケージマネージャー、外部から接続する管理サービスも置かずに必要なドライバ、ファームウェア、バックエンドだけを含むLinuxとして扱います。
 
 ## Linux Application Domain
 
-ChromiumなどのLinuxアプリは、Driver Linuxと別のDomainで動きます。
+ChromiumなどのLinuxアプリは、mDriverと別のDomainで動きます。
 
 Linux Application Domainには、Linuxカーネルとuserspace、Chromium、そしてみんなが大好きなCounter-Strike 2などのアプリを入れます。利用できるデバイスは、仮想ネットワーク、仮想ディスク、仮想画面、仮想入力、仮想音声だけです。
 
@@ -150,7 +150,7 @@ Domain間の通信では、大きなデータをmBootが何度もコピーせず
 ```mermaid
 sequenceDiagram
     participant M as mochiOS
-    participant D as Driver Linux
+    participant D as mDriver
 
     M->>M: Shared Ringへ要求を書く
     M->>D: Event Channelで通知
@@ -175,15 +175,15 @@ flowchart LR
     app[mochiOSアプリ] --> tcp[mochiOS TCP/IP]
     tcp --> frontend[virtio-net frontend]
     frontend --> shared[共有メモリ]
-    shared --> backend[Driver Linux network backend]
+    shared --> backend[mDriver network backend]
     backend --> linux[Linux network stack]
     linux --> driver[Wi-Fi / Ethernet driver]
     driver --> nic[物理NIC]
 ```
 
-SSIDのスキャン、接続、切断、airplane modeもDriver Linuxが物理デバイスへ反映します。Settings.appは専用の制御経路を通してDriver Linuxへ要求します。
+SSIDのスキャン、接続、切断、airplane modeもmDriverが物理デバイスへ反映します。Settings.appは専用の制御経路を通してmDriverへ要求します。
 
-Linux Application Domainも仮想ネットワークを使います。物理NICへは触れず、Driver LinuxがルーティングやNATを行います。
+Linux Application Domainも仮想ネットワークを使います。物理NICへは触れず、mDriverがルーティングやNATを行います。
 
 ## Storage
 
@@ -191,14 +191,14 @@ Linux Application Domainも仮想ネットワークを使います。物理NIC�
 flowchart LR
     fs[mochiOS filesystem] --> frontend[virtio-blk frontend]
     frontend --> shared[共有メモリ]
-    shared --> backend[Driver Linux block backend]
+    shared --> backend[mDriver block backend]
     backend --> driver[Linux NVMe driver]
     driver --> nvme[物理NVMe]
 ```
 
-ファイルシステムはmochiOSが管理します。Driver LinuxはmochiOS用の領域をマウントせず、ブロックデバイスとして読み書きするだけです。
+ファイルシステムはmochiOSが管理します。mDriverはmochiOS用の領域をマウントせず、ブロックデバイスとして読み書きするだけです。
 
-Driver Linuxがディスクへの書き込み途中で止まった場合、書き込みが完了したか判断できないことがあります。そのため、Driver Linuxを再起動しただけで常に安全に続行できるとは扱いません。
+mDriverがディスクへの書き込み途中で止まった場合、書き込みが完了したか判断できないことがあります。そのため、mDriverを再起動しただけで常に安全に続行できるとは扱いません。
 
 その際はmochiOSはファイルシステムを停止し、必要なら整合性を確認してから再開します。安全を確認できない場合はmochiOSも再起動します。
 
@@ -207,7 +207,7 @@ Driver Linuxがディスクへの書き込み途中で止まった場合、書�
 ```mermaid
 flowchart LR
     device[キーボード / マウス] --> usb[USB / HID]
-    usb --> linux[Driver Linux]
+    usb --> linux[mDriver]
     linux --> virtio[virtio-input]
     virtio --> input[mochiOS input service]
     input --> app[focus中のアプリ]
@@ -221,7 +221,7 @@ Linux Application Domainへ入力を送るかどうかはmochiOSが決めます�
 flowchart LR
     apps[mochiOSアプリ / Linuxアプリ] --> audio[mochiOS audio service]
     audio --> virtio[virtio-snd]
-    virtio --> linux[Driver Linux]
+    virtio --> linux[mDriver]
     linux --> alsa[ALSA]
     alsa --> device[物理audio device]
 ```
@@ -230,14 +230,14 @@ flowchart LR
 
 ## 画面
 
-物理GPUのドライバは前述したとおりDriver Linuxが保持し、mochiOSは仮想GPUインターフェース（virtio-gpu）を通してGPUを利用します。
+物理GPUのドライバは前述したとおりmDriverが保持し、mochiOSは仮想GPUインターフェース（virtio-gpu）を通してGPUを利用します。
 
 ```mermaid
 flowchart LR
     viewkit[ViewKit] --> surface[GPU-backed surface]
     surface --> compositor[mochiOS compositor]
     compositor --> vgpu[仮想GPUインターフェース]
-    vgpu --> backend[Driver Linux GPU backend]
+    vgpu --> backend[mDriver GPU backend]
     backend --> drm[DRM / KMS]
     drm --> gpu[物理GPU]
     gpu --> display[ディスプレイ]
@@ -245,7 +245,7 @@ flowchart LR
 
 ViewKitはGPU上に確保されたサーフェースへ描画します。mochiOS compositorは各サーフェースの位置、重なり順、クリッピング、透明度、変形を管理し、合成処理をGPUへ送ります。
 
-Driver Linuxは次の処理のみを担当します。
+mDriverは次の処理のみを担当します。
 
 - 物理GPUの初期化とドライバ管理
 - GPUメモリの割り当てと共有
@@ -254,7 +254,7 @@ Driver Linuxは次の処理のみを担当します。
 - DRM/KMSによる画面モード設定
 - 合成済みフレームのscanout
 
-ウィンドウの配置、重なり順、表示領域、入力フォーカスはmochiOSが決定します。Driver Linuxはウィンドウの存在を認識せず、GPUリソースと表示装置を提供するバックエンドとして動作します。
+ウィンドウの配置、重なり順、表示領域、入力フォーカスはmochiOSが決定します。mDriverはウィンドウの存在を認識せず、GPUリソースと表示装置を提供するバックエンドとして動作します。
 
 Linux Application DomainのアプリケーションもGPUをバックエンドとしたサーフェースへ描画します。サーフェースは共有GPUバッファとしてmochiOSへ渡され、通常のmochiOSアプリケーションと同じようにコンポジタが管理します。
 
@@ -283,9 +283,9 @@ flowchart TB
     verify[mBootが起動イメージを確認する]
     prepare[CPU、RAM、APIC、IOMMUを準備する]
     isolate[すべてのPCIデバイスを隔離する]
-    driverCreate[Driver Linux Domainを作る]
-    assign[必要なPCIデバイスをDriver Linuxへ渡す]
-    driverStart[Driver Linuxを起動する]
+    driverCreate[mDriver Hardware Domainを作る]
+    assign[必要なPCIデバイスをmDriverへ渡す]
+    driverStart[mDriverを起動する]
     mochiStart[mochiOS System Domainを作って起動する]
     channels[共有メモリと通知経路をつなぐ]
     desktop[Binderとデスクトップを起動する]
@@ -295,7 +295,7 @@ flowchart TB
     assign --> driverStart --> mochiStart --> channels --> desktop --> appDomain
 ```
 
-Driver Linuxを先に起動するのは、mochiOSが使う画面、入力、storageなどを準備するためです。
+mDriverを先に起動するのは、mochiOSが使う画面、入力、storageなどを準備するためです。
 
 ## Capability
 
@@ -303,7 +303,7 @@ mBootのCapabilityは、Domainが操作できる対象を制限します。
 
 mochiOSには、許可されたApplication Domainを作る権限や、通信経路を作る権限を渡します。ただし、物理メモリ、IOMMU、任意のPCIデバイスを直接操作する権限は渡しません。
 
-Driver Linuxには、割り当てられたdevice、IRQ、DMA buffer、backend用の通信経路を使う権限を渡します。ほかのPCIデバイスやDomainのメモリは操作できません。
+mDriverには、割り当てられたdevice、IRQ、DMA buffer、backend用の通信経路を使う権限を渡します。ほかのPCIデバイスやDomainのメモリは操作できません。
 
 どのDomainにも渡さない権限もあります。
 
@@ -321,9 +321,9 @@ mBootは、ほかのDomainより強い権限を持ちます。mBootが壊れる�
 
 mochiOSはシステム管理を担当しますが、mBootの内部を直接変更できません。mochiOSの一般アプリは、さらにmochiOSのCapabilityと権限確認によって制限されます。
 
-Driver Linuxは、mBootやmochiOSの通常RAMへアクセスできません。しかし、物理I/Oの内容には触れられます。
+mDriverは、mBootやmochiOSの通常RAMへアクセスできません。しかし、物理I/Oの内容には触れられます。
 
-Driver Linuxは、技術的には次のことができます。
+mDriverは、技術的には次のことができます。
 
 - 入力を読み取る
 - 画面内容を読む、または差し替える
@@ -331,17 +331,17 @@ Driver Linuxは、技術的には次のことができます。
 - ネットワークパケットを読む、変更する、捨てる
 - デバイスを停止させる
 
-IOMMUが防ぐのは、Driver Linuxやデバイスから許可されていないRAMへのアクセスです。入力やディスクの内容が正しいことまでは保証しません。（というよりもろもろの理由により保証できません）
+IOMMUが防ぐのは、mDriverやデバイスから許可されていないRAMへのアクセスです。入力やディスクの内容が正しいことまでは保証しません。（というよりもろもろの理由により保証できません）
 
-このためDriver Linuxは、ユーザーデータに関して信頼するシステムコンポーネントとして扱います。
+このためmDriverは、ユーザーデータに関して信頼するシステムコンポーネントとして扱います。
 
 Linux Application Domainと、その中で動くアプリは信頼しません。物理デバイスを渡さず、mochiOSが許可した仮想デバイスとportalだけを利用させます。
 
 ## どこかが止まったとき
 
-### Driver Linux
+### mDriver
 
-Driver Linuxが停止した場合、mBootはDriver LinuxのvCPUを止め、deviceからのDMAと割り込みを無効にします。共有していたメモリも回収します。
+mDriverが停止した場合、mBootはmDriverのvCPUを止め、deviceからのDMAと割り込みを無効にします。共有していたメモリも回収します。
 
 mochiOSでは、使えなくなったdeviceを一時的に利用不可として扱い、それをもとにmochiOSはユーザーへウィンドウなどを利用して明示的なエラーを表示します。
 
@@ -350,25 +350,25 @@ mochiOSでは、使えなくなったdeviceを一時的に利用不可として�
 - `Display backend restarting`
 - `Input backend restarting`
 
-ネットワーク、入力、オーディオはDriver Linuxの再起動後に接続し直せます。ストレージは書き込みの状態が不明になることがあるため、ファイルシステムの確認が必要です。
+ネットワーク、入力、オーディオはmDriverの再起動後に接続し直せます。ストレージは書き込みの状態が不明になることがあるため、ファイルシステムの確認が必要です。
 
-GPUや一部のPCIデバイスは、実行中に安全にリセットできない場合があります。その場合はDriver Linuxだけを再起動せず、物理マシンを再起動します。
+GPUや一部のPCIデバイスは、実行中に安全にリセットできない場合があります。その場合はmDriverだけを再起動せず、物理マシンを再起動します。
 
 ### mochiOS
 
-mochiOSが停止した場合、mBootはmochiOSが使っていた共有メモリ、通知経路、Application Domainを回収します。Driver Linuxはそのまま動かし、mochiOSだけを再起動できます。
+mochiOSが停止した場合、mBootはmochiOSが使っていた共有メモリ、通知経路、Application Domainを回収します。mDriverはそのまま動かし、mochiOSだけを再起動できます。
 
 mochiOSの再起動中は、古いセッションで使っていたfile portal、クリップボード、入力フォーカスを無効にします。
 
 ### Linux Application Domain
 
-Linux Application Domainが停止した場合は、そのDomainだけを回収します。Binderは該当するwindowを閉じ、アプリが停止したことをユーザーへ知らせます。ほかのアプリやDriver Linuxは停止しません。
+Linux Application Domainが停止した場合は、そのDomainだけを回収します。Binderは該当するwindowを閉じ、アプリが停止したことをユーザーへ知らせます。ほかのアプリやmDriverは停止しません。
 
 ### mBoot
 
 mBoot自身が壊れた場合は、Domainを動かし続けません。可能な範囲でdeviceのDMAを止め、障害内容を記録して物理マシンを再起動します。
 
-再起動後、mochiOSは可能な限り前回のセッションを復元します。Driver Linuxは、再起動後に物理デバイスを再初期化します。
+再起動後、mochiOSは可能な限り前回のセッションを復元します。mDriverは、再起動後に物理デバイスを再初期化します。
 
 その後、mochiOSはユーザーにクラッシュレポートを表示し、問題が発生したこと、そして発生した問題が解決したかどうかを表示し、ネットワークが生きている場合はユーザーから明示的な同意を得てクラッシュレポートを送信します。
 
@@ -378,7 +378,7 @@ mBoot自身が壊れた場合は、Domainを動かし続けません。可能な
 |---|---|
 | mBoot | CPU、RAM、DMA、割り込み、device、Domainを管理します |
 | mochiOS | デスクトップ、アプリ、権限、システムポリシーを管理します |
-| Driver Linux | Linuxのドライバを使って物理デバイスを動かします |
+| mDriver | Linuxのドライバを使って物理デバイスを動かします |
 | Linux Application Domain | ChromiumなどのLinuxアプリを、物理デバイスから隔離して動かします |
 
 Linuxのドライバ資産は利用しますが、Linuxを物理マシン全体の管理者にはしません。mBootがLinuxへ必要なdeviceだけを渡し、mochiOSをユーザー向けのメインOSとして動かします。

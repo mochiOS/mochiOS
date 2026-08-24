@@ -6,10 +6,10 @@ RELEASE_DIR	= $(OUT)/releases
 RELEASE_IMAGE	= $(RELEASE_DIR)/mochiOS.img
 MBOOT_CONFIG ?= $(MBOOT_DIR)/config/intel-hardware.toml
 MBOOT_IMAGE ?= $(OUT)/mochiOS.iso
-DRIVER_LINUX_KERNEL ?=
-DRIVER_LINUX_INITRAMFS ?=
+MDRIVER_KERNEL ?= $(MBOOT_DIR)/mdriver/output/artifacts/vmlinux
+MDRIVER_INITRAMFS ?= $(MBOOT_DIR)/mdriver/output/artifacts/initramfs.cpio
 
-.PHONY: all build full build-cached hv-device-io-test hv-driver-linux-test hv-image hv-image-test mboot mboot-image mboot-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached hv-device-io-test hv-image hv-image-test mboot mboot-image mboot-setup mboot-test mdriver mdriver-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -53,13 +53,19 @@ hv-device-io-test:
 	@$(MAKE) -C $(MBOOT_DIR) device-io-test \
 		MNU_DIR="$(CURDIR)/core"
 
-hv-driver-linux-test:
-	@$(MAKE) -C $(MBOOT_DIR) driver-linux-test \
+mdriver:
+	@$(MAKE) -C $(MBOOT_DIR)/mdriver build
+
+mdriver-test: mdriver
+	@$(MAKE) -C $(MBOOT_DIR) mdriver-test \
 		MNU_DIR="$(CURDIR)/core" \
-		DRIVER_LINUX_KERNEL="$(if $(DRIVER_LINUX_KERNEL),$(abspath $(DRIVER_LINUX_KERNEL)))" \
-		DRIVER_LINUX_INITRAMFS="$(if $(DRIVER_LINUX_INITRAMFS),$(abspath $(DRIVER_LINUX_INITRAMFS)))"
+		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
+		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))"
 
 mboot: mboot-image
+
+mboot-setup:
+	@MNU_DIR="$(CURDIR)/core" $(MBOOT_DIR)/setup.sh
 
 mboot-image:
 	@test -f $(MBOOT_DIR)/Makefile || { echo "fatal: mBoot repository was not found: $(MBOOT_DIR)" >&2; exit 1; }
@@ -125,6 +131,7 @@ ext2-write-test-tcg: build
 
 clean:
 	@rm -rf $(OUT)/*
+	@$(MAKE) -C $(MBOOT_DIR) clean
 
 clean-runner:
 	@rm -rf $(OUT)/runner

@@ -4,22 +4,12 @@ MWS		= $(shell pwd)/tools/mws
 MBOOT_DIR	= $(shell pwd)/mboot
 RELEASE_DIR	= $(OUT)/releases
 RELEASE_IMAGE	= $(RELEASE_DIR)/mochiOS.img
-MBOOT_GUEST_IMAGE	= $(OUT)/artifacts/disk.img
-MBOOT_OUTPUT_IMAGE	= $(MBOOT_DIR)/output/images/disk.img
-MBOOT_DEV_OUTPUT	= $(MBOOT_DIR)/output-dev
-MBOOT_DEV_OUTPUT_IMAGE	= $(MBOOT_DEV_OUTPUT)/images/disk.img
-MBOOT_DEV_AUTHORIZED_KEY ?= $(HOME)/.ssh/id_ed25519.pub
-HV_CONFIG ?= $(MBOOT_DIR)/config/hypervisor/intel-hardware.toml
-HV_OUTPUT_IMAGE ?= $(OUT)/mochiOS.iso
-DEVICE ?= mboot-dev.local
-SSH_IDENTITY ?=
-SSH_KNOWN_HOSTS ?=
-MBOOT_SDK_SYSROOT	= $(OUT)/newlib-port/toolchain/x86_64-elf
-MBOOT_SDK_CRT0		= $(OUT)/newlib-port/hello/crt0.o
-MBOOT_SDK_RUNTIME	= $(OUT)/newlib-port/cargo-target/x86_64-unknown-mochios/release/libmochi_user_newlib_runtime.a
-MBOOT_SDK_LINKER		= $(CURDIR)/user/runtime/linker.ld
+MBOOT_CONFIG ?= $(MBOOT_DIR)/config/intel-hardware.toml
+MBOOT_IMAGE ?= $(OUT)/mochiOS.iso
+DRIVER_LINUX_KERNEL ?=
+DRIVER_LINUX_INITRAMFS ?=
 
-.PHONY: all build full build-cached hv-device-io-test hv-driver-linux-test hv-image hv-image-test mboot mboot-image mboot-dev deploy-device device-rollback device-restart device-logs device-screenshot device-status release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached hv-device-io-test hv-driver-linux-test hv-image hv-image-test mboot mboot-image mboot-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -48,82 +38,45 @@ build-cached: olddefconfig
 	@$(SCRIPTS)/build.sh --cached
 
 hv-image:
-	@$(MAKE) -C $(MBOOT_DIR) hv-image \
-		HV_CONFIG="$(abspath $(HV_CONFIG))" \
+	@$(MAKE) -C $(MBOOT_DIR) image \
+		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
-		HV_OUTPUT_IMAGE="$(abspath $(HV_OUTPUT_IMAGE))"
+		IMAGE="$(abspath $(MBOOT_IMAGE))"
 
 hv-image-test:
-	@$(MAKE) -C $(MBOOT_DIR) hv-image-test \
-		HV_CONFIG="$(abspath $(HV_CONFIG))" \
+	@$(MAKE) -C $(MBOOT_DIR) image-test \
+		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
-		HV_OUTPUT_IMAGE="$(abspath $(HV_OUTPUT_IMAGE))"
+		IMAGE="$(abspath $(MBOOT_IMAGE))"
 
 hv-device-io-test:
-	@$(MAKE) -C $(MBOOT_DIR) hv-device-io-test \
+	@$(MAKE) -C $(MBOOT_DIR) device-io-test \
 		MNU_DIR="$(CURDIR)/core"
 
 hv-driver-linux-test:
-	@$(MAKE) -C $(MBOOT_DIR) hv-driver-linux-test \
-		MNU_DIR="$(CURDIR)/core"
+	@$(MAKE) -C $(MBOOT_DIR) driver-linux-test \
+		MNU_DIR="$(CURDIR)/core" \
+		DRIVER_LINUX_KERNEL="$(if $(DRIVER_LINUX_KERNEL),$(abspath $(DRIVER_LINUX_KERNEL)))" \
+		DRIVER_LINUX_INITRAMFS="$(if $(DRIVER_LINUX_INITRAMFS),$(abspath $(DRIVER_LINUX_INITRAMFS)))"
 
-mboot: build-cached
-	@$(MAKE) mboot-image
+mboot: mboot-image
 
 mboot-image:
 	@test -f $(MBOOT_DIR)/Makefile || { echo "fatal: mBoot repository was not found: $(MBOOT_DIR)" >&2; exit 1; }
-	@if [ ! -f $(MBOOT_DIR)/output/.config ]; then \
-		$(MAKE) -C $(MBOOT_DIR) defconfig; \
-	fi
-	@$(MAKE) -C $(MBOOT_DIR) build \
-		MOCHIOS=$(MBOOT_GUEST_IMAGE) \
-		MOCHIOS_SDK_SYSROOT=$(MBOOT_SDK_SYSROOT) \
-		MOCHIOS_SDK_CRT0=$(MBOOT_SDK_CRT0) \
-		MOCHIOS_SDK_RUNTIME=$(MBOOT_SDK_RUNTIME) \
-		MOCHIOS_SDK_LINKER=$(MBOOT_SDK_LINKER)
-	@MBOOT_MOCHIOS_IMAGE=$(MBOOT_GUEST_IMAGE) $(MBOOT_DIR)/scripts/check-image.sh
+	@$(MAKE) -C $(MBOOT_DIR) image \
+		CONFIG="$(abspath $(MBOOT_CONFIG))" \
+		MNU_DIR="$(CURDIR)/core" \
+		IMAGE="$(abspath $(MBOOT_IMAGE))"
 
-mboot-dev: build-cached
-	@test -r "$(MBOOT_DEV_AUTHORIZED_KEY)" || { \
-		echo "fatal: SSH public key not found: $(MBOOT_DEV_AUTHORIZED_KEY)" >&2; exit 1; \
-	}
-	@$(MAKE) -C $(MBOOT_DIR) build \
-		OUTPUT_DIR=$(MBOOT_DEV_OUTPUT) \
-		MBOOT_DEVELOPMENT=1 \
-		MBOOT_DEV_AUTHORIZED_KEY="$(abspath $(MBOOT_DEV_AUTHORIZED_KEY))" \
-		MOCHIOS=$(MBOOT_GUEST_IMAGE) \
-		MOCHIOS_SDK_SYSROOT=$(MBOOT_SDK_SYSROOT) \
-		MOCHIOS_SDK_CRT0=$(MBOOT_SDK_CRT0) \
-		MOCHIOS_SDK_RUNTIME=$(MBOOT_SDK_RUNTIME) \
-		MOCHIOS_SDK_LINKER=$(MBOOT_SDK_LINKER)
-	@echo "[done] development image: $(MBOOT_DEV_OUTPUT_IMAGE)"
+mboot-test:
+	@$(MAKE) -C $(MBOOT_DIR) test MNU_DIR="$(CURDIR)/core"
 
-deploy-device: build-cached
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) \
-		IMAGE=$(MBOOT_GUEST_IMAGE) $(SCRIPTS)/mboot-device.sh deploy
-
-device-rollback:
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) $(SCRIPTS)/mboot-device.sh rollback
-
-device-restart:
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) $(SCRIPTS)/mboot-device.sh restart
-
-device-logs:
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) $(SCRIPTS)/mboot-device.sh logs
-
-device-screenshot:
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) $(SCRIPTS)/mboot-device.sh screenshot
-
-device-status:
-	@DEVICE=$(DEVICE) SSH_IDENTITY=$(SSH_IDENTITY) SSH_KNOWN_HOSTS=$(SSH_KNOWN_HOSTS) $(SCRIPTS)/mboot-device.sh status
-
-release: full
-	@$(MAKE) mboot-image
+release: full mboot-image
 	@mkdir -p $(RELEASE_DIR)
 	@set -eu; \
 		temporary=$(RELEASE_IMAGE).new; \
 		rm -f "$$temporary"; \
-		cp --sparse=always $(MBOOT_OUTPUT_IMAGE) "$$temporary"; \
+		cp --sparse=always $(MBOOT_IMAGE) "$$temporary"; \
 		chmod 0644 "$$temporary"; \
 		mv "$$temporary" $(RELEASE_IMAGE)
 	@echo "[done] release image: $(RELEASE_IMAGE)"
@@ -134,8 +87,8 @@ fonts:
 run: olddefconfig all
 	@$(SCRIPTS)/runner.sh
 
-run-boot: mboot
-	@$(MAKE) -C $(MBOOT_DIR) run-built MOCHIOS=$(MBOOT_GUEST_IMAGE)
+run-boot:
+	@$(MAKE) hv-image-test
 
 smoke-log-test:
 	@$(SCRIPTS)/tests/smoke-log-check-test.sh

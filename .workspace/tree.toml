@@ -1823,3 +1823,11 @@ path = "mboot"
 hash = "e993bfb743c9cef830104e6b55cdd4212362ee6f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Allow IOMMU to contain active PCI DMA"
+
+[[entries]]
+date = "2026-08-24T10:46:20.073867989+09:00"
+snapshot = "8c1d56478fcccb91275b25c8"
+path = "mboot"
+hash = "fcb0449aa0b06160ca16c1e7ceddc96c29a4c3b7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep PCI DMA failures visible"

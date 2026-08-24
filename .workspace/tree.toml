@@ -1927,3 +1927,11 @@ path = "mboot"
 hash = "a1896b8b5556d472e4db94377db2e63002680897"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Replace the Linux mBoot with the Type-1 hypervisor"
+
+[[entries]]
+date = "2026-08-24T18:26:22.834508488+09:00"
+snapshot = "7251db043604d038308bf3d9"
+path = "mboot"
+hash = "9d9df680567934f65180ea49bcd52ac57d8a0bfe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Build mDriver reproducibly with Buildroot"

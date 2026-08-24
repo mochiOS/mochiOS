@@ -1799,3 +1799,11 @@ path = "mboot"
 hash = "97aca4a2f69c8e2cdaaca871b4d8e58e1e510efe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Restart failed application Domains"
+
+[[entries]]
+date = "2026-08-24T10:14:24.118659155+09:00"
+snapshot = "cf1a55e8d77b5e7b8eb544fe"
+path = "mboot"
+hash = "2b459de16d0e0437eaf6b8efb6fec81cf1e94bb8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Quarantine PCI DMA before Domain launch"

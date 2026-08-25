@@ -2015,3 +2015,11 @@ path = "mboot"
 hash = "b3182de6f12bcf364cd3f7e1074353f448612cfe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect mDriver shared control ring"
+
+[[entries]]
+date = "2026-08-25T21:09:58.219603442+09:00"
+snapshot = "639ecf6c1a4232f9a1add844"
+path = "mboot"
+hash = "124dd0c02065e284bb1914db96e234dcff2c7417"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement the mDriver device control service"

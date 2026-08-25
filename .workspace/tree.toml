@@ -1991,3 +1991,11 @@ path = "mboot"
 hash = "dedb2882fe3a51fab2c65dffd5e29802268da336"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Separate mDriver config and queue interrupts"
+
+[[entries]]
+date = "2026-08-25T16:10:52.393625863+09:00"
+snapshot = "47e659965920c77c9bacf26e"
+path = "mboot"
+hash = "205b96839ea2c60d03d7aa8c5a5ddb599c931a88"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Support shared MSI device interrupts"

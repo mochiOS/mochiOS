@@ -1983,3 +1983,11 @@ path = "mboot"
 hash = "0434ac1fb84e1b26173a702cc0b65561c66911e0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect mDriver virtio block I/O"
+
+[[entries]]
+date = "2026-08-25T15:43:30.175803185+09:00"
+snapshot = "c40528295e2eb48d96c20982"
+path = "mboot"
+hash = "dedb2882fe3a51fab2c65dffd5e29802268da336"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Separate mDriver config and queue interrupts"

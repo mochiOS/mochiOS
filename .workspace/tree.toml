@@ -1975,3 +1975,11 @@ path = "mboot"
 hash = "6616c896c11832dbc949d1ed2faa1227471b93d3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect mDriver PCI interrupts to Linux IRQs"
+
+[[entries]]
+date = "2026-08-25T15:05:58.782803469+09:00"
+snapshot = "07ca8434bf30079f672267d4"
+path = "mboot"
+hash = "0434ac1fb84e1b26173a702cc0b65561c66911e0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect mDriver virtio block I/O"

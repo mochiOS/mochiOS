@@ -1959,3 +1959,11 @@ path = "cexts"
 hash = "8c58904aeb6e304373f3631df0459fba40d7a904"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update resolved workspace dependencies"
+
+[[entries]]
+date = "2026-08-25T13:34:25.664256635+09:00"
+snapshot = "d63d1b308e8cd45fc408e9c8"
+path = "mboot"
+hash = "aac3b6837ee019ba42882e4b48277b943e5ac217"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Publish assigned PCI resources to mDriver"

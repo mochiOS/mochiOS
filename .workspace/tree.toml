@@ -1967,3 +1967,11 @@ path = "mboot"
 hash = "aac3b6837ee019ba42882e4b48277b943e5ac217"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Publish assigned PCI resources to mDriver"
+
+[[entries]]
+date = "2026-08-25T14:11:04.119921634+09:00"
+snapshot = "cecba36d28a8010f02caaeaf"
+path = "mboot"
+hash = "6616c896c11832dbc949d1ed2faa1227471b93d3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect mDriver PCI interrupts to Linux IRQs"

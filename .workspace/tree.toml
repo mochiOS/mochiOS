@@ -1999,3 +1999,11 @@ path = "mboot"
 hash = "205b96839ea2c60d03d7aa8c5a5ddb599c931a88"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Support shared MSI device interrupts"
+
+[[entries]]
+date = "2026-08-25T19:55:58.360815516+09:00"
+snapshot = "26d2f52136d8e5fc6fcf505a"
+path = "mboot"
+hash = "4d78b54c26e83e878d942382a7035150d7a48c07"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect mDriver control events"

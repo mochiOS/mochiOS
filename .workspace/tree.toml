@@ -1951,3 +1951,11 @@ path = "mboot"
 hash = "b0e1ba86a34b1aa4b067777086016547366609ee"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add the first mDriver control path"
+
+[[entries]]
+date = "2026-08-25T12:44:49.879786233+09:00"
+snapshot = "e1fae26928d8209b97104131"
+path = "cexts"
+hash = "8c58904aeb6e304373f3631df0459fba40d7a904"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Update resolved workspace dependencies"

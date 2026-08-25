@@ -2007,3 +2007,11 @@ path = "mboot"
 hash = "4d78b54c26e83e878d942382a7035150d7a48c07"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect mDriver control events"
+
+[[entries]]
+date = "2026-08-25T20:44:18.253150038+09:00"
+snapshot = "f035c4b0b8724ebd7fba1620"
+path = "mboot"
+hash = "b3182de6f12bcf364cd3f7e1074353f448612cfe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect mDriver shared control ring"

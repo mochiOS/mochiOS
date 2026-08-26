@@ -2023,3 +2023,11 @@ path = "mboot"
 hash = "124dd0c02065e284bb1914db96e234dcff2c7417"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement the mDriver device control service"
+
+[[entries]]
+date = "2026-08-26T16:58:37.882852603+09:00"
+snapshot = "a80be6161f0cc76241babad5"
+path = "mboot"
+hash = "0d2cfb10d8e4d8cd10b40ce9bcf15f9609863834"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement the mDriver block data backend"

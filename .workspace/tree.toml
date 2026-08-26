@@ -2031,3 +2031,11 @@ path = "mboot"
 hash = "0d2cfb10d8e4d8cd10b40ce9bcf15f9609863834"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement the mDriver block data backend"
+
+[[entries]]
+date = "2026-08-26T18:39:35.096846874+09:00"
+snapshot = "0039869cf4b89590ed9b671b"
+path = "mboot"
+hash = "0a04b45e2048ab4daf717cf2d3ac093a6ce63f3e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement the asynchronous mDriver block backend"

@@ -2039,3 +2039,11 @@ path = "mboot"
 hash = "0a04b45e2048ab4daf717cf2d3ac093a6ce63f3e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement the asynchronous mDriver block backend"
+
+[[entries]]
+date = "2026-08-26T19:49:18.953534463+09:00"
+snapshot = "dafce8a020add03e3bf32e56"
+path = "mboot"
+hash = "b6998d7e0b38782a22c5aff0da80b1cd4c965467"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Assign physical NVMe storage read-only"

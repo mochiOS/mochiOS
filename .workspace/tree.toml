@@ -2119,3 +2119,11 @@ path = "tools/devkit"
 hash = "070767e68ffbedef3c6192a75e2816cdf98c4971"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh development PKI fixtures"
+
+[[entries]]
+date = "2026-08-27T20:46:51.154259351+09:00"
+snapshot = "c3d8043cff674dfc9678a2ac"
+path = "cexts"
+hash = "f76a5e118894b4c1164e3fa16c9962f326b3c317"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh extension ABI dependency lock"

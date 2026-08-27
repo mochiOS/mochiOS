@@ -2103,3 +2103,11 @@ path = "mboot"
 hash = "1cd2755c920b77cc06c6d63b4d146598c8ff3bf1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Confine mDriver storage to enrolled GPT partitions"
+
+[[entries]]
+date = "2026-08-27T17:37:14.311509609+09:00"
+snapshot = "bba56889931803c9e4cb7173"
+path = "mboot"
+hash = "33337c5e97eef8e799c476cd8d0024a1833cb8bc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add read-only Intel storage probe"

@@ -5,6 +5,8 @@
 > 別のものです。2026-08-24にmBootリポジトリから旧方式を削除し、現在はこちらの
 > mnuベースのハイパーバイザーへ移行しています。
 
+mDriverの作り方や配布時のライセンス、物理ストレージの安全条件は、[mDriver](mdriver.md)、[mDriverのライセンス](mdriver-licensing.md)、[物理ストレージ](storage.md)に分けています。QEMUで使うfirmwareについては[QEMUで使うOVMF](ovmf.md)を確認してください。
+
 mBootは、物理マシンとmochiOSの間で動くmnuベースのハイパーバイザーです。CPU、メモリ、割り込み、PCIデバイスなどを管理し、複数のOSを互いに隔離して動かします。
 
 ユーザーが触るOSはmochiOSです。Linuxは物理デバイスを動かすために使います。ChromiumやCounter-Strike 2などのLinuxアプリは、デバイス用Linuxとは別の仮想マシンで動かします。

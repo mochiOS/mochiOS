@@ -2111,3 +2111,11 @@ path = "mboot"
 hash = "33337c5e97eef8e799c476cd8d0024a1833cb8bc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add read-only Intel storage probe"
+
+[[entries]]
+date = "2026-08-27T19:48:11.305992357+09:00"
+snapshot = "d837cb0ecf8f4ea16a5bb67f"
+path = "tools/devkit"
+hash = "070767e68ffbedef3c6192a75e2816cdf98c4971"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh development PKI fixtures"

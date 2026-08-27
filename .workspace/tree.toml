@@ -2095,3 +2095,11 @@ path = "mboot"
 hash = "10e1945826898e1ae56fcdfc55aef185d9346697"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Confine mDriver storage to enrolled GPT partitions"
+
+[[entries]]
+date = "2026-08-27T17:22:05.347260433+09:00"
+snapshot = "5491df73b649b9a5a7624357"
+path = "mboot"
+hash = "1cd2755c920b77cc06c6d63b4d146598c8ff3bf1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Confine mDriver storage to enrolled GPT partitions"

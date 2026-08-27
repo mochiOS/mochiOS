@@ -56,6 +56,24 @@ Windowsとのデュアルブート環境では、作業前に大切なデータ�
 
 現在の`config/intel-hardware.toml`はストレージを割り当てない状態を保っています。VMD配下のNVMeを実機で使うには、GUIDの登録だけでなく、VMDとその配下のデバイスを安全に渡せることも確認する必要があります。そこまで確認できるまでは設定を有効にしません。
 
+## 実機で読み取り専用の確認をするとき
+
+通常の実機イメージとは別に、Intel VMDを読み取り専用で確認するイメージを作れます。
+
+```sh
+make storage-probe-image
+```
+
+出力は`out/mochiOS-storage-probe.iso`です。このイメージは`config/intel-storage-probe.toml`を使います。通常の`config/intel-hardware.toml`は変更しません。
+
+mDriverはディスクを読み取り専用で開き、Primary GPTとBackup GPT、CRC、パーティションの範囲と重複を確認します。確認できた場合は、Disk GUIDと各パーティションのType GUID、Unique Partition GUID、開始位置、長さを画面とシリアルログへ出します。画面に出せる量を超えた情報もシリアルログには残ります。
+
+診断画面を出せるのはmochiOS System Domainだけです。一般アプリのDomainやLinux Application Domainから、起動時の診断画面を書き換えることはできません。
+
+この確認用設定では、ブロックデバイスをwrite modeで開きません。制御プロトコルのwriteとflushも拒否します。QEMUテストでは、確認前後のディスク全体のSHA-256が同じであることを検査しています。
+
+GPTが壊れている場合、VMDが見つからない場合、VMD配下のディスクを1台に絞れない場合は処理を止めます。候補から推測して続行しません。
+
 ## QEMUでの確認
 
 `make mdriver-test`では、一時的なGPTディスクを作って次の2つを確認します。

@@ -2055,3 +2055,11 @@ path = "mboot"
 hash = "3508acb438c5197a84df92db992ceb38e1fce017"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report ambiguous storage assignment safely"
+
+[[entries]]
+date = "2026-08-27T12:16:12.186342135+09:00"
+snapshot = "261818f847e2a8dee0c5bc6a"
+path = "mboot"
+hash = "87b1ce97464e65f9f63dfab6361f16b9a1e84e23"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Show ambiguous NVMe controller identities"

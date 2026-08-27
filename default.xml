@@ -162,4 +162,11 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="applications/installer"
+            name="mochiOS/Installer.app"
+            revision="main"
+            remote="github"
+    />
 </manifest>

@@ -2079,3 +2079,11 @@ path = "mboot"
 hash = "b7109af4f4caedab92978001e9a934a22224ebf2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Assign Intel VMD storage read-only"
+
+[[entries]]
+date = "2026-08-27T16:32:19.013985325+09:00"
+snapshot = "bf5800a396535359f8be6790"
+path = "mboot"
+hash = "0cf45ffa2f29e2b4bb20f121043fe3bbe46910c1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Disable unsafe physical storage passthrough"

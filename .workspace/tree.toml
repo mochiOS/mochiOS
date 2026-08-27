@@ -2047,3 +2047,11 @@ path = "mboot"
 hash = "b6998d7e0b38782a22c5aff0da80b1cd4c965467"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Assign physical NVMe storage read-only"
+
+[[entries]]
+date = "2026-08-27T12:09:28.739666531+09:00"
+snapshot = "c03ca6c331c54bdd84d3ccea"
+path = "mboot"
+hash = "3508acb438c5197a84df92db992ceb38e1fce017"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report ambiguous storage assignment safely"

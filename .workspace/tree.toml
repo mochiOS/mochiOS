@@ -2087,3 +2087,11 @@ path = "mboot"
 hash = "0cf45ffa2f29e2b4bb20f121043fe3bbe46910c1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Disable unsafe physical storage passthrough"
+
+[[entries]]
+date = "2026-08-27T17:18:58.747009838+09:00"
+snapshot = "28b3569cddd22977a3e0a6f9"
+path = "mboot"
+hash = "10e1945826898e1ae56fcdfc55aef185d9346697"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Confine mDriver storage to enrolled GPT partitions"

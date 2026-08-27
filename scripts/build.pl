@@ -800,12 +800,17 @@ sub build_std_binary {
     need_dir("$library_root/rustc-std-workspace-core");
     need_dir("$library_root/rustc-std-workspace-alloc");
     need_dir("$library_root/rustc-std-workspace-std");
+    my $mboot_protocol_path = "$root_dir/services/mboot-protocol";
+    if ($manifest_path =~ m{^(.*?/services-stage)/}) {
+        $mboot_protocol_path = "$1/mboot-protocol";
+    }
     my @cargo_configs = (
         "patch.crates-io.libc.path='$libc_override_path'",
         "patch.crates-io.rustc-std-workspace-core.path='$library_root/rustc-std-workspace-core'",
         "patch.crates-io.rustc-std-workspace-alloc.path='$library_root/rustc-std-workspace-alloc'",
         "patch.crates-io.rustc-std-workspace-std.path='$library_root/rustc-std-workspace-std'",
         "patch.\"https://github.com/mochiOS/mnu\".mnu-abi.path='$root_dir/core/crates/abi'",
+        "patch.\"https://github.com/mochiOS/mBoot\".mboot-protocol.path='$mboot_protocol_path'",
         "patch.\"https://github.com/mochiOS/syscalls\".mochios-virtio-gpu-protocol.path='$root_dir/user/crates/virtio-gpu-protocol'",
         "patch.\"https://github.com/mochiOS/syscalls\".mochios-viewkit-gpu-protocol.path='$root_dir/user/crates/viewkit-gpu-protocol'",
         "patch.crates-io.viewkit.path='$root_dir/libraries/viewkit'",
@@ -818,6 +823,7 @@ sub build_std_binary {
             "patch.\"https://github.com/mochiOS/syscalls\".mochios-user-protocol.path='$root_dir/user/crates/user-protocol'";
     }
     if ($manifest_path eq "$root_dir/applications/binder/Cargo.toml"
+        || $manifest_path eq "$root_dir/applications/installer/Cargo.toml"
         || index($manifest_path, '/settings-stage/') >= 0
         || index($manifest_path, "$root_dir/services/") == 0
         || index($manifest_path, '/services-stage/') >= 0) {
@@ -921,7 +927,7 @@ sub build_rust_std_programs {
     make_path($services_stage);
     install_file('0644', "$root_dir/services/Cargo.toml", "$services_stage/Cargo.toml");
     install_file('0644', "$root_dir/services/Cargo.lock", "$services_stage/Cargo.lock");
-    for my $service (qw(capability compositor core display drivers input linux logger mboot-agent network package permission-prompt-protocol secure-ui service-manager signature tty update user)) {
+    for my $service (qw(capability compositor core display drivers input linux logger mboot-agent mboot-protocol network package permission-prompt-protocol secure-ui service-manager signature tty update user)) {
         copy_tree("$root_dir/services/$service", "$services_stage/$service");
     }
     remove_tree($settings_stage);

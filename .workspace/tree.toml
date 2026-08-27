@@ -2071,3 +2071,11 @@ path = "mboot"
 hash = "2f612c9b730a337a275b211f412f404a1d570f25"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Show storage controllers when NVMe is hidden"
+
+[[entries]]
+date = "2026-08-27T12:33:48.067320116+09:00"
+snapshot = "ab0e60694df4825ffc331584"
+path = "mboot"
+hash = "b7109af4f4caedab92978001e9a934a22224ebf2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Assign Intel VMD storage read-only"

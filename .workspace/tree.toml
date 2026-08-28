@@ -2159,3 +2159,11 @@ path = "user"
 hash = "e60663e2f9bb1c553aa2865019ba6a70af4d2d1e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update dependency lockfile"
+
+[[entries]]
+date = "2026-08-28T17:23:08.995704632+09:00"
+snapshot = "a461780f2f28ea69eaa347d1"
+path = "mboot"
+hash = "a2162e8f4d5576c8f2a879fdb95e9fd713f0a787"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add native UEFI network boot output"

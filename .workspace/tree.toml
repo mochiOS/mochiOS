@@ -2143,3 +2143,11 @@ path = "mboot"
 hash = "788f7380d715d4d2813d7d768460724ddd932d0d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Treat PCI bridges as DMA forwarding functions"
+
+[[entries]]
+date = "2026-08-28T15:32:37.486376625+09:00"
+snapshot = "ecb42c0b09f8c11014876d68"
+path = "mboot"
+hash = "431167a232570175cfb086943da8719c6070701d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Handle VT-d include-all GPU handoff"

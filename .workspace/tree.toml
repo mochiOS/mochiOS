@@ -2167,3 +2167,11 @@ path = "mboot"
 hash = "a2162e8f4d5576c8f2a879fdb95e9fd713f0a787"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add native UEFI network boot output"
+
+[[entries]]
+date = "2026-08-28T21:00:29.812359261+09:00"
+snapshot = "5a97b0a232e79cc7e2cfda14"
+path = "mboot"
+hash = "1af79a7b48ba4ba0e6622c99f1523233fa9d4377"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Load the mochiOS System Domain"

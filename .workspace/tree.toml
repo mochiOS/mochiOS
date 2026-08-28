@@ -2151,3 +2151,11 @@ path = "mboot"
 hash = "431167a232570175cfb086943da8719c6070701d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Handle VT-d include-all GPU handoff"
+
+[[entries]]
+date = "2026-08-28T17:04:17.507977443+09:00"
+snapshot = "e00fe3e0d0b3b3f71b464363"
+path = "user"
+hash = "e60663e2f9bb1c553aa2865019ba6a70af4d2d1e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Update dependency lockfile"

@@ -2127,3 +2127,11 @@ path = "cexts"
 hash = "f76a5e118894b4c1164e3fa16c9962f326b3c317"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh extension ABI dependency lock"
+
+[[entries]]
+date = "2026-08-28T15:15:10.761564541+09:00"
+snapshot = "7b380aaafead5f25014cf118"
+path = "mboot"
+hash = "11b5512c9f0b6dd55d7adfcd8aa2e56a14f2a539"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Assign display controllers to mDriver automatically"

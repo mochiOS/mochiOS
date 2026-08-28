@@ -58,7 +58,7 @@ Intel VMDを読み取り専用で調べる場合は、通常の実機イメー�
 make storage-probe-image
 ```
 
-`out/mochiOS-storage-probe.iso`が生成され、`config/intel-storage-probe.toml`が使われます。通常の`config/intel-hardware.toml`は変更しません。
+`out/mochiOS-storage-probe.img`が生成され、`config/intel-storage-probe.toml`が使われます。通常の`config/intel-hardware.toml`は変更しません。
 
 mDriverはディスクを読み取り専用で開き、前述のGPT検査を行います。問題がなければ、Disk GUIDと各パーティションのType GUID、Unique Partition GUID、開始位置、長さを画面とシリアルログへ出します。画面に収まらない情報もシリアルログには残ります。
 

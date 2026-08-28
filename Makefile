@@ -5,7 +5,8 @@ MBOOT_DIR	= $(shell pwd)/mboot
 RELEASE_DIR	= $(OUT)/releases
 RELEASE_IMAGE	= $(RELEASE_DIR)/mochiOS.img
 MBOOT_CONFIG ?= $(MBOOT_DIR)/config/intel-hardware.toml
-MBOOT_IMAGE ?= $(OUT)/mochiOS.iso
+MBOOT_IMAGE ?= $(OUT)/mochiOS.img
+MBOOT_PXE_DIR ?= $(OUT)/pxe
 MDRIVER_KERNEL ?= $(MBOOT_DIR)/mdriver/output/artifacts/vmlinux
 MDRIVER_INITRAMFS ?= $(MBOOT_DIR)/mdriver/output/artifacts/initramfs.cpio
 
@@ -42,6 +43,7 @@ hv-image: mdriver
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
 		IMAGE="$(abspath $(MBOOT_IMAGE))" \
+		PXE_DIR="$(abspath $(MBOOT_PXE_DIR))" \
 		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
 		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))"
 
@@ -50,6 +52,7 @@ hv-image-test: mdriver
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
 		IMAGE="$(abspath $(MBOOT_IMAGE))" \
+		PXE_DIR="$(abspath $(MBOOT_PXE_DIR))" \
 		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
 		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))"
 
@@ -73,7 +76,8 @@ image: mboot-image
 storage-probe-image:
 	@$(MAKE) mboot-image \
 		MBOOT_CONFIG="$(MBOOT_DIR)/config/intel-storage-probe.toml" \
-		MBOOT_IMAGE="$(OUT)/mochiOS-storage-probe.iso"
+		MBOOT_IMAGE="$(OUT)/mochiOS-storage-probe.img" \
+		MBOOT_PXE_DIR="$(OUT)/pxe-storage-probe"
 
 mboot-setup:
 	@MNU_DIR="$(CURDIR)/core" $(MBOOT_DIR)/setup.sh
@@ -84,6 +88,7 @@ mboot-image: mdriver
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
 		IMAGE="$(abspath $(MBOOT_IMAGE))" \
+		PXE_DIR="$(abspath $(MBOOT_PXE_DIR))" \
 		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
 		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))"
 

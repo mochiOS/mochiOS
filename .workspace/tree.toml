@@ -2135,3 +2135,11 @@ path = "mboot"
 hash = "11b5512c9f0b6dd55d7adfcd8aa2e56a14f2a539"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Assign display controllers to mDriver automatically"
+
+[[entries]]
+date = "2026-08-28T15:20:48.845631934+09:00"
+snapshot = "826c600828190c3066a9c9f5"
+path = "mboot"
+hash = "788f7380d715d4d2813d7d768460724ddd932d0d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Treat PCI bridges as DMA forwarding functions"

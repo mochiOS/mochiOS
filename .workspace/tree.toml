@@ -2255,3 +2255,11 @@ path = "mboot"
 hash = "396af95fd00bf5045a3466714bfe3f3b0d7fa0fb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Allow PVH guests to enter long mode"
+
+[[entries]]
+date = "2026-08-29T20:19:00.450843753+09:00"
+snapshot = "44aca5a612905cf93416c7e2"
+path = "mboot"
+hash = "dcad6f39edf4529b48601ecb338f0b0dcd3cc941"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report guest paging state on triple fault"

@@ -2263,3 +2263,11 @@ path = "mboot"
 hash = "dcad6f39edf4529b48601ecb338f0b0dcd3cc941"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report guest paging state on triple fault"
+
+[[entries]]
+date = "2026-08-29T20:29:54.431749526+09:00"
+snapshot = "1e9ae0906d6cb60b6492d809"
+path = "mboot"
+hash = "a0f253eca9d8a359480a64d36c439fc8d31c77f4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Virtualize VMX control register fixed bits"

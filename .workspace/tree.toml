@@ -2247,3 +2247,11 @@ path = "mboot"
 hash = "783dd1c004f7e1d35486fcfebecb8d3965d4d043"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report guest stack on Domain crashes"
+
+[[entries]]
+date = "2026-08-29T20:06:13.951674546+09:00"
+snapshot = "0604834e7ede79eb04b80e3b"
+path = "mboot"
+hash = "396af95fd00bf5045a3466714bfe3f3b0d7fa0fb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Allow PVH guests to enter long mode"

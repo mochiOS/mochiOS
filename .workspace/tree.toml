@@ -2207,3 +2207,11 @@ path = "cexts"
 hash = "2b0ffd2bf2e279e309910e5dfc53ac4acdf9399e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record local cext ABI resolution"
+
+[[entries]]
+date = "2026-08-29T18:31:52.139237591+09:00"
+snapshot = "d2d0b9bdd0921e195bdb31d5"
+path = "applications/installer"
+hash = "01066badcddf43626746a08592286eead67baad8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement the mochiOS installer workflow"

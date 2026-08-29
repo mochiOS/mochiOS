@@ -2191,3 +2191,11 @@ path = "mboot"
 hash = "605bb6327aebf280e7f5d0a9b198142001aceb97"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Boot the complete desktop through mDriver"
+
+[[entries]]
+date = "2026-08-29T17:30:43.491178700+09:00"
+snapshot = "bb9d9f324a050e8e6f433641"
+path = "user"
+hash = "e8afe2bfd134175f708740f66a65c94da4038c69"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep Wi-Fi IPC buffers on the user stack"

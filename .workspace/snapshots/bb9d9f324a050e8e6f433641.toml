@@ -1,0 +1,121 @@
+version = 1
+id = "bb9d9f324a050e8e6f433641"
+created = "2026-08-29T17:30:43.491178700+09:00"
+
+[trigger]
+name = "mochiOS/syscalls"
+path = "user"
+repository = "/home/jnix/mochiOS/user"
+head = "e8afe2bfd134175f708740f66a65c94da4038c69"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep Wi-Fi IPC buffers on the user stack"
+
+[[projects]]
+name = "mochiOS/mBoot"
+path = "mboot"
+head = "0a0b376f3d7b2d4ec912ff2ecd0c9cf9271eb827"
+
+[[projects]]
+name = "mochiOS/boot"
+path = "boot"
+head = "62e5705af76cb91075bfa1284c25e96bf99f389b"
+
+[[projects]]
+name = "mochiOS/mnu"
+path = "core"
+head = "15e21f462f9ff1c5b458cbc0a4c75ab336792465"
+
+[[projects]]
+name = "mochiOS/syscalls"
+path = "user"
+head = "e8afe2bfd134175f708740f66a65c94da4038c69"
+
+[[projects]]
+name = "mochiOS/services"
+path = "services"
+head = "1ca8511be707dbbf9c4c537d0c9d21289a60c2ac"
+
+[[projects]]
+name = "mochiOS/cexts"
+path = "cexts"
+head = "c89e72b51b605178b40420821331d23b41272421"
+
+[[projects]]
+name = "mochiOS/drivers"
+path = "drivers"
+head = "cea09a39e3fc922dc540364df28695ede9b3c690"
+
+[[projects]]
+name = "newlib-cygwin"
+path = "libraries/newlib"
+head = "c5fb7a6e7da7327bea8f9eb7d8b29fc9a02b3c56"
+
+[[projects]]
+name = "mochiOS/rust"
+path = "libraries/rust"
+head = "349d5519d5370c4b3a079404b968589daf849fd8"
+
+[[projects]]
+name = "mochiOS/libc"
+path = "libraries/libc"
+head = "cb52345fa7f01bb0942741a0e843e39037e371e2"
+
+[[projects]]
+name = "mochiOS/msh"
+path = "binaries/msh"
+head = "f35082dbdb14a5582ec211331dace10777e3112b"
+
+[[projects]]
+name = "mochiOS/coreutils"
+path = "binaries/coreutils"
+head = "89cd514f27eea49b531fe8d261449c3b31941867"
+
+[[projects]]
+name = "mochiOS/Binder"
+path = "applications/binder"
+head = "319a6acb5ea7ff12e6a6ebec8c51da80acaa7f49"
+
+[[projects]]
+name = "mochiOS/ViewKit"
+path = "libraries/viewkit"
+head = "c4f1ebf675acd4f7e38330c9f9d64cd5718da239"
+
+[[projects]]
+name = "mochiOS/buildtools"
+path = "build"
+head = "cae58a02d39fa23ff4d624c2d53aa9d9c9fed303"
+
+[[projects]]
+name = "mochiOS/test-application"
+path = "applications/test.app"
+head = "2d6d2340343f7ab10452b483d855da984087af8e"
+
+[[projects]]
+name = "mochiOS/fonts"
+path = "libraries/fonts"
+head = "e34529b27589b2415352925d186661dc07327ea1"
+
+[[projects]]
+name = "mochiOS/mws"
+path = "tools/mws"
+head = "bd13ee9f19a5a7fce4740902eba8999f9736642b"
+
+[[projects]]
+name = "mochiOS/devkit"
+path = "tools/devkit"
+head = "070767e68ffbedef3c6192a75e2816cdf98c4971"
+
+[[projects]]
+name = "mochiOS/Terminal"
+path = "applications/terminal"
+head = "3070d37501be228621175b915274a84e84bd23d7"
+
+[[projects]]
+name = "mochiOS/Files.app"
+path = "applications/file"
+head = "bf8b63de54a1e85a4fb2d2370a18b310cb02491a"
+
+[[projects]]
+name = "mochiOS/Settings.app"
+path = "applications/settings"
+head = "40bbf56bbe50c696afd8788eed1dcc76410ca5db"

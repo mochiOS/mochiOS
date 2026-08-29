@@ -2215,3 +2215,11 @@ path = "applications/installer"
 hash = "01066badcddf43626746a08592286eead67baad8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement the mochiOS installer workflow"
+
+[[entries]]
+date = "2026-08-29T19:19:25.457192140+09:00"
+snapshot = "a29cd559e13fccec50e30c64"
+path = "mboot"
+hash = "53fc6cd086fdb31bbdcc3907103d26d84e7ea556"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep Domain crash diagnostics visible"

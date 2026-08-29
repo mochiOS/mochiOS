@@ -2271,3 +2271,11 @@ path = "mboot"
 hash = "a0f253eca9d8a359480a64d36c439fc8d31c77f4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Virtualize VMX control register fixed bits"
+
+[[entries]]
+date = "2026-08-29T20:55:59.079554285+09:00"
+snapshot = "75aee9c3a376083b6861ffba"
+path = "mboot"
+hash = "f9652c8fc6bd0c85a79fd7328ff6b10309d8f06c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Enable VMX MSR permission maps"

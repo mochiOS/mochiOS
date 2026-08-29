@@ -1293,6 +1293,34 @@ sub stage_application_bundle {
     install_file('0644', $manifest_src, "$bundle_root/manifest.toml");
 }
 
+sub stage_first_boot_environment {
+    my ($rootfs_stage, $initfs_stage) = @_;
+    for my $path (
+        qw(
+            system/services
+            system/packages
+            system/resources
+            system/users
+            system/icons
+            libraries
+            bin/drivers
+            applications/Binder.app
+            applications/Installer.app
+        )
+    ) {
+        my $source = "$rootfs_stage/$path";
+        next if !-d $source;
+        copy_tree($source, "$initfs_stage/$path");
+    }
+    for my $path (qw(tmp var/config home/root system/logs)) {
+        make_path("$initfs_stage/$path");
+    }
+    chmod 01777, "$initfs_stage/tmp"
+        or dief("chmod first-boot temporary directory: $!");
+    chmod 0700, "$initfs_stage/home/root"
+        or dief("chmod first-boot home directory: $!");
+}
+
 sub stage_binder_sample_apps {
     my ($rootfs_stage, $source_root) = @_;
     return if !-d $source_root;
@@ -1334,6 +1362,13 @@ sub build_rootfs {
     make_path("$rootfs_stage/libraries/system");
     make_path("$rootfs_stage/libraries/applications");
     make_path("$rootfs_stage/system/logs");
+    open my $installed_fh, '>', "$rootfs_stage/system/.installed"
+        or dief("create installed-system marker: $!");
+    print {$installed_fh} "format=1\n"
+        or dief("write installed-system marker: $!");
+    close $installed_fh or dief("close installed-system marker: $!");
+    chmod 0644, "$rootfs_stage/system/.installed"
+        or dief("chmod installed-system marker: $!");
     install_file('0755', $path->{hello_elf}, "$rootfs_stage/bin/hello");
     install_file('0755', $path->{rust_std_demo_bin}, "$rootfs_stage/bin/rust-std-demo");
     install_file('0755', $path->{test_app_bin}, "$rootfs_stage/bin/test_app");
@@ -1960,6 +1995,9 @@ build_rootfs(
     $virtio_net_bundle_root,
     "$root_dir/libraries/fonts/out/fonts",
 );
+
+print "[step] stage first-boot desktop\n";
+stage_first_boot_environment($rootfs_stage, $initfs_stage);
 
 print "[step] build initfs image\n";
 run('truncate', '-s', "$config{IMAGE_INITFS_SIZE_MB}M", $initfs_img);

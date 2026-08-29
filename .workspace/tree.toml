@@ -2183,3 +2183,11 @@ path = "mboot"
 hash = "da3a002c1a84565b78cdc8ccada348e67755cbcd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect mochiOS storage through mDriver"
+
+[[entries]]
+date = "2026-08-29T16:44:23.525209613+09:00"
+snapshot = "0bc039e95740448c319d3e58"
+path = "mboot"
+hash = "605bb6327aebf280e7f5d0a9b198142001aceb97"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Boot the complete desktop through mDriver"

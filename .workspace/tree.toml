@@ -2175,3 +2175,11 @@ path = "mboot"
 hash = "1af79a7b48ba4ba0e6622c99f1523233fa9d4377"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Load the mochiOS System Domain"
+
+[[entries]]
+date = "2026-08-29T14:42:07.111463023+09:00"
+snapshot = "e2b06a3a31badfcb49ec5710"
+path = "mboot"
+hash = "da3a002c1a84565b78cdc8ccada348e67755cbcd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect mochiOS storage through mDriver"

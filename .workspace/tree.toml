@@ -2223,3 +2223,11 @@ path = "mboot"
 hash = "53fc6cd086fdb31bbdcc3907103d26d84e7ea556"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep Domain crash diagnostics visible"
+
+[[entries]]
+date = "2026-08-29T19:32:57.351526888+09:00"
+snapshot = "82e9f407094be3af40f97db5"
+path = "mboot"
+hash = "cb492c34af90edbd030f1920ee1d81d69ddcec7e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report the guest address on Domain crashes"

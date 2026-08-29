@@ -2199,3 +2199,11 @@ path = "user"
 hash = "e8afe2bfd134175f708740f66a65c94da4038c69"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep Wi-Fi IPC buffers on the user stack"
+
+[[entries]]
+date = "2026-08-29T18:30:12.030680824+09:00"
+snapshot = "44b044a079f2fba69d202bdf"
+path = "cexts"
+hash = "2b0ffd2bf2e279e309910e5dfc53ac4acdf9399e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record local cext ABI resolution"

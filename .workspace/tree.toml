@@ -2239,3 +2239,11 @@ path = "mboot"
 hash = "9d502b36b954866170ca5494da0e25ad3eadf0b1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Virtualize guest EFER access"
+
+[[entries]]
+date = "2026-08-29T19:55:25.760441803+09:00"
+snapshot = "310062742396995a56cad073"
+path = "mboot"
+hash = "783dd1c004f7e1d35486fcfebecb8d3965d4d043"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report guest stack on Domain crashes"

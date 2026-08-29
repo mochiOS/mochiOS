@@ -11,6 +11,7 @@ MBOOT_UEFI_NET_DIR ?= $(OUT)/uefi-net
 MDRIVER_KERNEL ?= $(MBOOT_DIR)/mdriver/output/artifacts/vmlinux
 MDRIVER_INITRAMFS ?= $(MBOOT_DIR)/mdriver/output/artifacts/initramfs.cpio
 MOCHIOS_INITFS ?= $(OUT)/artifacts/initfs.img
+MOCHIOS_ROOTFS ?= $(OUT)/image-build/rootfs.img
 
 .PHONY: all build full build-cached hv-device-io-test hv-image hv-image-test image mboot mboot-image mboot-setup mboot-test mdriver mdriver-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg storage-probe-image tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
 
@@ -43,7 +44,10 @@ build-cached: olddefconfig
 $(MOCHIOS_INITFS):
 	@$(MAKE) build-cached
 
-hv-image: $(MOCHIOS_INITFS) mdriver
+$(MOCHIOS_ROOTFS):
+	@$(MAKE) build-cached
+
+hv-image: $(MOCHIOS_INITFS) $(MOCHIOS_ROOTFS) mdriver
 	@$(MAKE) -C $(MBOOT_DIR) image \
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
@@ -52,9 +56,10 @@ hv-image: $(MOCHIOS_INITFS) mdriver
 		UEFI_NET_DIR="$(abspath $(MBOOT_UEFI_NET_DIR))" \
 		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
 		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))" \
-		MOCHIOS_INITFS="$(abspath $(MOCHIOS_INITFS))"
+		MOCHIOS_INITFS="$(abspath $(MOCHIOS_INITFS))" \
+		MOCHIOS_ROOTFS="$(abspath $(MOCHIOS_ROOTFS))"
 
-hv-image-test: $(MOCHIOS_INITFS) mdriver
+hv-image-test: $(MOCHIOS_INITFS) $(MOCHIOS_ROOTFS) mdriver
 	@$(MAKE) -C $(MBOOT_DIR) image-test \
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
@@ -63,7 +68,8 @@ hv-image-test: $(MOCHIOS_INITFS) mdriver
 		UEFI_NET_DIR="$(abspath $(MBOOT_UEFI_NET_DIR))" \
 		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
 		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))" \
-		MOCHIOS_INITFS="$(abspath $(MOCHIOS_INITFS))"
+		MOCHIOS_INITFS="$(abspath $(MOCHIOS_INITFS))" \
+		MOCHIOS_ROOTFS="$(abspath $(MOCHIOS_ROOTFS))"
 
 hv-device-io-test:
 	@$(MAKE) -C $(MBOOT_DIR) device-io-test \
@@ -92,7 +98,7 @@ storage-probe-image:
 mboot-setup:
 	@MNU_DIR="$(CURDIR)/core" $(MBOOT_DIR)/setup.sh
 
-mboot-image: $(MOCHIOS_INITFS) mdriver
+mboot-image: $(MOCHIOS_INITFS) $(MOCHIOS_ROOTFS) mdriver
 	@test -f $(MBOOT_DIR)/Makefile || { echo "fatal: mBoot repository was not found: $(MBOOT_DIR)" >&2; exit 1; }
 	@$(MAKE) -C $(MBOOT_DIR) image \
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
@@ -102,7 +108,8 @@ mboot-image: $(MOCHIOS_INITFS) mdriver
 		UEFI_NET_DIR="$(abspath $(MBOOT_UEFI_NET_DIR))" \
 		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
 		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))" \
-		MOCHIOS_INITFS="$(abspath $(MOCHIOS_INITFS))"
+		MOCHIOS_INITFS="$(abspath $(MOCHIOS_INITFS))" \
+		MOCHIOS_ROOTFS="$(abspath $(MOCHIOS_ROOTFS))"
 
 mboot-test:
 	@$(MAKE) -C $(MBOOT_DIR) test MNU_DIR="$(CURDIR)/core"

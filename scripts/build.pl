@@ -1996,6 +1996,19 @@ build_rootfs(
     "$root_dir/libraries/fonts/out/fonts",
 );
 
+make_path("$initfs_stage/install");
+my $rootfs_digest = Digest::SHA->new(256);
+open my $rootfs_fh, '<:raw', $rootfs_img or dief("open $rootfs_img: $!");
+$rootfs_digest->addfile($rootfs_fh);
+close $rootfs_fh or dief("close $rootfs_img: $!");
+open my $rootfs_digest_fh, '>:raw', "$initfs_stage/install/rootfs.sha256"
+    or dief("write installer rootfs digest: $!");
+print {$rootfs_digest_fh} $rootfs_digest->digest
+    or dief("write installer rootfs digest: $!");
+close $rootfs_digest_fh or dief("close installer rootfs digest: $!");
+chmod 0644, "$initfs_stage/install/rootfs.sha256"
+    or dief("chmod installer rootfs digest: $!");
+
 print "[step] stage first-boot desktop\n";
 stage_first_boot_environment($rootfs_stage, $initfs_stage);
 

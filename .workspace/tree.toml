@@ -2335,3 +2335,11 @@ path = "mboot"
 hash = "a5e0430e190a462312017b107a020bb710488345"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Complete Intel VT-d enable sequence"
+
+[[entries]]
+date = "2026-08-30T17:31:45.173665445+09:00"
+snapshot = "853d0a3f00a5566ee995898f"
+path = "mboot"
+hash = "2ad3931f044ea76ca3e0c724655bd15296c4481a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report Intel VT-d enable failures"

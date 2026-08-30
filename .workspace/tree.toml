@@ -2295,3 +2295,11 @@ path = "services"
 hash = "86c7579caf6d6a105b1f19e86e071db7b47856c2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use the firmware framebuffer without PCI probing"
+
+[[entries]]
+date = "2026-08-30T16:20:22.814628195+09:00"
+snapshot = "b74a32148c3ae3d27a6d4712"
+path = "mboot"
+hash = "667a4150b61f112c58857a74e29ff9ef609ac745"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Support Intel GPU reserved DMA handoff"

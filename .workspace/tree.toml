@@ -2367,3 +2367,11 @@ path = "mboot"
 hash = "8cb394f04678229e5aefb4ca613cd24de5a25aa9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve Intel graphics stolen memory during VT-d handoff"
+
+[[entries]]
+date = "2026-08-30T18:28:46.092857984+09:00"
+snapshot = "a1ab909514206ba020bffc51"
+path = "mboot"
+hash = "15b91776b547e67f978f7e57838ea79ca7a1ad31"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Merge overlapping reserved DMA ranges"

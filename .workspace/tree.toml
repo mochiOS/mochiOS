@@ -2287,3 +2287,11 @@ path = "tools/devkit"
 hash = "2e1f8c55245394ca9909a7d400545cb961d177b7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh development trust fixtures"
+
+[[entries]]
+date = "2026-08-30T14:52:22.353719178+09:00"
+snapshot = "14df4a9dde9cf2b596f17438"
+path = "services"
+hash = "86c7579caf6d6a105b1f19e86e071db7b47856c2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use the firmware framebuffer without PCI probing"

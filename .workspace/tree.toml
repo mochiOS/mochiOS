@@ -2311,3 +2311,11 @@ path = "mboot"
 hash = "117defe7b15966ef74a370bd77b120c5b255d2e0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep boot diagnostics through GPU initialization"
+
+[[entries]]
+date = "2026-08-30T16:32:33.471343426+09:00"
+snapshot = "a1f8a7344980050015c6cb6a"
+path = "mboot"
+hash = "d89fdb7a8561d7054c3cc536c961958d875563a2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Show Intel GPU IOMMU transition stages"

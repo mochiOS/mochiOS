@@ -2391,3 +2391,11 @@ path = "mboot"
 hash = "91e33369308a2878f4e0df7e26b1af1913aed737"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Translate firmware display DMA during handoff"
+
+[[entries]]
+date = "2026-08-30T19:31:18.289630788+09:00"
+snapshot = "adf3eb30ff6e1eaabae9c6a6"
+path = "mboot"
+hash = "1c92963c3ecd2d716d67669c45e17e6029bbafde"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve high firmware framebuffer mappings"

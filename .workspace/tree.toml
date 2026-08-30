@@ -2399,3 +2399,11 @@ path = "mboot"
 hash = "1c92963c3ecd2d716d67669c45e17e6029bbafde"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve high firmware framebuffer mappings"
+
+[[entries]]
+date = "2026-08-30T19:35:05.949866655+09:00"
+snapshot = "4acdb9c82d402b177a3f4cfe"
+path = "mboot"
+hash = "861b5be414e46e1059c89690d48ffff94c3c715d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Flush noncoherent Intel VT-d tables"

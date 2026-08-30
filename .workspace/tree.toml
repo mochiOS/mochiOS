@@ -2359,3 +2359,11 @@ path = "mboot"
 hash = "bd3b2aced33e86ed51469ec84d20e4ff4402ff78"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve the GOP buffer during GPU isolation"
+
+[[entries]]
+date = "2026-08-30T18:20:28.685135172+09:00"
+snapshot = "4cd57e09965ce013d38e5f52"
+path = "mboot"
+hash = "8cb394f04678229e5aefb4ca613cd24de5a25aa9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve Intel graphics stolen memory during VT-d handoff"

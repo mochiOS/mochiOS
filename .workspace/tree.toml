@@ -2351,3 +2351,11 @@ path = "mboot"
 hash = "bec9ec2644a85f41e51e5cc712321cc3ebf42b4b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Show VT-d state before translation enable"
+
+[[entries]]
+date = "2026-08-30T18:09:25.782252635+09:00"
+snapshot = "d3c3bfaf52a5aa02d3b937d6"
+path = "mboot"
+hash = "bd3b2aced33e86ed51469ec84d20e4ff4402ff78"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve the GOP buffer during GPU isolation"

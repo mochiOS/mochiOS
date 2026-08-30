@@ -2327,3 +2327,11 @@ path = "mboot"
 hash = "133d3ec2320462bd2d49d8f8716ef76a4b61ac4c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve VT-d translation during GPU handoff"
+
+[[entries]]
+date = "2026-08-30T17:07:41.427076895+09:00"
+snapshot = "487908807cd5a6745b20d11d"
+path = "mboot"
+hash = "a5e0430e190a462312017b107a020bb710488345"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Complete Intel VT-d enable sequence"

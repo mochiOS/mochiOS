@@ -2383,3 +2383,11 @@ path = "mboot"
 hash = "7c2c8e958a9a0adbe7250e5e3a738a6569b59726"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Stage Intel display DMA handoff safely"
+
+[[entries]]
+date = "2026-08-30T19:26:32.216262095+09:00"
+snapshot = "e017d837c4e52d996d065ef3"
+path = "mboot"
+hash = "91e33369308a2878f4e0df7e26b1af1913aed737"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Translate firmware display DMA during handoff"

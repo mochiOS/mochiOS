@@ -2343,3 +2343,11 @@ path = "mboot"
 hash = "2ad3931f044ea76ca3e0c724655bd15296c4481a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report Intel VT-d enable failures"
+
+[[entries]]
+date = "2026-08-30T18:04:25.061011175+09:00"
+snapshot = "623561e0312bd08b06cb4869"
+path = "mboot"
+hash = "bec9ec2644a85f41e51e5cc712321cc3ebf42b4b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Show VT-d state before translation enable"

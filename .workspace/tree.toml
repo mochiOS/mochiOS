@@ -2279,3 +2279,11 @@ path = "mboot"
 hash = "f9652c8fc6bd0c85a79fd7328ff6b10309d8f06c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Enable VMX MSR permission maps"
+
+[[entries]]
+date = "2026-08-30T13:50:59.427818073+09:00"
+snapshot = "8a157623cb53e692b253d799"
+path = "tools/devkit"
+hash = "2e1f8c55245394ca9909a7d400545cb961d177b7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh development trust fixtures"

@@ -2551,3 +2551,11 @@ path = "core"
 hash = "92ef0cbede90151292a8a24e796970f7df1c3014"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reclaim AP bootstrap stacks after switching"
+
+[[entries]]
+date = "2026-09-01T19:48:18.372474993+09:00"
+snapshot = "278e1164a31b1c63bf4494f4"
+path = "core"
+hash = "f3dfbe71dad114890cf6ba7efbc14a592d397767"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Defer kernel stack reuse until after switching"

@@ -12,8 +12,9 @@ MDRIVER_KERNEL ?= $(MBOOT_DIR)/mdriver/output/artifacts/vmlinux
 MDRIVER_INITRAMFS ?= $(MBOOT_DIR)/mdriver/output/artifacts/initramfs.cpio
 MOCHIOS_INITFS ?= $(OUT)/artifacts/initfs.img
 MOCHIOS_ROOTFS ?= $(OUT)/image-build/rootfs.img
+KERNEL_SIZE_REPORT ?= $(OUT)/metrics/kernel-size.json
 
-.PHONY: all build full build-cached hv-device-io-test hv-image hv-image-test image mboot mboot-image mboot-setup mboot-test mdriver mdriver-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg storage-probe-image tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached hv-device-io-test hv-image hv-image-test image measure-kernel-size mboot mboot-image mboot-setup mboot-test mdriver mdriver-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg storage-probe-image tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -40,6 +41,14 @@ full: olddefconfig
 
 build-cached: olddefconfig
 	@$(SCRIPTS)/build.sh --cached
+
+measure-kernel-size:
+	@test -f $(OUT)/artifacts/kernel.elf || { echo "fatal: build the kernel before measuring it" >&2; exit 1; }
+	@mkdir -p $(dir $(KERNEL_SIZE_REPORT))
+	@$(SCRIPTS)/measure-kernel-size.pl \
+		--kernel $(OUT)/artifacts/kernel.elf \
+		--output $(KERNEL_SIZE_REPORT)
+	@echo "[done] kernel size report: $(KERNEL_SIZE_REPORT)"
 
 $(MOCHIOS_INITFS):
 	@$(MAKE) build-cached

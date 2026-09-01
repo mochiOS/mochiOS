@@ -2487,3 +2487,11 @@ path = "core"
 hash = "c39b0a0f40875e58aafb9c90ee19b6c32f854b9b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Allocate IPC messages on demand"
+
+[[entries]]
+date = "2026-09-01T18:39:57.499471023+09:00"
+snapshot = "d4c9d3d06ea2fc6c3451382b"
+path = "core"
+hash = "6a08aec29ae4065794aac21527a7c90efdc28525"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reuse IPC message storage"

@@ -2455,3 +2455,11 @@ path = "binaries/coreutils"
 hash = "cde0abae7ed25b72cf53d1d55dad88b5a878961d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add the mnu performance reporter"
+
+[[entries]]
+date = "2026-09-01T18:06:17.941416177+09:00"
+snapshot = "982f0190d0c3370d86ab6ffe"
+path = "core"
+hash = "0e33f712a14469d88bf5d9511ea8ab1155e805c6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Collect latency metrics per CPU"

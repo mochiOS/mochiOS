@@ -2447,3 +2447,11 @@ path = "core"
 hash = "7e7b031370767fe1f490767ffca3dac81a738c53"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose kernel performance snapshots"
+
+[[entries]]
+date = "2026-09-01T18:02:21.611223022+09:00"
+snapshot = "7357dc5a6f3e24f620531960"
+path = "binaries/coreutils"
+hash = "cde0abae7ed25b72cf53d1d55dad88b5a878961d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add the mnu performance reporter"

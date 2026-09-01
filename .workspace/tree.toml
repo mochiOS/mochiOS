@@ -2559,3 +2559,11 @@ path = "core"
 hash = "f3dfbe71dad114890cf6ba7efbc14a592d397767"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Defer kernel stack reuse until after switching"
+
+[[entries]]
+date = "2026-09-01T20:19:59.130581336+09:00"
+snapshot = "4997839afc617c839404c2ec"
+path = "binaries/coreutils"
+hash = "624e49deababc3ef8406fd0a7c7521f4c43c8dfd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report kernel stack high-water usage"

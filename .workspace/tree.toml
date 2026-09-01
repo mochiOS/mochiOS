@@ -2535,3 +2535,11 @@ path = "core"
 hash = "c8414dc9dfc2dc7dee13dbf63f52a8b45120f36c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Allocate AP bootstrap stacks on demand"
+
+[[entries]]
+date = "2026-09-01T19:23:25.142341179+09:00"
+snapshot = "49be715eb6e5c2fe3aa726ef"
+path = "boot"
+hash = "2d9b16f6ec9e32b9e9cb1a40dfed0d45be4deb7f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve ELF symbol table offsets while loading"

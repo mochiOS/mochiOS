@@ -2479,3 +2479,11 @@ path = "core"
 hash = "fd56bd66349484315ce74d7a4fb36932af9b821b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Measure IPC costs"
+
+[[entries]]
+date = "2026-09-01T18:34:36.669473056+09:00"
+snapshot = "7ddb86c4ed7c9939cad0b741"
+path = "core"
+hash = "c39b0a0f40875e58aafb9c90ee19b6c32f854b9b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Allocate IPC messages on demand"

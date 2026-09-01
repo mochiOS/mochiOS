@@ -62,3 +62,5 @@ LOAD segment間の空白は3,978 bytes、最大alignmentは4,096 bytesでした�
 受信側にあった4,128 bytesの一時`Vec`をなくした後は、ELF全体が1,007,024 bytes、LOAD segmentのメモリ量が6,246,710 bytesになりました。[IPC受信変更後の計測結果](baselines/mnu-kernel-ipc-receive-2026-09-01.json)に、この時点のrevisionとsection内訳を保存しています。
 
 64 CPU分あった`AP_BOOT_STACKS`を、起動するAPごとのframe確保へ移した後は、ELF全体が1,007,216 bytes、LOAD segmentのメモリ量が5,722,775 bytesになりました。コードは192 bytes増えましたが、静的なLOAD領域は523,935 bytes減っています。[AP stack変更後の計測結果](baselines/mnu-kernel-ap-stacks-2026-09-01.json)で確認できます。
+
+最後に、配布用`kernel.elf`と開発用`kernel.debug`を分けました。配布用は866,728 bytes、開発用symbolは139,576 bytesです。LOAD segmentは変えていないため、起動後のメモリ量は5,722,775 bytesのままです。stripped kernelでも2 vCPUが起動し、APがonlineになってからサービス群まで進むことを確認しました。[配布用kernelの計測結果](baselines/mnu-kernel-stripped-2026-09-01.json)に内訳があります。

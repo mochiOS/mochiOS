@@ -16,6 +16,8 @@ mnuのファイルサイズが1 MiBを下回ったため、mBoot、mDriver、ア
 
 load対象のメモリ量は48,656,814 bytesから5,722,775 bytesへ減りました。kernel stack poolをthread上限に合わせ、BSP以外のTSS stackとAP bootstrap stackを実際のCPUごとに確保した結果です。[現在の計測結果](baselines/mnu-kernel-ap-stacks-2026-09-01.json)には、revisionとsectionごとの値も含めています。
 
+起動に必要な`secondary_cpu_entry`は`kernel.meta`へ分離しました。配布用`kernel.elf`からsymbolを外した現在のファイルサイズは866,728 bytesです。開発用の`kernel.debug`は別に残しているため、crash時のアドレスを関数名へ戻せます。[配布用kernelの計測結果](baselines/mnu-kernel-stripped-2026-09-01.json)にstrip後のsectionを記録しています。
+
 この段階でファイルサイズは1 MiBを下回りましたが、IPCが十分に速くなったという意味ではありません。送信側の一時bufferはなくなり、cacheが温まった後はメッセージ保存用のheap allocationも発生しません。受信側も4,128 bytesの一時`Vec`を廃止し、通常の本文とreplyはキューからユーザー領域へ直接コピーします。外部pageの通知だけは、mapping結果を書き戻すため16 bytesのstack領域を使います。[受信経路変更後の計測結果](baselines/mnu-kernel-ipc-receive-2026-09-01.json)では、ELF全体が1,007,024 bytesです。実機でp50、p95、p99を取るまでは、性能目標を達成したとは扱いません。
 
 メモリ上で現在もっとも大きい固定領域は、4,460,544 bytesの`KSTACK_POOL`です。thread上限に合わせて縮めましたが、64 thread分を起動時から持つ構造は残っています。メールボックスを`.bss`へ移すだけのように、ファイルだけ小さく見せて常駐量を残す変更は採りません。

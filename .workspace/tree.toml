@@ -2471,3 +2471,11 @@ path = "core"
 hash = "3ebe541cc452b55d9f6a33ed83b085334a312bd1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Measure VFS and kernel activity"
+
+[[entries]]
+date = "2026-09-01T18:22:05.098095322+09:00"
+snapshot = "7bba6869ecd45cd8287c1182"
+path = "core"
+hash = "fd56bd66349484315ce74d7a4fb36932af9b821b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Measure IPC costs"

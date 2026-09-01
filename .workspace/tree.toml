@@ -2575,3 +2575,11 @@ path = "core"
 hash = "9bd2df876d52f60ead0b28707a7a3fb910a14d96"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Commit kernel heap pages on demand"
+
+[[entries]]
+date = "2026-09-01T20:31:08.662049916+09:00"
+snapshot = "c42f01e2e955cfb97e308de2"
+path = "core"
+hash = "7d209ba5080ae538a6d8bbcc4a25efb5247ea128"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Compact hardened heap metadata"

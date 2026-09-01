@@ -19,12 +19,17 @@ my $using_repository_development_root =
     !defined($ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX})
     || $ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} eq '';
 my %build_options = (
-    cached => 0,
+    cached      => 0,
+    kernel_only => 0,
 );
 
 for my $arg (@ARGV) {
     if ($arg eq '--cached') {
         $build_options{cached} = 1;
+        next;
+    }
+    if ($arg eq '--kernel-only') {
+        $build_options{kernel_only} = 1;
         next;
     }
     die "fatal: unknown build option: $arg\n";
@@ -234,6 +239,55 @@ sub append_checksum {
     close $oldout;
     chdir $cwd or dief("chdir $cwd: $!");
     dief("sha256sum append failed") if $rc != 0;
+}
+
+sub refresh_existing_checksums {
+    my ($artifact_dir) = @_;
+    my $checksum_path = "$artifact_dir/SHA256SUMS";
+    open my $fh, '<', $checksum_path or dief("open $checksum_path: $!");
+    my @files;
+    while (my $line = <$fh>) {
+        chomp $line;
+        next if $line eq '';
+        $line =~ /\A[0-9a-fA-F]{64} [ *]([^\/][^\r\n]*)\z/
+            or dief("invalid checksum entry in $checksum_path");
+        my $name = $1;
+        dief("unsafe checksum path in $checksum_path: $name")
+            if $name =~ m{(?:\A|/)\.\.(?:/|\z)};
+        need_file("$artifact_dir/$name");
+        push @files, $name;
+    }
+    close $fh or dief("close $checksum_path: $!");
+    @files or dief("no checksum entries in $checksum_path");
+    write_checksums($artifact_dir, @files);
+}
+
+sub build_kernel {
+    my ($core_root, $toolchain, $target, $features) = @_;
+    run_env(
+        cargo_env(RUSTFLAGS => '--cfg curve25519_dalek_backend="serial"'),
+        'cargo',
+        "+$toolchain",
+        'build',
+        '-Z',
+        'build-std=core,alloc,compiler_builtins',
+        '--release',
+        '--target',
+        $target,
+        '--features',
+        join(',', @{$features}),
+        '--manifest-path',
+        "$core_root/Cargo.toml",
+    );
+}
+
+sub replace_fat_file {
+    my ($image, $source, $destination) = @_;
+    need_file($image =~ s/@@.*\z//r);
+    run_env(
+        { MTOOLS_SKIP_CHECK => '1' },
+        'mcopy', '-o', '-i', $image, $source, $destination,
+    );
 }
 
 sub copy_tree {
@@ -1617,6 +1671,40 @@ push @coreutils_bins, 'mperf'
 push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
 
+if ($build_options{kernel_only}) {
+    my $kernel_bin = "$core_root/target/$kernel_target/release/kernel";
+    my $esp_offset = 2048 * 512;
+    my @disk_images = ($disk_img, "$artifact_dir/disk.img");
+
+    for my $cmd (qw(cargo install mcopy repo sha256sum)) {
+        need_cmd($cmd);
+    }
+    need_dir("$root_dir/.repo");
+    need_file("$core_root/Cargo.toml");
+    need_file($esp_img);
+    need_file("$esp_dir/system/initfs.img");
+    need_file("$artifact_dir/SHA256SUMS");
+    need_file($_) for @disk_images;
+
+    print "[step] build kernel\n";
+    build_kernel($core_root, $nightly_toolchain, $kernel_target, \@kernel_features);
+    need_file($kernel_bin);
+
+    print "[step] update kernel in existing images\n";
+    install_file('0644', $kernel_bin, "$esp_dir/system/kernel.elf");
+    install_file('0644', $kernel_bin, "$artifact_dir/kernel.elf");
+    replace_fat_file($esp_img, $kernel_bin, '::/system/kernel.elf');
+    replace_fat_file("${_}\@\@$esp_offset", $kernel_bin, '::/system/kernel.elf')
+        for @disk_images;
+
+    print "[step] refresh artifact metadata\n";
+    run_in_dir($root_dir, 'repo', 'manifest', '-r', '-o', "$artifact_dir/manifest.xml");
+    write_build_info("$artifact_dir/build-info.txt", $root_dir);
+    refresh_existing_checksums($artifact_dir);
+    print "[done] updated kernel without rebuilding userland: $artifact_dir/kernel.elf\n";
+    exit 0;
+}
+
 if ($using_repository_development_root) {
     for my $key (qw(root.key issuer.key developer.key)) {
         need_file("$development_fixture_root/$key");
@@ -1755,21 +1843,7 @@ print "[step] build cext bundles\n";
 build_cexts($root_dir, $nightly_toolchain);
 
 print "[step] build kernel\n";
-run_env(
-    cargo_env(RUSTFLAGS => '--cfg curve25519_dalek_backend="serial"'),
-    'cargo',
-    "+$nightly_toolchain",
-    'build',
-    '-Z',
-    'build-std=core,alloc,compiler_builtins',
-    '--release',
-    '--target',
-    $kernel_target,
-    '--features',
-    join(',', @kernel_features),
-    '--manifest-path',
-    "$core_root/Cargo.toml",
-);
+build_kernel($core_root, $nightly_toolchain, $kernel_target, \@kernel_features);
 
 print "[step] build driver bundles\n";
 build_driver_bundles($root_dir, \%config, $nightly_toolchain);

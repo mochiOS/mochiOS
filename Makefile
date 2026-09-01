@@ -14,7 +14,7 @@ MOCHIOS_INITFS ?= $(OUT)/artifacts/initfs.img
 MOCHIOS_ROOTFS ?= $(OUT)/image-build/rootfs.img
 KERNEL_SIZE_REPORT ?= $(OUT)/metrics/kernel-size.json
 
-.PHONY: all build full build-cached hv-device-io-test hv-image hv-image-test image measure-kernel-size mboot mboot-image mboot-setup mboot-test mdriver mdriver-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg storage-probe-image tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
+.PHONY: all build full build-cached update-kernel hv-device-io-test hv-image hv-image-test image measure-kernel-size mboot mboot-image mboot-setup mboot-test mdriver mdriver-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg storage-probe-image tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
 
 all: build
 
@@ -41,6 +41,9 @@ full: olddefconfig
 
 build-cached: olddefconfig
 	@$(SCRIPTS)/build.sh --cached
+
+update-kernel: olddefconfig
+	@$(SCRIPTS)/build.sh --kernel-only
 
 measure-kernel-size:
 	@test -f $(OUT)/artifacts/kernel.elf || { echo "fatal: build the kernel before measuring it" >&2; exit 1; }

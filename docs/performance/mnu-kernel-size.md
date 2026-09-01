@@ -10,6 +10,14 @@ make measure-kernel-size
 
 結果は`out/metrics/kernel-size.json`へ出力されます。ビルドは行わないため、既存の`out/artifacts/kernel.elf`を測ります。
 
+カーネルの変更だけを既存イメージへ反映するときは、次を使います。
+
+```shell
+make update-kernel
+```
+
+この処理はユーザーランド、initfs、rootfsを作り直しません。カーネルをreleaseビルドし、ESP単体と二つのディスクイメージ内にある`/system/kernel.elf`を置き換えます。既存イメージがない場合は、不完全なイメージを新しく作らずに終了します。
+
 ## 配置
 
 | 項目 | bytes | 配置 |

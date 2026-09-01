@@ -1571,6 +1571,9 @@ my %config = read_config($config_file);
 
 my $kernel_target = 'x86_64-unknown-none';
 my $nightly_toolchain = $config{KERNEL_RUST_TOOLCHAIN};
+my @kernel_features = ('kernel-bin');
+push @kernel_features, 'performance-instrumentation'
+    if config_enabled($config{KERNEL_PERFORMANCE_INSTRUMENTATION});
 my $rust_std_toolchain = read_toolchain_pin("$root_dir/build/rust-std-toolchain");
 my $build_root = "$root_dir/out/image-build";
 my $artifact_dir = "$root_dir/out/artifacts";
@@ -1751,7 +1754,7 @@ run_env(
     '--target',
     $kernel_target,
     '--features',
-    'kernel-bin',
+    join(',', @kernel_features),
     '--manifest-path',
     "$core_root/Cargo.toml",
 );

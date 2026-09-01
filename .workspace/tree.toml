@@ -2503,3 +2503,11 @@ path = "core"
 hash = "755d4f1f70ba9dc8296a0a99e74fb196fa62a411"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Send IPC messages without a staging buffer"
+
+[[entries]]
+date = "2026-09-01T18:48:08.984491304+09:00"
+snapshot = "f95c93c5d89444b17b5c56dc"
+path = "core"
+hash = "1f8e43050c0d9ff593b5d8dcb2568eb17d412781"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Right-size the kernel stack pool"

@@ -1,14 +1,14 @@
 version = 1
 id = "ed607ad76e2a973746998a03"
-created = "2026-09-01T17:07:16.040731597+09:00"
+created = "2026-09-01T17:07:16.296108145+09:00"
 
 [trigger]
-name = "mochiOS/mBoot"
-path = "mboot"
-repository = "/home/jnix/mochiOS/mboot"
-head = "1d36228a0be88af36ef87d388364c1f0c5d47f2c"
+name = "mochiOS/services"
+path = "services"
+repository = "/home/jnix/mochiOS/services"
+head = "474763db62826d8461df15f61dfe5b2c387b1886"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
-message = "Stabilize isolated hardware handoff and display fallback"
+message = "Keep the desktop responsive on mediated display"
 
 [[projects]]
 name = "mochiOS/mBoot"

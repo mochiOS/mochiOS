@@ -2583,3 +2583,11 @@ path = "core"
 hash = "7d209ba5080ae538a6d8bbcc4a25efb5247ea128"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Compact hardened heap metadata"
+
+[[entries]]
+date = "2026-09-01T20:52:48.571285677+09:00"
+snapshot = "0c65b6513d597e39cfd53cd6"
+path = "binaries/coreutils"
+hash = "a729fe55298948851cdd7138e7b81bcf8ba883ac"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report kernel heap allocation patterns"

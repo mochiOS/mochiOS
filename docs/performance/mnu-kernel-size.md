@@ -43,6 +43,6 @@ LOAD segment間の空白は3,978 bytes、最大alignmentは4,096 bytesでした�
 
 空きスロット情報だけを起動時に作り、`MAILBOXES`を`.bss`へ移す案は採りませんでした。それでは17.7 MBの常駐領域が残るためです。
 
-代わりに、メールボックスから本文を分離し、キューへ積まれたときだけ確保するようにしました。変更後はELF全体が1,012,312 bytes、`MAILBOXES`が44,040 bytesです。詳しい値は[変更後の計測結果](baselines/mnu-kernel-dynamic-ipc-2026-09-01.json)にあります。
+代わりに、メールボックスから本文を分離し、キューへ積まれたときだけ確保するようにしました。この時点ではELF全体が1,012,312 bytes、`MAILBOXES`が44,040 bytesです。詳しい値は[IPC動的化後の計測結果](baselines/mnu-kernel-dynamic-ipc-2026-09-01.json)にあります。
 
-次は、この動的領域を上限付きのメッセージプールへ移します。ウォームアップ後は領域を再利用し、小さいIPCごとのheap allocationをなくします。
+さらに、解放した本文を64件まで再利用し、送信側の一時bufferをなくしました。kernel stack poolとCPU用TSS stackも実際の上限に合わせています。現在はELF全体が1,008,296 bytes、LOAD segmentのメモリ量が6,246,845 bytesです。[IPCとstack整理後の計測結果](baselines/mnu-kernel-ipc-stacks-2026-09-01.json)で内訳を確認できます。

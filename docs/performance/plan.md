@@ -10,9 +10,11 @@ ViewKit、Binder、compositorなどのUI実装は、今回のmnu最適化には�
 
 2026年9月1日の最初のreleaseビルドは18,710,928 bytesでした。このうち17,738,760 bytesを固定メールボックスが占めていました。`.text`は539,574 bytesだったため、最初に直すべきなのは命令数ではなく、未使用時にも実体を持つ固定領域でした。詳しい内訳は[mnuカーネルのサイズ](mnu-kernel-size.md)に保存しています。
 
-メッセージ本文を必要になったときだけ確保するように変えた後は、stripしていないrelease ELFが1,012,312 bytesになりました。17,698,616 bytes、率にして94.6%の削減です。固定メールボックス領域は44,040 bytesまで減り、load時のメモリ量も48,656,814 bytesから30,957,861 bytesへ減りました。[変更後の計測結果](baselines/mnu-kernel-dynamic-ipc-2026-09-01.json)には、revisionとsectionごとの値も含めています。
+メッセージ本文を必要になったときだけ確保するように変えた後は、stripしていないrelease ELFが1,012,312 bytesになりました。その後、IPC領域の再利用とstackの整理まで進めた時点では1,008,296 bytesです。最初の値から17,702,632 bytes、率にして94.6%減りました。固定メールボックス領域は44,040 bytesまで減っています。
 
-この段階でファイルサイズは1 MiBを下回りましたが、IPCが十分に速くなったという意味ではありません。現在はキューへ積むメッセージごとにheap allocationが1回発生します。次は上限付きのメッセージプールで領域を再利用し、ウォームアップ後の小さいIPCからallocationを外します。
+load対象のメモリ量は48,656,814 bytesから6,246,845 bytesへ減りました。kernel stack poolをthread上限に合わせ、BSP以外のTSS stackをonline CPUごとに確保した結果です。[現在の計測結果](baselines/mnu-kernel-ipc-stacks-2026-09-01.json)には、revisionとsectionごとの値も含めています。
+
+この段階でファイルサイズは1 MiBを下回りましたが、IPCが十分に速くなったという意味ではありません。送信側の一時bufferはなくなり、cacheが温まった後はメッセージ保存用のheap allocationも発生しません。一方、受信側には一時bufferが残っています。実機でp50、p95、p99を取るまでは、性能目標を達成したとは扱いません。
 
 メモリ上では、固定カーネルスタックがさらに大きな割合を占めます。`KSTACK_POOL`は16,781,312 bytes、ring 0 stackは8,388,608 bytes、IST stackは4,194,304 bytesあります。メールボックスだけを`.bss`へ移しても、ファイルが小さく見えるだけで常駐量は減りません。
 
@@ -38,11 +40,13 @@ QEMUは正しさと回帰の確認に使います。性能値は仮想化方式�
 
 各メールボックスが最大メッセージ本文を抱える構造は解消しました。現在は実際にキューへ積まれた本文だけを確保し、枯渇時には送信失敗を返します。解放前のzeroingと、壊れたキューを隔離する処理も残しています。
 
-次に、本文をシステム全体で上限を持つ動的プールへ移し、ウォームアップ後は小さいメッセージのために毎回heap allocationしない形へ進めます。IPCのCapability検査は維持し、共有ページを使う大きなIPCとは分けます。
+本文には64件まで保持するシステム共通cacheを設けました。cacheを越えた空き領域はheapへ返すため、使った最大量をそのまま保持し続けません。送信時はユーザー領域からキュー所有の本文へ直接コピーします。IPCのCapability検査は維持し、共有ページを使う大きなIPCとは分けています。
 
 ### カーネルスタックを必要な分だけ確保する
 
-全thread分のstackを起動時から予約せず、thread作成時に確保し、終了時に回収します。guard pageは残します。割り込み用stackもCPU数に応じて確保し、存在しないCPUの分を持ちません。
+kernel stack poolは、thread上限64に必要な64 slotへ縮めました。使用中のslotはbitmapで管理するため、作成と終了を繰り返してもfree listの上限によってslotを失いません。
+
+BSPのISTとRing 0 stackはheap初期化前に必要なので静的に残します。AP用はCPUがonlineになるときにframe allocatorから確保し、zeroingしてからTSSへ設定します。存在しないCPUのstackは持ちません。次に手を入れる場合は、processごとに複製されているpage tableとの関係を先に整理し、guard pageを保ったままkernel stackの物理pageも必要時だけ割り当てます。
 
 ### allocatorとpage管理を整理する
 

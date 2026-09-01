@@ -2423,3 +2423,11 @@ path = "core"
 hash = "32443af4fd7ebd7fc85da1edde4ad5b6afbc4983"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add bounded kernel performance metrics"
+
+[[entries]]
+date = "2026-09-01T17:44:43.623390831+09:00"
+snapshot = "2b0e75788b0eda2ba3acd4ef"
+path = "build"
+hash = "faf13aaa596e676668a5485f29ee3ec9d5223a9e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Configure optional kernel performance metrics"

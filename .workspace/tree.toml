@@ -2439,3 +2439,11 @@ path = "core"
 hash = "bef54fe4cb45d0555c8632142b952cbd043b8651"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Measure kernel memory allocation"
+
+[[entries]]
+date = "2026-09-01T17:53:09.880432068+09:00"
+snapshot = "cedbcdc00ddedd3a0b541412"
+path = "core"
+hash = "7e7b031370767fe1f490767ffca3dac81a738c53"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose kernel performance snapshots"

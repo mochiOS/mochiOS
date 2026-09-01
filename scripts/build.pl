@@ -306,6 +306,13 @@ sub write_kernel_meta {
     close $fh or dief("close $output: $!");
 }
 
+sub prepare_kernel_artifacts {
+    my ($unstripped, $release, $debug) = @_;
+    run('objcopy', '--only-keep-debug', $unstripped, $debug);
+    run('objcopy', '--strip-all', $unstripped, $release);
+    run('objcopy', "--add-gnu-debuglink=$debug", $release);
+}
+
 sub replace_fat_file {
     my ($image, $source, $destination) = @_;
     need_file($image =~ s/@@.*\z//r);
@@ -1671,6 +1678,8 @@ my $esp_dir = "$build_root/esp";
 my $esp_img = "$build_root/esp.img";
 my $disk_img = "$build_root/disk.img";
 my $kernel_meta = "$build_root/kernel.meta";
+my $kernel_release = "$build_root/kernel.elf";
+my $kernel_debug = "$build_root/kernel.debug";
 my $initfs_stage = "$build_root/initfs-root";
 my $initfs_img = "$build_root/initfs.img";
 my $rootfs_stage = "$build_root/rootfs-root";
@@ -1702,7 +1711,7 @@ if ($build_options{kernel_only}) {
     my $esp_offset = 2048 * 512;
     my @disk_images = ($disk_img, "$artifact_dir/disk.img");
 
-    for my $cmd (qw(cargo install mcopy nm repo sha256sum)) {
+    for my $cmd (qw(cargo install mcopy nm objcopy repo sha256sum)) {
         need_cmd($cmd);
     }
     need_dir("$root_dir/.repo");
@@ -1716,15 +1725,17 @@ if ($build_options{kernel_only}) {
     build_kernel($core_root, $nightly_toolchain, $kernel_target, \@kernel_features);
     need_file($kernel_bin);
     write_kernel_meta($kernel_bin, $kernel_meta);
+    prepare_kernel_artifacts($kernel_bin, $kernel_release, $kernel_debug);
 
     print "[step] update kernel in existing images\n";
-    install_file('0644', $kernel_bin, "$esp_dir/system/kernel.elf");
+    install_file('0644', $kernel_release, "$esp_dir/system/kernel.elf");
     install_file('0644', $kernel_meta, "$esp_dir/system/kernel.meta");
-    install_file('0644', $kernel_bin, "$artifact_dir/kernel.elf");
+    install_file('0644', $kernel_release, "$artifact_dir/kernel.elf");
+    install_file('0644', $kernel_debug, "$artifact_dir/kernel.debug");
     install_file('0644', $kernel_meta, "$artifact_dir/kernel.meta");
-    replace_fat_file($esp_img, $kernel_bin, '::/system/kernel.elf');
+    replace_fat_file($esp_img, $kernel_release, '::/system/kernel.elf');
     replace_fat_file($esp_img, $kernel_meta, '::/system/kernel.meta');
-    replace_fat_file("${_}\@\@$esp_offset", $kernel_bin, '::/system/kernel.elf')
+    replace_fat_file("${_}\@\@$esp_offset", $kernel_release, '::/system/kernel.elf')
         for @disk_images;
     replace_fat_file("${_}\@\@$esp_offset", $kernel_meta, '::/system/kernel.meta')
         for @disk_images;
@@ -1732,7 +1743,7 @@ if ($build_options{kernel_only}) {
     print "[step] refresh artifact metadata\n";
     run_in_dir($root_dir, 'repo', 'manifest', '-r', '-o', "$artifact_dir/manifest.xml");
     write_build_info("$artifact_dir/build-info.txt", $root_dir);
-    refresh_existing_checksums($artifact_dir, 'kernel.meta');
+    refresh_existing_checksums($artifact_dir, 'kernel.debug', 'kernel.meta');
     print "[done] updated kernel without rebuilding userland: $artifact_dir/kernel.elf\n";
     exit 0;
 }
@@ -1799,7 +1810,7 @@ if (cached_artifacts_current($root_dir, $build_input_stamp, "$artifact_dir/disk.
     exit 0;
 }
 
-for my $cmd (qw(cargo chown cp fakeroot install mcopy mke2fs mkfs.fat mmd nm perl sh stat tar repo sha256sum sfdisk truncate dd find sort)) {
+for my $cmd (qw(cargo chown cp fakeroot install mcopy mke2fs mkfs.fat mmd nm objcopy perl sh stat tar repo sha256sum sfdisk truncate dd find sort)) {
     need_cmd($cmd);
 }
 
@@ -1912,6 +1923,11 @@ build_cexts($root_dir, $nightly_toolchain);
 print "[step] build kernel\n";
 build_kernel($core_root, $nightly_toolchain, $kernel_target, \@kernel_features);
 write_kernel_meta("$core_root/target/$kernel_target/release/kernel", $kernel_meta);
+prepare_kernel_artifacts(
+    "$core_root/target/$kernel_target/release/kernel",
+    $kernel_release,
+    $kernel_debug,
+);
 
 print "[step] build driver bundles\n";
 build_driver_bundles($root_dir, \%config, $nightly_toolchain);
@@ -1926,7 +1942,7 @@ my %path = (
     viewkit_test_bin            => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/test_app",
     viewkit_test_about          => "$root_dir/applications/test.app/about.toml",
     viewkit_test_manifest       => "$root_dir/applications/test.app/manifest.toml",
-    kernel_bin                  => "$core_root/target/$kernel_target/release/kernel",
+    kernel_bin                  => $kernel_release,
     service_bin                 => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/core",
     drivers_service_bin         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/drivers",
     compositor_service_bin      => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/compositor",
@@ -2211,6 +2227,7 @@ print "[step] collect artifacts\n";
 install_file('0644', $disk_img, "$artifact_dir/disk.img");
 install_file('0644', $initfs_img, "$artifact_dir/initfs.img");
 install_file('0644', $path{kernel_bin}, "$artifact_dir/kernel.elf");
+install_file('0644', $kernel_debug, "$artifact_dir/kernel.debug");
 install_file('0644', $kernel_meta, "$artifact_dir/kernel.meta");
 install_file('0644', $boot_bin, "$artifact_dir/BOOTX64.EFI");
 install_file('0755', $path{service_bin}, "$artifact_dir/core.service");
@@ -2256,6 +2273,7 @@ my @checksum_files = qw(
     disk.img
     initfs.img
     kernel.elf
+    kernel.debug
     kernel.meta
     BOOTX64.EFI
     core.service

@@ -82,3 +82,7 @@ allocation headerを64 bytesから48 bytesへ縮めた後の配布用kernelは87
 allocatorの判断に必要な内訳は`performance-instrumentation`でだけ収集します。要求サイズ別、CPU別、schedulerやIPCなどの処理元別のallocation数に加え、commit済みheap量と内部断片化の現在値・peakを取得できます。通常buildは875,424 bytesのままで、計測buildは896,272 bytesでした。[allocator計測の確認結果](baselines/mnu-kernel-allocator-observability-2026-09-01.json)にABIと起動確認の範囲を残しています。
 
 計測buildはQEMU TCGの2 vCPUでAP onlineとsystem service起動まで進みました。現在は`display.driver`が終了する既知の問題によりシェルへ到達しないため、実機負荷の`mperf`結果はまだ採れていません。コンパイルとABIだけを根拠にper-CPU cacheやsize class allocatorへ置き換えることはしません。
+
+物理frame allocatorは、実装と合っていなかった`BitmapFrameAllocator`という名前を改めました。未使用領域のcursorと、解放済みframeを再利用するfree listで動きます。新規確保のたびにメモリマップ先頭へ戻る処理もやめ、最後に使ったregionから調べます。
+
+通常buildは引き続き875,424 bytesです。LOAD segmentはファイル上866,006 bytes、メモリ上1,274,894 bytesでした。計測buildは896,256 bytesで、物理frameの要求、再利用、新規確保、region走査、連続確保、失敗理由、heap拡張時のzeroing量とcycleを`mperf`から取得できます。[物理frame計測の確認結果](baselines/mnu-kernel-frame-observability-2026-09-01.json)にrevisionとABI境界を保存しています。

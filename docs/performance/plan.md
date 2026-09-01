@@ -72,7 +72,11 @@ allocationごとの検査headerは64 bytesから48 bytesへ縮めました。raw
 
 計測buildでは、allocation数を要求サイズ、CPU、処理元ごとに分けて記録します。処理元はscheduler、IPC、VFS、page fault、network、block I/O、process生成、thread生成、その他のsyscallです。header、tail canary、alignmentで増えたbytesも、使用中とpeakを別に数えます。分類状態はCPUではなくthread slotに置くため、待機中に別threadへ切り替わっても分類が混ざりません。
 
-この拡張はperformance ABI v2の末尾へ追加しました。v1の先頭1,200 bytesは動かしておらず、古い`mperf`からの要求にも同じ範囲を返します。通常buildの配布用kernelは875,424 bytesで、計測追加前から増えていません。計測buildは896,272 bytesです。
+heapの内訳はperformance ABI v2の末尾へ追加しました。続くv3には、物理frameの要求数、free listからの再利用、新規領域からの確保、メモリマップを調べた回数、連続確保、失敗理由、zeroingした量と所要cycleを入れています。v1の先頭1,200 bytesとv2の先頭1,896 bytesは動かしていません。
+
+物理frameの新規確保は、以前は要求のたびにメモリマップの先頭から調べていました。現在は最後に使ったregionを覚え、そこから再開します。通常buildの配布用kernelは875,424 bytesのままです。v3の計測buildは896,256 bytesで、v2の計測buildより16 bytes小さくなりました。[物理frame計測の確認結果](baselines/mnu-kernel-frame-observability-2026-09-01.json)に、ABIとビルドの確認範囲を残しています。
+
+BootloaderReclaimableはまだ通常RAMへ加えていません。UEFI loaderの`BootInfo`、メモリマップ、initfsが同じ種類の領域に置かれるため、一括回収すると起動中のデータを再割り当てしかねません。loaderが所有範囲を渡し、mnuが必要な内容を退避してから回収します。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。
 

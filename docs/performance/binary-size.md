@@ -8,7 +8,7 @@
 
 | 対象 | ファイル | 読み込む量 | 補足 |
 |---|---:|---:|---|
-| mnu kernel | 866,728 bytes | 5,722,775 bytes | 配布用ELFです。symbolは別に保存します |
+| mnu kernel | 875,424 bytes | 1,274,894 bytes | 配布用ELFです。symbolは別に保存します |
 | mBoot UEFI | 208,384 bytes | 208,384 bytes以下 | `.text`は182,394 bytesです |
 | mDriver Linux | 52,058,088 bytes | 40,955,752 bytes | 非LOAD部分が11,102,336 bytesあります |
 | mDriver initramfs | 924,160 bytes | 924,160 bytes | 未圧縮cpioです |
@@ -33,10 +33,12 @@ mochiOSのViewKit利用バイナリも調査しましたが、今回の変更対
 
 ## mnu
 
-カーネルのファイルサイズは目標の約1 MiBに入りました。最初の18,710,928 bytesから866,728 bytesまで減っています。次は常駐量を詰めます。
+カーネルのファイルサイズは目標の約1 MiBに入りました。最初の18,710,928 bytesから875,424 bytesまで減っています。現在は常駐量と待ち時間を詰めています。
 
-- `KSTACK_POOL`は4,460,544 bytesあります。thread上限64に合わせてありますが、未使用threadのstackまで起動時から持っています。page tableとguard pageの扱いを直してから、thread作成時の確保へ移します。
-- AP bootstrap stackは、固定64本から起動するAPごとの確保へ変更しました。静的なLOAD領域は523,935 bytes減り、AP一つにつき8 KiBのframeを確保します。
+- 4,460,544 bytesあった`KSTACK_POOL`は削除しました。threadが生きている間だけ物理pageを持ち、guard pageを挟んで配置します。
+- AP bootstrap stackは、固定64本から起動するAPごとの確保へ変更しました。APが通常stackへ移ったことを確認してから回収します。
+- kernel heapは32 MiBを一括mapせず、256 KiBから必要な分だけ増やします。allocation headerも64 bytesから48 bytesへ縮めました。
+- 物理frame allocatorは、メモリマップの走査位置を保持します。要求ごとの先頭からの再走査はなくしました。
 - process table、thread queue、audit buffer、firmware表示bufferは、それぞれ4万から13万bytesほどあります。上限を下げる前に実際のpeakを計測し、空のslotが持つデータを分離します。
 - 配布用kernelからsymbol tableを外し、139,576 bytesの`kernel.debug`へ分けました。bootloaderは`kernel.meta`からAPのentryを取得します。
 - `.text`は530,950 bytesです。ここから先は関数を闇雲に短くしません。VFS、exec、page管理、schedulerの順に時間とallocationを測り、遅い経路から直します。
@@ -66,7 +68,7 @@ ViewKit、フォント、text layout、画像codec、BinderやSettingsを含む�
 1. 現在の成果物、LOAD領域、常駐領域、待ち時間を保存します。
 2. 小さいIPCの固定領域と一時allocationをなくします。
 3. kernel stackとAP bootstrap stackを必要なときだけ確保し、安全に回収します。
-4. 物理page allocatorとheapの使用量、断片化、lock待ちを測ります。
+4. 物理page allocatorとheapの使用量、断片化、走査、zeroing、lock待ちを測ります。現在はここです。
 5. schedulerとtimerのcontext switch、run queue、wake-up latencyを測ります。
 6. VFS、mmap、process、exec、forkのコピーとallocationを減らします。
 7. 大きなIPCをGrantと共有ringへ移します。

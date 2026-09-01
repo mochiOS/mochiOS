@@ -15,7 +15,7 @@
 
 mBoot UEFIはすでに小さく、真っ先に削る対象ではありません。mDriver Linuxは大きいものの、GPUやNVMe、USB、Wi-Fiのドライバを組み込んだ単一の`vmlinux`です。ファイル末尾のsymbolを消すだけでは、約41 MBあるLOAD segmentは減りません。
 
-mochiOSのViewKit利用バイナリは次の大きさです。
+mochiOSのViewKit利用バイナリも調査しましたが、今回の変更対象には含めません。次の値は別作業の優先順位を決めるための観測値です。
 
 | バイナリ | bytes |
 |---|---:|
@@ -29,7 +29,7 @@ mochiOSのViewKit利用バイナリは次の大きさです。
 
 合計は67,561,488 bytesです。各バイナリにはInter Variable 879,708 bytesとUDEV Gothic 3,874,340 bytesが埋め込まれています。同じ4,754,048 bytesを7本へ入れているため、フォントだけで33,278,336 bytesの重複です。その一方で、同じフォントはrootfsの`/libraries/fonts`にも置かれています。ここは明らかに無駄です。
 
-`Binder`を例にすると、LOAD対象の`.text`は3,906,211 bytes、`.rodata`は5,520,384 bytesでした。symbolをすべて取り除いた試算でも10,556,968 bytesから9,442,544 bytesにしかなりません。先にフォントを外へ出したほうが効きます。
+`Binder`を例にすると、LOAD対象の`.text`は3,906,211 bytes、`.rodata`は5,520,384 bytesでした。symbolをすべて取り除いた試算では10,556,968 bytesから9,442,544 bytesになりました。ここでは測定結果だけを残し、ViewKit、フォント、画像codec、アプリのリンク方法は変更しません。
 
 ## mnu
 
@@ -45,15 +45,7 @@ mochiOSのViewKit利用バイナリは次の大きさです。
 
 ## アプリとサービス
 
-最初に、ViewKitがフォントを`include_bytes!`で各実行ファイルへ埋め込む処理をやめます。mochiOSではrootfsの`/libraries/fonts`から読み、LinuxとWindowsでは各OSのfont databaseを使います。起動のたびに同じフォントを別々のheapへ複製する処理も対象です。見た目や文字の選択は変えません。
-
-次にrelease成果物からsymbolを外します。手元で`strip --strip-all`した場合、Binderは1,114,424 bytes、Settingsは1,024,816 bytes、secure-uiは1,016,504 bytes小さくなりました。開発用symbolは別ファイルとして保存し、panicやcrash reportのsymbolizeに使います。配布物から消したからといって、調査できない状態にはしません。
-
-ViewKitは`image` crateのPNG、JPEG、WebP decoderを全アプリへ有効にしています。画像を開かないアプリにもdecoderが入るため、codecをfeatureへ分けます。SettingsのPNG iconのように必要な形式だけを、アプリ側で選べる形にします。SVG、text shaping、rasterizerも同じ方法で依存元を確認します。
-
-release profileは各repositoryで`panic = "abort"`しか指定していません。`strip = "symbols"`は採用できます。ThinLTOと`codegen-units = 1`は、代表バイナリ一つでファイルサイズ、起動時間、操作のp95、ビルド時間を測ってから広げます。`opt-level = "z"`を全体へ指定する案は採りません。操作速度を落として数字だけ小さくなる可能性があるためです。
-
-長期的には、ViewKitとtext rasterizerの同じ機械語も各アプリへ静的にリンクされています。共有libraryを読み取り専用でmapするか、描画処理をcompositor側へ寄せなければ、ディスクとRAMの重複は残ります。これはABI、更新、障害分離に関わるため、フォントとcodecを片付けた後に進めます。
+ViewKit、フォント、text layout、画像codec、BinderやSettingsを含むアプリの最適化は、この一連のmnu作業から分離します。上の重複は解消候補ですが、UIの表示、移植性、ABIを同時に変えるため、カーネルの測定へ混ぜません。アプリ側を始める場合は別のbaselineと作業計画を用意します。
 
 ## mDriver
 
@@ -71,10 +63,17 @@ release profileは各repositoryで`panic = "abort"`しか指定していませ�
 
 ## 作業順
 
-1. ViewKitの埋め込みフォントをrootfs上の共有ファイルへ置き換えます。
-2. 画像codecをfeatureに分け、各アプリが必要なものだけを選びます。
-3. サービスとアプリのrelease profileをそろえ、代表バイナリでThinLTOを比較します。
-4. mDriverの実機driverをmoduleへ分離し、検出したhardwareだけを読み込みます。
-5. scheduler、VFS、exec、allocatorのp50、p95、p99を実機で取り、時間の大きい順に直します。
+1. 現在の成果物、LOAD領域、常駐領域、待ち時間を保存します。
+2. 小さいIPCの固定領域と一時allocationをなくします。
+3. kernel stackとAP bootstrap stackを必要なときだけ確保し、安全に回収します。
+4. 物理page allocatorとheapの使用量、断片化、lock待ちを測ります。
+5. schedulerとtimerのcontext switch、run queue、wake-up latencyを測ります。
+6. VFS、mmap、process、exec、forkのコピーとallocationを減らします。
+7. 大きなIPCをGrantと共有ringへ移します。
+8. 起動経路を測り、依存しない初期化と遅延可能な処理を分けます。
+9. blockとnetworkは測定で支配的だった場合だけ変更します。
+10. 最後にlinkとbuild設定を比較します。
+
+mDriverとアプリの観測値は残しますが、この順序へ割り込ませません。
 
 一回の変更で複数の要因を混ぜません。前後のバイナリ、LOAD量、起動ログ、実機の待ち時間を残し、改善しなかった変更は戻します。

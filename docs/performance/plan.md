@@ -54,7 +54,7 @@ kernel stack poolは、thread上限64に必要な64 slotへ縮めました。使
 
 BSPのISTとRing 0 stackはheap初期化前に必要なので静的に残します。AP用はCPUがonlineになるときにframe allocatorから確保し、zeroingしてからTSSへ設定します。存在しないCPUのstackは持ちません。次に手を入れる場合は、processごとに複製されているpage tableとの関係を先に整理し、guard pageを保ったままkernel stackの物理pageも必要時だけ割り当てます。
 
-APがlong modeへ移るまで使う8 KiBのbootstrap stackも、固定64本からAPごとの確保へ変えました。4 vCPUの起動試験では3本を確保し、すべてのAPがonlineになっています。APが遅れて起動する場合を考え、確保したframeは起動後も回収しません。
+APがlong modeへ移るまで使う8 KiBのbootstrap stackも、固定64本からAPごとの確保へ変えました。さらに、APが通常のidle stack上で動き始めたことをCPU別のtokenで通知し、BSPが一致を確認した場合だけframeを解放します。4 vCPUの起動試験では3本、合計24 KiBをすべて回収してからサービス起動まで進みました。通知が来ない場合はuse-after-freeを避けるため保持します。[AP stack回収後の計測結果](baselines/mnu-kernel-ap-stack-reclaim-2026-09-01.json)に確認条件を残しています。
 
 ### allocatorとpage管理を整理する
 

@@ -2463,3 +2463,11 @@ path = "core"
 hash = "0e33f712a14469d88bf5d9511ea8ab1155e805c6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Collect latency metrics per CPU"
+
+[[entries]]
+date = "2026-09-01T18:09:19.594939909+09:00"
+snapshot = "96b8e9c4ab01dd99486572a4"
+path = "core"
+hash = "3ebe541cc452b55d9f6a33ed83b085334a312bd1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Measure VFS and kernel activity"

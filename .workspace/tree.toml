@@ -2519,3 +2519,11 @@ path = "core"
 hash = "dd7e73f56099223c26bdce45db5b90a7f868f2cc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Allocate TSS stacks per online CPU"
+
+[[entries]]
+date = "2026-09-01T19:08:53.360313353+09:00"
+snapshot = "2f92241cae3626ecfbc6aa53"
+path = "core"
+hash = "45f50d36feeaf47431e3f72ffbb5e82cd4feb6ba"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Receive inline IPC without staging allocations"

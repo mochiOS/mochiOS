@@ -2415,3 +2415,11 @@ path = "user"
 hash = "e3e8d7264c28b28da8b5e608a15164d544844e26"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Map monotonic clocks correctly"
+
+[[entries]]
+date = "2026-09-01T17:43:51.891314786+09:00"
+snapshot = "f273e421d70a39f24997283f"
+path = "core"
+hash = "32443af4fd7ebd7fc85da1edde4ad5b6afbc4983"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add bounded kernel performance metrics"

@@ -2431,3 +2431,11 @@ path = "build"
 hash = "faf13aaa596e676668a5485f29ee3ec9d5223a9e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Configure optional kernel performance metrics"
+
+[[entries]]
+date = "2026-09-01T17:48:17.954751007+09:00"
+snapshot = "7b8d12d440fad5a31b655e2f"
+path = "core"
+hash = "bef54fe4cb45d0555c8632142b952cbd043b8651"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Measure kernel memory allocation"

@@ -2495,3 +2495,11 @@ path = "core"
 hash = "6a08aec29ae4065794aac21527a7c90efdc28525"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reuse IPC message storage"
+
+[[entries]]
+date = "2026-09-01T18:43:01.971509192+09:00"
+snapshot = "99656fd0f9412979dce70f0f"
+path = "core"
+hash = "755d4f1f70ba9dc8296a0a99e74fb196fa62a411"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Send IPC messages without a staging buffer"

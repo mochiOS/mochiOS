@@ -68,6 +68,8 @@ boot時だけ必要なallocatorを通常運用へ持ち越さず、使い終え�
 
 現在のkernel heapは仮想上限32MiBのまま、256KiBずつ物理pageを追加します。追加処理は一つのlockで直列化し、page table、frame allocatorの順でlockを取ります。部分的な確保に失敗した場合も、mapできた範囲だけをheapへ渡してから再試行します。
 
+allocationごとの検査headerは64 bytesから48 bytesへ縮めました。raw pointerと二つの`usize`をそのまま保存せず、allocation先頭からのoffsetと32-bitのsizeへ置き換えています。magic、cookie、checksum、tail canary、解放時zeroing、layout不一致の拒否は残しています。
+
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。
 
 ### schedulerとtimerの無駄な仕事を減らす

@@ -1,0 +1,318 @@
+{
+   "artifact" : "out/artifacts/kernel.elf",
+   "build" : {
+      "features" : [
+         "kernel-bin"
+      ],
+      "linker" : "GNU ld (GNU Binutils for Ubuntu) 2.46",
+      "profile" : "release",
+      "rust_toolchain" : "nightly-2026-05-14",
+      "rustc" : "rustc 1.97.0-nightly (ff9a9ea07 2026-05-13)"
+   },
+   "generated_at_utc" : "2026-09-01T10:09:05Z",
+   "host" : {
+      "cpu" : "AMD Ryzen 7 9700X 8-Core Processor",
+      "cpu_count" : 16,
+      "environment" : "build-host",
+      "memory_bytes" : 16309178368
+   },
+   "measurement" : {
+      "cache_state" : "not-applicable",
+      "file_size_bytes" : 1007024,
+      "fixed_regions" : [
+         {
+            "name" : "_RNvNtNtCsbvJcn9KhuN_3mnu4task6thread11KSTACK_POOL.llvm.5229616857685884027",
+            "size_bytes" : 4460544,
+            "storage" : ".bss"
+         },
+         {
+            "name" : "_RNvNtCsbvJcn9KhuN_3mnu3smp14AP_BOOT_STACKS",
+            "size_bytes" : 524288,
+            "storage" : ".bss"
+         },
+         {
+            "name" : "_RNvNtNtCsbvJcn9KhuN_3mnu7syscall3ipc9MAILBOXES.llvm.6830115576054483569",
+            "size_bytes" : 44040,
+            "storage" : ".data"
+         },
+         {
+            "name" : "_RNvNtCsbvJcn9KhuN_3mnu6kernel19KERNEL_THREAD_STACK",
+            "size_bytes" : 32768,
+            "storage" : ".bss"
+         }
+      ],
+      "inter_segment_padding_bytes" : 3794,
+      "iterations" : 1,
+      "loadable_file_size_bytes" : 857518,
+      "loadable_memory_size_bytes" : 6246710,
+      "loadable_segments" : [
+         {
+            "alignment_bytes" : 4096,
+            "file_offset" : 4096,
+            "file_size_bytes" : 530950,
+            "flags" : "R E",
+            "memory_size_bytes" : 530950,
+            "physical_address" : 33554432,
+            "virtual_address" : 33554432
+         },
+         {
+            "alignment_bytes" : 4096,
+            "file_offset" : 535048,
+            "file_size_bytes" : 63768,
+            "flags" : "R",
+            "memory_size_bytes" : 63768,
+            "physical_address" : 34085384,
+            "virtual_address" : 34085384
+         },
+         {
+            "alignment_bytes" : 4096,
+            "file_offset" : 598816,
+            "file_size_bytes" : 3600,
+            "flags" : "RW",
+            "memory_size_bytes" : 3600,
+            "physical_address" : 34149152,
+            "virtual_address" : 34149152
+         },
+         {
+            "alignment_bytes" : 4096,
+            "file_offset" : 606208,
+            "file_size_bytes" : 259200,
+            "flags" : "RW",
+            "memory_size_bytes" : 5648392,
+            "physical_address" : 34156544,
+            "virtual_address" : 34156544
+         }
+      ],
+      "mailboxes" : {
+         "initialized_data_reason" : "Mailbox::new stores the free-slot indices and a non-zero free_count, so the current representation is not all-zero initializable.",
+         "size_bytes" : 44040,
+         "storage" : ".data"
+      },
+      "max_segment_alignment_bytes" : 4096,
+      "non_loadable_file_bytes" : 149506,
+      "section_totals" : {
+         "bss_bytes" : 5386248,
+         "data_bytes" : 259200,
+         "debug_bytes" : 0,
+         "relocation_bytes" : 19248,
+         "rodata_bytes" : 41746,
+         "symbol_table_bytes" : 140371,
+         "text_bytes" : 530950
+      },
+      "sections" : [
+         {
+            "address" : 33554432,
+            "alignment" : 16,
+            "entry_bytes" : 0,
+            "file_offset" : 4096,
+            "flags" : "AX",
+            "index" : 1,
+            "info" : 0,
+            "link" : 0,
+            "name" : ".text",
+            "size_bytes" : 530950,
+            "type" : "PROGBITS"
+         },
+         {
+            "address" : 34085384,
+            "alignment" : 8,
+            "entry_bytes" : 24,
+            "file_offset" : 535048,
+            "flags" : "A",
+            "index" : 2,
+            "info" : 1,
+            "link" : 5,
+            "name" : ".dynsym",
+            "size_bytes" : 24,
+            "type" : "DYNSYM"
+         },
+         {
+            "address" : 34085408,
+            "alignment" : 8,
+            "entry_bytes" : 0,
+            "file_offset" : 535072,
+            "flags" : "A",
+            "index" : 3,
+            "info" : 0,
+            "link" : 2,
+            "name" : ".gnu.hash",
+            "size_bytes" : 28,
+            "type" : "GNU_HASH"
+         },
+         {
+            "address" : 34085436,
+            "alignment" : 4,
+            "entry_bytes" : 4,
+            "file_offset" : 535100,
+            "flags" : "A",
+            "index" : 4,
+            "info" : 0,
+            "link" : 2,
+            "name" : ".hash",
+            "size_bytes" : 16,
+            "type" : "HASH"
+         },
+         {
+            "address" : 34085452,
+            "alignment" : 1,
+            "entry_bytes" : 0,
+            "file_offset" : 535116,
+            "flags" : "A",
+            "index" : 5,
+            "info" : 0,
+            "link" : 0,
+            "name" : ".dynstr",
+            "size_bytes" : 1,
+            "type" : "STRTAB"
+         },
+         {
+            "address" : 34085456,
+            "alignment" : 8,
+            "entry_bytes" : 24,
+            "file_offset" : 535120,
+            "flags" : "A",
+            "index" : 6,
+            "info" : 0,
+            "link" : 2,
+            "name" : ".rela.dyn",
+            "size_bytes" : 19248,
+            "type" : "RELA"
+         },
+         {
+            "address" : 34107392,
+            "alignment" : 4096,
+            "entry_bytes" : 0,
+            "file_offset" : 557056,
+            "flags" : "AMS",
+            "index" : 7,
+            "info" : 0,
+            "link" : 0,
+            "name" : ".rodata",
+            "size_bytes" : 41746,
+            "type" : "PROGBITS"
+         },
+         {
+            "address" : 34149140,
+            "alignment" : 4,
+            "entry_bytes" : 0,
+            "file_offset" : 598804,
+            "flags" : "A",
+            "index" : 8,
+            "info" : 0,
+            "link" : 0,
+            "name" : ".eh_frame_hdr",
+            "size_bytes" : 12,
+            "type" : "PROGBITS"
+         },
+         {
+            "address" : 34149152,
+            "alignment" : 8,
+            "entry_bytes" : 16,
+            "file_offset" : 598816,
+            "flags" : "WA",
+            "index" : 9,
+            "info" : 0,
+            "link" : 5,
+            "name" : ".dynamic",
+            "size_bytes" : 224,
+            "type" : "DYNAMIC"
+         },
+         {
+            "address" : 34149376,
+            "alignment" : 8,
+            "entry_bytes" : 0,
+            "file_offset" : 599040,
+            "flags" : "WA",
+            "index" : 10,
+            "info" : 0,
+            "link" : 0,
+            "name" : ".got",
+            "size_bytes" : 3376,
+            "type" : "PROGBITS"
+         },
+         {
+            "address" : 34156544,
+            "alignment" : 4096,
+            "entry_bytes" : 0,
+            "file_offset" : 606208,
+            "flags" : "WAR",
+            "index" : 11,
+            "info" : 0,
+            "link" : 0,
+            "name" : ".data",
+            "size_bytes" : 259200,
+            "type" : "PROGBITS"
+         },
+         {
+            "address" : 34418688,
+            "alignment" : 4096,
+            "entry_bytes" : 0,
+            "file_offset" : 865408,
+            "flags" : "WA",
+            "index" : 12,
+            "info" : 0,
+            "link" : 0,
+            "name" : ".bss",
+            "size_bytes" : 5386248,
+            "type" : "NOBITS"
+         },
+         {
+            "address" : 0,
+            "alignment" : 1,
+            "entry_bytes" : 1,
+            "file_offset" : 865408,
+            "flags" : "MS",
+            "index" : 13,
+            "info" : 0,
+            "link" : 0,
+            "name" : ".comment",
+            "size_bytes" : 147,
+            "type" : "PROGBITS"
+         },
+         {
+            "address" : 0,
+            "alignment" : 8,
+            "entry_bytes" : 24,
+            "file_offset" : 865560,
+            "flags" : "",
+            "index" : 14,
+            "info" : 896,
+            "link" : 16,
+            "name" : ".symtab",
+            "size_bytes" : 32040,
+            "type" : "SYMTAB"
+         },
+         {
+            "address" : 0,
+            "alignment" : 1,
+            "entry_bytes" : 0,
+            "file_offset" : 897600,
+            "flags" : "",
+            "index" : 15,
+            "info" : 0,
+            "link" : 0,
+            "name" : ".shstrtab",
+            "size_bytes" : 131,
+            "type" : "STRTAB"
+         },
+         {
+            "address" : 0,
+            "alignment" : 1,
+            "entry_bytes" : 0,
+            "file_offset" : 897731,
+            "flags" : "",
+            "index" : 16,
+            "info" : 0,
+            "link" : 0,
+            "name" : ".strtab",
+            "size_bytes" : 108200,
+            "type" : "STRTAB"
+         }
+      ]
+   },
+   "revisions" : {
+      "mnu" : "45f50d36feeaf47431e3f72ffbb5e82cd4feb6ba",
+      "workspace" : "68f06f2dc0b821581d6d456b63e678510562eab0"
+   },
+   "schema_version" : 1
+}

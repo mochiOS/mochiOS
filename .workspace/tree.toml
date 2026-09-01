@@ -2407,3 +2407,11 @@ path = "mboot"
 hash = "861b5be414e46e1059c89690d48ffff94c3c715d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Flush noncoherent Intel VT-d tables"
+
+[[entries]]
+date = "2026-09-01T17:05:21.770325857+09:00"
+snapshot = "ed607ad76e2a973746998a03"
+path = "user"
+hash = "e3e8d7264c28b28da8b5e608a15164d544844e26"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Map monotonic clocks correctly"

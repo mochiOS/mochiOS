@@ -2511,3 +2511,11 @@ path = "core"
 hash = "1f8e43050c0d9ff593b5d8dcb2568eb17d412781"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Right-size the kernel stack pool"
+
+[[entries]]
+date = "2026-09-01T18:54:58.137031747+09:00"
+snapshot = "b66f5015464f51f5fb497b76"
+path = "core"
+hash = "dd7e73f56099223c26bdce45db5b90a7f868f2cc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Allocate TSS stacks per online CPU"

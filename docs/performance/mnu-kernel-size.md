@@ -76,3 +76,9 @@ APが通常のidle stackへ切り替わった後にbootstrap stackを回収す�
 kernel heapは32MiBの仮想上限を残しつつ、最初に256KiBだけ物理mapする形へ変えました。足りなくなると256KiB単位でpageを追加し、再利用pageもallocatorへ渡す前にzeroingします。1 vCPUと4 vCPUの試験では、同じservice起動地点で1,323,008 bytesまで増えました。以前の32MiB一括mapと比べると、7,869 page、32,231,424 bytesを起動時に確保せずに済んでいます。
 
 追加した処理により配布用kernelは875,288 bytesへ増えました。LOAD segmentのメモリ量は1,270,886 bytesです。ファイルの11,992 bytes増加より、起動時に減る物理メモリのほうが大きいため、この変更は残します。[段階確保へ変更したheapの計測結果](baselines/mnu-kernel-growable-heap-2026-09-01.json)に条件をまとめています。
+
+allocation headerを64 bytesから48 bytesへ縮めた後の配布用kernelは875,424 bytesです。命令とrelocationが136 bytes増えましたが、allocationごとの予約量は16 bytes減っています。magic、cookie、checksum、tail canaryは維持しています。
+
+allocatorの判断に必要な内訳は`performance-instrumentation`でだけ収集します。要求サイズ別、CPU別、schedulerやIPCなどの処理元別のallocation数に加え、commit済みheap量と内部断片化の現在値・peakを取得できます。通常buildは875,424 bytesのままで、計測buildは896,272 bytesでした。[allocator計測の確認結果](baselines/mnu-kernel-allocator-observability-2026-09-01.json)にABIと起動確認の範囲を残しています。
+
+計測buildはQEMU TCGの2 vCPUでAP onlineとsystem service起動まで進みました。現在は`display.driver`が終了する既知の問題によりシェルへ到達しないため、実機負荷の`mperf`結果はまだ採れていません。コンパイルとABIだけを根拠にper-CPU cacheやsize class allocatorへ置き換えることはしません。

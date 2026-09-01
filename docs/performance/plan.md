@@ -70,6 +70,10 @@ boot時だけ必要なallocatorを通常運用へ持ち越さず、使い終え�
 
 allocationごとの検査headerは64 bytesから48 bytesへ縮めました。raw pointerと二つの`usize`をそのまま保存せず、allocation先頭からのoffsetと32-bitのsizeへ置き換えています。magic、cookie、checksum、tail canary、解放時zeroing、layout不一致の拒否は残しています。
 
+計測buildでは、allocation数を要求サイズ、CPU、処理元ごとに分けて記録します。処理元はscheduler、IPC、VFS、page fault、network、block I/O、process生成、thread生成、その他のsyscallです。header、tail canary、alignmentで増えたbytesも、使用中とpeakを別に数えます。分類状態はCPUではなくthread slotに置くため、待機中に別threadへ切り替わっても分類が混ざりません。
+
+この拡張はperformance ABI v2の末尾へ追加しました。v1の先頭1,200 bytesは動かしておらず、古い`mperf`からの要求にも同じ範囲を返します。通常buildの配布用kernelは875,424 bytesで、計測追加前から増えていません。計測buildは896,272 bytesです。
+
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。
 
 ### schedulerとtimerの無駄な仕事を減らす

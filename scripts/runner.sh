@@ -65,6 +65,9 @@ QEMU_MBOOT_CONTROL_SOCKET="${QEMU_MBOOT_CONTROL_SOCKET:-}"
 MBOOT_CONTROL_REQUIRED="${MBOOT_CONTROL_REQUIRED:-0}"
 MBOOT_CONTROL_LOG="${MBOOT_CONTROL_LOG:-}"
 SMOKE_USER_DATABASE_FIXTURE="${SMOKE_USER_DATABASE_FIXTURE:-}"
+SMOKE_GUEST_COMMAND="${SMOKE_GUEST_COMMAND:-}"
+SMOKE_GUEST_EXPECT="${SMOKE_GUEST_EXPECT:-}"
+SMOKE_GUEST_EXPECTED_EXIT="${SMOKE_GUEST_EXPECTED_EXIT:-0}"
 OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
 OVMF_VARS="${RUN_DIR}/OVMF_VARS_4M.fd"
@@ -168,6 +171,8 @@ QEMU_NETWORK_SETTLE_SECONDS="${QEMU_NETWORK_SETTLE_SECONDS:-5}"
     die "QEMU_NETWORK_SETTLE_SECONDS must be a non-negative integer"
 NETWORK_CLIENT_SMOKE="${NETWORK_CLIENT_SMOKE:-${SMOKE_TEST:-0}}"
 case "${NETWORK_CLIENT_SMOKE}" in 0|1) ;; *) die "NETWORK_CLIENT_SMOKE must be 0 or 1" ;; esac
+[[ "${SMOKE_GUEST_EXPECTED_EXIT}" =~ ^[0-9]+$ ]] ||
+    die "SMOKE_GUEST_EXPECTED_EXIT must be a non-negative integer"
 TLS_HTTP_CLIENT_SMOKE="${TLS_HTTP_CLIENT_SMOKE:-0}"
 case "${TLS_HTTP_CLIENT_SMOKE}" in 0|1) ;; *) die "TLS_HTTP_CLIENT_SMOKE must be 0 or 1" ;; esac
 ACCOUNTS_HTTPS_SMOKE="${ACCOUNTS_HTTPS_SMOKE:-0}"
@@ -330,7 +335,7 @@ if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     else
         QEMU_ARGS+=(-display none)
     fi
-    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" || "${NETWORK_CLIENT_SMOKE}" == "1" || "${TLS_HTTP_CLIENT_SMOKE}" == "1" || "${ACCOUNTS_HTTPS_SMOKE}" == "1" || "${MBOOT_CONTROL_REQUIRED}" == "1" ]]; then
+    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" || "${NETWORK_CLIENT_SMOKE}" == "1" || "${TLS_HTTP_CLIENT_SMOKE}" == "1" || "${ACCOUNTS_HTTPS_SMOKE}" == "1" || "${MBOOT_CONTROL_REQUIRED}" == "1" || -n "${SMOKE_GUEST_COMMAND}" ]]; then
         QEMU_ARGS+=(-monitor "unix:${MONITOR_SOCKET},server=on,wait=off")
     else
         QEMU_ARGS+=(-monitor none)
@@ -668,6 +673,15 @@ if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
         die "network smoke server did not observe the connect-only guest FIN"
     grep -Fq "network-smoke-server: echoed=17" "${NETWORK_SERVER_LOG}" ||
         die "network smoke server did not echo the expected payload"
+fi
+
+if [[ -n "${SMOKE_GUEST_COMMAND}" ]]; then
+    if [[ -n "${SMOKE_GUEST_EXPECT}" ]]; then
+        run_guest_command "${SMOKE_GUEST_EXPECTED_EXIT}" \
+            "${SMOKE_GUEST_COMMAND}" "${SMOKE_GUEST_EXPECT}"
+    else
+        run_guest_command "${SMOKE_GUEST_EXPECTED_EXIT}" "${SMOKE_GUEST_COMMAND}"
+    fi
 fi
 
 if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then

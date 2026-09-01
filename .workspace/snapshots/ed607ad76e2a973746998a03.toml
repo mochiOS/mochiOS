@@ -1,14 +1,14 @@
 version = 1
 id = "ed607ad76e2a973746998a03"
-created = "2026-09-01T17:05:21.770325857+09:00"
+created = "2026-09-01T17:07:15.793871308+09:00"
 
 [trigger]
-name = "mochiOS/syscalls"
-path = "user"
-repository = "/home/jnix/mochiOS/user"
-head = "e3e8d7264c28b28da8b5e608a15164d544844e26"
+name = "mochiOS/mnu"
+path = "core"
+repository = "/home/jnix/mochiOS/core"
+head = "f28603562d3e42bac5e5fc76307252194c29534f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
-message = "Map monotonic clocks correctly"
+message = "Fix mediated display and IPC routing"
 
 [[projects]]
 name = "mochiOS/mBoot"

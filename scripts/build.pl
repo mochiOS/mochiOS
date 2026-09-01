@@ -869,6 +869,16 @@ sub build_std_binary {
         VIEWKIT_UI_FONT_PATH => "$root_dir/libraries/fonts/out/fonts/InterVariable.ttf",
         VIEWKIT_MONOSPACE_FONT_PATH => "$root_dir/libraries/fonts/out/fonts/UDEVGothic-Regular.ttf",
     );
+    if ($binary_name eq 'mperf') {
+        my $mnu_revision = capture_stdout('git', '-C', "$root_dir/core", 'rev-parse', 'HEAD');
+        chomp $mnu_revision;
+        my $compiler = capture_stdout("$sysroot_overlay/bin/rustc", '--version');
+        chomp $compiler;
+        $cargo_env{MNU_GIT_REVISION} = $mnu_revision;
+        $cargo_env{MNU_RUSTC_VERSION} = $compiler;
+        $cargo_env{MNU_BUILD_PROFILE} = 'release';
+        $cargo_env{MNU_BUILD_FEATURES} = 'kernel-bin,performance-instrumentation';
+    }
     my @cargo_config_args = map { ('--config', $_) } @cargo_configs;
     my @command = (
         "$sysroot_overlay/bin/cargo", 'build',
@@ -1602,6 +1612,8 @@ my $development_certificate = "$build_root/developer.cert";
 my $msign_bin = "$root_dir/out/devkit-target/release/msign";
 my $development_pki_bin = "$root_dir/out/devkit-target/release/development-pki";
 my @coreutils_bins = qw(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc test_gui test_desktop);
+push @coreutils_bins, 'mperf'
+    if config_enabled($config{KERNEL_PERFORMANCE_INSTRUMENTATION});
 push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
 

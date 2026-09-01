@@ -2543,3 +2543,11 @@ path = "boot"
 hash = "2d9b16f6ec9e32b9e9cb1a40dfed0d45be4deb7f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve ELF symbol table offsets while loading"
+
+[[entries]]
+date = "2026-09-01T19:40:16.037612774+09:00"
+snapshot = "84d170fbd5b8b03416154c36"
+path = "core"
+hash = "92ef0cbede90151292a8a24e796970f7df1c3014"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reclaim AP bootstrap stacks after switching"

@@ -14,13 +14,13 @@ mnuのファイルサイズが1 MiBを下回ったため、mBoot、mDriver、ア
 
 メッセージ本文を必要になったときだけ確保するように変えた後は、stripしていないrelease ELFが1,012,312 bytesになりました。その後、IPC領域の再利用とstackの整理まで進めた時点では1,008,296 bytesです。最初の値から17,702,632 bytes、率にして94.6%減りました。固定メールボックス領域は44,040 bytesまで減っています。
 
-load対象のメモリ量は48,656,814 bytesから5,722,775 bytesへ減りました。kernel stack poolをthread上限に合わせ、BSP以外のTSS stackとAP bootstrap stackを実際のCPUごとに確保した結果です。[現在の計測結果](baselines/mnu-kernel-ap-stacks-2026-09-01.json)には、revisionとsectionごとの値も含めています。
+load対象のメモリ量は48,656,814 bytesから1,261,983 bytesへ減りました。通常threadの固定stack poolをなくし、実際に生きているthreadの物理pageだけを確保しています。[現在の計測結果](baselines/mnu-kernel-dynamic-stacks-2026-09-01.json)には、revisionとsectionごとの値も含めています。
 
 起動に必要な`secondary_cpu_entry`は`kernel.meta`へ分離しました。配布用`kernel.elf`からsymbolを外した現在のファイルサイズは866,728 bytesです。開発用の`kernel.debug`は別に残しているため、crash時のアドレスを関数名へ戻せます。[配布用kernelの計測結果](baselines/mnu-kernel-stripped-2026-09-01.json)にstrip後のsectionを記録しています。
 
 この段階でファイルサイズは1 MiBを下回りましたが、IPCが十分に速くなったという意味ではありません。送信側の一時bufferはなくなり、cacheが温まった後はメッセージ保存用のheap allocationも発生しません。受信側も4,128 bytesの一時`Vec`を廃止し、通常の本文とreplyはキューからユーザー領域へ直接コピーします。外部pageの通知だけは、mapping結果を書き戻すため16 bytesのstack領域を使います。[受信経路変更後の計測結果](baselines/mnu-kernel-ipc-receive-2026-09-01.json)では、ELF全体が1,007,024 bytesです。実機でp50、p95、p99を取るまでは、性能目標を達成したとは扱いません。
 
-メモリ上で現在もっとも大きい固定領域は、4,460,544 bytesの`KSTACK_POOL`です。thread上限に合わせて縮めましたが、64 thread分を起動時から持つ構造は残っています。メールボックスを`.bss`へ移すだけのように、ファイルだけ小さく見せて常駐量を残す変更は採りません。
+4,460,544 bytesあった`KSTACK_POOL`は削除済みです。配布用kernelは863,296 bytes、LOAD segmentのメモリ量は1,261,983 bytesになりました。ここから先は小さな固定領域と実行時allocationを分けて見ます。
 
 ## 先にそろえる計測
 
@@ -50,9 +50,13 @@ QEMUは正しさと回帰の確認に使います。性能値は仮想化方式�
 
 ### カーネルスタックを必要な分だけ確保する
 
-kernel stack poolは、thread上限64に必要な64 slotへ縮めました。使用中のslotはbitmapで管理するため、作成と終了を繰り返してもfree listの上限によってslotを失いません。
+kernel stackはthread生成時にpage単位で確保します。終了中のthreadがまだ使っているstackは即座にfreeせず、CPUが別のstackへ移った後で回収します。各slotには所有するpage tableを記録し、`exec`とprocess終了のどちらでも古いmapを残しません。
 
-BSPのISTとRing 0 stackはheap初期化前に必要なので静的に残します。AP用はCPUがonlineになるときにframe allocatorから確保し、zeroingしてからTSSへ設定します。存在しないCPUのstackは持ちません。次に手を入れる場合は、processごとに複製されているpage tableとの関係を先に整理し、guard pageを保ったままkernel stackの物理pageも必要時だけ割り当てます。
+仮想アドレスのslot間には未mapのguard pageがあります。ユーザー用page tableにも同じstackをmapしますが、`USER_ACCESSIBLE`は付けず、書き込み可かつ実行不可に固定しています。これでRing 3から割り込みへ入るときのTSS.RSP0を維持しつつ、ユーザーコードからは読めません。
+
+BSPのISTとRing 0 stackはheap初期化前に必要なので静的に残します。AP用はCPUがonlineになるときにframe allocatorから確保し、zeroingしてからTSSへ設定します。存在しないCPUのstackは持ちません。
+
+performance instrumentation buildではstackをpattern初期化し、解放時にhigh-water markを更新します。今回のservice起動試験では65,536 bytes中1,952 bytesでした。例外、深いsyscall、複数threadの負荷をまだ測っていないため、設定値は維持します。
 
 APがlong modeへ移るまで使う8 KiBのbootstrap stackも、固定64本からAPごとの確保へ変えました。さらに、APが通常のidle stack上で動き始めたことをCPU別のtokenで通知し、BSPが一致を確認した場合だけframeを解放します。4 vCPUの起動試験では3本、合計24 KiBをすべて回収してからサービス起動まで進みました。通知が来ない場合はuse-after-freeを避けるため保持します。[AP stack回収後の計測結果](baselines/mnu-kernel-ap-stack-reclaim-2026-09-01.json)に確認条件を残しています。
 

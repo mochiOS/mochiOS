@@ -66,3 +66,9 @@ LOAD segment間の空白は3,978 bytes、最大alignmentは4,096 bytesでした�
 最後に、配布用`kernel.elf`と開発用`kernel.debug`を分けました。配布用は866,728 bytes、開発用symbolは139,576 bytesです。LOAD segmentは変えていないため、起動後のメモリ量は5,722,775 bytesのままです。stripped kernelでも2 vCPUが起動し、APがonlineになってからサービス群まで進むことを確認しました。[配布用kernelの計測結果](baselines/mnu-kernel-stripped-2026-09-01.json)に内訳があります。
 
 APが通常のidle stackへ切り替わった後にbootstrap stackを回収するようにした時点では、配布用kernelは867,240 bytes、LOAD segmentのメモリ量は5,726,199 bytesです。CPU別の状態と回収処理に3,424 bytes増えましたが、4 vCPU構成では起動中だけ使う24 KiBがonline後に残らなくなりました。また、物理offsetが0のidentity mapを未初期化と誤認してframe解放を拒む問題も直しています。[AP stack回収後の計測結果](baselines/mnu-kernel-ap-stack-reclaim-2026-09-01.json)で条件を確認できます。
+
+通常threadの固定stack poolも削除しました。thread生成時に必要な物理pageだけを割り当て、終了後は別のstackへ切り替わってから回収します。guard pageは未mapのまま残し、ユーザー用page tableへはsupervisor-onlyかつ実行不可でmapしています。
+
+この変更後の配布用kernelは863,296 bytes、LOAD segmentのメモリ量は1,261,983 bytesです。前回の5,726,199 bytesから4,464,216 bytes減りました。4 vCPUのTCG試験では3個のAPとsystem service起動まで進み、page fault、panic、stack quarantineは発生していません。[動的stack変更後の計測結果](baselines/mnu-kernel-dynamic-stacks-2026-09-01.json)に内訳を保存しています。
+
+計測buildでは、解放時にstackの初期patternを調べます。今回観測した最大使用量は65,536 bytes中1,952 bytesでした。起動試験一回の値にすぎないため、設定値はまだ下げません。

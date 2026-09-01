@@ -8,7 +8,7 @@
 
 | 対象 | ファイル | 読み込む量 | 補足 |
 |---|---:|---:|---|
-| mnu kernel | 1,007,024 bytes | 6,246,710 bytes | stripしていないrelease ELFです |
+| mnu kernel | 1,007,216 bytes | 5,722,775 bytes | stripしていないrelease ELFです |
 | mBoot UEFI | 208,384 bytes | 208,384 bytes以下 | `.text`は182,394 bytesです |
 | mDriver Linux | 52,058,088 bytes | 40,955,752 bytes | 非LOAD部分が11,102,336 bytesあります |
 | mDriver initramfs | 924,160 bytes | 924,160 bytes | 未圧縮cpioです |
@@ -33,10 +33,10 @@ mochiOSのViewKit利用バイナリは次の大きさです。
 
 ## mnu
 
-カーネルのファイルサイズは目標の約1 MiBに入りました。最初の18,710,928 bytesから1,007,024 bytesまで減っています。次は常駐量を詰めます。
+カーネルのファイルサイズは目標の約1 MiBに入りました。最初の18,710,928 bytesから1,007,216 bytesまで減っています。次は常駐量を詰めます。
 
 - `KSTACK_POOL`は4,460,544 bytesあります。thread上限64に合わせてありますが、未使用threadのstackまで起動時から持っています。page tableとguard pageの扱いを直してから、thread作成時の確保へ移します。
-- `AP_BOOT_STACKS`は524,288 bytesです。64 CPU分を静的に置かず、起動するAP数に合わせてframe allocatorから確保します。
+- AP bootstrap stackは、固定64本から起動するAPごとの確保へ変更しました。静的なLOAD領域は523,935 bytes減り、AP一つにつき8 KiBのframeを確保します。
 - process table、thread queue、audit buffer、firmware表示bufferは、それぞれ4万から13万bytesほどあります。上限を下げる前に実際のpeakを計測し、空のslotが持つデータを分離します。
 - ELFのsymbol tableは約140 KBです。ただし現在のbootloaderは`kernel.meta`を読めない場合にsymbol tableへ戻ります。`kernel.meta`を必ず生成し検証できるようにしてから、配布用kernelだけstripします。
 - `.text`は530,950 bytesです。ここから先は関数を闇雲に短くしません。VFS、exec、page管理、schedulerの順に時間とallocationを測り、遅い経路から直します。
@@ -71,12 +71,11 @@ release profileは各repositoryで`panic = "abort"`しか指定していませ�
 
 ## 作業順
 
-1. mnuのAP boot stackを実CPU数に合わせます。
-2. 配布用symbolと開発用symbolを分離します。その前に`kernel.meta`の生成を直します。
-3. ViewKitの埋め込みフォントをrootfs上の共有ファイルへ置き換えます。
-4. 画像codecをfeatureに分け、各アプリが必要なものだけを選びます。
-5. サービスとアプリのrelease profileをそろえ、代表バイナリでThinLTOを比較します。
-6. mDriverの実機driverをmoduleへ分離し、検出したhardwareだけを読み込みます。
-7. scheduler、VFS、exec、allocatorのp50、p95、p99を実機で取り、時間の大きい順に直します。
+1. 配布用symbolと開発用symbolを分離します。その前に`kernel.meta`の生成を直します。
+2. ViewKitの埋め込みフォントをrootfs上の共有ファイルへ置き換えます。
+3. 画像codecをfeatureに分け、各アプリが必要なものだけを選びます。
+4. サービスとアプリのrelease profileをそろえ、代表バイナリでThinLTOを比較します。
+5. mDriverの実機driverをmoduleへ分離し、検出したhardwareだけを読み込みます。
+6. scheduler、VFS、exec、allocatorのp50、p95、p99を実機で取り、時間の大きい順に直します。
 
 一回の変更で複数の要因を混ぜません。前後のバイナリ、LOAD量、起動ログ、実機の待ち時間を残し、改善しなかった変更は戻します。

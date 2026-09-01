@@ -14,7 +14,7 @@ mnuのファイルサイズが1 MiBを下回ったため、mBoot、mDriver、ア
 
 メッセージ本文を必要になったときだけ確保するように変えた後は、stripしていないrelease ELFが1,012,312 bytesになりました。その後、IPC領域の再利用とstackの整理まで進めた時点では1,008,296 bytesです。最初の値から17,702,632 bytes、率にして94.6%減りました。固定メールボックス領域は44,040 bytesまで減っています。
 
-load対象のメモリ量は48,656,814 bytesから6,246,845 bytesへ減りました。kernel stack poolをthread上限に合わせ、BSP以外のTSS stackをonline CPUごとに確保した結果です。[現在の計測結果](baselines/mnu-kernel-ipc-stacks-2026-09-01.json)には、revisionとsectionごとの値も含めています。
+load対象のメモリ量は48,656,814 bytesから5,722,775 bytesへ減りました。kernel stack poolをthread上限に合わせ、BSP以外のTSS stackとAP bootstrap stackを実際のCPUごとに確保した結果です。[現在の計測結果](baselines/mnu-kernel-ap-stacks-2026-09-01.json)には、revisionとsectionごとの値も含めています。
 
 この段階でファイルサイズは1 MiBを下回りましたが、IPCが十分に速くなったという意味ではありません。送信側の一時bufferはなくなり、cacheが温まった後はメッセージ保存用のheap allocationも発生しません。受信側も4,128 bytesの一時`Vec`を廃止し、通常の本文とreplyはキューからユーザー領域へ直接コピーします。外部pageの通知だけは、mapping結果を書き戻すため16 bytesのstack領域を使います。[受信経路変更後の計測結果](baselines/mnu-kernel-ipc-receive-2026-09-01.json)では、ELF全体が1,007,024 bytesです。実機でp50、p95、p99を取るまでは、性能目標を達成したとは扱いません。
 
@@ -51,6 +51,8 @@ QEMUは正しさと回帰の確認に使います。性能値は仮想化方式�
 kernel stack poolは、thread上限64に必要な64 slotへ縮めました。使用中のslotはbitmapで管理するため、作成と終了を繰り返してもfree listの上限によってslotを失いません。
 
 BSPのISTとRing 0 stackはheap初期化前に必要なので静的に残します。AP用はCPUがonlineになるときにframe allocatorから確保し、zeroingしてからTSSへ設定します。存在しないCPUのstackは持ちません。次に手を入れる場合は、processごとに複製されているpage tableとの関係を先に整理し、guard pageを保ったままkernel stackの物理pageも必要時だけ割り当てます。
+
+APがlong modeへ移るまで使う8 KiBのbootstrap stackも、固定64本からAPごとの確保へ変えました。4 vCPUの起動試験では3本を確保し、すべてのAPがonlineになっています。APが遅れて起動する場合を考え、確保したframeは起動後も回収しません。
 
 ### allocatorとpage管理を整理する
 

@@ -56,3 +56,5 @@ LOAD segment間の空白は3,978 bytes、最大alignmentは4,096 bytesでした�
 さらに、解放した本文を64件まで再利用し、送信側の一時bufferをなくしました。kernel stack poolとCPU用TSS stackも実際の上限に合わせています。現在はELF全体が1,008,296 bytes、LOAD segmentのメモリ量が6,246,845 bytesです。[IPCとstack整理後の計測結果](baselines/mnu-kernel-ipc-stacks-2026-09-01.json)で内訳を確認できます。
 
 受信側にあった4,128 bytesの一時`Vec`をなくした後は、ELF全体が1,007,024 bytes、LOAD segmentのメモリ量が6,246,710 bytesになりました。[IPC受信変更後の計測結果](baselines/mnu-kernel-ipc-receive-2026-09-01.json)に、この時点のrevisionとsection内訳を保存しています。
+
+64 CPU分あった`AP_BOOT_STACKS`を、起動するAPごとのframe確保へ移した後は、ELF全体が1,007,216 bytes、LOAD segmentのメモリ量が5,722,775 bytesになりました。コードは192 bytes増えましたが、静的なLOAD領域は523,935 bytes減っています。[AP stack変更後の計測結果](baselines/mnu-kernel-ap-stacks-2026-09-01.json)で確認できます。

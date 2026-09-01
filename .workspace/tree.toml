@@ -2567,3 +2567,11 @@ path = "binaries/coreutils"
 hash = "624e49deababc3ef8406fd0a7c7521f4c43c8dfd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report kernel stack high-water usage"
+
+[[entries]]
+date = "2026-09-01T20:27:53.399163169+09:00"
+snapshot = "d59cef2ba130d223ad3bf38e"
+path = "core"
+hash = "9bd2df876d52f60ead0b28707a7a3fb910a14d96"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Commit kernel heap pages on demand"

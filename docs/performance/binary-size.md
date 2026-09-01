@@ -38,7 +38,7 @@ mochiOSのViewKit利用バイナリは次の大きさです。
 - `KSTACK_POOL`は4,460,544 bytesあります。thread上限64に合わせてありますが、未使用threadのstackまで起動時から持っています。page tableとguard pageの扱いを直してから、thread作成時の確保へ移します。
 - AP bootstrap stackは、固定64本から起動するAPごとの確保へ変更しました。静的なLOAD領域は523,935 bytes減り、AP一つにつき8 KiBのframeを確保します。
 - process table、thread queue、audit buffer、firmware表示bufferは、それぞれ4万から13万bytesほどあります。上限を下げる前に実際のpeakを計測し、空のslotが持つデータを分離します。
-- ELFのsymbol tableは約140 KBです。ただし現在のbootloaderは`kernel.meta`を読めない場合にsymbol tableへ戻ります。`kernel.meta`を必ず生成し検証できるようにしてから、配布用kernelだけstripします。
+- ELFのsymbol tableは約140 KBです。ビルド時に`kernel.meta`を生成し、bootloaderがそこからAPのentryを取得するところまで確認しました。次に配布用kernelからsymbolを分離します。
 - `.text`は530,950 bytesです。ここから先は関数を闇雲に短くしません。VFS、exec、page管理、schedulerの順に時間とallocationを測り、遅い経路から直します。
 
 `clone()`については、mnu内で目立つのはVFSとpage table周辺です。ただし、Copy相当の小さな値とpage内容の複製を同じ一回として数えると判断を誤ります。allocation回数とコピーしたbytesを計測へ追加し、後者を先に消します。

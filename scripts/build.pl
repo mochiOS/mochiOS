@@ -19,6 +19,7 @@ my $using_repository_development_root =
     !defined($ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX})
     || $ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} eq '';
 my %build_options = (
+    boot_only   => 0,
     cached      => 0,
     kernel_only => 0,
 );
@@ -30,6 +31,10 @@ for my $arg (@ARGV) {
     }
     if ($arg eq '--kernel-only') {
         $build_options{kernel_only} = 1;
+        next;
+    }
+    if ($arg eq '--boot-only') {
+        $build_options{boot_only} = 1;
         next;
     }
     die "fatal: unknown build option: $arg\n";
@@ -242,7 +247,7 @@ sub append_checksum {
 }
 
 sub refresh_existing_checksums {
-    my ($artifact_dir) = @_;
+    my ($artifact_dir, @additional_files) = @_;
     my $checksum_path = "$artifact_dir/SHA256SUMS";
     open my $fh, '<', $checksum_path or dief("open $checksum_path: $!");
     my @files;
@@ -259,6 +264,11 @@ sub refresh_existing_checksums {
     }
     close $fh or dief("close $checksum_path: $!");
     @files or dief("no checksum entries in $checksum_path");
+    my %seen = map { $_ => 1 } @files;
+    for my $name (@additional_files) {
+        need_file("$artifact_dir/$name");
+        push @files, $name if !$seen{$name}++;
+    }
     write_checksums($artifact_dir, @files);
 }
 
@@ -279,6 +289,21 @@ sub build_kernel {
         '--manifest-path',
         "$core_root/Cargo.toml",
     );
+}
+
+sub write_kernel_meta {
+    my ($kernel, $output) = @_;
+    my @matches;
+    for my $line (capture_lines_env({}, 'nm', '-n', '--defined-only', $kernel)) {
+        push @matches, lc($1)
+            if $line =~ /\A([0-9a-fA-F]+)\s+[A-Za-z]\s+secondary_cpu_entry\z/;
+    }
+    dief("secondary_cpu_entry must appear exactly once in $kernel")
+        if @matches != 1;
+    open my $fh, '>', $output or dief("write $output: $!");
+    print {$fh} "secondary_cpu_entry=0x$matches[0]\n"
+        or dief("write $output: $!");
+    close $fh or dief("close $output: $!");
 }
 
 sub replace_fat_file {
@@ -1645,6 +1670,7 @@ my $build_input_stamp = "$root_dir/out/.build-input-stamp";
 my $esp_dir = "$build_root/esp";
 my $esp_img = "$build_root/esp.img";
 my $disk_img = "$build_root/disk.img";
+my $kernel_meta = "$build_root/kernel.meta";
 my $initfs_stage = "$build_root/initfs-root";
 my $initfs_img = "$build_root/initfs.img";
 my $rootfs_stage = "$build_root/rootfs-root";
@@ -1676,7 +1702,7 @@ if ($build_options{kernel_only}) {
     my $esp_offset = 2048 * 512;
     my @disk_images = ($disk_img, "$artifact_dir/disk.img");
 
-    for my $cmd (qw(cargo install mcopy repo sha256sum)) {
+    for my $cmd (qw(cargo install mcopy nm repo sha256sum)) {
         need_cmd($cmd);
     }
     need_dir("$root_dir/.repo");
@@ -1689,19 +1715,60 @@ if ($build_options{kernel_only}) {
     print "[step] build kernel\n";
     build_kernel($core_root, $nightly_toolchain, $kernel_target, \@kernel_features);
     need_file($kernel_bin);
+    write_kernel_meta($kernel_bin, $kernel_meta);
 
     print "[step] update kernel in existing images\n";
     install_file('0644', $kernel_bin, "$esp_dir/system/kernel.elf");
+    install_file('0644', $kernel_meta, "$esp_dir/system/kernel.meta");
     install_file('0644', $kernel_bin, "$artifact_dir/kernel.elf");
+    install_file('0644', $kernel_meta, "$artifact_dir/kernel.meta");
     replace_fat_file($esp_img, $kernel_bin, '::/system/kernel.elf');
+    replace_fat_file($esp_img, $kernel_meta, '::/system/kernel.meta');
     replace_fat_file("${_}\@\@$esp_offset", $kernel_bin, '::/system/kernel.elf')
+        for @disk_images;
+    replace_fat_file("${_}\@\@$esp_offset", $kernel_meta, '::/system/kernel.meta')
+        for @disk_images;
+
+    print "[step] refresh artifact metadata\n";
+    run_in_dir($root_dir, 'repo', 'manifest', '-r', '-o', "$artifact_dir/manifest.xml");
+    write_build_info("$artifact_dir/build-info.txt", $root_dir);
+    refresh_existing_checksums($artifact_dir, 'kernel.meta');
+    print "[done] updated kernel without rebuilding userland: $artifact_dir/kernel.elf\n";
+    exit 0;
+}
+
+if ($build_options{boot_only}) {
+    my $esp_offset = 2048 * 512;
+    my @disk_images = ($disk_img, "$artifact_dir/disk.img");
+    my $boot_release_dir = "$root_dir/out/bootloader/target/x86_64-unknown-uefi/release";
+
+    for my $cmd (qw(cargo install mcopy repo sha256sum)) {
+        need_cmd($cmd);
+    }
+    need_dir("$root_dir/.repo");
+    need_file($esp_img);
+    need_file("$artifact_dir/SHA256SUMS");
+    need_file($_) for @disk_images;
+
+    print "[step] build bootloader\n";
+    build_bootloader($root_dir);
+    my $boot_bin = -f "$boot_release_dir/boot.efi"
+        ? "$boot_release_dir/boot.efi"
+        : "$boot_release_dir/boot";
+    need_file($boot_bin);
+
+    print "[step] update bootloader in existing images\n";
+    install_file('0644', $boot_bin, "$esp_dir/EFI/BOOT/BOOTX64.EFI");
+    install_file('0644', $boot_bin, "$artifact_dir/BOOTX64.EFI");
+    replace_fat_file($esp_img, $boot_bin, '::/EFI/BOOT/BOOTX64.EFI');
+    replace_fat_file("${_}\@\@$esp_offset", $boot_bin, '::/EFI/BOOT/BOOTX64.EFI')
         for @disk_images;
 
     print "[step] refresh artifact metadata\n";
     run_in_dir($root_dir, 'repo', 'manifest', '-r', '-o', "$artifact_dir/manifest.xml");
     write_build_info("$artifact_dir/build-info.txt", $root_dir);
     refresh_existing_checksums($artifact_dir);
-    print "[done] updated kernel without rebuilding userland: $artifact_dir/kernel.elf\n";
+    print "[done] updated bootloader without rebuilding userland: $artifact_dir/BOOTX64.EFI\n";
     exit 0;
 }
 
@@ -1732,7 +1799,7 @@ if (cached_artifacts_current($root_dir, $build_input_stamp, "$artifact_dir/disk.
     exit 0;
 }
 
-for my $cmd (qw(cargo chown cp fakeroot install mcopy mke2fs mkfs.fat mmd perl sh stat tar repo sha256sum sfdisk truncate dd find sort)) {
+for my $cmd (qw(cargo chown cp fakeroot install mcopy mke2fs mkfs.fat mmd nm perl sh stat tar repo sha256sum sfdisk truncate dd find sort)) {
     need_cmd($cmd);
 }
 
@@ -1844,6 +1911,7 @@ build_cexts($root_dir, $nightly_toolchain);
 
 print "[step] build kernel\n";
 build_kernel($core_root, $nightly_toolchain, $kernel_target, \@kernel_features);
+write_kernel_meta("$core_root/target/$kernel_target/release/kernel", $kernel_meta);
 
 print "[step] build driver bundles\n";
 build_driver_bundles($root_dir, \%config, $nightly_toolchain);
@@ -2115,6 +2183,7 @@ remove_tree($esp_dir);
 make_path("$esp_dir/EFI/BOOT", "$esp_dir/system");
 install_file('0644', $boot_bin, "$esp_dir/EFI/BOOT/BOOTX64.EFI");
 install_file('0644', $path{kernel_bin}, "$esp_dir/system/kernel.elf");
+install_file('0644', $kernel_meta, "$esp_dir/system/kernel.meta");
 install_file('0644', $initfs_img, "$esp_dir/system/initfs.img");
 run('truncate', '-s', "$config{IMAGE_ESP_SIZE_MB}M", $esp_img);
 run_quiet('mkfs.fat', '-F', '32', '-n', 'EFI', $esp_img);
@@ -2124,6 +2193,7 @@ run_env($mtools_env, 'mmd', '-i', $esp_img, '::/EFI/BOOT');
 run_env($mtools_env, 'mmd', '-i', $esp_img, '::/system');
 run_env($mtools_env, 'mcopy', '-i', $esp_img, "$esp_dir/EFI/BOOT/BOOTX64.EFI", '::/EFI/BOOT/BOOTX64.EFI');
 run_env($mtools_env, 'mcopy', '-i', $esp_img, "$esp_dir/system/kernel.elf", '::/system/kernel.elf');
+run_env($mtools_env, 'mcopy', '-i', $esp_img, "$esp_dir/system/kernel.meta", '::/system/kernel.meta');
 run_env($mtools_env, 'mcopy', '-i', $esp_img, "$esp_dir/system/initfs.img", '::/system/initfs.img');
 
 print "[step] build GPT disk image\n";
@@ -2141,6 +2211,7 @@ print "[step] collect artifacts\n";
 install_file('0644', $disk_img, "$artifact_dir/disk.img");
 install_file('0644', $initfs_img, "$artifact_dir/initfs.img");
 install_file('0644', $path{kernel_bin}, "$artifact_dir/kernel.elf");
+install_file('0644', $kernel_meta, "$artifact_dir/kernel.meta");
 install_file('0644', $boot_bin, "$artifact_dir/BOOTX64.EFI");
 install_file('0755', $path{service_bin}, "$artifact_dir/core.service");
 install_file('0755', $path{capability_service_bin}, "$artifact_dir/capability.service");
@@ -2185,6 +2256,7 @@ my @checksum_files = qw(
     disk.img
     initfs.img
     kernel.elf
+    kernel.meta
     BOOTX64.EFI
     core.service
     service-manager.service

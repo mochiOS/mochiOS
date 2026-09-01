@@ -18,6 +18,10 @@ make update-kernel
 
 この処理はユーザーランド、initfs、rootfsを作り直しません。カーネルをreleaseビルドし、ESP単体と二つのディスクイメージ内にある`/system/kernel.elf`を置き換えます。既存イメージがない場合は、不完全なイメージを新しく作らずに終了します。
 
+bootloaderだけを更新する場合は`make update-boot`を使います。こちらも既存のESPとディスク内にある`BOOTX64.EFI`だけを置き換えます。
+
+`make update-kernel`は`secondary_cpu_entry`のアドレスを`kernel.meta`へ書き出します。bootloaderはこの小さなファイルを使ってAPのentryを決めるため、配布用kernelからsymbol tableを分離してもSMP起動を続けられます。metadataがない場合に使うELF parserのoffset上書きも修正しました。
+
 ## 配置
 
 | 項目 | bytes | 配置 |

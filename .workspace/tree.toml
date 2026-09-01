@@ -2591,3 +2591,11 @@ path = "binaries/coreutils"
 hash = "a729fe55298948851cdd7138e7b81bcf8ba883ac"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report kernel heap allocation patterns"
+
+[[entries]]
+date = "2026-09-01T21:02:06.296963649+09:00"
+snapshot = "40a29f66fcd4e87129a6034a"
+path = "binaries/coreutils"
+hash = "791e8036184735c77679a06ba8202c56324f3627"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report physical frame allocation costs"

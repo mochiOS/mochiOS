@@ -22,6 +22,8 @@ load対象のメモリ量は48,656,814 bytesから1,261,983 bytesへ減りまし
 
 4,460,544 bytesあった`KSTACK_POOL`は削除済みです。配布用kernelは863,296 bytes、LOAD segmentのメモリ量は1,261,983 bytesになりました。ここから先は小さな固定領域と実行時allocationを分けて見ます。
 
+kernel heapも32MiBを最初から物理mapする処理をやめました。256KiBから始め、必要になった分だけ追加します。service起動地点では1,323,008 bytesだったため、従来より32,231,424 bytes少なく済みました。[heap変更後の計測結果](baselines/mnu-kernel-growable-heap-2026-09-01.json)で1 vCPUと4 vCPUの確認結果を読めます。
+
 ## 先にそろえる計測
 
 変更の前後で、同じ処理をウォームアップ後に複数回実行します。待ち時間は平均だけでなくp50、p95、p99と最大値、試行回数を残します。ビルドのrevision、feature、コンパイラ、CPU、CPU数、メモリ量、実機か仮想マシンか、キャッシュ条件も結果へ含めます。
@@ -63,6 +65,8 @@ APがlong modeへ移るまで使う8 KiBのbootstrap stackも、固定64本か�
 ### allocatorとpage管理を整理する
 
 boot時だけ必要なallocatorを通常運用へ持ち越さず、使い終えた領域を回収します。小さいallocationはsize class別に扱い、断片化、lock待ち、zeroingの費用を測ります。per-CPU cacheは競合が実測された場合だけ導入します。
+
+現在のkernel heapは仮想上限32MiBのまま、256KiBずつ物理pageを追加します。追加処理は一つのlockで直列化し、page table、frame allocatorの順でlockを取ります。部分的な確保に失敗した場合も、mapできた範囲だけをheapへ渡してから再試行します。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。
 

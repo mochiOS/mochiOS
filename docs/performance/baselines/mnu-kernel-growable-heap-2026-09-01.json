@@ -1,0 +1,41 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "core": "9bd2df876d52f60ead0b28707a7a3fb910a14d96"
+  },
+  "build": {
+    "profile": "release",
+    "features": ["kernel-bin"],
+    "rust_toolchain": "nightly-2026-05-14"
+  },
+  "measurement": {
+    "file_size_bytes": 875288,
+    "loadable_file_size_bytes": 865790,
+    "loadable_memory_size_bytes": 1270886,
+    "text_bytes": 538294,
+    "rodata_bytes": 41410,
+    "data_bytes": 259568,
+    "bss_bytes": 402520,
+    "relocation_bytes": 19440,
+    "heap_virtual_limit_bytes": 33554432,
+    "heap_initial_committed_bytes": 262144,
+    "heap_committed_at_service_failure_bytes": 1323008,
+    "avoided_heap_commit_bytes": 32231424,
+    "avoided_heap_frames": 7869
+  },
+  "correctness": {
+    "environment": "QEMU TCG",
+    "tested_vcpu_counts": [1, 4],
+    "secondary_cpus_online": 3,
+    "kernel_panics": 0,
+    "page_faults": 0,
+    "allocator_quarantine_events": 0,
+    "reached_system_services": true,
+    "runner_result": "known display service timeout after services started"
+  },
+  "notes": [
+    "Heap pages are zeroed before becoming visible to the allocator.",
+    "Growth is serialized and page-table locks are acquired before the frame allocator lock.",
+    "The 32 MiB virtual limit remains, but physical pages are committed in 256 KiB steps."
+  ]
+}

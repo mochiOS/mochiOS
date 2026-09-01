@@ -72,3 +72,7 @@ APが通常のidle stackへ切り替わった後にbootstrap stackを回収す�
 この変更後の配布用kernelは863,296 bytes、LOAD segmentのメモリ量は1,261,983 bytesです。前回の5,726,199 bytesから4,464,216 bytes減りました。4 vCPUのTCG試験では3個のAPとsystem service起動まで進み、page fault、panic、stack quarantineは発生していません。[動的stack変更後の計測結果](baselines/mnu-kernel-dynamic-stacks-2026-09-01.json)に内訳を保存しています。
 
 計測buildでは、解放時にstackの初期patternを調べます。今回観測した最大使用量は65,536 bytes中1,952 bytesでした。起動試験一回の値にすぎないため、設定値はまだ下げません。
+
+kernel heapは32MiBの仮想上限を残しつつ、最初に256KiBだけ物理mapする形へ変えました。足りなくなると256KiB単位でpageを追加し、再利用pageもallocatorへ渡す前にzeroingします。1 vCPUと4 vCPUの試験では、同じservice起動地点で1,323,008 bytesまで増えました。以前の32MiB一括mapと比べると、7,869 page、32,231,424 bytesを起動時に確保せずに済んでいます。
+
+追加した処理により配布用kernelは875,288 bytesへ増えました。LOAD segmentのメモリ量は1,270,886 bytesです。ファイルの11,992 bytes増加より、起動時に減る物理メモリのほうが大きいため、この変更は残します。[段階確保へ変更したheapの計測結果](baselines/mnu-kernel-growable-heap-2026-09-01.json)に条件をまとめています。

@@ -86,3 +86,9 @@ allocatorの判断に必要な内訳は`performance-instrumentation`でだけ収
 物理frame allocatorは、実装と合っていなかった`BitmapFrameAllocator`という名前を改めました。未使用領域のcursorと、解放済みframeを再利用するfree listで動きます。新規確保のたびにメモリマップ先頭へ戻る処理もやめ、最後に使ったregionから調べます。
 
 通常buildは引き続き875,424 bytesです。LOAD segmentはファイル上866,006 bytes、メモリ上1,274,894 bytesでした。計測buildは896,256 bytesで、物理frameの要求、再利用、新規確保、region走査、連続確保、失敗理由、heap拡張時のzeroing量とcycleを`mperf`から取得できます。[物理frame計測の確認結果](baselines/mnu-kernel-frame-observability-2026-09-01.json)にrevisionとABI境界を保存しています。
+
+frame allocatorのlock待ちと外部断片化を追加で観測できるようにした後、物理pageのzeroingを一つの関数へまとめました。通常buildの配布用kernelは875,480 bytesです。LOAD segmentはファイル上866,134 bytes、メモリ上1,269,962 bytesで、`.text`は537,622 bytesになりました。
+
+共通化前と比べるとELF全体は56 bytes、LOAD segmentのファイル量は144 bytes増えています。その代わり`.text`は1,568 bytes、LOAD segmentのメモリ量は4,916 bytes減りました。ユーザー空間へ渡すpage、page table、共有pageのzeroingは残し、失敗時はmappingを中止して確保済みpageを戻します。
+
+performance ABI v5には、frame確保数のCPU別・処理元別内訳と、zeroingの処理元別回数・cycleを追加しました。この計測処理はfeatureで分離されており、通常buildの上記サイズは追加前と同一です。計測buildのraw stripped kernelは892,008 bytes、snapshotは2,840 bytesです。[frame活動の計測結果](baselines/mnu-kernel-frame-activity-2026-09-02.json)に詳細を残しています。

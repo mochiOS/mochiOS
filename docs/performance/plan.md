@@ -76,6 +76,14 @@ heapの内訳はperformance ABI v2の末尾へ追加しました。続くv3に�
 
 物理frameの新規確保は、以前は要求のたびにメモリマップの先頭から調べていました。現在は最後に使ったregionを覚え、そこから再開します。通常buildの配布用kernelは875,424 bytesのままです。v3の計測buildは896,256 bytesで、v2の計測buildより16 bytes小さくなりました。[物理frame計測の確認結果](baselines/mnu-kernel-frame-observability-2026-09-01.json)に、ABIとビルドの確認範囲を残しています。
 
+frame allocatorのlock待ちは、計測buildで回数、p50、p95、p99、最大cycleを取得できます。未使用pageの総数、free listに戻ったpage数、現在確保できる最大の連続page数も同じsnapshotへ加えました。これだけではper-CPU cacheが必要か判断できないため、通常buildの処理は変えていません。
+
+物理pageのzeroingは`frame::zero_frame`へ集約しました。heap拡張、page table、ユーザーsegment、共有page、per-CPU領域で別々に行っていた初期化を一つの経路へ通し、失敗時の扱いと計測位置をそろえています。共有pageでは物理アドレスの計算に失敗してもmappingを続ける経路があったため、現在は確保済みpageを戻してエラーにします。
+
+performance ABI v5では、確保したpage数をCPU別と処理元別に記録します。zeroingの呼び出し回数とcycleも処理元別に分かるため、競合や初期化費用が偏る箇所を実測できます。計測コードを除いた通常buildは875,480 bytes、LOAD segmentのメモリ量は1,269,962 bytesです。共通化前と比べて`.text`は1,568 bytes、LOAD segmentのメモリ量は4,916 bytes減りました。[frame活動の計測結果](baselines/mnu-kernel-frame-activity-2026-09-02.json)にrevisionと確認条件を保存しています。
+
+実機の処理別page数とlock待ち分布はまだ採れていません。現在の起動試験は既知の`display.driver`終了でシェルへ到達しないためです。計測値がないままper-CPU cache、reserve pool、allocatorの全面置換には進みません。次は割り当て失敗がpanic、syscall error、process終了のどれになるかを追い、OOM時にも部分的なmappingや所有権の取り残しが起きないことを確かめます。
+
 BootloaderReclaimableはまだ通常RAMへ加えていません。UEFI loaderの`BootInfo`、メモリマップ、initfsが同じ種類の領域に置かれるため、一括回収すると起動中のデータを再割り当てしかねません。loaderが所有範囲を渡し、mnuが必要な内容を退避してから回収します。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。

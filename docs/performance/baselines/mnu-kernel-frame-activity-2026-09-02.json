@@ -1,0 +1,57 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "root": "b67be093c39a519863bf0b30c37915979d27d6bf",
+    "core": "0d47fef4d9fdb2925e8b1f6ab8addbc59bbc7166",
+    "core_zeroing_change": "5f33556ceb41d3272e8dbf1783f0215757e6b63b",
+    "coreutils": "d28bb6001d3d6653a832334fb380a33586ca4938"
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14"
+  },
+  "measurement": {
+    "normal_features": ["kernel-bin"],
+    "normal_file_size_bytes": 875480,
+    "normal_loadable_file_size_bytes": 866134,
+    "normal_loadable_memory_size_bytes": 1269962,
+    "normal_text_bytes": 537622,
+    "normal_rodata_bytes": 41562,
+    "normal_data_bytes": 259760,
+    "normal_bss_bytes": 401444,
+    "zeroing_change_file_delta_bytes": 56,
+    "zeroing_change_loadable_file_delta_bytes": 144,
+    "zeroing_change_loadable_memory_delta_bytes": -4916,
+    "zeroing_change_text_delta_bytes": -1568,
+    "instrumented_features": ["kernel-bin", "performance-instrumentation"],
+    "instrumented_raw_stripped_file_size_bytes": 892008,
+    "snapshot_version": 5,
+    "snapshot_size_bytes": 2840,
+    "compatible_v1_prefix_bytes": 1200,
+    "compatible_v2_prefix_bytes": 1896,
+    "compatible_v3_prefix_bytes": 1992,
+    "compatible_v4_prefix_bytes": 2064,
+    "frame_activity_cpu_slots": 64,
+    "frame_activity_subsystems": 11
+  },
+  "correctness": {
+    "abi_layout_standalone_tests_passed": 3,
+    "mperf_output_tests_passed": 3,
+    "normal_kernel_build_passed": true,
+    "instrumented_kernel_build_passed": true,
+    "environment": "QEMU TCG",
+    "tested_vcpu_counts": [2],
+    "secondary_cpus_online": 1,
+    "kernel_panics": 0,
+    "page_faults": 0,
+    "reached_system_services": true,
+    "mperf_guest_run_completed": false,
+    "guest_run_blocker": "display.driver exited before compositor and shell startup"
+  },
+  "notes": [
+    "Physical frame zeroing now has one checked implementation for heap growth, page tables, user segments, shared pages, and per-CPU regions.",
+    "A failed shared-page address calculation rolls back allocated frames instead of continuing with an uninitialized mapping.",
+    "CPU and subsystem attribution is compiled only into performance-instrumentation builds; the normal kernel size is unchanged by ABI v5.",
+    "Runtime p50, p95, and p99 values are unavailable until the guest reaches mperf. No allocator redesign is inferred from build-only measurements."
+  ]
+}

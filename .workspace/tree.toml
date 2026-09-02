@@ -2743,3 +2743,11 @@ path = "core"
 hash = "c4a70a2990d4d93a9489174cd1f6a4bd99509bdf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Skip inactive timer queue scans"
+
+[[entries]]
+date = "2026-09-02T19:03:58.337307390+09:00"
+snapshot = "b49c3b5380e964f088ffa84f"
+path = "core"
+hash = "78a33512bd1975448b48f3b59e5481e496bac14f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Boot a generic init process"

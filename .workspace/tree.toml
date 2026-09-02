@@ -2663,3 +2663,11 @@ path = "core"
 hash = "beb266efe2387ffe768999d137b86796c31ae29c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Allocate cext DMA ranges contiguously"
+
+[[entries]]
+date = "2026-09-02T16:54:16.214166224+09:00"
+snapshot = "805a758653ea700869c412f3"
+path = "core"
+hash = "dfd7489b67b9377a194ed73ecd3c532c087a9260"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Zero DMA pages before user mapping"

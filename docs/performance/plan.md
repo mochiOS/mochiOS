@@ -98,6 +98,10 @@ cextのDMA確保は、pageを1枚ずつ`Vec`へ積んでから連続性を検査
 
 この変更後の通常kernelは830,216 bytesで、直前から45,272 bytes減りました。`.text`は41,952 bytes減っています。QEMUではDMAを使う`disk.cext`と、その上の`ext2.cext`が読み込まれました。[連続DMA確保後の計測結果](baselines/mnu-kernel-contiguous-dma-2026-09-02.json)に通常buildと計測buildの差を残しています。
 
+同じ監査で、DMA syscallが確保直後の物理pageをzeroingせず、ユーザープロセスへmapしていることも見つかりました。現在は連続範囲をHHDMから全てclearし、完了後にだけprocessへ登録してmapします。アドレス計算や後続処理に失敗した場合は範囲全体を返します。zeroingのbytesとcycleは既存のframe計測へ含めます。
+
+DMA zeroingを加えた通常kernelは859,072 bytesです。直前より28,856 bytes増えましたが、連続確保へ変える前の875,488 bytesより16,416 bytes小さい状態です。以前の所有者の内容をユーザーへ見せないため、このzeroingは削りません。[DMA zeroing後の計測結果](baselines/mnu-kernel-dma-zero-2026-09-02.json)に両方の比較を保存しています。
+
 BootloaderReclaimableはまだ通常RAMへ加えていません。UEFI loaderの`BootInfo`、メモリマップ、initfsが同じ種類の領域に置かれるため、一括回収すると起動中のデータを再割り当てしかねません。loaderが所有範囲を渡し、mnuが必要な内容を退避してから回収します。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。

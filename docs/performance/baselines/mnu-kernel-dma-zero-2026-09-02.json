@@ -1,0 +1,57 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "root": "e231688a213ee4afd03b462b89f9397dc0fc63f3",
+    "core": "dfd7489b67b9377a194ed73ecd3c532c087a9260",
+    "zero_frame_noinline_change": "93195f98e216862fd40d330806f3c47bbdf9fa62"
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14"
+  },
+  "measurement": {
+    "normal_features": ["kernel-bin"],
+    "normal_file_size_bytes": 859072,
+    "normal_loadable_file_size_bytes": 849598,
+    "normal_loadable_memory_size_bytes": 1257294,
+    "normal_text_bytes": 522310,
+    "normal_rodata_bytes": 41418,
+    "normal_data_bytes": 259736,
+    "normal_bss_bytes": 405288,
+    "normal_relocation_bytes": 19608,
+    "delta_from_unzeroed_dma_file_bytes": 28856,
+    "delta_from_unzeroed_dma_loadable_file_bytes": 24864,
+    "delta_from_unzeroed_dma_loadable_memory_bytes": 24464,
+    "delta_from_unzeroed_dma_text_bytes": 25616,
+    "delta_from_pre_dma_refactor_file_bytes": -16416,
+    "delta_from_pre_dma_refactor_loadable_file_bytes": -16408,
+    "delta_from_pre_dma_refactor_loadable_memory_bytes": -12504,
+    "delta_from_pre_dma_refactor_text_bytes": -16336,
+    "instrumented_features": ["kernel-bin", "performance-instrumentation"],
+    "instrumented_raw_stripped_file_size_bytes": 896072,
+    "instrumented_raw_stripped_delta_bytes": 8,
+    "snapshot_version": 5,
+    "snapshot_size_bytes": 2840
+  },
+  "correctness": {
+    "normal_kernel_build_passed": true,
+    "instrumented_kernel_build_passed": true,
+    "environment": "QEMU TCG",
+    "tested_vcpu_counts": [2],
+    "secondary_cpus_online": 1,
+    "kernel_panics": 0,
+    "page_faults": 0,
+    "disk_cext_loaded": true,
+    "ext2_cext_loaded": true,
+    "reached_system_services": true,
+    "user_dma_zero_content_probe_completed": false,
+    "guest_run_blocker": "display.driver exited before compositor and shell startup"
+  },
+  "notes": [
+    "The DMA syscall clears the complete physical range before registering or mapping it into a process.",
+    "Address-calculation and later allocation failures release every frame in the contiguous range.",
+    "DMA zeroing contributes to the existing frame zero byte and cycle counters.",
+    "The security fix adds 28,856 bytes relative to the unzeroed DMA build, but the combined DMA refactor remains 16,416 bytes smaller than its starting point.",
+    "A guest probe that writes, frees, reallocates, and verifies zero content is still pending."
+  ]
+}

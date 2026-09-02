@@ -104,3 +104,7 @@ cext loaderのrollbackとW^X切替を直した後は875,488 bytesです。LOAD s
 cextのDMA確保から`Vec<PhysFrame>`を外し、frame allocatorの連続確保を使うようにした後は830,216 bytesです。LOAD segmentはファイル上824,734 bytes、メモリ上1,232,830 bytesです。直前からファイルは45,272 bytes、`.text`は41,952 bytes減りました。
 
 この変更はサイズだけでなく、DMA範囲の確保に必要なlockを最大64回から1回へ減らします。QEMUの`disk.cext`初期化で成功経路を確認しました。[連続DMA確保後の計測結果](baselines/mnu-kernel-contiguous-dma-2026-09-02.json)に値を保存しています。
+
+DMA syscallがユーザーへ渡す連続範囲をzeroingするようにした後は859,072 bytesです。LOAD segmentはファイル上849,598 bytes、メモリ上1,257,294 bytesです。zeroing前から28,856 bytes増えましたが、DMA整理前との比較では16,416 bytes減っています。
+
+`zero_frame`は呼び出し元へ本体を複製しないよう非inline化しました。DMA範囲は1回の連続clearとして計測し、解放処理も一つのloopへまとめています。[DMA zeroing後の計測結果](baselines/mnu-kernel-dma-zero-2026-09-02.json)に通常buildと計測buildの差を記録しています。

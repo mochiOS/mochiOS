@@ -1,0 +1,61 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "root": "0876996b815ca6e8875b6e1661677ce9b3ea6208",
+    "core": "354d1416247ea4cf318fb7d612f5370025ec8a60",
+    "comparison": "c0823488c6a203305ab8b9a512183d5d2acc821c"
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14"
+  },
+  "measurement": {
+    "normal_features": ["kernel-bin"],
+    "normal_file_size_bytes": 826184,
+    "normal_loadable_file_size_bytes": 820646,
+    "normal_loadable_memory_size_bytes": 1228638,
+    "normal_text_bytes": 495366,
+    "normal_rodata_bytes": 41218,
+    "normal_data_bytes": 259616,
+    "normal_bss_bytes": 405464,
+    "normal_relocation_bytes": 19608,
+    "normal_file_delta_bytes": -4088,
+    "normal_loadable_file_delta_bytes": -4088,
+    "normal_loadable_memory_delta_bytes": -4144,
+    "normal_text_delta_bytes": -1280,
+    "failure_test_features": [
+      "kernel-bin",
+      "frame-allocation-failure-injection",
+      "performance-instrumentation"
+    ],
+    "failure_test_raw_stripped_file_size_bytes": 895984,
+    "snapshot_version": 5,
+    "snapshot_size_bytes": 2840
+  },
+  "failure_injection": {
+    "allowed_allocation_calls_before_failure": 1,
+    "injected_failure_consumed": true,
+    "allocation_result": "OutOfMemory",
+    "frames_in_use_restored": true,
+    "injection_compiled_into_normal_build": false
+  },
+  "correctness": {
+    "environment": "QEMU TCG",
+    "tested_vcpu_counts": [2],
+    "secondary_cpus_online": 1,
+    "kernel_panics": 0,
+    "page_faults": 0,
+    "rollback_marker_observed": true,
+    "disk_cext_loaded": true,
+    "ext2_cext_loaded": true,
+    "reached_system_services": true,
+    "serial_log": "out/runner/workspace-1788337598-2/serial.log",
+    "guest_run_blocker": "display.driver exited before compositor and shell startup"
+  },
+  "notes": [
+    "The test permits the state-page allocation and forces the following stack-page allocation to fail.",
+    "The test rejects a coincidental allocator OOM unless the configured failure was consumed.",
+    "The frame-use gauge must match before and after the failed two-page transaction.",
+    "The normal build contains neither the injection countdown nor its allocation-path branches."
+  ]
+}

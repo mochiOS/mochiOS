@@ -116,3 +116,7 @@ DMA syscallがユーザーへ渡す連続範囲をzeroingするようにした�
 per-CPU syscall領域のframe確保とzeroingを共通経路へ揃えた後は830,272 bytesです。`.text`は224 bytes、計測buildは8,264 bytes減りました。通常buildのLOAD segmentはファイル上824,734 bytesです。
 
 LOAD segmentのメモリ量はsection境界の移動により1,232,782 bytesとなり、4,008 bytes増えました。ファイルサイズだけで改善と判断せず、残っている配置の差として追います。[per-CPU frame確保後の計測結果](baselines/mnu-kernel-percpu-frame-allocation-2026-09-02.json)に比較を保存しています。
+
+per-CPUの2-page確保を独立した処理へ分け、失敗注入でrollbackを確認した後は826,184 bytesです。LOAD segmentはファイル上820,646 bytes、メモリ上1,228,638 bytes、`.text`は495,366 bytesです。直前からファイルは4,088 bytes、LOAD時メモリは4,144 bytes減りました。
+
+失敗注入を含む試験buildは895,984 bytesです。通常buildでは注入用の状態と分岐をコンパイルしません。[frame確保失敗注入の結果](baselines/mnu-kernel-frame-failure-injection-2026-09-02.json)に、通常版との差とQEMUログを記録しています。

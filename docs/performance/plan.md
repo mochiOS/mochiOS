@@ -108,6 +108,10 @@ DMA zeroingを加えた通常kernelは859,072 bytesです。直前より28,856 b
 
 per-CPU syscall領域の2 pageも、共通のzeroing済みframe確保へ揃えました。stack pageの確保に失敗した場合は、先に確保したstate pageを返してから起動を止めます。通常kernelの`.text`は224 bytes、計測buildは8,264 bytes減りました。[per-CPU frame確保後の計測結果](baselines/mnu-kernel-percpu-frame-allocation-2026-09-02.json)には、section配置によりLOAD時メモリが4,008 bytes増えたことも含めています。
 
+このrollbackは、専用featureで2枚目のframe確保だけを失敗させて確認しました。注入した失敗が実際に消費され、試験前後の`FramesInUse`が一致し、その後も2 vCPUでsystem service起動まで進んでいます。注入用のatomicと分岐は通常buildへ入りません。
+
+per-CPUの確保処理を試験できる単位へ分けたことで、通常kernelも826,184 bytesまで小さくなりました。直前から`.text`は1,280 bytes、LOAD segmentのメモリ量は4,144 bytes減っています。[frame確保失敗注入の結果](baselines/mnu-kernel-frame-failure-injection-2026-09-02.json)に試験featureとログの場所を保存しました。
+
 BootloaderReclaimableはまだ通常RAMへ加えていません。UEFI loaderの`BootInfo`、メモリマップ、initfsが同じ種類の領域に置かれるため、一括回収すると起動中のデータを再割り当てしかねません。loaderが所有範囲を渡し、mnuが必要な内容を退避してから回収します。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。

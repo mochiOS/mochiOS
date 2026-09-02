@@ -2759,3 +2759,11 @@ path = "mboot"
 hash = "c2578f774c14325a7eea7bedd637f78ef6972aa1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Build generic mnu domain binaries"
+
+[[entries]]
+date = "2026-09-02T19:18:49.242999920+09:00"
+snapshot = "bee52d46798de31443aba65a"
+path = "mboot"
+hash = "93ed303d05ff2abcdd78cdbbcadaf1220e5cfdcc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Build the mochiOS System Domain outside mnu"

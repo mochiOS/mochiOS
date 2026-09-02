@@ -94,6 +94,10 @@ cextの読込も失敗時に元へ戻します。各segmentはRW+NXで内容を�
 
 このcext rollbackを含む通常kernelは875,488 bytesです。直前から4,104 bytes増えましたが、読込失敗のたびにkernel pageが残る状態と、一時的なRWX mappingをなくすため変更は残します。計測buildは逆に24 bytes減っているため、section配置の差を含めて[cext rollback後の計測結果](baselines/mnu-kernel-cext-rollback-2026-09-02.json)へ記録しました。
 
+cextのDMA確保は、pageを1枚ずつ`Vec`へ積んでから連続性を検査する処理をやめました。frame allocatorの連続確保を1回呼び、得られた範囲をpageごとにzeroingします。途中で初期化に失敗した場合は範囲全体を返します。最大64回あったallocator lockと、free listの順序による不要な失敗がなくなりました。
+
+この変更後の通常kernelは830,216 bytesで、直前から45,272 bytes減りました。`.text`は41,952 bytes減っています。QEMUではDMAを使う`disk.cext`と、その上の`ext2.cext`が読み込まれました。[連続DMA確保後の計測結果](baselines/mnu-kernel-contiguous-dma-2026-09-02.json)に通常buildと計測buildの差を残しています。
+
 BootloaderReclaimableはまだ通常RAMへ加えていません。UEFI loaderの`BootInfo`、メモリマップ、initfsが同じ種類の領域に置かれるため、一括回収すると起動中のデータを再割り当てしかねません。loaderが所有範囲を渡し、mnuが必要な内容を退避してから回収します。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。

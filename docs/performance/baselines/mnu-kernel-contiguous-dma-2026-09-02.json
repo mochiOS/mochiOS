@@ -1,0 +1,52 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "root": "0d869f948d9eadebd9e323e7b195e6e33fac9ea8",
+    "core": "beb266efe2387ffe768999d137b86796c31ae29c"
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14"
+  },
+  "measurement": {
+    "normal_features": ["kernel-bin"],
+    "normal_file_size_bytes": 830216,
+    "normal_loadable_file_size_bytes": 824734,
+    "normal_loadable_memory_size_bytes": 1232830,
+    "normal_text_bytes": 496694,
+    "normal_rodata_bytes": 41290,
+    "normal_data_bytes": 259552,
+    "normal_bss_bytes": 405504,
+    "normal_relocation_bytes": 19536,
+    "normal_file_delta_bytes": -45272,
+    "normal_loadable_file_delta_bytes": -41272,
+    "normal_loadable_memory_delta_bytes": -36968,
+    "normal_text_delta_bytes": -41952,
+    "dma_allocator_lock_calls_before_maximum": 64,
+    "dma_allocator_lock_calls_after": 1,
+    "instrumented_features": ["kernel-bin", "performance-instrumentation"],
+    "instrumented_raw_stripped_file_size_bytes": 896064,
+    "instrumented_raw_stripped_delta_bytes": -8,
+    "snapshot_version": 5,
+    "snapshot_size_bytes": 2840
+  },
+  "correctness": {
+    "normal_kernel_build_passed": true,
+    "instrumented_kernel_build_passed": true,
+    "environment": "QEMU TCG",
+    "tested_vcpu_counts": [2],
+    "secondary_cpus_online": 1,
+    "kernel_panics": 0,
+    "page_faults": 0,
+    "disk_cext_loaded": true,
+    "ext2_cext_loaded": true,
+    "reached_system_services": true,
+    "guest_run_blocker": "display.driver exited before compositor and shell startup"
+  },
+  "notes": [
+    "cext DMA allocation reserves one contiguous range instead of collecting individual frames in a Vec and checking adjacency afterward.",
+    "Every page is zeroed before the range is returned; a zeroing failure releases the complete range.",
+    "Requests are limited to 256 KiB and alignment to 4 KiB, so a page-aligned contiguous range satisfies the accepted alignment values.",
+    "The normal artifact shrank by 45,272 bytes, while the instrumented artifact shrank by 8 bytes."
+  ]
+}

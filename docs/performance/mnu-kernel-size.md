@@ -100,3 +100,7 @@ performance ABI v5には、frame確保数のCPU別・処理元別内訳と、zer
 cext loaderのrollbackとW^X切替を直した後は875,488 bytesです。LOAD segmentはファイル上866,006 bytes、メモリ上1,269,798 bytesです。直前よりファイルが4,104 bytes増えました。失敗したmoduleのpageを残さず、書込み中のsegmentを実行可能にしないため、この増加は削りません。
 
 計測buildのraw stripped kernelは896,072 bytesで、直前より24 bytes減りました。通常buildだけがpage境界を越えて増えているため、link配置を扱う段階までは両方を別々に追います。[cext rollback後の計測結果](baselines/mnu-kernel-cext-rollback-2026-09-02.json)にsection内訳を保存しています。
+
+cextのDMA確保から`Vec<PhysFrame>`を外し、frame allocatorの連続確保を使うようにした後は830,216 bytesです。LOAD segmentはファイル上824,734 bytes、メモリ上1,232,830 bytesです。直前からファイルは45,272 bytes、`.text`は41,952 bytes減りました。
+
+この変更はサイズだけでなく、DMA範囲の確保に必要なlockを最大64回から1回へ減らします。QEMUの`disk.cext`初期化で成功経路を確認しました。[連続DMA確保後の計測結果](baselines/mnu-kernel-contiguous-dma-2026-09-02.json)に値を保存しています。

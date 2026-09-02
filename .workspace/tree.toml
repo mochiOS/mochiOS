@@ -2783,3 +2783,11 @@ path = "applications/binder"
 hash = "e3807987f296331262e22b88eae07abe830e247a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Emit mnu execution metadata"
+
+[[entries]]
+date = "2026-09-02T19:58:43.838867167+09:00"
+snapshot = "821dc448c5afeb381d13ed3f"
+path = "binaries/coreutils"
+hash = "2c59630e3790fdda7b31b58485b30c4d4e312a12"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report generic hypervisor timing"

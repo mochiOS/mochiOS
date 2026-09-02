@@ -2775,3 +2775,11 @@ path = "mboot"
 hash = "b1e4b2ebcb082afa470d36a7479e2f8950dda2ca"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Build mDriver probes outside mnu"
+
+[[entries]]
+date = "2026-09-02T19:34:16.145654521+09:00"
+snapshot = "67db4acbf4c42d7d1743e47e"
+path = "applications/binder"
+hash = "e3807987f296331262e22b88eae07abe830e247a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Emit mnu execution metadata"

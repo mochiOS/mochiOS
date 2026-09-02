@@ -2767,3 +2767,11 @@ path = "mboot"
 hash = "93ed303d05ff2abcdd78cdbbcadaf1220e5cfdcc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Build the mochiOS System Domain outside mnu"
+
+[[entries]]
+date = "2026-09-02T19:27:52.943381116+09:00"
+snapshot = "9a9b77c268f749a345276dc0"
+path = "mboot"
+hash = "b1e4b2ebcb082afa470d36a7479e2f8950dda2ca"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Build mDriver probes outside mnu"

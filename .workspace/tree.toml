@@ -2679,3 +2679,11 @@ path = "core"
 hash = "868096db1c5c52294ba43692292f076e55593e67"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Avoid temporary shared page vectors"
+
+[[entries]]
+date = "2026-09-02T17:14:35.350569937+09:00"
+snapshot = "85425760c10307316cc367f6"
+path = "core"
+hash = "c0823488c6a203305ab8b9a512183d5d2acc821c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Make per-CPU frame allocation transactional"

@@ -106,6 +106,8 @@ DMA zeroingを加えた通常kernelは859,072 bytesです。直前より28,856 b
 
 通常kernelは834,448 bytesになり、DMA zeroing直後から24,624 bytes減りました。LOAD segmentのメモリ量は28,520 bytes減っています。計測buildは反対に4,072 bytes増えているため、通常buildの差にはlink時の4 KiB境界も含まれます。[共有page確保後の計測結果](baselines/mnu-kernel-shared-page-allocation-2026-09-02.json)にsectionごとの差と起動確認の範囲を残しています。
 
+per-CPU syscall領域の2 pageも、共通のzeroing済みframe確保へ揃えました。stack pageの確保に失敗した場合は、先に確保したstate pageを返してから起動を止めます。通常kernelの`.text`は224 bytes、計測buildは8,264 bytes減りました。[per-CPU frame確保後の計測結果](baselines/mnu-kernel-percpu-frame-allocation-2026-09-02.json)には、section配置によりLOAD時メモリが4,008 bytes増えたことも含めています。
+
 BootloaderReclaimableはまだ通常RAMへ加えていません。UEFI loaderの`BootInfo`、メモリマップ、initfsが同じ種類の領域に置かれるため、一括回収すると起動中のデータを再割り当てしかねません。loaderが所有範囲を渡し、mnuが必要な内容を退避してから回収します。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。

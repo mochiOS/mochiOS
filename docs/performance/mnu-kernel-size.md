@@ -112,3 +112,7 @@ DMA syscallがユーザーへ渡す連続範囲をzeroingするようにした�
 共有page確保の一時`Vec<u64>`を外した後は834,448 bytesです。LOAD segmentはファイル上824,950 bytes、メモリ上1,228,774 bytesです。DMA zeroing直後からファイルは24,624 bytes、`.text`は25,440 bytes減りました。
 
 計測buildは900,144 bytesで4,072 bytes増えています。通常buildの大きな減少にはsection配置の境界も含まれるため、実際に減った命令量とは分けて扱います。実行時には、共有page数の8倍だった一時heap allocationが呼び出し方にかかわらず不要になりました。[共有page確保後の計測結果](baselines/mnu-kernel-shared-page-allocation-2026-09-02.json)に値を保存しています。
+
+per-CPU syscall領域のframe確保とzeroingを共通経路へ揃えた後は830,272 bytesです。`.text`は224 bytes、計測buildは8,264 bytes減りました。通常buildのLOAD segmentはファイル上824,734 bytesです。
+
+LOAD segmentのメモリ量はsection境界の移動により1,232,782 bytesとなり、4,008 bytes増えました。ファイルサイズだけで改善と判断せず、残っている配置の差として追います。[per-CPU frame確保後の計測結果](baselines/mnu-kernel-percpu-frame-allocation-2026-09-02.json)に比較を保存しています。

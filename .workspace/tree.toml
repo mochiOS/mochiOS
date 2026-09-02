@@ -2735,3 +2735,11 @@ path = "binaries/coreutils"
 hash = "f707fba0cb7595a36b43d1041bde1802693e93ce"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report timer queue activity"
+
+[[entries]]
+date = "2026-09-02T18:58:50.035025133+09:00"
+snapshot = "7ddbfc425d568aa4adec403b"
+path = "core"
+hash = "c4a70a2990d4d93a9489174cd1f6a4bd99509bdf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Skip inactive timer queue scans"

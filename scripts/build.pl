@@ -13,6 +13,7 @@ use POSIX qw(strftime);
 my $script_dir = dirname(abs_path($0));
 my $root_dir = abs_path("$script_dir/..");
 my $core_root = "$root_dir/core";
+my $system_domain_root = "$root_dir/boot";
 my $config_file = "$root_dir/.config";
 my $developer_root_public_key_file = "$root_dir/.pubkey";
 my $using_repository_development_root =
@@ -2067,7 +2068,11 @@ remove_tree($initfs_stage);
 make_path($initfs_stage);
 install_file('0755', $path{service_bin}, "$initfs_stage/init");
 make_path("$initfs_stage/config");
-install_file('0644', "$core_root/config/kernel.conf", "$initfs_stage/config/kernel.conf");
+install_file(
+    '0644',
+    "$system_domain_root/config/kernel.conf",
+    "$initfs_stage/config/kernel.conf",
+);
 my @cext_signature_entries = stage_cext_bundles($cext_bundles_dir, $initfs_stage);
 for my $unexpected (qw(bin captest.bin unsigned.bin plugkit testdata hello.txt)) {
     dief("unexpected initfs payload: $unexpected") if -e "$initfs_stage/$unexpected";

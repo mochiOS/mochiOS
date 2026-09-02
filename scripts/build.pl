@@ -306,7 +306,7 @@ sub write_kernel_meta {
     close $fh or dief("close $output: $!");
 }
 
-sub prepare_kernel_artifacts {
+sub prepare_elf_artifacts {
     my ($unstripped, $release, $debug) = @_;
     run('objcopy', '--only-keep-debug', $unstripped, $debug);
     run('objcopy', '--strip-all', $unstripped, $release);
@@ -981,7 +981,7 @@ sub build_std_binary {
     run_env(\%cargo_env, @command);
     need_file($binary_out);
     make_path(dirname($stable_binary_out));
-    copy($binary_out, $stable_binary_out) or dief("copy $binary_out: $!");
+    prepare_elf_artifacts($binary_out, $stable_binary_out, "$stable_binary_out.debug");
     print "[done] $binary_out\n";
 }
 
@@ -1725,7 +1725,7 @@ if ($build_options{kernel_only}) {
     build_kernel($core_root, $nightly_toolchain, $kernel_target, \@kernel_features);
     need_file($kernel_bin);
     write_kernel_meta($kernel_bin, $kernel_meta);
-    prepare_kernel_artifacts($kernel_bin, $kernel_release, $kernel_debug);
+    prepare_elf_artifacts($kernel_bin, $kernel_release, $kernel_debug);
 
     print "[step] update kernel in existing images\n";
     install_file('0644', $kernel_release, "$esp_dir/system/kernel.elf");
@@ -1923,7 +1923,7 @@ build_cexts($root_dir, $nightly_toolchain);
 print "[step] build kernel\n";
 build_kernel($core_root, $nightly_toolchain, $kernel_target, \@kernel_features);
 write_kernel_meta("$core_root/target/$kernel_target/release/kernel", $kernel_meta);
-prepare_kernel_artifacts(
+prepare_elf_artifacts(
     "$core_root/target/$kernel_target/release/kernel",
     $kernel_release,
     $kernel_debug,

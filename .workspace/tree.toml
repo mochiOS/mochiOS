@@ -2647,3 +2647,11 @@ path = "core"
 hash = "14951120589caee4af958713a87c25358f827fe7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report exec mapping exhaustion as ENOMEM"
+
+[[entries]]
+date = "2026-09-02T16:29:52.035094588+09:00"
+snapshot = "d19a357bfe8b0fb89d06cdce"
+path = "core"
+hash = "62000776533dc1329fa7b113618807748012dd35"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Make cext loading transactional"

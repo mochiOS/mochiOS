@@ -2057,7 +2057,7 @@ need_dir($cext_bundles_dir);
 print "[step] stage initfs\n";
 remove_tree($initfs_stage);
 make_path($initfs_stage);
-install_file('0755', $path{service_bin}, "$initfs_stage/core.service");
+install_file('0755', $path{service_bin}, "$initfs_stage/init");
 make_path("$initfs_stage/config");
 install_file('0644', "$core_root/config/kernel.conf", "$initfs_stage/config/kernel.conf");
 my @cext_signature_entries = stage_cext_bundles($cext_bundles_dir, $initfs_stage);
@@ -2070,7 +2070,7 @@ my @signature_db_args = (
     '--output',
     $signature_db_stage,
     '--entry',
-    "core.service=$path{service_bin}",
+    "/init=$path{service_bin}",
     '--entry',
     "/system/services/capability.service=$path{capability_service_bin}",
     '--entry',

@@ -1,0 +1,105 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "root": "2cd1d2ef8cc79060edece51597c3405e46be3fbd",
+    "core": "56222688235988df0c6222a60d3829274a150339"
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14",
+    "normal_features": ["kernel-bin"],
+    "instrumented_features": ["kernel-bin", "performance-instrumentation"]
+  },
+  "size": {
+    "before": {
+      "file_size_bytes": 834432,
+      "loadable_file_size_bytes": 824934,
+      "loadable_memory_size_bytes": 1237014,
+      "text_bytes": 497270,
+      "bss_bytes": 409608
+    },
+    "after": {
+      "file_size_bytes": 830328,
+      "loadable_file_size_bytes": 824910,
+      "loadable_memory_size_bytes": 1236550,
+      "text_bytes": 497414,
+      "bss_bytes": 409160,
+      "instrumented_file_size_bytes": 897136
+    },
+    "delta": {
+      "file_size_bytes": -4104,
+      "loadable_file_size_bytes": -24,
+      "loadable_memory_size_bytes": -464,
+      "text_bytes": 144,
+      "bss_bytes": -448
+    }
+  },
+  "scheduler_metrics": {
+    "unit": "cycles",
+    "environment": "QEMU TCG, 2 vCPU",
+    "before": {
+      "run_queue": {
+        "count": 51758,
+        "mean": 15726,
+        "p50_bucket_upper": 8191,
+        "p95_bucket_upper": 16383,
+        "p99_bucket_upper": 32767,
+        "max": 13214386
+      },
+      "wakeup": {
+        "count": 1780,
+        "mean": 38144384,
+        "p50_bucket_upper": 67108863,
+        "p95_bucket_upper": 67108863,
+        "p99_bucket_upper": 67108863,
+        "max": 149894249
+      }
+    },
+    "after": {
+      "run_queue": {
+        "count": 36470,
+        "mean": 16524,
+        "p50_bucket_upper": 8191,
+        "p95_bucket_upper": 32767,
+        "p99_bucket_upper": 32767,
+        "max": 11900650
+      },
+      "wakeup": {
+        "count": 1210,
+        "mean": 38180516,
+        "p50_bucket_upper": 67108863,
+        "p95_bucket_upper": 67108863,
+        "p99_bucket_upper": 67108863,
+        "max": 148272523
+      }
+    },
+    "conclusion": "The runs have different durations and sample counts. QEMU TCG does not show a repeatable latency improvement from the accepted change."
+  },
+  "change": {
+    "removed_unused_scheduler_exports": true,
+    "removed_repeated_thread_id_lookup": true,
+    "scheduler_policy_changed": false,
+    "scheduler_lock_changed": false
+  },
+  "rejected_prototypes": [
+    {
+      "name": "per-CPU state behind interior mutability",
+      "reason": "The safe implementation increased the normal kernel file by 32784 bytes, mostly in .text."
+    },
+    {
+      "name": "raw access around the global scheduler lock",
+      "reason": "It could alias a SpinLockGuard mutable reference on another CPU and was rejected before commit."
+    }
+  ],
+  "correctness": {
+    "tested_vcpu_counts": [2],
+    "normal_build_reached_system_services": true,
+    "instrumented_build_reached_system_services": true,
+    "secondary_cpus_online": 1,
+    "kernel_panics": 0,
+    "page_faults": 0,
+    "normal_serial_log": "out/runner/workspace-1788341448-206967/serial.log",
+    "instrumented_serial_log": "out/runner/workspace-1788341644-208881/serial.log",
+    "guest_run_blocker": "display.driver exited before compositor, shell, and mperf startup"
+  }
+}

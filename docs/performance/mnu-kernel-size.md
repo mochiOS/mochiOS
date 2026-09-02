@@ -125,4 +125,8 @@ per-CPUの2-page確保を独立した処理へ分け、失敗注入でrollback�
 
 schedulerのrun queue選択時間と起床待ち時間は、`performance-instrumentation`でだけ記録します。通常版のファイルサイズは834,432 bytesから変わりません。計測版のraw stripped kernelは897,032 bytesで、2 vCPUのQEMUでもsystem service起動まで進みました。[scheduler計測経路の確認結果](baselines/mnu-kernel-scheduler-observability-2026-09-02.json)には、通常版へ時刻フィールドが入らないことも記録しています。
 
+最初のscheduler整理では、使われていない公開関数と、同じthread IDを二度検索する分岐を削りました。配布用kernelは830,328 bytes、LOAD segmentはファイル上824,910 bytes、メモリ上1,236,550 bytesです。直前からELF全体は4,104 bytes、LOAD時メモリは464 bytes減りましたが、`.text`は144 bytes増えています。section境界の移動を含むため、ELF全体の差を命令削減量とは扱いません。
+
+global scheduler lockをCPU別状態へ置き換える安全な試作も行いましたが、通常kernelが32,784 bytes増えたため採用しませんでした。lockを迂回してraw pointerで触る案は、別CPUの`SpinLockGuard`が持つ可変参照と重なる可能性があり、測定後に破棄しました。[scheduler選択経路の整理結果](baselines/mnu-kernel-scheduler-selection-2026-09-02.json)には、不採用案を除いた最終サイズとQEMUの相対値を保存しています。
+
 失敗注入を含む試験buildは895,984 bytesです。通常buildでは注入用の状態と分岐をコンパイルしません。[frame確保失敗注入の結果](baselines/mnu-kernel-frame-failure-injection-2026-09-02.json)に、通常版との差とQEMUログを記録しています。

@@ -124,7 +124,11 @@ run queueの走査範囲、不要なlock、起床後に実行されるまでの�
 
 既存のperformance ABIにあった`SchedulerRunQueue`へ、実行可能threadを選ぶ処理全体を記録するようにしました。`SchedulerWakeup`は、SleepingまたはBlockedからReadyになった時刻をthreadへ残し、そのthreadが選ばれるまでを測ります。時刻の保存と取得は計測buildにだけ入り、通常kernelは834,432 bytesのままです。
 
-通常版と計測版のどちらも2 vCPUのQEMUでsystem service起動まで進みました。現在は`display.driver`が終了するため、実機の`mperf`でp50、p95、p99をまだ取得できません。この値が揃うまでは、global scheduler lockの分割やper-CPU run queueへ進みません。[scheduler計測経路の確認結果](baselines/mnu-kernel-scheduler-observability-2026-09-02.json)にbuildと起動条件を保存しています。
+通常版と計測版のどちらも2 vCPUのQEMUでsystem service起動まで進みました。現在は`display.driver`が終了するため、実機の`mperf`でp50、p95、p99をまだ取得できません。[scheduler計測経路の確認結果](baselines/mnu-kernel-scheduler-observability-2026-09-02.json)にbuildと起動条件を保存しています。
+
+run queue内では、現在のthread IDを同じlock区間で二度検索する分岐が残っていました。最初の検索結果が`None`なら二度目も必ず`None`になるため削除し、外から使われていないscheduler APIも非公開にしました。LOAD時メモリは464 bytes減りました。
+
+global lockを外す試作は採用していません。安全にCPU別状態を持たせた案は通常kernelを32,784 bytes増やし、小さい案はRustのalias規則を満たせませんでした。採用コードのTCG測定も、実行時間とサンプル数が揃わず、改善を確認できていません。[scheduler選択経路の整理結果](baselines/mnu-kernel-scheduler-selection-2026-09-02.json)に数値と不採用理由を残しています。次は、型の安全性と通常buildのサイズを崩さずにlock範囲を狭められるか調べます。per-CPU run queueは実機で競合を確認してから判断します。
 
 ### VFS、mmap、execのコピーと確保を減らす
 

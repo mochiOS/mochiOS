@@ -2607,3 +2607,11 @@ path = "binaries/coreutils"
 hash = "0fab7e8ac4fb3ec48ef3973052db10e1469745f8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report physical frame allocator contention"
+
+[[entries]]
+date = "2026-09-02T15:47:46.324858896+09:00"
+snapshot = "d1e141dc46a53167a1735f4b"
+path = "core"
+hash = "5f33556ceb41d3272e8dbf1783f0215757e6b63b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Centralize physical frame zeroing"

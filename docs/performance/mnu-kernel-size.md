@@ -119,4 +119,8 @@ LOAD segmentのメモリ量はsection境界の移動により1,232,782 bytesと�
 
 per-CPUの2-page確保を独立した処理へ分け、失敗注入でrollbackを確認した後は826,184 bytesです。LOAD segmentはファイル上820,646 bytes、メモリ上1,228,638 bytes、`.text`は495,366 bytesです。直前からファイルは4,088 bytes、LOAD時メモリは4,144 bytes減りました。
 
+起動後もloaderが所有していたメモリを見直しました。`BootInfo`、メモリマップ、SMP handoffをkernel内へコピーしてから、参照が残らない`BootloaderReclaimable`だけを`Usable`へ変えます。kernel image、initfs、rootfs、AP trampoline、使用中のBSP stackは回収しません。
+
+変更後は834,432 bytes、LOAD segmentはファイル上824,934 bytes、メモリ上1,237,046 bytesです。2 vCPUのQEMUでは90,112 bytesを回収したため、静的領域の増加を差し引いた起動時の差は81,704 bytes減です。[bootloader memory回収後の計測結果](baselines/mnu-kernel-boot-memory-reclamation-2026-09-02.json)に拒否条件と起動確認も記録しています。
+
 失敗注入を含む試験buildは895,984 bytesです。通常buildでは注入用の状態と分岐をコンパイルしません。[frame確保失敗注入の結果](baselines/mnu-kernel-frame-failure-injection-2026-09-02.json)に、通常版との差とQEMUログを記録しています。

@@ -1,0 +1,54 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "root": "85ada2f",
+    "core": "abe3d572b2bb7c60b553cee1ee1da367261e0aff",
+    "boot": "cfa6a2d97a0ec8a9bbb78c62a060ad7934b31b7d",
+    "comparison": "354d1416247ea4cf318fb7d612f5370025ec8a60"
+  },
+  "build": {
+    "profile": "release",
+    "features": ["kernel-bin"],
+    "rust_toolchain": "nightly-2026-05-14"
+  },
+  "measurement": {
+    "file_size_bytes": 834432,
+    "loadable_file_size_bytes": 824934,
+    "loadable_memory_size_bytes": 1237046,
+    "text_bytes": 497270,
+    "rodata_bytes": 41314,
+    "data_bytes": 259672,
+    "bss_bytes": 409640,
+    "relocation_bytes": 19776,
+    "file_delta_bytes": 8248,
+    "loadable_file_delta_bytes": 4288,
+    "loadable_memory_delta_bytes": 8408,
+    "text_delta_bytes": 1904,
+    "bootloader_bytes_reclaimed": 90112,
+    "net_runtime_memory_delta_at_test_boot_bytes": -81704
+  },
+  "correctness": {
+    "environment": "QEMU TCG",
+    "tested_vcpu_counts": [2],
+    "secondary_cpus_online": 1,
+    "kernel_panics": 0,
+    "page_faults": 0,
+    "disk_cext_loaded": true,
+    "ext2_cext_loaded": true,
+    "reached_system_services": true,
+    "guest_run_blocker": "display.driver exited before compositor and shell startup"
+  },
+  "retained_ranges": [
+    "kernel image",
+    "initfs",
+    "rootfs",
+    "AP trampoline",
+    "the bootloader memory descriptor containing the active BSP stack"
+  ],
+  "notes": [
+    "BootInfo, the transformed memory map, and the SMP handoff are copied into kernel-owned storage before reclamation.",
+    "An empty or oversized memory map, an invalid kernel range, inconsistent SMP handoff metadata, and a stack in Usable memory reject reclamation.",
+    "On validation or transformation failure, the kernel keeps the original memory map and reports that reclamation was skipped.",
+    "The BSP boot stack remains reserved until a later change switches it to a kernel-owned stack."
+  ]
+}

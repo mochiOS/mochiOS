@@ -112,7 +112,9 @@ per-CPU syscall領域の2 pageも、共通のzeroing済みframe確保へ揃え�
 
 per-CPUの確保処理を試験できる単位へ分けたことで、通常kernelも826,184 bytesまで小さくなりました。直前から`.text`は1,280 bytes、LOAD segmentのメモリ量は4,144 bytes減っています。[frame確保失敗注入の結果](baselines/mnu-kernel-frame-failure-injection-2026-09-02.json)に試験featureとログの場所を保存しました。
 
-BootloaderReclaimableはまだ通常RAMへ加えていません。UEFI loaderの`BootInfo`、メモリマップ、initfsが同じ種類の領域に置かれるため、一括回収すると起動中のデータを再割り当てしかねません。loaderが所有範囲を渡し、mnuが必要な内容を退避してから回収します。
+UEFI loaderの`BootInfo`、メモリマップ、SMP handoffをkernel側へ退避し、参照が切れた`BootloaderReclaimable`を通常RAMへ戻しました。kernel image、initfs、rootfs、AP trampoline、現在のBSP stackを含む領域は予約したままです。2 vCPUのQEMU試験では90,112 bytesを回収し、AP onlineとsystem service起動まで進みました。
+
+この処理で通常kernelは834,432 bytesになり、直前より8,248 bytes増えました。LOAD時メモリの増加8,408 bytesを差し引いても、試験時点では81,704 bytes多く利用できます。空のメモリマップや不整合なSMP情報を受け取った場合は回収を行わず、従来のmapで起動を続けます。[bootloader memory回収後の計測結果](baselines/mnu-kernel-boot-memory-reclamation-2026-09-02.json)に内訳を保存しました。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。
 

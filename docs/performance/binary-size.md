@@ -33,7 +33,7 @@ mochiOSのViewKit利用バイナリも調査しましたが、今回の変更対
 
 ## mnu
 
-カーネルのファイルサイズは目標の約1 MiBに入りました。最初の18,710,928 bytesから875,424 bytesまで減っています。現在は常駐量と待ち時間を詰めています。
+カーネルのファイルサイズは目標の約1 MiBに入りました。最初の18,710,928 bytesから834,432 bytesまで減っています。現在は常駐量と待ち時間を詰めています。
 
 - 4,460,544 bytesあった`KSTACK_POOL`は削除しました。threadが生きている間だけ物理pageを持ち、guard pageを挟んで配置します。
 - AP bootstrap stackは、固定64本から起動するAPごとの確保へ変更しました。APが通常stackへ移ったことを確認してから回収します。
@@ -41,7 +41,8 @@ mochiOSのViewKit利用バイナリも調査しましたが、今回の変更対
 - 物理frame allocatorは、メモリマップの走査位置を保持します。要求ごとの先頭からの再走査はなくしました。
 - process table、thread queue、audit buffer、firmware表示bufferは、それぞれ4万から13万bytesほどあります。上限を下げる前に実際のpeakを計測し、空のslotが持つデータを分離します。
 - 配布用kernelからsymbol tableを外し、139,576 bytesの`kernel.debug`へ分けました。bootloaderは`kernel.meta`からAPのentryを取得します。
-- `.text`は530,950 bytesです。ここから先は関数を闇雲に短くしません。VFS、exec、page管理、schedulerの順に時間とallocationを測り、遅い経路から直します。
+- `.text`は497,270 bytesです。ここから先は関数を闇雲に短くしません。VFS、exec、page管理、schedulerの順に時間とallocationを測り、遅い経路から直します。
+- loaderのmetadataをkernel側へ退避し、使用中の範囲を除いた`BootloaderReclaimable`を通常RAMへ戻します。2 vCPUのQEMUでは90,112 bytesを回収しました。
 
 `clone()`については、mnu内で目立つのはVFSとpage table周辺です。ただし、Copy相当の小さな値とpage内容の複製を同じ一回として数えると判断を誤ります。allocation回数とコピーしたbytesを計測へ追加し、後者を先に消します。
 

@@ -102,6 +102,10 @@ cextのDMA確保は、pageを1枚ずつ`Vec`へ積んでから連続性を検査
 
 DMA zeroingを加えた通常kernelは859,072 bytesです。直前より28,856 bytes増えましたが、連続確保へ変える前の875,488 bytesより16,416 bytes小さい状態です。以前の所有者の内容をユーザーへ見せないため、このzeroingは削りません。[DMA zeroing後の計測結果](baselines/mnu-kernel-dma-zero-2026-09-02.json)に両方の比較を保存しています。
 
+共有pageの確保では、物理アドレス一覧を返さない通常の呼び出しでも、page数と同じ長さの`Vec<u64>`を作っていました。上限では2 MiBの一時allocationになります。現在はpageをzeroingしてmapした後、失敗時にはmap済み範囲からframeを回収します。物理アドレスが必要な場合だけ、全pageのmap成功後にpage tableから値を読み直して返すため、一時配列は必要ありません。
+
+通常kernelは834,448 bytesになり、DMA zeroing直後から24,624 bytes減りました。LOAD segmentのメモリ量は28,520 bytes減っています。計測buildは反対に4,072 bytes増えているため、通常buildの差にはlink時の4 KiB境界も含まれます。[共有page確保後の計測結果](baselines/mnu-kernel-shared-page-allocation-2026-09-02.json)にsectionごとの差と起動確認の範囲を残しています。
+
 BootloaderReclaimableはまだ通常RAMへ加えていません。UEFI loaderの`BootInfo`、メモリマップ、initfsが同じ種類の領域に置かれるため、一括回収すると起動中のデータを再割り当てしかねません。loaderが所有範囲を渡し、mnuが必要な内容を退避してから回収します。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。

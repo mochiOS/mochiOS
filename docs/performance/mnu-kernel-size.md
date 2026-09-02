@@ -108,3 +108,7 @@ cextのDMA確保から`Vec<PhysFrame>`を外し、frame allocatorの連続確保
 DMA syscallがユーザーへ渡す連続範囲をzeroingするようにした後は859,072 bytesです。LOAD segmentはファイル上849,598 bytes、メモリ上1,257,294 bytesです。zeroing前から28,856 bytes増えましたが、DMA整理前との比較では16,416 bytes減っています。
 
 `zero_frame`は呼び出し元へ本体を複製しないよう非inline化しました。DMA範囲は1回の連続clearとして計測し、解放処理も一つのloopへまとめています。[DMA zeroing後の計測結果](baselines/mnu-kernel-dma-zero-2026-09-02.json)に通常buildと計測buildの差を記録しています。
+
+共有page確保の一時`Vec<u64>`を外した後は834,448 bytesです。LOAD segmentはファイル上824,950 bytes、メモリ上1,228,774 bytesです。DMA zeroing直後からファイルは24,624 bytes、`.text`は25,440 bytes減りました。
+
+計測buildは900,144 bytesで4,072 bytes増えています。通常buildの大きな減少にはsection配置の境界も含まれるため、実際に減った命令量とは分けて扱います。実行時には、共有page数の8倍だった一時heap allocationが呼び出し方にかかわらず不要になりました。[共有page確保後の計測結果](baselines/mnu-kernel-shared-page-allocation-2026-09-02.json)に値を保存しています。

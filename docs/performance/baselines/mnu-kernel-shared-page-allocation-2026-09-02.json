@@ -1,0 +1,60 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "root": "4864eac0aa53bc93418d1b0d7b4257b96d02f6b4",
+    "core": "868096db1c5c52294ba43692292f076e55593e67",
+    "comparison": "dfd7489b67b9377a194ed73ecd3c532c087a9260"
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14"
+  },
+  "measurement": {
+    "normal_features": ["kernel-bin"],
+    "normal_file_size_bytes": 834448,
+    "normal_loadable_file_size_bytes": 824950,
+    "normal_loadable_memory_size_bytes": 1228774,
+    "normal_text_bytes": 496870,
+    "normal_rodata_bytes": 41354,
+    "normal_data_bytes": 259688,
+    "normal_bss_bytes": 401368,
+    "normal_relocation_bytes": 19680,
+    "delta_from_dma_zero_file_bytes": -24624,
+    "delta_from_dma_zero_loadable_file_bytes": -24648,
+    "delta_from_dma_zero_loadable_memory_bytes": -28520,
+    "delta_from_dma_zero_text_bytes": -25440,
+    "instrumented_features": ["kernel-bin", "performance-instrumentation"],
+    "instrumented_raw_stripped_file_size_bytes": 900144,
+    "instrumented_raw_stripped_delta_bytes": 4072,
+    "snapshot_version": 5,
+    "snapshot_size_bytes": 2840
+  },
+  "runtime_effect": {
+    "temporary_physical_page_vector_removed": true,
+    "temporary_allocation_bytes_per_call": "page_count * 8",
+    "maximum_removed_temporary_allocation_bytes": 2097152,
+    "physical_contiguity_required": false,
+    "zeroing_preserved": true,
+    "transactional_mapping_rollback_preserved": true,
+    "physical_address_output_deferred_until_all_pages_mapped": true
+  },
+  "correctness": {
+    "normal_kernel_build_passed": true,
+    "instrumented_kernel_build_passed": true,
+    "environment": "QEMU TCG",
+    "tested_vcpu_counts": [2],
+    "secondary_cpus_online": 1,
+    "kernel_panics": 0,
+    "page_faults": 0,
+    "disk_cext_loaded": true,
+    "ext2_cext_loaded": true,
+    "reached_system_services": true,
+    "guest_run_blocker": "display.driver exited before compositor and shell startup"
+  },
+  "notes": [
+    "Shared pages remain individually allocated, so the syscall does not introduce a large contiguous-memory requirement.",
+    "Rollback derives ownership from the mapped range and returns every mapped frame.",
+    "Physical addresses are read back from the completed page table only when the caller requests the legacy output list.",
+    "The normal and instrumented binaries moved across different 4 KiB layout boundaries, so file-size deltas are not treated as instruction-byte deltas."
+  ]
+}

@@ -2655,3 +2655,11 @@ path = "core"
 hash = "62000776533dc1329fa7b113618807748012dd35"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Make cext loading transactional"
+
+[[entries]]
+date = "2026-09-02T16:34:41.651714596+09:00"
+snapshot = "ee4cd3baa1b391cb47f6311b"
+path = "core"
+hash = "beb266efe2387ffe768999d137b86796c31ae29c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Allocate cext DMA ranges contiguously"

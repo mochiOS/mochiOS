@@ -92,3 +92,7 @@ frame allocatorのlock待ちと外部断片化を追加で観測できるよう�
 共通化前と比べるとELF全体は56 bytes、LOAD segmentのファイル量は144 bytes増えています。その代わり`.text`は1,568 bytes、LOAD segmentのメモリ量は4,916 bytes減りました。ユーザー空間へ渡すpage、page table、共有pageのzeroingは残し、失敗時はmappingを中止して確保済みpageを戻します。
 
 performance ABI v5には、frame確保数のCPU別・処理元別内訳と、zeroingの処理元別回数・cycleを追加しました。この計測処理はfeatureで分離されており、通常buildの上記サイズは追加前と同一です。計測buildのraw stripped kernelは892,008 bytes、snapshotは2,840 bytesです。[frame活動の計測結果](baselines/mnu-kernel-frame-activity-2026-09-02.json)に詳細を残しています。
+
+ページテーブルのOOM経路を直し、frameの確保とzeroingを共通化した後は871,384 bytesになりました。LOAD segmentはファイル上862,038 bytes、メモリ上1,265,866 bytesです。直前からいずれも4,096 bytes減り、`.text`は536,086 bytesです。
+
+実行時には、ユーザーページテーブルを作るたびに確保していた不要なL2を1 page減らしました。途中の確保に失敗した場合も、生成済みのtable frameを破棄します。通常の起動処理はQEMU TCGの2 vCPUでsystem service群まで進んでいます。[ページテーブルOOM監査の結果](baselines/mnu-kernel-page-table-oom-2026-09-02.json)に確認範囲を記録しています。

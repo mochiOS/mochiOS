@@ -84,6 +84,12 @@ performance ABI v5では、確保したpage数をCPU別と処理元別に記録�
 
 実機の処理別page数とlock待ち分布はまだ採れていません。現在の起動試験は既知の`display.driver`終了でシェルへ到達しないためです。計測値がないままper-CPU cache、reserve pool、allocatorの全面置換には進みません。次は割り当て失敗がpanic、syscall error、process終了のどれになるかを追い、OOM時にも部分的なmappingや所有権の取り残しが起きないことを確かめます。
 
+OOM経路の最初の監査では、ユーザーページテーブルの生成途中で失敗すると、呼び出し側から到達できないtable frameが残ることを確認しました。生成中のL4をguardで管理し、L3以下を公開前にその配下へ接続することで、途中の失敗時も既存の破棄処理から回収できます。L2を複製してすぐ置き換えていた処理もなくし、通常の起動構成ではプロセスごとに少なくとも1 pageを使わなくなりました。
+
+frameの確保とzeroingは`allocate_zeroed_frame`へまとめました。zeroingに失敗したframeはその場で返し、page table、ユーザーsegment、cext segmentの各経路で同じ所有権規則を使います。cext segmentはpage全体を初期化するため、segmentの前後に残ったbytesから以前の内容を読めません。
+
+execに必要なpage table、ELF segment、stack、heap、TLSの確保失敗は`ENOMEM`を返します。無効なELFやmapping条件は従来どおり`EINVAL`です。変更後の通常kernelは871,384 bytesで、直前の875,480 bytesから4,096 bytes減りました。[ページテーブルOOM監査の結果](baselines/mnu-kernel-page-table-oom-2026-09-02.json)に、サイズと起動確認を保存しています。
+
 BootloaderReclaimableはまだ通常RAMへ加えていません。UEFI loaderの`BootInfo`、メモリマップ、initfsが同じ種類の領域に置かれるため、一括回収すると起動中のデータを再割り当てしかねません。loaderが所有範囲を渡し、mnuが必要な内容を退避してから回収します。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。

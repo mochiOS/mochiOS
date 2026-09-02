@@ -1174,11 +1174,19 @@ sub build_cexts {
 
 sub build_staged_cargo_bin {
     my ($toolchain, $target_json, $target_dir, $stage, $package, @features) = @_;
-    my @mnu_abi_patch = (
+    my @local_source_patches = (
         '--config',
         qq{patch."https://github.com/mochiOS/mnu".mnu-abi.path='$root_dir/core/crates/abi'},
+        '--config',
+        qq{patch."https://github.com/mochiOS/syscalls".mochi-user-platform.path='$root_dir/user/crates/platform'},
+        '--config',
+        qq{patch."https://github.com/mochiOS/syscalls".mochi-user-runtime.path='$root_dir/user/crates/runtime'},
+        '--config',
+        qq{patch."https://github.com/mochiOS/syscalls".mochi-user-syscall.path='$root_dir/user/crates/syscall'},
+        '--config',
+        qq{patch."https://github.com/mochiOS/syscalls".mochios-capability-protocol.path='$root_dir/user/crates/capability-protocol'},
     );
-    run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', @mnu_abi_patch, '--manifest-path', "$stage/Cargo.toml");
+    run_env(cargo_env(), 'cargo', "+$toolchain", 'generate-lockfile', @local_source_patches, '--manifest-path', "$stage/Cargo.toml");
     my @cmd = (
         'cargo', "+$toolchain", 'build',
         '-Z', 'build-std=core,alloc,compiler_builtins',
@@ -1186,7 +1194,7 @@ sub build_staged_cargo_bin {
         '--release',
         '--target', $target_json,
         '--target-dir', $target_dir,
-        @mnu_abi_patch,
+        @local_source_patches,
         '--manifest-path', "$stage/Cargo.toml",
         '-p', $package,
     );

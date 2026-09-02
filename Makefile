@@ -66,6 +66,7 @@ hv-image: $(MOCHIOS_INITFS) $(MOCHIOS_ROOTFS) mdriver
 	@$(MAKE) -C $(MBOOT_DIR) image \
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
+		MOCHIOS_SYSTEM_DIR="$(CURDIR)/boot" \
 		IMAGE="$(abspath $(MBOOT_IMAGE))" \
 		PXE_DIR="$(abspath $(MBOOT_PXE_DIR))" \
 		UEFI_NET_DIR="$(abspath $(MBOOT_UEFI_NET_DIR))" \
@@ -78,6 +79,7 @@ hv-image-test: $(MOCHIOS_INITFS) $(MOCHIOS_ROOTFS) mdriver
 	@$(MAKE) -C $(MBOOT_DIR) image-test \
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
+		MOCHIOS_SYSTEM_DIR="$(CURDIR)/boot" \
 		IMAGE="$(abspath $(MBOOT_IMAGE))" \
 		PXE_DIR="$(abspath $(MBOOT_PXE_DIR))" \
 		UEFI_NET_DIR="$(abspath $(MBOOT_UEFI_NET_DIR))" \
@@ -118,6 +120,7 @@ mboot-image: $(MOCHIOS_INITFS) $(MOCHIOS_ROOTFS) mdriver
 	@$(MAKE) -C $(MBOOT_DIR) image \
 		CONFIG="$(abspath $(MBOOT_CONFIG))" \
 		MNU_DIR="$(CURDIR)/core" \
+		MOCHIOS_SYSTEM_DIR="$(CURDIR)/boot" \
 		IMAGE="$(abspath $(MBOOT_IMAGE))" \
 		PXE_DIR="$(abspath $(MBOOT_PXE_DIR))" \
 		UEFI_NET_DIR="$(abspath $(MBOOT_UEFI_NET_DIR))" \

@@ -2615,3 +2615,11 @@ path = "core"
 hash = "5f33556ceb41d3272e8dbf1783f0215757e6b63b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Centralize physical frame zeroing"
+
+[[entries]]
+date = "2026-09-02T15:53:57.771738268+09:00"
+snapshot = "330d80c51405b75967541839"
+path = "binaries/coreutils"
+hash = "d28bb6001d3d6653a832334fb380a33586ca4938"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report physical frame activity"

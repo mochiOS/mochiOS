@@ -2623,3 +2623,11 @@ path = "binaries/coreutils"
 hash = "d28bb6001d3d6653a832334fb380a33586ca4938"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report physical frame activity"
+
+[[entries]]
+date = "2026-09-02T16:06:54.748797952+09:00"
+snapshot = "7c3b0f5985b6694727ff226e"
+path = "core"
+hash = "715d078d90ec20aadf0d3df8842db969fec9a269"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Roll back incomplete user page tables"

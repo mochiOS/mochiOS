@@ -90,6 +90,10 @@ frameの確保とzeroingは`allocate_zeroed_frame`へまとめました。zeroin
 
 execに必要なpage table、ELF segment、stack、heap、TLSの確保失敗は`ENOMEM`を返します。無効なELFやmapping条件は従来どおり`EINVAL`です。変更後の通常kernelは871,384 bytesで、直前の875,480 bytesから4,096 bytes減りました。[ページテーブルOOM監査の結果](baselines/mnu-kernel-page-table-oom-2026-09-02.json)に、サイズと起動確認を保存しています。
 
+cextの読込も失敗時に元へ戻します。各segmentはRW+NXで内容を書き、PTEを残したまま最終属性へ変更します。現在のpage tableに対する変更ではTLBもflushします。ELFの後半、relocation、symbol検索、module initで失敗した場合は、それまでに割り当てたsegmentを解放します。
+
+このcext rollbackを含む通常kernelは875,488 bytesです。直前から4,104 bytes増えましたが、読込失敗のたびにkernel pageが残る状態と、一時的なRWX mappingをなくすため変更は残します。計測buildは逆に24 bytes減っているため、section配置の差を含めて[cext rollback後の計測結果](baselines/mnu-kernel-cext-rollback-2026-09-02.json)へ記録しました。
+
 BootloaderReclaimableはまだ通常RAMへ加えていません。UEFI loaderの`BootInfo`、メモリマップ、initfsが同じ種類の領域に置かれるため、一括回収すると起動中のデータを再割り当てしかねません。loaderが所有範囲を渡し、mnuが必要な内容を退避してから回収します。
 
 解放後のzeroing、ユーザー空間へ渡すpageの初期化、W^Xは削りません。速さのために前の所有者のデータが見える状態を作らないことが前提です。

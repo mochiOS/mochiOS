@@ -96,3 +96,7 @@ performance ABI v5には、frame確保数のCPU別・処理元別内訳と、zer
 ページテーブルのOOM経路を直し、frameの確保とzeroingを共通化した後は871,384 bytesになりました。LOAD segmentはファイル上862,038 bytes、メモリ上1,265,866 bytesです。直前からいずれも4,096 bytes減り、`.text`は536,086 bytesです。
 
 実行時には、ユーザーページテーブルを作るたびに確保していた不要なL2を1 page減らしました。途中の確保に失敗した場合も、生成済みのtable frameを破棄します。通常の起動処理はQEMU TCGの2 vCPUでsystem service群まで進んでいます。[ページテーブルOOM監査の結果](baselines/mnu-kernel-page-table-oom-2026-09-02.json)に確認範囲を記録しています。
+
+cext loaderのrollbackとW^X切替を直した後は875,488 bytesです。LOAD segmentはファイル上866,006 bytes、メモリ上1,269,798 bytesです。直前よりファイルが4,104 bytes増えました。失敗したmoduleのpageを残さず、書込み中のsegmentを実行可能にしないため、この増加は削りません。
+
+計測buildのraw stripped kernelは896,072 bytesで、直前より24 bytes減りました。通常buildだけがpage境界を越えて増えているため、link配置を扱う段階までは両方を別々に追います。[cext rollback後の計測結果](baselines/mnu-kernel-cext-rollback-2026-09-02.json)にsection内訳を保存しています。

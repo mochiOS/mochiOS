@@ -2599,3 +2599,11 @@ path = "binaries/coreutils"
 hash = "791e8036184735c77679a06ba8202c56324f3627"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report physical frame allocation costs"
+
+[[entries]]
+date = "2026-09-02T15:30:18.361434267+09:00"
+snapshot = "6976fc84583c1ba6066889de"
+path = "binaries/coreutils"
+hash = "0fab7e8ac4fb3ec48ef3973052db10e1469745f8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report physical frame allocator contention"

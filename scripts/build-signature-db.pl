@@ -38,7 +38,7 @@ if (defined $output_dir && length($output_dir) && !-d $output_dir) {
 
 open(my $out_fh, '>', $output) or die "failed to open $output: $!\n";
 binmode($out_fh) or die "failed to set binary mode on $output: $!\n";
-print {$out_fh} "mochios-execution-allowlist v1\n";
+print {$out_fh} "mnu-execution-allowlist v1\n";
 
 for my $entry (@entries) {
     my ($path, $file) = split /=/, $entry, 2;

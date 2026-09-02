@@ -2687,3 +2687,11 @@ path = "core"
 hash = "c0823488c6a203305ab8b9a512183d5d2acc821c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Make per-CPU frame allocation transactional"
+
+[[entries]]
+date = "2026-09-02T17:28:01.320222985+09:00"
+snapshot = "bf790440e5560d3b3746b963"
+path = "core"
+hash = "354d1416247ea4cf318fb7d612f5370025ec8a60"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test frame allocation rollback"

@@ -2799,3 +2799,11 @@ path = "services"
 hash = "34f5c4c22d8f62952f9894158dccd36c57938310"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Pass generic mnu process identities"
+
+[[entries]]
+date = "2026-09-02T21:32:02.873487877+09:00"
+snapshot = "3e8332a4c5e26edabdcc6b02"
+path = "binaries/coreutils"
+hash = "8ca734dfba9be0388b2a4fc24a443580ee654753"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report VFS performance activity"

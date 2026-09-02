@@ -2815,3 +2815,11 @@ path = "core"
 hash = "61f8c9a59365d0d0a2ff8f0255ecebbda52ec188"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Move file mappings without copying backing data"
+
+[[entries]]
+date = "2026-09-02T21:40:04.916322549+09:00"
+snapshot = "57793a1f63411bf76f307729"
+path = "core"
+hash = "43ca6480a8ef254f2a0b844bedfabcb71128e603"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove disabled exec initialization path"

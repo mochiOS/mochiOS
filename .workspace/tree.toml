@@ -2711,3 +2711,11 @@ path = "boot"
 hash = "cfa6a2d97a0ec8a9bbb78c62a060ad7934b31b7d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Share boot memory map capacity with ABI"
+
+[[entries]]
+date = "2026-09-02T17:55:56.482291439+09:00"
+snapshot = "9a9f1708bdab6db01545099f"
+path = "core"
+hash = "fc5382ee4bd52fbefeb8baafd0c5377288fb9741"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Measure scheduler selection and wake latency"

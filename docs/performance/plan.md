@@ -122,6 +122,10 @@ UEFI loaderの`BootInfo`、メモリマップ、SMP handoffをkernel側へ退避
 
 run queueの走査範囲、不要なlock、起床後に実行されるまでの遅れを測ります。固定周期のtickで仕事がないCPUを起こしている場合は、deadlineに基づくtimerへ段階的に移します。lock-free化は回収とメモリ順序まで説明できる箇所に限ります。
 
+既存のperformance ABIにあった`SchedulerRunQueue`へ、実行可能threadを選ぶ処理全体を記録するようにしました。`SchedulerWakeup`は、SleepingまたはBlockedからReadyになった時刻をthreadへ残し、そのthreadが選ばれるまでを測ります。時刻の保存と取得は計測buildにだけ入り、通常kernelは834,432 bytesのままです。
+
+通常版と計測版のどちらも2 vCPUのQEMUでsystem service起動まで進みました。現在は`display.driver`が終了するため、実機の`mperf`でp50、p95、p99をまだ取得できません。この値が揃うまでは、global scheduler lockの分割やper-CPU run queueへ進みません。[scheduler計測経路の確認結果](baselines/mnu-kernel-scheduler-observability-2026-09-02.json)にbuildと起動条件を保存しています。
+
 ### VFS、mmap、execのコピーと確保を減らす
 
 pathの再解析、短命な`String`や`Vec`、同じmetadataの再取得を追います。cloneの数ではなく、実際にコピーしたbytesとallocation数で判断します。execでは署名検証とW^Xを維持しつつ、read、parse、mapping、relocationを分けて測ります。

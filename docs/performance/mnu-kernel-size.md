@@ -123,4 +123,6 @@ per-CPUの2-page確保を独立した処理へ分け、失敗注入でrollback�
 
 変更後は834,432 bytes、LOAD segmentはファイル上824,934 bytes、メモリ上1,237,046 bytesです。2 vCPUのQEMUでは90,112 bytesを回収したため、静的領域の増加を差し引いた起動時の差は81,704 bytes減です。[bootloader memory回収後の計測結果](baselines/mnu-kernel-boot-memory-reclamation-2026-09-02.json)に拒否条件と起動確認も記録しています。
 
+schedulerのrun queue選択時間と起床待ち時間は、`performance-instrumentation`でだけ記録します。通常版のファイルサイズは834,432 bytesから変わりません。計測版のraw stripped kernelは897,032 bytesで、2 vCPUのQEMUでもsystem service起動まで進みました。[scheduler計測経路の確認結果](baselines/mnu-kernel-scheduler-observability-2026-09-02.json)には、通常版へ時刻フィールドが入らないことも記録しています。
+
 失敗注入を含む試験buildは895,984 bytesです。通常buildでは注入用の状態と分岐をコンパイルしません。[frame確保失敗注入の結果](baselines/mnu-kernel-frame-failure-injection-2026-09-02.json)に、通常版との差とQEMUログを記録しています。

@@ -1,0 +1,49 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "root": "0443e07",
+    "core": "fc5382ee4bd52fbefeb8baafd0c5377288fb9741"
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14"
+  },
+  "measurement": {
+    "normal_features": ["kernel-bin"],
+    "normal_file_size_bytes": 834432,
+    "normal_loadable_file_size_bytes": 824934,
+    "normal_loadable_memory_size_bytes": 1237014,
+    "normal_text_bytes": 497270,
+    "normal_bss_bytes": 409608,
+    "normal_file_delta_bytes": 0,
+    "instrumented_features": ["kernel-bin", "performance-instrumentation"],
+    "instrumented_raw_stripped_file_size_bytes": 897032,
+    "instrumented_loadable_file_size_bytes": 889830,
+    "instrumented_loadable_memory_size_bytes": 1931438,
+    "instrumented_text_bytes": 559830,
+    "instrumented_bss_bytes": 1040400
+  },
+  "scheduler_metrics": {
+    "run_queue": "SchedulerRunQueue records selection time whether or not a runnable thread is found.",
+    "wakeup": "SchedulerWakeup records the time from a Sleeping or Blocked thread becoming Ready until the scheduler selects it.",
+    "normal_build_has_wakeup_timestamp_field": false,
+    "normal_build_reads_timestamps": false
+  },
+  "correctness": {
+    "environment": "QEMU TCG",
+    "tested_vcpu_counts": [2],
+    "normal_build_reached_system_services": true,
+    "instrumented_build_reached_system_services": true,
+    "secondary_cpus_online": 1,
+    "kernel_panics": 0,
+    "page_faults": 0,
+    "normal_serial_log": "out/runner/workspace-1788339326-2/serial.log",
+    "instrumented_serial_log": "out/runner/workspace-1788339277-2/serial.log",
+    "guest_run_blocker": "display.driver exited before compositor, shell, and mperf startup"
+  },
+  "notes": [
+    "No scheduler policy or lock implementation changed in this step.",
+    "The QEMU run validates the instrumented paths but is not used as a performance baseline.",
+    "p50, p95, and p99 will be collected with mperf on real hardware after the desktop startup path is available."
+  ]
+}

@@ -2751,3 +2751,11 @@ path = "core"
 hash = "78a33512bd1975448b48f3b59e5481e496bac14f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Boot a generic init process"
+
+[[entries]]
+date = "2026-09-02T19:08:42.287180878+09:00"
+snapshot = "23688447616b5fc03a8128d7"
+path = "mboot"
+hash = "c2578f774c14325a7eea7bedd637f78ef6972aa1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Build generic mnu domain binaries"

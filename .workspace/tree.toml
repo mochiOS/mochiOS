@@ -2631,3 +2631,11 @@ path = "core"
 hash = "715d078d90ec20aadf0d3df8842db969fec9a269"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Roll back incomplete user page tables"
+
+[[entries]]
+date = "2026-09-02T16:12:31.925150004+09:00"
+snapshot = "ef81e8975600fe6f7d585c45"
+path = "core"
+hash = "c9851d7f118f363e3be81182ffbc6e796d849203"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Make zeroed frame allocation transactional"

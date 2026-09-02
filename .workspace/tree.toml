@@ -2671,3 +2671,11 @@ path = "core"
 hash = "dfd7489b67b9377a194ed73ecd3c532c087a9260"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Zero DMA pages before user mapping"
+
+[[entries]]
+date = "2026-09-02T17:07:28.143073716+09:00"
+snapshot = "f0452209ab554fd13f3682e4"
+path = "core"
+hash = "868096db1c5c52294ba43692292f076e55593e67"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Avoid temporary shared page vectors"

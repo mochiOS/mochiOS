@@ -2695,3 +2695,11 @@ path = "core"
 hash = "354d1416247ea4cf318fb7d612f5370025ec8a60"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test frame allocation rollback"
+
+[[entries]]
+date = "2026-09-02T17:38:39.488224224+09:00"
+snapshot = "299b83c6873dd7875946a1e8"
+path = "core"
+hash = "f73e7de386622e082984529ffc664084bac699d7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Define boot memory reclamation rules"

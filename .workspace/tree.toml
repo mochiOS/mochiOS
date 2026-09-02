@@ -2719,3 +2719,11 @@ path = "core"
 hash = "fc5382ee4bd52fbefeb8baafd0c5377288fb9741"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Measure scheduler selection and wake latency"
+
+[[entries]]
+date = "2026-09-02T18:32:27.866312597+09:00"
+snapshot = "acb5f93e15774b4d6566c7e5"
+path = "core"
+hash = "56222688235988df0c6222a60d3829274a150339"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Trim scheduler selection path"

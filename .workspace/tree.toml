@@ -2639,3 +2639,11 @@ path = "core"
 hash = "c9851d7f118f363e3be81182ffbc6e796d849203"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Make zeroed frame allocation transactional"
+
+[[entries]]
+date = "2026-09-02T16:16:06.560554080+09:00"
+snapshot = "881145657af7c4ca396a826f"
+path = "core"
+hash = "14951120589caee4af958713a87c25358f827fe7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report exec mapping exhaustion as ENOMEM"

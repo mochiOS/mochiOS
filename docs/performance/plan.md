@@ -134,6 +134,12 @@ global lockを外す試作は採用していません。安全にCPU別状態を
 
 pathの再解析、短命な`String`や`Vec`、同じmetadataの再取得を追います。cloneの数ではなく、実際にコピーしたbytesとallocation数で判断します。execでは署名検証とW^Xを維持しつつ、read、parse、mapping、relocationを分けて測ります。
 
+performance ABI v7へ、metadata照会、read/write range、要求量と転送量、一時buffer、path cloneの回数とbytesを追加しました。計測版の`core.service`はlogger起動後に4 KiBのopen、write、read、stat、closeを256回行います。結果はサービスログへ書くため、デスクトップが起動しなくても回収できます。通常buildでは、この処理をコンパイルしません。
+
+最初のQEMU TCG計測では、readとwriteの合計2 MiBに対して128 MiBの一時bufferを確保していました。各syscallが要求量に関係なく256 KiBを確保していたためです。bufferを要求量とchunk上限の小さい方へ合わせると、確保量は2 MiBになりました。98.4%減です。openで繰り返していたmetadata確認も1回減り、通常kernelは825,624 bytesのままでした。[VFS buffer変更前後の記録](baselines/mnu-kernel-vfs-buffer-2026-09-02.json)に処理量と起動ログを残しています。
+
+このQEMUでは安定した性能clockを取得できなかったため、待ち時間の採用判断には使いません。path cloneは256回のreadとwriteで512回、13,312 bytesのままです。次は実機で同じ負荷を測ってから、pathの所有方法とfd tableのlock範囲を変えるか決めます。
+
 ### 大きなIPCを共有pageへ移す
 
 画像、ファイル、ネットワークpacketなどは、小さいIPCの本文へコピーしません。Grantと共有ringを使い、mnuはpageの共有範囲と所有権だけを管理します。失敗、相手の終了、timeoutのどの場合もpageが回収される状態機械を先に固めます。

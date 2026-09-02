@@ -1,0 +1,91 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision_before_commit": {
+    "root": "45bde01ae0153cd6a03b4b4c2ca7583565d85dca",
+    "core": "cf4e409c03c06608985a095a3224e822ef952182",
+    "user": "4cc8ba600768518615700f939e1c70b9a155fccd",
+    "services": "34f5c4c22d8f62952f9894158dccd36c57938310",
+    "coreutils": "2c59630e3790fdda7b31b58485b30c4d4e312a12"
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14",
+    "normal_features": ["kernel-bin"],
+    "instrumented_features": ["kernel-bin", "performance-instrumentation"],
+    "snapshot_version": 7,
+    "snapshot_size_bytes": 3072
+  },
+  "workload": {
+    "environment": "QEMU TCG",
+    "vcpu_count": 2,
+    "warmup_iterations": 16,
+    "measured_iterations": 256,
+    "bytes_per_read": 4096,
+    "bytes_per_write": 4096,
+    "operations_per_iteration": ["open", "write", "seek", "read", "fstat", "close"]
+  },
+  "before": {
+    "instrumented_kernel_file_size_bytes": 876248,
+    "metadata_queries": 2304,
+    "read_range_calls": 256,
+    "write_range_calls": 256,
+    "read_requested_bytes": 1048576,
+    "read_transferred_bytes": 1048576,
+    "write_requested_bytes": 1048576,
+    "write_transferred_bytes": 1048576,
+    "temporary_buffer_allocations": 512,
+    "temporary_buffer_bytes": 134217728,
+    "path_clone_allocations": 512,
+    "path_clone_bytes": 13312
+  },
+  "after": {
+    "instrumented_kernel_file_size_bytes": 876240,
+    "normal_kernel_file_size_bytes": 825624,
+    "metadata_queries": 2048,
+    "read_range_calls": 256,
+    "write_range_calls": 256,
+    "read_requested_bytes": 1048576,
+    "read_transferred_bytes": 1048576,
+    "write_requested_bytes": 1048576,
+    "write_transferred_bytes": 1048576,
+    "temporary_buffer_allocations": 512,
+    "temporary_buffer_bytes": 2097152,
+    "path_clone_allocations": 512,
+    "path_clone_bytes": 13312
+  },
+  "delta": {
+    "instrumented_kernel_file_size_bytes": -8,
+    "normal_kernel_file_size_bytes": 0,
+    "metadata_queries": -256,
+    "temporary_buffer_allocations": 0,
+    "temporary_buffer_bytes": -132120576,
+    "temporary_buffer_bytes_percent": -98.4375,
+    "path_clone_allocations": 0,
+    "path_clone_bytes": 0
+  },
+  "correctness": {
+    "abi_tests_passed": 28,
+    "mperf_tests_passed": 3,
+    "normal_kernel_build_passed": true,
+    "instrumented_kernel_build_passed": true,
+    "benchmark_read_bytes_matched": true,
+    "benchmark_write_bytes_matched": true,
+    "secondary_cpus_online": 1,
+    "kernel_panics": 0,
+    "page_faults": 0,
+    "reached_system_services": true,
+    "guest_run_blocker": "display.driver exited before compositor and shell startup"
+  },
+  "logs": {
+    "before_serial": "out/runner/workspace-1788351673-2/serial.log",
+    "after_serial": "out/runner/workspace-1788351892-2/serial.log",
+    "before_service_log": "/tmp/mochios-vfs-baseline-rootfs.img:/system/logs/services/misc.log",
+    "after_service_log": "/tmp/mochios-vfs-after-rootfs.img:/system/logs/services/misc.log"
+  },
+  "notes": [
+    "The temporary read and write buffers now match requests smaller than the 256 KiB chunk limit.",
+    "The open path reuses metadata already returned by the rootfs-first lookup and no longer repeats the final existence lookup.",
+    "The QEMU CPU reports no stable performance clock, so its latency percentiles are not used to approve the change.",
+    "Real-hardware latency and cache measurements remain required before changing the VFS locking or path representation."
+  ]
+}

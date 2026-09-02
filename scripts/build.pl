@@ -1089,6 +1089,9 @@ sub build_rust_std_programs {
     );
     for my $service (@std_services) {
         my @features = ();
+        if ($service->[1] eq 'core' && config_enabled($config->{KERNEL_PERFORMANCE_INSTRUMENTATION})) {
+            @features = ('performance-benchmark');
+        }
         if ($service->[1] eq 'network' && ($ENV{MOCHIOS_NETWORK_TEST_WEB_PKI} // '') eq '1') {
             @features = ('test-web-pki');
         }

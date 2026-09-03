@@ -2839,3 +2839,11 @@ path = "core"
 hash = "c3e23db2c30d7405174031949f0f620a0b1800a4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use copy-on-write for process forks"
+
+[[entries]]
+date = "2026-09-03T11:04:15.723435304+09:00"
+snapshot = "02442c148fa1af073c2324c6"
+path = "core"
+hash = "73d3f0f00088070cb7ebc41a86499d3e211ff17e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report process creation page allocations"

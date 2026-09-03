@@ -2903,3 +2903,11 @@ path = "core"
 hash = "cd30c444e08cc3c227f1a05c9bfe2e0ebab609e6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove product settings policy from mnu"
+
+[[entries]]
+date = "2026-09-03T17:04:57.426050876+09:00"
+snapshot = "0818d4308f0750a61485af73"
+path = "boot"
+hash = "6eb05fbcbc9c40a8cfa9bed8be66d1ba76c27a1f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove obsolete shared configuration policy"

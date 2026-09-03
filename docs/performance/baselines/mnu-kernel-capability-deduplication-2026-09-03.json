@@ -1,0 +1,68 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "before": {
+      "root": "e0994db47f8763bef4e158261a3d4799f2124157",
+      "core": "6b85ee30e5fcf48aa2c52930a704d6b56dca6bf5"
+    },
+    "after": {
+      "root": "c8464926b3b49c651ad117e05009ff523b22c5e9",
+      "core": "2826731542107573a21f3f5e455347667ef29e18"
+    }
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14",
+    "features": ["kernel-bin"]
+  },
+  "source": {
+    "removed_lines": 349,
+    "added_lines": 1,
+    "removed_types": ["UserCapability", "CapabilityKind"],
+    "removed_methods": ["Capability::kind", "Capability::to_user_capability"]
+  },
+  "size": {
+    "before": {
+      "file_size_bytes": 846448,
+      "loadable_file_size_bytes": 838214,
+      "loadable_memory_size_bytes": 1250934,
+      "text_bytes": 515382,
+      "rodata_bytes": 38538,
+      "data_bytes": 259400,
+      "bss_bytes": 409976
+    },
+    "after": {
+      "file_size_bytes": 846320,
+      "loadable_file_size_bytes": 837966,
+      "loadable_memory_size_bytes": 1253670,
+      "text_bytes": 514470,
+      "rodata_bytes": 38434,
+      "data_bytes": 259272,
+      "bss_bytes": 412832
+    },
+    "delta": {
+      "file_size_bytes": -128,
+      "loadable_file_size_bytes": -248,
+      "loadable_memory_size_bytes": 2736,
+      "text_bytes": -912,
+      "rodata_bytes": -104,
+      "data_bytes": -128,
+      "bss_bytes": 2856
+    }
+  },
+  "correctness": {
+    "abi_tests_passed": 29,
+    "normal_qemu_self_test_passed": true,
+    "capability_storage_changed": false,
+    "capability_string_parsing_changed": false,
+    "syscall_abi_changed": false,
+    "kernel_panics": 0,
+    "unexpected_page_faults": 0
+  },
+  "notes": [
+    "UserCapability duplicated the active Capability enum and was referenced only by its own conversion method.",
+    "The removal narrows the source model but does not yet remove high-level product capabilities from the active Capability enum.",
+    "The file and loadable file sizes decreased, while loadable memory increased because the final section layout changed. No runtime allocation was added.",
+    "The loadable-memory increase is recorded as a regression and is not presented as an improvement."
+  ]
+}

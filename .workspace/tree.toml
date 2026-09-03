@@ -2895,3 +2895,11 @@ path = "core"
 hash = "256bb059a9fa29a99143442e92e6459360ef2f38"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Make filesystem path policy data-driven"
+
+[[entries]]
+date = "2026-09-03T16:40:11.422092880+09:00"
+snapshot = "de7e725340924c678fb720ea"
+path = "core"
+hash = "cd30c444e08cc3c227f1a05c9bfe2e0ebab609e6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove product settings policy from mnu"

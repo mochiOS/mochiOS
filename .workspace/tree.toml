@@ -2831,3 +2831,11 @@ path = "core"
 hash = "01966977f45b9da75fa7c0e4d132e1997f0c08a9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Measure process fork costs"
+
+[[entries]]
+date = "2026-09-03T10:58:24.389400354+09:00"
+snapshot = "cba186bbd3f2ab4a13e95c0f"
+path = "core"
+hash = "c3e23db2c30d7405174031949f0f620a0b1800a4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use copy-on-write for process forks"

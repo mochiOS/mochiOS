@@ -1,0 +1,123 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "before": {
+      "root": "b9406e476ff77c65438577649da2a9bd9377b571",
+      "core": "73d3f0f00088070cb7ebc41a86499d3e211ff17e"
+    },
+    "after": {
+      "root": "f68085dee3230bfaccb1f8749b569393869c6f02",
+      "core": "1387f52134041145244c94f39beeb09a8c208682"
+    }
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14",
+    "rustc": "rustc 1.97.0-nightly (ff9a9ea07 2026-05-13)",
+    "linker": "GNU ld (GNU Binutils for Ubuntu) 2.46",
+    "normal_features": ["kernel-bin"],
+    "instrumented_features": ["kernel-bin", "performance-instrumentation"]
+  },
+  "workload": {
+    "environment": "QEMU TCG",
+    "cpu_model": "qemu64",
+    "configured_vcpu_count": 4,
+    "online_vcpu_count": 1,
+    "memory_bytes": 536870912,
+    "process_fork_count": 19,
+    "clock": {
+      "invariant_tsc": false,
+      "rdtscp": false,
+      "frequency_khz": 0
+    }
+  },
+  "size": {
+    "before": {
+      "file_size_bytes": 825856,
+      "loadable_file_size_bytes": 820006,
+      "loadable_memory_size_bytes": 1231942,
+      "text_bytes": 493798,
+      "rodata_bytes": 40994,
+      "data_bytes": 259288,
+      "bss_bytes": 409080
+    },
+    "after": {
+      "file_size_bytes": 838128,
+      "loadable_file_size_bytes": 829606,
+      "loadable_memory_size_bytes": 1242790,
+      "text_bytes": 506982,
+      "rodata_bytes": 38290,
+      "data_bytes": 259272,
+      "bss_bytes": 410312
+    },
+    "delta": {
+      "file_size_bytes": 12272,
+      "loadable_file_size_bytes": 9600,
+      "loadable_memory_size_bytes": 10848,
+      "text_bytes": 13184,
+      "rodata_bytes": -2704,
+      "data_bytes": -16,
+      "bss_bytes": 1232
+    }
+  },
+  "process_creation": {
+    "before": {
+      "executable_bytes_read": 1192336,
+      "pages_allocated": 681,
+      "fork_pages_copied": 0,
+      "fork_pages_shared": 11936
+    },
+    "after": {
+      "executable_bytes_read": 1192336,
+      "pages_allocated": 648,
+      "fork_pages_copied": 0,
+      "fork_pages_shared": 10758,
+      "cow_faults": 18,
+      "cow_copies": 18,
+      "fork_latency_cycles": {
+        "p50_bucket_upper": 1048575,
+        "p95_bucket_upper": 4194303,
+        "p99_bucket_upper": 4194303
+      }
+    },
+    "delta": {
+      "executable_bytes_read": 0,
+      "pages_allocated": -33,
+      "fork_pages_copied": 0,
+      "fork_pages_shared": -1178
+    }
+  },
+  "change": {
+    "deferred_pages": "Full zero pages after writable, non-executable PT_LOAD file data",
+    "partial_zero_page_eager": true,
+    "overlapping_load_segment_pages_eager": true,
+    "spawn_and_execve_share_loader": true,
+    "whole_executable_signature_read_preserved": true
+  },
+  "correctness": {
+    "abi_tests_passed": 29,
+    "normal_qemu_self_test_passed": true,
+    "instrumented_qemu_self_test_passed": true,
+    "bss_first_and_last_byte_zero_test_passed": true,
+    "release_build_passed": true,
+    "diff_check_passed": true,
+    "kernel_panics": 0,
+    "page_fault_failures": 0,
+    "instrumented_runner_timeouts": 1,
+    "instrumented_image_direct_rerun_passed": true
+  },
+  "security": {
+    "signature_verification_preserved": true,
+    "write_xor_execute_preserved": true,
+    "deferred_pages_zero_initialized_before_user_access": true,
+    "read_write_execute_permissions_checked_on_fault": true,
+    "canonical_user_range_checks_preserved": true
+  },
+  "notes": [
+    "The allocation delta covers the complete self-test workload and is not a per-process value.",
+    "Executable bytes read did not improve because signature verification still reads the complete image.",
+    "The normal kernel remains below 1 MiB, but this change adds 12272 bytes and therefore trades binary size for lower process memory demand.",
+    "The QEMU clock is not calibrated, so the cycle buckets are retained for regression evidence and not interpreted as absolute latency.",
+    "The first instrumented runner attempt reached its fixed monitoring deadline without a panic or page fault. Reusing the exact built images in a directly monitored QEMU run reached USERLAND SELF-TEST PASS."
+  ]
+}

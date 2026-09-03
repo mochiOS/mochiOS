@@ -2871,3 +2871,11 @@ path = "core"
 hash = "2826731542107573a21f3f5e455347667ef29e18"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove duplicate user capability representation"
+
+[[entries]]
+date = "2026-09-03T12:07:14.484333422+09:00"
+snapshot = "ebaa397adbc4f121c6bf1e68"
+path = "core"
+hash = "44e13921c79bc56ca9635e4c6c23c533cd747c97"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove unreachable executable loaders"

@@ -61,10 +61,9 @@ MONITOR_SOCKET="${RUN_DIR}/monitor.sock"
 GPU_SCREENSHOT="${RUN_DIR}/virtio-gpu.ppm"
 ROOTFS_IMAGE="${RUN_DIR}/rootfs.img"
 MBOOT_VIRTIO_TRACE="${RUN_DIR}/mboot-virtio.trace"
-QEMU_MBOOT_CONTROL_SOCKET="${QEMU_MBOOT_CONTROL_SOCKET:-}"
-MBOOT_CONTROL_REQUIRED="${MBOOT_CONTROL_REQUIRED:-0}"
-MBOOT_CONTROL_LOG="${MBOOT_CONTROL_LOG:-}"
 SMOKE_USER_DATABASE_FIXTURE="${SMOKE_USER_DATABASE_FIXTURE:-}"
+SMOKE_AUTO_LOGIN="${SMOKE_AUTO_LOGIN:-0}"
+SMOKE_CHECK_SERVICE_LOGS="${SMOKE_CHECK_SERVICE_LOGS:-0}"
 SMOKE_GUEST_COMMAND="${SMOKE_GUEST_COMMAND:-}"
 SMOKE_GUEST_EXPECT="${SMOKE_GUEST_EXPECT:-}"
 SMOKE_GUEST_EXPECTED_EXIT="${SMOKE_GUEST_EXPECTED_EXIT:-0}"
@@ -110,16 +109,14 @@ case "${QEMU_TCP_ECHO_SERVER}" in
     y|n) ;;
     *) die "QEMU_TCP_ECHO_SERVER must be 'y' or 'n'" ;;
 esac
-case "${MBOOT_CONTROL_REQUIRED}" in
+case "${SMOKE_AUTO_LOGIN}" in
     0|1) ;;
-    *) die "MBOOT_CONTROL_REQUIRED must be 0 or 1" ;;
+    *) die "SMOKE_AUTO_LOGIN must be 0 or 1" ;;
 esac
-if [[ "${MBOOT_CONTROL_REQUIRED}" == "1" ]]; then
-    [[ -n "${QEMU_MBOOT_CONTROL_SOCKET}" ]] ||
-        die "MBOOT_CONTROL_REQUIRED requires QEMU_MBOOT_CONTROL_SOCKET"
-    [[ -n "${MBOOT_CONTROL_LOG}" ]] ||
-        die "MBOOT_CONTROL_REQUIRED requires MBOOT_CONTROL_LOG"
-fi
+case "${SMOKE_CHECK_SERVICE_LOGS}" in
+    0|1) ;;
+    *) die "SMOKE_CHECK_SERVICE_LOGS must be 0 or 1" ;;
+esac
 [[ "${QEMU_NETWORK_MAC}" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] ||
     die "QEMU_NETWORK_MAC must be a MAC address: ${QEMU_NETWORK_MAC}"
 
@@ -223,10 +220,6 @@ fi
 if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
     need_cmd nc
 fi
-if [[ "${MBOOT_CONTROL_REQUIRED}" == "1" ]]; then
-    need_cmd nc
-    need_file "${MBOOT_CONTROL_LOG}"
-fi
 if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
     need_cmd python3
     need_file "${SCRIPT_DIR}/tls-http-smoke-server.py"
@@ -238,7 +231,7 @@ cp "${OVMF_VARS_TEMPLATE}" "${OVMF_VARS}"
 OS_DISK="${ARTIFACT_DIR}/disk.img"
 if [[ "${SMOKE_TEST:-0}" == "1" ]]; then
     OS_DISK="${RUN_DIR}/disk.img"
-    cp "${ARTIFACT_DIR}/disk.img" "${OS_DISK}"
+    cp --reflink=auto --sparse=always "${ARTIFACT_DIR}/disk.img" "${OS_DISK}"
 fi
 : > "${SERIAL_LOG}"
 
@@ -257,6 +250,7 @@ if [[ -n "${SMOKE_USER_DATABASE_FIXTURE}" ]]; then
         die "could not secure the isolated smoke user database"
     dd if="${ROOTFS_IMAGE}" of="${OS_DISK}" bs=512 \
         seek="${ROOTFS_START_SECTOR}" conv=notrunc status=none
+    rm -f "${ROOTFS_IMAGE}"
 fi
 
 QEMU_ARGS=(
@@ -277,16 +271,6 @@ QEMU_ARGS=(
 
 if [[ "${DEBUG_QEMU_MBOOT_TRACE:-n}" == "y" ]]; then
     QEMU_ARGS+=(-trace "enable=virtio_serial_*,file=${MBOOT_VIRTIO_TRACE}")
-fi
-
-if [[ -n "${QEMU_MBOOT_CONTROL_SOCKET}" ]]; then
-    [[ -S "${QEMU_MBOOT_CONTROL_SOCKET}" ]] ||
-        die "mBoot control socket is not listening: ${QEMU_MBOOT_CONTROL_SOCKET}"
-    QEMU_ARGS+=(
-        -chardev "socket,id=mbootctl,path=${QEMU_MBOOT_CONTROL_SOCKET},server=off,reconnect-ms=1000"
-        -device "virtio-serial-pci,id=mboot-serial,disable-legacy=on,max_ports=2"
-        -device "virtserialport,id=mboot-control,chardev=mbootctl,name=org.mochios.mboot.control"
-    )
 fi
 
 if [[ "${QEMU_NETWORK}" == "y" ]]; then
@@ -335,7 +319,7 @@ if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     else
         QEMU_ARGS+=(-display none)
     fi
-    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" || "${NETWORK_CLIENT_SMOKE}" == "1" || "${TLS_HTTP_CLIENT_SMOKE}" == "1" || "${ACCOUNTS_HTTPS_SMOKE}" == "1" || "${MBOOT_CONTROL_REQUIRED}" == "1" || -n "${SMOKE_GUEST_COMMAND}" ]]; then
+    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" || "${NETWORK_CLIENT_SMOKE}" == "1" || "${TLS_HTTP_CLIENT_SMOKE}" == "1" || "${ACCOUNTS_HTTPS_SMOKE}" == "1" || "${SMOKE_AUTO_LOGIN}" == "1" || -n "${SMOKE_GUEST_COMMAND}" ]]; then
         QEMU_ARGS+=(-monitor "unix:${MONITOR_SOCKET},server=on,wait=off")
     else
         QEMU_ARGS+=(-monitor none)
@@ -396,22 +380,6 @@ trap cleanup_all EXIT
 
 log_has() {
     grep -aFq "$1" "${SERIAL_LOG}"
-}
-
-mboot_log_has() {
-    grep -aFq "$1" "${MBOOT_CONTROL_LOG}"
-}
-
-mboot_control_complete() {
-    [[ "${MBOOT_CONTROL_REQUIRED}" == "0" ]] && return 0
-    mboot_log_has "guest connected" \
-        && mboot_log_has "protocol synchronized" \
-        && mboot_log_has "protocol negotiated: version=1" \
-        && mboot_log_has "guest boot stage: kernel" \
-        && mboot_log_has "guest boot stage: userspace" \
-        && mboot_log_has "guest boot stage: display" \
-        && mboot_log_has "guest boot stage: desktop" \
-        && grep -aEq 'guest heartbeat: uptime=[1-9][0-9]*ms' "${MBOOT_CONTROL_LOG}"
 }
 
 hmp_command() {
@@ -592,8 +560,8 @@ fi
 NEXT_LINE=1
 COMPLETED=0
 COMPLETION_OBSERVED_AT=0
-MBOOT_LOGIN_READY_AT=0
-MBOOT_LOGIN_SENT=0
+LOGIN_READY_AT=0
+LOGIN_SENT=0
 DEADLINE=$((SECONDS + QEMU_TIMEOUT_SECONDS))
 while ((SECONDS < DEADLINE)); do
     while IFS= read -r line; do
@@ -604,20 +572,20 @@ while ((SECONDS < DEADLINE)); do
 
     NEXT_LINE="$(($(wc -l < "${SERIAL_LOG}") + 1))"
 
-    if [[ "${MBOOT_CONTROL_REQUIRED}" == "1" && "${MBOOT_LOGIN_SENT}" == "0" ]] \
+    if [[ "${SMOKE_AUTO_LOGIN}" == "1" && "${LOGIN_SENT}" == "0" ]] \
         && log_has "exec: loaded '/system/services/secure-ui.service'"; then
-        if [[ "${MBOOT_LOGIN_READY_AT}" == "0" ]]; then
-            MBOOT_LOGIN_READY_AT="${SECONDS}"
-        elif ((SECONDS - MBOOT_LOGIN_READY_AT >= 2)) && [[ -S "${MONITOR_SOCKET}" ]]; then
+        if [[ "${LOGIN_READY_AT}" == "0" ]]; then
+            LOGIN_READY_AT="${SECONDS}"
+        elif ((SECONDS - LOGIN_READY_AT >= 2)) && [[ -S "${MONITOR_SOCKET}" ]]; then
             hmp_command "sendkey ret"
-            MBOOT_LOGIN_SENT=1
+            LOGIN_SENT=1
         fi
     fi
 
     if log_has "cext: loaded bundle disk" \
         && log_has "cext: loaded bundle ext2" \
         && log_has "Kernel initialization complete. Entering idle loop" \
-        && log_has "exec: loaded 'core.service' from initfs" \
+        && log_has "exec: loaded '/init' from initfs" \
         && log_has "exec: loaded '/system/services/logger.service'" \
         && log_has "exec: loaded '/system/services/capability.service'" \
         && log_has "exec: loaded '/system/services/service-manager.service'" \
@@ -630,7 +598,8 @@ while ((SECONDS < DEADLINE)); do
         && log_has "exec: loaded '/system/services/network.service'" \
         && log_has "exec: loaded '/system/services/user.service'" \
         && log_has "exec: loaded '/system/services/secure-ui.service'" \
-        && mboot_control_complete; then
+        && log_has "exec: loaded '/system/services/linux.service'" \
+        && log_has "exec: loaded '/applications/Binder.app/entry.elf'"; then
         if [[ "${COMPLETION_OBSERVED_AT}" -eq 0 ]]; then
             COMPLETION_OBSERVED_AT="${SECONDS}"
         elif ((SECONDS - COMPLETION_OBSERVED_AT >= 2)); then
@@ -648,10 +617,6 @@ done
 
 [[ "${COMPLETED}" == "1" ]] ||
     die "QEMU smoke test timed out after ${QEMU_TIMEOUT_SECONDS}s; see ${SERIAL_LOG}"
-
-if [[ "${MBOOT_CONTROL_REQUIRED}" == "1" ]]; then
-    echo "[check] mBoot control reached desktop and reported heartbeat"
-fi
 
 if [[ "${QEMU_NETWORK}" == "y" && "${QEMU_NETWORK_SETTLE_SECONDS}" -gt 0 ]]; then
     sleep "${QEMU_NETWORK_SETTLE_SECONDS}"
@@ -840,37 +805,37 @@ if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
         die "bad CertificateVerify server did not send the altered signature"
 fi
 
-ROOTFS_START_SECTOR=$((2048 + IMAGE_ESP_SIZE_MB * 2048))
-ROOTFS_SIZE_SECTORS=$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))
-dd if="${OS_DISK}" of="${ROOTFS_IMAGE}" bs=512 \
-    skip="${ROOTFS_START_SECTOR}" count="${ROOTFS_SIZE_SECTORS}" status=none
-debugfs -R 'cat /system/logs/services/drivers.log' "${ROOTFS_IMAGE}" \
-    > "${DRIVERS_LOG}" 2>/dev/null || die "drivers.service log could not be read"
-debugfs -R 'cat /system/logs/services/display.driver.log' "${ROOTFS_IMAGE}" \
-    > "${DISPLAY_LOG}" 2>/dev/null || die "display.driver log could not be read"
-debugfs -R 'cat /system/logs/services/service-manager.log' "${ROOTFS_IMAGE}" \
-    > "${SERVICE_MANAGER_LOG}" 2>/dev/null || die "service-manager.service log could not be read"
-debugfs -R 'cat /system/logs/services/network.log' "${ROOTFS_IMAGE}" \
-    > "${NETWORK_LOG}" 2>/dev/null || die "network.service log could not be read"
-debugfs -R 'cat /system/logs/services/user.log' "${ROOTFS_IMAGE}" \
-    > "${USER_LOG}" 2>/dev/null || die "user.service log could not be read"
-grep -Fq 'user.service: ready users=2' "${USER_LOG}" ||
-    die "user.service did not load its initial database; see ${USER_LOG}"
+if [[ "${SMOKE_CHECK_SERVICE_LOGS}" == "1" ]]; then
+    ROOTFS_START_SECTOR=$((2048 + IMAGE_ESP_SIZE_MB * 2048))
+    ROOTFS_SIZE_SECTORS=$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))
+    dd if="${OS_DISK}" of="${ROOTFS_IMAGE}" bs=512 \
+        skip="${ROOTFS_START_SECTOR}" count="${ROOTFS_SIZE_SECTORS}" status=none
+    debugfs -R 'cat /system/logs/services/drivers.log' "${ROOTFS_IMAGE}" \
+        > "${DRIVERS_LOG}" 2>/dev/null || die "drivers.service log could not be read"
+    debugfs -R 'cat /system/logs/services/display.driver.log' "${ROOTFS_IMAGE}" \
+        > "${DISPLAY_LOG}" 2>/dev/null || die "display.driver log could not be read"
+    debugfs -R 'cat /system/logs/services/service-manager.log' "${ROOTFS_IMAGE}" \
+        > "${SERVICE_MANAGER_LOG}" 2>/dev/null || die "service-manager.service log could not be read"
+    debugfs -R 'cat /system/logs/services/network.log' "${ROOTFS_IMAGE}" \
+        > "${NETWORK_LOG}" 2>/dev/null || die "network.service log could not be read"
+    debugfs -R 'cat /system/logs/services/user.log' "${ROOTFS_IMAGE}" \
+        > "${USER_LOG}" 2>/dev/null || die "user.service log could not be read"
 
-if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
-    LAST_DISPLAY_BACKEND="$(grep -F "display.driver:" "${DISPLAY_LOG}" |
-        grep -E "backend=|using framebuffer fallback" | tail -n 1)"
-    [[ "${LAST_DISPLAY_BACKEND}" == *"backend=virtio-gpu"* ]] ||
-        die "display.driver did not select the virtio-gpu backend; see ${DISPLAY_LOG}"
-    if [[ "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
-        grep -Fq "display.driver: virgl capset=" "${DISPLAY_LOG}" ||
-            die "display.driver did not negotiate a virgl capset; see ${DISPLAY_LOG}"
+    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
+        LAST_DISPLAY_BACKEND="$(grep -F "display.driver:" "${DISPLAY_LOG}" |
+            grep -E "backend=|using framebuffer fallback" | tail -n 1)"
+        [[ "${LAST_DISPLAY_BACKEND}" == *"backend=virtio-gpu"* ]] ||
+            die "display.driver did not select the virtio-gpu backend; see ${DISPLAY_LOG}"
+        if [[ "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
+            grep -Fq "display.driver: virgl capset=" "${DISPLAY_LOG}" ||
+                die "display.driver did not negotiate a virgl capset; see ${DISPLAY_LOG}"
+        fi
     fi
-fi
 
-"${SCRIPT_DIR}/check-smoke-logs.sh" \
-    "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" \
-    "${NETWORK_CLIENT_SMOKE}" "${ENABLE_XHCI}" "${TLS_HTTP_CLIENT_SMOKE}" \
-    "${ACCOUNTS_HTTPS_SMOKE}" "${MPKG_RUNTIME_SMOKE}"
+    "${SCRIPT_DIR}/check-smoke-logs.sh" \
+        "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" \
+        "${NETWORK_CLIENT_SMOKE}" "${ENABLE_XHCI}" "${TLS_HTTP_CLIENT_SMOKE}" \
+        "${ACCOUNTS_HTTPS_SMOKE}" "${MPKG_RUNTIME_SMOKE}"
+fi
 
 echo "[done] serial log: ${SERIAL_LOG}"

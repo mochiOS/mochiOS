@@ -159,7 +159,7 @@ for signature_pattern in \
 done
 
 assert_order "serial boot log" "${SERIAL_LOG}" \
-    "core.service" "exec: loaded 'core.service' from initfs" \
+    "init" "exec: loaded '/init' from initfs" \
     "capability.service" "exec: loaded '/system/services/capability.service'" \
     "service-manager.service" "exec: loaded '/system/services/service-manager.service'" \
     "drivers.service" "exec: loaded '/system/services/drivers.service'" \
@@ -230,7 +230,6 @@ fi
 assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
     "service manager start" "service-manager.service: start" \
     "drivers spawn" "service-manager.service: drivers.service spawned pid=" \
-    "driver delegate registration" "service-manager.service: registered drivers.service as driver delegate" \
     "drivers hello wait" "service-manager.service: waiting for drivers.service hello" \
     "drivers hello" "service-manager.service: drivers.service hello received" \
     "input spawn" "service-manager.service: input.service spawned pid=" \

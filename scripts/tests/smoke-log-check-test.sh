@@ -13,7 +13,7 @@ NETWORK_LOG="${TMP_DIR}/network.log"
 
 write_valid_logs() {
     cat > "${SERIAL_LOG}" <<'EOF'
-[INFO] exec: loaded 'core.service' from initfs
+[INFO] exec: loaded '/init' from initfs
 [INFO] exec: loaded '/system/services/capability.service' from cext
 [INFO] exec: loaded '/system/services/service-manager.service' from cext
 [INFO] exec: loaded '/system/services/drivers.service' from cext

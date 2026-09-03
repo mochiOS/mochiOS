@@ -1,0 +1,110 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "before": {
+      "root": "48c901d",
+      "core": "44e13921c79bc56ca9635e4c6c23c533cd747c97"
+    },
+    "after": {
+      "root": "32d37eb",
+      "core": "0205a5f953c726997d25bab8ef95ef6dd122a1e8"
+    }
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14",
+    "features": ["kernel-bin"],
+    "incremental_command": "CARGO_NET_OFFLINE=true make build-cached"
+  },
+  "source": {
+    "removed_lines": 413,
+    "added_lines": 133,
+    "dynamic_registry": {
+      "storage": "single Vec<String>",
+      "maximum_names": 4096,
+      "maximum_name_bytes": 512,
+      "lookup": "linear on the cold name-to-ID path",
+      "hot_path": "numeric Capability comparison"
+    },
+    "product_names_removed_from_mnu_enum": [
+      "window.*",
+      "package.*",
+      "account.*",
+      "clipboard.*",
+      "camera.*",
+      "microphone.*",
+      "notification.*",
+      "bluetooth.*",
+      "location.*"
+    ]
+  },
+  "size": {
+    "before": {
+      "file_size_bytes": 846336,
+      "loadable_file_size_bytes": 838070,
+      "loadable_memory_size_bytes": 1253094,
+      "text_bytes": 514630,
+      "rodata_bytes": 38482,
+      "data_bytes": 259288,
+      "bss_bytes": 412168
+    },
+    "after": {
+      "file_size_bytes": 842376,
+      "loadable_file_size_bytes": 835182,
+      "loadable_memory_size_bytes": 1247510,
+      "text_bytes": 510326,
+      "rodata_bytes": 39538,
+      "data_bytes": 259424,
+      "bss_bytes": 409608
+    },
+    "delta": {
+      "file_size_bytes": -3960,
+      "loadable_file_size_bytes": -2888,
+      "loadable_memory_size_bytes": -5584,
+      "text_bytes": -4304,
+      "rodata_bytes": 1056,
+      "data_bytes": 136,
+      "bss_bytes": -2560
+    }
+  },
+  "correctness": {
+    "release_check_passed": true,
+    "incremental_build_passed": true,
+    "abi_tests_passed": 29,
+    "syscall_abi_changed": false,
+    "manifest_capability_strings_changed": false,
+    "qemu_kernel_booted": true,
+    "qemu_init_started": true,
+    "qemu_dynamic_capability_services_started": [
+      "capability.service",
+      "signature.service",
+      "package.service",
+      "service-manager.service",
+      "drivers.service"
+    ],
+    "qemu_full_smoke_passed": false,
+    "kernel_panics": 0,
+    "unexpected_page_faults": 0
+  },
+  "security": {
+    "identifier_collision_dependency": false,
+    "untrusted_name_interning": false,
+    "dynamic_registry_bounded": true,
+    "kernel_authority_representation_changed": false,
+    "capability_manager_can_mint_dynamic_names": true,
+    "policy_classification_owner": "capability service and user-space policy libraries"
+  },
+  "remaining_product_coupling": [
+    "User-folder capability variants and their path mapping remain in mnu.",
+    "SettingsRead and SettingsWrite remain tied to the shared-configuration path exception.",
+    "Service and Driver launch roles are still interpreted by the kernel policy module.",
+    "The panic report text still contains the mnu GitHub project URL."
+  ],
+  "notes": [
+    "Unknown but syntactically valid product capabilities are interned once and stored as numeric IDs in process capability sets.",
+    "Only the kernel or a process holding capabilities.manage may create dynamic capability IDs during exec. Other callers can only reference existing IDs.",
+    "The registry stores each dynamic name once. A BTreeMap prototype was rejected because this cold path did not justify its code size and heap nodes.",
+    "The QEMU run reached the same existing display.driver status-1 exit seen before this change. The full smoke gate therefore remains unproven.",
+    "This commit is an intermediate boundary improvement, not proof that mnu is fully independent from mochiOS policy."
+  ]
+}

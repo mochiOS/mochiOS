@@ -43,7 +43,9 @@ if [[ "${ENV_QEMU_NETWORK_SET}" == "1" ]]; then QEMU_NETWORK="${ENV_QEMU_NETWORK
 if [[ "${ENV_QEMU_NETWORK_MAC_SET}" == "1" ]]; then QEMU_NETWORK_MAC="${ENV_QEMU_NETWORK_MAC}"; fi
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
 RUN_ID="workspace-$(date +%s)-$$"
-RUN_DIR="${ROOT_DIR}/out/runner/${RUN_ID}"
+RUNNER_DIR="${ROOT_DIR}/out/runner"
+RUNNER_KEEP_RUNS="${RUNNER_KEEP_RUNS:-8}"
+RUN_DIR="${RUNNER_DIR}/${RUN_ID}"
 SERIAL_LOG="${RUN_DIR}/serial.log"
 DRIVERS_LOG="${RUN_DIR}/drivers.log"
 DISPLAY_LOG="${RUN_DIR}/display.driver.log"
@@ -104,6 +106,22 @@ need_file() {
     [[ -f "$1" ]] || die "required file not found: $1"
 }
 
+prune_runner_runs() {
+    local index
+    local name
+    local -a runs=()
+
+    mapfile -d '' runs < <(
+        find "${RUNNER_DIR}" -mindepth 1 -maxdepth 1 -type d \
+            -name 'workspace-*' -printf '%T@ %f\0' | sort -zrn
+    )
+    for ((index = RUNNER_KEEP_RUNS; index < ${#runs[@]}; index++)); do
+        name="${runs[index]#* }"
+        [[ "${name}" == workspace-* ]] || continue
+        rm -rf -- "${RUNNER_DIR}/${name}"
+    done
+}
+
 case "${QEMU_NETWORK}" in y|n) ;; *) die "QEMU_NETWORK must be 'y' or 'n'" ;; esac
 case "${QEMU_TCP_ECHO_SERVER}" in
     y|n) ;;
@@ -117,6 +135,8 @@ case "${SMOKE_CHECK_SERVICE_LOGS}" in
     0|1) ;;
     *) die "SMOKE_CHECK_SERVICE_LOGS must be 0 or 1" ;;
 esac
+[[ "${RUNNER_KEEP_RUNS}" =~ ^[1-9][0-9]*$ ]] ||
+    die "RUNNER_KEEP_RUNS must be a positive integer"
 [[ "${QEMU_NETWORK_MAC}" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] ||
     die "QEMU_NETWORK_MAC must be a MAC address: ${QEMU_NETWORK_MAC}"
 
@@ -156,7 +176,9 @@ need_cmd qemu-system-x86_64
 need_cmd dd
 need_cmd debugfs
 need_cmd grep
+need_cmd find
 need_cmd sed
+need_cmd sort
 need_cmd tee
 need_cmd wc
 
@@ -227,6 +249,7 @@ if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
 fi
 
 mkdir -p "${RUN_DIR}"
+prune_runner_runs
 cp "${OVMF_VARS_TEMPLATE}" "${OVMF_VARS}"
 OS_DISK="${ARTIFACT_DIR}/disk.img"
 if [[ "${SMOKE_TEST:-0}" == "1" ]]; then

@@ -2855,3 +2855,11 @@ path = "core"
 hash = "1387f52134041145244c94f39beeb09a8c208682"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Defer executable zero pages until first use"
+
+[[entries]]
+date = "2026-09-03T11:43:18.666529862+09:00"
+snapshot = "1c3cb11f52963a67c9a890a8"
+path = "core"
+hash = "6b85ee30e5fcf48aa2c52930a704d6b56dca6bf5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve mmap protection across deferred pages"

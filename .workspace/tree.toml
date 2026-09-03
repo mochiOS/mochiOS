@@ -2879,3 +2879,11 @@ path = "core"
 hash = "44e13921c79bc56ca9635e4c6c23c533cd747c97"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove unreachable executable loaders"
+
+[[entries]]
+date = "2026-09-03T16:14:42.006307039+09:00"
+snapshot = "a38cb73d64a4c48b05c7f05f"
+path = "core"
+hash = "0205a5f953c726997d25bab8ef95ef6dd122a1e8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Treat product capabilities as opaque identifiers"

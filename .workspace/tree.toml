@@ -2911,3 +2911,11 @@ path = "boot"
 hash = "6eb05fbcbc9c40a8cfa9bed8be66d1ba76c27a1f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove obsolete shared configuration policy"
+
+[[entries]]
+date = "2026-09-03T17:31:50.795338486+09:00"
+snapshot = "a7cfb08e3741f781ac038228"
+path = "core"
+hash = "1e59106b740726eaa2d8f9c2d4d7959c7e6e2843"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Normalize user selectors after page faults"

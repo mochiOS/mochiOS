@@ -2823,3 +2823,11 @@ path = "core"
 hash = "43ca6480a8ef254f2a0b844bedfabcb71128e603"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove disabled exec initialization path"
+
+[[entries]]
+date = "2026-09-03T10:25:54.229669743+09:00"
+snapshot = "20020135a5f0154b4c006c49"
+path = "core"
+hash = "01966977f45b9da75fa7c0e4d132e1997f0c08a9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Measure process fork costs"

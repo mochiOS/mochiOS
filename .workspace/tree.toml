@@ -2863,3 +2863,11 @@ path = "core"
 hash = "6b85ee30e5fcf48aa2c52930a704d6b56dca6bf5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve mmap protection across deferred pages"
+
+[[entries]]
+date = "2026-09-03T11:50:40.021507021+09:00"
+snapshot = "17631026f0f5423cb1a7d682"
+path = "core"
+hash = "2826731542107573a21f3f5e455347667ef29e18"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove duplicate user capability representation"

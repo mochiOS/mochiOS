@@ -2887,3 +2887,11 @@ path = "core"
 hash = "0205a5f953c726997d25bab8ef95ef6dd122a1e8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Treat product capabilities as opaque identifiers"
+
+[[entries]]
+date = "2026-09-03T16:35:43.010601079+09:00"
+snapshot = "870535f0553a95087e96c607"
+path = "core"
+hash = "256bb059a9fa29a99143442e92e6459360ef2f38"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Make filesystem path policy data-driven"

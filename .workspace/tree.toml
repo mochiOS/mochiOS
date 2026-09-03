@@ -2847,3 +2847,11 @@ path = "core"
 hash = "73d3f0f00088070cb7ebc41a86499d3e211ff17e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report process creation page allocations"
+
+[[entries]]
+date = "2026-09-03T11:27:25.742722585+09:00"
+snapshot = "94109bb5fdf945ce3ae01691"
+path = "core"
+hash = "1387f52134041145244c94f39beeb09a8c208682"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Defer executable zero pages until first use"

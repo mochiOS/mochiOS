@@ -1,0 +1,78 @@
+{
+  "artifact": "out/artifacts/kernel.elf",
+  "revision": {
+    "before": {
+      "root": "d34a3c8",
+      "core": "256bb059a9fa29a99143442e92e6459360ef2f38"
+    },
+    "after": {
+      "root": "3b59271",
+      "core": "cd30c444e08cc3c227f1a05c9bfe2e0ebab609e6"
+    }
+  },
+  "build": {
+    "profile": "release",
+    "rust_toolchain": "nightly-2026-05-14",
+    "features": ["kernel-bin"],
+    "incremental_command": "CARGO_NET_OFFLINE=true make build-cached"
+  },
+  "source": {
+    "removed_lines": 64,
+    "added_lines": 3,
+    "removed_kernel_concepts": [
+      "SettingsRead",
+      "SettingsWrite",
+      "shared_configuration_root",
+      "shared configuration filesystem exception"
+    ]
+  },
+  "size": {
+    "before": {
+      "file_size_bytes": 846416,
+      "loadable_file_size_bytes": 837806,
+      "loadable_memory_size_bytes": 1249526,
+      "text_bytes": 516470,
+      "rodata_bytes": 38130,
+      "data_bytes": 259368,
+      "bss_bytes": 408944
+    },
+    "after": {
+      "file_size_bytes": 846440,
+      "loadable_file_size_bytes": 837678,
+      "loadable_memory_size_bytes": 1252126,
+      "text_bytes": 514534,
+      "rodata_bytes": 37978,
+      "data_bytes": 259392,
+      "bss_bytes": 411696
+    },
+    "delta": {
+      "file_size_bytes": 24,
+      "loadable_file_size_bytes": -128,
+      "loadable_memory_size_bytes": 2600,
+      "text_bytes": -1936,
+      "rodata_bytes": -152,
+      "data_bytes": 24,
+      "bss_bytes": 2752
+    }
+  },
+  "correctness": {
+    "release_check_passed": true,
+    "incremental_build_passed": true,
+    "abi_tests_passed": 29,
+    "syscall_abi_changed": false,
+    "manifest_capability_strings_changed": false
+  },
+  "security": {
+    "active_filesystem_exception_removed": false,
+    "reason": "policy.shared_configuration_root was unset in the staged kernel configuration",
+    "settings_capabilities_retained_as_dynamic_identifiers": true,
+    "settings_capability_policy_owner": "trusted userspace capability service",
+    "unregistered_path_fallback": "fs.read.all or fs.write.all"
+  },
+  "notes": [
+    "The shared configuration exception was dormant in the current image, so removing it does not change current path access.",
+    "settings.read and settings.write continue to pass through manifests unchanged and are interned as bounded dynamic capability IDs.",
+    "The ELF file grew by 24 bytes and loadable memory grew by 2600 bytes because of link layout despite the source and text reductions; the regression is reported without adjustment.",
+    "Process launch roles and the generic identity-scoped storage mechanism remain follow-up audit items."
+  ]
+}

@@ -1,6 +1,6 @@
 # mochiOSの証明書と署名検証
 
-パッケージ形式の正本は[mochiOS Package Format](mpkg.md)です。この文書はRoot鍵、Developer Certificate、署名ツール、実行許可リストの運用境界を説明します。
+パッケージ形式の正本は[mochiOS Package Format](mpkg.md)です。この文書はRoot鍵、Developer Certificate、署名ツールの運用境界を説明します。
 
 ## 信頼モデル
 
@@ -22,7 +22,9 @@ manifest.toml -> SHA-256で各payloadへ結合
 MPKG内に任意の証明書chainを埋め込む方式は実装しません。`signatures/chain/`にエントリがあるMPKGは
 拒否し、信頼するIssuerは同期済みTrust Snapshotだけから取得します。
 
-Root秘密鍵はOSイメージ、公開リポジトリ、通常のイメージビルド環境へ置きません。`tools/devkit/fixtures/development`には再現可能な開発イメージ専用のDeveloper秘密鍵、事前発行済み証明書、Root公開鍵だけがあります。この鍵は公開済みであり、製品identityには使用できません。
+Root秘密鍵はOSイメージ、公開リポジトリ、通常のイメージビルド環境へ置きません。
+`tools/devkit/fixtures/development`には再現可能な開発イメージ専用のDeveloper秘密鍵、事前発行済み証明書、Root公開鍵だけがあります。
+この鍵は公開済みであり、製品identityには使用できません。
 
 ## Developer Certificate v1
 
@@ -127,15 +129,6 @@ msign package verify app.mpkg --root-public-key root.pub --unix-time 1750000000
 
 `package sign`はDeveloper秘密鍵と証明書のSubject公開鍵が一致することを確認し、証明書とmanifest署名を決定的なustarへ格納します。`package verify`はOS側と同じ証明書、manifest、payload検証を行い、identityとdigestを表示します。
 
-## execution.allowlist
-
-`/libraries/system/execution.allowlist`はDeveloper Certificate PKIとは別のbootstrap機構です。カーネルがrootfs上で実行を許すpathとSHA-256をビルド時に固定します。
-
-```text
-mnu-execution-allowlist v1
-record /bin/ls <SHA-256 hex>
-```
-
 以前の`/signature.db`は公開鍵とレコード署名を生成していましたが、カーネルが検証していませんでした。誤解を生む未検証fieldを削除し、実態に合わせて改名しています。allowlistの欠落、構文不正、pathまたはdigest不一致はfail closedです。これは信頼済みrootfsを前提とする実行制御であり、Root CertificateやDeveloper Certificateとは呼びません。
 
 ## 主な実装
@@ -148,4 +141,3 @@ record /bin/ls <SHA-256 hex>
 | `services/signature` | Root、期限、失効、manifest、payload検証 |
 | `services/package` | 同一bytes転送、検証結果保存、payload配置 |
 | `services/capability` | CertificateAllowed上限の強制 |
-| `core/src/policy/signature.rs` | execution allowlist照合 |

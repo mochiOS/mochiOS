@@ -29,8 +29,8 @@ reason矛盾を拒否します。これにより古いSnapshotへのrollbackとI
 
 保存済みSnapshotは期限後も署名と構造を検査したうえで復旧候補として保持できます。ただし、新規
 MPKG installはTrustとRevocationの両方が現在UTCで有効な場合だけ許可し、欠落または期限切れなら
-`EAGAIN`でfail closedします。既に展開済みでexecution allowlistに含まれるbinaryの起動は、MPKGの
-新規install検証とは別のboot policyです。
+`EAGAIN`でfail closedします。Snapshotの有効性は新規MPKGの検証に使用し、実行ファイルを中央の
+allowlistへ登録する仕組みは使用しません。
 
 同期不能時は最後に検証済みのdatabaseを維持し、OS bootは継続します。不正な更新通知や再読込失敗で
 memory上のactive databaseを置換しません。

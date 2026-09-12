@@ -1332,7 +1332,6 @@ sub build_rootfs {
     my ($rootfs_stage, $rootfs_img, $rootfs_size_mb, $path, $coreutils_bin_dir, $coreutils_bins, $config, $mpk_demo_mpkg, $mpk_test_mpkg, $drivers_bundle_root, $i8042_bundle_root, $virtio_net_bundle_root, $fonts_src) = @_;
     need_cmd('mke2fs');
     need_file($path->{hello_elf});
-    need_file($path->{signature_db});
     remove_tree($rootfs_stage);
     make_path("$rootfs_stage/bin");
     make_path("$rootfs_stage/tmp");
@@ -1379,11 +1378,6 @@ sub build_rootfs {
     for my $coreutil (@{$coreutils_bins}) {
         install_file('0755', "$coreutils_bin_dir/$coreutil", "$rootfs_stage/bin/$coreutil");
     }
-    install_file(
-        '0644',
-        $path->{signature_db},
-        "$rootfs_stage/libraries/system/execution.allowlist",
-    );
     if ($using_repository_development_root) {
         make_path("$rootfs_stage/libraries/certificate");
         install_file('0644', $path->{development_trust_snapshot}, "$rootfs_stage/libraries/certificate/trust-a.json");
@@ -1510,7 +1504,6 @@ my $initfs_stage = "$build_root/initfs-root";
 my $initfs_img = "$build_root/initfs.img";
 my $rootfs_stage = "$build_root/rootfs-root";
 my $rootfs_img = "$build_root/rootfs.img";
-my $signature_db_stage = "$build_root/execution.allowlist";
 my $cext_bundles_dir = "$root_dir/out/cexts/bundles";
 my $drivers_bundle_root = '/bin/drivers/usb/qemu-usb.driver';
 my $i8042_bundle_root = '/bin/drivers/ps2/i8042.driver';
@@ -1866,7 +1859,7 @@ for my $cmd (qw(cargo chown cp fakeroot install mcopy mke2fs mkfs.fat mmd nm obj
 
 need_dir("$root_dir/libraries/fonts");
 need_file("$core_root/Cargo.toml");
-for my $script (qw(build-signature-db.pl build-sample-mpkg.pl pack-cext.pl)) {
+for my $script (qw(build-sample-mpkg.pl pack-cext.pl)) {
     need_file("$script_dir/$script");
 }
 
@@ -2060,7 +2053,6 @@ my %path = (
     msh_manifest                => "$root_dir/binaries/msh/manifest.toml",
     msh_font                    => "$root_dir/binaries/msh/resources/ter-u12b.bdf",
     coreutils_manifest          => "$root_dir/binaries/coreutils/manifest.toml",
-    signature_db                => $signature_db_stage,
     development_trust_snapshot => "$development_fixture_root/trust-a.json",
     development_revocation_snapshot => "$development_fixture_root/revocations-a.json",
 );
@@ -2117,93 +2109,6 @@ my @cext_signature_entries = stage_cext_bundles($cext_bundles_dir, $initfs_stage
 for my $unexpected (qw(bin captest.bin unsigned.bin plugkit testdata hello.txt)) {
     dief("unexpected initfs payload: $unexpected") if -e "$initfs_stage/$unexpected";
 }
-
-print "[step] build signature database\n";
-my @signature_db_args = (
-    '--output',
-    $signature_db_stage,
-    '--entry',
-    "/init=$path{service_bin}",
-    '--entry',
-    "/system/services/capability.service=$path{capability_service_bin}",
-    '--entry',
-    "/system/services/drivers.service=$path{drivers_service_bin}",
-    '--entry',
-    "/system/services/display.driver=$path{display_service_bin}",
-    '--entry',
-    "/system/services/compositor.service=$path{compositor_service_bin}",
-    '--entry',
-    "/system/services/logger.service=$path{logger_service_bin}",
-    '--entry',
-    "/system/services/input.service=$path{input_service_bin}",
-    '--entry',
-    "/system/services/linux.service=$path{linux_service_bin}",
-    '--entry',
-    "/system/services/network.service=$path{network_service_bin}",
-    '--entry',
-    "/system/services/package.service=$path{package_service_bin}",
-    '--entry',
-    "/system/services/signature.service=$path{signature_service_bin}",
-    '--entry',
-    "/system/services/service-manager.service=$path{service_manager_service_bin}",
-    '--entry',
-    "/system/services/mboot-agent.service=$path{mboot_agent_service_bin}",
-    '--entry',
-    "/system/services/secure-ui.service=$path{secure_ui_service_bin}",
-    '--entry',
-    "/system/services/update.service=$path{update_service_bin}",
-    '--entry',
-    "/system/services/user.service=$path{user_service_bin}",
-    '--entry',
-    "/system/services/tty.service=$path{tty_service_bin}",
-    '--entry',
-    "/bin/hello=$path{hello_elf}",
-    '--entry',
-    "/bin/rust-std-demo=$path{rust_std_demo_bin}",
-    '--entry',
-    "/applications/Binder.app/entry.elf=$path{binder_bin}",
-    '--entry',
-    "/applications/test.app/entry.elf=$path{viewkit_test_bin}",
-    '--entry',
-    "/applications/Terminal.app/entry.elf=$path{terminal_bin}",
-    '--entry',
-    "/applications/Files.app/entry.elf=$path{files_bin}",
-    '--entry',
-    "/applications/Settings.app/entry.elf=$path{settings_bin}",
-    '--entry',
-    "/applications/Installer.app/entry.elf=$path{installer_bin}",
-    '--entry',
-    "/bin/msh=$path{msh_bin}",
-);
-for my $bin (qw(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc test_gui test_app test_desktop)) {
-    my $bin_path = $bin eq 'test_app' ? $path{test_app_bin} : "$coreutils_bin_dir/$bin";
-    push @signature_db_args, '--entry', "/bin/$bin=$bin_path";
-}
-if (config_enabled($config{USER_BUILD_SELFTESTS})) {
-    push @signature_db_args, '--entry', "/bin/selftest-capability=$coreutils_bin_dir/selftest-capability";
-    push @signature_db_args, '--entry', "/bin/selftest-process=$coreutils_bin_dir/selftest-process";
-    push @signature_db_args, '--entry', "/bin/selftest-ext2-write=$coreutils_bin_dir/selftest-ext2-write";
-}
-push @signature_db_args, '--entry', "$drivers_bundle_root/entry.elf=$path{usb_driver_bin}"
-    if $enable_xhci eq '1';
-push @signature_db_args, '--entry', "$i8042_bundle_root/entry.elf=$path{i8042_driver_bin}"
-    if $enable_i8042 eq '1';
-push @signature_db_args, '--entry', "$virtio_net_bundle_root/virtio-net.driver=$path{virtio_net_driver_bin}"
-    if $enable_virtio_net eq '1';
-for my $entry (@cext_signature_entries) {
-    push @signature_db_args, '--entry', $entry;
-}
-run('perl', "$script_dir/build-signature-db.pl", @signature_db_args);
-open my $sig_fh, '<', $signature_db_stage or dief("open $signature_db_stage: $!");
-my $mpk_record = 0;
-while (my $line = <$sig_fh>) {
-    if ($line =~ /^record \/bin\/mpk /) {
-        $mpk_record = 1;
-        last;
-    }
-}
-close $sig_fh;
-dief('signature db missing /bin/mpk') if !$mpk_record;
 
 print "[step] build rootfs\n";
 build_rootfs(
@@ -2294,7 +2199,6 @@ if (config_enabled($config{USER_BUILD_MPK_SAMPLES})) {
     install_file('0644', $mpk_demo_mpkg, "$artifact_dir/mpk-demo.mpkg");
     install_file('0644', $mpk_test_mpkg, "$artifact_dir/mpk-test.mpkg");
 }
-install_file('0644', $signature_db_stage, "$artifact_dir/execution.allowlist");
 install_file('0755', $path{drivers_service_bin}, "$artifact_dir/drivers.service");
 install_file('0755', $path{usb_driver_bin}, "$artifact_dir/usb-driver.entry") if $enable_xhci eq '1';
 install_file('0755', $path{i8042_driver_bin}, "$artifact_dir/i8042-driver.entry") if $enable_i8042 eq '1';
@@ -2331,7 +2235,6 @@ my @checksum_files = qw(
     ls
     rust-std-demo
     mpk
-    execution.allowlist
     manifest.xml
     build-info.txt
 );

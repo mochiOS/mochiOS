@@ -20,9 +20,10 @@ my $using_repository_development_root =
     !defined($ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX})
     || $ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} eq '';
 my %build_options = (
-    boot_only   => 0,
-    cached      => 0,
-    kernel_only => 0,
+    boot_only       => 0,
+    cached          => 0,
+    kernel_only     => 0,
+    userspace_only  => 0,
 );
 
 for my $arg (@ARGV) {
@@ -38,6 +39,10 @@ for my $arg (@ARGV) {
         $build_options{boot_only} = 1;
         next;
     }
+    if ($arg eq '--userspace-only') {
+        $build_options{userspace_only} = 1;
+    }
+    
     die "fatal: unknown build option: $arg\n";
 }
 
@@ -333,6 +338,37 @@ sub replace_fat_file {
     run_env(
         { MTOOLS_SKIP_CHECK => '1' },
         'mcopy', '-o', '-i', $image, $source, $destination,
+    );
+}
+
+sub replace_ext2_file {
+    my ($image, $source, $destination, $mode) = @_;
+
+    need_file($image);
+    need_file($source);
+
+    system(
+        'debugfs',
+        '-w',
+        '-R',
+        "rm $destination",
+        $image,
+    );
+
+    run(
+        'debugfs',
+        '-w',
+        '-R',
+        "write $source $destination",
+        $image,
+    );
+
+    run(
+        'debugfs',
+        '-w',
+        '-R',
+        "set_inode_field $destination mode $mode",
+        $image,
     );
 }
 
@@ -1272,34 +1308,6 @@ sub stage_application_bundle {
     install_file('0644', $manifest_src, "$bundle_root/manifest.toml");
 }
 
-sub stage_first_boot_environment {
-    my ($rootfs_stage, $initfs_stage) = @_;
-    for my $path (
-        qw(
-            system/services
-            system/packages
-            system/resources
-            system/users
-            system/icons
-            libraries
-            bin/drivers
-            applications/Binder.app
-            applications/Installer.app
-        )
-    ) {
-        my $source = "$rootfs_stage/$path";
-        next if !-d $source;
-        copy_tree($source, "$initfs_stage/$path");
-    }
-    for my $path (qw(tmp var/config home/root system/logs)) {
-        make_path("$initfs_stage/$path");
-    }
-    chmod 01777, "$initfs_stage/tmp"
-        or dief("chmod first-boot temporary directory: $!");
-    chmod 0700, "$initfs_stage/home/root"
-        or dief("chmod first-boot home directory: $!");
-}
-
 sub stage_binder_sample_apps {
     my ($rootfs_stage, $source_root) = @_;
     return if !-d $source_root;
@@ -1523,6 +1531,232 @@ push @coreutils_bins, 'mperf'
     if config_enabled($config{KERNEL_PERFORMANCE_INSTRUMENTATION});
 push @coreutils_bins, qw(selftest-capability selftest-process selftest-ext2-write)
     if config_enabled($config{USER_BUILD_SELFTESTS});
+
+if ($build_options{userspace_only}) {
+    my $esp_offset = 2048 * 512;
+    my $rootfs_start_mib = 1 + $config{IMAGE_ESP_SIZE_MB};
+    my @disk_images = (
+        $disk_img,
+        "$artifact_dir/disk.img",
+    );
+
+    for my $cmd (qw(cargo debugfs dd install mcopy sha256sum)) {
+        need_cmd($cmd);
+    }
+
+    need_file($rootfs_img);
+    need_file($initfs_img);
+    need_file($esp_img);
+    need_file("$artifact_dir/SHA256SUMS");
+    need_file($_) for @disk_images;
+
+    print "[step] build Rust std user programs\n";
+    build_rust_std_programs(
+        $root_dir,
+        \%config,
+        $rust_std_toolchain,
+        \@coreutils_bins,
+    );
+
+    my %userspace = (
+        init            => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/core",
+        capability      => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/capability",
+        compositor      => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/compositor",
+        display         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/display",
+        drivers         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/drivers",
+        input           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/input",
+        linux           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/linux",
+        logger          => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/logger",
+        mboot_agent     => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/mboot-agent",
+        network         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/network",
+        package         => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/package",
+        secure_ui       => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/secure-ui",
+        service_manager => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/service-manager",
+        signature       => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/signature",
+        tty             => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/tty",
+        update          => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/update",
+        user            => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/user-service",
+        binder          => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/binder",
+        test_app        => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/test_app",
+        terminal        => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/terminal",
+        files           => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/files",
+        settings        => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/settings",
+        installer       => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/installer",
+        rust_std_demo   => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/rust-std-demo",
+        msh             => "$root_dir/out/rust-std/target/x86_64-unknown-mochios/release/msh",
+    );
+
+    need_file($_) for values %userspace;
+
+    print "[step] update userspace in rootfs\n";
+
+    my @rootfs_entries = (
+        [$userspace{capability},      '/system/services/capability.service'],
+        [$userspace{compositor},      '/system/services/compositor.service'],
+        [$userspace{display},         '/system/services/display.driver'],
+        [$userspace{drivers},         '/system/services/drivers.service'],
+        [$userspace{input},           '/system/services/input.service'],
+        [$userspace{linux},           '/system/services/linux.service'],
+        [$userspace{logger},          '/system/services/logger.service'],
+        [$userspace{mboot_agent},     '/system/services/mboot-agent.service'],
+        [$userspace{network},         '/system/services/network.service'],
+        [$userspace{package},         '/system/services/package.service'],
+        [$userspace{secure_ui},       '/system/services/secure-ui.service'],
+        [$userspace{service_manager}, '/system/services/service-manager.service'],
+        [$userspace{signature},       '/system/services/signature.service'],
+        [$userspace{tty},             '/system/services/tty.service'],
+        [$userspace{update},          '/system/services/update.service'],
+        [$userspace{user},            '/system/services/user.service'],
+        
+        [$userspace{binder},          '/applications/Binder.app/entry.elf'],
+        [$userspace{test_app},        '/applications/test.app/entry.elf'],
+        [$userspace{terminal},        '/applications/Terminal.app/entry.elf'],
+        [$userspace{files},           '/applications/Files.app/entry.elf'],
+        [$userspace{settings},        '/applications/Settings.app/entry.elf'],
+        [$userspace{installer},       '/applications/Installer.app/entry.elf'],
+
+        [$userspace{test_app},        '/bin/test_app'],
+        [$userspace{rust_std_demo},   '/bin/rust-std-demo'],
+        [$userspace{msh},             '/bin/msh'],
+    );
+
+    for my $entry (@rootfs_entries) {
+        replace_ext2_file(
+            $rootfs_img,
+            $entry->[0],
+            $entry->[1],
+            '0100755',
+        );
+    }
+
+    for my $bin (@coreutils_bins) {
+        replace_ext2_file(
+            $rootfs_img,
+            "$coreutils_bin_dir/$bin",
+            "/bin/$bin",
+            '0100755',
+        );
+    }
+
+        print "[step] update first-boot userspace in initfs\n";
+
+    replace_ext2_file(
+        $initfs_img,
+        $userspace{init},
+        '/init',
+        '0100755',
+    );
+
+    my @initfs_entries = (
+        [$userspace{capability},      '/system/services/capability.service'],
+        [$userspace{compositor},      '/system/services/compositor.service'],
+        [$userspace{display},         '/system/services/display.driver'],
+        [$userspace{drivers},         '/system/services/drivers.service'],
+        [$userspace{input},           '/system/services/input.service'],
+        [$userspace{linux},           '/system/services/linux.service'],
+        [$userspace{logger},          '/system/services/logger.service'],
+        [$userspace{mboot_agent},     '/system/services/mboot-agent.service'],
+        [$userspace{network},         '/system/services/network.service'],
+        [$userspace{package},         '/system/services/package.service'],
+        [$userspace{secure_ui},       '/system/services/secure-ui.service'],
+        [$userspace{service_manager}, '/system/services/service-manager.service'],
+        [$userspace{signature},       '/system/services/signature.service'],
+        [$userspace{tty},             '/system/services/tty.service'],
+        [$userspace{update},          '/system/services/update.service'],
+        [$userspace{user},            '/system/services/user.service'],
+    );
+
+    for my $entry (@initfs_entries) {
+        replace_ext2_file(
+            $initfs_img,
+            $entry->[0],
+            $entry->[1],
+            '0100755',
+        );
+    }
+
+    print "[step] update rootfs digest\n";
+
+    my $digest_path = "$build_root/rootfs.sha256.update";
+
+    my $digest = Digest::SHA->new(256);
+    open my $rootfs_fh, '<:raw', $rootfs_img
+        or dief("open $rootfs_img: $!");
+    $digest->addfile($rootfs_fh);
+    close $rootfs_fh;
+
+    open my $digest_fh, '>:raw', $digest_path
+        or dief("write $digest_path: $!");
+    print {$digest_fh} $digest->digest
+        or dief("write $digest_path: $!");
+    close $digest_fh;
+
+    replace_ext2_file(
+        $initfs_img,
+        $digest_path,
+        '/install/rootfs.sha256',
+        '0100644',
+    );
+
+    unlink $digest_path;
+
+        print "[step] update initfs in ESP\n";
+
+    install_file(
+        '0644',
+        $initfs_img,
+        "$esp_dir/system/initfs.img",
+    );
+
+    replace_fat_file(
+        $esp_img,
+        $initfs_img,
+        '::/system/initfs.img',
+    );
+
+    install_file(
+        '0644',
+        $initfs_img,
+        "$artifact_dir/initfs.img",
+    );
+
+    replace_fat_file(
+        "${_}\@\@$esp_offset",
+        $initfs_img,
+        '::/system/initfs.img',
+    ) for @disk_images;
+
+    print "[step] update rootfs partition\n";
+
+    for my $image (@disk_images) {
+        run(
+            'dd',
+            "if=$rootfs_img",
+            "of=$image",
+            'bs=1M',
+            "seek=$rootfs_start_mib",
+            'conv=notrunc',
+            'status=none',
+        );
+    }
+
+    print "[step] update artifact binaries\n";
+
+    install_file('0755', $userspace{binder}, "$artifact_dir/binder");
+    install_file('0755', $userspace{terminal}, "$artifact_dir/terminal");
+    install_file('0755', $userspace{files}, "$artifact_dir/files");
+    install_file('0755', $userspace{settings}, "$artifact_dir/settings");
+    install_file('0755', $userspace{installer}, "$artifact_dir/installer");
+
+    print "[step] refresh artifact metadata\n";
+
+    record_source_manifest($artifact_dir);
+    write_build_info("$artifact_dir/build-info.txt", $root_dir);
+    refresh_existing_checksums($artifact_dir);
+
+    print "[done] updated userspace without rebuilding filesystem images\n";
+    exit 0;
+}
 
 if ($build_options{kernel_only}) {
     my $kernel_bin = "$core_root/target/$kernel_target/release/kernel";
@@ -1987,22 +2221,6 @@ build_rootfs(
     $virtio_net_bundle_root,
     "$root_dir/libraries/fonts/out/fonts",
 );
-
-make_path("$initfs_stage/install");
-my $rootfs_digest = Digest::SHA->new(256);
-open my $rootfs_fh, '<:raw', $rootfs_img or dief("open $rootfs_img: $!");
-$rootfs_digest->addfile($rootfs_fh);
-close $rootfs_fh or dief("close $rootfs_img: $!");
-open my $rootfs_digest_fh, '>:raw', "$initfs_stage/install/rootfs.sha256"
-    or dief("write installer rootfs digest: $!");
-print {$rootfs_digest_fh} $rootfs_digest->digest
-    or dief("write installer rootfs digest: $!");
-close $rootfs_digest_fh or dief("close installer rootfs digest: $!");
-chmod 0644, "$initfs_stage/install/rootfs.sha256"
-    or dief("chmod installer rootfs digest: $!");
-
-print "[step] stage first-boot desktop\n";
-stage_first_boot_environment($rootfs_stage, $initfs_stage);
 
 print "[step] build initfs image\n";
 run('truncate', '-s', "$config{IMAGE_INITFS_SIZE_MB}M", $initfs_img);

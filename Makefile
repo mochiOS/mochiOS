@@ -1,5 +1,7 @@
 SCRIPTS	= $(shell pwd)/scripts
 OUT		= $(shell pwd)/out
+REPO_MANIFEST_URL ?= file://$(shell git rev-parse --show-toplevel)
+REPO_MANIFEST_REVISION ?= $(shell git rev-parse HEAD)
 MWS		= $(shell pwd)/tools/mws
 MDEV_DIR	= $(shell pwd)/tools/mdev
 MDEV_CONFIG ?= $(shell pwd)/mdev.toml
@@ -154,7 +156,14 @@ release: full mboot-image
 fonts:
 	@$(MAKE) -C libraries/fonts fonts
 
-run: olddefconfig all
+run:
+	@test -f $(OUT)/artifacts/disk.img || { \
+		echo "fatal: no built image found; run 'make build' first" >&2; \
+		exit 1; \
+	}
+	@$(SCRIPTS)/runner.sh
+
+run-build: build
 	@$(SCRIPTS)/runner.sh
 
 run-boot:
@@ -201,8 +210,8 @@ clean-runner:
 	@rm -rf $(OUT)/runner
 
 repo-init:
-	@repo init -m default.xml -u $(git rev-parse --show-toplevel) -b $(git rev-parse HEAD)
-	@repo sync -j4
+	@repo init --depth=1 -m default.xml -u "$(REPO_MANIFEST_URL)" -b "$(REPO_MANIFEST_REVISION)"
+	@repo sync -c --no-clone-bundle --no-tags -j4
 
 install:
 	@cargo install --path $(MWS) --force

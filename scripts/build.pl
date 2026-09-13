@@ -341,6 +341,281 @@ sub replace_fat_file {
     );
 }
 
+sub collect_tree_state {
+	my ($root) = @_;
+	my %state;
+
+	find(
+		{
+			no_chdir => 1,
+			preprocess => sub { sort @_ },
+			wanted => sub {
+				my $path = $File::Find::name;
+				return if $path eq $root;
+
+				dief("symlink is not supported in filesystem image: $path")
+					if -l $path;
+
+				my $relative = substr($path, length($root) + 1);
+				dief("unsupported whitespace in filesystem path: $relative")
+					if $relative =~ /\s/;
+
+				my @stat = stat($path);
+				dief("stat $path: $!") if !@stat;
+				my $mode = $stat[2] & 07777;
+
+				if (-d $path) {
+					$state{$relative} = {
+						type => 'd',
+						mode => $mode,
+					};
+					return;
+				}
+
+				if (-f $path) {
+					my $digest = Digest::SHA->new(256);
+					open my $fh, '<:raw', $path
+						or dief("open $path: $!");
+					$digest->addfile($fh);
+					close $fh or dief("close $path: $!");
+
+					$state{$relative} = {
+						type => 'f',
+						mode => $mode,
+						hash => $digest->hexdigest,
+					};
+					return;
+				}
+
+				dief("unsupported filesystem entry: $path");
+			},
+		},
+		$root,
+	);
+
+	return \%state;
+}
+
+sub sync_tree_to_ext2 {
+	my ($stage, $image, $state_path) = @_;
+
+	need_cmd('debugfs');
+	need_file($image);
+
+	my $old = load_tree_state($state_path);
+	my $new = collect_tree_state($stage);
+
+	my $commands = "$state_path.debugfs";
+
+	open my $fh, '>', $commands
+		or dief("write $commands: $!");
+
+	my @removed = grep {
+		!exists $new->{$_}
+			|| $old->{$_}->{type} ne $new->{$_}->{type}
+	} keys %{$old};
+
+	@removed = sort {
+		($b =~ tr{/}{/}) <=> ($a =~ tr{/}{/})
+			|| $b cmp $a
+	} @removed;
+
+	for my $relative (@removed) {
+		my $path = "/$relative";
+
+		if ($old->{$relative}->{type} eq 'd') {
+			print {$fh} "rmdir $path\n";
+		}
+		else {
+			print {$fh} "rm $path\n";
+		}
+	}
+
+	my @new_dirs = grep {
+		$new->{$_}->{type} eq 'd'
+			&& (!exists $old->{$_}
+				|| $old->{$_}->{type} ne 'd')
+	} keys %{$new};
+
+	@new_dirs = sort {
+		($a =~ tr{/}{/}) <=> ($b =~ tr{/}{/})
+			|| $a cmp $b
+	} @new_dirs;
+
+	for my $relative (@new_dirs) {
+		my $path = "/$relative";
+		print {$fh} "mkdir $path\n";
+	}
+
+	for my $relative (sort keys %{$new}) {
+		my $entry = $new->{$relative};
+		my $path = "/$relative";
+
+		if ($entry->{type} eq 'd') {
+			my $changed =
+				!exists $old->{$relative}
+				|| $old->{$relative}->{type} ne 'd'
+				|| $old->{$relative}->{mode} != $entry->{mode};
+
+			if ($changed) {
+				printf {$fh} "set_inode_field %s mode 040%04o\n",
+					$path,
+					$entry->{mode};
+				print {$fh} "set_inode_field $path uid 0\n";
+				print {$fh} "set_inode_field $path gid 0\n";
+			}
+
+			next;
+		}
+
+		my $changed =
+			!exists $old->{$relative}
+			|| $old->{$relative}->{type} ne 'f'
+			|| $old->{$relative}->{hash} ne $entry->{hash};
+
+		my $mode_changed =
+			!exists $old->{$relative}
+			|| $old->{$relative}->{type} ne 'f'
+			|| $old->{$relative}->{mode} != $entry->{mode};
+
+		if ($changed) {
+			print {$fh} "rm $path\n"
+				if exists $old->{$relative}
+					&& $old->{$relative}->{type} eq 'f';
+
+			print {$fh} "write $stage/$relative $path\n";
+		}
+
+		if ($changed || $mode_changed) {
+			printf {$fh} "set_inode_field %s mode 010%04o\n",
+				$path,
+				$entry->{mode};
+			print {$fh} "set_inode_field $path uid 0\n";
+			print {$fh} "set_inode_field $path gid 0\n";
+		}
+	}
+
+	close $fh or dief("close $commands: $!");
+
+	run(
+		'debugfs',
+		'-w',
+		'-f',
+		$commands,
+		$image,
+	);
+
+	unlink $commands;
+	save_tree_state($state_path, $new);
+}
+
+sub sync_image_region {
+	my ($source, $destination, $offset) = @_;
+
+	need_file($source);
+	need_file($destination);
+
+	open my $src, '<:raw', $source
+		or dief("open $source: $!");
+	open my $dst, '+<:raw', $destination
+		or dief("open $destination: $!");
+
+	my $position = 0;
+	my $block_size = 64 * 1024;
+
+	while (1) {
+		my $read = read($src, my $source_data, $block_size);
+		dief("read $source: $!") if !defined $read;
+		last if $read == 0;
+
+		seek($dst, $offset + $position, 0)
+			or dief("seek $destination: $!");
+
+		my $destination_read =
+			read($dst, my $destination_data, $read);
+
+		dief("read $destination: $!")
+			if !defined $destination_read;
+		dief("short read from $destination")
+			if $destination_read != $read;
+
+		if ($source_data ne $destination_data) {
+			seek($dst, $offset + $position, 0)
+				or dief("seek $destination: $!");
+
+			print {$dst} $source_data
+				or dief("write $destination: $!");
+		}
+
+		$position += $read;
+	}
+
+	close $src or dief("close $source: $!");
+	close $dst or dief("close $destination: $!");
+}
+
+sub load_tree_state {
+	my ($path) = @_;
+	my %state;
+
+	return \%state if !-f $path;
+
+	open my $fh, '<', $path or dief("open $path: $!");
+	while (my $line = <$fh>) {
+		chomp $line;
+		next if $line eq '';
+
+		my @fields = split /\t/, $line, 4;
+		my $type = $fields[0];
+
+		if ($type eq 'd' && @fields == 3) {
+			$state{$fields[2]} = {
+				type => 'd',
+				mode => oct($fields[1]),
+			};
+			next;
+		}
+
+		if ($type eq 'f' && @fields == 4) {
+			$state{$fields[3]} = {
+				type => 'f',
+				mode => oct($fields[1]),
+				hash => $fields[2],
+			};
+			next;
+		}
+
+		dief("invalid filesystem state entry: $line");
+	}
+	close $fh or dief("close $path: $!");
+
+	return \%state;
+}
+
+sub save_tree_state {
+	my ($path, $state) = @_;
+
+	open my $fh, '>', $path or dief("write $path: $!");
+
+	for my $relative (sort keys %{$state}) {
+		my $entry = $state->{$relative};
+
+		if ($entry->{type} eq 'd') {
+			printf {$fh} "d\t%04o\t%s\n",
+				$entry->{mode},
+				$relative;
+			next;
+		}
+
+		printf {$fh} "f\t%04o\t%s\t%s\n",
+			$entry->{mode},
+			$entry->{hash},
+			$relative;
+	}
+
+	close $fh or dief("close $path: $!");
+}
+
 sub replace_ext2_file {
     my ($image, $source, $destination, $mode) = @_;
 
@@ -798,7 +1073,7 @@ sub build_std_binary {
     }
     my @cargo_configs = (
         "patch.crates-io.libc.path='$libc_override_path'",
-        "patch.crates-io.rustc-std-workspace-core.path='$library_root/rustc-std-workspace-core'",
+        "patch.\"https://github.com/mochiOS/libc\".libc.path='$libc_override_path'",
         "patch.crates-io.rustc-std-workspace-alloc.path='$library_root/rustc-std-workspace-alloc'",
         "patch.crates-io.rustc-std-workspace-std.path='$library_root/rustc-std-workspace-std'",
         "patch.\"https://github.com/mochiOS/mnu\".mnu-abi.path='$root_dir/core/crates/abi'",
@@ -1329,7 +1604,7 @@ sub stage_driver_bundle {
 }
 
 sub build_rootfs {
-    my ($rootfs_stage, $rootfs_img, $rootfs_size_mb, $path, $coreutils_bin_dir, $coreutils_bins, $config, $mpk_demo_mpkg, $mpk_test_mpkg, $drivers_bundle_root, $i8042_bundle_root, $virtio_net_bundle_root, $fonts_src) = @_;
+    my ($rootfs_stage, $rootfs_img, $rootfs_size_mb, $path, $coreutils_bin_dir, $coreutils_bins, $config, $mpk_demo_mpkg, $mpk_test_mpkg, $drivers_bundle_root, $i8042_bundle_root, $virtio_net_bundle_root, $fonts_src, $rootfs_state, $incremental) = @_;
     need_cmd('mke2fs');
     need_file($path->{hello_elf});
     remove_tree($rootfs_stage);
@@ -1441,14 +1716,46 @@ sub build_rootfs {
     closedir $root_dh;
     dief("rootfs root must contain directories only: @root_files") if @root_files;
 
-    unlink $rootfs_img if -e $rootfs_img;
-    run('truncate', '-s', "${rootfs_size_mb}M", $rootfs_img);
-    run(
-        'fakeroot', '--', 'sh', '-c',
-        'stage=$1; shift; chown -R 0:0 "$stage" 2>/dev/null || true; test "$(stat -c %u:%g "$stage")" = 0:0 && exec "$@"',
-        'mochios-rootfs', $rootfs_stage,
-        'mke2fs', '-q', '-t', 'ext2', '-b', '4096', '-d', $rootfs_stage, '-F', $rootfs_img,
-    );
+    if ($incremental && -f $rootfs_img && -f $rootfs_state) {
+        print "[step] update rootfs image\n";
+        sync_tree_to_ext2(
+            $rootfs_stage,
+            $rootfs_img,
+            $rootfs_state,
+        );
+    }
+    else {
+        unlink $rootfs_img if -e $rootfs_img;
+
+        run(
+            'truncate',
+            '-s',
+            "${rootfs_size_mb}M",
+            $rootfs_img,
+        );
+
+        run(
+            'fakeroot', '--', 'sh', '-c',
+            'stage=$1; shift; chown -R 0:0 "$stage" 2>/dev/null || true; test "$(stat -c %u:%g "$stage")" = 0:0 && exec "$@"',
+            'mochios-rootfs',
+            $rootfs_stage,
+            'mke2fs',
+            '-q',
+            '-t',
+            'ext2',
+            '-b',
+            '4096',
+            '-d',
+            $rootfs_stage,
+            '-F',
+            $rootfs_img,
+        );
+
+        save_tree_state(
+            $rootfs_state,
+            collect_tree_state($rootfs_stage),
+        );
+    }
 }
 
 sub write_gpt {
@@ -1497,6 +1804,8 @@ my $build_input_stamp = "$root_dir/out/.build-input-stamp";
 my $esp_dir = "$build_root/esp";
 my $esp_img = "$build_root/esp.img";
 my $disk_img = "$build_root/disk.img";
+my $rootfs_state = "$build_root/rootfs.state";
+my $initfs_state = "$build_root/initfs.state";
 my $kernel_meta = "$build_root/kernel.meta";
 my $kernel_release = "$build_root/kernel.elf";
 my $kernel_debug = "$build_root/kernel.debug";
@@ -1533,7 +1842,7 @@ if ($build_options{userspace_only}) {
         "$artifact_dir/disk.img",
     );
 
-    for my $cmd (qw(cargo debugfs dd install mcopy sha256sum)) {
+    for my $cmd (qw(cargo debugfs install mcopy sha256sum)) {
         need_cmd($cmd);
     }
 
@@ -1631,7 +1940,7 @@ if ($build_options{userspace_only}) {
         );
     }
 
-        print "[step] update first-boot userspace in initfs\n";
+    print "[step] update first-boot userspace in initfs\n";
 
     replace_ext2_file(
         $initfs_img,
@@ -1640,38 +1949,9 @@ if ($build_options{userspace_only}) {
         '0100755',
     );
 
-    my @initfs_entries = (
-        [$userspace{capability},      '/system/services/capability.service'],
-        [$userspace{compositor},      '/system/services/compositor.service'],
-        [$userspace{display},         '/system/services/display.driver'],
-        [$userspace{drivers},         '/system/services/drivers.service'],
-        [$userspace{input},           '/system/services/input.service'],
-        [$userspace{linux},           '/system/services/linux.service'],
-        [$userspace{logger},          '/system/services/logger.service'],
-        [$userspace{mboot_agent},     '/system/services/mboot-agent.service'],
-        [$userspace{network},         '/system/services/network.service'],
-        [$userspace{package},         '/system/services/package.service'],
-        [$userspace{secure_ui},       '/system/services/secure-ui.service'],
-        [$userspace{service_manager}, '/system/services/service-manager.service'],
-        [$userspace{signature},       '/system/services/signature.service'],
-        [$userspace{tty},             '/system/services/tty.service'],
-        [$userspace{update},          '/system/services/update.service'],
-        [$userspace{user},            '/system/services/user.service'],
-    );
-
-    for my $entry (@initfs_entries) {
-        replace_ext2_file(
-            $initfs_img,
-            $entry->[0],
-            $entry->[1],
-            '0100755',
-        );
-    }
-
     print "[step] update rootfs digest\n";
 
     my $digest_path = "$build_root/rootfs.sha256.update";
-
     my $digest = Digest::SHA->new(256);
     open my $rootfs_fh, '<:raw', $rootfs_img
         or dief("open $rootfs_img: $!");
@@ -1867,10 +2147,48 @@ if ($config{IMAGE_DISK_SIZE_MB} <= $config{IMAGE_ESP_SIZE_MB} + 2) {
     dief('IMAGE_DISK_SIZE_MB must be larger than IMAGE_ESP_SIZE_MB + 2');
 }
 my $rootfs_part_size_mb = $config{IMAGE_DISK_SIZE_MB} - $config{IMAGE_ESP_SIZE_MB} - 2;
+my $incremental_images =
+	$build_options{cached}
+	&& -f $rootfs_img
+	&& -f $initfs_img
+	&& -f $esp_img
+	&& -f $disk_img
+	&& -f "$artifact_dir/disk.img"
+	&& -f $rootfs_state
+	&& -f $initfs_state;
+	
+if ($incremental_images) {
+	print "[cache] reuse filesystem images\n";
 
-print "[clean] build directories\n";
-remove_tree($build_root, $artifact_dir);
-make_path("$esp_dir/EFI/BOOT", "$esp_dir/system", $initfs_stage, $rootfs_stage, $artifact_dir);
+	remove_tree(
+		$rootfs_stage,
+		$initfs_stage,
+		$esp_dir,
+	);
+
+	make_path(
+		"$esp_dir/EFI/BOOT",
+		"$esp_dir/system",
+		$initfs_stage,
+		$rootfs_stage,
+		$artifact_dir,
+	);
+} else {
+	print "[clean] build directories\n";
+
+	remove_tree(
+		$build_root,
+		$artifact_dir,
+	);
+
+	make_path(
+		"$esp_dir/EFI/BOOT",
+		"$esp_dir/system",
+		$initfs_stage,
+		$rootfs_stage,
+		$artifact_dir,
+	);
+}
 
 print "[step] generate startup resources\n";
 my $generated_resources_dir = generate_startup_qr_resources($root_dir, $build_root);
@@ -2125,48 +2443,300 @@ build_rootfs(
     $i8042_bundle_root,
     $virtio_net_bundle_root,
     "$root_dir/libraries/fonts/out/fonts",
+    $rootfs_state,
+    $incremental_images,
 );
-
 print "[step] build initfs image\n";
-run('truncate', '-s', "$config{IMAGE_INITFS_SIZE_MB}M", $initfs_img);
-run(
-    'fakeroot', '--', 'sh', '-c',
-    'stage=$1; shift; chown -R 0:0 "$stage" 2>/dev/null || true; test "$(stat -c %u:%g "$stage")" = 0:0 && exec "$@"',
-    'mochios-initfs', $initfs_stage,
-    'mke2fs', '-q', '-t', 'ext2', '-b', '1024', '-d', $initfs_stage, '-F', $initfs_img,
-);
+
+if ($incremental_images) {
+	print "[step] update initfs image\n";
+
+	sync_tree_to_ext2(
+		$initfs_stage,
+		$initfs_img,
+		$initfs_state,
+	);
+}
+else {
+	unlink $initfs_img if -e $initfs_img;
+
+	run(
+		'truncate',
+		'-s',
+		"$config{IMAGE_INITFS_SIZE_MB}M",
+		$initfs_img,
+	);
+
+	run(
+		'fakeroot', '--', 'sh', '-c',
+		'stage=$1; shift; chown -R 0:0 "$stage" 2>/dev/null || true; test "$(stat -c %u:%g "$stage")" = 0:0 && exec "$@"',
+		'mochios-initfs',
+		$initfs_stage,
+		'mke2fs',
+		'-q',
+		'-t',
+		'ext2',
+		'-b',
+		'1024',
+		'-d',
+		$initfs_stage,
+		'-F',
+		$initfs_img,
+	);
+
+	save_tree_state(
+		$initfs_state,
+		collect_tree_state($initfs_stage),
+	);
+}
 
 print "[step] build esp image\n";
+
 remove_tree($esp_dir);
-make_path("$esp_dir/EFI/BOOT", "$esp_dir/system");
-install_file('0644', $boot_bin, "$esp_dir/EFI/BOOT/BOOTX64.EFI");
-install_file('0644', $path{kernel_bin}, "$esp_dir/system/kernel.elf");
-install_file('0644', $kernel_meta, "$esp_dir/system/kernel.meta");
-install_file('0644', $initfs_img, "$esp_dir/system/initfs.img");
-run('truncate', '-s', "$config{IMAGE_ESP_SIZE_MB}M", $esp_img);
-run_quiet('mkfs.fat', '-F', '32', '-n', 'EFI', $esp_img);
-my $mtools_env = { MTOOLS_SKIP_CHECK => '1' };
-run_env($mtools_env, 'mmd', '-i', $esp_img, '::/EFI');
-run_env($mtools_env, 'mmd', '-i', $esp_img, '::/EFI/BOOT');
-run_env($mtools_env, 'mmd', '-i', $esp_img, '::/system');
-run_env($mtools_env, 'mcopy', '-i', $esp_img, "$esp_dir/EFI/BOOT/BOOTX64.EFI", '::/EFI/BOOT/BOOTX64.EFI');
-run_env($mtools_env, 'mcopy', '-i', $esp_img, "$esp_dir/system/kernel.elf", '::/system/kernel.elf');
-run_env($mtools_env, 'mcopy', '-i', $esp_img, "$esp_dir/system/kernel.meta", '::/system/kernel.meta');
-run_env($mtools_env, 'mcopy', '-i', $esp_img, "$esp_dir/system/initfs.img", '::/system/initfs.img');
+make_path(
+	"$esp_dir/EFI/BOOT",
+	"$esp_dir/system",
+);
+
+install_file(
+	'0644',
+	$boot_bin,
+	"$esp_dir/EFI/BOOT/BOOTX64.EFI",
+);
+
+install_file(
+	'0644',
+	$path{kernel_bin},
+	"$esp_dir/system/kernel.elf",
+);
+
+install_file(
+	'0644',
+	$kernel_meta,
+	"$esp_dir/system/kernel.meta",
+);
+
+install_file(
+	'0644',
+	$initfs_img,
+	"$esp_dir/system/initfs.img",
+);
+
+if ($incremental_images) {
+	print "[step] update esp image\n";
+
+	replace_fat_file(
+		$esp_img,
+		"$esp_dir/EFI/BOOT/BOOTX64.EFI",
+		'::/EFI/BOOT/BOOTX64.EFI',
+	);
+
+	replace_fat_file(
+		$esp_img,
+		"$esp_dir/system/kernel.elf",
+		'::/system/kernel.elf',
+	);
+
+	replace_fat_file(
+		$esp_img,
+		"$esp_dir/system/kernel.meta",
+		'::/system/kernel.meta',
+	);
+
+	replace_fat_file(
+		$esp_img,
+		"$esp_dir/system/initfs.img",
+		'::/system/initfs.img',
+	);
+}
+else {
+	unlink $esp_img if -e $esp_img;
+
+	run(
+		'truncate',
+		'-s',
+		"$config{IMAGE_ESP_SIZE_MB}M",
+		$esp_img,
+	);
+
+	run_quiet(
+		'mkfs.fat',
+		'-F',
+		'32',
+		'-n',
+		'EFI',
+		$esp_img,
+	);
+
+	my $mtools_env = {
+		MTOOLS_SKIP_CHECK => '1',
+	};
+
+	run_env(
+		$mtools_env,
+		'mmd',
+		'-i',
+		$esp_img,
+		'::/EFI',
+	);
+
+	run_env(
+		$mtools_env,
+		'mmd',
+		'-i',
+		$esp_img,
+		'::/EFI/BOOT',
+	);
+
+	run_env(
+		$mtools_env,
+		'mmd',
+		'-i',
+		$esp_img,
+		'::/system',
+	);
+
+	run_env(
+		$mtools_env,
+		'mcopy',
+		'-i',
+		$esp_img,
+		"$esp_dir/EFI/BOOT/BOOTX64.EFI",
+		'::/EFI/BOOT/BOOTX64.EFI',
+	);
+
+	run_env(
+		$mtools_env,
+		'mcopy',
+		'-i',
+		$esp_img,
+		"$esp_dir/system/kernel.elf",
+		'::/system/kernel.elf',
+	);
+
+	run_env(
+		$mtools_env,
+		'mcopy',
+		'-i',
+		$esp_img,
+		"$esp_dir/system/kernel.meta",
+		'::/system/kernel.meta',
+	);
+
+	run_env(
+		$mtools_env,
+		'mcopy',
+		'-i',
+		$esp_img,
+		"$esp_dir/system/initfs.img",
+		'::/system/initfs.img',
+	);
+}
 
 print "[step] build GPT disk image\n";
+
 my $esp_start_sector = 2048;
-my $esp_size_sectors = $config{IMAGE_ESP_SIZE_MB} * 2048;
-my $rootfs_start_sector = $esp_start_sector + $esp_size_sectors;
-my $rootfs_size_sectors = $rootfs_part_size_mb * 2048;
-unlink $disk_img if -e $disk_img;
-run('truncate', '-s', "$config{IMAGE_DISK_SIZE_MB}M", $disk_img);
-write_gpt($disk_img, $esp_start_sector, $esp_size_sectors, $rootfs_start_sector, $rootfs_size_sectors);
-run('dd', "if=$esp_img", "of=$disk_img", 'bs=512', "seek=$esp_start_sector", 'conv=notrunc', 'status=none');
-run('dd', "if=$rootfs_img", "of=$disk_img", 'bs=512', "seek=$rootfs_start_sector", 'conv=notrunc', 'status=none');
+my $esp_size_sectors =
+	$config{IMAGE_ESP_SIZE_MB} * 2048;
+
+my $rootfs_start_sector =
+	$esp_start_sector + $esp_size_sectors;
+
+my $rootfs_size_sectors =
+	$rootfs_part_size_mb * 2048;
+
+if ($incremental_images) {
+	print "[step] update GPT disk image\n";
+
+	my $esp_offset =
+		$esp_start_sector * 512;
+
+	my $rootfs_offset =
+		$rootfs_start_sector * 512;
+
+	my @disk_images = (
+		$disk_img,
+		"$artifact_dir/disk.img",
+	);
+
+	for my $image (@disk_images) {
+		replace_fat_file(
+			"$image\@\@$esp_offset",
+			"$esp_dir/EFI/BOOT/BOOTX64.EFI",
+			'::/EFI/BOOT/BOOTX64.EFI',
+		);
+
+		replace_fat_file(
+			"$image\@\@$esp_offset",
+			"$esp_dir/system/kernel.elf",
+			'::/system/kernel.elf',
+		);
+
+		replace_fat_file(
+			"$image\@\@$esp_offset",
+			"$esp_dir/system/kernel.meta",
+			'::/system/kernel.meta',
+		);
+
+		replace_fat_file(
+			"$image\@\@$esp_offset",
+			"$esp_dir/system/initfs.img",
+			'::/system/initfs.img',
+		);
+
+		sync_image_region(
+			$rootfs_img,
+			$image,
+			$rootfs_offset,
+		);
+	}
+}
+else {
+	unlink $disk_img if -e $disk_img;
+
+	run(
+		'truncate',
+		'-s',
+		"$config{IMAGE_DISK_SIZE_MB}M",
+		$disk_img,
+	);
+
+	write_gpt(
+		$disk_img,
+		$esp_start_sector,
+		$esp_size_sectors,
+		$rootfs_start_sector,
+		$rootfs_size_sectors,
+	);
+
+	my $esp_start_mib =
+		$esp_start_sector / 2048;
+
+	my $rootfs_start_mib =
+		$rootfs_start_sector / 2048;
+
+	run(
+		'dd',
+		"if=$esp_img",
+		"of=$disk_img",
+		'bs=1M',
+		"seek=$esp_start_mib",
+		'conv=notrunc,sparse',
+		'status=none',
+	);
+
+	run(
+		'dd',
+		"if=$rootfs_img",
+		"of=$disk_img",
+		'bs=1M',
+		"seek=$rootfs_start_mib",
+		'conv=notrunc,sparse',
+		'status=none',
+	);
+}
 
 print "[step] collect artifacts\n";
-install_file('0644', $disk_img, "$artifact_dir/disk.img");
 install_file('0644', $initfs_img, "$artifact_dir/initfs.img");
 install_file('0644', $path{kernel_bin}, "$artifact_dir/kernel.elf");
 install_file('0644', $kernel_debug, "$artifact_dir/kernel.debug");

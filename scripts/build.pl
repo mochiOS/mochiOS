@@ -135,9 +135,34 @@ sub need_dir {
     dief("required directory not found: $path") if !-d $path;
 }
 
+sub files_equal {
+	my ($a, $b) = @_;
+	return 0 if !-f $a || !-f $b;
+	return 0 if (-s $a) != (-s $b);
+
+	my $digest_a = Digest::SHA->new(256);
+	open my $fh_a, '<:raw', $a or dief("open $a: $!");
+	$digest_a->addfile($fh_a);
+	close $fh_a or dief("close $a: $!");
+
+	my $digest_b = Digest::SHA->new(256);
+	open my $fh_b, '<:raw', $b or dief("open $b: $!");
+	$digest_b->addfile($fh_b);
+	close $fh_b or dief("close $b: $!");
+
+	return $digest_a->hexdigest eq $digest_b->hexdigest;
+}
+
 sub install_file {
-    my ($mode, $src, $dst) = @_;
-    run('install', '-m', $mode, $src, $dst);
+	my ($mode, $src, $dst) = @_;
+
+	if (files_equal($src, $dst)) {
+		chmod oct($mode), $dst or dief("chmod $dst: $!");
+		return;
+	}
+
+	make_path(dirname($dst));
+	run('install', '-m', $mode, $src, $dst);
 }
 
 sub config_enabled {
@@ -648,17 +673,30 @@ sub replace_ext2_file {
 }
 
 sub copy_tree {
-    my ($src, $dst) = @_;
-    remove_tree($dst);
-    make_path($dst);
-    run('cp', '-a', "$src/.", $dst);
+	my ($src, $dst) = @_;
+
+	make_path($dst);
+
+	run(
+		'rsync',
+		'-a',
+		'--delete',
+		"$src/",
+		"$dst/",
+	);
 }
 
 sub copy_tree_dereferenced {
-    my ($src, $dst) = @_;
-    remove_tree($dst);
-    make_path($dst);
-    run('cp', '-aL', "$src/.", $dst);
+	my ($src, $dst) = @_;
+	make_path($dst);
+
+	run(
+		'rsync',
+		'-aL',
+		'--delete',
+		"$src/",
+		"$dst/",
+	);
 }
 
 sub tree_signature {
@@ -1200,21 +1238,17 @@ sub build_rust_std_programs {
     my $settings_stage = "$out_root/settings-stage";
     my $legacy_rustup_home = "$out_root/rustup-home-$libc_build_hash";
 
-    remove_tree($services_stage);
-    make_path($services_stage);
     install_file('0644', "$root_dir/services/Cargo.toml", "$services_stage/Cargo.toml");
     install_file('0644', "$root_dir/services/Cargo.lock", "$services_stage/Cargo.lock");
     for my $service (qw(capability compositor core display drivers input linux logger mboot-agent mboot-protocol network package permission-prompt-protocol secure-ui service-manager signature tty update user)) {
         copy_tree("$root_dir/services/$service", "$services_stage/$service");
     }
-    remove_tree($settings_stage);
-    make_path($settings_stage);
     install_file('0644', "$root_dir/applications/settings/Cargo.toml", "$settings_stage/Cargo.toml");
     install_file('0644', "$root_dir/applications/settings/Cargo.lock", "$settings_stage/Cargo.lock");
     install_file('0644', "$root_dir/applications/settings/build.rs", "$settings_stage/build.rs");
     copy_tree("$root_dir/applications/settings/src", "$settings_stage/src");
 
-    for my $cmd (qw(cargo rustc x86_64-elf-gcc cksum)) {
+    for my $cmd (qw(cargo rustc x86_64-elf-gcc cksum rsync)) {
         need_cmd($cmd);
     }
     need_file($target_json);
@@ -2041,9 +2075,9 @@ if ($build_options{kernel_only}) {
     }
     need_file("$core_root/Cargo.toml");
     need_file($esp_img);
-    need_file("$esp_dir/system/initfs.img");
     need_file("$artifact_dir/SHA256SUMS");
     need_file($_) for @disk_images;
+    make_path("$esp_dir/system");
 
     print "[step] build kernel\n";
     build_kernel($core_root, $nightly_toolchain, $kernel_target, \@kernel_features);
@@ -2106,6 +2140,11 @@ if ($build_options{boot_only}) {
     exit 0;
 }
 
+if (cached_artifacts_current($root_dir, $build_input_stamp, "$artifact_dir/disk.img")) {
+    print "[cache] reuse complete image: $artifact_dir/disk.img\n";
+    exit 0;
+}
+
 if ($using_repository_development_root) {
     for my $key (qw(root.key issuer.key developer.key)) {
         need_file("$development_fixture_root/$key");
@@ -2126,11 +2165,6 @@ if ($using_repository_development_root) {
     my $root_public_hex = unpack('H*', decode_base64($root_public_base64));
     dief('development Root public key does not match .pubkey')
         if lc($root_public_hex) ne lc($ENV{MOCHIOS_DEVELOPER_ROOT_PUBLIC_KEYS_HEX} // '');
-}
-
-if (cached_artifacts_current($root_dir, $build_input_stamp, "$artifact_dir/disk.img")) {
-    print "[cache] reuse complete image: $artifact_dir/disk.img\n";
-    exit 0;
 }
 
 for my $cmd (qw(cargo chown cp fakeroot install mcopy mke2fs mkfs.fat mmd nm objcopy perl sh stat tar sha256sum sfdisk truncate dd find sort)) {
@@ -2737,6 +2771,8 @@ else {
 }
 
 print "[step] collect artifacts\n";
+unlink "$artifact_dir/disk.img" if -e "$artifact_dir/disk.img";
+link($disk_img, "$artifact_dir/disk.img") or dief("link $disk_img -> $artifact_dir/disk.img: $!");
 install_file('0644', $initfs_img, "$artifact_dir/initfs.img");
 install_file('0644', $path{kernel_bin}, "$artifact_dir/kernel.elf");
 install_file('0644', $kernel_debug, "$artifact_dir/kernel.debug");

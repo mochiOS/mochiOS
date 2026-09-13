@@ -82,7 +82,6 @@ QEMU_NETWORK="${QEMU_NETWORK:-${DRIVER_VIRTIO_NET:-y}}"
 QEMU_NETWORK_MAC="${QEMU_NETWORK_MAC:-52:54:00:12:34:56}"
 QEMU_NETWORK_PCAP="${QEMU_NETWORK_PCAP:-}"
 QEMU_TCP_ECHO_SERVER="${QEMU_TCP_ECHO_SERVER:-${QEMU_NETWORK}}"
-QEMU_CPU="${DEBUG_QEMU_CPU:-qemu64}"
 QEMU_SMP="${DEBUG_QEMU_SMP:-1}"
 QEMU_GL_DISPLAY="${QEMU_GL_DISPLAY:-auto}"
 DRM_RENDER_NODE=""
@@ -148,6 +147,7 @@ if [[ -z "${QEMU_ACCEL}" ]]; then
         QEMU_ACCEL="tcg"
     fi
 fi
+
 case "${QEMU_ACCEL}" in
     kvm)
         [[ -r /dev/kvm && -w /dev/kvm ]] ||
@@ -156,6 +156,15 @@ case "${QEMU_ACCEL}" in
     tcg) ;;
     *) die "QEMU_ACCELERATOR must be 'kvm' or 'tcg': ${QEMU_ACCEL}" ;;
 esac
+
+if [[ -n "${DEBUG_QEMU_CPU:-}" ]]; then
+    QEMU_CPU="${DEBUG_QEMU_CPU}"
+elif [[ "${QEMU_ACCEL}" == "kvm" ]]; then
+    QEMU_CPU="host"
+else
+    QEMU_CPU="qemu64"
+fi
+
 case "${DEBUG_QEMU_GPU_BACKEND:-n}" in
     y)
         QEMU_GPU_BACKEND="virgl"
@@ -167,6 +176,7 @@ case "${DEBUG_QEMU_GPU_BACKEND:-n}" in
         die "DEBUG_QEMU_GPU_BACKEND must be 'y' or 'n': ${DEBUG_QEMU_GPU_BACKEND}"
         ;;
 esac
+
 case "${QEMU_GL_DISPLAY}" in
     auto | egl-headless | gtk | sdl) ;;
     *) die "QEMU_GL_DISPLAY must be 'auto', 'egl-headless', 'gtk', or 'sdl': ${QEMU_GL_DISPLAY}" ;;
@@ -290,6 +300,7 @@ QEMU_ARGS=(
     -device "virtio-blk-pci,disable-modern=on,drive=osdisk,bootindex=1"
     -object "rng-random,id=rng0,filename=/dev/urandom"
     -device "virtio-rng-pci,rng=rng0"
+    -no-shutdown
 )
 
 if [[ "${DEBUG_QEMU_MBOOT_TRACE:-n}" == "y" ]]; then
@@ -552,7 +563,7 @@ start_tls_bad_cv_server() {
 }
 
 start_qemu() {
-    echo "[run] qemu accelerator=${QEMU_ACCEL} gpu=${QEMU_GPU_BACKEND} gl-display=${QEMU_GL_DISPLAY} network=${QEMU_NETWORK} mac=${QEMU_NETWORK_MAC}"
+    echo "[run] qemu accelerator=${QEMU_ACCEL} cpu=${QEMU_CPU} gpu=${QEMU_GPU_BACKEND} gl-display=${QEMU_GL_DISPLAY} network=${QEMU_NETWORK} mac=${QEMU_NETWORK_MAC}"
 
     GALLIUM_DRIVER=d3d12 \
     MESA_D3D12_DEFAULT_ADAPTER_NAME=AMD \

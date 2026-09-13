@@ -176,4 +176,11 @@
             revision="main"
             remote="github"
     />
+    
+    <project
+            path="tools/mmake"
+            name="tas0dev/mmake"
+            revision="master"
+            remote="github"
+    />
 </manifest>

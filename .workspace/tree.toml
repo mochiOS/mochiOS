@@ -3311,3 +3311,11 @@ path = "tools/devkit"
 hash = "bba84b407ea1438080188bd0915605ee00082753"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix"
+
+[[entries]]
+date = "2026-09-13T17:53:52.804854200+09:00"
+snapshot = "d91ca292d97b1b9a4840b1cd"
+path = "services"
+hash = "edd8e01f2d48e1c07518728e5e241f2c185eef80"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "service-manager/manifest.toml"

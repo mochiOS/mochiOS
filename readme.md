@@ -92,6 +92,7 @@ mochiOS can be started directly for development, or through mBoot to test the co
 The default configuration uses KVM and opens a QEMU display window:
 
 ```sh
+export DEBUG_QEMU_KVM=y
 make run
 ```
 

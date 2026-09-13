@@ -3303,3 +3303,11 @@ path = "libraries/viewkit"
 hash = "e9849e4ad08bc2a7bd04ec9d6a904ffd8901d4a9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve hardware-confirmed GPU desktop and input recovery"
+
+[[entries]]
+date = "2026-09-13T10:57:12.626093027+09:00"
+snapshot = "e79846c46c55ab34648aa520"
+path = "tools/devkit"
+hash = "bba84b407ea1438080188bd0915605ee00082753"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix"

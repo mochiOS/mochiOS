@@ -97,6 +97,10 @@ die() {
     exit 1
 }
 
+if [[ "${EUID}" -eq 0 ]]; then
+    die "runner must be started as a regular user; grant /dev/kvm access through the kvm group instead of using sudo"
+fi
+
 need_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
 }
@@ -151,7 +155,7 @@ fi
 case "${QEMU_ACCEL}" in
     kvm)
         [[ -r /dev/kvm && -w /dev/kvm ]] ||
-            die "KVM requested but /dev/kvm is not readable and writable"
+            die "KVM requested but /dev/kvm is not readable and writable; add ${USER:-the current user} to the kvm group and start a new login session (do not run with sudo)"
         ;;
     tcg) ;;
     *) die "QEMU_ACCELERATOR must be 'kvm' or 'tcg': ${QEMU_ACCEL}" ;;
@@ -208,11 +212,7 @@ ACCOUNTS_HTTPS_SMOKE="${ACCOUNTS_HTTPS_SMOKE:-0}"
 case "${ACCOUNTS_HTTPS_SMOKE}" in 0|1) ;; *) die "ACCOUNTS_HTTPS_SMOKE must be 0 or 1" ;; esac
 MPKG_RUNTIME_SMOKE="${MPKG_RUNTIME_SMOKE:-${SMOKE_TEST:-0}}"
 case "${MPKG_RUNTIME_SMOKE}" in 0|1) ;; *) die "MPKG_RUNTIME_SMOKE must be 0 or 1" ;; esac
-if [[ "${NETWORK_CLIENT_SMOKE}" == "1" ]]; then
-    default_tcp_echo_port=$((20000 + $$ % 20000))
-else
-    default_tcp_echo_port=20000
-fi
+default_tcp_echo_port=$((20000 + $$ % 20000))
 QEMU_TCP_ECHO_PORT="${QEMU_TCP_ECHO_PORT:-${NETWORK_SMOKE_PORT:-${default_tcp_echo_port}}}"
 [[ "${QEMU_TCP_ECHO_PORT}" =~ ^[1-9][0-9]*$ && "${QEMU_TCP_ECHO_PORT}" -le 65535 ]] ||
     die "QEMU_TCP_ECHO_PORT must be a valid TCP port"
@@ -294,13 +294,17 @@ QEMU_ARGS=(
     -rtc base=utc,clock=host
     -serial stdio
     -no-reboot
+    -no-shutdown
     -drive "if=pflash,format=raw,readonly=on,file=${OVMF_CODE}"
     -drive "if=pflash,format=raw,file=${OVMF_VARS}"
     -drive "id=osdisk,if=none,format=raw,file=${OS_DISK}"
     -device "virtio-blk-pci,disable-modern=on,drive=osdisk,bootindex=1"
     -object "rng-random,id=rng0,filename=/dev/urandom"
     -device "virtio-rng-pci,rng=rng0"
-    -no-shutdown
+    -d guest_errors,int,cpu_reset
+    -D "${RUN_DIR}/qemu-debug.log"
+    -trace "enable=qemu_system_*request,file=${RUN_DIR}/qemu-trace.log"
+    -qmp "unix:${RUN_DIR}/qemu-qmp.sock,server=on,wait=off"
 )
 
 if [[ "${DEBUG_QEMU_MBOOT_TRACE:-n}" == "y" ]]; then
@@ -359,7 +363,9 @@ if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
         QEMU_ARGS+=(-monitor none)
     fi
 elif [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" && "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
-    QEMU_ARGS+=(-display gtk,gl=on)
+    QEMU_ARGS+=(-display gtk,gl=on,window-close=off -monitor none)
+else
+    QEMU_ARGS+=(-display gtk,window-close=off -monitor none)
 fi
 
 if [[ "${DEBUG_QEMU_DEBUG:-n}" == "y" || "${DEBUG:-0}" != "0" ]]; then
@@ -367,11 +373,17 @@ if [[ "${DEBUG_QEMU_DEBUG:-n}" == "y" || "${DEBUG:-0}" != "0" ]]; then
 fi
 
 QEMU_PID=""
+QMP_DIAG_PID=""
 NETWORK_SERVER_PID=""
 TLS_HTTP_SERVER_PID=""
 TLS_BAD_CV_SERVER_PID=""
 
 cleanup() {
+    if [[ -n "${QMP_DIAG_PID:-}" ]]; then
+        kill -TERM "${QMP_DIAG_PID}" 2>/dev/null || true
+        wait "${QMP_DIAG_PID}" 2>/dev/null || true
+        QMP_DIAG_PID=""
+    fi
     if [[ -n "${QEMU_PID:-}" ]]; then
         kill -TERM "${QEMU_PID}" 2>/dev/null || true
         for _ in {1..20}; do
@@ -572,6 +584,48 @@ start_qemu() {
     QEMU_PID=$!
 }
 
+start_qmp_diagnostics() {
+    local qmp_socket="${RUN_DIR}/qemu-qmp.sock"
+    local qmp_log="${RUN_DIR}/qemu-qmp.log"
+
+    (
+        for _ in {1..100}; do
+            [[ -S "${qmp_socket}" ]] && break
+            kill -0 "${QEMU_PID}" 2>/dev/null || exit 0
+            sleep 0.05
+        done
+        [[ -S "${qmp_socket}" ]] || exit 0
+
+        while kill -0 "${QEMU_PID}" 2>/dev/null; do
+            response=$(
+                {
+                    printf '%s\n' '{"execute":"qmp_capabilities"}'
+                    printf '%s\n' '{"execute":"query-status","id":"status"}'
+                    sleep 0.05
+                } | nc -U -q 1 -w 2 "${qmp_socket}" 2>/dev/null || true
+            )
+            if printf '%s' "${response}" |
+                grep -Eq '"status"[[:space:]]*:[[:space:]]*"(shutdown|paused|internal-error)"'; then
+                {
+                    printf '[qmp] stopped at %s\n' "$(date --iso-8601=seconds)"
+                    printf '%s\n' "${response}"
+                    {
+                        printf '%s\n' '{"execute":"qmp_capabilities"}'
+                        printf '%s\n' '{"execute":"query-status","id":"final-status"}'
+                        printf '%s\n' '{"execute":"query-cpus-fast","id":"cpus"}'
+                        printf '%s\n' '{"execute":"human-monitor-command","arguments":{"command-line":"info registers -a"},"id":"registers"}'
+                        printf '%s\n' '{"execute":"human-monitor-command","arguments":{"command-line":"info cpus"},"id":"info-cpus"}'
+                        sleep 0.1
+                    } | nc -U -q 1 -w 3 "${qmp_socket}" 2>&1 || true
+                } >"${qmp_log}"
+                exit 0
+            fi
+            sleep 0.05
+        done
+    ) &
+    QMP_DIAG_PID=$!
+}
+
 if [[ "${QEMU_TCP_ECHO_SERVER}" == "y" ]]; then
     start_network_echo_server
 fi
@@ -583,6 +637,7 @@ fi
 start_qemu
 
 if [[ "${GUI_MODE}" -eq 1 ]]; then
+    start_qmp_diagnostics
     echo "[done] serial log: ${SERIAL_LOG}"
     set +e
     wait "${QEMU_PID}"

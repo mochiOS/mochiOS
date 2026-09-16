@@ -3327,3 +3327,19 @@ path = "services"
 hash = "999b0f96765d066fc9b4bf58070f5dab02e0bbf1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "a"
+
+[[entries]]
+date = "2026-09-15T18:12:08.619129885+09:00"
+snapshot = "527860f5de4cb47b3a75b96e"
+path = "core"
+hash = "926cd485657b6b516633e56e524bd3ad44647303"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix early boot memory and scheduling initialization"
+
+[[entries]]
+date = "2026-09-16T11:19:28.248346123+09:00"
+snapshot = "5fcaedc49cc15f99c06989da"
+path = "tools/devkit"
+hash = "efe71a2c1504b35961841a8d8988e81acb18acc3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh development trust fixtures"

@@ -3343,3 +3343,11 @@ path = "tools/devkit"
 hash = "efe71a2c1504b35961841a8d8988e81acb18acc3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh development trust fixtures"
+
+[[entries]]
+date = "2026-09-16T16:20:29.024931701+09:00"
+snapshot = "7a15afc276f3f52e302a9c3b"
+path = "applications/installer"
+hash = "568e36bdfe9979e39e3b914d923d55543390601c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh installer dependencies"

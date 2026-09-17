@@ -1,0 +1,131 @@
+version = 1
+id = "5fcaedc49cc15f99c06989da"
+created = "2026-09-16T11:19:28.248346123+09:00"
+
+[trigger]
+name = "mochiOS/devkit"
+path = "tools/devkit"
+repository = "/mnt/devusb/Develop/mochiOS/tools/devkit"
+head = "efe71a2c1504b35961841a8d8988e81acb18acc3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh development trust fixtures"
+
+[[projects]]
+name = "mochiOS/mBoot"
+path = "mboot"
+head = "7b15d811722137d14fd74921e68d32b633b7c445"
+
+[[projects]]
+name = "mochiOS/boot"
+path = "boot"
+head = "59f5d9ade1c87d5822f13796b47b11a4796dca2d"
+
+[[projects]]
+name = "mochiOS/mnu"
+path = "core"
+head = "926cd485657b6b516633e56e524bd3ad44647303"
+
+[[projects]]
+name = "mochiOS/syscalls"
+path = "user"
+head = "243a71d9ad3b46549bb7d405c22fa148c4eb467a"
+
+[[projects]]
+name = "mochiOS/services"
+path = "services"
+head = "e49b2901e4652a8ea3895c7e0f584701c6620ab5"
+
+[[projects]]
+name = "mochiOS/cexts"
+path = "cexts"
+head = "6b2a6bc3bd6a378e7552bc259f35e704118ec6b7"
+
+[[projects]]
+name = "mochiOS/drivers"
+path = "drivers"
+head = "6f8bd6fd5581e620fbcc89296cf1f34f98467872"
+
+[[projects]]
+name = "newlib-cygwin"
+path = "libraries/newlib"
+head = "935d5dae0f0309f420ba85f284b226db67c25740"
+
+[[projects]]
+name = "mochiOS/rust"
+path = "libraries/rust"
+head = "349d5519d5370c4b3a079404b968589daf849fd8"
+
+[[projects]]
+name = "mochiOS/libc"
+path = "libraries/libc"
+head = "1c51010f292e1ef82e07d55591caf5a4793a6c25"
+
+[[projects]]
+name = "mochiOS/msh"
+path = "binaries/msh"
+head = "131817aea5dd3d07da7b3504d310f8e2209c5155"
+
+[[projects]]
+name = "mochiOS/coreutils"
+path = "binaries/coreutils"
+head = "254c09528659967481759ef36e228f13a608010a"
+
+[[projects]]
+name = "mochiOS/Binder"
+path = "applications/binder"
+head = "40d38a52202f14f4be5901a780620715e6666cba"
+
+[[projects]]
+name = "mochiOS/ViewKit"
+path = "libraries/viewkit"
+head = "9a7a0e38243faaee4f3a39aea3d1260ea294d246"
+
+[[projects]]
+name = "mochiOS/buildtools"
+path = "build"
+head = "faf13aaa596e676668a5485f29ee3ec9d5223a9e"
+
+[[projects]]
+name = "mochiOS/test-application"
+path = "applications/test.app"
+head = "4724df51adae8f123717e639ab16617fa4f2b6d4"
+
+[[projects]]
+name = "mochiOS/fonts"
+path = "libraries/fonts"
+head = "e34529b27589b2415352925d186661dc07327ea1"
+
+[[projects]]
+name = "mochiOS/mws"
+path = "tools/mws"
+head = "bd13ee9f19a5a7fce4740902eba8999f9736642b"
+
+[[projects]]
+name = "mochiOS/devkit"
+path = "tools/devkit"
+head = "efe71a2c1504b35961841a8d8988e81acb18acc3"
+
+[[projects]]
+name = "mochiOS/mdev"
+path = "tools/mdev"
+head = "b6c11ab7c0fc9050720e3b530d7b4bb96b6a9feb"
+
+[[projects]]
+name = "mochiOS/Terminal"
+path = "applications/terminal"
+head = "a0824bc4f8ab588b2d1a721c0a679e5bfa90b0f5"
+
+[[projects]]
+name = "mochiOS/Files.app"
+path = "applications/file"
+head = "b9c57fca93f048f2fd048ff41a4c75f3249ec985"
+
+[[projects]]
+name = "mochiOS/Settings.app"
+path = "applications/settings"
+head = "a88eff61ce2642ab66203eacb85d8e0246070bb6"
+
+[[projects]]
+name = "mochiOS/Installer.app"
+path = "applications/installer"
+head = "b3a676c69d9a95c88b7766386b243783f3132e81"

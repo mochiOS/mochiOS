@@ -1,5 +1,6 @@
 /.idea/**
 .repo/
+.mmake/
 .config
 memo/
 out/
@@ -7,3 +8,7 @@ out/
 resources/system/samples/*.mpkg
 scripts/config/config.env
 scripts/config/config.mk
+
+# Python bytecode caches
+__pycache__/
+*.py[cod]

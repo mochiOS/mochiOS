@@ -1,217 +1,25 @@
-SCRIPTS	= $(shell pwd)/scripts
-OUT		= $(shell pwd)/out
-REPO_MANIFEST_URL ?= file://$(shell git rev-parse --show-toplevel)
-REPO_MANIFEST_REVISION ?= $(shell git rev-parse HEAD)
-MWS		= $(shell pwd)/tools/mws
-MDEV_DIR	= $(shell pwd)/tools/mdev
-MDEV_CONFIG ?= $(shell pwd)/mdev.toml
-MBOOT_DIR	= $(shell pwd)/mboot
-RELEASE_DIR	= $(OUT)/releases
-RELEASE_IMAGE	= $(RELEASE_DIR)/mochiOS.img
-MBOOT_CONFIG ?= $(MBOOT_DIR)/config/intel-hardware.toml
-MBOOT_IMAGE ?= $(OUT)/mochiOS.img
-MBOOT_PXE_DIR ?= $(OUT)/pxe
-MBOOT_UEFI_NET_DIR ?= $(OUT)/uefi-net
-MDRIVER_KERNEL ?= $(MBOOT_DIR)/mdriver/output/artifacts/vmlinux
-MDRIVER_INITRAMFS ?= $(MBOOT_DIR)/mdriver/output/artifacts/initramfs.cpio
-MOCHIOS_INITFS ?= $(OUT)/artifacts/initfs.img
-MOCHIOS_ROOTFS ?= $(OUT)/image-build/rootfs.img
-KERNEL_SIZE_REPORT ?= $(OUT)/metrics/kernel-size.json
+# mochiOS build graph for mmake.
+# GNU Make is intentionally not supported by this file.
 
-.PHONY: all build full build-cached update-boot update-kernel hv-device-io-test hv-image hv-image-test image measure-kernel-size mboot mboot-image mboot-setup mboot-test mdev mdriver mdriver-test release run run-boot smoke-log-test smoke-test-kvm smoke-test-tcg storage-probe-image test-hardware tls-http-smoke-test developer-pki-sync-smoke-test developer-pki-production-e2e accounts-https-smoke-test ext2-write-test ext2-write-test-tcg clean clean-runner olddefconfig menuconfig fonts repo-init install
+MMAKE ?= $(error mochiOS requires mmake; run 'mmake', not 'make')
+MMAKE_REQUIRED := $(MMAKE)
 
-all: build
+OUT := $(ROOT)/out
+MMAKE_OUT := $(OUT)/mmake
+SCRIPTS := $(ROOT)/scripts
 
-olddefconfig:
-	@perl $(SCRIPTS)/config/merge-config.pl \
-		--default $(shell pwd)/build/defaults.config \
-		--in .config \
-		--out .config \
-		--mk $(shell pwd)/build/config.mk
+include build/mmake/config.mk
+include build/mmake/inputs.mk
+include build/mmake/toolchain.mk
+include build/mmake/components.mk
+include build/mmake/services.mk
+include build/mmake/apps.mk
+include build/mmake/binaries.mk
+include build/mmake/extensions.mk
+include build/mmake/signing.mk
+include build/mmake/image.mk
+include build/mmake/tests.mk
 
-menuconfig:
-	@$(MAKE) -C build menuconfig \
-		ROOT=$(shell pwd) \
-		OUT=$(OUT) \
-		SCHEMA=$(shell pwd)/build/schema.conf \
-		CONFIG=$(shell pwd)/.config
-	@$(MAKE) olddefconfig
+all: image
 
-build: olddefconfig
-	@$(SCRIPTS)/build.sh --cached
-
-full: olddefconfig
-	@$(SCRIPTS)/build.sh
-
-build-cached: olddefconfig
-	@$(SCRIPTS)/build.sh --cached
-
-update-kernel: olddefconfig
-	@$(SCRIPTS)/build.sh --kernel-only
-
-update-boot: olddefconfig
-	@$(SCRIPTS)/build.sh --boot-only
-
-measure-kernel-size:
-	@test -f $(OUT)/artifacts/kernel.elf || { echo "fatal: build the kernel before measuring it" >&2; exit 1; }
-	@mkdir -p $(dir $(KERNEL_SIZE_REPORT))
-	@$(SCRIPTS)/measure-kernel-size.pl \
-		--kernel $(OUT)/artifacts/kernel.elf \
-		--output $(KERNEL_SIZE_REPORT)
-	@echo "[done] kernel size report: $(KERNEL_SIZE_REPORT)"
-
-$(MOCHIOS_INITFS):
-	@$(MAKE) build-cached
-
-$(MOCHIOS_ROOTFS):
-	@$(MAKE) build-cached
-
-hv-image: $(MOCHIOS_INITFS) $(MOCHIOS_ROOTFS) mdriver
-	@$(MAKE) -C $(MBOOT_DIR) image \
-		CONFIG="$(abspath $(MBOOT_CONFIG))" \
-		MNU_DIR="$(CURDIR)/core" \
-		MOCHIOS_SYSTEM_DIR="$(CURDIR)/boot" \
-		IMAGE="$(abspath $(MBOOT_IMAGE))" \
-		PXE_DIR="$(abspath $(MBOOT_PXE_DIR))" \
-		UEFI_NET_DIR="$(abspath $(MBOOT_UEFI_NET_DIR))" \
-		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
-		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))" \
-		MOCHIOS_INITFS="$(abspath $(MOCHIOS_INITFS))" \
-		MOCHIOS_ROOTFS="$(abspath $(MOCHIOS_ROOTFS))"
-
-hv-image-test: $(MOCHIOS_INITFS) $(MOCHIOS_ROOTFS) mdriver
-	@$(MAKE) -C $(MBOOT_DIR) image-test \
-		CONFIG="$(abspath $(MBOOT_CONFIG))" \
-		MNU_DIR="$(CURDIR)/core" \
-		MOCHIOS_SYSTEM_DIR="$(CURDIR)/boot" \
-		IMAGE="$(abspath $(MBOOT_IMAGE))" \
-		PXE_DIR="$(abspath $(MBOOT_PXE_DIR))" \
-		UEFI_NET_DIR="$(abspath $(MBOOT_UEFI_NET_DIR))" \
-		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
-		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))" \
-		MOCHIOS_INITFS="$(abspath $(MOCHIOS_INITFS))" \
-		MOCHIOS_ROOTFS="$(abspath $(MOCHIOS_ROOTFS))"
-
-hv-device-io-test:
-	@$(MAKE) -C $(MBOOT_DIR) device-io-test \
-		MNU_DIR="$(CURDIR)/core"
-
-mdriver:
-	@$(MAKE) -C $(MBOOT_DIR)/mdriver build
-
-mdriver-test: mdriver
-	@$(MAKE) -C $(MBOOT_DIR) mdriver-test \
-		MNU_DIR="$(CURDIR)/core" \
-		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
-		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))"
-
-mboot: mboot-image
-
-image: mboot-image
-
-storage-probe-image:
-	@$(MAKE) mboot-image \
-		MBOOT_CONFIG="$(MBOOT_DIR)/config/intel-storage-probe.toml" \
-		MBOOT_IMAGE="$(OUT)/mochiOS-storage-probe.img" \
-		MBOOT_PXE_DIR="$(OUT)/pxe-storage-probe" \
-		MBOOT_UEFI_NET_DIR="$(OUT)/uefi-net-storage-probe"
-
-mboot-setup:
-	@MNU_DIR="$(CURDIR)/core" $(MBOOT_DIR)/setup.sh
-
-mboot-image: $(MOCHIOS_INITFS) $(MOCHIOS_ROOTFS) mdriver
-	@test -f $(MBOOT_DIR)/Makefile || { echo "fatal: mBoot repository was not found: $(MBOOT_DIR)" >&2; exit 1; }
-	@$(MAKE) -C $(MBOOT_DIR) image \
-		CONFIG="$(abspath $(MBOOT_CONFIG))" \
-		MNU_DIR="$(CURDIR)/core" \
-		MOCHIOS_SYSTEM_DIR="$(CURDIR)/boot" \
-		IMAGE="$(abspath $(MBOOT_IMAGE))" \
-		PXE_DIR="$(abspath $(MBOOT_PXE_DIR))" \
-		UEFI_NET_DIR="$(abspath $(MBOOT_UEFI_NET_DIR))" \
-		MDRIVER_KERNEL="$(abspath $(MDRIVER_KERNEL))" \
-		MDRIVER_INITRAMFS="$(abspath $(MDRIVER_INITRAMFS))" \
-		MOCHIOS_INITFS="$(abspath $(MOCHIOS_INITFS))" \
-		MOCHIOS_ROOTFS="$(abspath $(MOCHIOS_ROOTFS))"
-
-mboot-test:
-	@$(MAKE) -C $(MBOOT_DIR) test MNU_DIR="$(CURDIR)/core"
-
-mdev:
-	@cargo build --release --locked --manifest-path $(MDEV_DIR)/Cargo.toml
-
-test-hardware: mdev
-	@test -f $(MDEV_CONFIG) || { echo "fatal: run '$(MDEV_DIR)/target/release/mdev init' in the repository root first" >&2; exit 1; }
-	@$(MDEV_DIR)/target/release/mdev --config $(MDEV_CONFIG) test
-
-release: full mboot-image
-	@mkdir -p $(RELEASE_DIR)
-	@set -eu; \
-		temporary=$(RELEASE_IMAGE).new; \
-		rm -f "$$temporary"; \
-		cp --sparse=always $(MBOOT_IMAGE) "$$temporary"; \
-		chmod 0644 "$$temporary"; \
-		mv "$$temporary" $(RELEASE_IMAGE)
-	@echo "[done] release image: $(RELEASE_IMAGE)"
-
-fonts:
-	@$(MAKE) -C libraries/fonts fonts
-
-run:
-	@test -f $(OUT)/artifacts/disk.img || { \
-		echo "fatal: no built image found; run 'make build' first" >&2; \
-		exit 1; \
-	}
-	@$(SCRIPTS)/runner.sh
-
-run-build: build
-	@$(SCRIPTS)/runner.sh
-
-run-boot:
-	@$(MAKE) hv-image-test
-
-smoke-log-test:
-	@$(SCRIPTS)/tests/smoke-log-check-test.sh
-
-smoke-test: build smoke-log-test
-	@$(SCRIPTS)/smoke-test.sh
-
-smoke-test-kvm: build smoke-log-test
-	@QEMU_ACCELERATOR=kvm $(SCRIPTS)/smoke-test.sh
-
-smoke-test-virtio-gpu: build smoke-log-test
-	@DEBUG_QEMU_VIRTIO_GPU=y QEMU_ACCELERATOR=kvm $(SCRIPTS)/smoke-test.sh
-
-smoke-test-tcg: build smoke-log-test
-	@QEMU_ACCELERATOR=tcg $(SCRIPTS)/smoke-test.sh
-
-tls-http-smoke-test: olddefconfig smoke-log-test
-	@$(SCRIPTS)/tls-http-smoke-test.sh
-
-developer-pki-sync-smoke-test:
-	@$(SCRIPTS)/developer-pki-sync-smoke-test.sh
-
-developer-pki-production-e2e:
-	@$(SCRIPTS)/developer-pki-production-e2e.sh
-
-accounts-https-smoke-test: build smoke-log-test
-	@$(SCRIPTS)/accounts-https-smoke-test.sh
-
-ext2-write-test: build
-	@QEMU_ACCELERATOR=kvm $(SCRIPTS)/ext2-write-test.sh
-
-ext2-write-test-tcg: build
-	@QEMU_ACCELERATOR=tcg $(SCRIPTS)/ext2-write-test.sh
-
-clean:
-	@rm -rf $(OUT)/*
-	@$(MAKE) -C $(MBOOT_DIR) clean
-
-clean-runner:
-	@rm -rf $(OUT)/runner
-
-repo-init:
-	@repo init --depth=1 -m default.xml -u "$(REPO_MANIFEST_URL)" -b "$(REPO_MANIFEST_REVISION)"
-	@repo sync -c --no-clone-bundle --no-tags -j4
-
-install:
-	@cargo install --path $(MWS) --force
+build: image

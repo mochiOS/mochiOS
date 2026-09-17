@@ -123,7 +123,7 @@ mBoot imageはIntel `iwlwifi`/`iwlmvm`、対応firmware、`iw`、`wpa_supplicant
 Wi-Fi制御IPCは`settings.write` Capabilityを持つ呼出元だけが使用でき、SSIDとcredentialは
 hex encodingしたprotocol fieldとして転送されます。credentialをcommand lineやlogへ出力しません。
 
-通常の`make run`では、QEMU networkingが有効ならhost loopbackのport 20000にTCP echo serverも起動します。
+通常の`mmake run`では、QEMU networkingが有効ならhost loopbackのport 20000にTCP echo serverも起動します。
 runnerが次のようにguestから接続するaddressとportを表示します。
 
 ```text
@@ -136,8 +136,8 @@ mochiOSのshellから、表示されたportを指定して複数回確認でき�
 / $ net tcp-send 10.0.2.2 20000 mochios-test
 ```
 
-別のportを使用する場合は`QEMU_TCP_ECHO_PORT=23456 make run`、serverを無効にする場合は
-`QEMU_TCP_ECHO_SERVER=n make run`を使用します。Smoke Testでも同じserverを複数接続可能な状態で
+別のportを使用する場合は`QEMU_TCP_ECHO_PORT=23456 mmake run`、serverを無効にする場合は
+`QEMU_TCP_ECHO_SERVER=n mmake run`を使用します。Smoke Testでも同じserverを複数接続可能な状態で
 起動し、接続直後のcloseとpayload echoを別々の接続で検証します。
 
 ## 6. 診断

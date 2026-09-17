@@ -84,6 +84,8 @@ QEMU_NETWORK_PCAP="${QEMU_NETWORK_PCAP:-}"
 QEMU_TCP_ECHO_SERVER="${QEMU_TCP_ECHO_SERVER:-${QEMU_NETWORK}}"
 QEMU_SMP="${DEBUG_QEMU_SMP:-1}"
 QEMU_GL_DISPLAY="${QEMU_GL_DISPLAY:-auto}"
+QEMU_QMP_DIAGNOSTICS="${QEMU_QMP_DIAGNOSTICS:-n}"
+QEMU_LOW_LEVEL_TRACE="${QEMU_LOW_LEVEL_TRACE:-n}"
 DRM_RENDER_NODE=""
 for candidate in /dev/dri/renderD*; do
     if [[ -r "${candidate}" && -w "${candidate}" ]]; then
@@ -129,6 +131,14 @@ case "${QEMU_NETWORK}" in y|n) ;; *) die "QEMU_NETWORK must be 'y' or 'n'" ;; es
 case "${QEMU_TCP_ECHO_SERVER}" in
     y|n) ;;
     *) die "QEMU_TCP_ECHO_SERVER must be 'y' or 'n'" ;;
+esac
+case "${QEMU_QMP_DIAGNOSTICS}" in
+    y|n) ;;
+    *) die "QEMU_QMP_DIAGNOSTICS must be 'y' or 'n'" ;;
+esac
+case "${QEMU_LOW_LEVEL_TRACE}" in
+    y|n) ;;
+    *) die "QEMU_LOW_LEVEL_TRACE must be 'y' or 'n'" ;;
 esac
 case "${SMOKE_AUTO_LOGIN}" in
     0|1) ;;
@@ -295,17 +305,22 @@ QEMU_ARGS=(
     -serial stdio
     -no-reboot
     -no-shutdown
+    -boot order=c,menu=off,strict=on
     -drive "if=pflash,format=raw,readonly=on,file=${OVMF_CODE}"
     -drive "if=pflash,format=raw,file=${OVMF_VARS}"
     -drive "id=osdisk,if=none,format=raw,file=${OS_DISK}"
     -device "virtio-blk-pci,disable-modern=on,drive=osdisk,bootindex=1"
     -object "rng-random,id=rng0,filename=/dev/urandom"
     -device "virtio-rng-pci,rng=rng0"
-    -d guest_errors,int,cpu_reset
-    -D "${RUN_DIR}/qemu-debug.log"
     -trace "enable=qemu_system_*request,file=${RUN_DIR}/qemu-trace.log"
-    -qmp "unix:${RUN_DIR}/qemu-qmp.sock,server=on,wait=off"
 )
+
+if [[ "${QEMU_LOW_LEVEL_TRACE}" == "y" ]]; then
+    QEMU_ARGS+=(
+        -d guest_errors,int,cpu_reset
+        -D "${RUN_DIR}/qemu-debug.log"
+    )
+fi
 
 if [[ "${DEBUG_QEMU_MBOOT_TRACE:-n}" == "y" ]]; then
     QEMU_ARGS+=(-trace "enable=virtio_serial_*,file=${MBOOT_VIRTIO_TRACE}")
@@ -374,6 +389,10 @@ fi
 
 QEMU_PID=""
 QMP_DIAG_PID=""
+
+if [[ "${GUI_MODE}" -eq 1 && "${QEMU_QMP_DIAGNOSTICS}" == "y" ]]; then
+    QEMU_ARGS+=(-qmp "unix:${RUN_DIR}/qemu-qmp.sock,server=on,wait=off")
+fi
 NETWORK_SERVER_PID=""
 TLS_HTTP_SERVER_PID=""
 TLS_BAD_CV_SERVER_PID=""
@@ -637,7 +656,9 @@ fi
 start_qemu
 
 if [[ "${GUI_MODE}" -eq 1 ]]; then
-    start_qmp_diagnostics
+    if [[ "${QEMU_QMP_DIAGNOSTICS}" == "y" ]]; then
+        start_qmp_diagnostics
+    fi
     echo "[done] serial log: ${SERIAL_LOG}"
     set +e
     wait "${QEMU_PID}"

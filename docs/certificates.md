@@ -112,6 +112,37 @@ IPCの1メッセージ上限に合わせ、`package.service`が保持するMPKG 
 
 検証結果は`/system/packages/<package-id>/verification.bin`へ保存します。`capability.service`はmanifest digestとPackage IDを再確認し、要求Capabilityが証明書のallowed Capabilityに完全一致しなければ拒否します。現行manifestの`requires`はすべて必須要求なので、許可されない要求を黙って除去しません。
 
+保存されるInstall Recordは`BuiltIn`、`VerifiedPackage`、`Development`のprovenanceを明示的に持ちます。`verification.bin`が存在しないことをBuiltInの根拠にはしません。BuiltIn recordは認証済みboot imageの生成時に作られ、実行時にはmanifest digest、Package ID、固定のsystem developer identityを再確認します。
+
+## Application Identityと実行境界
+
+process identityは表示用のPackage ID文字列ではなく、次の組です。
+
+```text
+ApplicationIdentity =
+    Package ID
+  + Developer ID
+  + Subject Key ID
+  + Install Provenance
+```
+
+通常のspawnと`execve`は、実行前に`capability.service`がpackage index、Install Record、manifest、実行対象binaryを照合します。最終的なCapabilityは次の共通decisionで求めます。
+
+```text
+Effective Capabilities
+= Requested
+  ∩ Certificate Allowance
+  ∩ System Policy
+  ∩ User Grant
+  ∩ Caller / Delegation Ceiling
+```
+
+decision後、capability.serviceはrequester threadに対して一回限りの実行認可をカーネルへ登録します。認可はpath、実行ファイルSHA-256、ApplicationIdentity、Capability、object-scoped kernel authority、execution class、用途（spawnまたはimage replacement）へbindされます。カーネルは実際にロードしたbytesを再測定し、全項目が一致した場合だけprocess生成またはimage replacementを行います。
+
+`execve`は元processのidentityを引き継ぎません。新しい実行対象についてdecisionを再計算し、元processのCapability/authorityを越える結果を拒否してからidentityとCapabilityを置き換えます。spawnは`process.spawn`を明示的なdelegation ceilingとして扱いますが、launcherがidentityを自己申告することはできません。
+
+package indexまたは有効なInstall Recordに存在しないbinary、manifest digestが一致しないbinary、認可後にbytesが変化したbinaryは未検証binaryとしてfail closedに拒否します。未検証binaryを旧processのidentityやCapabilityのまま実行するfallbackはありません。唯一のbootstrap例外は、capability.serviceが利用可能になる前に認証済みboot generationからloggerとcapability.serviceを起動するCore processです。
+
 ## msign
 
 署名ツールはrepo管理対象の`tools/devkit/crates/msign`にあります。従来Komeが使用する`.pkg`向けコマンドを維持し、MPKG用に次を追加しています。

@@ -75,7 +75,7 @@ git clone https://github.com/mochiOS/mochiOS.git
 cd mochiOS
 
 make repo-init
-make build
+mmake image
 ```
 
 The bootable raw disk image is written to `out/artifacts/disk.img`.
@@ -86,14 +86,14 @@ mochiOS can be started directly for development, or through mBoot to test the co
 
 ### Run mochiOS directly
 
-`make run` builds the current tree and starts mochiOS directly with
+`mmake run` builds the current tree and starts mochiOS directly with
 `qemu-system-x86_64`.
 
 The default configuration uses KVM and opens a QEMU display window:
 
 ```sh
 export DEBUG_QEMU_KVM=y
-make run
+mmake run
 ```
 
 The user running QEMU must have read/write access to `/dev/kvm`.
@@ -101,7 +101,7 @@ The user running QEMU must have read/write access to `/dev/kvm`.
 To run on a host without KVM, use QEMU's TCG accelerator:
 
 ```sh
-QEMU_ACCELERATOR=tcg make run
+QEMU_ACCELERATOR=tcg mmake run
 ```
 
 For a headless boot smoke test using TCG:
@@ -119,7 +119,7 @@ Distributions that install these files elsewhere can override both paths:
 ```sh
 OVMF_CODE=/path/to/OVMF_CODE_4M.fd \
 OVMF_VARS_TEMPLATE=/path/to/OVMF_VARS_4M.fd \
-QEMU_ACCELERATOR=tcg make run
+QEMU_ACCELERATOR=tcg mmake run
 ```
 
 ### Run mochiOS with mBoot

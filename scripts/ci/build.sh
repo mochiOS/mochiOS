@@ -5,7 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 VERSION_FILE="${ROOT_DIR}/version.toml"
-BUILD_SCRIPT="${SCRIPT_DIR}/../build.sh"
 ARTIFACT_DIR="${ROOT_DIR}/out/artifacts"
 
 die() {
@@ -53,12 +52,12 @@ need_cmd awk
 need_cmd date
 need_cmd find
 need_cmd perl
+need_cmd mmake
 need_cmd sha256sum
 need_cmd sort
 need_cmd xargs
 
 need_file "${VERSION_FILE}"
-need_file "${BUILD_SCRIPT}"
 
 RELEASE="$(
     VERSION_KEY="release" read_string_value "release"
@@ -105,7 +104,10 @@ export BUILD_NUMBER="${NEXT_BUILD}"
 export BUILD_DATE="${BUILD_DATE}"
 
 echo "[build] start mochiOS build"
-"${BUILD_SCRIPT}"
+(
+    cd "${ROOT_DIR}"
+    mmake image
+)
 
 [[ -d "${ARTIFACT_DIR}" ]] ||
     die "artifact directory was not created: ${ARTIFACT_DIR}"

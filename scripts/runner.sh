@@ -41,9 +41,11 @@ if [[ "${ENV_DEBUG_QEMU_GPU_BACKEND_SET}" == "1" ]]; then DEBUG_QEMU_GPU_BACKEND
 if [[ "${ENV_DRIVER_XHCI_SET}" == "1" ]]; then DRIVER_XHCI="${ENV_DRIVER_XHCI}"; fi
 if [[ "${ENV_QEMU_NETWORK_SET}" == "1" ]]; then QEMU_NETWORK="${ENV_QEMU_NETWORK}"; fi
 if [[ "${ENV_QEMU_NETWORK_MAC_SET}" == "1" ]]; then QEMU_NETWORK_MAC="${ENV_QEMU_NETWORK_MAC}"; fi
+QEMU_VIRTIO_GPU_ENABLED="${DEBUG_QEMU_VIRTIO_GPU:-${DEBUG_QEMU_GPU_BACKEND:-n}}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
 RUN_ID="workspace-$(date +%s)-$$"
 RUNNER_DIR="${ROOT_DIR}/out/runner"
+RUNNER_LOCK="${RUNNER_DIR}/runner.lock"
 RUNNER_KEEP_RUNS="${RUNNER_KEEP_RUNS:-8}"
 RUN_DIR="${RUNNER_DIR}/${RUN_ID}"
 SERIAL_LOG="${RUN_DIR}/serial.log"
@@ -110,6 +112,11 @@ need_cmd() {
 need_file() {
     [[ -f "$1" ]] || die "required file not found: $1"
 }
+
+need_cmd flock
+mkdir -p "${RUNNER_DIR}"
+exec 9>"${RUNNER_LOCK}"
+flock -n 9 || die "another mochiOS QEMU runner is already active"
 
 prune_runner_runs() {
     local index
@@ -296,8 +303,10 @@ if [[ -n "${SMOKE_USER_DATABASE_FIXTURE}" ]]; then
     rm -f "${ROOTFS_IMAGE}"
 fi
 
+QEMU_MACHINE="q35,accel=${QEMU_ACCEL}"
+
 QEMU_ARGS=(
-    -machine "q35,accel=${QEMU_ACCEL}"
+    -machine "${QEMU_MACHINE}"
     -m 1G
     -smp "${QEMU_SMP}"
     -cpu "${QEMU_CPU}"
@@ -338,12 +347,12 @@ if [[ "${QEMU_NETWORK}" == "y" ]]; then
     fi
 fi
 
-if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then
+if [[ "${QEMU_VIRTIO_GPU_ENABLED}" == "y" ]]; then
     need_cmd nc
     if [[ "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
-        QEMU_ARGS+=(-device "virtio-gpu-gl-pci,id=virtio-gpu")
+        QEMU_ARGS+=(-device "virtio-gpu-gl-pci,id=virtio-gpu,disable-legacy=on")
     else
-        QEMU_ARGS+=(-device "virtio-gpu-pci,id=virtio-gpu")
+        QEMU_ARGS+=(-device "virtio-gpu-pci,id=virtio-gpu,disable-legacy=on")
     fi
 fi
 
@@ -356,7 +365,7 @@ fi
 
 if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     GUI_MODE=0
-    if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" && "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
+    if [[ "${QEMU_VIRTIO_GPU_ENABLED}" == "y" && "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
         if [[ "${QEMU_GL_DISPLAY}" == "auto" ]]; then
             if [[ -n "${DRM_RENDER_NODE}" ]]; then
                 QEMU_GL_DISPLAY="egl-headless"
@@ -377,7 +386,7 @@ if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     else
         QEMU_ARGS+=(-monitor none)
     fi
-elif [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" && "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
+elif [[ "${QEMU_VIRTIO_GPU_ENABLED}" == "y" && "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
     QEMU_ARGS+=(-display gtk,gl=on,window-close=off -monitor none)
 else
     QEMU_ARGS+=(-display gtk,window-close=off -monitor none)
@@ -596,8 +605,6 @@ start_tls_bad_cv_server() {
 start_qemu() {
     echo "[run] qemu accelerator=${QEMU_ACCEL} cpu=${QEMU_CPU} gpu=${QEMU_GPU_BACKEND} gl-display=${QEMU_GL_DISPLAY} network=${QEMU_NETWORK} mac=${QEMU_NETWORK_MAC}"
 
-    GALLIUM_DRIVER=d3d12 \
-    MESA_D3D12_DEFAULT_ADAPTER_NAME=AMD \
     qemu-system-x86_64 "${QEMU_ARGS[@]}" > >(tee -a "${SERIAL_LOG}") 2>&1 &
 
     QEMU_PID=$!

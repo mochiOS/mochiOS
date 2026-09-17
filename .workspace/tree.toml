@@ -3375,3 +3375,59 @@ path = "core"
 hash = "ad3911149cd2cfb8a524955f84e0ae2281021732"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix bootstrap service exec authorization"
+
+[[entries]]
+date = "2026-09-17T17:54:10.982951361+09:00"
+snapshot = "c3a0588bfddc297ce71fb51b"
+path = "services"
+hash = "c035ed4a640dc2b18572f6506204a560b7dbbe92"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix package verification record resolution"
+
+[[entries]]
+date = "2026-09-17T18:07:29.603797529+09:00"
+snapshot = "6728d90e877b5c2776a30499"
+path = "core"
+hash = "08b6b41fc4d88d1e203192daf66c3670fb6281d3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "allow canonical capabilities in exec authorization"
+
+[[entries]]
+date = "2026-09-17T18:36:14.553542771+09:00"
+snapshot = "0e96dfed6ba471a431f7f35d"
+path = "libraries/viewkit"
+hash = "26c302af55cf6264a111979668f287c324f291f6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "export standard app layout containers"
+
+[[entries]]
+date = "2026-09-17T18:45:26.577205854+09:00"
+snapshot = "913827a07f82800bd31c8a83"
+path = "libraries/viewkit"
+hash = "00e7136eaedd693d0ba37d53119cd6d1779d3e9a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix duplicate layout exports"
+
+[[entries]]
+date = "2026-09-17T18:52:27.401779893+09:00"
+snapshot = "eb4f35ef3626f111f6c38e9f"
+path = "build"
+hash = "47835b5b55d022fb71cdb722863ebe90d94d3aa0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "parallelize incremental program builds"
+
+[[entries]]
+date = "2026-09-17T19:41:41.965188267+09:00"
+snapshot = "13a348523ae1f2d51d89dd7b"
+path = "build"
+hash = "3fe4e837b53c2790418f9ce84838d6315d016c32"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "preserve source fingerprints across cached builds"
+
+[[entries]]
+date = "2026-09-17T21:45:20.142755998+09:00"
+snapshot = "5d7b863b10f89c3763fd09bf"
+path = "build"
+hash = "7ba2bb8b29a203d10c8276656f7c6c79d389d356"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "track incremental disk patcher"

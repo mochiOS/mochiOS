@@ -3351,3 +3351,11 @@ path = "applications/installer"
 hash = "568e36bdfe9979e39e3b914d923d55543390601c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh installer dependencies"
+
+[[entries]]
+date = "2026-09-17T15:47:33.464695497+09:00"
+snapshot = "0b30231c7ccc3c67106c67bd"
+path = "user"
+hash = "d8fbacd154bfba4ad57d6c93aa5ea5aada61afa7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "security: define identity and capability protocols"

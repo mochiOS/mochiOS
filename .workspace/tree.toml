@@ -3359,3 +3359,19 @@ path = "user"
 hash = "d8fbacd154bfba4ad57d6c93aa5ea5aada61afa7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "security: define identity and capability protocols"
+
+[[entries]]
+date = "2026-09-17T16:47:15.261981637+09:00"
+snapshot = "e0d8b36a83d7630c72600760"
+path = "build"
+hash = "72eb8d3ef7bb5633ac8cd95cd0cecec9d6ebdfb5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: integrate AppStore and fix menuconfig TTY"
+
+[[entries]]
+date = "2026-09-17T17:08:53.607913311+09:00"
+snapshot = "43368362959b78910c1e261f"
+path = "core"
+hash = "ad3911149cd2cfb8a524955f84e0ae2281021732"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix bootstrap service exec authorization"

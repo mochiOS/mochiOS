@@ -176,6 +176,13 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="applications/appstore"
+            name="mochiOS/AppStore.app"
+            revision="main"
+            remote="github"
+    />
     
     <project
             path="tools/mmake"

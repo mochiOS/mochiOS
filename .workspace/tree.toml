@@ -3455,3 +3455,11 @@ path = "build"
 hash = "10c1aa23a742b3052291bc186192956326aae77e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use workspace certificate crate for signing tools"
+
+[[entries]]
+date = "2026-09-18T16:29:22.233102087+09:00"
+snapshot = "d8098cf592bf39b56581f513"
+path = "build"
+hash = "a871c3a46501430fdd7755dcb20a2377ed74bed1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Track shared Cargo configuration in build inputs"

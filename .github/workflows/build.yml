@@ -155,6 +155,10 @@ jobs:
             --config "patch.\"https://github.com/mochiOS/viewkit\".viewkit.path='${GITHUB_WORKSPACE}/libraries/viewkit'"
           )
 
+          sysroot_manifest="$(rustc "+${RUSTUP_TOOLCHAIN}" --print sysroot)/lib/rustlib/src/rust/library/sysroot/Cargo.toml"
+          echo "[fetch] ${sysroot_manifest}"
+          cargo "+${RUSTUP_TOOLCHAIN}" fetch --locked --manifest-path "${sysroot_manifest}"
+
           while IFS= read -r directory; do
             ancestor="$(dirname "${directory}")"
             while [ "${ancestor}" != "." ] && [ "${ancestor}" != "/" ]; do

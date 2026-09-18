@@ -146,7 +146,7 @@ jobs:
             manifest="${directory}/Cargo.toml"
             if [ -f "${manifest}" ]; then
               echo "[fetch] ${manifest}"
-              cargo fetch --locked "${cargo_patches[@]}" --manifest-path "${manifest}"
+              cargo fetch "${cargo_patches[@]}" --manifest-path "${manifest}"
             fi
           done < <(
             find . \

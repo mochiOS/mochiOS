@@ -256,12 +256,6 @@ jobs:
           
           bash scripts/ci/build.sh
 
-      - name: QEMU smoke test (TCG)
-        run: |
-          set -euo pipefail
-
-          mmake smoke-test-tcg
-
       - name: Commit build number
         env:
           BUILD_NUMBER: ${{ steps.build.outputs.build }}

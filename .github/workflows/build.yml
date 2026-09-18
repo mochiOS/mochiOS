@@ -143,6 +143,15 @@ jobs:
           )
 
           while IFS= read -r directory; do
+            ancestor="$(dirname "${directory}")"
+            while [ "${ancestor}" != "." ] && [ "${ancestor}" != "/" ]; do
+              if [ -f "${ancestor}/Cargo.lock" ]; then
+                echo "[skip] ${directory}: covered by ${ancestor}/Cargo.lock"
+                continue 2
+              fi
+              ancestor="$(dirname "${ancestor}")"
+            done
+
             manifest="${directory}/Cargo.toml"
             if [ -f "${manifest}" ]; then
               echo "[fetch] ${manifest}"

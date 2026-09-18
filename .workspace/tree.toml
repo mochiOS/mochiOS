@@ -3447,3 +3447,11 @@ path = "libraries/rust"
 hash = "245d368383cce65100f9609ef28224d1fa556d6a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Vendor rustc-literal-escaper for offline builds"
+
+[[entries]]
+date = "2026-09-18T15:58:26.737846558+09:00"
+snapshot = "1d2086defcd782a74d145d41"
+path = "build"
+hash = "10c1aa23a742b3052291bc186192956326aae77e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use workspace certificate crate for signing tools"

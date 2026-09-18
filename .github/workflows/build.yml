@@ -130,6 +130,9 @@ jobs:
             cargo-${{ runner.os }}-${{ env.RUSTUP_TOOLCHAIN }}-
             cargo-${{ runner.os }}-
 
+      - name: Fetch host tool dependencies
+        run: cargo fetch --locked --manifest-path tools/devkit/Cargo.toml
+
       - name: Install Homebrew
         run: |
           set -euo pipefail

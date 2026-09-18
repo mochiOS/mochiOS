@@ -26,6 +26,7 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: nightly-2026-05-14
       CARGO_TERM_COLOR: always
+      CARGO_HOME: /home/runner/.cargo
       HOMEBREW_NO_AUTO_UPDATE: "1"
 
     steps:
@@ -75,11 +76,13 @@ jobs:
             libmpfr-dev \
             libtool \
             mtools \
+            netcat-openbsd \
             openssl \
             ovmf \
             perl \
             qemu-system-x86 \
             repo \
+            strace \
             texinfo \
             xz-utils
 
@@ -161,12 +164,16 @@ jobs:
           
           brew install x86_64-elf-gcc
 
+      - name: Install mmake
+        run: cargo install --locked --path tools/mmake
+
       - name: Check build toolchains
         run: |
           set -euo pipefail
           
           command -v rustc
           command -v cargo
+          command -v mmake
           
           command -v x86_64-elf-gcc
           command -v x86_64-elf-ar
@@ -177,6 +184,7 @@ jobs:
           
           rustc --version
           cargo --version
+          mmake --version
           x86_64-elf-gcc --version
 
       - name: Build mochiOS
@@ -190,7 +198,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          make smoke-test-tcg
+          mmake smoke-test-tcg
 
       - name: Commit build number
         env:

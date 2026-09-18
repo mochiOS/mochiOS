@@ -19,6 +19,7 @@ if ($? != 0) {
 }
 
 my @targets;
+my $preflight_failed = 0;
 for my $line (@projects) {
     chomp $line;
 
@@ -46,13 +47,37 @@ for my $line (@projects) {
         }
     }
 
-    next unless git_needs_push($path, $remote, $revision);
+    unless (git_fetch_branch($path, $remote, $revision)) {
+        print STDERR "[error] $path: $remote/$revision の取得に失敗しました\n";
+        $preflight_failed = 1;
+        next;
+    }
+
+    my ($ahead, $behind) = git_ahead_behind($path, $remote, $revision);
+    unless (defined $ahead && defined $behind) {
+        print STDERR "[error] $path: $remote/$revision との差分を確認できません\n";
+        $preflight_failed = 1;
+        next;
+    }
+
+    if ($behind > 0) {
+        my $state = $ahead > 0 ? '分岐しています' : 'pullが必要です';
+        print STDERR "[pull required] $path: $remote/$revision より $behind commit遅れており、$state\n";
+        $preflight_failed = 1;
+        next;
+    }
+
+    next unless $ahead > 0;
     push @targets, {
         project  => $project,
         path     => $path,
         remote   => $remote,
         revision => $revision,
     };
+}
+
+if ($preflight_failed) {
+    die "error: remote側の変更を取り込んでから再実行してください\n";
 }
 
 if (!@targets) {
@@ -112,18 +137,25 @@ sub git_remote_exists {
     return scalar grep { $_ eq $remote } split /\n/, $remotes;
 }
 
-sub git_needs_push {
+sub git_fetch_branch {
     my ($path, $remote, $revision) = @_;
-    my $remote_ref = "$remote/$revision";
-    my $remote_head =
-        git_output('git', '-C', $path, 'rev-parse', '--verify', '--quiet', $remote_ref);
-    return 1 unless defined $remote_head;
-
-    my $count = git_output(
+    my $refspec = "+refs/heads/$revision:refs/remotes/$remote/$revision";
+    return system(
         'git', '-C', $path,
-        'rev-list', '--count', "$remote_ref..HEAD",
+        'fetch', '--quiet', $remote, $refspec,
+    ) == 0;
+}
+
+sub git_ahead_behind {
+    my ($path, $remote, $revision) = @_;
+    my $counts = git_output(
+        'git', '-C', $path,
+        'rev-list', '--left-right', '--count',
+        "HEAD...refs/remotes/$remote/$revision",
     );
-    return !defined($count) || $count =~ /^[1-9][0-9]*$/;
+    return unless defined $counts;
+    return unless $counts =~ /^([0-9]+)\s+([0-9]+)$/;
+    return ($1 + 0, $2 + 0);
 }
 
 sub git_output {

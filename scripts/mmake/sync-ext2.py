@@ -129,6 +129,13 @@ def sync(root: Path, image: Path, state_path: Path) -> None:
         trace_path = image.with_suffix(image.suffix + ".debugfs.trace")
         debugfs = ["debugfs", "-w", "-f", "-", str(image)]
         traced = shutil.which("strace") is not None
+        if traced:
+            probe = subprocess.run(
+                ["strace", "-qq", "-o", os.devnull, "true"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            traced = probe.returncode == 0
         command = (
             ["strace", "-qq", "-f", "-e", "trace=pwrite64,write,lseek", "-o", str(trace_path)]
             + debugfs

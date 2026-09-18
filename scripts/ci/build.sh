@@ -102,15 +102,9 @@ export MOCHIOS_CODENAME="${CODENAME}"
 export MOCHIOS_CHANNEL="${CHANNEL}"
 export BUILD_NUMBER="${NEXT_BUILD}"
 export BUILD_DATE="${BUILD_DATE}"
-
-echo "[build] start mochiOS build"
-(
-    cd "${ROOT_DIR}"
-    mmake image
-)
-
-[[ -d "${ARTIFACT_DIR}" ]] ||
-    die "artifact directory was not created: ${ARTIFACT_DIR}"
+export MOCHIOS_VERSION="${RELEASE}"
+export MOCHIOS_BUILD_NUMBER="${NEXT_BUILD}"
+export MNU_GIT_REVISION="${GITHUB_SHA:-workspace}"
 
 echo "[version] update version.toml"
 
@@ -147,6 +141,15 @@ mv "${VERSION_TMP}" "${VERSION_FILE}"
 
 trap - EXIT
 
+echo "[build] start mochiOS build"
+(
+    cd "${ROOT_DIR}"
+    mmake image
+)
+
+[[ -d "${ARTIFACT_DIR}" ]] ||
+    die "artifact directory was not created: ${ARTIFACT_DIR}"
+
 echo "[artifact] copy version.toml"
 install -m 0644 \
     "${VERSION_FILE}" \
@@ -160,6 +163,7 @@ echo "[artifact] regenerate checksums"
         -maxdepth 1 \
         -type f \
         ! -name SHA256SUMS \
+        ! -name disk.img \
         -printf '%P\0' |
         sort -z |
         xargs -0 sha256sum > SHA256SUMS

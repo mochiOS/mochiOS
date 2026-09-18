@@ -58,7 +58,7 @@ stage_app() {
 stage_app "$root/applications/binder" Binder.app binder
 for resource in appicon.svg close.svg maximize.svg minimize.svg mochios.svg; do install -m 0644 "$root/applications/binder/resources/$resource" "$stage_new/applications/Binder.app/$resource"; done
 if [[ -d $root/applications/binder/resources/apps ]]; then cp -a "$root/applications/binder/resources/apps/." "$stage_new/applications/"; fi
-stage_app "$root/applications/appstore" AppStore.app appstore appicon.svg
+stage_app "$root/applications/appstore" AppStore.app appstore
 stage_app "$root/applications/test.app" test.app test_app
 stage_app "$root/applications/terminal" Terminal.app terminal appicon.svg
 stage_app "$root/applications/file" Files.app files appicon.svg

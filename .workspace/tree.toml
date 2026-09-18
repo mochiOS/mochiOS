@@ -3431,3 +3431,11 @@ path = "build"
 hash = "7ba2bb8b29a203d10c8276656f7c6c79d389d356"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "track incremental disk patcher"
+
+[[entries]]
+date = "2026-09-18T15:46:16.865935349+09:00"
+snapshot = "c239f52a42b72d546ea7b8a3"
+path = "build"
+hash = "1c146a752638e8c9b944014c8dbffb8536e85b38"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Make mmake builds portable in CI"

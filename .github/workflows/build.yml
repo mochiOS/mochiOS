@@ -159,6 +159,14 @@ jobs:
           echo "[fetch] ${sysroot_manifest}"
           cargo "+${RUSTUP_TOOLCHAIN}" fetch --locked --manifest-path "${sysroot_manifest}"
 
+          for manifest in \
+            libraries/viewkit/Cargo.toml \
+            applications/file/Cargo.toml
+          do
+            echo "[fetch] ${manifest}"
+            cargo fetch "${cargo_patches[@]}" --manifest-path "${manifest}"
+          done
+
           while IFS= read -r directory; do
             ancestor="$(dirname "${directory}")"
             while [ "${ancestor}" != "." ] && [ "${ancestor}" != "/" ]; do

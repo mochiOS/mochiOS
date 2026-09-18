@@ -3495,3 +3495,11 @@ path = "build"
 hash = "5aef924e08acbbd8f7948cd562322133e72e144a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Provide local libc to runtime SDK build"
+
+[[entries]]
+date = "2026-09-18T17:14:39.171434307+09:00"
+snapshot = "fa90171be11ca81ec41cb327"
+path = "build"
+hash = "bb8fd9be35c52d99f6865bfa01d6c8715eb6262a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Provide local protocols to runtime SDK build"

@@ -3479,3 +3479,11 @@ path = "build"
 hash = "d2ac2cb36f8bea8a57934576d96de1ed0859fe9d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Stop watching untracked ViewKit lockfile"
+
+[[entries]]
+date = "2026-09-18T16:47:46.393794702+09:00"
+snapshot = "9335f0e34db56d41ded950c4"
+path = "build"
+hash = "d36a31ff63c72490191b032079a5e39e464d41f0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Stop watching untracked Files lockfile"

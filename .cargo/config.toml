@@ -1,0 +1,2 @@
+[patch.crates-io]
+rustc-literal-escaper = { path = "libraries/rust/vendor/rustc-literal-escaper" }

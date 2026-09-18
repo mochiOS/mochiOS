@@ -134,11 +134,19 @@ jobs:
         run: |
           set -euo pipefail
 
+          cargo_patches=(
+            --config "patch.crates-io.libc.path='${GITHUB_WORKSPACE}/libraries/libc'"
+            --config "patch.\"https://github.com/mochiOS/libc\".libc.path='${GITHUB_WORKSPACE}/libraries/libc'"
+            --config "patch.crates-io.mochios-mdriver-protocol.path='${GITHUB_WORKSPACE}/boot/crates/mdriver-protocol'"
+            --config "patch.crates-io.viewkit.path='${GITHUB_WORKSPACE}/libraries/viewkit'"
+            --config "patch.\"https://github.com/mochiOS/viewkit\".viewkit.path='${GITHUB_WORKSPACE}/libraries/viewkit'"
+          )
+
           while IFS= read -r directory; do
             manifest="${directory}/Cargo.toml"
             if [ -f "${manifest}" ]; then
               echo "[fetch] ${manifest}"
-              cargo fetch --locked --manifest-path "${manifest}"
+              cargo fetch --locked "${cargo_patches[@]}" --manifest-path "${manifest}"
             fi
           done < <(
             find . \

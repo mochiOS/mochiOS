@@ -3487,3 +3487,11 @@ path = "build"
 hash = "d36a31ff63c72490191b032079a5e39e464d41f0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Stop watching untracked Files lockfile"
+
+[[entries]]
+date = "2026-09-18T17:05:24.159043238+09:00"
+snapshot = "99ea2bc9dfac3fa1322518d3"
+path = "build"
+hash = "5aef924e08acbbd8f7948cd562322133e72e144a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Provide local libc to runtime SDK build"

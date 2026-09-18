@@ -3463,3 +3463,11 @@ path = "build"
 hash = "a871c3a46501430fdd7755dcb20a2377ed74bed1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Track shared Cargo configuration in build inputs"
+
+[[entries]]
+date = "2026-09-18T16:36:12.621369395+09:00"
+snapshot = "3f98f1af82fe4a485c8728db"
+path = "build"
+hash = "bea9af6c85e9c3543168fbb09a6e6d2d9929aef9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep Cargo toolchain patches scoped to their builds"

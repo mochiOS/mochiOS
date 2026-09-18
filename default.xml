@@ -6,8 +6,8 @@
     />
 
     <remote
-            name="sourceware"
-            fetch="https://sourceware.org/git/"
+            name="newlib-mirror"
+            fetch="https://github.com/RTEMS/"
     />
 
     <default
@@ -59,9 +59,9 @@
     />
 
     <project
-            name="newlib-cygwin"
+            name="sourceware-mirror-newlib-cygwin"
             path="libraries/newlib"
-            remote="sourceware"
+            remote="newlib-mirror"
             revision="master"
     />
 

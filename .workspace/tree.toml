@@ -3439,3 +3439,11 @@ path = "build"
 hash = "1c146a752638e8c9b944014c8dbffb8536e85b38"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Make mmake builds portable in CI"
+
+[[entries]]
+date = "2026-09-18T15:51:39.078864770+09:00"
+snapshot = "c8910fe7a2f28f820a1c3036"
+path = "libraries/rust"
+hash = "245d368383cce65100f9609ef28224d1fa556d6a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Vendor rustc-literal-escaper for offline builds"

@@ -3471,3 +3471,11 @@ path = "build"
 hash = "bea9af6c85e9c3543168fbb09a6e6d2d9929aef9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep Cargo toolchain patches scoped to their builds"
+
+[[entries]]
+date = "2026-09-18T16:41:53.602948554+09:00"
+snapshot = "27f74bf640230229ed5f1d61"
+path = "build"
+hash = "d2ac2cb36f8bea8a57934576d96de1ed0859fe9d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Stop watching untracked ViewKit lockfile"

@@ -3503,3 +3503,11 @@ path = "build"
 hash = "bb8fd9be35c52d99f6865bfa01d6c8715eb6262a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Provide local protocols to runtime SDK build"
+
+[[entries]]
+date = "2026-09-18T18:42:43.475011424+09:00"
+snapshot = "dea8b1fc5d61b9f1078b2b65"
+path = "applications/file"
+hash = "a1a916025cb779acb39fb71481f71454c30a598b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use ViewKit metrics for Files layout"

@@ -84,7 +84,11 @@ jobs:
             repo \
             strace \
             texinfo \
-            xz-utils
+            xz-utils \
+            zstd
+
+          zstd --version
+          sha256sum --version
 
       - name: Install Rust toolchain
         run: |
@@ -282,10 +286,51 @@ jobs:
           
           git push origin HEAD:master
 
-      - name: Upload build artifacts
+      - name: Prepare initial-installation Artifact
+        id: initial_install
+        env:
+          RELEASE: ${{ steps.build.outputs.release }}
+          BUILD: ${{ steps.build.outputs.build }}
+          SOURCE_CHANNEL: ${{ steps.build.outputs.channel }}
+        run: |
+          set -euo pipefail
+
+          case "${SOURCE_CHANNEL}" in
+            developer-preview) channel=developer_preview ;;
+            beta|stable) channel="${SOURCE_CHANNEL}" ;;
+            *) echo "Unsupported release channel: ${SOURCE_CHANNEL}" >&2; exit 1 ;;
+          esac
+
+          # This workflow currently builds only the x86_64 image/BOOTX64.EFI.
+          architecture=x86_64
+          bash scripts/ci/package-initial-install.sh \
+            out/artifacts/disk.img version.toml release-artifact \
+            "${RELEASE}" "${BUILD}"
+
+          {
+            echo "version=${RELEASE}"
+            echo "build=${BUILD}"
+            echo "channel=${channel}"
+            echo "architecture=${architecture}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Upload development artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: mochios-${{ steps.build.outputs.release }}-${{ steps.build.outputs.codename }}-build-${{ steps.build.outputs.build }}
+          name: mochios-${{ steps.build.outputs.release }}-${{ steps.build.outputs.codename }}-build-${{ steps.build.outputs.build }}-development
           path: out/artifacts/
           if-no-files-found: error
           retention-days: 14
+          overwrite: true
+
+      - name: Upload initial-installation Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mochios-${{ steps.initial_install.outputs.version }}-${{ steps.initial_install.outputs.build }}-${{ steps.initial_install.outputs.channel }}-${{ steps.initial_install.outputs.architecture }}
+          path: release-artifact/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+          overwrite: true

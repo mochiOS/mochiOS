@@ -15,7 +15,7 @@
 - `available`は署名検証済みの`VerifiedManifest`に変換する。payloadの一時保存はこの型に含まれるサイズ・SHA-256を使う。まだ自動downloadはしない。
 - `boot-selection`にCRC・世代番号付き32バイト記録とA/B試行・確定・rollbackの状態遷移を実装した。bootloaderは専用領域の二重記録からslotを選ぶ。
 - `boot-selection::storage`に二つの記録を読み、古い方だけを書き、`sync`後に読み戻す手順を追加した。空の記録の明示的な初期化、trial回数の永続化、確定・rollbackを`RecordIo`経由で扱う。stage・trialに加え、B確定時の全32バイト位置での部分書込み、同期失敗、読戻し失敗のメモリ故障注入テストを実施する。実ディスクの電源断試験は未実施である。
-- `mmake ab-layout-image`はESP、system A、system B、data、専用boot-stateの5 GPT領域を持つ**検証専用**イメージを`out/mmake/image/ab-layout.img`へ作る。試験用ESPには`/slots/A`と`/slots/B`のkernel、kernel.meta、initfsを別々に収める。A/Bのrootfsは現行イメージの複製、dataは空のext2であり、ユーザーデータ分離や移行は未実装。通常の`disk.img`、Artifact、リリースには使わない。
+- `mmake ab-layout-image`はESP、system A、system B、data、専用boot-stateの5 GPT領域を持つ**検証専用**イメージを`out/mmake/image/ab-layout.img`へ作る。試験用ESPには`/slots/A`と`/slots/B`のkernel、kernel.meta、initfsを別々に収める。A/Bのrootfsは現行イメージの複製、dataには初期の`/home`、`/var`、`/tmp`、`/system/users`、`/system/logs`を収める。ext2 CEXTはA/B起動時にこれらのパスをDataへ振り分け、system側の書込みを拒否する。単一ディスクは従来の動作を維持する。ユーザーインストール済みアプリなど他の可変パス、旧ディスクからの移行、KVMでのdata永続性検証は未完了。通常の`disk.img`、Artifact、リリースには使わない。
 - bootloaderは同じ物理ディスク上のboot-state領域をUEFI Block I/Oで読み、CRC・世代番号を確認する。pending trialでは起動前に残り試行回数を減らし、`flush_blocks`と読戻しが成功した場合だけBを選ぶ。書込み失敗時は安定slotへ戻し、3回の未確定trial後の次回起動で自動rollbackする。対応slotのboot assetsを試験用ESPから読み込み、BootInfoのslot値をkernelへ渡す。BootInfo ABI 2では、UEFIが提供した起動ESPの一意GPT GUIDもfeature flag付きで渡す。取得できない場合はゼロにしてflagを立てず、将来のboot-state確定は許可しない。ext2 CEXTはABI 4のcallbackでslot値を受け、GPTの種別と名前が一致するSystem A/Bだけを選ぶ。従来イメージでは旧探索を維持し、不正なboot-stateは拒否する。OS側からの初回起動成功の確定処理はまだない。
 - 読取り専用`BootSystemSlot` syscallにより、ユーザー空間はBootInfo由来のlegacy/A/Bを取得できる。`update.service`は起動slotをReleaseでも有効な状態ログへ記録するが、boot-stateの書込みや自動確定は行わない。`mmake ab-boot-slot-smoke-test-kvm`でB起動とサービスログ上のBを確認済み。現在のdisk CEXTには安全な対象ディスク同定と、flush非対応時の厳密な永続性保証がないため、単に更新サービスへraw disk書込み権限を与えて確定する方式は採らない。
 - `mmake ab-layout-test`で5領域の境界、A/B複製、ESP内のslot別boot assets、dataのext2、boot-stateの初期値を検証する。`mmake ab-slot-selection-test`はBootInfoとGPT slot照合のunit testを実行する。`mmake ab-layout-smoke-test-kvm`は安定A、`mmake ab-slot-b-smoke-test-kvm`は安定BをKVMで確認する。後者はABI 2で起動ESP GUIDを取得できることも確認済み。`boot-selection::gpt_identity`にはOS可視ディスクのGPTヘッダーとエントリー表のCRCを検証し、UEFIから渡されたESPの一意GUIDを照合する読取り専用ロジックと故障系unit testを追加した。`mmake ab-layout-test`はホスト専用の読取り専用probeを使い、実際のA/BイメージでもGUID・範囲一致と異なるGUIDの拒否を検証する。これはまだ実ディスク列挙・OSサービス・書込み処理には接続しておらず、単独では書込み許可にならない。disk CEXTはflush非対応を成功と報告せず`ENOSYS`を返すようにしたが、複数ディスクの同定、容量取得、実ディスクの永続化・電源断試験は未実施。`mmake ab-trial-b-test`は別のpending B試験イメージを検証する。`mmake ab-trial-rollback-smoke-test-kvm`は同じdisk状態を引き継いでBを3回試験起動し、4回目にAへ戻ることを確認済み。`mmake ab-trial-confirm-smoke-test-kvm`はBの試験起動成功後に**ホスト側の試験ツールで**状態を確定し、次回も安定Bで起動することを確認済み。これはOS側の自動確定ではない。KVMテストには`/dev/kvm`が必要である。
@@ -41,7 +41,7 @@ bootloaderはCRC付き・世代番号付きの二重化boot選択記録を読み
 
 ## 有効化のブロッカー
 
-1. 検証用5領域を本番用system/data分離へ変えること、dataの永続mount、OS初回起動成功からのslot確定、更新サービスからの非アクティブslot書込み、電源断回復のQEMU故障注入テスト。bootloaderのpending trialと自動Rollbackは試験用イメージに接続したが、メモリ上の部分書き込みテストと通常のKVM起動だけでは電源断時のストレージ永続性を証明できない。
+1. 検証用5領域のdata経路をKVMで永続性確認し、残りの可変パスを本番用system/data分離へ移すこと、OS初回起動成功からのslot確定、更新サービスからの非アクティブslot書込み、電源断回復のQEMU故障注入テスト。bootloaderのpending trialと自動Rollbackは試験用イメージに接続したが、メモリ上の部分書き込みテストと通常のKVM起動だけでは電源断時のストレージ永続性を証明できない。
 2. 通常更新payloadの独立形式、Cloud側の通常更新Artifact、mock APIでのdownload・checksum・失敗試験。
    現行HTTPサービスの全量RAM保持を解消し、通信中のchunkを直接一時ファイルへ渡す受信経路も必要。
 3. 旧単一rootfs端末を安全に移行するオフライン手順。

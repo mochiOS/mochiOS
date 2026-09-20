@@ -80,4 +80,15 @@ cmp -s "$temp_dir/expected-state.img" <(dd if="$image" bs=1M skip="$state_start"
 
 magic=$(dd if="$image" bs=1 skip=$((data_start * 1048576 + 1080)) count=2 status=none | od -An -tx1 | tr -d ' \n')
 [[ $magic == 53ef ]] || { echo "data partition has no ext2 superblock" >&2; exit 1; }
-echo "A/B layout validated: per-slot boot assets, two identical system slots, empty data, initialized boot state"
+data_image=$temp_dir/data.img
+dd if="$image" of="$data_image" bs=1M skip="$data_start" count="$data_mb" status=none
+for directory in /home/root /var/config /var/lib/diagnostics /tmp /system/users /system/logs; do
+    debugfs -R "stat $directory" "$data_image" 2>/dev/null | grep -q 'Type: directory' || {
+        echo "data partition is missing $directory" >&2; exit 1;
+    }
+done
+cmp -s "$(dirname "$image")/rootfs/system/users/users.db" \
+    <(debugfs -R 'cat /system/users/users.db' "$data_image" 2>/dev/null) || {
+    echo "data partition has the wrong initial account database" >&2; exit 1;
+}
+echo "A/B layout validated: per-slot boot assets, two identical system slots, seeded data, initialized boot state"

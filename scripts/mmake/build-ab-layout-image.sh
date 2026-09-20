@@ -11,6 +11,8 @@ state_image=$image_dir/ab-state.img.new
 data_image=$image_dir/ab-data.img.new
 esp_image=$image_dir/ab-esp.img
 system_image=$image_dir/rootfs.img
+rootfs_stage=$image_dir/rootfs
+data_stage=$image_dir/ab-data-stage.new
 data_mb=128
 state_mb=1
 
@@ -38,7 +40,8 @@ state_type=6d6f6368-694f-5300-8000-6d5061727403
 
 mkdir -p "$image_dir"
 rm -f -- "$temporary" "$state_image" "$data_image"
-trap 'rm -f -- "$temporary" "$state_image" "$data_image"' EXIT
+rm -rf -- "$data_stage"
+trap 'rm -f -- "$temporary" "$state_image" "$data_image" "$data_image.state.json"; rm -rf -- "$data_stage"' EXIT
 truncate -s "${disk_mb}M" "$temporary"
 {
     printf 'label: gpt\nunit: sectors\nfirst-lba: 2048\nsector-size: 512\n\n'
@@ -50,7 +53,19 @@ truncate -s "${disk_mb}M" "$temporary"
 } | sfdisk "$temporary" >/dev/null
 
 truncate -s "${data_mb}M" "$data_image"
-mke2fs -q -t ext2 -F -L MOCHI_DATA "$data_image"
+[[ -d $rootfs_stage/home && -d $rootfs_stage/var && -d $rootfs_stage/system/users ]] || {
+    echo "rootfs data directories are missing" >&2; exit 1;
+}
+mkdir -p "$data_stage/system"
+cp -a "$rootfs_stage/home" "$rootfs_stage/var" "$rootfs_stage/tmp" "$data_stage/"
+cp -a "$rootfs_stage/system/users" "$rootfs_stage/system/logs" "$data_stage/system/"
+if [[ -f $rootfs_stage/.mochios-ownership ]]; then
+    awk '$1 ~ /^(home|var|tmp)\// || $1 ~ /^system\/(users|logs)\//' \
+        "$rootfs_stage/.mochios-ownership" > "$data_stage/.mochios-ownership"
+fi
+fakeroot -- sh -c 'stage=$1; image=$2; chown -R 0:0 "$stage"; exec mke2fs -q -t ext2 -b 4096 -d "$stage" -F -L MOCHI_DATA "$image"' \
+    mmake-ab-data "$data_stage" "$data_image"
+python3 "$root/scripts/mmake/sync-ext2.py" record "$data_stage" "$data_image" "$data_image.state.json"
 "$seed_tool" "$state_image"
 [[ $(stat -c %s "$state_image") -eq $((state_mb * 1048576)) ]] || {
     echo "invalid boot-state image size" >&2; exit 1;

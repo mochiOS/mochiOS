@@ -9,12 +9,35 @@ import subprocess
 import sys
 from pathlib import Path
 
+OWNERSHIP_MANIFEST = ".mochios-ownership"
+
+
+def ownership(root: Path) -> dict[str, tuple[int, int]]:
+    result: dict[str, tuple[int, int]] = {}
+    manifest = root / OWNERSHIP_MANIFEST
+    if not manifest.exists():
+        return result
+    for line_number, line in enumerate(manifest.read_text().splitlines(), 1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        fields = stripped.split()
+        if len(fields) != 3:
+            raise SystemExit(f"{manifest}:{line_number}: expected <path> <uid> <gid>")
+        path, uid, gid = fields
+        parts = Path(path).parts
+        if Path(path).is_absolute() or ".." in parts:
+            raise SystemExit(f"{manifest}:{line_number}: invalid relative path: {path}")
+        result[Path(path).as_posix()] = (int(uid), int(gid))
+    return result
+
 
 def snapshot(root: Path) -> dict[str, dict[str, object]]:
     result: dict[str, dict[str, object]] = {}
+    owners = ownership(root)
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root).as_posix()
-        if relative == ".ready":
+        if relative in {".ready", OWNERSHIP_MANIFEST}:
             continue
         if any(character.isspace() for character in relative):
             raise SystemExit(f"unsupported whitespace in filesystem path: {relative}")
@@ -35,6 +58,11 @@ def snapshot(root: Path) -> dict[str, dict[str, object]]:
             }
         else:
             raise SystemExit(f"unsupported filesystem entry: {relative}")
+        if relative in owners:
+            result[relative]["uid"], result[relative]["gid"] = owners[relative]
+    missing = sorted(set(owners) - set(result))
+    if missing:
+        raise SystemExit(f"ownership path does not exist in filesystem stage: {missing[0]}")
     return result
 
 
@@ -123,8 +151,8 @@ def sync(root: Path, image: Path, state_path: Path) -> None:
             commands.append(f'write "{root / path}" {quote(path)}')
         if previous != entry:
             commands.append(f"set_inode_field {quote(path)} mode {inode_mode(entry)}")
-            commands.append(f"set_inode_field {quote(path)} uid 0")
-            commands.append(f"set_inode_field {quote(path)} gid 0")
+            commands.append(f'set_inode_field {quote(path)} uid {entry.get("uid", 0)}')
+            commands.append(f'set_inode_field {quote(path)} gid {entry.get("gid", 0)}')
     if commands:
         trace_path = image.with_suffix(image.suffix + ".debugfs.trace")
         debugfs = ["debugfs", "-w", "-f", "-", str(image)]
@@ -158,11 +186,28 @@ def sync(root: Path, image: Path, state_path: Path) -> None:
     save(state_path, new)
 
 
+def apply_initial_ownership(root: Path, image: Path) -> None:
+    commands = []
+    for path, (uid, gid) in sorted(ownership(root).items()):
+        commands.append(f"set_inode_field {quote(path)} uid {uid}")
+        commands.append(f"set_inode_field {quote(path)} gid {gid}")
+    if commands:
+        process = subprocess.run(
+            ["debugfs", "-w", "-f", "-", str(image)],
+            input="\n".join(commands) + "\n",
+            text=True,
+            stdout=subprocess.DEVNULL,
+        )
+        if process.returncode != 0:
+            raise SystemExit(process.returncode)
+
+
 def main() -> None:
     if len(sys.argv) != 5 or sys.argv[1] not in {"record", "sync"}:
         raise SystemExit("usage: sync-ext2.py <record|sync> <stage> <image> <state>")
     mode, root, image, state_path = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4])
     if mode == "record":
+        apply_initial_ownership(root, image)
         save(state_path, snapshot(root))
     else:
         sync(root, image, state_path)

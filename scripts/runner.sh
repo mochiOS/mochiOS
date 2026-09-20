@@ -68,6 +68,8 @@ MBOOT_VIRTIO_TRACE="${RUN_DIR}/mboot-virtio.trace"
 SMOKE_USER_DATABASE_FIXTURE="${SMOKE_USER_DATABASE_FIXTURE:-}"
 SMOKE_AUTO_LOGIN="${SMOKE_AUTO_LOGIN:-0}"
 SMOKE_CHECK_SERVICE_LOGS="${SMOKE_CHECK_SERVICE_LOGS:-0}"
+SMOKE_ROOTFS_START_SECTOR="${SMOKE_ROOTFS_START_SECTOR:-$((2048 + IMAGE_ESP_SIZE_MB * 2048))}"
+SMOKE_ROOTFS_SIZE_SECTORS="${SMOKE_ROOTFS_SIZE_SECTORS:-$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))}"
 SMOKE_GUEST_COMMAND="${SMOKE_GUEST_COMMAND:-}"
 SMOKE_GUEST_EXPECT="${SMOKE_GUEST_EXPECT:-}"
 SMOKE_GUEST_EXPECTED_EXIT="${SMOKE_GUEST_EXPECTED_EXIT:-0}"
@@ -155,6 +157,10 @@ case "${SMOKE_CHECK_SERVICE_LOGS}" in
     0|1) ;;
     *) die "SMOKE_CHECK_SERVICE_LOGS must be 0 or 1" ;;
 esac
+[[ "${SMOKE_ROOTFS_START_SECTOR}" =~ ^[1-9][0-9]*$ ]] ||
+    die "SMOKE_ROOTFS_START_SECTOR must be a positive integer"
+[[ "${SMOKE_ROOTFS_SIZE_SECTORS}" =~ ^[1-9][0-9]*$ ]] ||
+    die "SMOKE_ROOTFS_SIZE_SECTORS must be a positive integer"
 [[ "${RUNNER_KEEP_RUNS}" =~ ^[1-9][0-9]*$ ]] ||
     die "RUNNER_KEEP_RUNS must be a positive integer"
 [[ "${QEMU_NETWORK_MAC}" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] ||
@@ -202,6 +208,11 @@ case "${QEMU_GL_DISPLAY}" in
     auto | egl-headless | gtk | sdl) ;;
     *) die "QEMU_GL_DISPLAY must be 'auto', 'egl-headless', 'gtk', or 'sdl': ${QEMU_GL_DISPLAY}" ;;
 esac
+
+if [[ "${DEBUG_QEMU_GUI:-y}" == "y" && "${NOGUI:-0}" != "1" && "${QEMU_GPU_BACKEND}" == "virgl" && "${QEMU_GL_DISPLAY}" == "auto" ]]; then
+    echo "[fallback] virgl GUI disabled: automatic GL contexts are unreliable on this QEMU host; set QEMU_GL_DISPLAY=gtk or sdl to opt in"
+    QEMU_GPU_BACKEND="2d"
+fi
 
 need_cmd qemu-system-x86_64
 need_cmd dd
@@ -281,16 +292,20 @@ cp "${OVMF_VARS_TEMPLATE}" "${OVMF_VARS}"
 OS_DISK="${ARTIFACT_DIR}/disk.img"
 if [[ "${SMOKE_TEST:-0}" == "1" ]]; then
     OS_DISK="${RUN_DIR}/disk.img"
+    if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] copying isolated disk for this boot"; fi
     cp --reflink=auto --sparse=always "${ARTIFACT_DIR}/disk.img" "${OS_DISK}"
 fi
 : > "${SERIAL_LOG}"
 
 if [[ -n "${SMOKE_USER_DATABASE_FIXTURE}" ]]; then
     need_file "${SMOKE_USER_DATABASE_FIXTURE}"
-    ROOTFS_START_SECTOR=$((2048 + IMAGE_ESP_SIZE_MB * 2048))
-    ROOTFS_SIZE_SECTORS=$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))
-    dd if="${OS_DISK}" of="${ROOTFS_IMAGE}" bs=512 \
-        skip="${ROOTFS_START_SECTOR}" count="${ROOTFS_SIZE_SECTORS}" status=none
+    if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] extracting selected system partition"; fi
+    dd if="${OS_DISK}" of="${ROOTFS_IMAGE}" bs=1M iflag=skip_bytes,count_bytes \
+        skip="$((SMOKE_ROOTFS_START_SECTOR * 512))" \
+        count="$((SMOKE_ROOTFS_SIZE_SECTORS * 512))" status=none
+    [[ $(stat -c %s "${ROOTFS_IMAGE}") -eq $((SMOKE_ROOTFS_SIZE_SECTORS * 512)) ]] ||
+        die "selected system partition extraction was incomplete"
+    if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] preparing isolated test account"; fi
     debugfs -w -R 'rm /system/users/users.db' "${ROOTFS_IMAGE}" >/dev/null 2>&1
     debugfs -w -R "write ${SMOKE_USER_DATABASE_FIXTURE} /system/users/users.db" \
         "${ROOTFS_IMAGE}" >/dev/null 2>&1 ||
@@ -298,9 +313,11 @@ if [[ -n "${SMOKE_USER_DATABASE_FIXTURE}" ]]; then
     debugfs -w -R 'set_inode_field /system/users/users.db mode 0100600' \
         "${ROOTFS_IMAGE}" >/dev/null 2>&1 ||
         die "could not secure the isolated smoke user database"
-    dd if="${ROOTFS_IMAGE}" of="${OS_DISK}" bs=512 \
-        seek="${ROOTFS_START_SECTOR}" conv=notrunc status=none
+    if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] writing selected system partition back to test disk"; fi
+    dd if="${ROOTFS_IMAGE}" of="${OS_DISK}" bs=1M oflag=seek_bytes \
+        seek="$((SMOKE_ROOTFS_START_SECTOR * 512))" conv=notrunc status=none
     rm -f "${ROOTFS_IMAGE}"
+    if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] test disk ready; starting QEMU"; fi
 fi
 
 QEMU_MACHINE="q35,accel=${QEMU_ACCEL}"
@@ -387,7 +404,14 @@ if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
         QEMU_ARGS+=(-monitor none)
     fi
 elif [[ "${QEMU_VIRTIO_GPU_ENABLED}" == "y" && "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
-    QEMU_ARGS+=(-display gtk,gl=on,window-close=off -monitor none)
+    if [[ "${QEMU_GL_DISPLAY}" == "auto" ]]; then
+        QEMU_GL_DISPLAY="sdl"
+    fi
+    case "${QEMU_GL_DISPLAY}" in
+        gtk) QEMU_ARGS+=(-display gtk,gl=on,window-close=off -monitor none) ;;
+        sdl) QEMU_ARGS+=(-display sdl,gl=on,window-close=off -monitor none) ;;
+        egl-headless) die "QEMU_GL_DISPLAY=egl-headless cannot provide a GUI window; use sdl or gtk" ;;
+    esac
 else
     QEMU_ARGS+=(-display gtk,window-close=off -monitor none)
 fi
@@ -685,6 +709,9 @@ while ((SECONDS < DEADLINE)); do
         if [[ "${line}" == *"PAGE FAULT"* || "${line}" == *"Faulting user context:"* || "${line}" == *"panic"* || "${line}" == *"Error: MochiOs("* ]]; then
             die "fatal runtime error observed during QEMU run"
         fi
+        if [[ "${line}" == *"cext: no boot bundles loaded"* || "${line}" == *"core.service: manifest read timed out"* ]]; then
+            die "boot filesystem unavailable during QEMU run; see ${SERIAL_LOG}"
+        fi
     done < <(sed -n "${NEXT_LINE},\$p" "${SERIAL_LOG}")
 
     NEXT_LINE="$(($(wc -l < "${SERIAL_LOG}") + 1))"
@@ -923,10 +950,8 @@ if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
 fi
 
 if [[ "${SMOKE_CHECK_SERVICE_LOGS}" == "1" ]]; then
-    ROOTFS_START_SECTOR=$((2048 + IMAGE_ESP_SIZE_MB * 2048))
-    ROOTFS_SIZE_SECTORS=$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))
     dd if="${OS_DISK}" of="${ROOTFS_IMAGE}" bs=512 \
-        skip="${ROOTFS_START_SECTOR}" count="${ROOTFS_SIZE_SECTORS}" status=none
+        skip="${SMOKE_ROOTFS_START_SECTOR}" count="${SMOKE_ROOTFS_SIZE_SECTORS}" status=none
     debugfs -R 'cat /system/logs/services/drivers.log' "${ROOTFS_IMAGE}" \
         > "${DRIVERS_LOG}" 2>/dev/null || die "drivers.service log could not be read"
     debugfs -R 'cat /system/logs/services/display.driver.log' "${ROOTFS_IMAGE}" \

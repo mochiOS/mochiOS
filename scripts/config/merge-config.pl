@@ -125,7 +125,7 @@ sub validate_value {
         return;
     }
 
-    if ($key =~ /^(USER_BUILD_SELFTESTS|USER_BUILD_MPK_SAMPLES)$/) {
+    if ($key =~ /^(USER_BUILD_SELFTESTS|USER_BUILD_MPK_SAMPLES|DEVELOPMENT_DEFAULT_ACCOUNT)$/) {
         validate_bool($key, $value);
         return;
     }

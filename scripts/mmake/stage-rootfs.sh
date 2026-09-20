@@ -12,15 +12,26 @@ config=$root/.config
 
 rm -rf "$stage.new"
 stage_new=$stage.new
-mkdir -p "$stage_new/bin" "$stage_new/tmp" "$stage_new/var/config" "$stage_new/libraries/system" "$stage_new/libraries/applications" "$stage_new/system/logs" "$stage_new/system/packages" "$stage_new/system/services"
+mkdir -p "$stage_new/bin" "$stage_new/tmp" "$stage_new/var/config" "$stage_new/var/lib/diagnostics" "$stage_new/libraries/system" "$stage_new/libraries/applications" "$stage_new/system/logs" "$stage_new/system/packages" "$stage_new/system/services"
+chmod 0700 "$stage_new/var/lib/diagnostics"
 chmod 01777 "$stage_new/tmp"
-for category in account appearance general input network security; do mkdir -p "$stage_new/var/config/$category"; chmod 0777 "$stage_new/var/config/$category"; done
+for category in account appearance diagnostics general input network security; do mkdir -p "$stage_new/var/config/$category"; chmod 0777 "$stage_new/var/config/$category"; done
 printf 'format=1\n' > "$stage_new/system/.installed"
 chmod 0644 "$stage_new/system/.installed"
 
 cp -a "$root/resources/." "$stage_new/"
 chmod 0600 "$stage_new/system/users/users.db"
 for directory in Desktop Documents Downloads Movies Music Pictures; do mkdir -p "$stage_new/home/root/$directory"; chmod 0700 "$stage_new/home/root/$directory"; done
+if grep -qx 'DEVELOPMENT_DEFAULT_ACCOUNT=y' "$config"; then
+    install -m 0600 "$root/scripts/mmake/development-users.db" "$stage_new/system/users/users.db"
+    printf 'auto_login=true\nauto_login_user=testuser\n' > "$stage_new/var/config/account/settings.conf"
+    chmod 0644 "$stage_new/var/config/account/settings.conf"
+    : > "$stage_new/.mochios-ownership"
+    printf 'home/testuser 1000 1000\n' >> "$stage_new/.mochios-ownership"
+    for directory in Desktop Documents Downloads Movies Music Pictures; do mkdir -p "$stage_new/home/testuser/$directory"; chmod 0700 "$stage_new/home/testuser/$directory"; done
+    chmod 0700 "$stage_new/home/testuser"
+    for directory in Desktop Documents Downloads Movies Music Pictures; do printf 'home/testuser/%s 1000 1000\n' "$directory" >> "$stage_new/.mochios-ownership"; done
+fi
 mkdir -p "$stage_new/libraries/fonts" "$stage_new/system/resources/msh"
 cp -a "$root/libraries/fonts/out/fonts/." "$stage_new/libraries/fonts/"
 rm -f "$stage_new/libraries/fonts/.installed"
@@ -57,7 +68,6 @@ stage_app() {
 
 stage_app "$root/applications/binder" Binder.app binder
 for resource in appicon.svg close.svg maximize.svg minimize.svg mochios.svg; do install -m 0644 "$root/applications/binder/resources/$resource" "$stage_new/applications/Binder.app/$resource"; done
-if [[ -d $root/applications/binder/resources/apps ]]; then cp -a "$root/applications/binder/resources/apps/." "$stage_new/applications/"; fi
 stage_app "$root/applications/appstore" AppStore.app appstore
 stage_app "$root/applications/test.app" test.app test_app
 stage_app "$root/applications/terminal" Terminal.app terminal appicon.svg

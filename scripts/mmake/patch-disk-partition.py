@@ -13,7 +13,7 @@ def identity(path: Path) -> dict[str, int]:
     return {"device": value.st_dev, "inode": value.st_ino, "size": value.st_size, "mtime_ns": value.st_mtime_ns}
 
 
-def load_state(path: Path) -> dict[str, int] | None:
+def load_state(path: Path) -> dict[str, object] | None:
     try:
         value = json.loads(path.read_text())
     except (FileNotFoundError, json.JSONDecodeError, OSError):
@@ -39,7 +39,7 @@ def dirty_ranges(path: Path, current: dict[str, int]) -> list[tuple[int, int]] |
     return result
 
 
-def save_state(path: Path, value: dict[str, int]) -> None:
+def save_state(path: Path, value: dict[str, object]) -> None:
     temporary = path.with_suffix(path.suffix + ".new")
     temporary.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
     os.replace(temporary, path)
@@ -103,24 +103,47 @@ def main() -> None:
     size = int(sys.argv[4]) * 1024 * 1024
     state_path = Path(sys.argv[5])
     dirty_path = Path(sys.argv[6])
-    current = identity(source_path)
+    source_identity = identity(source_path)
+    destination_identity = identity(destination_path)
+    destination_backing = {
+        "device": destination_identity["device"],
+        "inode": destination_identity["inode"],
+        "size": destination_identity["size"],
+    }
+    current_state = {
+        "version": 2,
+        "source": source_identity,
+        "destination": destination_backing,
+        "offset": offset,
+        "size": size,
+    }
     previous = load_state(state_path)
-    if previous == current:
+    if previous == current_state:
         return
-    if current["size"] > size:
+    if source_identity["size"] > size:
         raise SystemExit(f"partition image is larger than its destination: {source_path}")
 
-    same_backing_image = previous is None or (
-        previous.get("device") == current["device"]
-        and previous.get("inode") == current["inode"]
-        and previous.get("size") == current["size"]
+    previous_source = previous.get("source") if isinstance(previous, dict) else None
+    previous_destination = previous.get("destination") if isinstance(previous, dict) else None
+    same_source_backing = isinstance(previous_source, dict) and all(
+        previous_source.get(key) == source_identity[key]
+        for key in ("device", "inode", "size")
     )
-    ranges = dirty_ranges(dirty_path, current) if same_backing_image else None
+    same_destination_backing = (
+        previous_destination == destination_backing
+        and previous.get("offset") == offset
+        and previous.get("size") == size
+    )
+    ranges = (
+        dirty_ranges(dirty_path, source_identity)
+        if same_source_backing and same_destination_backing
+        else None
+    )
     with source_path.open("rb", buffering=0) as source_file, destination_path.open("r+b", buffering=0) as destination_file:
-        selected_ranges = ranges if ranges is not None else data_ranges(source_file.fileno(), size, not same_backing_image)
+        selected_ranges = ranges if ranges is not None else data_ranges(source_file.fileno(), size, True)
         for start, end in selected_ranges:
             patch_range(source_file.fileno(), destination_file.fileno(), offset, start, end)
-    save_state(state_path, current)
+    save_state(state_path, current_state)
     dirty_path.unlink(missing_ok=True)
 
 

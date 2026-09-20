@@ -4,7 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
-RUN_DIR="$(mktemp -d "/tmp/mochios-ext2-write-test.XXXXXX")"
+MSIGN="${MSIGN:-${ROOT_DIR}/out/mmake/host-tools/release/msign}"
+TEST_OUTPUT_ROOT="${EXT2_TEST_OUTPUT_ROOT:-${ROOT_DIR}/out/mmake}"
+SELFTEST_BINARY="${SELFTEST_BINARY:-${TEST_OUTPUT_ROOT}/image/rootfs/bin/selftest-ext2-write}"
+mkdir -p "${TEST_OUTPUT_ROOT}"
+RUN_DIR="$(mktemp -d "${TEST_OUTPUT_ROOT}/ext2-write-test.XXXXXX")"
+export TMPDIR="${RUN_DIR}"
 DISK_IMAGE="${RUN_DIR}/disk.img"
 ROOTFS_IMAGE="${RUN_DIR}/rootfs.img"
 OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
@@ -36,13 +41,19 @@ for command in qemu-system-x86_64 dd debugfs dumpe2fs e2fsck; do
     command -v "${command}" >/dev/null 2>&1 || die "required command not found: ${command}"
 done
 [[ -f "${ARTIFACT_DIR}/disk.img" ]] || die "missing ${ARTIFACT_DIR}/disk.img"
-[[ -f "${ARTIFACT_DIR}/selftest-ext2-write" ]] || die "missing selftest-ext2-write artifact"
+[[ -f "${SELFTEST_BINARY}" ]] || die "missing mmake-built selftest-ext2-write: ${SELFTEST_BINARY}"
+[[ -x "${MSIGN}" ]] || die "missing built-in record tool: ${MSIGN}"
 [[ -f "${OVMF_CODE}" ]] || die "missing ${OVMF_CODE}"
 [[ -f "${OVMF_VARS_TEMPLATE}" ]] || die "missing ${OVMF_VARS_TEMPLATE}"
-if [[ "${QEMU_ACCEL}" == "kvm" ]]; then
+if [[ "${EXT2_TEST_PREPARE_ONLY:-0}" == "1" ]]; then
+    QEMU_CPU=qemu64
+elif [[ "${QEMU_ACCEL}" == "kvm" ]]; then
     [[ -r /dev/kvm && -w /dev/kvm ]] || die "KVM requested but unavailable"
+    QEMU_CPU=host
 elif [[ "${QEMU_ACCEL}" != "tcg" ]]; then
     die "QEMU_ACCELERATOR must be kvm or tcg"
+else
+    QEMU_CPU=qemu64
 fi
 
 # shellcheck disable=SC1091
@@ -56,25 +67,34 @@ extract_rootfs() {
         skip="${ROOTFS_START_SECTOR}" count="${ROOTFS_SIZE_SECTORS}" status=none
 }
 
+install_test_manifest() {
+    local package=$1 fixture=$2 record="${RUN_DIR}/${1}.verification.bin"
+    "${MSIGN}" package built-in-record "${fixture}" --output "${record}"
+    debugfs -w -R "rm /system/packages/${package}/manifest.toml" "${ROOTFS_IMAGE}" >/dev/null 2>&1
+    debugfs -w -R "write ${fixture} /system/packages/${package}/manifest.toml" \
+        "${ROOTFS_IMAGE}" >/dev/null 2>&1
+    debugfs -w -R "rm /system/packages/${package}/verification.bin" "${ROOTFS_IMAGE}" >/dev/null 2>&1
+    debugfs -w -R "write ${record} /system/packages/${package}/verification.bin" \
+        "${ROOTFS_IMAGE}" >/dev/null 2>&1
+    cmp -s "${fixture}" <(debugfs -R "cat /system/packages/${package}/manifest.toml" \
+        "${ROOTFS_IMAGE}" 2>/dev/null) || die "${package} test manifest was not installed"
+    cmp -s "${record}" <(debugfs -R "cat /system/packages/${package}/verification.bin" \
+        "${ROOTFS_IMAGE}" 2>/dev/null) || die "${package} test verification record was not installed"
+}
+
 install_test_entrypoint() {
     extract_rootfs
-    debugfs -w -R 'rm /bin/msh' "${ROOTFS_IMAGE}" >/dev/null 2>&1
-    debugfs -w -R "write ${ARTIFACT_DIR}/selftest-ext2-write /bin/msh" \
+    debugfs -w -R 'rm /applications/Binder.app/entry.elf' "${ROOTFS_IMAGE}" >/dev/null 2>&1
+    debugfs -w -R "write ${SELFTEST_BINARY} /applications/Binder.app/entry.elf" \
         "${ROOTFS_IMAGE}" >/dev/null 2>&1
-    debugfs -w -R 'set_inode_field /bin/msh mode 0100755' \
+    debugfs -w -R 'set_inode_field /applications/Binder.app/entry.elf mode 0100755' \
         "${ROOTFS_IMAGE}" >/dev/null 2>&1
-    debugfs -w -R 'rm /system/packages/msh/manifest.toml' \
+    debugfs -R "dump /applications/Binder.app/entry.elf ${RUN_DIR}/installed-selftest" \
         "${ROOTFS_IMAGE}" >/dev/null 2>&1
-    debugfs -w -R "write ${SCRIPT_DIR}/fixtures/ext2-write-msh-manifest.toml /system/packages/msh/manifest.toml" \
-        "${ROOTFS_IMAGE}" >/dev/null 2>&1
-    debugfs -w -R 'rm /system/packages/service-manager/manifest.toml' \
-        "${ROOTFS_IMAGE}" >/dev/null 2>&1
-    debugfs -w -R "write ${SCRIPT_DIR}/fixtures/ext2-write-service-manager-manifest.toml /system/packages/service-manager/manifest.toml" \
-        "${ROOTFS_IMAGE}" >/dev/null 2>&1
-    debugfs -w -R 'rm /system/packages/tty/manifest.toml' \
-        "${ROOTFS_IMAGE}" >/dev/null 2>&1
-    debugfs -w -R "write ${SCRIPT_DIR}/fixtures/ext2-write-tty-manifest.toml /system/packages/tty/manifest.toml" \
-        "${ROOTFS_IMAGE}" >/dev/null 2>&1
+    cmp -s "${SELFTEST_BINARY}" "${RUN_DIR}/installed-selftest" ||
+        die "selftest entrypoint was not installed"
+    install_test_manifest binder "${SCRIPT_DIR}/fixtures/ext2-write-binder-manifest.toml"
+    e2fsck -fn "${ROOTFS_IMAGE}" >&2 || die "e2fsck failed before guest boot"
     dd if="${ROOTFS_IMAGE}" of="${DISK_IMAGE}" bs=512 \
         seek="${ROOTFS_START_SECTOR}" conv=notrunc status=none
 }
@@ -86,6 +106,9 @@ wait_for_log() {
     until grep -Fq "${pattern}" "${log}"; do
         ((SECONDS < deadline)) || die "timed out waiting for '${pattern}' in ${log}"
         kill -0 "${QEMU_PID}" 2>/dev/null || die "QEMU exited while waiting for '${pattern}'"
+        if grep -Fq 'selftest-ext2-write: FAIL' "${log}"; then
+            die "guest self-test failed; see ${log}"
+        fi
         if grep -Fq 'Process exiting with code: 1' "${log}"; then
             die "guest self-test failed while waiting for '${pattern}' in ${log}"
         fi
@@ -102,17 +125,19 @@ boot_and_wait() {
 
     qemu-system-x86_64 \
         -machine "q35,accel=${QEMU_ACCEL}" \
-        -m 512M -smp 1 -cpu qemu64 -no-reboot -display none -monitor none \
+        -m 1G -smp 1 -cpu "${QEMU_CPU}" -no-reboot -display none -monitor none \
         -serial "file:${log}" \
         -drive "if=pflash,format=raw,readonly=on,file=${OVMF_CODE}" \
         -drive "if=pflash,format=raw,file=${vars}" \
         -drive "id=osdisk,if=none,format=raw,file=${DISK_IMAGE}" \
-        -device "virtio-blk-pci,disable-modern=on,drive=osdisk,bootindex=1" &
+        -device "virtio-blk-pci,disable-modern=on,drive=osdisk,bootindex=1" \
+        -object "rng-random,id=rng0,filename=/dev/urandom" \
+        -device "virtio-rng-pci,rng=rng0" &
     QEMU_PID=$!
 
     wait_for_log "${log}" "selftest-ext2-write: pass ${mode}"
-    grep -Fq "exec: loaded '/system/services/tty.service'" "${log}" ||
-        die "existing tty.service did not execute during ${mode} boot"
+    grep -Fq "exec: loaded '/applications/Binder.app/entry.elf'" "${log}" ||
+        die "test entrypoint did not execute during ${mode} boot"
     if grep -Eq 'PAGE FAULT|Faulting user context:|panic' "${log}"; then
         die "fault or panic during selftest-ext2-write ${mode}"
     fi
@@ -134,21 +159,31 @@ prepare_enospc_disk() {
     local before
     local filler_blocks
     local after
+    local filler_size
+    local reserve_blocks=4096
+    local stat_output
 
     extract_rootfs
     printf 'enospc\n' >"${marker_source}"
     debugfs -w -R "write ${marker_source} /tmp/ext2-write-enospc.mode" \
         "${ROOTFS_IMAGE}" >/dev/null 2>&1
     before="$(free_blocks)"
-    ((before > 128)) || die "not enough free blocks to prepare ENOSPC fixture"
-    filler_blocks=$((before - 128))
+    ((before > reserve_blocks * 2)) || die "not enough free blocks to prepare ENOSPC fixture"
+    filler_blocks=$((before - reserve_blocks))
     dd if=/dev/urandom of="${filler_source}" bs=4096 count="${filler_blocks}" status=none
     debugfs -w -R "write ${filler_source} /ext2-write-enospc-filler" \
         "${ROOTFS_IMAGE}" >/dev/null 2>&1
+    stat_output="$(LC_ALL=C debugfs -R 'stat /ext2-write-enospc-filler' \
+        "${ROOTFS_IMAGE}" 2>/dev/null)"
+    [[ "${stat_output}" =~ Size:[[:space:]]*([0-9]+) ]] ||
+        die "ENOSPC filler inode was not created"
+    filler_size="${BASH_REMATCH[1]}"
+    ((filler_size == filler_blocks * 4096)) ||
+        die "ENOSPC filler was truncated: expected $((filler_blocks * 4096)) bytes, got ${filler_size}"
     after="$(free_blocks)"
-    ((after > 0 && after < 1036)) ||
-        die "ENOSPC fixture left unexpected free block count: ${after}"
-    e2fsck -fn "${ROOTFS_IMAGE}" >/dev/null || die "e2fsck failed before ENOSPC boot"
+    ((after >= reserve_blocks / 2 && after <= reserve_blocks)) ||
+        die "ENOSPC fixture left unexpected free block count: ${after} (target ${reserve_blocks})"
+    e2fsck -fn "${ROOTFS_IMAGE}" >&2 || die "e2fsck failed before ENOSPC boot"
     dd if="${ROOTFS_IMAGE}" of="${DISK_IMAGE}" bs=512 \
         seek="${ROOTFS_START_SECTOR}" conv=notrunc status=none
 }
@@ -158,10 +193,15 @@ extract_and_check() {
     extract_rootfs
     [[ "$(debugfs -R "cat ${marker}" "${ROOTFS_IMAGE}" 2>/dev/null)" == "pass" ]] ||
         die "missing successful guest marker ${marker}"
-    e2fsck -fn "${ROOTFS_IMAGE}" >/dev/null || die "e2fsck failed after ${marker}"
+    e2fsck -fn "${ROOTFS_IMAGE}" >&2 || die "e2fsck failed after ${marker}"
 }
 
 install_test_entrypoint
+if [[ "${EXT2_TEST_PREPARE_ONLY:-0}" == "1" ]]; then
+    prepare_enospc_disk
+    echo "ext2 write and ENOSPC fixtures validated"
+    exit 0
+fi
 boot_and_wait prepare
 extract_and_check /tmp/ext2-write-prepare.pass
 boot_and_wait verify
@@ -169,6 +209,6 @@ extract_and_check /tmp/ext2-write-verify.pass
 prepare_enospc_disk
 boot_and_wait enospc
 extract_rootfs
-e2fsck -fn "${ROOTFS_IMAGE}" >/dev/null || die "e2fsck failed after ENOSPC boot"
+e2fsck -fn "${ROOTFS_IMAGE}" >&2 || die "e2fsck failed after ENOSPC boot"
 
 echo "ext2 write persistence test passed (${QEMU_ACCEL})"

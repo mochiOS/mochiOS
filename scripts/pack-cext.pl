@@ -3,19 +3,36 @@ use strict;
 use warnings;
 use Getopt::Long qw(GetOptions);
 
-my ($name, $version, $elf, $out);
+my ($manifest, $elf, $out);
 my @deps;
 
 GetOptions(
-    'name=s'    => \$name,
-    'version=i' => \$version,
+    'manifest=s' => \$manifest,
     'elf=s'     => \$elf,
     'out=s'     => \$out,
     'dep=s'     => \@deps,
-) or die "usage: $0 --name NAME --version N --elf MODULE.elf --out entry [--dep disk]\n";
+) or die "usage: $0 --manifest manifest.toml --elf MODULE.elf --out entry [--dep disk]\n";
 
-defined $name && defined $version && defined $elf && defined $out
+defined $manifest && defined $elf && defined $out
     or die "missing required arguments\n";
+
+open my $manifest_fh, '<', $manifest or die "open $manifest: $!";
+my ($name, $version, $abi);
+my $section = '';
+while (my $line = <$manifest_fh>) {
+    $line =~ s/#.*$//;
+    if ($line =~ /^\s*\[([^]]+)\]\s*$/) {
+        $section = $1;
+        next;
+    }
+    next unless $section eq 'cext';
+    $name = $1 if $line =~ /^\s*name\s*=\s*"([^"]+)"\s*$/;
+    $version = $1 if $line =~ /^\s*version\s*=\s*(\d+)\s*$/;
+    $abi = $1 if $line =~ /^\s*abi\s*=\s*(\d+)\s*$/;
+}
+close $manifest_fh;
+defined $name && defined $version && defined $abi && $abi > 0 && $abi <= 65535
+    or die "invalid cext name, version, or ABI in $manifest\n";
 
 open my $elf_fh, '<:raw', $elf or die "open $elf: $!";
 local $/ = undef;
@@ -31,7 +48,7 @@ for my $dep (@deps) {
 
 open my $out_fh, '>:raw', $out or die "open $out: $!";
 print {$out_fh} "MCEX";
-print {$out_fh} pack('v', 3);
+print {$out_fh} pack('v', $abi);
 print {$out_fh} pack('v', $version);
 print {$out_fh} pack('v', $name_len);
 print {$out_fh} pack('v', $dep_count);

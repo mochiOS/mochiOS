@@ -60,7 +60,7 @@ install -m 0755 "$root/out/newlib-port/hello/hello.elf" "$stage_new/system/bin/h
 for program in rust-std-demo test_app msh; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done
 coreutils=(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc test_gui test_desktop)
 grep -qx 'KERNEL_PERFORMANCE_INSTRUMENTATION=y' "$config" && coreutils+=(mperf) || true
-grep -qx 'USER_BUILD_SELFTESTS=y' "$config" && coreutils+=(selftest-capability selftest-process selftest-ext2-write) || true
+grep -qx 'USER_BUILD_SELFTESTS=y' "$config" && coreutils+=(selftest-capability selftest-process selftest-ext2-write selftest-system-layout) || true
 for program in "${coreutils[@]}"; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done
 
 install_manifest() {

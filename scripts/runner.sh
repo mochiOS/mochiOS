@@ -70,6 +70,7 @@ SMOKE_USER_DATABASE_FIXTURE="${SMOKE_USER_DATABASE_FIXTURE:-}"
 SMOKE_AUTO_LOGIN="${SMOKE_AUTO_LOGIN:-0}"
 SMOKE_CHECK_SERVICE_LOGS="${SMOKE_CHECK_SERVICE_LOGS:-0}"
 SMOKE_EXPECT_SYSTEM_REJECTION="${SMOKE_EXPECT_SYSTEM_REJECTION:-0}"
+SMOKE_EXPECT_SYSTEM_LAYOUT_PASS="${SMOKE_EXPECT_SYSTEM_LAYOUT_PASS:-0}"
 SMOKE_ROOTFS_START_SECTOR="${SMOKE_ROOTFS_START_SECTOR:-$((2048 + IMAGE_ESP_SIZE_MB * 2048))}"
 SMOKE_ROOTFS_SIZE_SECTORS="${SMOKE_ROOTFS_SIZE_SECTORS:-$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))}"
 SMOKE_DATA_START_SECTOR="${SMOKE_DATA_START_SECTOR:-${SMOKE_ROOTFS_START_SECTOR}}"
@@ -160,6 +161,14 @@ esac
 case "${SMOKE_CHECK_SERVICE_LOGS}" in
     0|1) ;;
     *) die "SMOKE_CHECK_SERVICE_LOGS must be 0 or 1" ;;
+esac
+case "${SMOKE_EXPECT_SYSTEM_REJECTION}" in
+    0|1) ;;
+    *) die "SMOKE_EXPECT_SYSTEM_REJECTION must be 0 or 1" ;;
+esac
+case "${SMOKE_EXPECT_SYSTEM_LAYOUT_PASS}" in
+    0|1) ;;
+    *) die "SMOKE_EXPECT_SYSTEM_LAYOUT_PASS must be 0 or 1" ;;
 esac
 [[ "${SMOKE_ROOTFS_START_SECTOR}" =~ ^[1-9][0-9]*$ ]] ||
     die "SMOKE_ROOTFS_START_SECTOR must be a positive integer"
@@ -729,6 +738,12 @@ while ((SECONDS < DEADLINE)); do
         COMPLETED=1
         break
     fi
+    if [[ "${SMOKE_EXPECT_SYSTEM_LAYOUT_PASS}" == "1" ]] \
+        && log_has "selftest-system-layout: pass"; then
+        ! log_has "selftest-system-layout: FAIL" || die "System/Data layout selftest failed"
+        COMPLETED=1
+        break
+    fi
 
     if [[ "${SMOKE_AUTO_LOGIN}" == "1" && "${LOGIN_SENT}" == "0" ]] \
         && log_has "exec: loaded '/system/services/secure-ui.service'"; then
@@ -779,6 +794,11 @@ done
 if [[ "${SMOKE_EXPECT_SYSTEM_REJECTION}" == "1" ]]; then
     ! log_has "kernel: start" || die "kernel started after System signature rejection"
     echo "[done] unsigned or modified System was rejected before kernel load"
+    echo "[done] serial log: ${SERIAL_LOG}"
+    exit 0
+fi
+if [[ "${SMOKE_EXPECT_SYSTEM_LAYOUT_PASS}" == "1" ]]; then
+    echo "[done] System is read-only and Data libraries are writable under KVM"
     echo "[done] serial log: ${SERIAL_LOG}"
     exit 0
 fi

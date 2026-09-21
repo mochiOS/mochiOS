@@ -73,7 +73,7 @@ for slot in A B; do
     cmp -s "$kernel" "$temp_dir/$slot.kernel.elf"
     cmp -s "$kernel_meta" "$temp_dir/$slot.kernel.meta"
     cmp -s "$initfs" "$temp_dir/$slot.initfs.img"
-    [[ $(stat -c %s "$temp_dir/$slot.system.manifest") -eq 196 ]] || {
+    [[ $(stat -c %s "$temp_dir/$slot.system.manifest") -eq 292 ]] || {
         echo "invalid System signature manifest for slot $slot" >&2; exit 1;
     }
 done

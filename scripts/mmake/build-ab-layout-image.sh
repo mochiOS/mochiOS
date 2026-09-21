@@ -73,8 +73,10 @@ else
     [[ -n $signing_key ]] || { echo "MOCHIOS_SYSTEM_SIGNING_KEY is required for production System images" >&2; exit 1; }
 fi
 manifest=$image_dir/system.manifest.new
-"$sign_tool" "$system_image" "$manifest" "$signing_key" \
-    "${MOCHIOS_VERSION:-26.0.0}" "${MOCHIOS_BUILD_NUMBER:-0}" x86_64 "$public_key"
+"$sign_tool" "$system_image" "$mmake_out/components/kernel.elf" \
+    "$mmake_out/components/kernel.meta" "$mmake_out/image/initfs.img" \
+    "$manifest" "$signing_key" \
+    "${MOCHIOS_VERSION:-26.0.0}" "${MOCHIOS_BUILD_NUMBER:-1}" x86_64 "$public_key"
 export MTOOLS_SKIP_CHECK=1
 for slot in A B; do
     mcopy -o -i "$esp_image" "$manifest" "::/slots/$slot/system.manifest"

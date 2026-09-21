@@ -24,8 +24,10 @@ debugfs -w -R 'rm /system/services/secure-ui.service' "$system_image" >/dev/null
 debugfs -w -R "write $selftest /system/services/secure-ui.service" "$system_image" >/dev/null 2>&1
 debugfs -w -R 'set_inode_field /system/services/secure-ui.service mode 0100755' "$system_image" >/dev/null 2>&1
 manifest=$test_dir/system.manifest
-"$sign_tool" "$system_image" "$manifest" "$root/tools/devkit/fixtures/development/root.key" \
-    "${MOCHIOS_VERSION:-26.0.0}" "${MOCHIOS_BUILD_NUMBER:-0}" x86_64 \
+"$sign_tool" "$system_image" "$root/out/mmake/components/kernel.elf" \
+    "$root/out/mmake/components/kernel.meta" "$root/out/mmake/image/initfs.img" \
+    "$manifest" "$root/tools/devkit/fixtures/development/root.key" \
+    "${MOCHIOS_VERSION:-26.0.0}" "${MOCHIOS_BUILD_NUMBER:-1}" x86_64 \
     'k0Ja3inoDQGAO74BWDx4pIZsCSDB/hdIt7iaspNKL/Q='
 MTOOLS_SKIP_CHECK=1 mcopy -o -i "$esp_image" "$manifest" ::/slots/A/system.manifest
 dd if="$system_image" of="$image" bs=512 seek="$system_start" conv=notrunc status=none

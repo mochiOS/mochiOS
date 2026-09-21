@@ -47,7 +47,7 @@ grep -Fq "$boot_marker" "$serial" || {
     echo "bootloader did not validate the A/B boot-state partition: $serial" >&2
     exit 1
 }
-grep -Fq "System $slot signature verified" "$serial" || {
+grep -Fq "System $slot boot chain signature verified" "$serial" || {
     echo "bootloader did not verify System $slot before kernel load: $serial" >&2
     exit 1
 }

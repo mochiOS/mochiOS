@@ -15,7 +15,8 @@ command -v timeout >/dev/null || { echo "timeout is required" >&2; exit 1; }
 
 echo "[trial] boot 1/2: system B as a pending trial"
 log=$test_dir/trial-b.log
-if ! KEEP_SMOKE_ARTIFACTS=1 timeout --signal=TERM --kill-after=10s 240s \
+if ! KEEP_SMOKE_ARTIFACTS=1 QEMU_NETWORK_SETTLE_SECONDS=10 \
+    timeout --signal=TERM --kill-after=10s 240s \
     bash "$root/scripts/tests/ab-layout-kvm-test.sh" "$root" "$trial_image" B trial:2 \
     2>&1 | tee "$log"; then
     echo "trial B boot failed or timed out; see $log" >&2; exit 1
@@ -36,9 +37,13 @@ state_size=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Boo
 state_image=$test_dir/attempted-state.img
 dd if="$trial_disk" of="$state_image" bs=1M skip="$((state_start / 2048))" count=1 status=none
 [[ $(stat -c %s "$state_image") -eq 1048576 ]] || { echo "incomplete boot-state extraction" >&2; exit 1; }
-"$confirm_tool" "$state_image"
-dd if="$state_image" of="$trial_disk" bs=1M seek="$((state_start / 2048))" conv=notrunc,fsync status=none
-cmp -s "$state_image" <(dd if="$trial_disk" bs=1M skip="$((state_start / 2048))" count=1 status=none)
+if "$confirm_tool" "$state_image" >"$test_dir/confirm.log" 2>&1; then
+    echo "update.service did not confirm the successful trial boot" >&2
+    exit 1
+fi
+grep -Fq 'no pending system B trial to confirm' "$test_dir/confirm.log" || {
+    echo "confirmed boot-state was not stable B" >&2; exit 1;
+}
 
 echo "[trial] boot 2/2: confirmed system B must remain stable"
 log=$test_dir/stable-b.log
@@ -53,4 +58,4 @@ case "$confirmed_disk" in
     *) echo "unexpected confirmed smoke disk path: $confirmed_disk" >&2; exit 1 ;;
 esac
 rm -f -- "$trial_disk" "$confirmed_disk"
-echo "attempted B was confirmed offline after a successful smoke boot and remained stable B"
+echo "update.service confirmed attempted B after a successful boot and it remained stable B"

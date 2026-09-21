@@ -36,7 +36,7 @@ dd if="$disk" of="$data_image" bs=1M iflag=skip_bytes,count_bytes \
     echo "incomplete data partition extraction" >&2; exit 1;
 }
 debugfs -R 'cat /var/log/services/update.log' "$data_image" >"$test_dir/update.log" 2>"$test_dir/debugfs.log"
-grep -Fq 'update.service: boot system slot=B; install_enabled=false' "$test_dir/update.log" || {
+grep -Fq 'update.service: boot system slot=B' "$test_dir/update.log" || {
     echo "update.service did not observe boot slot B: $test_dir/update.log" >&2; exit 1;
 }
 rm -f -- "$disk"

@@ -15,6 +15,8 @@ esp_image=$image_dir/ab-esp.img
 system_source_image=$image_dir/rootfs.img
 system_image=$image_dir/ab-system.img.new
 boot_image=$image_dir/ab-boot.img.new
+update_boot_image=$image_dir/update-boot.img
+update_system_image=$image_dir/update-system.img
 rootfs_stage=$image_dir/rootfs
 data_stage=$image_dir/ab-data-stage.new
 system_stage=$image_dir/ab-system-stage.new
@@ -113,5 +115,7 @@ dd if="$system_image" of="$temporary" bs=1M seek="$b_start" conv=notrunc,sparse 
 dd if="$data_image" of="$temporary" bs=1M seek="$data_start" conv=notrunc,sparse status=none
 dd if="$state_image" of="$temporary" bs=1M seek="$state_start" conv=notrunc,sparse status=none
 mv -- "$temporary" "$image"
+mv -- "$boot_image" "$update_boot_image"
+mv -- "$system_image" "$update_system_image"
 printf 'layout-only disk=%s esp=%s boot=%s system=%s data=%s state=%s\n' \
     "$disk_mb" "$esp_mb" "$boot_mb" "$system_mb" "$data_mb" "$state_mb"

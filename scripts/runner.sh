@@ -72,6 +72,7 @@ SMOKE_CHECK_SERVICE_LOGS="${SMOKE_CHECK_SERVICE_LOGS:-0}"
 SMOKE_EXPECT_SYSTEM_REJECTION="${SMOKE_EXPECT_SYSTEM_REJECTION:-0}"
 SMOKE_EXPECT_SYSTEM_LAYOUT_PASS="${SMOKE_EXPECT_SYSTEM_LAYOUT_PASS:-0}"
 SMOKE_EXPECT_UEFI_REJECTION="${SMOKE_EXPECT_UEFI_REJECTION:-0}"
+SMOKE_EXPECT_ROLLBACK_REJECTION="${SMOKE_EXPECT_ROLLBACK_REJECTION:-0}"
 SMOKE_ROOTFS_START_SECTOR="${SMOKE_ROOTFS_START_SECTOR:-$((2048 + IMAGE_ESP_SIZE_MB * 2048))}"
 SMOKE_ROOTFS_SIZE_SECTORS="${SMOKE_ROOTFS_SIZE_SECTORS:-$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))}"
 SMOKE_DATA_START_SECTOR="${SMOKE_DATA_START_SECTOR:-${SMOKE_ROOTFS_START_SECTOR}}"
@@ -89,7 +90,8 @@ else
     OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
     OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
 fi
-OVMF_VARS="${RUN_DIR}/OVMF_VARS_4M.fd"
+OVMF_VARS_EXTERNAL="${OVMF_VARS_FILE:-}"
+OVMF_VARS="${OVMF_VARS_EXTERNAL:-${RUN_DIR}/OVMF_VARS_4M.fd}"
 GUI_MODE=1
 if [[ "${DRIVER_XHCI:-n}" == "y" ]]; then
     ENABLE_XHCI="1"
@@ -182,6 +184,10 @@ esac
 case "${SMOKE_EXPECT_UEFI_REJECTION}" in
     0|1) ;;
     *) die "SMOKE_EXPECT_UEFI_REJECTION must be 0 or 1" ;;
+esac
+case "${SMOKE_EXPECT_ROLLBACK_REJECTION}" in
+    0|1) ;;
+    *) die "SMOKE_EXPECT_ROLLBACK_REJECTION must be 0 or 1" ;;
 esac
 case "${QEMU_SECURE_BOOT}" in
     0|1) ;;
@@ -322,7 +328,9 @@ fi
 
 mkdir -p "${RUN_DIR}"
 prune_runner_runs
-cp "${OVMF_VARS_TEMPLATE}" "${OVMF_VARS}"
+if [[ -z "${OVMF_VARS_EXTERNAL}" || ! -f "${OVMF_VARS}" ]]; then
+    cp "${OVMF_VARS_TEMPLATE}" "${OVMF_VARS}"
+fi
 OS_DISK="${ARTIFACT_DIR}/disk.img"
 if [[ "${SMOKE_TEST:-0}" == "1" ]]; then
     OS_DISK="${RUN_DIR}/disk.img"
@@ -505,7 +513,8 @@ cleanup() {
 
 cleanup_files() {
     if [[ "${SMOKE_TEST:-0}" == "1" && "${KEEP_SMOKE_ARTIFACTS:-0}" != "1" ]]; then
-        rm -f "${OS_DISK}" "${ROOTFS_IMAGE}" "${DATA_IMAGE}" "${OVMF_VARS}"
+        rm -f "${OS_DISK}" "${ROOTFS_IMAGE}" "${DATA_IMAGE}"
+        if [[ -z "${OVMF_VARS_EXTERNAL}" ]]; then rm -f "${OVMF_VARS}"; fi
     fi
 }
 
@@ -769,6 +778,11 @@ while ((SECONDS < DEADLINE)); do
         COMPLETED=1
         break
     fi
+    if [[ "${SMOKE_EXPECT_ROLLBACK_REJECTION}" == "1" ]] \
+        && log_has "rollback rejected:"; then
+        COMPLETED=1
+        break
+    fi
 
     if [[ "${SMOKE_AUTO_LOGIN}" == "1" && "${LOGIN_SENT}" == "0" ]] \
         && log_has "exec: loaded '/system/services/secure-ui.service'"; then
@@ -831,6 +845,12 @@ if [[ "${SMOKE_EXPECT_SYSTEM_REJECTION}" == "1" ]]; then
 fi
 if [[ "${SMOKE_EXPECT_SYSTEM_LAYOUT_PASS}" == "1" ]]; then
     echo "[done] System is read-only and Data libraries are writable under KVM"
+    echo "[done] serial log: ${SERIAL_LOG}"
+    exit 0
+fi
+if [[ "${SMOKE_EXPECT_ROLLBACK_REJECTION}" == "1" ]]; then
+    ! log_has "kernel: start" || die "kernel started after rollback rejection"
+    echo "[done] signed build below the persistent rollback floor was rejected"
     echo "[done] serial log: ${SERIAL_LOG}"
     exit 0
 fi

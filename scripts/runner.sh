@@ -69,6 +69,7 @@ MBOOT_VIRTIO_TRACE="${RUN_DIR}/mboot-virtio.trace"
 SMOKE_USER_DATABASE_FIXTURE="${SMOKE_USER_DATABASE_FIXTURE:-}"
 SMOKE_AUTO_LOGIN="${SMOKE_AUTO_LOGIN:-0}"
 SMOKE_CHECK_SERVICE_LOGS="${SMOKE_CHECK_SERVICE_LOGS:-0}"
+SMOKE_EXPECT_SYSTEM_REJECTION="${SMOKE_EXPECT_SYSTEM_REJECTION:-0}"
 SMOKE_ROOTFS_START_SECTOR="${SMOKE_ROOTFS_START_SECTOR:-$((2048 + IMAGE_ESP_SIZE_MB * 2048))}"
 SMOKE_ROOTFS_SIZE_SECTORS="${SMOKE_ROOTFS_SIZE_SECTORS:-$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))}"
 SMOKE_DATA_START_SECTOR="${SMOKE_DATA_START_SECTOR:-${SMOKE_ROOTFS_START_SECTOR}}"
@@ -723,6 +724,12 @@ while ((SECONDS < DEADLINE)); do
 
     NEXT_LINE="$(($(wc -l < "${SERIAL_LOG}") + 1))"
 
+    if [[ "${SMOKE_EXPECT_SYSTEM_REJECTION}" == "1" ]] \
+        && log_has "signature verification failed"; then
+        COMPLETED=1
+        break
+    fi
+
     if [[ "${SMOKE_AUTO_LOGIN}" == "1" && "${LOGIN_SENT}" == "0" ]] \
         && log_has "exec: loaded '/system/services/secure-ui.service'"; then
         if [[ "${LOGIN_READY_AT}" == "0" ]]; then
@@ -768,6 +775,13 @@ done
 
 [[ "${COMPLETED}" == "1" ]] ||
     die "QEMU smoke test timed out after ${QEMU_TIMEOUT_SECONDS}s; see ${SERIAL_LOG}"
+
+if [[ "${SMOKE_EXPECT_SYSTEM_REJECTION}" == "1" ]]; then
+    ! log_has "kernel: start" || die "kernel started after System signature rejection"
+    echo "[done] unsigned or modified System was rejected before kernel load"
+    echo "[done] serial log: ${SERIAL_LOG}"
+    exit 0
+fi
 
 if [[ "${QEMU_NETWORK}" == "y" && "${QEMU_NETWORK_SETTLE_SECONDS}" -gt 0 ]]; then
     sleep "${QEMU_NETWORK_SETTLE_SECONDS}"

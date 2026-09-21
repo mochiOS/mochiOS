@@ -69,9 +69,13 @@ for slot in A B; do
     mcopy -i "$esp_image" "::/slots/$slot/kernel.elf" "$temp_dir/$slot.kernel.elf"
     mcopy -i "$esp_image" "::/slots/$slot/kernel.meta" "$temp_dir/$slot.kernel.meta"
     mcopy -i "$esp_image" "::/slots/$slot/initfs.img" "$temp_dir/$slot.initfs.img"
+    mcopy -i "$esp_image" "::/slots/$slot/system.manifest" "$temp_dir/$slot.system.manifest"
     cmp -s "$kernel" "$temp_dir/$slot.kernel.elf"
     cmp -s "$kernel_meta" "$temp_dir/$slot.kernel.meta"
     cmp -s "$initfs" "$temp_dir/$slot.initfs.img"
+    [[ $(stat -c %s "$temp_dir/$slot.system.manifest") -eq 196 ]] || {
+        echo "invalid System signature manifest for slot $slot" >&2; exit 1;
+    }
 done
 system_a_image=$temp_dir/system-a.img
 system_b_image=$temp_dir/system-b.img

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-[[ $# -eq 3 ]] || { echo "usage: $0 <root> <mmake-out> <seed-tool>" >&2; exit 2; }
+[[ $# -eq 4 ]] || { echo "usage: $0 <root> <mmake-out> <seed-tool> <system-image-sign>" >&2; exit 2; }
 root=$1
 mmake_out=$2
 seed_tool=$3
+sign_tool=$4
 image_dir=$mmake_out/image
 image=$image_dir/ab-layout.img
 temporary=$image.new
@@ -62,6 +63,23 @@ cp -a "$rootfs_stage/system/." "$system_stage/system/"
 truncate -s "$system_bytes" "$system_image"
 fakeroot -- sh -c 'stage=$1; image=$2; chown -R 0:0 "$stage"; exec mke2fs -q -t ext2 -b 4096 -d "$stage" -F -L MOCHI_SYSTEM "$image"' \
     mmake-ab-system "$system_stage" "$system_image"
+
+if grep -qx 'DEVELOPMENT_SYSTEM_SIGNATURES=y' "$root/.config"; then
+    signing_key=$root/tools/devkit/fixtures/development/root.key
+    public_key='k0Ja3inoDQGAO74BWDx4pIZsCSDB/hdIt7iaspNKL/Q='
+else
+    signing_key=${MOCHIOS_SYSTEM_SIGNING_KEY:-}
+    public_key='7Gh+xoUEQsOF3HoZXK+y4OtZcx9xa/oWhnK6+JP7Hbg='
+    [[ -n $signing_key ]] || { echo "MOCHIOS_SYSTEM_SIGNING_KEY is required for production System images" >&2; exit 1; }
+fi
+manifest=$image_dir/system.manifest.new
+"$sign_tool" "$system_image" "$manifest" "$signing_key" \
+    "${MOCHIOS_VERSION:-26.0.0}" "${MOCHIOS_BUILD_NUMBER:-0}" x86_64 "$public_key"
+export MTOOLS_SKIP_CHECK=1
+for slot in A B; do
+    mcopy -o -i "$esp_image" "$manifest" "::/slots/$slot/system.manifest"
+done
+rm -f -- "$manifest"
 
 truncate -s "${data_mb}M" "$data_image"
 cp -a "$rootfs_stage/bin" "$rootfs_stage/applications" "$rootfs_stage/libraries" \

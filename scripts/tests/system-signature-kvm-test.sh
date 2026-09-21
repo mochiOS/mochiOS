@@ -9,26 +9,20 @@ trap 'rm -rf -- "$test_dir"' EXIT
 image=$test_dir/disk.img
 cp --reflink=auto --sparse=always "$source_image" "$image"
 table=$(sfdisk -J "$image")
-system_start=$(jq -er '.partitiontable.partitions[1].start' <<< "$table")
-system_size=$(jq -er '.partitiontable.partitions[1].size' <<< "$table")
-esp_start=$(jq -er '.partitiontable.partitions[0].start' <<< "$table")
-esp_size=$(jq -er '.partitiontable.partitions[0].size' <<< "$table")
-data_start=$(jq -er '.partitiontable.partitions[3].start' <<< "$table")
-data_size=$(jq -er '.partitiontable.partitions[3].size' <<< "$table")
+system_start=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS System A") | .start' <<< "$table")
+system_size=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS System A") | .size' <<< "$table")
+boot_start=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Boot A") | .start' <<< "$table")
+data_start=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Data") | .start' <<< "$table")
+data_size=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Data") | .size' <<< "$table")
 case "$target" in
     system)
         printf '\x5a' | dd of="$image" bs=1 seek="$((system_start * 512 + 1048576))" conv=notrunc status=none
         ;;
     kernel|initfs)
-        esp=$test_dir/esp.img
-        asset=$test_dir/$target
-        dd if="$image" of="$esp" bs=512 skip="$esp_start" count="$esp_size" status=none
-        MTOOLS_SKIP_CHECK=1 mcopy -i "$esp" "::/slots/A/${target}.elf" "$asset" 2>/dev/null || \
-            MTOOLS_SKIP_CHECK=1 mcopy -i "$esp" "::/slots/A/${target}.img" "$asset"
-        printf '\x5a' | dd of="$asset" bs=1 seek=4096 conv=notrunc status=none
-        if [[ $target == kernel ]]; then path='::/slots/A/kernel.elf'; else path='::/slots/A/initfs.img'; fi
-        MTOOLS_SKIP_CHECK=1 mcopy -o -i "$esp" "$asset" "$path"
-        dd if="$esp" of="$image" bs=512 seek="$esp_start" conv=notrunc status=none
+        if [[ $target == kernel ]]; then header_field=40; else header_field=72; fi
+        asset_offset=$(od -An -tu8 -j "$((boot_start * 512 + header_field))" -N8 "$image" | tr -d ' ')
+        [[ $asset_offset =~ ^[1-9][0-9]*$ ]] || { echo "invalid $target slot offset" >&2; exit 1; }
+        printf '\x5a' | dd of="$image" bs=1 seek="$((boot_start * 512 + asset_offset + 4096))" conv=notrunc status=none
         ;;
     *) echo "invalid tamper target: $target" >&2; exit 2 ;;
 esac

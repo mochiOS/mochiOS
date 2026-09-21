@@ -19,7 +19,7 @@ trap 'rm -rf -- "$temp_dir"' EXIT
 for slot in a b; do
     image=$a_image
     [[ $slot == b ]] && image=$b_image
-    state_start=$(sfdisk -J "$image" | jq -er '.partitiontable.partitions[4] |
+    state_start=$(sfdisk -J "$image" | jq -er '.partitiontable.partitions[] |
         select(.name == "mochiOS Boot State" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727403") | .start')
     [[ $state_start =~ ^[1-9][0-9]*$ && $((state_start % 2048)) -eq 0 ]]
     cmp -s "$temp_dir/state-$slot.img" <(dd if="$image" bs=1M skip="$((state_start / 2048))" count=1 status=none)

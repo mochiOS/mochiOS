@@ -23,9 +23,9 @@ case "$disk" in
     *) echo "unexpected smoke disk path: $disk" >&2; exit 1 ;;
 esac
 table=$(sfdisk -J "$disk")
-data_start=$(jq -er '.partitiontable.partitions[3] |
+data_start=$(jq -er '.partitiontable.partitions[] |
     select(.name == "mochiOS Data" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727402") | .start' <<< "$table")
-data_size=$(jq -er '.partitiontable.partitions[3].size' <<< "$table")
+data_size=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Data") | .size' <<< "$table")
 [[ $data_start =~ ^[1-9][0-9]*$ && $data_size =~ ^[1-9][0-9]*$ ]] || {
     echo "invalid data partition" >&2; exit 1;
 }

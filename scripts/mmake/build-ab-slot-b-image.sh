@@ -15,9 +15,9 @@ temporary=$image.new
 state_image=$mmake_out/image/$image_name-state.img.new
 
 partition_table=$(sfdisk -J "$source_image")
-state_start=$(jq -er '.partitiontable.partitions[4] |
+state_start=$(jq -er '.partitiontable.partitions[] |
     select(.name == "mochiOS Boot State" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727403") | .start' <<< "$partition_table")
-state_size=$(jq -er '.partitiontable.partitions[4].size' <<< "$partition_table")
+state_size=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Boot State") | .size' <<< "$partition_table")
 [[ $state_start =~ ^[1-9][0-9]*$ && $state_size -eq 2048 && $((state_start % 2048)) -eq 0 ]] || {
     echo "invalid A/B boot-state partition" >&2; exit 1;
 }

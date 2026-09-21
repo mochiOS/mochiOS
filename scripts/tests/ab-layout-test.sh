@@ -16,9 +16,12 @@ esp_mb=$(( $(stat -c %s "$esp_image") / 1048576 ))
 system_mb=$(( $(stat -c %s "$system_image") / 1048576 ))
 data_mb=128
 state_mb=1
+boot_mb=128
 esp_start=1
-a_start=$((esp_start + esp_mb))
-b_start=$((a_start + system_mb))
+boot_a_start=$((esp_start + esp_mb))
+a_start=$((boot_a_start + boot_mb))
+boot_b_start=$((a_start + system_mb))
+b_start=$((boot_b_start + boot_mb))
 data_start=$((b_start + system_mb))
 state_start=$((data_start + data_mb))
 disk_mb=$((state_start + state_mb + 1))
@@ -26,17 +29,21 @@ disk_mb=$((state_start + state_mb + 1))
 
 sfdisk -J "$image" | jq -e \
     --argjson esp_start "$((esp_start * 2048))" --argjson esp_size "$((esp_mb * 2048))" \
+    --argjson boot_a_start "$((boot_a_start * 2048))" --argjson boot_b_start "$((boot_b_start * 2048))" \
+    --argjson boot_size "$((boot_mb * 2048))" \
     --argjson a_start "$((a_start * 2048))" --argjson b_start "$((b_start * 2048))" \
     --argjson system_size "$((system_mb * 2048))" \
     --argjson data_start "$((data_start * 2048))" --argjson data_size "$((data_mb * 2048))" \
     --argjson state_start "$((state_start * 2048))" --argjson state_size "$((state_mb * 2048))" '
     .partitiontable.label == "gpt" and .partitiontable.sectorsize == 512 and
-    (.partitiontable.partitions | length) == 5 and
+    (.partitiontable.partitions | length) == 7 and
     (.partitiontable.partitions[0] | .start == $esp_start and .size == $esp_size and .name == "mochiOS ESP") and
-    (.partitiontable.partitions[1] | .start == $a_start and .size == $system_size and .name == "mochiOS System A" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727401") and
-    (.partitiontable.partitions[2] | .start == $b_start and .size == $system_size and .name == "mochiOS System B" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727401") and
-    (.partitiontable.partitions[3] | .start == $data_start and .size == $data_size and .name == "mochiOS Data" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727402") and
-    (.partitiontable.partitions[4] | .start == $state_start and .size == $state_size and .name == "mochiOS Boot State" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727403")
+    (.partitiontable.partitions[1] | .start == $boot_a_start and .size == $boot_size and .name == "mochiOS Boot A" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727404") and
+    (.partitiontable.partitions[2] | .start == $a_start and .size == $system_size and .name == "mochiOS System A" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727401") and
+    (.partitiontable.partitions[3] | .start == $boot_b_start and .size == $boot_size and .name == "mochiOS Boot B" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727404") and
+    (.partitiontable.partitions[4] | .start == $b_start and .size == $system_size and .name == "mochiOS System B" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727401") and
+    (.partitiontable.partitions[5] | .start == $data_start and .size == $data_size and .name == "mochiOS Data" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727402") and
+    (.partitiontable.partitions[6] | .start == $state_start and .size == $state_size and .name == "mochiOS Boot State" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727403")
     ' >/dev/null
 
 esp_guid=$(sfdisk -J "$image" | jq -er '.partitiontable.partitions[0].uuid')
@@ -65,17 +72,35 @@ for bundle in disk ext2; do
         echo "$bundle CEXT package ABI does not match its manifest" >&2; exit 1;
     }
 done
-for slot in A B; do
-    mcopy -i "$esp_image" "::/slots/$slot/kernel.elf" "$temp_dir/$slot.kernel.elf"
-    mcopy -i "$esp_image" "::/slots/$slot/kernel.meta" "$temp_dir/$slot.kernel.meta"
-    mcopy -i "$esp_image" "::/slots/$slot/initfs.img" "$temp_dir/$slot.initfs.img"
-    mcopy -i "$esp_image" "::/slots/$slot/system.manifest" "$temp_dir/$slot.system.manifest"
-    cmp -s "$kernel" "$temp_dir/$slot.kernel.elf"
-    cmp -s "$kernel_meta" "$temp_dir/$slot.kernel.meta"
-    cmp -s "$initfs" "$temp_dir/$slot.initfs.img"
-    [[ $(stat -c %s "$temp_dir/$slot.system.manifest") -eq 292 ]] || {
-        echo "invalid System signature manifest for slot $slot" >&2; exit 1;
+boot_a_image=$temp_dir/boot-a.img
+boot_b_image=$temp_dir/boot-b.img
+dd if="$image" of="$boot_a_image" bs=1M skip="$boot_a_start" count="$boot_mb" status=none
+dd if="$image" of="$boot_b_image" bs=1M skip="$boot_b_start" count="$boot_mb" status=none
+cmp -s "$boot_a_image" "$boot_b_image"
+[[ $(dd if="$boot_a_image" bs=1 count=8 status=none | od -An -tx1 | tr -d ' \n') == 4d4f534c4f540000 ]] || {
+    echo "invalid Boot slot magic" >&2; exit 1;
+}
+[[ $(od -An -tu1 -j12 -N1 "$boot_a_image" | tr -d ' ') -eq 1 ]] || {
+    echo "invalid Boot slot architecture" >&2; exit 1;
+}
+[[ $(od -An -tu8 -j16 -N8 "$boot_a_image" | tr -d ' ') -eq $((boot_mb * 1048576)) ]] || {
+    echo "invalid Boot slot image size" >&2; exit 1;
+}
+for specification in "manifest:24:$temp_dir/system.manifest" "kernel:40:$kernel" "kernel-meta:56:$kernel_meta" "initfs:72:$initfs"; do
+    IFS=: read -r name field expected <<< "$specification"
+    offset=$(od -An -tu8 -j "$field" -N8 "$boot_a_image" | tr -d ' ')
+    length=$(od -An -tu8 -j "$((field + 8))" -N8 "$boot_a_image" | tr -d ' ')
+    [[ $offset =~ ^[1-9][0-9]*$ && $length =~ ^[1-9][0-9]*$ ]] || {
+        echo "invalid $name Boot slot region" >&2; exit 1;
     }
+    extracted=$temp_dir/$name
+    dd if="$boot_a_image" of="$extracted" bs=1M iflag=skip_bytes,count_bytes \
+        skip="$offset" count="$length" status=none
+    if [[ $name == manifest ]]; then
+        [[ $length -eq 292 ]] || { echo "invalid System signature manifest length" >&2; exit 1; }
+    else
+        cmp -s "$expected" "$extracted" || { echo "Boot slot $name differs from build output" >&2; exit 1; }
+    fi
 done
 system_a_image=$temp_dir/system-a.img
 system_b_image=$temp_dir/system-b.img

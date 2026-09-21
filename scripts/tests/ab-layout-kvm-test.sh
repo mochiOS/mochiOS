@@ -15,8 +15,8 @@ command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
 partition_table=$(sfdisk -J "$image")
 rootfs_start=$(jq -r --argjson index "$part_index" '.partitiontable.partitions[$index].start' <<< "$partition_table")
 rootfs_size=$(jq -r --argjson index "$part_index" '.partitiontable.partitions[$index].size' <<< "$partition_table")
-data_start=$(jq -r '.partitiontable.partitions[3].start' <<< "$partition_table")
-data_size=$(jq -r '.partitiontable.partitions[3].size' <<< "$partition_table")
+data_start=$(jq -r '.partitiontable.partitions[] | select(.name == "mochiOS Data") | .start' <<< "$partition_table")
+data_size=$(jq -r '.partitiontable.partitions[] | select(.name == "mochiOS Data") | .size' <<< "$partition_table")
 [[ $rootfs_start =~ ^[1-9][0-9]*$ && $rootfs_size =~ ^[1-9][0-9]*$ ]] || {
     echo "could not determine system $slot partition boundaries" >&2; exit 1;
 }

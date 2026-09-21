@@ -9,12 +9,12 @@ trap 'rm -rf -- "$test_dir"' EXIT
 image=$test_dir/disk.img
 cp --reflink=auto --sparse=always "$source_image" "$image"
 table=$(sfdisk -J "$image")
-esp_start=$(jq -er '.partitiontable.partitions[0].start' <<< "$table")
-esp_size=$(jq -er '.partitiontable.partitions[0].size' <<< "$table")
-system_start=$(jq -er '.partitiontable.partitions[1].start' <<< "$table")
-system_size=$(jq -er '.partitiontable.partitions[1].size' <<< "$table")
-data_start=$(jq -er '.partitiontable.partitions[3].start' <<< "$table")
-data_size=$(jq -er '.partitiontable.partitions[3].size' <<< "$table")
+esp_start=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS ESP") | .start' <<< "$table")
+esp_size=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS ESP") | .size' <<< "$table")
+system_start=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS System A") | .start' <<< "$table")
+system_size=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS System A") | .size' <<< "$table")
+data_start=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Data") | .start' <<< "$table")
+data_size=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Data") | .size' <<< "$table")
 esp=$test_dir/esp.img
 dd if="$image" of="$esp" bs=512 skip="$esp_start" count="$esp_size" status=none
 MTOOLS_SKIP_CHECK=1 mcopy -o -i "$esp" "$unsigned_efi" ::/EFI/BOOT/BOOTX64.EFI

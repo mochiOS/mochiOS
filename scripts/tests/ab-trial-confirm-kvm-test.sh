@@ -15,7 +15,7 @@ command -v timeout >/dev/null || { echo "timeout is required" >&2; exit 1; }
 
 echo "[trial] boot 1/2: system B as a pending trial"
 log=$test_dir/trial-b.log
-if ! KEEP_SMOKE_ARTIFACTS=1 QEMU_NETWORK_SETTLE_SECONDS=10 \
+if ! KEEP_SMOKE_ARTIFACTS=1 QEMU_NETWORK_SETTLE_SECONDS=35 \
     timeout --signal=TERM --kill-after=10s 240s \
     bash "$root/scripts/tests/ab-layout-kvm-test.sh" "$root" "$trial_image" B trial:2 \
     2>&1 | tee "$log"; then

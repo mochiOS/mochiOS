@@ -7,7 +7,7 @@
 # build: The build number of the os release. (do not edit manually)
 
 release = "26.0.0"
-build_date = "2026-09-21 01:18:05"
+build_date = "2026-09-21 07:55:27"
 codename = "Kinako"
 channel = "developer-preview"
-build = 3
+build = 4

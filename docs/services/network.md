@@ -115,7 +115,7 @@ DNSはDHCP Bound後、TCPはIPv4設定後に利用できます。driver IPCが�
 
 service-managerはdriver discovery後に`network.service`を起動します。driver processが見つからない
 場合は5秒でready failureを返して常駐し、OS bootを停止させません。DHCP成功時のinterface設定、
-gateway ARP、最初のEcho Replyは`/system/logs/services/network.log`に記録されます。
+gateway ARP、最初のEcho Replyは`/var/log/services/network.log`に記録されます。
 
 ```text
 / $ net ping 10.0.2.2

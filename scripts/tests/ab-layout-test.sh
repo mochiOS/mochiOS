@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-[[ $# -eq 8 ]] || { echo "usage: $0 <ab-image> <esp-image> <system-image> <seed-tool> <kernel> <kernel-meta> <initfs> <gpt-probe>" >&2; exit 2; }
+[[ $# -eq 8 ]] || { echo "usage: $0 <ab-image> <esp-image> <system-size-image> <seed-tool> <kernel> <kernel-meta> <initfs> <gpt-probe>" >&2; exit 2; }
 image=$1
 esp_image=$2
 system_image=$3
@@ -73,8 +73,27 @@ for slot in A B; do
     cmp -s "$kernel_meta" "$temp_dir/$slot.kernel.meta"
     cmp -s "$initfs" "$temp_dir/$slot.initfs.img"
 done
-cmp -s "$system_image" <(dd if="$image" bs=1M skip="$a_start" count="$system_mb" status=none)
-cmp -s "$system_image" <(dd if="$image" bs=1M skip="$b_start" count="$system_mb" status=none)
+system_a_image=$temp_dir/system-a.img
+system_b_image=$temp_dir/system-b.img
+dd if="$image" of="$system_a_image" bs=1M skip="$a_start" count="$system_mb" status=none
+dd if="$image" of="$system_b_image" bs=1M skip="$b_start" count="$system_mb" status=none
+cmp -s "$system_a_image" "$system_b_image"
+for path in \
+    /system/.installed \
+    /system/bin/msh \
+    /system/applications/Binder.app/entry.elf \
+    /system/libraries/fonts/InterVariable.ttf \
+    /system/libraries/wallpapers/default.png \
+    /system/services/service-manager.service; do
+    debugfs -R "stat $path" "$system_a_image" 2>/dev/null | grep -q 'Type:' || {
+        echo "system partition is missing $path" >&2; exit 1;
+    }
+done
+for path in /home /var /tmp /bin /applications /libraries; do
+    if debugfs -R "stat $path" "$system_a_image" 2>&1 | grep -q 'Type:'; then
+        echo "system partition unexpectedly contains data path $path" >&2; exit 1;
+    fi
+done
 "$seed_tool" "$temp_dir/expected-state.img"
 cmp -s "$temp_dir/expected-state.img" <(dd if="$image" bs=1M skip="$state_start" count="$state_mb" status=none)
 
@@ -82,13 +101,18 @@ magic=$(dd if="$image" bs=1 skip=$((data_start * 1048576 + 1080)) count=2 status
 [[ $magic == 53ef ]] || { echo "data partition has no ext2 superblock" >&2; exit 1; }
 data_image=$temp_dir/data.img
 dd if="$image" of="$data_image" bs=1M skip="$data_start" count="$data_mb" status=none
-for directory in /home/root /var/config /var/lib/diagnostics /tmp /system/users /system/logs; do
+for directory in /bin /applications /libraries /libraries/fonts /home/root /var/config /var/lib/accounts /var/lib/diagnostics /var/lib/packages /var/lib/security /var/log/services /tmp; do
     debugfs -R "stat $directory" "$data_image" 2>/dev/null | grep -q 'Type: directory' || {
         echo "data partition is missing $directory" >&2; exit 1;
     }
 done
-cmp -s "$(dirname "$image")/rootfs/system/users/users.db" \
-    <(debugfs -R 'cat /system/users/users.db' "$data_image" 2>/dev/null) || {
+cmp -s "$(dirname "$image")/rootfs/var/lib/accounts/users.db" \
+    <(debugfs -R 'cat /var/lib/accounts/users.db' "$data_image" 2>/dev/null) || {
     echo "data partition has the wrong initial account database" >&2; exit 1;
 }
+for path in /system /system/bin /system/applications /system/libraries; do
+    if debugfs -R "stat $path" "$data_image" 2>&1 | grep -q 'Type:'; then
+        echo "data partition unexpectedly contains system path $path" >&2; exit 1;
+    fi
+done
 echo "A/B layout validated: per-slot boot assets, two identical system slots, seeded data, initialized boot state"

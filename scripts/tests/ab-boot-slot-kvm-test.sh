@@ -23,19 +23,19 @@ case "$disk" in
     *) echo "unexpected smoke disk path: $disk" >&2; exit 1 ;;
 esac
 table=$(sfdisk -J "$disk")
-system_start=$(jq -er '.partitiontable.partitions[2] |
-    select(.name == "mochiOS System B" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727401") | .start' <<< "$table")
-system_size=$(jq -er '.partitiontable.partitions[2].size' <<< "$table")
-[[ $system_start =~ ^[1-9][0-9]*$ && $system_size =~ ^[1-9][0-9]*$ ]] || {
-    echo "invalid system B partition" >&2; exit 1;
+data_start=$(jq -er '.partitiontable.partitions[3] |
+    select(.name == "mochiOS Data" and (.type | ascii_downcase) == "6d6f6368-694f-5300-8000-6d5061727402") | .start' <<< "$table")
+data_size=$(jq -er '.partitiontable.partitions[3].size' <<< "$table")
+[[ $data_start =~ ^[1-9][0-9]*$ && $data_size =~ ^[1-9][0-9]*$ ]] || {
+    echo "invalid data partition" >&2; exit 1;
 }
-rootfs=$test_dir/system-b.img
-dd if="$disk" of="$rootfs" bs=1M iflag=skip_bytes,count_bytes \
-    skip="$((system_start * 512))" count="$((system_size * 512))" status=none
-[[ $(stat -c %s "$rootfs") -eq $((system_size * 512)) ]] || {
-    echo "incomplete system B extraction" >&2; exit 1;
+data_image=$test_dir/data.img
+dd if="$disk" of="$data_image" bs=1M iflag=skip_bytes,count_bytes \
+    skip="$((data_start * 512))" count="$((data_size * 512))" status=none
+[[ $(stat -c %s "$data_image") -eq $((data_size * 512)) ]] || {
+    echo "incomplete data partition extraction" >&2; exit 1;
 }
-debugfs -R 'cat /system/logs/services/update.log' "$rootfs" >"$test_dir/update.log" 2>"$test_dir/debugfs.log"
+debugfs -R 'cat /var/log/services/update.log' "$data_image" >"$test_dir/update.log" 2>"$test_dir/debugfs.log"
 grep -Fq 'update.service: boot system slot=B; install_enabled=false' "$test_dir/update.log" || {
     echo "update.service did not observe boot slot B: $test_dir/update.log" >&2; exit 1;
 }

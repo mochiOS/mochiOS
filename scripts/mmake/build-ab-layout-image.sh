@@ -10,9 +10,11 @@ temporary=$image.new
 state_image=$image_dir/ab-state.img.new
 data_image=$image_dir/ab-data.img.new
 esp_image=$image_dir/ab-esp.img
-system_image=$image_dir/rootfs.img
+system_source_image=$image_dir/rootfs.img
+system_image=$image_dir/ab-system.img.new
 rootfs_stage=$image_dir/rootfs
 data_stage=$image_dir/ab-data-stage.new
+system_stage=$image_dir/ab-system-stage.new
 data_mb=128
 state_mb=1
 
@@ -21,7 +23,7 @@ esp_bytes=$(stat -c %s "$esp_image")
     echo "ESP image must have a nonzero MiB-aligned size" >&2; exit 1;
 }
 esp_mb=$((esp_bytes / 1048576))
-system_bytes=$(stat -c %s "$system_image")
+system_bytes=$(stat -c %s "$system_source_image")
 (( system_bytes > 0 && system_bytes % 1048576 == 0 )) || {
     echo "system image must have a nonzero MiB-aligned size" >&2; exit 1;
 }
@@ -39,9 +41,9 @@ data_type=6d6f6368-694f-5300-8000-6d5061727402
 state_type=6d6f6368-694f-5300-8000-6d5061727403
 
 mkdir -p "$image_dir"
-rm -f -- "$temporary" "$state_image" "$data_image"
-rm -rf -- "$data_stage"
-trap 'rm -f -- "$temporary" "$state_image" "$data_image" "$data_image.state.json"; rm -rf -- "$data_stage"' EXIT
+rm -f -- "$temporary" "$state_image" "$data_image" "$system_image"
+rm -rf -- "$data_stage" "$system_stage"
+trap 'rm -f -- "$temporary" "$state_image" "$data_image" "$data_image.state.json" "$system_image"; rm -rf -- "$data_stage" "$system_stage"' EXIT
 truncate -s "${disk_mb}M" "$temporary"
 {
     printf 'label: gpt\nunit: sectors\nfirst-lba: 2048\nsector-size: 512\n\n'
@@ -52,15 +54,20 @@ truncate -s "${disk_mb}M" "$temporary"
     printf 'start=%s, size=%s, type=%s, name="mochiOS Boot State"\n' "$((state_start * 2048))" "$((state_mb * 2048))" "$state_type"
 } | sfdisk "$temporary" >/dev/null
 
-truncate -s "${data_mb}M" "$data_image"
-[[ -d $rootfs_stage/home && -d $rootfs_stage/var && -d $rootfs_stage/system/users ]] || {
+[[ -d $rootfs_stage/system && -d $rootfs_stage/home && -d $rootfs_stage/var && -f $rootfs_stage/var/lib/accounts/users.db ]] || {
     echo "rootfs data directories are missing" >&2; exit 1;
 }
-mkdir -p "$data_stage/system"
-cp -a "$rootfs_stage/home" "$rootfs_stage/var" "$rootfs_stage/tmp" "$data_stage/"
-cp -a "$rootfs_stage/system/users" "$rootfs_stage/system/logs" "$data_stage/system/"
+mkdir -p "$system_stage/system" "$data_stage"
+cp -a "$rootfs_stage/system/." "$system_stage/system/"
+truncate -s "$system_bytes" "$system_image"
+fakeroot -- sh -c 'stage=$1; image=$2; chown -R 0:0 "$stage"; exec mke2fs -q -t ext2 -b 4096 -d "$stage" -F -L MOCHI_SYSTEM "$image"' \
+    mmake-ab-system "$system_stage" "$system_image"
+
+truncate -s "${data_mb}M" "$data_image"
+cp -a "$rootfs_stage/bin" "$rootfs_stage/applications" "$rootfs_stage/libraries" \
+    "$rootfs_stage/home" "$rootfs_stage/var" "$rootfs_stage/tmp" "$data_stage/"
 if [[ -f $rootfs_stage/.mochios-ownership ]]; then
-    awk '$1 ~ /^(home|var|tmp)\// || $1 ~ /^system\/(users|logs)\//' \
+    awk '$1 ~ /^(home|var|tmp)\//' \
         "$rootfs_stage/.mochios-ownership" > "$data_stage/.mochios-ownership"
 fi
 fakeroot -- sh -c 'stage=$1; image=$2; chown -R 0:0 "$stage"; exec mke2fs -q -t ext2 -b 4096 -d "$stage" -F -L MOCHI_DATA "$image"' \

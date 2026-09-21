@@ -171,7 +171,7 @@ Body:
 ```
 
 `net stats`はRX/TX、drop/error、ARP、IPv4 checksum、ICMP、DHCP、DNS、TCP、TLS、HTTPを
-表示します。service logは`/system/logs/services/network.log`に保存されます。通常動作では
+表示します。service logは`/var/log/services/network.log`に保存されます。通常動作では
 packet単位のlogは出さず、interface情報と主要な接続状態だけを記録します。
 
 正式な`make smoke-test`はQEMU DHCP DNSで`localhost`を解決し、runnerがloopbackへ起動した

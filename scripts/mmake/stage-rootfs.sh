@@ -12,18 +12,37 @@ config=$root/.config
 
 rm -rf "$stage.new"
 stage_new=$stage.new
-mkdir -p "$stage_new/bin" "$stage_new/tmp" "$stage_new/var/config" "$stage_new/var/lib/diagnostics" "$stage_new/libraries/system" "$stage_new/libraries/applications" "$stage_new/system/logs" "$stage_new/system/packages" "$stage_new/system/services"
+mkdir -p \
+    "$stage_new/bin" \
+    "$stage_new/applications" \
+    "$stage_new/libraries/applications" \
+    "$stage_new/libraries/fonts" \
+    "$stage_new/tmp" \
+    "$stage_new/var/config" \
+    "$stage_new/var/lib/accounts" \
+    "$stage_new/var/lib/certificate" \
+    "$stage_new/var/lib/diagnostics" \
+    "$stage_new/var/lib/packages" \
+    "$stage_new/var/lib/security" \
+    "$stage_new/var/log/services" \
+    "$stage_new/system/applications" \
+    "$stage_new/system/bin" \
+    "$stage_new/system/libraries/fonts" \
+    "$stage_new/system/packages" \
+    "$stage_new/system/services"
 chmod 0700 "$stage_new/var/lib/diagnostics"
 chmod 01777 "$stage_new/tmp"
 for category in account appearance diagnostics general input network security; do mkdir -p "$stage_new/var/config/$category"; chmod 0777 "$stage_new/var/config/$category"; done
 printf 'format=1\n' > "$stage_new/system/.installed"
 chmod 0644 "$stage_new/system/.installed"
 
-cp -a "$root/resources/." "$stage_new/"
-chmod 0600 "$stage_new/system/users/users.db"
+cp -a "$root/resources/system/." "$stage_new/system/"
+cp -a "$root/resources/libraries/." "$stage_new/system/libraries/"
+install -m 0600 "$root/resources/system/users/users.db" "$stage_new/var/lib/accounts/users.db"
+rm -rf "$stage_new/system/users"
 for directory in Desktop Documents Downloads Movies Music Pictures; do mkdir -p "$stage_new/home/root/$directory"; chmod 0700 "$stage_new/home/root/$directory"; done
 if grep -qx 'DEVELOPMENT_DEFAULT_ACCOUNT=y' "$config"; then
-    install -m 0600 "$root/scripts/mmake/development-users.db" "$stage_new/system/users/users.db"
+    install -m 0600 "$root/scripts/mmake/development-users.db" "$stage_new/var/lib/accounts/users.db"
     printf 'auto_login=true\nauto_login_user=testuser\n' > "$stage_new/var/config/account/settings.conf"
     chmod 0644 "$stage_new/var/config/account/settings.conf"
     : > "$stage_new/.mochios-ownership"
@@ -32,17 +51,17 @@ if grep -qx 'DEVELOPMENT_DEFAULT_ACCOUNT=y' "$config"; then
     chmod 0700 "$stage_new/home/testuser"
     for directory in Desktop Documents Downloads Movies Music Pictures; do printf 'home/testuser/%s 1000 1000\n' "$directory" >> "$stage_new/.mochios-ownership"; done
 fi
-mkdir -p "$stage_new/libraries/fonts" "$stage_new/system/resources/msh"
-cp -a "$root/libraries/fonts/out/fonts/." "$stage_new/libraries/fonts/"
-rm -f "$stage_new/libraries/fonts/.installed"
+mkdir -p "$stage_new/system/libraries/fonts" "$stage_new/system/resources/msh"
+cp -a "$root/libraries/fonts/out/fonts/." "$stage_new/system/libraries/fonts/"
+rm -f "$stage_new/system/libraries/fonts/.installed"
 install -m 0644 "$root/binaries/msh/resources/ter-u12b.bdf" "$stage_new/system/resources/msh/ter-u12b.bdf"
 
-install -m 0755 "$root/out/newlib-port/hello/hello.elf" "$stage_new/bin/hello"
-for program in rust-std-demo test_app msh; do install -m 0755 "$bin/$program" "$stage_new/bin/$program"; done
+install -m 0755 "$root/out/newlib-port/hello/hello.elf" "$stage_new/system/bin/hello"
+for program in rust-std-demo test_app msh; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done
 coreutils=(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc test_gui test_desktop)
 grep -qx 'KERNEL_PERFORMANCE_INSTRUMENTATION=y' "$config" && coreutils+=(mperf) || true
 grep -qx 'USER_BUILD_SELFTESTS=y' "$config" && coreutils+=(selftest-capability selftest-process selftest-ext2-write) || true
-for program in "${coreutils[@]}"; do install -m 0755 "$bin/$program" "$stage_new/bin/$program"; done
+for program in "${coreutils[@]}"; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done
 
 install_manifest() {
     local source=$1 name=$2 package_root=$stage_new/system/packages/$2
@@ -58,7 +77,7 @@ install_manifest "$root/binaries/coreutils/manifest.toml" coreutils
 
 stage_app() {
     local source=$1 bundle=$2 binary=$3 icon=${4:-}
-    local destination=$stage_new/applications/$bundle
+    local destination=$stage_new/system/applications/$bundle
     mkdir -p "$destination"
     install -m 0755 "$bin/$binary" "$destination/entry.elf"
     install -m 0644 "$source/about.toml" "$destination/about.toml"
@@ -67,13 +86,13 @@ stage_app() {
 }
 
 stage_app "$root/applications/binder" Binder.app binder
-for resource in appicon.svg close.svg maximize.svg minimize.svg mochios.svg; do install -m 0644 "$root/applications/binder/resources/$resource" "$stage_new/applications/Binder.app/$resource"; done
+for resource in appicon.svg close.svg maximize.svg minimize.svg mochios.svg; do install -m 0644 "$root/applications/binder/resources/$resource" "$stage_new/system/applications/Binder.app/$resource"; done
 stage_app "$root/applications/appstore" AppStore.app appstore
 stage_app "$root/applications/test.app" test.app test_app
 stage_app "$root/applications/terminal" Terminal.app terminal appicon.svg
 stage_app "$root/applications/file" Files.app files appicon.svg
-mkdir -p "$stage_new/applications/Files.app/icons"
-for resource in folder.svg file.svg application.svg image.svg archive.svg disk.svg; do install -m 0644 "$root/applications/file/resources/icons/$resource" "$stage_new/applications/Files.app/icons/$resource"; done
+mkdir -p "$stage_new/system/applications/Files.app/icons"
+for resource in folder.svg file.svg application.svg image.svg archive.svg disk.svg; do install -m 0644 "$root/applications/file/resources/icons/$resource" "$stage_new/system/applications/Files.app/icons/$resource"; done
 stage_app "$root/applications/settings" Settings.app settings appicon.png
 stage_app "$root/applications/installer" Installer.app installer appicon.svg
 install_manifest "$root/applications/binder/manifest.toml" binder
@@ -106,18 +125,18 @@ stage_service secure-ui secure-ui secure-ui.service
 stage_service update update update.service
 
 if grep -qx 'DRIVER_XHCI=y' "$config"; then
-    mkdir -p "$stage_new/bin/drivers/usb/qemu-usb.driver"
-    install -m 0755 "$driver_bin/entry" "$stage_new/bin/drivers/usb/qemu-usb.driver/entry.elf"
+    mkdir -p "$stage_new/system/bin/drivers/usb/qemu-usb.driver"
+    install -m 0755 "$driver_bin/entry" "$stage_new/system/bin/drivers/usb/qemu-usb.driver/entry.elf"
     install_manifest "$root/drivers/usb-driver/manifest.toml" drivers/usb/qemu-usb.driver
 fi
 if grep -qx 'DRIVER_I8042=y' "$config"; then
-    mkdir -p "$stage_new/bin/drivers/ps2/i8042.driver"
-    install -m 0755 "$driver_bin/i8042-entry" "$stage_new/bin/drivers/ps2/i8042.driver/entry.elf"
+    mkdir -p "$stage_new/system/bin/drivers/ps2/i8042.driver"
+    install -m 0755 "$driver_bin/i8042-entry" "$stage_new/system/bin/drivers/ps2/i8042.driver/entry.elf"
     install_manifest "$root/drivers/ps2/i8042-driver/manifest.toml" drivers/ps2/i8042.driver
 fi
 if grep -qx 'DRIVER_VIRTIO_NET=y' "$config"; then
-    mkdir -p "$stage_new/bin/drivers/network/virtio-net.driver"
-    install -m 0755 "$driver_bin/virtio-net-driver" "$stage_new/bin/drivers/network/virtio-net.driver/virtio-net.driver"
+    mkdir -p "$stage_new/system/bin/drivers/network/virtio-net.driver"
+    install -m 0755 "$driver_bin/virtio-net-driver" "$stage_new/system/bin/drivers/network/virtio-net.driver/virtio-net.driver"
     install_manifest "$root/drivers/virtio-net-driver/manifest.toml" drivers/network/virtio-net.driver
 fi
 

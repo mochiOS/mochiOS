@@ -15,8 +15,13 @@ command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
 partition_table=$(sfdisk -J "$image")
 rootfs_start=$(jq -r --argjson index "$part_index" '.partitiontable.partitions[$index].start' <<< "$partition_table")
 rootfs_size=$(jq -r --argjson index "$part_index" '.partitiontable.partitions[$index].size' <<< "$partition_table")
+data_start=$(jq -r '.partitiontable.partitions[3].start' <<< "$partition_table")
+data_size=$(jq -r '.partitiontable.partitions[3].size' <<< "$partition_table")
 [[ $rootfs_start =~ ^[1-9][0-9]*$ && $rootfs_size =~ ^[1-9][0-9]*$ ]] || {
     echo "could not determine system $slot partition boundaries" >&2; exit 1;
+}
+[[ $data_start =~ ^[1-9][0-9]*$ && $data_size =~ ^[1-9][0-9]*$ ]] || {
+    echo "could not determine data partition boundaries" >&2; exit 1;
 }
 artifact_dir=$(mktemp -d "$root/out/mmake/ab-layout-artifacts.XXXXXX")
 trap 'rm -rf -- "$artifact_dir"' EXIT
@@ -26,6 +31,8 @@ run_log="$artifact_dir/smoke-output.log"
 if ! ARTIFACT_DIR="$artifact_dir" QEMU_ACCELERATOR=kvm SMOKE_PROGRESS=1 \
     SMOKE_ROOTFS_START_SECTOR="$rootfs_start" \
     SMOKE_ROOTFS_SIZE_SECTORS="$rootfs_size" \
+    SMOKE_DATA_START_SECTOR="$data_start" \
+    SMOKE_DATA_SIZE_SECTORS="$data_size" \
     "$root/scripts/smoke-test.sh" 2>&1 | tee "$run_log"; then
     exit 1
 fi

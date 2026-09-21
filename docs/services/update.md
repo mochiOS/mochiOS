@@ -46,7 +46,7 @@ versionとgenerationだけを伝え、Snapshot bytesや「検証済み」フラ�
 
 ## 診断
 
-`/system/logs/services/update.log`に、Trust/Revocationのversion、生成・期限・最終確認時刻、ETag、
+`/var/log/services/update.log`に、Trust/Revocationのversion、生成・期限・最終確認時刻、ETag、
 active slot、失効件数、最終同期結果、最終同期エラー、次回deadline、試行・更新・304・失敗・署名拒否・rollback・
 期限・storage・復旧の各counterを記録します。鍵、token、署名値は記録しません。
 

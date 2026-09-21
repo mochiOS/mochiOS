@@ -64,12 +64,15 @@ TLS_BAD_CV_SERVER="${ROOT_DIR}/out/tls-http-smoke-host-target/release/mochios-tl
 MONITOR_SOCKET="${RUN_DIR}/monitor.sock"
 GPU_SCREENSHOT="${RUN_DIR}/virtio-gpu.ppm"
 ROOTFS_IMAGE="${RUN_DIR}/rootfs.img"
+DATA_IMAGE="${RUN_DIR}/data.img"
 MBOOT_VIRTIO_TRACE="${RUN_DIR}/mboot-virtio.trace"
 SMOKE_USER_DATABASE_FIXTURE="${SMOKE_USER_DATABASE_FIXTURE:-}"
 SMOKE_AUTO_LOGIN="${SMOKE_AUTO_LOGIN:-0}"
 SMOKE_CHECK_SERVICE_LOGS="${SMOKE_CHECK_SERVICE_LOGS:-0}"
 SMOKE_ROOTFS_START_SECTOR="${SMOKE_ROOTFS_START_SECTOR:-$((2048 + IMAGE_ESP_SIZE_MB * 2048))}"
 SMOKE_ROOTFS_SIZE_SECTORS="${SMOKE_ROOTFS_SIZE_SECTORS:-$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))}"
+SMOKE_DATA_START_SECTOR="${SMOKE_DATA_START_SECTOR:-${SMOKE_ROOTFS_START_SECTOR}}"
+SMOKE_DATA_SIZE_SECTORS="${SMOKE_DATA_SIZE_SECTORS:-${SMOKE_ROOTFS_SIZE_SECTORS}}"
 SMOKE_GUEST_COMMAND="${SMOKE_GUEST_COMMAND:-}"
 SMOKE_GUEST_EXPECT="${SMOKE_GUEST_EXPECT:-}"
 SMOKE_GUEST_EXPECTED_EXIT="${SMOKE_GUEST_EXPECTED_EXIT:-0}"
@@ -161,6 +164,10 @@ esac
     die "SMOKE_ROOTFS_START_SECTOR must be a positive integer"
 [[ "${SMOKE_ROOTFS_SIZE_SECTORS}" =~ ^[1-9][0-9]*$ ]] ||
     die "SMOKE_ROOTFS_SIZE_SECTORS must be a positive integer"
+[[ "${SMOKE_DATA_START_SECTOR}" =~ ^[1-9][0-9]*$ ]] ||
+    die "SMOKE_DATA_START_SECTOR must be a positive integer"
+[[ "${SMOKE_DATA_SIZE_SECTORS}" =~ ^[1-9][0-9]*$ ]] ||
+    die "SMOKE_DATA_SIZE_SECTORS must be a positive integer"
 [[ "${RUNNER_KEEP_RUNS}" =~ ^[1-9][0-9]*$ ]] ||
     die "RUNNER_KEEP_RUNS must be a positive integer"
 [[ "${QEMU_NETWORK_MAC}" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] ||
@@ -299,24 +306,24 @@ fi
 
 if [[ -n "${SMOKE_USER_DATABASE_FIXTURE}" ]]; then
     need_file "${SMOKE_USER_DATABASE_FIXTURE}"
-    if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] extracting selected system partition"; fi
-    dd if="${OS_DISK}" of="${ROOTFS_IMAGE}" bs=1M iflag=skip_bytes,count_bytes \
-        skip="$((SMOKE_ROOTFS_START_SECTOR * 512))" \
-        count="$((SMOKE_ROOTFS_SIZE_SECTORS * 512))" status=none
-    [[ $(stat -c %s "${ROOTFS_IMAGE}") -eq $((SMOKE_ROOTFS_SIZE_SECTORS * 512)) ]] ||
-        die "selected system partition extraction was incomplete"
+    if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] extracting selected data partition"; fi
+    dd if="${OS_DISK}" of="${DATA_IMAGE}" bs=1M iflag=skip_bytes,count_bytes \
+        skip="$((SMOKE_DATA_START_SECTOR * 512))" \
+        count="$((SMOKE_DATA_SIZE_SECTORS * 512))" status=none
+    [[ $(stat -c %s "${DATA_IMAGE}") -eq $((SMOKE_DATA_SIZE_SECTORS * 512)) ]] ||
+        die "selected data partition extraction was incomplete"
     if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] preparing isolated test account"; fi
-    debugfs -w -R 'rm /system/users/users.db' "${ROOTFS_IMAGE}" >/dev/null 2>&1
-    debugfs -w -R "write ${SMOKE_USER_DATABASE_FIXTURE} /system/users/users.db" \
-        "${ROOTFS_IMAGE}" >/dev/null 2>&1 ||
+    debugfs -w -R 'rm /var/lib/accounts/users.db' "${DATA_IMAGE}" >/dev/null 2>&1
+    debugfs -w -R "write ${SMOKE_USER_DATABASE_FIXTURE} /var/lib/accounts/users.db" \
+        "${DATA_IMAGE}" >/dev/null 2>&1 ||
         die "could not install the isolated smoke user database"
-    debugfs -w -R 'set_inode_field /system/users/users.db mode 0100600' \
-        "${ROOTFS_IMAGE}" >/dev/null 2>&1 ||
+    debugfs -w -R 'set_inode_field /var/lib/accounts/users.db mode 0100600' \
+        "${DATA_IMAGE}" >/dev/null 2>&1 ||
         die "could not secure the isolated smoke user database"
-    if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] writing selected system partition back to test disk"; fi
-    dd if="${ROOTFS_IMAGE}" of="${OS_DISK}" bs=1M oflag=seek_bytes \
-        seek="$((SMOKE_ROOTFS_START_SECTOR * 512))" conv=notrunc status=none
-    rm -f "${ROOTFS_IMAGE}"
+    if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] writing selected data partition back to test disk"; fi
+    dd if="${DATA_IMAGE}" of="${OS_DISK}" bs=1M oflag=seek_bytes \
+        seek="$((SMOKE_DATA_START_SECTOR * 512))" conv=notrunc status=none
+    rm -f "${DATA_IMAGE}"
     if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] test disk ready; starting QEMU"; fi
 fi
 
@@ -466,7 +473,7 @@ cleanup() {
 
 cleanup_files() {
     if [[ "${SMOKE_TEST:-0}" == "1" && "${KEEP_SMOKE_ARTIFACTS:-0}" != "1" ]]; then
-        rm -f "${OS_DISK}" "${ROOTFS_IMAGE}" "${OVMF_VARS}"
+        rm -f "${OS_DISK}" "${ROOTFS_IMAGE}" "${DATA_IMAGE}" "${OVMF_VARS}"
     fi
 }
 
@@ -950,17 +957,17 @@ if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
 fi
 
 if [[ "${SMOKE_CHECK_SERVICE_LOGS}" == "1" ]]; then
-    dd if="${OS_DISK}" of="${ROOTFS_IMAGE}" bs=512 \
-        skip="${SMOKE_ROOTFS_START_SECTOR}" count="${SMOKE_ROOTFS_SIZE_SECTORS}" status=none
-    debugfs -R 'cat /system/logs/services/drivers.log' "${ROOTFS_IMAGE}" \
+    dd if="${OS_DISK}" of="${DATA_IMAGE}" bs=512 \
+        skip="${SMOKE_DATA_START_SECTOR}" count="${SMOKE_DATA_SIZE_SECTORS}" status=none
+    debugfs -R 'cat /var/log/services/drivers.log' "${DATA_IMAGE}" \
         > "${DRIVERS_LOG}" 2>/dev/null || die "drivers.service log could not be read"
-    debugfs -R 'cat /system/logs/services/display.driver.log' "${ROOTFS_IMAGE}" \
+    debugfs -R 'cat /var/log/services/display.driver.log' "${DATA_IMAGE}" \
         > "${DISPLAY_LOG}" 2>/dev/null || die "display.driver log could not be read"
-    debugfs -R 'cat /system/logs/services/service-manager.log' "${ROOTFS_IMAGE}" \
+    debugfs -R 'cat /var/log/services/service-manager.log' "${DATA_IMAGE}" \
         > "${SERVICE_MANAGER_LOG}" 2>/dev/null || die "service-manager.service log could not be read"
-    debugfs -R 'cat /system/logs/services/network.log' "${ROOTFS_IMAGE}" \
+    debugfs -R 'cat /var/log/services/network.log' "${DATA_IMAGE}" \
         > "${NETWORK_LOG}" 2>/dev/null || die "network.service log could not be read"
-    debugfs -R 'cat /system/logs/services/user.log' "${ROOTFS_IMAGE}" \
+    debugfs -R 'cat /var/log/services/user.log' "${DATA_IMAGE}" \
         > "${USER_LOG}" 2>/dev/null || die "user.service log could not be read"
 
     if [[ "${DEBUG_QEMU_VIRTIO_GPU:-n}" == "y" ]]; then

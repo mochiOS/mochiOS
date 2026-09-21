@@ -71,6 +71,7 @@ SMOKE_AUTO_LOGIN="${SMOKE_AUTO_LOGIN:-0}"
 SMOKE_CHECK_SERVICE_LOGS="${SMOKE_CHECK_SERVICE_LOGS:-0}"
 SMOKE_EXPECT_SYSTEM_REJECTION="${SMOKE_EXPECT_SYSTEM_REJECTION:-0}"
 SMOKE_EXPECT_SYSTEM_LAYOUT_PASS="${SMOKE_EXPECT_SYSTEM_LAYOUT_PASS:-0}"
+SMOKE_EXPECT_UEFI_REJECTION="${SMOKE_EXPECT_UEFI_REJECTION:-0}"
 SMOKE_ROOTFS_START_SECTOR="${SMOKE_ROOTFS_START_SECTOR:-$((2048 + IMAGE_ESP_SIZE_MB * 2048))}"
 SMOKE_ROOTFS_SIZE_SECTORS="${SMOKE_ROOTFS_SIZE_SECTORS:-$(((IMAGE_DISK_SIZE_MB - IMAGE_ESP_SIZE_MB - 2) * 2048))}"
 SMOKE_DATA_START_SECTOR="${SMOKE_DATA_START_SECTOR:-${SMOKE_ROOTFS_START_SECTOR}}"
@@ -78,8 +79,16 @@ SMOKE_DATA_SIZE_SECTORS="${SMOKE_DATA_SIZE_SECTORS:-${SMOKE_ROOTFS_SIZE_SECTORS}
 SMOKE_GUEST_COMMAND="${SMOKE_GUEST_COMMAND:-}"
 SMOKE_GUEST_EXPECT="${SMOKE_GUEST_EXPECT:-}"
 SMOKE_GUEST_EXPECTED_EXIT="${SMOKE_GUEST_EXPECTED_EXIT:-0}"
-OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
-OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
+secure_boot_default=0
+if grep -qx 'REQUIRE_UEFI_SECURE_BOOT=y' "${ROOT_DIR}/.config" 2>/dev/null; then secure_boot_default=1; fi
+QEMU_SECURE_BOOT="${QEMU_SECURE_BOOT:-${secure_boot_default}}"
+if [[ "${QEMU_SECURE_BOOT}" == "1" ]]; then
+    OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.secboot.fd}"
+    OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.snakeoil.fd}"
+else
+    OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
+    OVMF_VARS_TEMPLATE="${OVMF_VARS_TEMPLATE:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
+fi
 OVMF_VARS="${RUN_DIR}/OVMF_VARS_4M.fd"
 GUI_MODE=1
 if [[ "${DRIVER_XHCI:-n}" == "y" ]]; then
@@ -169,6 +178,14 @@ esac
 case "${SMOKE_EXPECT_SYSTEM_LAYOUT_PASS}" in
     0|1) ;;
     *) die "SMOKE_EXPECT_SYSTEM_LAYOUT_PASS must be 0 or 1" ;;
+esac
+case "${SMOKE_EXPECT_UEFI_REJECTION}" in
+    0|1) ;;
+    *) die "SMOKE_EXPECT_UEFI_REJECTION must be 0 or 1" ;;
+esac
+case "${QEMU_SECURE_BOOT}" in
+    0|1) ;;
+    *) die "QEMU_SECURE_BOOT must be 0 or 1" ;;
 esac
 [[ "${SMOKE_ROOTFS_START_SECTOR}" =~ ^[1-9][0-9]*$ ]] ||
     die "SMOKE_ROOTFS_START_SECTOR must be a positive integer"
@@ -338,6 +355,7 @@ if [[ -n "${SMOKE_USER_DATABASE_FIXTURE}" ]]; then
 fi
 
 QEMU_MACHINE="q35,accel=${QEMU_ACCEL}"
+if [[ "${QEMU_SECURE_BOOT}" == "1" ]]; then QEMU_MACHINE+=",smm=on"; fi
 
 QEMU_ARGS=(
     -machine "${QEMU_MACHINE}"
@@ -357,6 +375,10 @@ QEMU_ARGS=(
     -device "virtio-rng-pci,rng=rng0"
     -trace "enable=qemu_system_*request,file=${RUN_DIR}/qemu-trace.log"
 )
+
+if [[ "${QEMU_SECURE_BOOT}" == "1" ]]; then
+    QEMU_ARGS+=(-global "driver=cfi.pflash01,property=secure,value=on")
+fi
 
 if [[ "${QEMU_LOW_LEVEL_TRACE}" == "y" ]]; then
     QEMU_ARGS+=(
@@ -738,6 +760,9 @@ while ((SECONDS < DEADLINE)); do
         COMPLETED=1
         break
     fi
+    if [[ "${SMOKE_EXPECT_UEFI_REJECTION}" == "1" ]] && log_has "[mBoot]"; then
+        die "UEFI executed an untrusted mBoot image"
+    fi
     if [[ "${SMOKE_EXPECT_SYSTEM_LAYOUT_PASS}" == "1" ]] \
         && log_has "selftest-system-layout: pass"; then
         ! log_has "selftest-system-layout: FAIL" || die "System/Data layout selftest failed"
@@ -787,6 +812,13 @@ while ((SECONDS < DEADLINE)); do
 
     sleep 0.1
 done
+
+if [[ "${SMOKE_EXPECT_UEFI_REJECTION}" == "1" ]]; then
+    ! log_has "kernel: start" || die "kernel started after UEFI image rejection"
+    echo "[done] UEFI Secure Boot rejected the untrusted mBoot image"
+    echo "[done] serial log: ${SERIAL_LOG}"
+    exit 0
+fi
 
 [[ "${COMPLETED}" == "1" ]] ||
     die "QEMU smoke test timed out after ${QEMU_TIMEOUT_SECONDS}s; see ${SERIAL_LOG}"

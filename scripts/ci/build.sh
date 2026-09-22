@@ -104,7 +104,21 @@ export BUILD_NUMBER="${NEXT_BUILD}"
 export BUILD_DATE="${BUILD_DATE}"
 export MOCHIOS_VERSION="${RELEASE}"
 export MOCHIOS_BUILD_NUMBER="${NEXT_BUILD}"
+export MOCHIOS_MINIMUM_BUILD="${MOCHIOS_MINIMUM_BUILD:-${NEXT_BUILD}}"
 export MNU_GIT_REVISION="${GITHUB_SHA:-workspace}"
+
+if [[ "${CHANNEL}" == "developer-preview" ]]; then
+    echo "[signing] use repository development keys"
+    printf '%s\n' \
+        'DEVELOPMENT_SYSTEM_SIGNATURES=y' \
+        'REQUIRE_UEFI_SECURE_BOOT=y' \
+        'DEVELOPMENT_UEFI_SIGNING=y' \
+        > "${ROOT_DIR}/.config"
+else
+    echo "[signing] require production keys"
+fi
+
+echo "[signing] minimum build: ${MOCHIOS_MINIMUM_BUILD}"
 
 echo "[version] update version.toml"
 

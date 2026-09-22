@@ -314,6 +314,47 @@ jobs:
             echo "architecture=${architecture}"
           } >> "${GITHUB_OUTPUT}"
 
+      - name: Prepare normal-update Artifact
+        id: normal_update
+        shell: bash
+        env:
+          RELEASE: ${{ steps.build.outputs.release }}
+          BUILD: ${{ steps.build.outputs.build }}
+          SOURCE_CHANNEL: ${{ steps.build.outputs.channel }}
+        run: |
+          set -euo pipefail
+
+          case "${SOURCE_CHANNEL}" in
+            developer-preview) channel=developer_preview ;;
+            beta|stable) channel="${SOURCE_CHANNEL}" ;;
+            *) echo "Unsupported release channel: ${SOURCE_CHANNEL}" >&2; exit 1 ;;
+          esac
+
+          # This workflow currently builds only x86_64 update payloads.
+          architecture=x86_64
+
+          mmake normal-update-payload
+          test -s out/mmake/image/mochios-update.moupdate
+
+          rm -rf normal-update-artifact
+          mkdir -p normal-update-artifact
+          cp out/mmake/image/mochios-update.moupdate \
+            normal-update-artifact/mochios-update.moupdate
+
+          (
+            cd normal-update-artifact
+            sha256sum mochios-update.moupdate \
+              > mochios-update.moupdate.sha256
+            sha256sum --check mochios-update.moupdate.sha256
+          )
+
+          {
+            echo "version=${RELEASE}"
+            echo "build=${BUILD}"
+            echo "channel=${channel}"
+            echo "architecture=${architecture}"
+          } >> "${GITHUB_OUTPUT}"
+
       - name: Upload development artifacts
         if: success()
         uses: actions/upload-artifact@v4
@@ -330,6 +371,17 @@ jobs:
         with:
           name: mochios-${{ steps.initial_install.outputs.version }}-${{ steps.initial_install.outputs.build }}-${{ steps.initial_install.outputs.channel }}-${{ steps.initial_install.outputs.architecture }}
           path: release-artifact/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+          overwrite: true
+
+      - name: Upload normal-update Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mochios-${{ steps.normal_update.outputs.version }}-${{ steps.normal_update.outputs.build }}-${{ steps.normal_update.outputs.channel }}-${{ steps.normal_update.outputs.architecture }}-update
+          path: normal-update-artifact/
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

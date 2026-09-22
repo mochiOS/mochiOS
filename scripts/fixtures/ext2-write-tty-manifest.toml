@@ -1,4 +1,5 @@
 [package]
+provenance = "built-in"
 id = "org.mochios.tty"
 name = "TTY Service"
 version = "1"

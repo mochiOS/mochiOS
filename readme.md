@@ -80,6 +80,22 @@ mmake image
 
 The bootable raw disk image is written to `out/artifacts/disk.img`.
 
+## Preview the interface without booting
+
+On a Linux desktop, open the standard apps with the host ViewKit backend:
+
+```sh
+mmake preview-files
+mmake preview-settings
+mmake preview-binder
+```
+
+These targets compile only the selected host app; they do not build or boot the
+OS. `mmake preview-check` compiles all three without opening windows, and
+`mmake ui-test` runs their host tests plus ViewKit's library tests. Files opens
+an isolated sample directory under `out/preview/home` and cannot navigate
+outside it. Settings user-management actions are unavailable on the host.
+
 ## Run with QEMU
 
 mochiOS can be started directly for development, or through mBoot to test the complete system architecture.

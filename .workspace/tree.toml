@@ -3519,3 +3519,11 @@ path = "applications/settings"
 hash = "fa4648e8e82ca3dd5b2b82909a7ed90e704b58c0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix tokenized status bar and symbol names"
+
+[[entries]]
+date = "2026-09-22T09:19:18.163420704+09:00"
+snapshot = "3c24304c34ba1913cc7e33ba"
+path = "applications/installer"
+hash = "056e26607ae3a80bf5f553aad9737fcd0419e9b8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Update libc dependency lockfile"

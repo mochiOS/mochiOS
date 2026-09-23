@@ -100,4 +100,9 @@ case "$app" in
             "${cargo_patches[@]}" \
             --bin appstore
         ;;
+    edit)
+        exec cargo "$cargo_command" --offline --manifest-path "$manifest" \
+            "${cargo_patches[@]}" \
+            --bin edit
+        ;;
 esac

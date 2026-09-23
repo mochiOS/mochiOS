@@ -19,6 +19,7 @@ mkdir -p \
     "$stage_new/libraries/fonts" \
     "$stage_new/tmp" \
     "$stage_new/var/config" \
+    "$stage_new/var/config/applications/org.mochios.edit/users" \
     "$stage_new/var/lib/accounts" \
     "$stage_new/var/lib/certificate" \
     "$stage_new/var/lib/diagnostics" \
@@ -32,6 +33,7 @@ mkdir -p \
     "$stage_new/system/packages" \
     "$stage_new/system/services"
 chmod 0700 "$stage_new/var/lib/diagnostics"
+chmod 01777 "$stage_new/var/config/applications/org.mochios.edit/users"
 chmod 01777 "$stage_new/var/config/workspace"
 chmod 01777 "$stage_new/tmp"
 for category in account appearance diagnostics general input network security; do mkdir -p "$stage_new/var/config/$category"; chmod 0777 "$stage_new/var/config/$category"; done

@@ -87,10 +87,10 @@ stage_app() {
 
 stage_app "$root/applications/binder" Binder.app binder
 for resource in appicon.svg close.svg maximize.svg minimize.svg mochios.svg; do install -m 0644 "$root/applications/binder/resources/$resource" "$stage_new/system/applications/Binder.app/$resource"; done
-stage_app "$root/applications/appstore" AppStore.app appstore
+stage_app "$root/applications/appstore" AppStore.app appstore appicon.png
 stage_app "$root/applications/test.app" test.app test_app
-stage_app "$root/applications/terminal" Terminal.app terminal appicon.svg
-stage_app "$root/applications/file" Files.app files appicon.svg
+stage_app "$root/applications/terminal" Terminal.app terminal appicon.png
+stage_app "$root/applications/file" Files.app files appicon.png
 mkdir -p "$stage_new/system/applications/Files.app/icons"
 for resource in folder.svg file.svg application.svg image.svg archive.svg disk.svg; do install -m 0644 "$root/applications/file/resources/icons/$resource" "$stage_new/system/applications/Files.app/icons/$resource"; done
 stage_app "$root/applications/settings" Settings.app settings appicon.png

@@ -13,7 +13,7 @@ if [[ $app == check || $app == test ]]; then
         cargo test --offline --manifest-path "$root/libraries/viewkit/Cargo.toml" \
             "${cargo_patches[@]}" --lib
     fi
-    for name in files settings binder appstore; do
+    for name in files settings binder appstore edit; do
         "$0" "$name" "--$app" "${cargo_patches[@]}"
     done
     exit 0
@@ -24,7 +24,8 @@ case "$app" in
     settings) source_dir="$root/applications/settings" ;;
     binder) source_dir="$root/applications/binder" ;;
     appstore) source_dir="$root/applications/appstore" ;;
-    *) echo "usage: $0 <files|settings|binder|appstore|check|test>" >&2; exit 2 ;;
+    edit) source_dir="$root/applications/edit" ;;
+    *) echo "usage: $0 <files|settings|binder|appstore|edit|check|test>" >&2; exit 2 ;;
 esac
 
 # Cargo resolves host-only dependencies into Cargo.lock. Keep that lockfile in

@@ -88,6 +88,8 @@ stage_app() {
 stage_app "$root/applications/binder" Binder.app binder
 for resource in appicon.svg close.svg maximize.svg minimize.svg mochios.svg; do install -m 0644 "$root/applications/binder/resources/$resource" "$stage_new/system/applications/Binder.app/$resource"; done
 stage_app "$root/applications/appstore" AppStore.app appstore appicon.png
+stage_app "$root/applications/edit" Edit.app edit
+install -m 0644 "$root/docs/resources/appicons/Edit.app.png" "$stage_new/system/applications/Edit.app/appicon.png"
 stage_app "$root/applications/test.app" test.app test_app
 stage_app "$root/applications/terminal" Terminal.app terminal appicon.png
 stage_app "$root/applications/file" Files.app files appicon.png
@@ -97,6 +99,7 @@ stage_app "$root/applications/settings" Settings.app settings appicon.png
 stage_app "$root/applications/installer" Installer.app installer appicon.svg
 install_manifest "$root/applications/binder/manifest.toml" binder
 install_manifest "$root/applications/appstore/manifest.toml" appstore
+install_manifest "$root/applications/edit/manifest.toml" edit
 install_manifest "$root/applications/terminal/manifest.toml" terminal
 install_manifest "$root/applications/file/manifest.toml" files
 install_manifest "$root/applications/settings/manifest.toml" settings

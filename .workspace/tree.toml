@@ -3527,3 +3527,11 @@ path = "applications/installer"
 hash = "056e26607ae3a80bf5f553aad9737fcd0419e9b8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update libc dependency lockfile"
+
+[[entries]]
+date = "2026-09-23T20:22:43.793209942+09:00"
+snapshot = "d008fcb174c31759398941c5"
+path = "applications/installer"
+hash = "66ced3b988321eb32e8570b1ffd96584a6d7aa7f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh Installer dependency lock"

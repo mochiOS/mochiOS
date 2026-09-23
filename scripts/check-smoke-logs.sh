@@ -171,6 +171,7 @@ assert_order "serial boot log" "${SERIAL_LOG}" \
     "network.service" "exec: loaded '/system/services/network.service'" \
     "user.service" "exec: loaded '/system/services/user.service'" \
     "secure-ui.service" "exec: loaded '/system/services/secure-ui.service'" \
+    "workspace.service" "exec: loaded '/system/services/workspace.service'" \
     "linux.service" "exec: loaded '/system/services/linux.service'"
 
 assert_order "network state transitions" "${NETWORK_LOG}" \
@@ -248,6 +249,9 @@ assert_order "service-manager.service log" "${SERVICE_MANAGER_LOG}" \
     "secure UI spawn" "service-manager.service: secure-ui.service spawned pid=" \
     "login wait" "service-manager.service: waiting for secure-ui.service login" \
     "login complete" "service-manager.service: secure-ui.service login complete" \
+    "Workspace spawn" "service-manager.service: workspace.service spawned pid=" \
+    "Workspace ready wait" "service-manager.service: waiting for workspace.service ready" \
+    "Workspace ready" "service-manager.service: workspace.service ready" \
     "Linux GUI spawn" "service-manager.service: linux.service spawned pid=" \
     "Binder spawn" "service-manager.service: Binder.app spawned pid="
 

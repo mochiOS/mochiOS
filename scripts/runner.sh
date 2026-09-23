@@ -810,6 +810,7 @@ while ((SECONDS < DEADLINE)); do
         && log_has "exec: loaded '/system/services/network.service'" \
         && log_has "exec: loaded '/system/services/user.service'" \
         && log_has "exec: loaded '/system/services/secure-ui.service'" \
+        && log_has "exec: loaded '/system/services/workspace.service'" \
         && log_has "exec: loaded '/system/services/linux.service'" \
         && log_has "exec: loaded '/applications/Binder.app/entry.elf'"; then
         if [[ "${COMPLETION_OBSERVED_AT}" -eq 0 ]]; then

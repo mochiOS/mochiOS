@@ -24,6 +24,7 @@ mkdir -p \
     "$stage_new/var/lib/diagnostics" \
     "$stage_new/var/lib/packages" \
     "$stage_new/var/lib/security" \
+    "$stage_new/var/config/workspace" \
     "$stage_new/var/log/services" \
     "$stage_new/system/applications" \
     "$stage_new/system/bin" \
@@ -31,6 +32,7 @@ mkdir -p \
     "$stage_new/system/packages" \
     "$stage_new/system/services"
 chmod 0700 "$stage_new/var/lib/diagnostics"
+chmod 01777 "$stage_new/var/config/workspace"
 chmod 01777 "$stage_new/tmp"
 for category in account appearance diagnostics general input network security; do mkdir -p "$stage_new/var/config/$category"; chmod 0777 "$stage_new/var/config/$category"; done
 printf 'format=1\n' > "$stage_new/system/.installed"
@@ -125,6 +127,7 @@ stage_service service-manager service-manager service-manager.service
 stage_service mboot-agent mboot-agent mboot-agent.service
 stage_service secure-ui secure-ui secure-ui.service
 stage_service update update update.service
+stage_service workspace workspace-service workspace.service
 
 if grep -qx 'DRIVER_XHCI=y' "$config"; then
     mkdir -p "$stage_new/system/bin/drivers/usb/qemu-usb.driver"

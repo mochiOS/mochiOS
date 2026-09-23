@@ -183,6 +183,13 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="applications/edit"
+            name="mochiOS/Edit.app"
+            revision="main"
+            remote="github"
+    />
     
     <project
             path="tools/mmake"

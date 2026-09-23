@@ -33,7 +33,7 @@ esac
 preview_dir="$root/out/preview/applications/${source_dir##*/}"
 mkdir -p "$preview_dir"
 cp "$source_dir/Cargo.toml" "$source_dir/Cargo.lock" "$preview_dir/"
-for entry in src resources appicon.svg about.toml manifest.toml; do
+for entry in src resources appicon.svg appicon.png about.toml manifest.toml; do
     if [[ -e "$source_dir/$entry" && ! -e "$preview_dir/$entry" ]]; then
         ln -s "$source_dir/$entry" "$preview_dir/$entry"
     fi

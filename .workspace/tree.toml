@@ -3583,3 +3583,11 @@ path = "services"
 hash = "cc0bf57f176ffc9373ba979235b789cd4432962b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Clear key window focus on desktop clicks"
+
+[[entries]]
+date = "2026-09-24T18:08:34.096671937+09:00"
+snapshot = "fd50a42a90ca8c7b47c367f2"
+path = "applications/file"
+hash = "fea1449299541eb46f94adae917eb87949a1e240"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Open files with registered applications"

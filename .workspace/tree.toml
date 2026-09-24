@@ -3535,3 +3535,11 @@ path = "applications/installer"
 hash = "66ced3b988321eb32e8570b1ffd96584a6d7aa7f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh Installer dependency lock"
+
+[[entries]]
+date = "2026-09-24T12:46:46.450985548+09:00"
+snapshot = "9ae15223a0414df2d56eb127"
+path = "libraries/viewkit"
+hash = "0427e2dba27f503d8bac4b8501adf3c493c14b58"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix initial text focus and window close handling"

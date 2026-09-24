@@ -3551,3 +3551,11 @@ path = "libraries/viewkit"
 hash = "b55cda441aba1f39e56d65e2d95dd74fe44cab3c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Repaint editor focus transitions"
+
+[[entries]]
+date = "2026-09-24T13:02:32.671883964+09:00"
+snapshot = "293f460c80c2bd375856f373"
+path = "services"
+hash = "91f3b6c8a6f2e638b23c309775080f23d9597536"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Focus newly created application windows"

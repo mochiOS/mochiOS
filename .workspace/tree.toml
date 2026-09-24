@@ -3567,3 +3567,11 @@ path = "services"
 hash = "b19c902d1ccd377ab8f066ec0de3d41050797d34"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep shell chrome from stealing keyboard focus"
+
+[[entries]]
+date = "2026-09-24T13:15:55.461942109+09:00"
+snapshot = "a2f4f82f8ecbe4f0a3d97594"
+path = "libraries/viewkit"
+hash = "d5d2e8026d687a2d560405845e90030e2830f5b9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Gate control focus on active windows"

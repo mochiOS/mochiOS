@@ -69,6 +69,10 @@ for program in "${coreutils[@]}"; do install -m 0755 "$bin/$program" "$stage_new
 
 install_manifest() {
     local source=$1 name=$2 package_root=$stage_new/system/packages/$2
+    if grep -Fq '"window.create"' "$source" && ! grep -Fq '"ipc.server"' "$source"; then
+        echo "fatal: $source requires window.create but cannot receive window events without ipc.server" >&2
+        exit 1
+    fi
     mkdir -p "$package_root"
     install -m 0644 "$source" "$package_root/manifest.toml"
     "$msign" package built-in-record "$package_root/manifest.toml" --output "$package_root/verification.bin"

@@ -3559,3 +3559,11 @@ path = "services"
 hash = "91f3b6c8a6f2e638b23c309775080f23d9597536"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Focus newly created application windows"
+
+[[entries]]
+date = "2026-09-24T13:12:32.539528752+09:00"
+snapshot = "7bbbccb0f2957482623d794b"
+path = "services"
+hash = "b19c902d1ccd377ab8f066ec0de3d41050797d34"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep shell chrome from stealing keyboard focus"

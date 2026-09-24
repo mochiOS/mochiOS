@@ -3543,3 +3543,11 @@ path = "libraries/viewkit"
 hash = "0427e2dba27f503d8bac4b8501adf3c493c14b58"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix initial text focus and window close handling"
+
+[[entries]]
+date = "2026-09-24T12:59:07.125806059+09:00"
+snapshot = "f84e2872414f3d89fae2cc44"
+path = "libraries/viewkit"
+hash = "b55cda441aba1f39e56d65e2d95dd74fe44cab3c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Repaint editor focus transitions"

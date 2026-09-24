@@ -3575,3 +3575,11 @@ path = "libraries/viewkit"
 hash = "d5d2e8026d687a2d560405845e90030e2830f5b9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Gate control focus on active windows"
+
+[[entries]]
+date = "2026-09-24T17:44:32.077327725+09:00"
+snapshot = "a895e4ff0f8a34bf87125781"
+path = "services"
+hash = "cc0bf57f176ffc9373ba979235b789cd4432962b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Clear key window focus on desktop clicks"

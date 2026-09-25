@@ -3599,3 +3599,11 @@ path = "binaries/msh"
 hash = "2895784eb6391fed04891d799c372bf25f623279"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add shell syntax pipelines and redirection"
+
+[[entries]]
+date = "2026-09-25T12:44:23.148320622+09:00"
+snapshot = "93de62abfc8c835f29ae7069"
+path = "applications/file"
+hash = "17d4ac77904924afae14a59b013dbd81323b2479"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use default application icons for documents"

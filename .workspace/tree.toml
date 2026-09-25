@@ -3631,3 +3631,11 @@ path = "build"
 hash = "dc9a95639ea53fc1b4bc941b098bc12d760f67c2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add Edit host test target"
+
+[[entries]]
+date = "2026-09-25T14:00:00.495872052+09:00"
+snapshot = "a5b1e90f4abc73ba2bcf2b3e"
+path = "applications/file"
+hash = "c41f125c355c4b663dd0f55c8a74039fedf7d7ba"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use AppKit for document associations"

@@ -3615,3 +3615,11 @@ path = "build"
 hash = "995db16727a7ed8c36e7f77a0928d0eecdd16a93"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add Application SDK build targets"
+
+[[entries]]
+date = "2026-09-25T13:31:49.859919267+09:00"
+snapshot = "3e1420c566347949fe8731ce"
+path = "tools/devkit"
+hash = "6e9d6830eda2ba4557801d69ca249017c0b2de8a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Rename Application SDK to AppKit"

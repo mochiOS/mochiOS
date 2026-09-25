@@ -3639,3 +3639,11 @@ path = "applications/file"
 hash = "c41f125c355c4b663dd0f55c8a74039fedf7d7ba"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use AppKit for document associations"
+
+[[entries]]
+date = "2026-09-25T14:17:03.734911969+09:00"
+snapshot = "4fb4fbd6ad98ae39e6364da9"
+path = "tools/devkit"
+hash = "69502872ad0e606f0a730afedefd4b33bb690df8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add AppKit application menus"

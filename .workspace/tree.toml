@@ -3655,3 +3655,11 @@ path = "tools/devkit"
 hash = "30ba1b00ee5eaad5620cd8bb62c73dddce29c79d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Center AppKit menu bar labels"
+
+[[entries]]
+date = "2026-09-25T14:23:49.525829908+09:00"
+snapshot = "07df89f2e9376a9ebb587918"
+path = "tools/devkit"
+hash = "1bd4262242267a749ffd37108d6f45e366813866"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix AppKit file panel presentation"

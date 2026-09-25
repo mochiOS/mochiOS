@@ -3623,3 +3623,11 @@ path = "tools/devkit"
 hash = "6e9d6830eda2ba4557801d69ca249017c0b2de8a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Rename Application SDK to AppKit"
+
+[[entries]]
+date = "2026-09-25T13:57:50.081932661+09:00"
+snapshot = "274182aed5ac0fb72e6c148d"
+path = "build"
+hash = "dc9a95639ea53fc1b4bc941b098bc12d760f67c2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add Edit host test target"

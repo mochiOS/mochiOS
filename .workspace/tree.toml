@@ -3591,3 +3591,11 @@ path = "applications/file"
 hash = "fea1449299541eb46f94adae917eb87949a1e240"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Open files with registered applications"
+
+[[entries]]
+date = "2026-09-25T12:31:24.070198008+09:00"
+snapshot = "210074ed5f6220e60d68a6d6"
+path = "binaries/msh"
+hash = "2895784eb6391fed04891d799c372bf25f623279"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add shell syntax pipelines and redirection"

@@ -3647,3 +3647,11 @@ path = "tools/devkit"
 hash = "69502872ad0e606f0a730afedefd4b33bb690df8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add AppKit application menus"
+
+[[entries]]
+date = "2026-09-25T14:18:36.907664860+09:00"
+snapshot = "2a620b58e2641c04352d85a6"
+path = "tools/devkit"
+hash = "30ba1b00ee5eaad5620cd8bb62c73dddce29c79d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Center AppKit menu bar labels"

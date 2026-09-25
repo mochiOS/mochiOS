@@ -3607,3 +3607,11 @@ path = "applications/file"
 hash = "17d4ac77904924afae14a59b013dbd81323b2479"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use default application icons for documents"
+
+[[entries]]
+date = "2026-09-25T13:21:02.423186097+09:00"
+snapshot = "ae9b8208496694c0fb80ce77"
+path = "build"
+hash = "995db16727a7ed8c36e7f77a0928d0eecdd16a93"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add Application SDK build targets"

@@ -3679,3 +3679,11 @@ path = "core"
 hash = "799a37c1126947ec6e4bfb522ae472666e6d0967"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Support scoped file grants and deferred IPC replies"
+
+[[entries]]
+date = "2026-09-26T17:36:16.993039805+09:00"
+snapshot = "4b3b078e471e2c2f2bb5d449"
+path = "mboot"
+hash = "ac8291189f8f79fe417a865555f15157f6dfb991"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh mnu ABI dependency lockfile"

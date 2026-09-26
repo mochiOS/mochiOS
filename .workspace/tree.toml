@@ -3671,3 +3671,11 @@ path = "tools/devkit"
 hash = "209e988a235c4e647cff4019d76167398dea4190"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add document controll"
+
+[[entries]]
+date = "2026-09-26T17:33:44.173349620+09:00"
+snapshot = "50f239667c7713ebd9a3b15c"
+path = "core"
+hash = "799a37c1126947ec6e4bfb522ae472666e6d0967"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Support scoped file grants and deferred IPC replies"

@@ -105,7 +105,7 @@ stage_app "$root/applications/file" Files.app files appicon.png
 mkdir -p "$stage_new/system/applications/Files.app/icons"
 for resource in folder.svg file.svg application.svg image.svg archive.svg disk.svg; do install -m 0644 "$root/applications/file/resources/icons/$resource" "$stage_new/system/applications/Files.app/icons/$resource"; done
 stage_app "$root/applications/settings" Settings.app settings appicon.png
-stage_app "$root/applications/system-monitor" "System Monitor.app" system-monitor appicon.png
+stage_app "$root/applications/system-monitor" SystemMonitor.app system-monitor appicon.png
 stage_app "$root/applications/installer" Installer.app installer appicon.svg
 install_manifest "$root/applications/binder/manifest.toml" binder
 install_manifest "$root/applications/appstore/manifest.toml" appstore

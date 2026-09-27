@@ -3735,3 +3735,11 @@ path = "user"
 hash = "fbe79fd731bfd699cef64e3dc449cd2d616e8066"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Decode workspace IPC reply lengths correctly"
+
+[[entries]]
+date = "2026-09-27T11:30:54.228708683+09:00"
+snapshot = "5761eef1299177c03a0bbbeb"
+path = "services"
+hash = "52e2a3cd204439a86d7cac2b600e6015242cd5f4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep system file panels responsive"

@@ -190,6 +190,13 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="applications/system-monitor"
+            name="mochiOS/System-Monitor.app"
+            revision="main"
+            remote="github"
+    />
     
     <project
             path="tools/mmake"

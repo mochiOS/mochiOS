@@ -3727,3 +3727,11 @@ path = "core"
 hash = "17ce4c6c8f740336f7cb36e563402ce767854280"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Correlate synchronous IPC replies by call"
+
+[[entries]]
+date = "2026-09-27T11:08:30.257767569+09:00"
+snapshot = "4a44b86b820f6d194e197e87"
+path = "user"
+hash = "fbe79fd731bfd699cef64e3dc449cd2d616e8066"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Decode workspace IPC reply lengths correctly"

@@ -3767,3 +3767,11 @@ path = "build"
 hash = "063e6275c1010d4a6216753184c5ba1f544c0f9e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fetch and package Japanese IME dictionary"
+
+[[entries]]
+date = "2026-09-27T13:33:36.922010172+09:00"
+snapshot = "b6f711b021293a5cc7520564"
+path = "libraries/viewkit"
+hash = "fd4d13bcdb33ba845d17130f094bc38ce3bd4a5a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add Japanese input method to text controls"

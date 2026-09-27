@@ -3903,3 +3903,11 @@ path = "services"
 hash = "f29ffcb8cb7aa93b710cec9771205407d9009733"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route Alt Tab to desktop shell"
+
+[[entries]]
+date = "2026-09-27T16:49:50.105710226+09:00"
+snapshot = "c751dad50018ef6146fdbc39"
+path = "applications/binder"
+hash = "8271aaacd96c82f9c6d1a6d3c56b53e59b69e37b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Document deferred window switching"

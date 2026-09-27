@@ -3823,3 +3823,11 @@ path = "applications/binder"
 hash = "8ad755dbb66c995398b09e18ee94476775e06dee"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use an input mode segmented control"
+
+[[entries]]
+date = "2026-09-27T15:14:51.513209999+09:00"
+snapshot = "cd22d7f81bc1cf3f3eb9816a"
+path = "libraries/viewkit"
+hash = "0e42a2495b20d61aba0bac0ff376a60c90de0fe9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix incremental romaji conversion"

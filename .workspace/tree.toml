@@ -3911,3 +3911,11 @@ path = "applications/binder"
 hash = "8271aaacd96c82f9c6d1a6d3c56b53e59b69e37b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Document deferred window switching"
+
+[[entries]]
+date = "2026-09-27T16:51:12.552678676+09:00"
+snapshot = "762726391212e8141f643bc9"
+path = "applications/binder"
+hash = "dd5d5fd68aa80ac826763e86ad91b7f47f0efc9b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep roadmap in OS checklist"

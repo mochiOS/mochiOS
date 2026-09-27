@@ -4023,3 +4023,11 @@ path = "build"
 hash = "b9268c9f461d714408714f9bf1c29458294f8ef4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add System Monitor build targets"
+
+[[entries]]
+date = "2026-09-27T20:51:37.121752170+09:00"
+snapshot = "51b00a56f2124cdcd2e0e0b7"
+path = "applications/system-monitor"
+hash = "194712a0a660dc2d8465c77725e42ba3fb920cea"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add System Monitor application"

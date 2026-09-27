@@ -3855,3 +3855,11 @@ path = "libraries/viewkit"
 hash = "f8c8d31c5f2dab8be1943876a27c7593d4ec7ec0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix kana deletion and nnu input"
+
+[[entries]]
+date = "2026-09-27T15:49:57.544115374+09:00"
+snapshot = "e7376cc86ef715dee40bfe58"
+path = "drivers"
+hash = "d39616a5718ddfd36202d6bc13c02ce5fd020400"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve fast keyboard input ordering"

@@ -3879,3 +3879,11 @@ path = "libraries/viewkit"
 hash = "54760dad518eadd3a493359e073acdaacdf99e7d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Complete IME candidate navigation"
+
+[[entries]]
+date = "2026-09-27T16:15:14.213525309+09:00"
+snapshot = "3f7a714cb25819768930be2f"
+path = "libraries/viewkit"
+hash = "5829e0525cc4c990c3cdeac72064d49d8cc42331"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Make IME candidates interactive"

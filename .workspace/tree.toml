@@ -3983,3 +3983,27 @@ path = "applications/binder"
 hash = "e65ce0102501c138fdcafa9ec62e6195c8302c30"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add Control Center customization window"
+
+[[entries]]
+date = "2026-09-27T18:55:24.758985290+09:00"
+snapshot = "1ba2e542a4298dab3c5d50ee"
+path = "tools/devkit"
+hash = "a050957d4c696739279bfc83f81a5d72a37aac25"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add AppKit Control Center card API"
+
+[[entries]]
+date = "2026-09-27T18:56:13.269824244+09:00"
+snapshot = "ade2227e335198a34cfc9a21"
+path = "tools/devkit"
+hash = "0f2a3552b7ae13218bcb76a31c966690010f9d62"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add AppKit Control Center card API"
+
+[[entries]]
+date = "2026-09-27T18:57:17.669098886+09:00"
+snapshot = "9a1e3e8aa1711011d3f243e9"
+path = "tools/devkit"
+hash = "43c3ee5eaeee5ed4e99dee4e66bfd3a90f2b3558"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add AppKit Control Center card API"

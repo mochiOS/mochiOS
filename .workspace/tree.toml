@@ -3847,3 +3847,11 @@ path = "services"
 hash = "72c81e09ee42f60d1dc7745e964705500ca40565"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh workspace dependency lock"
+
+[[entries]]
+date = "2026-09-27T15:42:04.240511702+09:00"
+snapshot = "01154eb9b2fe820bda8d1a0a"
+path = "libraries/viewkit"
+hash = "f8c8d31c5f2dab8be1943876a27c7593d4ec7ec0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix kana deletion and nnu input"

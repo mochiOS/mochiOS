@@ -3775,3 +3775,11 @@ path = "libraries/viewkit"
 hash = "fd4d13bcdb33ba845d17130f094bc38ce3bd4a5a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add Japanese input method to text controls"
+
+[[entries]]
+date = "2026-09-27T13:38:27.148604275+09:00"
+snapshot = "f3813618feb3f086d4c11faf"
+path = "libraries/viewkit"
+hash = "15ca2ac64c2d016ab6625172d756073380d8b298"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Toggle Japanese input with Caps Lock"

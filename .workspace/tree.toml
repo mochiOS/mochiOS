@@ -3871,3 +3871,11 @@ path = "libraries/viewkit"
 hash = "6faea41877889be99249e2bca52820739f37a8e5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Soften IME panel shadows"
+
+[[entries]]
+date = "2026-09-27T16:05:10.074601075+09:00"
+snapshot = "997e525f9e1c3d83bd0c3ddd"
+path = "libraries/viewkit"
+hash = "54760dad518eadd3a493359e073acdaacdf99e7d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Complete IME candidate navigation"

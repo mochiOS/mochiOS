@@ -4039,3 +4039,11 @@ path = "applications/system-monitor"
 hash = "d31814464999116c35ca47b79f374823c239ebbb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update System Monitor dependency lockfile"
+
+[[entries]]
+date = "2026-09-27T21:17:03.921371100+09:00"
+snapshot = "b4feb3a8e2c358ea88672f3c"
+path = "applications/system-monitor"
+hash = "57bc3a254c245dda564836382bb8b845d2338448"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Show application identity in System Monitor"

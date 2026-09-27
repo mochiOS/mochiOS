@@ -4007,3 +4007,11 @@ path = "tools/devkit"
 hash = "43c3ee5eaeee5ed4e99dee4e66bfd3a90f2b3558"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add AppKit Control Center card API"
+
+[[entries]]
+date = "2026-09-27T19:17:37.301658430+09:00"
+snapshot = "5e42d6fd7ec0b45dc7c62bee"
+path = "build"
+hash = "0bd2489f15e7d29f81e2e6c245e58d0767fe48a5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Rebuild runtime when ABI metadata changes"

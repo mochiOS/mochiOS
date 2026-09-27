@@ -3815,3 +3815,11 @@ path = "libraries/viewkit"
 hash = "9df14dc39c645767a0d8d7bf170f8a64ddfe5df5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refine Japanese text composition"
+
+[[entries]]
+date = "2026-09-27T15:01:16.721890710+09:00"
+snapshot = "15b2f0a3809074ea24e27571"
+path = "applications/binder"
+hash = "8ad755dbb66c995398b09e18ee94476775e06dee"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use an input mode segmented control"

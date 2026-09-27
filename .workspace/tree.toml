@@ -4031,3 +4031,11 @@ path = "applications/system-monitor"
 hash = "194712a0a660dc2d8465c77725e42ba3fb920cea"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add System Monitor application"
+
+[[entries]]
+date = "2026-09-27T21:03:01.695640896+09:00"
+snapshot = "eecba752b755802fc0bf0f0c"
+path = "applications/system-monitor"
+hash = "d31814464999116c35ca47b79f374823c239ebbb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Update System Monitor dependency lockfile"

@@ -3975,3 +3975,11 @@ path = "libraries/viewkit"
 hash = "60e47af736de7bbc3f1d80c47387f8251fb3028e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Render slider thumbs as rounded rectangles"
+
+[[entries]]
+date = "2026-09-27T18:32:14.979775099+09:00"
+snapshot = "83c3274041f532dee8827a37"
+path = "applications/binder"
+hash = "e65ce0102501c138fdcafa9ec62e6195c8302c30"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add Control Center customization window"

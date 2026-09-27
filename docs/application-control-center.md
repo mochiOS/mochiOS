@@ -21,7 +21,9 @@ registering application when it is running, or launches it when it is not. Binde
 does not load application code into the system panel and does not accept commands,
 paths, or target bundle IDs from the registration file.
 
-Users can hide, restore, and reorder registered and built-in items with Control
-Center's Edit mode. These choices are stored in the signed-in user's configuration
-directory. Removing an application also removes its items from the panel without
+The Control Center's Edit button opens a normal, foreground desktop window. Users
+can hide or restore registered and built-in items, move them with the arrow buttons,
+or drag one row onto another row to reorder it. Each change is saved immediately in
+the signed-in user's configuration directory. Removing an application removes its
+items from the panel and the next editor launch cleans its stale preferences without
 discarding the relative order of remaining items.

@@ -4015,3 +4015,11 @@ path = "build"
 hash = "0bd2489f15e7d29f81e2e6c245e58d0767fe48a5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Rebuild runtime when ABI metadata changes"
+
+[[entries]]
+date = "2026-09-27T20:50:41.271657183+09:00"
+snapshot = "4c9d01225184b14da9e522b0"
+path = "build"
+hash = "b9268c9f461d714408714f9bf1c29458294f8ef4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add System Monitor build targets"

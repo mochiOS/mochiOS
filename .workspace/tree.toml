@@ -3935,3 +3935,11 @@ path = "build"
 hash = "7bd298c05ed22bcdda165c6ad7f16d6050e22bee"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Build and test Control Center registrations"
+
+[[entries]]
+date = "2026-09-27T17:42:16.631969669+09:00"
+snapshot = "2f25a5ab6ba7211171168b20"
+path = "user"
+hash = "4a94c39c602dfaacbd2f4d9ea39a05b6b1181519"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Validate unified application metadata"

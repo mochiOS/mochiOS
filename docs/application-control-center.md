@@ -1,20 +1,18 @@
 # Control Center application items
 
-An installed application can add shortcuts to Binder's Control Center by placing
-`control-center.toml` at the root of its application bundle. The file must also be
-listed in the application's `about.toml` resources so packaging tools retain it.
+An installed application can add shortcuts to Binder's Control Center from its
+single bundle `manifest.toml`.
 
 ```toml
-format = 1
-
-[[item]]
+[[application.control_center_items]]
 id = "open-edit"
 title = "Edit"
 symbol = "pencil"
 action = "open-application"
 ```
 
-`id` is local to the registering application and may contain lowercase letters,
+The item is declared alongside the bundle's `[package]` and `[application]`
+metadata. `id` is local to the registering application and may contain lowercase letters,
 digits, and hyphens. `symbol` must name an installed VK Symbols asset. Binder
 currently accepts at most eight items from one application.
 

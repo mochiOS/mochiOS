@@ -3791,3 +3791,11 @@ path = "applications/terminal"
 hash = "359cbde7829df93841249bb8ef4b59b721c7cba1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Handle Caps Lock in terminal key dispatch"
+
+[[entries]]
+date = "2026-09-27T14:33:22.730678306+09:00"
+snapshot = "57c526f1e92dd553bbd233ee"
+path = "applications/binder"
+hash = "3920dab33a42e235770f233f5e41f50766c7576a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Show input mode in the system bar"

@@ -3687,3 +3687,11 @@ path = "mboot"
 hash = "ac8291189f8f79fe417a865555f15157f6dfb991"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh mnu ABI dependency lockfile"
+
+[[entries]]
+date = "2026-09-27T09:36:49.614370731+09:00"
+snapshot = "a6b53a5ed24c4a948632f3a2"
+path = "applications/file"
+hash = "b94ba59709a111f2c816abca1de8dd7d3d5c5cb9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Format sidebar persistence helpers"

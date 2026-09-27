@@ -3751,3 +3751,11 @@ path = "applications/binder"
 hash = "154896f435f39e9f31229751a047f5bca803b03d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use VK Symbols for launch errors"
+
+[[entries]]
+date = "2026-09-27T11:59:05.707988086+09:00"
+snapshot = "03ec24e6b403d8517715fce4"
+path = "libraries/viewkit"
+hash = "27e2ed8f11643a6ab1c79230bc2debb8447f4767"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use standard ViewKit controls for alerts"

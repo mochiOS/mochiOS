@@ -3711,3 +3711,11 @@ path = "core"
 hash = "05e923290888c6a69ec0984d309e87c25bb710b3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Match synchronous IPC replies by endpoint"
+
+[[entries]]
+date = "2026-09-27T10:39:11.332230855+09:00"
+snapshot = "65930540d3079c463a4306e2"
+path = "libraries/viewkit"
+hash = "08645a5b36755d2539716e645ffd6172b1077ae2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add runtime-owned alert windows"

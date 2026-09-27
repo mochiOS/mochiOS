@@ -3759,3 +3759,11 @@ path = "libraries/viewkit"
 hash = "27e2ed8f11643a6ab1c79230bc2debb8447f4767"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use standard ViewKit controls for alerts"
+
+[[entries]]
+date = "2026-09-27T12:15:24.956849848+09:00"
+snapshot = "7fba5c56762c34ca61bff7d7"
+path = "build"
+hash = "063e6275c1010d4a6216753184c5ba1f544c0f9e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fetch and package Japanese IME dictionary"

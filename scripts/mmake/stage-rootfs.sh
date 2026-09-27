@@ -29,6 +29,7 @@ mkdir -p \
     "$stage_new/var/log/services" \
     "$stage_new/system/applications" \
     "$stage_new/system/bin" \
+    "$stage_new/system/libraries/ime" \
     "$stage_new/system/libraries/fonts" \
     "$stage_new/system/packages" \
     "$stage_new/system/services"
@@ -59,6 +60,8 @@ mkdir -p "$stage_new/system/libraries/fonts" "$stage_new/system/resources/msh"
 cp -a "$root/libraries/fonts/out/fonts/." "$stage_new/system/libraries/fonts/"
 rm -f "$stage_new/system/libraries/fonts/.installed"
 install -m 0644 "$root/binaries/msh/resources/ter-u12b.bdf" "$stage_new/system/resources/msh/ter-u12b.bdf"
+install -m 0644 "$mmake_out/components/ime/ja.mime" "$stage_new/system/libraries/ime/ja.mime"
+install -m 0644 "$root/build/ime/ja.mime.sha256" "$stage_new/system/libraries/ime/ja.mime.sha256"
 
 install -m 0755 "$root/out/newlib-port/hello/hello.elf" "$stage_new/system/bin/hello"
 for program in rust-std-demo test_app msh; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done

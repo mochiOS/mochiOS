@@ -3863,3 +3863,11 @@ path = "drivers"
 hash = "d39616a5718ddfd36202d6bc13c02ce5fd020400"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve fast keyboard input ordering"
+
+[[entries]]
+date = "2026-09-27T15:58:00.264244101+09:00"
+snapshot = "915d50c3a557bba10ec11bbe"
+path = "libraries/viewkit"
+hash = "6faea41877889be99249e2bca52820739f37a8e5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Soften IME panel shadows"

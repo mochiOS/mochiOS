@@ -3695,3 +3695,11 @@ path = "applications/file"
 hash = "b94ba59709a111f2c816abca1de8dd7d3d5c5cb9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Format sidebar persistence helpers"
+
+[[entries]]
+date = "2026-09-27T09:49:22.779653584+09:00"
+snapshot = "49c8b4dd11ebd9b542a37b6f"
+path = "tools/devkit"
+hash = "68e5763b06fcf809a3168d5c522ee35fe69c3771"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Present document operation errors as alerts"

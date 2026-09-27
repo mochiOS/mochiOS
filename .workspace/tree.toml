@@ -3887,3 +3887,11 @@ path = "libraries/viewkit"
 hash = "5829e0525cc4c990c3cdeac72064d49d8cc42331"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Make IME candidates interactive"
+
+[[entries]]
+date = "2026-09-27T16:27:19.936241174+09:00"
+snapshot = "31568e5d7e4ec6f6d0a0fee8"
+path = "services"
+hash = "13248f0b4a5f02a3931225a0c3e66950a3b4a5ae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Update workspace dependency lock"

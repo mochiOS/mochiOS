@@ -3807,3 +3807,11 @@ path = "applications/binder"
 hash = "12f23aa189b6423526173a38121ae3514cd720b6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Center the input mode indicator"
+
+[[entries]]
+date = "2026-09-27T14:50:35.792027883+09:00"
+snapshot = "9711bed517ccfb96eab291f4"
+path = "libraries/viewkit"
+hash = "9df14dc39c645767a0d8d7bf170f8a64ddfe5df5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refine Japanese text composition"

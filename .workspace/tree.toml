@@ -3951,3 +3951,11 @@ path = "tools/devkit"
 hash = "f0bcfe6fd96e69d714ff0706ac2366a3308c0fa2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh devkit lockfile"
+
+[[entries]]
+date = "2026-09-27T17:55:31.689194085+09:00"
+snapshot = "b2257eb09086fd21cee278d2"
+path = "applications/binder"
+hash = "8666d90d1d1fae125eaf479aaaf24aae66a1cf94"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use ViewKit icon sizing in Control Center"

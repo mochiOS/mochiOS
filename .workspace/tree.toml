@@ -3943,3 +3943,11 @@ path = "user"
 hash = "4a94c39c602dfaacbd2f4d9ea39a05b6b1181519"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Validate unified application metadata"
+
+[[entries]]
+date = "2026-09-27T17:52:20.672560486+09:00"
+snapshot = "2ba8375e2692c84aa12106e5"
+path = "tools/devkit"
+hash = "f0bcfe6fd96e69d714ff0706ac2366a3308c0fa2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh devkit lockfile"

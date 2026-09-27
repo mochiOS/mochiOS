@@ -3895,3 +3895,11 @@ path = "services"
 hash = "13248f0b4a5f02a3931225a0c3e66950a3b4a5ae"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update workspace dependency lock"
+
+[[entries]]
+date = "2026-09-27T16:46:29.382869682+09:00"
+snapshot = "904a2661a906e78279e7d424"
+path = "services"
+hash = "f29ffcb8cb7aa93b710cec9771205407d9009733"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route Alt Tab to desktop shell"

@@ -81,7 +81,7 @@ ViewKitの旧アイコン資産は削除し、Figmaを正として新しい標�
 - [ ] `help`
 - [ ] `calendar`
 - [ ] `clock`
-- [ ] `lock`
+- [x] `lock`
 - [ ] `unlock`
 
 ### System and account

@@ -93,6 +93,7 @@ stage_app() {
     install -m 0755 "$bin/$binary" "$destination/entry.elf"
     install -m 0644 "$source/about.toml" "$destination/about.toml"
     install -m 0644 "$source/manifest.toml" "$destination/manifest.toml"
+    [[ ! -f $source/control-center.toml ]] || install -m 0644 "$source/control-center.toml" "$destination/control-center.toml"
     [[ -z $icon ]] || install -m 0644 "$source/$icon" "$destination/$icon"
 }
 

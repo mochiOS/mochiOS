@@ -3799,3 +3799,11 @@ path = "applications/binder"
 hash = "3920dab33a42e235770f233f5e41f50766c7576a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Show input mode in the system bar"
+
+[[entries]]
+date = "2026-09-27T14:41:28.616392702+09:00"
+snapshot = "58a89edeec84ea06b1e98b1d"
+path = "applications/binder"
+hash = "12f23aa189b6423526173a38121ae3514cd720b6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Center the input mode indicator"

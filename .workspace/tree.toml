@@ -3831,3 +3831,11 @@ path = "libraries/viewkit"
 hash = "0e42a2495b20d61aba0bac0ff376a60c90de0fe9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix incremental romaji conversion"
+
+[[entries]]
+date = "2026-09-27T15:23:30.137085853+09:00"
+snapshot = "0f9f8aca0dd7525547c85729"
+path = "applications/binder"
+hash = "28ec4f40f98e07e8d9ad42b290def15bd390d341"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Simplify the system input mode control"

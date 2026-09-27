@@ -3743,3 +3743,11 @@ path = "services"
 hash = "52e2a3cd204439a86d7cac2b600e6015242cd5f4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep system file panels responsive"
+
+[[entries]]
+date = "2026-09-27T11:51:02.465357112+09:00"
+snapshot = "90e16dd1a40c25b5e4b2fe70"
+path = "applications/binder"
+hash = "154896f435f39e9f31229751a047f5bca803b03d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use VK Symbols for launch errors"

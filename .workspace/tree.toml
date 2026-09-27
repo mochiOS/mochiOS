@@ -3783,3 +3783,11 @@ path = "libraries/viewkit"
 hash = "15ca2ac64c2d016ab6625172d756073380d8b298"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Toggle Japanese input with Caps Lock"
+
+[[entries]]
+date = "2026-09-27T14:04:32.920904619+09:00"
+snapshot = "20d2ed35f8b90d616605f2b0"
+path = "applications/terminal"
+hash = "359cbde7829df93841249bb8ef4b59b721c7cba1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Handle Caps Lock in terminal key dispatch"

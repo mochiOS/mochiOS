@@ -3959,3 +3959,11 @@ path = "applications/binder"
 hash = "8666d90d1d1fae125eaf479aaaf24aae66a1cf94"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use ViewKit icon sizing in Control Center"
+
+[[entries]]
+date = "2026-09-27T18:11:44.807587933+09:00"
+snapshot = "02a1a58a3f2f22bb1ccdbf3d"
+path = "applications/binder"
+hash = "d79e4050fae645e984693a2cd6c2fd55b03bb4b5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add responsive Control Center volume controls"

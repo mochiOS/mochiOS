@@ -34,7 +34,7 @@ ViewKitの旧アイコン資産は削除し、Figmaを正として新しい標�
 - [ ] `layout-grid` - Filesグリッド表示、Applications
 - [ ] `columns-3` - カラム表示
 - [ ] `eye` - Appearance、表示
-- [ ] `volume-2` - 音量
+- [x] `volume.high` / `volume.mute` - 音量、ミュート
 
 ## 差し替え予定のファイルアイコン
 

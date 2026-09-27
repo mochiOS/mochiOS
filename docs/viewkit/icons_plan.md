@@ -36,6 +36,10 @@ ViewKitの旧アイコン資産は削除し、Figmaを正として新しい標�
 - [ ] `eye` - Appearance、表示
 - [ ] `volume-2` - 音量
 
+## 差し替え予定のファイルアイコン
+
+- [ ] テキストファイル用アイコンを専用デザインへ差し替える。現在Filesは関連付け先であるEditの`appicon.png`を文書アイコンとして流用しているため、完成後はEditの`about.toml`に`document_icon`を指定し、アプリ本体のアイコンと文書アイコンを分離する。
+
 ## 標準UIとして追加すべき未作成アイコン
 
 ### Navigation and window

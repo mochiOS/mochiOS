@@ -4127,3 +4127,11 @@ path = "applications/test.app"
 hash = "44dc5e81cd2284d24808ed12166f15cabf6ffe95"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use standard notification action styling"
+
+[[entries]]
+date = "2026-09-29T11:09:33.537975735+09:00"
+snapshot = "73ab9577e1b3bb287f57249f"
+path = "tools/devkit"
+hash = "290614035d80fdae825c1f5b5b0a56849a0b2527"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Rename AppKit framework to AppCore"

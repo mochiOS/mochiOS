@@ -4167,3 +4167,11 @@ path = "applications/binder"
 hash = "3290d2ffb169e4a759dfe6006f91cc2ff83b365d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve notification banners across view rebuilds"
+
+[[entries]]
+date = "2026-09-29T12:47:38.307505720+09:00"
+snapshot = "67116102140e843a82f8e217"
+path = "applications/settings"
+hash = "401393485887b138ad285831d1fb09c602be744e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add per-application notification settings"

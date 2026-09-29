@@ -4119,3 +4119,11 @@ path = "tools/devkit"
 hash = "c8caed7da594afc51aeb155d3fde6cf1803dc159"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update AppKit lockfile"
+
+[[entries]]
+date = "2026-09-29T11:00:47.983111165+09:00"
+snapshot = "9fe2d8406a32eac2f08a2944"
+path = "applications/test.app"
+hash = "44dc5e81cd2284d24808ed12166f15cabf6ffe95"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use standard notification action styling"

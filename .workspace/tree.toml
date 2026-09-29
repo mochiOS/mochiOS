@@ -4087,3 +4087,11 @@ path = "applications/system-monitor"
 hash = "fb6d104be644913245864c6314225daa1ee33ed5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Match Binder application catalog reads"
+
+[[entries]]
+date = "2026-09-29T09:43:48.280998726+09:00"
+snapshot = "e943cd1d8b2a10977f316580"
+path = "applications/system-monitor"
+hash = "ce6134f63f616a6c4f997d73d53c42fed48cae11"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use Binder fallback icon for applications"

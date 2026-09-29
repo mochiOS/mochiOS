@@ -4095,3 +4095,11 @@ path = "applications/system-monitor"
 hash = "ce6134f63f616a6c4f997d73d53c42fed48cae11"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use Binder fallback icon for applications"
+
+[[entries]]
+date = "2026-09-29T10:26:24.256519909+09:00"
+snapshot = "81691a4b7650fa53dfa6c8a2"
+path = "applications/binder"
+hash = "a47bd350d6d34152a947e5b1c580bc9e99f301ad"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add desktop notification center"

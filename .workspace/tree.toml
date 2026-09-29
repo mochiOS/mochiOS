@@ -4183,3 +4183,11 @@ path = "applications/binder"
 hash = "6dec1993ca09e4c72c9c216b16ba3d8fd2666428"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add Spotlight-style system search"
+
+[[entries]]
+date = "2026-09-29T16:19:36.556169126+09:00"
+snapshot = "0d3a8f7c4747d888d90c021d"
+path = "services"
+hash = "101b4b1b496d85508e7f90dac80af62f95c2275f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route global search shortcut to Binder"

@@ -4071,3 +4071,11 @@ path = "applications/system-monitor"
 hash = "6801838096b6a147d1459b5644d71c69d2fd59b8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retry application metadata and icon loading"
+
+[[entries]]
+date = "2026-09-29T09:38:32.304515400+09:00"
+snapshot = "63d1187d4ad4ebd961a01c09"
+path = "applications/system-monitor"
+hash = "8bf57d6207a670b89b774d1361a27fc388b783b6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Resolve process bundle aliases for application icons"

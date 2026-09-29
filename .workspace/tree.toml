@@ -4191,3 +4191,11 @@ path = "services"
 hash = "101b4b1b496d85508e7f90dac80af62f95c2275f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route global search shortcut to Binder"
+
+[[entries]]
+date = "2026-09-29T16:49:04.160493587+09:00"
+snapshot = "3bb146e8825387fe32849066"
+path = "applications/binder"
+hash = "7189cd3635f45767ab6e663ca7e51b8bd7eeaff2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use ViewKit defaults for system search"

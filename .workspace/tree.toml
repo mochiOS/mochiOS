@@ -4159,3 +4159,11 @@ path = "applications/binder"
 hash = "4738382ac788c0cd81d38d8d4d4db6e4ce3f7a14"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix notification banner animation scheduling"
+
+[[entries]]
+date = "2026-09-29T12:33:06.415577431+09:00"
+snapshot = "043125f8493fcf20ba0865ab"
+path = "applications/binder"
+hash = "3290d2ffb169e4a759dfe6006f91cc2ff83b365d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve notification banners across view rebuilds"

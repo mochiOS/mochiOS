@@ -4135,3 +4135,11 @@ path = "tools/devkit"
 hash = "290614035d80fdae825c1f5b5b0a56849a0b2527"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Rename AppKit framework to AppCore"
+
+[[entries]]
+date = "2026-09-29T11:16:18.471842274+09:00"
+snapshot = "53f8b6c6d740e4b1422f3409"
+path = "tools/devkit"
+hash = "1ce0a104c07a5df6c220dcdc57748d75516adb8e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Update AppCore lockfile"

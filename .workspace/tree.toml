@@ -4063,3 +4063,11 @@ path = "applications/system-monitor"
 hash = "804a6c26edb4a20ba0667c0c1b96a9bdb8a4dec9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Show bundle names and application icons"
+
+[[entries]]
+date = "2026-09-29T09:32:44.412697365+09:00"
+snapshot = "7de52fcfed6c34b17739e7e2"
+path = "applications/system-monitor"
+hash = "6801838096b6a147d1459b5644d71c69d2fd59b8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retry application metadata and icon loading"

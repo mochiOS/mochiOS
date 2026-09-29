@@ -4079,3 +4079,11 @@ path = "applications/system-monitor"
 hash = "8bf57d6207a670b89b774d1361a27fc388b783b6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Resolve process bundle aliases for application icons"
+
+[[entries]]
+date = "2026-09-29T09:42:07.047167997+09:00"
+snapshot = "69a29ef4e21c1e2afec961fa"
+path = "applications/system-monitor"
+hash = "fb6d104be644913245864c6314225daa1ee33ed5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Match Binder application catalog reads"

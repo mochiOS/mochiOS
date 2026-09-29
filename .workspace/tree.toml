@@ -4055,3 +4055,11 @@ path = "applications/system-monitor"
 hash = "ff2c48447364aafc87f252426ce1ee93dd653139"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add live resource views to System Monitor"
+
+[[entries]]
+date = "2026-09-29T09:28:50.172780436+09:00"
+snapshot = "de886ee6ca195fddf99482ac"
+path = "applications/system-monitor"
+hash = "804a6c26edb4a20ba0667c0c1b96a9bdb8a4dec9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Show bundle names and application icons"

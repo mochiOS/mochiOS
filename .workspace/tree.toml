@@ -4111,3 +4111,11 @@ path = "user"
 hash = "fac5ca13bc839432b1eb7d5e49e7f3f1c1618b5d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update workspace lockfile"
+
+[[entries]]
+date = "2026-09-29T10:56:15.374136395+09:00"
+snapshot = "89cafe47bf814d33f4e8658a"
+path = "tools/devkit"
+hash = "c8caed7da594afc51aeb155d3fde6cf1803dc159"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Update AppKit lockfile"

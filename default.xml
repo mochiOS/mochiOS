@@ -197,6 +197,13 @@
             revision="main"
             remote="github"
     />
+
+    <project
+            path="applications/terra"
+            name="mochiOS/Terra.app"
+            revision="main"
+            remote="github"
+    />
     
     <project
             path="tools/mmake"

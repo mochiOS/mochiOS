@@ -4143,3 +4143,11 @@ path = "tools/devkit"
 hash = "1ce0a104c07a5df6c220dcdc57748d75516adb8e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update AppCore lockfile"
+
+[[entries]]
+date = "2026-09-29T11:46:41.995436194+09:00"
+snapshot = "fa3f4c170684353c9083ab83"
+path = "applications/binder"
+hash = "702f4609550b2673b5eacc30236d3762528059c3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add animated notification banners"

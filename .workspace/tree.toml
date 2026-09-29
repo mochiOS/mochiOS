@@ -4175,3 +4175,11 @@ path = "applications/settings"
 hash = "401393485887b138ad285831d1fb09c602be744e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add per-application notification settings"
+
+[[entries]]
+date = "2026-09-29T13:27:12.679352702+09:00"
+snapshot = "9469ca1a9ba394e2a91d91a5"
+path = "applications/binder"
+hash = "6dec1993ca09e4c72c9c216b16ba3d8fd2666428"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add Spotlight-style system search"

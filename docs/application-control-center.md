@@ -31,7 +31,7 @@ symbol = "info"
 action = "show-card"
 ```
 
-The application publishes the card values at runtime through AppKit and declares
+The application publishes the card values at runtime through AppCore and declares
 the `control-center.register` capability. Re-publishing replaces the current values.
 
 ```rust

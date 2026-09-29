@@ -4151,3 +4151,11 @@ path = "applications/binder"
 hash = "702f4609550b2673b5eacc30236d3762528059c3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add animated notification banners"
+
+[[entries]]
+date = "2026-09-29T12:17:51.509861360+09:00"
+snapshot = "eb3542662ac51c125e765fd7"
+path = "applications/binder"
+hash = "4738382ac788c0cd81d38d8d4d4db6e4ce3f7a14"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix notification banner animation scheduling"

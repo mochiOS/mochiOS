@@ -4047,3 +4047,11 @@ path = "applications/system-monitor"
 hash = "57bc3a254c245dda564836382bb8b845d2338448"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Show application identity in System Monitor"
+
+[[entries]]
+date = "2026-09-29T09:21:49.083130690+09:00"
+snapshot = "1bbef6d5e63174797cb1e0b9"
+path = "applications/system-monitor"
+hash = "ff2c48447364aafc87f252426ce1ee93dd653139"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add live resource views to System Monitor"

@@ -4359,3 +4359,11 @@ path = "core"
 hash = "fbe052cb89ceee7a187201c5ba25eb9c5a1a73e0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: add userspace filesystem transport"
+
+[[entries]]
+date = "2026-09-30T19:21:26.800214285+09:00"
+snapshot = "8d94b6be55fd81b64aa545ad"
+path = "services"
+hash = "53c6c5a296962cec9d5c7ab94164ecfdf8009637"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: create regular files on ext4"

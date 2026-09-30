@@ -4503,3 +4503,11 @@ path = "services"
 hash = "61c536d2a0d5ca245212a836db04743c7bed7992"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: create ext4 symbolic links"
+
+[[entries]]
+date = "2026-09-30T19:59:39.842770186+09:00"
+snapshot = "8bea4ed9f3e8596618528100"
+path = "services"
+hash = "ea099c2c791ed007b7bd994780c8c1e0d0c2ee1d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: replace files safely during rename"

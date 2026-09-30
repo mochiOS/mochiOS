@@ -4423,3 +4423,11 @@ path = "user"
 hash = "64f78a981b2323637c6c911408e28fbaa6096a1f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: encode typed directory entries"
+
+[[entries]]
+date = "2026-09-30T19:41:27.367869890+09:00"
+snapshot = "29181eb76aeb61c0e8b89678"
+path = "services"
+hash = "abaee9d7d118889da97ec8ee33124d9f33b4dc8b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: enumerate typed ext4 directory entries"

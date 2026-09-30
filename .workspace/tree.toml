@@ -4487,3 +4487,11 @@ path = "core"
 hash = "42e6e78fe90f1465ab3d6cb760bef337e4384993"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: route userspace unlink operations"
+
+[[entries]]
+date = "2026-09-30T19:55:13.742252713+09:00"
+snapshot = "89f7d91d8fe0a5f586bbeee7"
+path = "core"
+hash = "bb9870d9c0a49d368e35faff4cca405031621b89"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: read userspace filesystem symlinks"

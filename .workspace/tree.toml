@@ -4271,3 +4271,11 @@ path = "core"
 hash = "65fbbb329d1cfb4ae4e118f23bdedeb7304d7a5f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: write CExt files through vnode handles"
+
+[[entries]]
+date = "2026-09-30T16:37:55.016724737+09:00"
+snapshot = "7c527820dae3b52f51a06614"
+path = "cexts"
+hash = "a29d6799ea8053205b30b290e7d0826e0a72df9c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: truncate through opaque file handles"

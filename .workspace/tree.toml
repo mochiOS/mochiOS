@@ -4247,3 +4247,11 @@ path = "cexts"
 hash = "b211825ea8a9ccd8455945ce13ca481a4ed9be1c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: add opaque handles for read operations"
+
+[[entries]]
+date = "2026-09-30T16:34:02.121907910+09:00"
+snapshot = "4b18d0d80d4765339ba341f9"
+path = "core"
+hash = "81ded79369deaa1b2a58b09889ebf52c0e6cf7ed"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: read CExt files through vnode handles"

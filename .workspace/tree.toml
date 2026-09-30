@@ -4447,3 +4447,11 @@ path = "core"
 hash = "67ccb7a36c16c91dabc5958f556219c6b182d8b6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: route userspace directory reads"
+
+[[entries]]
+date = "2026-09-30T19:45:30.602865531+09:00"
+snapshot = "28cc09f206e17a7f49c8fea9"
+path = "core"
+hash = "d5b2b0d70202f1f7ffc20a0d5958d16feeed7118"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: route userspace directory creation"

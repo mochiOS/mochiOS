@@ -4367,3 +4367,11 @@ path = "services"
 hash = "53c6c5a296962cec9d5c7ab94164ecfdf8009637"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: create regular files on ext4"
+
+[[entries]]
+date = "2026-09-30T19:23:43.095225606+09:00"
+snapshot = "8f87a981433b2f31283a8070"
+path = "core"
+hash = "9f042c00f8c1e20156a54e8500e9b17c0d9ff705"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: retain userspace filesystem handles"

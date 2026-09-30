@@ -4703,3 +4703,11 @@ path = "user"
 hash = "c87a2c1618f32e5ca579aea4891f46928c1f97c2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: expose symbolic link targets"
+
+[[entries]]
+date = "2026-09-30T21:24:27.779780240+09:00"
+snapshot = "f3df006d7e171a5a78b61b44"
+path = "user"
+hash = "2b416dde916687d7496d80961375a705472858f6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: define symlink lookup policy"

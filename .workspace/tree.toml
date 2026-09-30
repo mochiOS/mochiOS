@@ -4543,3 +4543,11 @@ path = "core"
 hash = "1664e139b9b994ef5a87bb522b624d640078375c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: route userspace directory removal"
+
+[[entries]]
+date = "2026-09-30T20:06:06.791793650+09:00"
+snapshot = "099a679cc689962be31c1e8a"
+path = "core"
+hash = "ab5eebd446ac7770b4e039ae5e5d4cc36985575d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: block legacy metadata writes on data mounts"

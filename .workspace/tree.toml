@@ -4615,3 +4615,11 @@ path = "core"
 hash = "08e97bed1d7d0ccb28e726baa62a3514c7c3276c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: register filesystem endpoints explicitly"
+
+[[entries]]
+date = "2026-09-30T20:39:09.645219433+09:00"
+snapshot = "e8cd220c32e75d364c5912ff"
+path = "services"
+hash = "06dca90f4f6f402e38f999caca50bab47ae02835"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: grant mount registration capability"

@@ -4391,3 +4391,11 @@ path = "core"
 hash = "0f2b76c13c15b0b0a6cbd795350644ddf86a8b9b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: register data filesystem mounts"
+
+[[entries]]
+date = "2026-09-30T19:27:05.765046437+09:00"
+snapshot = "ed3cdba50c0e39f7c70a2778"
+path = "core"
+hash = "1b2fdc8826e0c6fa443e2e80692a692f6a738fe2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: add userspace file creation request"

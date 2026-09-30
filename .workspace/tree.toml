@@ -4559,3 +4559,11 @@ path = "services"
 hash = "22ff5dba19aeae4f3b9cd365362610b7e5d0fc20"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: propagate storage flush failures"
+
+[[entries]]
+date = "2026-09-30T20:10:53.194654832+09:00"
+snapshot = "9ad8cf79b5f096eab75f0fbb"
+path = "core"
+hash = "1daecd1331295af406684bed727fed7fda3affef"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: activate userspace data filesystem"

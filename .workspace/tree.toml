@@ -4527,3 +4527,11 @@ path = "core"
 hash = "2eb8725e1b096b6991b07277d430b8557e9f1e95"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: route same-filesystem rename operations"
+
+[[entries]]
+date = "2026-09-30T20:03:53.057787764+09:00"
+snapshot = "107c52cfd0f6c71371d447f8"
+path = "services"
+hash = "31c814814991867e93770d279d5101866d31ff72"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: remove empty ext4 directories"

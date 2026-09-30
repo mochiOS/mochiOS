@@ -4471,3 +4471,11 @@ path = "services"
 hash = "5202e56be2dea2187375f725cc30e1e53df4cfa6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: preserve open files across unlink"
+
+[[entries]]
+date = "2026-09-30T19:52:04.281826938+09:00"
+snapshot = "383fa2e7036488152673615a"
+path = "core"
+hash = "a2a2e4b9d06584ddc3c3469dba2e7a8535db4ca9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: add userspace unlink request"

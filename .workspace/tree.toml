@@ -4295,3 +4295,11 @@ path = "user"
 hash = "13e2ad6232e8d010a1eb7b3794bd1af41bb559df"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: define userspace filesystem protocol"
+
+[[entries]]
+date = "2026-09-30T16:56:07.473434558+09:00"
+snapshot = "b568e6b30f554f0b1e1088fc"
+path = "services"
+hash = "c62dcab5a61d0f9f52863c6d60f6ddfee185315b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: add partition-scoped block I/O"

@@ -4719,3 +4719,11 @@ path = "services"
 hash = "9fbffdcff1c0b463c31c241b4d41100f32963d5e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: honor symlink lookup policy"
+
+[[entries]]
+date = "2026-09-30T21:28:12.446513605+09:00"
+snapshot = "5eb4502e74b6872e99a4e5ae"
+path = "core"
+hash = "59f8ccac49c93c240a21bfaf0a4593533fc2bdb8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: distinguish stat from lstat"

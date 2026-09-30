@@ -4535,3 +4535,11 @@ path = "services"
 hash = "31c814814991867e93770d279d5101866d31ff72"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: remove empty ext4 directories"
+
+[[entries]]
+date = "2026-09-30T20:04:53.813402158+09:00"
+snapshot = "8979100b61c687aa004a9952"
+path = "core"
+hash = "1664e139b9b994ef5a87bb522b624d640078375c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: route userspace directory removal"

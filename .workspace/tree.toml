@@ -4663,3 +4663,11 @@ path = "services"
 hash = "df2d96a170f5eae6087b187c82a490bcc5b908a3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: update ext4 node attributes"
+
+[[entries]]
+date = "2026-09-30T21:02:19.184037894+09:00"
+snapshot = "85071055a71113574dfb2dcf"
+path = "core"
+hash = "35e94894c1fcc46fb9c44da8253422852d0d8a2e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: route node attribute updates to providers"

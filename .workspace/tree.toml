@@ -4623,3 +4623,11 @@ path = "services"
 hash = "06dca90f4f6f402e38f999caca50bab47ae02835"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: grant mount registration capability"
+
+[[entries]]
+date = "2026-09-30T20:41:09.621585083+09:00"
+snapshot = "7c1d8a28c6c69dd902371d92"
+path = "services"
+hash = "76e68ad51585db0432993f08023c60d0f191aa6a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: register endpoint and mounts at startup"

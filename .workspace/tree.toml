@@ -4455,3 +4455,11 @@ path = "core"
 hash = "d5b2b0d70202f1f7ffc20a0d5958d16feeed7118"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: route userspace directory creation"
+
+[[entries]]
+date = "2026-09-30T19:47:03.146419877+09:00"
+snapshot = "7227eb48422317bd9edefca0"
+path = "services"
+hash = "41c785fa9168d2d7e27987ff7fa0909cac2805bb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: associate open handles with nodes"

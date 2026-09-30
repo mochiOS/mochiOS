@@ -4591,3 +4591,11 @@ path = "core"
 hash = "10d70c1642d1b5c92da8563e3af9f3986459a334"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: use userspace node ownership metadata"
+
+[[entries]]
+date = "2026-09-30T20:27:30.398622092+09:00"
+snapshot = "2c6c19d44a16cc4c69ce62f6"
+path = "core"
+hash = "449220ecfd2eb9dd79aba95eb1b0958e8ad6d204"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: add vnode-backed page cache objects"

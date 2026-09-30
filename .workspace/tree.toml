@@ -4511,3 +4511,11 @@ path = "services"
 hash = "ea099c2c791ed007b7bd994780c8c1e0d0c2ee1d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: replace files safely during rename"
+
+[[entries]]
+date = "2026-09-30T20:00:26.761093888+09:00"
+snapshot = "831d4485ed3c86e36bf6f196"
+path = "core"
+hash = "27a21eaee2de295b2aecf6831e373190f669492b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: add userspace rename request"

@@ -4479,3 +4479,11 @@ path = "core"
 hash = "a2a2e4b9d06584ddc3c3469dba2e7a8535db4ca9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: add userspace unlink request"
+
+[[entries]]
+date = "2026-09-30T19:53:23.651021609+09:00"
+snapshot = "2edd3f134a81dc14266d974b"
+path = "core"
+hash = "42e6e78fe90f1465ab3d6cb760bef337e4384993"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: route userspace unlink operations"

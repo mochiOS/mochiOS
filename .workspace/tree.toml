@@ -4631,3 +4631,11 @@ path = "services"
 hash = "76e68ad51585db0432993f08023c60d0f191aa6a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: register endpoint and mounts at startup"
+
+[[entries]]
+date = "2026-09-30T20:44:25.853841499+09:00"
+snapshot = "466519a25868445976599776"
+path = "core"
+hash = "beefbbc0c97b81c86d40e44410a9d283d4df045a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: remove userspace naming conventions"

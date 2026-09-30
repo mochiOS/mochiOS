@@ -4215,3 +4215,11 @@ path = "core"
 hash = "9ba4e5592d84b62fdb4bf21058cd6ab9dc5829e6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: share open file descriptions across descriptors"
+
+[[entries]]
+date = "2026-09-30T16:06:53.796968973+09:00"
+snapshot = "78e0d47b54573cfc6e188dfd"
+path = "core"
+hash = "2ef27fdfc31f419990e10f7994e95a9173314834"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: introduce vnode and inode identities"

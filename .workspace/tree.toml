@@ -4311,3 +4311,11 @@ path = "services"
 hash = "67773319f2afe29f13b1a6620aee3c64ddb26dad"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: connect ext4 to mochiOS block storage"
+
+[[entries]]
+date = "2026-09-30T17:04:43.022920392+09:00"
+snapshot = "c55103b345bacb1a484e6416"
+path = "user"
+hash = "f079000527e32a5171564d753f0885f1cd2b3bfc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: define node types and read sizing"

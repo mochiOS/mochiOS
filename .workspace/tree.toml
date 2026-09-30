@@ -4575,3 +4575,11 @@ path = "user"
 hash = "ead96c7fc41cb3d7843d0ebf8d17b794cfc54de1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: encode node ownership metadata"
+
+[[entries]]
+date = "2026-09-30T20:22:45.633407196+09:00"
+snapshot = "83be71a160cb6451bb481602"
+path = "services"
+hash = "951f41ffe1453ce8adce6bf2d7d0c4778db249f8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: report ext4 node ownership"

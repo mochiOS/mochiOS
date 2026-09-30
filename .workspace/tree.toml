@@ -4383,3 +4383,11 @@ path = "core"
 hash = "e5eddd99f834aed57840d550b3bbdfe134812023"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: map mount targets to filesystem sources"
+
+[[entries]]
+date = "2026-09-30T19:26:18.052002183+09:00"
+snapshot = "afddace99d727f70cd3c69f5"
+path = "core"
+hash = "0f2b76c13c15b0b0a6cbd795350644ddf86a8b9b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: register data filesystem mounts"

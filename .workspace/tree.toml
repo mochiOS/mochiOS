@@ -4207,3 +4207,11 @@ path = "build"
 hash = "264880c19fb5e0c6c115c77544d678f29f7f500f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Build and stage Terra browser"
+
+[[entries]]
+date = "2026-09-30T16:00:23.859860667+09:00"
+snapshot = "ba2cebf30e2edf76746caeca"
+path = "core"
+hash = "9ba4e5592d84b62fdb4bf21058cd6ab9dc5829e6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: share open file descriptions across descriptors"

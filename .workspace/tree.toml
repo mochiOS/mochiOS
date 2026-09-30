@@ -4671,3 +4671,11 @@ path = "core"
 hash = "35e94894c1fcc46fb9c44da8253422852d0d8a2e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: route node attribute updates to providers"
+
+[[entries]]
+date = "2026-09-30T21:08:47.810945384+09:00"
+snapshot = "6fa459e59bb620d96ff8d7d8"
+path = "core"
+hash = "750913f8461be691b649afe4cf7b0ee3b9983700"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: route symbolic link creation"

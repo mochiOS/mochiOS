@@ -4711,3 +4711,11 @@ path = "user"
 hash = "2b416dde916687d7496d80961375a705472858f6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: define symlink lookup policy"
+
+[[entries]]
+date = "2026-09-30T21:25:21.786096160+09:00"
+snapshot = "8b4b921c700840970dbe59d7"
+path = "services"
+hash = "9fbffdcff1c0b463c31c241b4d41100f32963d5e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: honor symlink lookup policy"

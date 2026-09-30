@@ -4599,3 +4599,11 @@ path = "core"
 hash = "449220ecfd2eb9dd79aba95eb1b0958e8ad6d204"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: add vnode-backed page cache objects"
+
+[[entries]]
+date = "2026-09-30T20:33:45.968478058+09:00"
+snapshot = "8dfe39d5360c007bc9664f21"
+path = "user"
+hash = "0fa635828148cb68eb8dd37e49212f95e4f3d9bc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: reserve filesystem registration syscalls"

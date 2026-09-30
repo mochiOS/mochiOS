@@ -4407,3 +4407,11 @@ path = "core"
 hash = "450ec05f9b037cca9fbda4f0b2a01b2825570262"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: prepare userspace data file routing"
+
+[[entries]]
+date = "2026-09-30T19:37:50.604906516+09:00"
+snapshot = "e60dd0aa5563cd3823eadaf0"
+path = "services"
+hash = "51b1679fc2c152843087598416dc94e92086dd50"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: create ext4 directories"

@@ -4551,3 +4551,11 @@ path = "core"
 hash = "ab5eebd446ac7770b4e039ae5e5d4cc36985575d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: block legacy metadata writes on data mounts"
+
+[[entries]]
+date = "2026-09-30T20:06:57.773746910+09:00"
+snapshot = "d62dc1da00493e387013318f"
+path = "services"
+hash = "22ff5dba19aeae4f3b9cd365362610b7e5d0fc20"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: propagate storage flush failures"

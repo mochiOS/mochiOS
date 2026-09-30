@@ -4343,3 +4343,11 @@ path = "build"
 hash = "10d8ad831c68b93b67533565d2388b02b77b69b9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: compile filesystem service"
+
+[[entries]]
+date = "2026-09-30T17:23:38.567888643+09:00"
+snapshot = "e900ec150d84daa0ccc8eb3a"
+path = "core"
+hash = "09a8e7aa7a9fe69cc3d005a29b2974a3b14994e9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "ipc: add synchronous kernel buffer calls"

@@ -4567,3 +4567,11 @@ path = "core"
 hash = "1daecd1331295af406684bed727fed7fda3affef"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: activate userspace data filesystem"
+
+[[entries]]
+date = "2026-09-30T20:21:56.232452234+09:00"
+snapshot = "e1c40cf00fdf9eeb73545b02"
+path = "user"
+hash = "ead96c7fc41cb3d7843d0ebf8d17b794cfc54de1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: encode node ownership metadata"

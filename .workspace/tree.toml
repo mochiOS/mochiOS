@@ -4695,3 +4695,11 @@ path = "core"
 hash = "6e83465fe595edc737b4700c80ca9f6a5f519943"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: expose symbolic link targets"
+
+[[entries]]
+date = "2026-09-30T21:21:50.303433798+09:00"
+snapshot = "53e3a5d83c4c38745db70716"
+path = "user"
+hash = "c87a2c1618f32e5ca579aea4891f46928c1f97c2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: expose symbolic link targets"

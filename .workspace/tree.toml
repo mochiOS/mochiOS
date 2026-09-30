@@ -4639,3 +4639,11 @@ path = "core"
 hash = "beefbbc0c97b81c86d40e44410a9d283d4df045a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove userspace naming conventions"
+
+[[entries]]
+date = "2026-09-30T20:56:57.827575772+09:00"
+snapshot = "ae211e0e3daa807a29157a92"
+path = "core"
+hash = "b86381cf70886de11be810a2e8d7506e4f70d45d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: demand-page file mappings through vnodes"

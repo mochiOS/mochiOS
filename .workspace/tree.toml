@@ -4583,3 +4583,11 @@ path = "services"
 hash = "951f41ffe1453ce8adce6bf2d7d0c4778db249f8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: report ext4 node ownership"
+
+[[entries]]
+date = "2026-09-30T20:24:46.120723585+09:00"
+snapshot = "8b7bb53744ab03f20d7deb8f"
+path = "core"
+hash = "10d70c1642d1b5c92da8563e3af9f3986459a334"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: use userspace node ownership metadata"

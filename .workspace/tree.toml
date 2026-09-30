@@ -4519,3 +4519,11 @@ path = "core"
 hash = "27a21eaee2de295b2aecf6831e373190f669492b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: add userspace rename request"
+
+[[entries]]
+date = "2026-09-30T20:01:47.544892567+09:00"
+snapshot = "e842257898490559265d3216"
+path = "core"
+hash = "2eb8725e1b096b6991b07277d430b8557e9f1e95"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: route same-filesystem rename operations"

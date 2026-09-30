@@ -4743,3 +4743,11 @@ path = "core"
 hash = "624b32ddef0eccf129c579f48586e9e1944b2472"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: ignore dirfd for absolute paths"
+
+[[entries]]
+date = "2026-09-30T21:35:33.767411611+09:00"
+snapshot = "66bb560453c7a21dce34e436"
+path = "services"
+hash = "2964a61f84bf7122126841cca25c39fcdca2b7cd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: rename directories within a parent"

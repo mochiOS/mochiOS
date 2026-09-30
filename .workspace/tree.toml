@@ -4287,3 +4287,11 @@ path = "core"
 hash = "05df9416a1a66b249c1ccee93d62f418b483f64d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: truncate CExt files through vnode handles"
+
+[[entries]]
+date = "2026-09-30T16:44:30.140778716+09:00"
+snapshot = "b395bc18ee45eb60e6fab45e"
+path = "user"
+hash = "13e2ad6232e8d010a1eb7b3794bd1af41bb559df"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: define userspace filesystem protocol"

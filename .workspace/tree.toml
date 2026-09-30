@@ -4679,3 +4679,11 @@ path = "core"
 hash = "750913f8461be691b649afe4cf7b0ee3b9983700"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: route symbolic link creation"
+
+[[entries]]
+date = "2026-09-30T21:14:26.807362821+09:00"
+snapshot = "260d764d2df3646754739844"
+path = "user"
+hash = "a1bcec512c31fec309f9372bdcd03c2eeb216143"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: expose symbolic link creation"

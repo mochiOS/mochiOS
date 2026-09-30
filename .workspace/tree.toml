@@ -4727,3 +4727,11 @@ path = "core"
 hash = "59f8ccac49c93c240a21bfaf0a4593533fc2bdb8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: distinguish stat from lstat"
+
+[[entries]]
+date = "2026-09-30T21:30:51.613915536+09:00"
+snapshot = "d62393fa41fb2e04d4b2082c"
+path = "core"
+hash = "d3e648f9116d9973b24c71ec1d2b5f16b7151535"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "syscall: activate standard filesystem ABI"

@@ -4647,3 +4647,11 @@ path = "core"
 hash = "b86381cf70886de11be810a2e8d7506e4f70d45d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: demand-page file mappings through vnodes"
+
+[[entries]]
+date = "2026-09-30T20:59:20.706547795+09:00"
+snapshot = "074a45747c7f1fd609e735f2"
+path = "user"
+hash = "4aa923a9a7da270299628f0676539ff9032a74b1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: define node attribute updates"

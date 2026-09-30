@@ -127,6 +127,7 @@ stage_service capability capability capability.service
 stage_service display display display.driver
 stage_service compositor compositor compositor.service
 stage_service drivers drivers drivers.service
+stage_service filesystem filesystem-service filesystem.service
 stage_service logger logger logger.service
 stage_service input input input.service
 stage_service linux linux linux.service

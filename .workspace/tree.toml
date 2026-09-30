@@ -4439,3 +4439,11 @@ path = "core"
 hash = "627a73d6270be1d0497ab5ab3e60f29444d90b38"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: fetch userspace directory batches"
+
+[[entries]]
+date = "2026-09-30T19:44:54.368802408+09:00"
+snapshot = "62943fae3acf42f4c0ce362b"
+path = "core"
+hash = "67ccb7a36c16c91dabc5958f556219c6b182d8b6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: route userspace directory reads"

@@ -99,7 +99,7 @@ if [[ -f $rootfs_stage/.mochios-ownership ]]; then
     awk '$1 ~ /^(home|var|tmp)\//' \
         "$rootfs_stage/.mochios-ownership" > "$data_stage/.mochios-ownership"
 fi
-fakeroot -- sh -c 'stage=$1; image=$2; chown -R 0:0 "$stage"; exec mke2fs -q -t ext2 -b 4096 -d "$stage" -F -L MOCHI_DATA "$image"' \
+fakeroot -- sh -c 'stage=$1; image=$2; chown -R 0:0 "$stage"; exec mke2fs -q -t ext4 -O ^has_journal -b 4096 -d "$stage" -F -L MOCHI_DATA "$image"' \
     mmake-ab-data "$data_stage" "$data_image"
 python3 "$root/scripts/mmake/sync-ext2.py" record "$data_stage" "$data_image" "$data_image.state.json"
 "$seed_tool" "$state_image"

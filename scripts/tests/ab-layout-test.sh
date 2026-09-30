@@ -127,7 +127,7 @@ done
 cmp -s "$temp_dir/expected-state.img" <(dd if="$image" bs=1M skip="$state_start" count="$state_mb" status=none)
 
 magic=$(dd if="$image" bs=1 skip=$((data_start * 1048576 + 1080)) count=2 status=none | od -An -tx1 | tr -d ' \n')
-[[ $magic == 53ef ]] || { echo "data partition has no ext2 superblock" >&2; exit 1; }
+[[ $magic == 53ef ]] || { echo "data partition has no ext filesystem superblock" >&2; exit 1; }
 data_image=$temp_dir/data.img
 dd if="$image" of="$data_image" bs=1M skip="$data_start" count="$data_mb" status=none
 for directory in /bin /applications /libraries /libraries/fonts /home/root /var/config /var/lib/accounts /var/lib/diagnostics /var/lib/packages /var/lib/security /var/log/services /tmp; do

@@ -4263,3 +4263,11 @@ path = "cexts"
 hash = "a599db0bbc7d19761b5d07bd99577d5386f8852b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: write through opaque file handles"
+
+[[entries]]
+date = "2026-09-30T16:36:48.437491576+09:00"
+snapshot = "ee55e1adb2cd36ad3f9c7cae"
+path = "core"
+hash = "65fbbb329d1cfb4ae4e118f23bdedeb7304d7a5f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: write CExt files through vnode handles"

@@ -4399,3 +4399,11 @@ path = "core"
 hash = "1b2fdc8826e0c6fa443e2e80692a692f6a738fe2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: add userspace file creation request"
+
+[[entries]]
+date = "2026-09-30T19:34:30.026038219+09:00"
+snapshot = "d32b77c11c899abf7a93f8f6"
+path = "core"
+hash = "450ec05f9b037cca9fbda4f0b2a01b2825570262"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: prepare userspace data file routing"

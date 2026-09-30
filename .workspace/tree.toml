@@ -4239,3 +4239,11 @@ path = "core"
 hash = "aafbc67611bdaa4bf454aeabd2417bbdb89e26b9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: support offsets for file-backed mmap"
+
+[[entries]]
+date = "2026-09-30T16:30:26.933645234+09:00"
+snapshot = "9d2678e0574f03e30bf692c4"
+path = "cexts"
+hash = "b211825ea8a9ccd8455945ce13ca481a4ed9be1c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: add opaque handles for read operations"

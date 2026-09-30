@@ -4375,3 +4375,11 @@ path = "core"
 hash = "9f042c00f8c1e20156a54e8500e9b17c0d9ff705"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: retain userspace filesystem handles"
+
+[[entries]]
+date = "2026-09-30T19:25:28.656443401+09:00"
+snapshot = "18ad411043ed7b05a276ba68"
+path = "core"
+hash = "e5eddd99f834aed57840d550b3bbdfe134812023"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: map mount targets to filesystem sources"

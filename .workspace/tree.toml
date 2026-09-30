@@ -4319,3 +4319,11 @@ path = "user"
 hash = "f079000527e32a5171564d753f0885f1cd2b3bfc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: define node types and read sizing"
+
+[[entries]]
+date = "2026-09-30T17:12:03.536971829+09:00"
+snapshot = "c25b50c88294650965126e10"
+path = "services"
+hash = "cfe5a8c12023a74332d32b334bb7e3ce0abf29d1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: serve ext4 through opaque IPC handles"

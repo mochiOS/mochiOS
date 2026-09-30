@@ -4495,3 +4495,11 @@ path = "core"
 hash = "bb9870d9c0a49d368e35faff4cca405031621b89"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: read userspace filesystem symlinks"
+
+[[entries]]
+date = "2026-09-30T19:56:44.313669781+09:00"
+snapshot = "e1d3afa2971daf58a9f914b0"
+path = "services"
+hash = "61c536d2a0d5ca245212a836db04743c7bed7992"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: create ext4 symbolic links"

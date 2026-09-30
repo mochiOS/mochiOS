@@ -4607,3 +4607,11 @@ path = "user"
 hash = "0fa635828148cb68eb8dd37e49212f95e4f3d9bc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: reserve filesystem registration syscalls"
+
+[[entries]]
+date = "2026-09-30T20:38:02.313138543+09:00"
+snapshot = "538f5c7d2340b6f207616dfc"
+path = "core"
+hash = "08e97bed1d7d0ccb28e726baa62a3514c7c3276c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: register filesystem endpoints explicitly"

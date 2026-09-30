@@ -4303,3 +4303,11 @@ path = "services"
 hash = "c62dcab5a61d0f9f52863c6d60f6ddfee185315b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: add partition-scoped block I/O"
+
+[[entries]]
+date = "2026-09-30T16:59:53.339975955+09:00"
+snapshot = "32a9ffa4680940b530d623bd"
+path = "services"
+hash = "67773319f2afe29f13b1a6620aee3c64ddb26dad"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: connect ext4 to mochiOS block storage"

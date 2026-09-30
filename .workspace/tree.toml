@@ -4231,3 +4231,11 @@ path = "core"
 hash = "f7d19735c81aa4a1953051f7d9b3916f50279d0c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: add mount tree path resolution"
+
+[[entries]]
+date = "2026-09-30T16:23:37.085004604+09:00"
+snapshot = "6a5048868e3da2d616802313"
+path = "core"
+hash = "aafbc67611bdaa4bf454aeabd2417bbdb89e26b9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: support offsets for file-backed mmap"

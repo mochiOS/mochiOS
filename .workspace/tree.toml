@@ -4735,3 +4735,11 @@ path = "core"
 hash = "d3e648f9116d9973b24c71ec1d2b5f16b7151535"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "syscall: activate standard filesystem ABI"
+
+[[entries]]
+date = "2026-09-30T21:31:40.374036032+09:00"
+snapshot = "d4a0603b5a62b3ca0a866ec7"
+path = "core"
+hash = "624b32ddef0eccf129c579f48586e9e1944b2472"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fs: ignore dirfd for absolute paths"

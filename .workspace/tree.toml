@@ -4351,3 +4351,11 @@ path = "core"
 hash = "09a8e7aa7a9fe69cc3d005a29b2974a3b14994e9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "ipc: add synchronous kernel buffer calls"
+
+[[entries]]
+date = "2026-09-30T19:16:38.680395329+09:00"
+snapshot = "f7ae324f61f5e1412a074c4c"
+path = "core"
+hash = "fbe052cb89ceee7a187201c5ba25eb9c5a1a73e0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: add userspace filesystem transport"

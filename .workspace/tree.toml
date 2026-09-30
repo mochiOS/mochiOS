@@ -4327,3 +4327,11 @@ path = "services"
 hash = "cfe5a8c12023a74332d32b334bb7e3ce0abf29d1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: serve ext4 through opaque IPC handles"
+
+[[entries]]
+date = "2026-09-30T17:18:19.800900649+09:00"
+snapshot = "24be6d6e9e7b2f53be393987"
+path = "services"
+hash = "49ffdcec3c1123ce396fc811728e9b4f92031dc5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "services: start filesystem service during bootstrap"

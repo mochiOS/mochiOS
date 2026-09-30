@@ -4463,3 +4463,11 @@ path = "services"
 hash = "41c785fa9168d2d7e27987ff7fa0909cac2805bb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: associate open handles with nodes"
+
+[[entries]]
+date = "2026-09-30T19:50:41.410857431+09:00"
+snapshot = "6a0d434b6f208cb5196a93be"
+path = "services"
+hash = "5202e56be2dea2187375f725cc30e1e53df4cfa6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: preserve open files across unlink"

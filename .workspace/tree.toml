@@ -4751,3 +4751,11 @@ path = "services"
 hash = "2964a61f84bf7122126841cca25c39fcdca2b7cd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: rename directories within a parent"
+
+[[entries]]
+date = "2026-10-01T09:13:41.953099185+09:00"
+snapshot = "e6e1a07c2db01878c4bd90c1"
+path = "services"
+hash = "03221c24b8b8f2fe203705b32f5ac0ffc49d9475"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: vendor ext4 parent update support"

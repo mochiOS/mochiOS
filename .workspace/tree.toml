@@ -4791,3 +4791,11 @@ path = "services"
 hash = "66b82881722398fab9f543e95baeed6b7590c58f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: replace empty directories on rename"
+
+[[entries]]
+date = "2026-10-01T09:33:19.920860+09:00"
+snapshot = "de4fd7bd1a342c16ce5078aa"
+path = "core"
+hash = "5cb6ab31e8f3f576a076aafed2079f7e6b553d9e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: use LRU page cache eviction"

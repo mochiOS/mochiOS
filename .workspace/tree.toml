@@ -4871,3 +4871,11 @@ path = "build"
 hash = "27615d48c8c86b721a2d7108d5fa1101014c511f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: track SDK compiler runtime output"
+
+[[entries]]
+date = "2026-10-01T10:07:10.223619783+09:00"
+snapshot = "2222fcf6369d4f37d7f5d741"
+path = "core"
+hash = "5921976e8c605b42652b11a17adb66b307a33568"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: map reference-counted shared frames"

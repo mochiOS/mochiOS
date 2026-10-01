@@ -4807,3 +4807,11 @@ path = "core"
 hash = "e283e8975587f46ee4bb679831a7d61228c853ce"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: share cached pages across file IO"
+
+[[entries]]
+date = "2026-10-01T09:35:50.419419933+09:00"
+snapshot = "89fbb20c9c592cef507e5d02"
+path = "core"
+hash = "42bb20c45f4b0797ada9b4c37cb7433e1d42e722"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: invalidate cached pages on truncate"

@@ -4903,3 +4903,11 @@ path = "core"
 hash = "11d051c8f11096dfa408ce19e09ef459c3850974"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover immediate shared mapping coherence"
+
+[[entries]]
+date = "2026-10-01T10:15:16.380589487+09:00"
+snapshot = "f855047e9b24741e805c9560"
+path = "core"
+hash = "3d63a94459aea43cd5a4abc25d73bc52a3d7fff8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: flush shared frames without recopying"

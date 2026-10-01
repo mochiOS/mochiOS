@@ -4799,3 +4799,11 @@ path = "core"
 hash = "5cb6ab31e8f3f576a076aafed2079f7e6b553d9e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: use LRU page cache eviction"
+
+[[entries]]
+date = "2026-10-01T09:35:06.795599587+09:00"
+snapshot = "f0b525f674b2608764be71ee"
+path = "core"
+hash = "e283e8975587f46ee4bb679831a7d61228c853ce"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: share cached pages across file IO"

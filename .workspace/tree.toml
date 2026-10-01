@@ -4855,3 +4855,11 @@ path = "core"
 hash = "a201b2e824987ec8a43f85a7c6a3b958f8956161"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vfs: preserve negative CExt errors"
+
+[[entries]]
+date = "2026-10-01T09:51:56.834519948+09:00"
+snapshot = "9ffbac951f61c106938f69ff"
+path = "user"
+hash = "292850da1baedc196ec2de7b96644cec9178ba6b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "sdk: include compiler runtime in build output"

@@ -4895,3 +4895,11 @@ path = "core"
 hash = "a2e320dcf07d8bbabe6924a5a30eb6377c64fdde"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: share file-backed mapping frames"
+
+[[entries]]
+date = "2026-10-01T10:12:59.274506966+09:00"
+snapshot = "cb93cd56a6ecfb88e531ed3b"
+path = "core"
+hash = "11d051c8f11096dfa408ce19e09ef459c3850974"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover immediate shared mapping coherence"

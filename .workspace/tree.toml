@@ -4783,3 +4783,11 @@ path = "services"
 hash = "1707824f451d0d606e38a1c857810939dd5cbc0e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: maintain parent links on rmdir"
+
+[[entries]]
+date = "2026-10-01T09:28:02.283438832+09:00"
+snapshot = "ac10028351be4978c1ab72c8"
+path = "services"
+hash = "66b82881722398fab9f543e95baeed6b7590c58f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: replace empty directories on rename"

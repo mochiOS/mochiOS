@@ -4823,3 +4823,11 @@ path = "core"
 hash = "0d8ae66a4a0490ea470899f5011d7568c5c4df0d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: track dirty cached pages"
+
+[[entries]]
+date = "2026-10-01T09:42:14.220699738+09:00"
+snapshot = "fd94c7233a28cb1cb37125f5"
+path = "core"
+hash = "0125f9a9686a5e5c64c9168302d8ba09e98d3a98"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: write back shared mappings through page cache"

@@ -4759,3 +4759,11 @@ path = "services"
 hash = "03221c24b8b8f2fe203705b32f5ac0ffc49d9475"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: vendor ext4 parent update support"
+
+[[entries]]
+date = "2026-10-01T09:15:54.571178571+09:00"
+snapshot = "e716efbc54e1700935e18f8f"
+path = "services"
+hash = "78cd2c30dfa4f7e4dc1969ef59b34bec130e0146"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: move directories across parents"

@@ -4863,3 +4863,11 @@ path = "user"
 hash = "292850da1baedc196ec2de7b96644cec9178ba6b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "sdk: include compiler runtime in build output"
+
+[[entries]]
+date = "2026-10-01T09:52:15.626102052+09:00"
+snapshot = "2133fd90105b271f02da2ee5"
+path = "build"
+hash = "27615d48c8c86b721a2d7108d5fa1101014c511f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: track SDK compiler runtime output"

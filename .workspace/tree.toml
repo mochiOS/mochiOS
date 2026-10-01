@@ -4767,3 +4767,11 @@ path = "services"
 hash = "78cd2c30dfa4f7e4dc1969ef59b34bec130e0146"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: move directories across parents"
+
+[[entries]]
+date = "2026-10-01T09:16:41.718343818+09:00"
+snapshot = "eddbfae8bd20e8eee53283fd"
+path = "services"
+hash = "1556847e94332b37253fcb4fcb95cdb101c35ded"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: accept ext4 directory link counts"

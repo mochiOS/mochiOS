@@ -4935,3 +4935,11 @@ path = "services"
 hash = "56be6831b40c8d05a43d88ad626a3df8a32e78a1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: refresh local workspace lockfile"
+
+[[entries]]
+date = "2026-10-01T14:21:03.588235194+09:00"
+snapshot = "7e1bc6ea890028a32ffb3400"
+path = "applications/installer"
+hash = "8f4f800344ff74961c361958c5e2686276967822"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add Installer UI preview"

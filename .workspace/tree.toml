@@ -4847,3 +4847,11 @@ path = "user"
 hash = "10e3c693badbaee6a6cfb518e28465a3fb1b37e6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "newlib: expose msync runtime wrapper"
+
+[[entries]]
+date = "2026-10-01T09:46:42.070550712+09:00"
+snapshot = "3c449a530e5ec33a61e92101"
+path = "core"
+hash = "a201b2e824987ec8a43f85a7c6a3b958f8956161"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vfs: preserve negative CExt errors"

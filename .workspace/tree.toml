@@ -4927,3 +4927,11 @@ path = "services"
 hash = "a03c732bf938011e8255121775ae5f18ce3cbcfb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: refresh workspace dependency lockfile"
+
+[[entries]]
+date = "2026-10-01T12:04:49.633018242+09:00"
+snapshot = "426536212a9724c1114d31d0"
+path = "services"
+hash = "56be6831b40c8d05a43d88ad626a3df8a32e78a1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: refresh local workspace lockfile"

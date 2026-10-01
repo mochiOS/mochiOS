@@ -4839,3 +4839,11 @@ path = "core"
 hash = "cf5ea3dc4f99fad9e42e35e7ae247bc5f3dc8916"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fs: flush cached pages before fsync"
+
+[[entries]]
+date = "2026-10-01T09:45:15.030067944+09:00"
+snapshot = "50379cf693b64add264141f1"
+path = "user"
+hash = "10e3c693badbaee6a6cfb518e28465a3fb1b37e6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "newlib: expose msync runtime wrapper"

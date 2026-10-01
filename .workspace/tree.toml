@@ -4887,3 +4887,11 @@ path = "core"
 hash = "f58928760c7e26a8ac3428622b73a2e3b3994d93"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: back shared cache pages with frames"
+
+[[entries]]
+date = "2026-10-01T10:12:12.944755146+09:00"
+snapshot = "3bf7a1a890b0b86843c691c9"
+path = "core"
+hash = "a2e320dcf07d8bbabe6924a5a30eb6377c64fdde"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: share file-backed mapping frames"

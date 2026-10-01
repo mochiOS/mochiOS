@@ -4,10 +4,15 @@ set -euo pipefail
 root=$1; mmake_out=$2; config=$root/.config; image=$mmake_out/image/disk.img; temporary=$image.new
 layout_state=$image.layout
 value() { sed -n "s/^$1=//p" "$config" | tr -d '"' | tail -n1; }
-disk=$(value IMAGE_DISK_SIZE_MB); esp=$(value IMAGE_ESP_SIZE_MB); rootfs=$((disk - esp - 2)); esp_sectors=$((esp * 2048)); root_start=$((2048 + esp_sectors)); root_sectors=$((rootfs * 2048))
-layout="disk=$disk esp=$esp rootfs=$rootfs"
+disk=$(value IMAGE_DISK_SIZE_MB); esp=$(value IMAGE_ESP_SIZE_MB); data=$(value IMAGE_DATA_SIZE_MB)
+rootfs=$((disk - esp - data - 2))
+(( rootfs > 0 )) || { echo "disk image is too small for ESP and Data partitions" >&2; exit 1; }
+esp_sectors=$((esp * 2048)); root_start=$((2048 + esp_sectors)); root_sectors=$((rootfs * 2048))
+data_start=$((root_start + root_sectors)); data_sectors=$((data * 2048))
+layout="disk=$disk esp=$esp rootfs=$rootfs data=$data"
 
 readonly MOCHIOS_ROOT_PARTITION_TYPE="6d6f6368-694f-5300-8000-6d5061727401"
+readonly MOCHIOS_DATA_PARTITION_TYPE="6d6f6368-694f-5300-8000-6d5061727402"
 
 partition_field() {
     local partition=$1 field=$2
@@ -38,20 +43,31 @@ disk_layout_matches() {
     [[ $(partition_field 1 size) -eq $esp_sectors ]] || return 1
     [[ $(partition_field 2 start) -eq $root_start ]] || return 1
     [[ $(partition_field 2 size) -eq $root_sectors ]] || return 1
+    [[ $(partition_field 3 start) -eq $data_start ]] || return 1
+    [[ $(partition_field 3 size) -eq $data_sectors ]] || return 1
     [[ ! -f $layout_state || $(cat "$layout_state") == "$layout" ]]
 }
 
 if ! disk_layout_matches; then
     rm -f "$temporary"
     truncate -s "${disk}M" "$temporary"
-    printf 'label: gpt\nunit: sectors\nfirst-lba: 2048\nsector-size: 512\n\n2048,%s,U,*\n%s,%s,%s\n' "$esp_sectors" "$root_start" "$root_sectors" "$MOCHIOS_ROOT_PARTITION_TYPE" | sfdisk "$temporary" >/dev/null
+    {
+        printf 'label: gpt\nunit: sectors\nfirst-lba: 2048\nsector-size: 512\n\n'
+        printf 'start=2048, size=%s, type=U, bootable, name="mochiOS ESP"\n' "$esp_sectors"
+        printf 'start=%s, size=%s, type=%s, name="mochiOS System"\n' "$root_start" "$root_sectors" "$MOCHIOS_ROOT_PARTITION_TYPE"
+        printf 'start=%s, size=%s, type=%s, name="mochiOS Data"\n' "$data_start" "$data_sectors" "$MOCHIOS_DATA_PARTITION_TYPE"
+    } | sfdisk "$temporary" >/dev/null
     mv "$temporary" "$image"
-    rm -f "$image.esp.state.json" "$image.rootfs.state.json"
+    rm -f "$image.esp.state.json" "$image.rootfs.state.json" "$image.data.state.json"
 fi
 
 root_partition_type=$(partition_field 2 type)
 if [[ ${root_partition_type,,} != "$MOCHIOS_ROOT_PARTITION_TYPE" ]]; then
     sfdisk --part-type "$image" 2 "$MOCHIOS_ROOT_PARTITION_TYPE" >/dev/null
+fi
+data_partition_type=$(partition_field 3 type)
+if [[ ${data_partition_type,,} != "$MOCHIOS_DATA_PARTITION_TYPE" ]]; then
+    sfdisk --part-type "$image" 3 "$MOCHIOS_DATA_PARTITION_TYPE" >/dev/null
 fi
 
 python3 "$root/scripts/mmake/patch-disk-partition.py" \
@@ -60,6 +76,9 @@ python3 "$root/scripts/mmake/patch-disk-partition.py" \
 python3 "$root/scripts/mmake/patch-disk-partition.py" \
     "$mmake_out/image/rootfs.img" "$image" $((1 + esp)) "$rootfs" "$image.rootfs.state.json" \
     "$mmake_out/image/rootfs.img.dirty.json"
+python3 "$root/scripts/mmake/patch-disk-partition.py" \
+    "$mmake_out/image/data.img" "$image" $((1 + esp + rootfs)) "$data" "$image.data.state.json" \
+    "$mmake_out/image/data.img.dirty.json"
 
 printf '%s\n' "$layout" > "$layout_state.new"
 mv "$layout_state.new" "$layout_state"

@@ -83,6 +83,16 @@ sub run_command {
     system(@command) == 0 or die "command failed: @command\n";
 }
 
+sub require_command {
+    my ($name) = @_;
+    for my $directory (split /:/, ($ENV{PATH} // '')) {
+        $directory = '.' if $directory eq '';
+        my $path = File::Spec->catfile($directory, $name);
+        return if -f $path && -x $path;
+    }
+    die "required command is unavailable: $name\n";
+}
+
 sub read_sdk_version {
     my ($path) = @_;
     open(my $fh, '<', $path) or die "open version file $path: $!\n";
@@ -130,6 +140,10 @@ $version_file = absolute_path($version_file);
 $architecture =~ /^[A-Za-z0-9_.-]+$/ or die "invalid SDK architecture: $architecture\n";
 $sdk_version //= read_sdk_version($version_file);
 $sdk_version =~ /^[A-Za-z0-9_.+-]+$/ or die "invalid SDK version: $sdk_version\n";
+my $archive_name = "mochios-sdk-$sdk_version-$architecture.tar.zst";
+$archive //= File::Spec->catfile(dirname($output), $archive_name);
+$archive = absolute_path($archive);
+my $checksum = "$archive.sha256";
 
 my %runtime_layout = (
     libgcc => {
@@ -154,6 +168,8 @@ my @required_files = (
 );
 require_file($input, $_) for @required_files;
 require_directory($input, 'sysroot/include');
+require_command('tar');
+require_command('zstd');
 
 is_within($input, $output)
     and die "refusing to clean output directory containing the input SDK: $output\n";
@@ -162,6 +178,10 @@ is_within($root, $output)
 $output eq File::Spec->rootdir()
     and die "refusing to use filesystem root as output\n";
 -l $output and die "refusing to clean symlink output directory: $output\n";
+is_within($archive, $input)
+    and die "refusing to write release archive inside the input SDK: $archive\n";
+is_within($archive, $output)
+    and die "release archive must be outside the staged SDK directory: $archive\n";
 
 if (-e $output) {
     remove_tree($output);
@@ -201,10 +221,6 @@ MANIFEST
 close($manifest_fh) or die "close $manifest: $!\n";
 chmod 0644, $manifest or die "chmod $manifest: $!\n";
 
-my $archive_name = "mochios-sdk-$sdk_version-$architecture.tar.zst";
-$archive //= File::Spec->catfile(dirname($output), $archive_name);
-$archive = absolute_path($archive);
-my $checksum = "$archive.sha256";
 make_path(dirname($archive));
 unlink($archive) if -e $archive;
 unlink($checksum) if -e $checksum;

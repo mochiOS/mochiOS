@@ -4911,3 +4911,11 @@ path = "core"
 hash = "3d63a94459aea43cd5a4abc25d73bc52a3d7fff8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: flush shared frames without recopying"
+
+[[entries]]
+date = "2026-10-01T10:16:09.361005445+09:00"
+snapshot = "c2bdb3a57d500f61b98e6193"
+path = "core"
+hash = "d9492509ee15955bf696aaec536084c8951e4fd6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: preserve shared writes after sync"

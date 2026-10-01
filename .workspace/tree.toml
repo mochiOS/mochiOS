@@ -4879,3 +4879,11 @@ path = "core"
 hash = "5921976e8c605b42652b11a17adb66b307a33568"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: map reference-counted shared frames"
+
+[[entries]]
+date = "2026-10-01T10:09:31.103200042+09:00"
+snapshot = "6a381201c1735ffabcea782b"
+path = "core"
+hash = "f58928760c7e26a8ac3428622b73a2e3b3994d93"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: back shared cache pages with frames"

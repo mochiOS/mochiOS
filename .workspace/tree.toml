@@ -4775,3 +4775,11 @@ path = "services"
 hash = "1556847e94332b37253fcb4fcb95cdb101c35ded"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: accept ext4 directory link counts"
+
+[[entries]]
+date = "2026-10-01T09:17:10.771634482+09:00"
+snapshot = "7369f68e41ae4d5cb410fac8"
+path = "services"
+hash = "1707824f451d0d606e38a1c857810939dd5cbc0e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: maintain parent links on rmdir"

@@ -4919,3 +4919,11 @@ path = "core"
 hash = "d9492509ee15955bf696aaec536084c8951e4fd6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: preserve shared writes after sync"
+
+[[entries]]
+date = "2026-10-01T11:07:01.925502521+09:00"
+snapshot = "bf4562e7f5046a7bc99d5341"
+path = "services"
+hash = "a03c732bf938011e8255121775ae5f18ce3cbcfb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: refresh workspace dependency lockfile"

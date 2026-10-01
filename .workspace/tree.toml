@@ -4815,3 +4815,11 @@ path = "core"
 hash = "42bb20c45f4b0797ada9b4c37cb7433e1d42e722"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: invalidate cached pages on truncate"
+
+[[entries]]
+date = "2026-10-01T09:40:07.023396997+09:00"
+snapshot = "9f83f888c1802b2b19773ff3"
+path = "core"
+hash = "0d8ae66a4a0490ea470899f5011d7568c5c4df0d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: track dirty cached pages"

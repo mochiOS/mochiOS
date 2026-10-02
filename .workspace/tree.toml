@@ -4983,3 +4983,19 @@ path = "applications/binder"
 hash = "b1d1c0ed2e97c6d27e4e04f35c03570dcecaa9bb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "dock: include system applications in the catalog"
+
+[[entries]]
+date = "2026-10-02T18:19:09.493195529+09:00"
+snapshot = "c9010cc83dad73bfeb17699f"
+path = "applications/binder"
+hash = "96293ac02875255b68629f9a3f9ae4374cc1eb05"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: record resolved patch ordering"
+
+[[entries]]
+date = "2026-10-02T18:33:23.010969191+09:00"
+snapshot = "329345fc5e4682fc71ef7711"
+path = "applications/appstore"
+hash = "895eb7f78693db6b0e6a7f7e6abaf343f350a23a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "store: manage installed applications"

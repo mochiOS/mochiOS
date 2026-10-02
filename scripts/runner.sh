@@ -281,7 +281,7 @@ if [[ "${NETWORK_CLIENT_SMOKE}" == "1" && "${QEMU_TCP_ECHO_SERVER}" != "y" ]]; t
     die "NETWORK_CLIENT_SMOKE requires QEMU_TCP_ECHO_SERVER=y"
 fi
 VIRTIO_GPU_TEST_KEYS="${VIRTIO_GPU_TEST_KEYS:-t e s t dot a p p ret}"
-VIRTIO_GPU_TEST_APP_PATH="${VIRTIO_GPU_TEST_APP_PATH:-/applications/test.app/entry.elf}"
+VIRTIO_GPU_TEST_APP_PATH="${VIRTIO_GPU_TEST_APP_PATH:-/system/applications/test.app/entry.elf}"
 VIRTIO_GPU_POINTER_STRESS="${VIRTIO_GPU_POINTER_STRESS:-n}"
 VIRTIO_GPU_STRESS_SWEEPS="${VIRTIO_GPU_STRESS_SWEEPS:-12}"
 if [[ -z "${VIRTIO_GPU_PIXEL_CHECK+x}" ]]; then
@@ -789,14 +789,14 @@ while ((SECONDS < DEADLINE)); do
         && log_has "exec: loaded '/system/services/input.service'" \
         && log_has "exec: loaded '/system/services/display.driver'" \
         && log_has "exec: loaded '/system/services/compositor.service'" \
-        && log_has "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
-        && log_has "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
+        && log_has "exec: loaded '/system/bin/drivers/ps2/i8042.driver/entry.elf'" \
+        && log_has "exec: loaded '/system/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
         && log_has "exec: loaded '/system/services/network.service'" \
         && log_has "exec: loaded '/system/services/user.service'" \
         && log_has "exec: loaded '/system/services/secure-ui.service'" \
         && log_has "exec: loaded '/system/services/workspace.service'" \
         && log_has "exec: loaded '/system/services/linux.service'" \
-        && log_has "exec: loaded '/applications/Binder.app/entry.elf'"; then
+        && log_has "exec: loaded '/system/applications/Binder.app/entry.elf'"; then
         if [[ "${COMPLETION_OBSERVED_AT}" -eq 0 ]]; then
             COMPLETION_OBSERVED_AT="${SECONDS}"
         elif ((SECONDS - COMPLETION_OBSERVED_AT >= 2)); then

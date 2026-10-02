@@ -20,14 +20,14 @@ write_valid_logs() {
 [INFO] exec: loaded '/system/services/input.service' from cext
 [INFO] exec: loaded '/system/services/display.driver' from cext
 [INFO] exec: loaded '/system/services/compositor.service' from cext
-[INFO] exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf' from cext
-[INFO] exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver' from cext
+[INFO] exec: loaded '/system/bin/drivers/ps2/i8042.driver/entry.elf' from cext
+[INFO] exec: loaded '/system/bin/drivers/network/virtio-net.driver/virtio-net.driver' from cext
 [INFO] exec: loaded '/system/services/network.service' from cext
 [INFO] exec: loaded '/system/services/user.service' from cext
 [INFO] exec: loaded '/system/services/secure-ui.service' from cext
 [INFO] exec: loaded '/system/services/workspace.service' from cext
 [INFO] exec: loaded '/system/services/linux.service' from cext
-[INFO] exec: loaded '/applications/Binder.app/entry.elf' from cext
+[INFO] exec: loaded '/system/applications/Binder.app/entry.elf' from cext
 EOF
     cat > "${SERVICE_MANAGER_LOG}" <<'EOF'
 service-manager.service: start
@@ -59,14 +59,14 @@ service-manager.service: Binder.app spawned pid=18
 EOF
     cat > "${DRIVERS_LOG}" <<'EOF'
 drivers.service: start
-drivers.service: matched bundle=/bin/drivers/usb/qemu-usb.driver package=org.mochios.usb.qemu root=/bin/drivers/usb
-drivers.service: spawn failed /bin/drivers/usb/qemu-usb.driver/entry.elf errno=22
-drivers.service: matched bundle=/bin/drivers/ps2/i8042.driver package=org.mochios.ps2.i8042 root=/bin/drivers/ps2
+drivers.service: matched bundle=/system/bin/drivers/usb/qemu-usb.driver package=org.mochios.usb.qemu root=/system/bin/drivers/usb
+drivers.service: spawn failed /system/bin/drivers/usb/qemu-usb.driver/entry.elf errno=22
+drivers.service: matched bundle=/system/bin/drivers/ps2/i8042.driver package=org.mochios.ps2.i8042 root=/system/bin/drivers/ps2
 drivers.service: spawned driver pid=12
-drivers.service: active bundle=/bin/drivers/ps2/i8042.driver
-drivers.service: matched bundle=/bin/drivers/network/virtio-net.driver package=org.mochios.network.virtio-net root=/bin/drivers/network
+drivers.service: active bundle=/system/bin/drivers/ps2/i8042.driver
+drivers.service: matched bundle=/system/bin/drivers/network/virtio-net.driver package=org.mochios.network.virtio-net root=/system/bin/drivers/network
 drivers.service: spawned driver pid=13
-drivers.service: active bundle=/bin/drivers/network/virtio-net.driver
+drivers.service: active bundle=/system/bin/drivers/network/virtio-net.driver
 EOF
     cat > "${NETWORK_LOG}" <<'EOF'
 network.service: interface id=1 mac=52:54:00:12:34:56 link=true mtu=1500
@@ -111,8 +111,8 @@ append_mpkg_success
 "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 0 1 0 0 1 >/dev/null
 
 write_valid_logs
-sed -i '/matched bundle=\/bin\/drivers\/usb\//d' "${DRIVERS_LOG}"
-sed -i '/spawn failed \/bin\/drivers\/usb\//d' "${DRIVERS_LOG}"
+sed -i '/matched bundle=\/system\/bin\/drivers\/usb\//d' "${DRIVERS_LOG}"
+sed -i '/spawn failed \/system\/bin\/drivers\/usb\//d' "${DRIVERS_LOG}"
 "${CHECKER}" "${SERIAL_LOG}" "${SERVICE_MANAGER_LOG}" "${DRIVERS_LOG}" "${NETWORK_LOG}" 0 0 >/dev/null
 
 write_valid_logs

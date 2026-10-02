@@ -166,8 +166,8 @@ assert_order "serial boot log" "${SERIAL_LOG}" \
     "input.service" "exec: loaded '/system/services/input.service'" \
     "display.driver" "exec: loaded '/system/services/display.driver'" \
     "compositor.service" "exec: loaded '/system/services/compositor.service'" \
-    "i8042 driver" "exec: loaded '/bin/drivers/ps2/i8042.driver/entry.elf'" \
-    "virtio-net driver" "exec: loaded '/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
+    "i8042 driver" "exec: loaded '/system/bin/drivers/ps2/i8042.driver/entry.elf'" \
+    "virtio-net driver" "exec: loaded '/system/bin/drivers/network/virtio-net.driver/virtio-net.driver'" \
     "network.service" "exec: loaded '/system/services/network.service'" \
     "user.service" "exec: loaded '/system/services/user.service'" \
     "secure-ui.service" "exec: loaded '/system/services/secure-ui.service'" \
@@ -259,26 +259,26 @@ require_once "Linux GUI service load" "${SERIAL_LOG}" \
     "exec: loaded '/system/services/linux.service'" >/dev/null
 
 require_once "Binder application load" "${SERIAL_LOG}" \
-    "exec: loaded '/applications/Binder.app/entry.elf'" >/dev/null
+    "exec: loaded '/system/applications/Binder.app/entry.elf'" >/dev/null
 
 if [[ "${XHCI_ENABLED}" == "1" ]]; then
     assert_order "drivers.service log" "${DRIVERS_LOG}" \
         "drivers start" "drivers.service: start" \
-        "USB bundle discovery" "drivers.service: matched bundle=/bin/drivers/usb/" \
-        "USB errno=22" "drivers.service: spawn failed /bin/drivers/usb/qemu-usb.driver/entry.elf errno=22" \
-        "PS/2 bundle discovery" "drivers.service: matched bundle=/bin/drivers/ps2/" \
-        "i8042 driver spawn" "drivers.service: active bundle=/bin/drivers/ps2/i8042.driver" \
-        "network bundle discovery" "drivers.service: matched bundle=/bin/drivers/network/virtio-net.driver" \
-        "virtio-net driver spawn" "drivers.service: active bundle=/bin/drivers/network/virtio-net.driver"
+        "USB bundle discovery" "drivers.service: matched bundle=/system/bin/drivers/usb/" \
+        "USB errno=22" "drivers.service: spawn failed /system/bin/drivers/usb/qemu-usb.driver/entry.elf errno=22" \
+        "PS/2 bundle discovery" "drivers.service: matched bundle=/system/bin/drivers/ps2/" \
+        "i8042 driver spawn" "drivers.service: active bundle=/system/bin/drivers/ps2/i8042.driver" \
+        "network bundle discovery" "drivers.service: matched bundle=/system/bin/drivers/network/virtio-net.driver" \
+        "virtio-net driver spawn" "drivers.service: active bundle=/system/bin/drivers/network/virtio-net.driver"
 else
     assert_order "drivers.service log" "${DRIVERS_LOG}" \
         "drivers start" "drivers.service: start" \
-        "PS/2 bundle discovery" "drivers.service: matched bundle=/bin/drivers/ps2/" \
-        "i8042 driver spawn" "drivers.service: active bundle=/bin/drivers/ps2/i8042.driver" \
-        "network bundle discovery" "drivers.service: matched bundle=/bin/drivers/network/virtio-net.driver" \
-        "virtio-net driver spawn" "drivers.service: active bundle=/bin/drivers/network/virtio-net.driver"
+        "PS/2 bundle discovery" "drivers.service: matched bundle=/system/bin/drivers/ps2/" \
+        "i8042 driver spawn" "drivers.service: active bundle=/system/bin/drivers/ps2/i8042.driver" \
+        "network bundle discovery" "drivers.service: matched bundle=/system/bin/drivers/network/virtio-net.driver" \
+        "virtio-net driver spawn" "drivers.service: active bundle=/system/bin/drivers/network/virtio-net.driver"
     assert_absent "disabled USB discovery" "${DRIVERS_LOG}" \
-        "drivers.service: matched bundle=/bin/drivers/usb/"
+        "drivers.service: matched bundle=/system/bin/drivers/usb/"
 fi
 
 assert_absent "legacy input spawn" "${DRIVERS_LOG}" "drivers.service: input.service spawned pid="

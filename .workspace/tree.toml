@@ -5015,3 +5015,11 @@ path = "services"
 hash = "e7ac94f9c529bad2f7403fe5f9062ef0056bb9a7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: refresh service dependency lock"
+
+[[entries]]
+date = "2026-10-02T19:37:29.982588652+09:00"
+snapshot = "fafa72d5182cdec5ca202c7a"
+path = "applications/test.app"
+hash = "15a3a2d95dabdaef5e9fe74399c24219446f3fc8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh image decoder lock"

@@ -5039,3 +5039,11 @@ path = "applications/edit"
 hash = "b7f63abd51aabc46fb343444805d9cdd584c95e0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh image decoder lock"
+
+[[entries]]
+date = "2026-10-02T21:09:00.862136945+09:00"
+snapshot = "47ab5a82a1aae406841f426e"
+path = "applications/file"
+hash = "97efdd7d4fa5cd97ba2e072377c2842fa03850c3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Present file operation errors with AppCore"

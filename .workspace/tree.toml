@@ -5071,3 +5071,11 @@ path = "core"
 hash = "cc52a7085888c27f87fda766507e56d6e7193471"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve userspace filesystem node types"
+
+[[entries]]
+date = "2026-10-03T08:49:41.821474068+09:00"
+snapshot = "01cc970b3557782cacad9ec9"
+path = "core"
+hash = "df5f36e267e493fa6bcaa05d2255d0069c7496e2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add rights-restricted IPC file handles"

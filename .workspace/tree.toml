@@ -4999,3 +4999,11 @@ path = "applications/appstore"
 hash = "895eb7f78693db6b0e6a7f7e6abaf343f350a23a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "store: manage installed applications"
+
+[[entries]]
+date = "2026-10-02T18:34:15.708961494+09:00"
+snapshot = "694b5fd2e58576d488342848"
+path = "services"
+hash = "adbb4a61c1769ecf8dc1693b87926fc819bc9ebc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "package: keep service authority minimal"

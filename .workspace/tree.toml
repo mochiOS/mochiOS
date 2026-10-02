@@ -5079,3 +5079,11 @@ path = "core"
 hash = "df5f36e267e493fa6bcaa05d2255d0069c7496e2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add rights-restricted IPC file handles"
+
+[[entries]]
+date = "2026-10-03T08:52:49.373494959+09:00"
+snapshot = "dbe984c63dfe7bbdc250e6fe"
+path = "services"
+hash = "2a15cf0ece4674a382365a3f5a5b782d12cae02c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh service workspace lockfile"

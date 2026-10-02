@@ -5047,3 +5047,11 @@ path = "applications/file"
 hash = "97efdd7d4fa5cd97ba2e072377c2842fa03850c3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Present file operation errors with AppCore"
+
+[[entries]]
+date = "2026-10-02T21:14:46.343682702+09:00"
+snapshot = "50eb3b6b2368a7e4b73c4c56"
+path = "applications/file"
+hash = "763f9d771f8ab218b31435c9c098d1c1c2f00e6a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Open documents with viewer applications"

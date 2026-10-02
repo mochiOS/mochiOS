@@ -5063,3 +5063,11 @@ path = "applications/file"
 hash = "5d269c053b6af54ad284b729411f69c8f8ae6b2c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep browsing past inaccessible entries"
+
+[[entries]]
+date = "2026-10-02T22:17:19.590413621+09:00"
+snapshot = "67cf56f18de544e3469d5bb5"
+path = "core"
+hash = "cc52a7085888c27f87fda766507e56d6e7193471"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve userspace filesystem node types"

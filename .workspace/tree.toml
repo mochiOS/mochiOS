@@ -5007,3 +5007,11 @@ path = "services"
 hash = "adbb4a61c1769ecf8dc1693b87926fc819bc9ebc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "package: keep service authority minimal"
+
+[[entries]]
+date = "2026-10-02T19:05:27.170623319+09:00"
+snapshot = "27e71908b6fd1edccf9866f3"
+path = "services"
+hash = "e7ac94f9c529bad2f7403fe5f9062ef0056bb9a7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: refresh service dependency lock"

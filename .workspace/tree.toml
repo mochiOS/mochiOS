@@ -4951,3 +4951,19 @@ path = "applications/installer"
 hash = "f22632395c5c2e258a2f78f110ea17783439e1ab"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: refresh installer dependency lockfile"
+
+[[entries]]
+date = "2026-10-02T17:21:43.287322107+09:00"
+snapshot = "779e799877bcf090d6f70213"
+path = "core"
+hash = "9f270d9ada78461e9c5ebca33a04baa498645887"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "exec: expose launch diagnostics in release boots"
+
+[[entries]]
+date = "2026-10-02T17:38:37.435974729+09:00"
+snapshot = "f6cddb577c02dd524eae6ef0"
+path = "applications/test.app"
+hash = "286eaf1f9f37de73b57418340c473eeeee3eed12"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "system: resolve test application from system storage"

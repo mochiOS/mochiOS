@@ -4943,3 +4943,11 @@ path = "applications/installer"
 hash = "8f4f800344ff74961c361958c5e2686276967822"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add Installer UI preview"
+
+[[entries]]
+date = "2026-10-02T16:59:43.968249279+09:00"
+snapshot = "2b0740672176841fb368106e"
+path = "applications/installer"
+hash = "f22632395c5c2e258a2f78f110ea17783439e1ab"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: refresh installer dependency lockfile"

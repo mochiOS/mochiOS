@@ -79,7 +79,6 @@ def inode_mode(entry: dict[str, object]) -> str:
 
 def record_dirty_ranges(image: Path, trace_path: Path) -> None:
     writes: list[tuple[int, int]] = []
-    image_fds: set[tuple[str, str]] = set()
     positions: dict[tuple[str, str], int] = {}
     lines = trace_path.read_text(errors="replace").splitlines()
     pwrite = re.compile(r"^(\d+)\s+pwrite64\((\d+), .*, (\d+), (\d+)\)\s+=\s+(\d+)$")
@@ -87,8 +86,6 @@ def record_dirty_ranges(image: Path, trace_path: Path) -> None:
     write = re.compile(r"^(\d+)\s+write\((\d+), .*, (\d+)\)\s+=\s+(\d+)$")
     for line in lines:
         if match := pwrite.match(line):
-            key = (match.group(1), match.group(2))
-            image_fds.add(key)
             length = int(match.group(5))
             if length > 0:
                 offset = int(match.group(4))
@@ -96,8 +93,7 @@ def record_dirty_ranges(image: Path, trace_path: Path) -> None:
     for line in lines:
         if match := seek.match(line):
             key = (match.group(1), match.group(2))
-            if key in image_fds:
-                positions[key] = int(match.group(4))
+            positions[key] = int(match.group(4))
         elif match := write.match(line):
             key = (match.group(1), match.group(2))
             if key in positions:

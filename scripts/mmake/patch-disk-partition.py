@@ -26,7 +26,7 @@ def dirty_ranges(path: Path, current: dict[str, int]) -> list[tuple[int, int]] |
     if value is None or any(value.get(key) != current[key] for key in current):
         return None
     ranges = value.get("ranges")
-    if not isinstance(ranges, list):
+    if not isinstance(ranges, list) or not ranges:
         return None
     result: list[tuple[int, int]] = []
     for item in ranges:

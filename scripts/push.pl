@@ -3,6 +3,9 @@
 use strict;
 use warnings;
 use utf8;
+use File::Basename qw(dirname basename);
+use File::Find qw(find);
+use XML::Parser;
 
 binmode STDIN, ':encoding(UTF-8)';
 binmode STDOUT, ':encoding(UTF-8)';
@@ -12,39 +15,38 @@ if (!-d '.repo') {
     die "error: repoワークスペースのルートで実行してください\n";
 }
 
-my @projects = `repo forall -c 'printf "%s\\t%s\\t%s\\t%s\\n" "\$REPO_PROJECT" "\$REPO_PATH" "\$REPO_REMOTE" "\$REPO_RREV"'`;
-
-if ($? != 0) {
-    die "error: repoからプロジェクト情報を取得できませんでした\n";
-}
+my %manifest_projects = manifest_projects('default.xml');
+my @repositories = git_repositories('.');
+my %repository_paths = map { $_ => 1 } @repositories;
 
 my @targets;
 my $preflight_failed = 0;
-for my $line (@projects) {
-    chomp $line;
+for my $path (sort keys %manifest_projects) {
+    next if $repository_paths{$path};
+    print STDERR "[error] $path: manifestに登録されていますがGitリポジトリがありません\n";
+    $preflight_failed = 1;
+}
 
-    my ($project, $path, $remote, $revision) = split /\t/, $line, 4;
+for my $path (@repositories) {
+    my $manifest = $manifest_projects{$path};
+    my ($project, $remote) = github_mochios_remote($path, $manifest);
+    if (!defined $project) {
+        if (defined $manifest) {
+            print STDERR "[error] $path: $manifest->{project} へpushできるremoteがありません\n";
+            $preflight_failed = 1;
+        }
+        next;
+    }
 
-    next unless defined $project;
-    next unless $project =~ m{^mochiOS/};
-
+    my $revision = defined $manifest
+        ? $manifest->{revision}
+        : remote_default_branch($path, $remote);
     $revision //= '';
     $revision =~ s{^refs/heads/}{};
     if ($revision eq '') {
         print STDERR "[error] $path: push先branchを特定できません\n";
+        $preflight_failed = 1;
         next;
-    }
-
-    $remote ||= 'github';
-
-    unless (git_remote_exists($path, $remote)) {
-        if (git_remote_exists($path, 'origin')) {
-            $remote = 'origin';
-        }
-        else {
-            print STDERR "[error] $path: 利用可能なremoteがありません\n";
-            next;
-        }
     }
 
     unless (git_fetch_branch($path, $remote, $revision)) {
@@ -130,11 +132,92 @@ for my $target (@targets) {
 
 print "\n[done] 処理が完了しました\n";
 
-sub git_remote_exists {
-    my ($path, $remote) = @_;
+sub manifest_projects {
+    my ($manifest_path) = @_;
+    my %projects;
+    my $parser = XML::Parser->new(
+        Handlers => {
+            Start => sub {
+                my ($expat, $element, %attributes) = @_;
+                return unless $element eq 'project';
+                return unless defined $attributes{name};
+                return unless $attributes{name} =~ m{^mochiOS/};
+                my $path = $attributes{path} // $attributes{name};
+                $projects{$path} = {
+                    project  => $attributes{name},
+                    revision => $attributes{revision} // '',
+                };
+            },
+        },
+    );
+    eval { $parser->parsefile($manifest_path) };
+    die "error: $manifest_path を解析できません: $@" if $@;
+    return %projects;
+}
+
+sub git_repositories {
+    my ($root) = @_;
+    my @repositories;
+    find(
+        {
+            no_chdir => 1,
+            wanted   => sub {
+                my $path = $File::Find::name;
+                my $name = basename($path);
+                if (-d $path && ($name eq '.repo' || $name eq 'out')) {
+                    $File::Find::prune = 1;
+                    return;
+                }
+                return unless $name eq '.git';
+                my $repository = dirname($path);
+                $repository =~ s{^\./}{};
+                $repository = '.' if $repository eq '';
+                push @repositories, $repository;
+                $File::Find::prune = 1 if -d $path;
+            },
+        },
+        $root,
+    );
+    my %seen;
+    return sort {
+        ($a ne '.') <=> ($b ne '.') || $a cmp $b
+    } grep { !$seen{$_}++ } @repositories;
+}
+
+sub github_mochios_remote {
+    my ($path, $manifest) = @_;
     my $remotes = git_output('git', '-C', $path, 'remote');
-    return 0 unless defined $remotes;
-    return scalar grep { $_ eq $remote } split /\n/, $remotes;
+    return unless defined $remotes;
+    my @matches;
+    for my $remote (split /\n/, $remotes) {
+        my $url = git_output('git', '-C', $path, 'remote', 'get-url', '--push', $remote);
+        next unless defined $url;
+        next unless $url =~ m{github\.com(?::|/)(mochiOS/[^/]+?)(?:\.git)?/?$}i;
+        push @matches, [$1, $remote];
+    }
+    if (defined $manifest) {
+        for my $match (@matches) {
+            return @$match if lc($match->[0]) eq lc($manifest->{project});
+        }
+        return;
+    }
+    return unless @matches;
+    @matches = sort {
+        ($a->[1] ne 'origin') <=> ($b->[1] ne 'origin')
+            || $a->[1] cmp $b->[1]
+    } @matches;
+    return @{$matches[0]};
+}
+
+sub remote_default_branch {
+    my ($path, $remote) = @_;
+    my $symbolic = git_output(
+        'git', '-C', $path,
+        'symbolic-ref', '--short', "refs/remotes/$remote/HEAD",
+    );
+    return unless defined $symbolic;
+    $symbolic =~ s{^\Q$remote\E/}{};
+    return $symbolic;
 }
 
 sub git_fetch_branch {

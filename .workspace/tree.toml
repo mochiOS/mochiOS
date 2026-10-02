@@ -4967,3 +4967,11 @@ path = "applications/test.app"
 hash = "286eaf1f9f37de73b57418340c473eeeee3eed12"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "system: resolve test application from system storage"
+
+[[entries]]
+date = "2026-10-02T17:59:47.406726447+09:00"
+snapshot = "f3a7d32e6d0446de9ff20000"
+path = "services"
+hash = "76791fb63f06035834d0c85621106a8a886375e0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: mount Data as the root filesystem"

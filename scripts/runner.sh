@@ -43,11 +43,9 @@ if [[ "${ENV_QEMU_NETWORK_SET}" == "1" ]]; then QEMU_NETWORK="${ENV_QEMU_NETWORK
 if [[ "${ENV_QEMU_NETWORK_MAC_SET}" == "1" ]]; then QEMU_NETWORK_MAC="${ENV_QEMU_NETWORK_MAC}"; fi
 QEMU_VIRTIO_GPU_ENABLED="${DEBUG_QEMU_VIRTIO_GPU:-${DEBUG_QEMU_GPU_BACKEND:-n}}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
-RUN_ID="workspace-$(date +%s)-$$"
 RUNNER_DIR="${ROOT_DIR}/out/runner"
-RUNNER_LOCK="${RUNNER_DIR}/runner.lock"
-RUNNER_KEEP_RUNS="${RUNNER_KEEP_RUNS:-8}"
-RUN_DIR="${RUNNER_DIR}/${RUN_ID}"
+RUNNER_LOCK="${ROOT_DIR}/out/runner.lock"
+RUN_DIR="${RUNNER_DIR}"
 SERIAL_LOG="${RUN_DIR}/serial.log"
 DRIVERS_LOG="${RUN_DIR}/drivers.log"
 DISPLAY_LOG="${RUN_DIR}/display.driver.log"
@@ -134,25 +132,13 @@ need_file() {
 }
 
 need_cmd flock
-mkdir -p "${RUNNER_DIR}"
+
+mkdir -p "$(dirname "${RUNNER_LOCK}")"
 exec 9>"${RUNNER_LOCK}"
 flock -n 9 || die "another mochiOS QEMU runner is already active"
 
-prune_runner_runs() {
-    local index
-    local name
-    local -a runs=()
-
-    mapfile -d '' runs < <(
-        find "${RUNNER_DIR}" -mindepth 1 -maxdepth 1 -type d \
-            -name 'workspace-*' -printf '%T@ %f\0' | sort -zrn
-    )
-    for ((index = RUNNER_KEEP_RUNS; index < ${#runs[@]}; index++)); do
-        name="${runs[index]#* }"
-        [[ "${name}" == workspace-* ]] || continue
-        rm -rf -- "${RUNNER_DIR}/${name}"
-    done
-}
+rm -rf -- "${RUNNER_DIR}"
+mkdir -p "${RUNNER_DIR}"
 
 case "${QEMU_NETWORK}" in y|n) ;; *) die "QEMU_NETWORK must be 'y' or 'n'" ;; esac
 case "${QEMU_TCP_ECHO_SERVER}" in
@@ -203,8 +189,6 @@ esac
     die "SMOKE_DATA_START_SECTOR must be a positive integer"
 [[ "${SMOKE_DATA_SIZE_SECTORS}" =~ ^[1-9][0-9]*$ ]] ||
     die "SMOKE_DATA_SIZE_SECTORS must be a positive integer"
-[[ "${RUNNER_KEEP_RUNS}" =~ ^[1-9][0-9]*$ ]] ||
-    die "RUNNER_KEEP_RUNS must be a positive integer"
 [[ "${QEMU_NETWORK_MAC}" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] ||
     die "QEMU_NETWORK_MAC must be a MAC address: ${QEMU_NETWORK_MAC}"
 
@@ -328,8 +312,6 @@ if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
     need_file "${TLS_BAD_CV_SERVER}"
 fi
 
-mkdir -p "${RUN_DIR}"
-prune_runner_runs
 if [[ -z "${OVMF_VARS_EXTERNAL}" || ! -f "${OVMF_VARS}" ]]; then
     cp "${OVMF_VARS_TEMPLATE}" "${OVMF_VARS}"
 fi

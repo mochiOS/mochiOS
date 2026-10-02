@@ -5023,3 +5023,11 @@ path = "applications/test.app"
 hash = "15a3a2d95dabdaef5e9fe74399c24219446f3fc8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh image decoder lock"
+
+[[entries]]
+date = "2026-10-02T20:59:23.619342262+09:00"
+snapshot = "f2216bb59cb35fd7387fecf6"
+path = "applications/edit"
+hash = "8e2abd24620d15cf17dc2b33f7fc936da7319bf3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "system: resolve Edit from system storage"

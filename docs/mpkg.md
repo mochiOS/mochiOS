@@ -245,13 +245,14 @@ write-backを再試行します。fileの追加・更新だけでなく、削除
 ## 8. インストールと有効化
 
 署名、manifest、全 payload、配置先、mode、既存 path との衝突を、書き込み開始前に
-検証します。現行 ext2 CExt には rename transaction がないため、v1 installer は
-既存 package の更新と既存 file の上書きを `EEXIST` で拒否します。
+検証します。`/system/packages` は image に含まれる built-in package 専用で、Store
+などから追加した package の管理情報は Data root の `/var/lib/packages` に置きます。
+同じ Package ID の built-in package は追加・更新・削除できません。
 
 新規インストールは次の順です。
 
 1. payload を配置
-2. `/system/packages/<package-id>/verification.bin` を配置
+2. `/var/lib/packages/<package-id>/verification.bin` を配置
 3. 検証済みの `manifest.toml` を最後に配置
 
 manifest を activation marker とし、Capability resolver は manifest digest と
@@ -259,6 +260,18 @@ manifest を activation marker とし、Capability resolver は manifest digest 
 途中で失敗した場合は、その要求で作成済みのpayloadとverification recordを逆順に
 削除します。空の親directoryが残る場合はありますが、manifestが存在しないため
 有効なインストールとして扱いません。
+
+更新は既存 `verification.bin` の Package ID、Developer ID、subject key ID が新しい
+package と一致する場合だけ許可します。全新規 payload と管理 record を
+`.mochi-new` へ検証済みで staging し、既存 file を `.mochi-old` へ退避してから
+rename で切り替えます。途中または Capability index 更新に失敗した場合は逆順に
+旧 file を復元します。現行 v1 では配置先一覧が変わる更新と Linux application の
+更新を拒否します。
+
+削除は `/var/lib/packages` に有効な record があり、built-in ではない package だけを
+対象にします。全対象を `.mochi-remove` へ rename し、Capability index 更新後に
+退避 file を削除します。通知失敗時は元へ戻します。現行 v1 では Linux application
+の削除を拒否します。
 
 ## 9. verification.bin
 
@@ -318,7 +331,7 @@ APT形式ではhostの`apt-get`と`dpkg-deb`、全形式で`mksquashfs`が必要
 ## 11. 未実装事項
 
 - Zstandard 展開
-- 既存 package の atomic upgrade、uninstall
+- 配置先一覧を変更する upgrade と Linux application の upgrade、uninstall
 - MPKG 内に埋め込む任意の証明書 chain
 - OCSP
 - Unicode normalization と case-fold collision 検査

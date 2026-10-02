@@ -5055,3 +5055,11 @@ path = "applications/file"
 hash = "763f9d771f8ab218b31435c9c098d1c1c2f00e6a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Open documents with viewer applications"
+
+[[entries]]
+date = "2026-10-02T21:34:54.285268692+09:00"
+snapshot = "bbfc05b1b6673754041f4671"
+path = "applications/file"
+hash = "5d269c053b6af54ad284b729411f69c8f8ae6b2c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep browsing past inaccessible entries"

@@ -4975,3 +4975,11 @@ path = "services"
 hash = "76791fb63f06035834d0c85621106a8a886375e0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: mount Data as the root filesystem"
+
+[[entries]]
+date = "2026-10-02T18:07:56.163632610+09:00"
+snapshot = "1d3c0d14edb14922a3b23ff4"
+path = "applications/binder"
+hash = "b1d1c0ed2e97c6d27e4e04f35c03570dcecaa9bb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "dock: include system applications in the catalog"

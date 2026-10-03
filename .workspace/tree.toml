@@ -5095,3 +5095,27 @@ path = "services"
 hash = "cd4488ebcecd62bc499185e11c800ddb2dd1ee60"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh service workspace lockfile"
+
+[[entries]]
+date = "2026-10-03T11:45:32.935400796+09:00"
+snapshot = "eda21ae2ed0abc88b7330b7e"
+path = "applications/system-monitor"
+hash = "415a7c960903c5567b86b749c3f0e324ec80a88b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh dependency lockfile"
+
+[[entries]]
+date = "2026-10-03T11:48:16.779859595+09:00"
+snapshot = "2d1a594538b823728586e8cf"
+path = "services"
+hash = "73f2bb5a7fffce7e24166d4cf50dd3beacb63114"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Launch document handlers without path access"
+
+[[entries]]
+date = "2026-10-03T11:52:03.567484216+09:00"
+snapshot = "0cfaea8843d4d4834e0ed1ed"
+path = "applications/test.app"
+hash = "4a70c3c8407e4f59d0d01fb7f78e509bd3d8fa21"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add document opening test entry point"

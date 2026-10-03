@@ -5407,3 +5407,11 @@ path = "tools/devkit"
 hash = "5b8b8c208805c088ac3bebb8c95ded3800ea7dd7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Read delegated documents from their start"
+
+[[entries]]
+date = "2026-10-03T20:41:50.447359105+09:00"
+snapshot = "1441a0579bff254a064c707b"
+path = "tools/devkit"
+hash = "05378d74168aeb9a680f63bafd88065fa91f2ecb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Initialize standard app bootstrap logging"

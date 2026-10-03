@@ -5383,3 +5383,11 @@ path = "tools/devkit"
 hash = "5f7ae644a2dd2f4ec723d7cd85d35520d6ea6a71"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose delegated documents to applications"
+
+[[entries]]
+date = "2026-10-03T20:41:46.793291577+09:00"
+snapshot = "8e5a6ca3e540dad612f71a80"
+path = "tools/devkit"
+hash = "c3744ee5209245cffde892add5b957a242e8ada2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Take ownership of delegated document handles"

@@ -5143,3 +5143,11 @@ path = "tools/devkit"
 hash = "ad0216c9d47874a747b1a30ca1a2b606ab46941a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh devkit dependency lockfile"
+
+[[entries]]
+date = "2026-10-03T12:38:55.756911512+09:00"
+snapshot = "8c60dcf0d5377241f72489ae"
+path = "tools/mws"
+hash = "cca3dafe679b213de63145ea592b6d2738279acc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Read the checked-in workspace manifest"

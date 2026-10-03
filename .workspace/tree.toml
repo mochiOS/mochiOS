@@ -5119,3 +5119,19 @@ path = "applications/test.app"
 hash = "4a70c3c8407e4f59d0d01fb7f78e509bd3d8fa21"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add document opening test entry point"
+
+[[entries]]
+date = "2026-10-03T12:06:36.761383803+09:00"
+snapshot = "c4b31a620afd91a03d37bf84"
+path = "applications/binder"
+hash = "d50b78b5d7ff9665117472671af4289a4aa4d892"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report Binder desktop startup failures"
+
+[[entries]]
+date = "2026-10-03T12:31:45.770573345+09:00"
+snapshot = "9106cedf62dea80edf84a347"
+path = "services"
+hash = "b802c03c1d871f8e0a3475a2e5e3ba6ff376780d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh services dependency lockfile"

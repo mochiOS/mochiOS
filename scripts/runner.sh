@@ -732,7 +732,6 @@ fi
 
 NEXT_LINE=1
 COMPLETED=0
-COMPLETION_OBSERVED_AT=0
 LOGIN_READY_AT=0
 LOGIN_SENT=0
 DEADLINE=$((SECONDS + QEMU_TIMEOUT_SECONDS))
@@ -796,13 +795,9 @@ while ((SECONDS < DEADLINE)); do
         && log_has "exec: loaded '/system/services/secure-ui.service'" \
         && log_has "exec: loaded '/system/services/workspace.service'" \
         && log_has "exec: loaded '/system/services/linux.service'" \
-        && log_has "exec: loaded '/system/applications/Binder.app/entry.elf'"; then
-        if [[ "${COMPLETION_OBSERVED_AT}" -eq 0 ]]; then
-            COMPLETION_OBSERVED_AT="${SECONDS}"
-        elif ((SECONDS - COMPLETION_OBSERVED_AT >= 2)); then
-            COMPLETED=1
-            break
-        fi
+        && log_has "service-manager.service: Binder.app ready"; then
+        COMPLETED=1
+        break
     fi
 
     if ! kill -0 "${QEMU_PID}" 2>/dev/null; then

@@ -5279,3 +5279,11 @@ path = "user"
 hash = "49f2103e4dfa44caf331b6eaf426e4e5175b45a9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh user workspace lockfile"
+
+[[entries]]
+date = "2026-10-03T18:45:06.104812571+09:00"
+snapshot = "f98963526d28e6c6a80e2625"
+path = "mboot"
+hash = "54f6762d4a4b9c00e2ff47ac5cf8d774f44cdd96"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Convert boot artwork at build time"

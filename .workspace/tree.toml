@@ -5303,3 +5303,11 @@ path = "mboot"
 hash = "6baed17bea57191f956f2fab15d56460d564791c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Present boot failures as modal cards"
+
+[[entries]]
+date = "2026-10-03T18:52:51.979728048+09:00"
+snapshot = "e6fed5c7a9ebe939938fd10b"
+path = "mboot"
+hash = "2d72cd5edee2f6c9d77dd5a9f69e257c8fbabd8e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Animate boot progress with firmware timer"

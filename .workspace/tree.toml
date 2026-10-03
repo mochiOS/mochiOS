@@ -5311,3 +5311,11 @@ path = "mboot"
 hash = "2d72cd5edee2f6c9d77dd5a9f69e257c8fbabd8e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Animate boot progress with firmware timer"
+
+[[entries]]
+date = "2026-10-03T18:56:02.855886477+09:00"
+snapshot = "9ea9a6a1d33ed847b98ff217"
+path = "mboot"
+hash = "ebde3b5b2192e60658b428872a5e3a9415635d79"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Close boot animation events on every exit"

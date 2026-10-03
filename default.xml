@@ -108,6 +108,13 @@
     />
 
     <project
+            path="libraries/bootui"
+            name="mochiOS/BootUI"
+            revision="master"
+            remote="github"
+    />
+
+    <project
             path="build"
             name="mochiOS/buildtools"
             revision="main"

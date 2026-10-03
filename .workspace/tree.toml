@@ -5487,3 +5487,11 @@ path = "core"
 hash = "af4c0182b0484360a42d7c1b8a5751dc5389e14d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add process-local kernel object handle table"
+
+[[entries]]
+date = "2026-10-03T22:55:25.535187684+09:00"
+snapshot = "7727f314a207eb365c2e2378"
+path = "core"
+hash = "06b721d67ba3d1176e4a1e744dafadda8558a3ad"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add opaque inherited handle launch context"

@@ -5159,3 +5159,11 @@ path = "tools/mws"
 hash = "8ddaa5cbbec37d7c0def3f5d9fe494c570e41c37"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Skip unavailable workspace checkouts"
+
+[[entries]]
+date = "2026-10-03T12:45:41.279648452+09:00"
+snapshot = "c61245d9cf5193a229a8e58f"
+path = "services"
+hash = "776ec3204fd9a1403552b141611f878eaa170d77"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Wait for Binder first-frame readiness"

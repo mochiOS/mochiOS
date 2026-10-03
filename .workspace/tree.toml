@@ -5175,3 +5175,11 @@ path = "user"
 hash = "fe3ae0563ab010182088ebe2acf3c2c143666dac"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh user dependency lockfile"
+
+[[entries]]
+date = "2026-10-03T13:13:07.529819176+09:00"
+snapshot = "745561650089578fe4b661e1"
+path = "user"
+hash = "e097e830e591b2d87df37d11bc87223c8600eb60"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Normalize lockfile for the local build graph"

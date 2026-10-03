@@ -5271,3 +5271,11 @@ path = "applications/viewer"
 hash = "a8acdeb8dfc107ab47aebbb55442dc6c9ec7cb5a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Normalize Viewer build lockfile"
+
+[[entries]]
+date = "2026-10-03T16:36:23.218345937+09:00"
+snapshot = "c12d16a2efc9f9d961a87782"
+path = "user"
+hash = "49f2103e4dfa44caf331b6eaf426e4e5175b45a9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh user workspace lockfile"

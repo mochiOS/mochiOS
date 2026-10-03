@@ -5399,3 +5399,11 @@ path = "tools/devkit"
 hash = "4cff110bc1e2d2e55d4fc56485737c194e96e954"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh devkit dependency lockfile"
+
+[[entries]]
+date = "2026-10-03T20:41:49.003017236+09:00"
+snapshot = "fed621f3d5a33fafd055807b"
+path = "tools/devkit"
+hash = "5b8b8c208805c088ac3bebb8c95ded3800ea7dd7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Read delegated documents from their start"

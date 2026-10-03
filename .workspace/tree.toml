@@ -5135,3 +5135,11 @@ path = "services"
 hash = "b802c03c1d871f8e0a3475a2e5e3ba6ff376780d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh services dependency lockfile"
+
+[[entries]]
+date = "2026-10-03T12:37:50.858784969+09:00"
+snapshot = "8208d8502dc92018012f7665"
+path = "tools/devkit"
+hash = "ad0216c9d47874a747b1a30ca1a2b606ab46941a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh devkit dependency lockfile"

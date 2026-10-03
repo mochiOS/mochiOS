@@ -5479,3 +5479,11 @@ path = "services"
 hash = "216200cf8ebbb52509e8c481b0dac2114e3ab9dc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh service workspace lockfile"
+
+[[entries]]
+date = "2026-10-03T22:52:24.788048361+09:00"
+snapshot = "68e629e81409d9f6c2718e7a"
+path = "core"
+hash = "af4c0182b0484360a42d7c1b8a5751dc5389e14d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add process-local kernel object handle table"

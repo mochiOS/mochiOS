@@ -5503,3 +5503,11 @@ path = "core"
 hash = "6318984a00fac0e353342c1cfd23983718c81e18"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Define generic object handle transfer ABI"
+
+[[entries]]
+date = "2026-10-04T08:57:43.270090684+09:00"
+snapshot = "66eebb2c45d28146cef08e4e"
+path = "core"
+hash = "70c4e2a045d595ac81c17dd2ffad3e0da20698a4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement process-local handle operations"

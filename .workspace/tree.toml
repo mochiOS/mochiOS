@@ -5375,3 +5375,11 @@ path = "libraries/viewkit"
 hash = "67aa481579a2d94477135638690e7a91282530a2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Receive ViewKit messages with file handles"
+
+[[entries]]
+date = "2026-10-03T20:41:45.838275371+09:00"
+snapshot = "336dc605ef09bdb6bedd202b"
+path = "tools/devkit"
+hash = "5f7ae644a2dd2f4ec723d7cd85d35520d6ea6a71"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose delegated documents to applications"

@@ -5391,3 +5391,11 @@ path = "tools/devkit"
 hash = "c3744ee5209245cffde892add5b957a242e8ada2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Take ownership of delegated document handles"
+
+[[entries]]
+date = "2026-10-03T20:41:47.943348097+09:00"
+snapshot = "8be35aa20eb0d0536061744f"
+path = "tools/devkit"
+hash = "4cff110bc1e2d2e55d4fc56485737c194e96e954"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh devkit dependency lockfile"

@@ -5183,3 +5183,75 @@ path = "user"
 hash = "e097e830e591b2d87df37d11bc87223c8600eb60"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Normalize lockfile for the local build graph"
+
+[[entries]]
+date = "2026-10-03T13:27:01.003581797+09:00"
+snapshot = "79b42aa48fa940c4c5cf7513"
+path = "user"
+hash = "fb45faeae4a69567708466de2448eefaaf9b06e0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix delegated file metadata syscall"
+
+[[entries]]
+date = "2026-10-03T13:27:32.797534545+09:00"
+snapshot = "598e00a803b8e8a80928cd5e"
+path = "services"
+hash = "e42429941d7171937a7c168cf9f8fb992c52b6df"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Buffer service logs until storage is ready"
+
+[[entries]]
+date = "2026-10-03T13:44:13.264451803+09:00"
+snapshot = "e75b0a2cd4c220d0d60a887b"
+path = "services"
+hash = "fc81b046098add18d532440a10234e6d2953f074"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Support ext4 superblock transactions on 4K filesystems"
+
+[[entries]]
+date = "2026-10-03T13:46:59.181533777+09:00"
+snapshot = "c46c8b972203615e462f2ce5"
+path = "services"
+hash = "236f0bc5a14fa4f9ae782b7453def26a6346b653"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Create filesystem nodes with caller ownership"
+
+[[entries]]
+date = "2026-10-03T13:49:13.185413258+09:00"
+snapshot = "9c1c879f9afd947382719913"
+path = "services"
+hash = "d3e36c44c59d63ce2ab64825c451033c11ad81b4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Create only missing logger directories"
+
+[[entries]]
+date = "2026-10-03T13:53:00.590405303+09:00"
+snapshot = "0b2983a9814d6244a10c86ee"
+path = "services"
+hash = "6a3ec2357c36d0072f092faa3f08cedcb2cf61d9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Flush boot logs after desktop readiness"
+
+[[entries]]
+date = "2026-10-03T13:59:06.633434221+09:00"
+snapshot = "7bd3a325b97b46456f71d95e"
+path = "services"
+hash = "cb524015d110d8bcd21ac6650a6d723039c22cea"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Allow logger to inspect log directories"
+
+[[entries]]
+date = "2026-10-03T14:20:53.249808359+09:00"
+snapshot = "288258acd1a28d3186a8c23a"
+path = "applications/file"
+hash = "03471bb91b0dcac09af10b1c98a57907fb73de42"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep files visible when metadata is unavailable"
+
+[[entries]]
+date = "2026-10-03T14:28:36.164833046+09:00"
+snapshot = "e9bdea5c5978a8120510fa94"
+path = "user"
+hash = "53b60283968248b884461c79f2870453e3af73e0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Update userspace dependency lockfile"

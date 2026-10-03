@@ -5511,3 +5511,11 @@ path = "core"
 hash = "70c4e2a045d595ac81c17dd2ffad3e0da20698a4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement process-local handle operations"
+
+[[entries]]
+date = "2026-10-04T08:58:38.991817034+09:00"
+snapshot = "460fa526e4d884c07655571c"
+path = "core"
+hash = "daa048d3c3340a5c559d5af242b2ef26277da259"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Create IPC endpoints as process-local handles"

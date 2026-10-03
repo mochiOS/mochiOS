@@ -5255,3 +5255,11 @@ path = "user"
 hash = "53b60283968248b884461c79f2870453e3af73e0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update userspace dependency lockfile"
+
+[[entries]]
+date = "2026-10-03T14:41:03.982434474+09:00"
+snapshot = "002e528b0c391e3bcff84677"
+path = "applications/viewer"
+hash = "e5b5b697ef8f76495049776ca2e8e14bb14981c8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Update Viewer dependency lockfile"

@@ -5335,3 +5335,11 @@ path = "services"
 hash = "86bfd5d966d642faf656725dd677b34ddef109f9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update service dependency lockfile"
+
+[[entries]]
+date = "2026-10-03T20:19:17.252561912+09:00"
+snapshot = "e3ef1d13d9993edd5551fe0c"
+path = "boot"
+hash = "f63aa21f46f7de875532ab8942312bfff92b99d2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Advance boot spinner during synchronous reads"

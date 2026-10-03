@@ -5151,3 +5151,11 @@ path = "tools/mws"
 hash = "cca3dafe679b213de63145ea592b6d2738279acc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Read the checked-in workspace manifest"
+
+[[entries]]
+date = "2026-10-03T12:39:44.291143749+09:00"
+snapshot = "199802863f7a12ea932943da"
+path = "tools/mws"
+hash = "8ddaa5cbbec37d7c0def3f5d9fe494c570e41c37"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Skip unavailable workspace checkouts"

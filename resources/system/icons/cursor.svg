@@ -1,13 +1,43 @@
-<svg width="33" height="56" viewBox="0 0 33 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <g clip-path="url(#clip0_38_28)">
-    <line x1="16.3834" y1="38.7087" x2="21.9324" y2="52.9777" stroke="white" stroke-width="6" stroke-linecap="round"/>
-    <line x1="16.0889" y1="38.1391" x2="21.888" y2="53.0512" stroke="#3A3A3A" stroke-width="4" stroke-linecap="round"/>
-    <path d="M0.5 2.72994C0.5 1.79838 1.66165 1.37286 2.26339 2.084L32.1073 37.3541C32.6572 38.004 32.1953 39 31.3439 39H15.5L2.0547 47.9635C1.39014 48.4066 0.5 47.9302 0.5 47.1315V2.72994Z" fill="#3A3A3A" stroke="white"/>
-    <path d="M13.8711 38H18.2305L18.95 40L15.05 41L13.8711 38Z" fill="#3A3A3A"/>
-  </g>
-  <defs>
-    <clipPath id="clip0_38_28">
-      <rect width="33" height="56" fill="white"/>
-    </clipPath>
-  </defs>
+<svg
+	width="32"
+	height="48"
+	viewBox="0 0 32 48"
+	fill="none"
+	xmlns="http://www.w3.org/2000/svg"
+>
+	<defs>
+		<filter
+			id="shadow"
+			x="-40%"
+			y="-40%"
+			width="180%"
+			height="180%"
+		>
+			<feDropShadow
+				dx="0.7"
+				dy="1"
+				stdDeviation="0.6"
+				flood-color="#000000"
+				flood-opacity="0.3"
+			/>
+		</filter>
+	</defs>
+
+	<path
+		d="
+			M 4.5 3
+			L 4.5 34.5
+			L 11.8 27.8
+			L 18.1 43
+			L 22.8 41
+			L 16.5 26
+			L 27 26
+			Z
+		"
+		fill="#111111"
+		stroke="#FFFFFF"
+		stroke-width="1.6"
+		stroke-linejoin="round"
+		filter="url(#shadow)"
+	/>
 </svg>

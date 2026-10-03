@@ -5495,3 +5495,11 @@ path = "core"
 hash = "06b721d67ba3d1176e4a1e744dafadda8558a3ad"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add opaque inherited handle launch context"
+
+[[entries]]
+date = "2026-10-03T22:57:54.221412309+09:00"
+snapshot = "be39c428479bae8ff834a946"
+path = "core"
+hash = "6318984a00fac0e353342c1cfd23983718c81e18"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Define generic object handle transfer ABI"

@@ -5263,3 +5263,11 @@ path = "applications/viewer"
 hash = "e5b5b697ef8f76495049776ca2e8e14bb14981c8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Update Viewer dependency lockfile"
+
+[[entries]]
+date = "2026-10-03T15:41:16.958741485+09:00"
+snapshot = "b04229a9fd8a5b0f2e709763"
+path = "applications/viewer"
+hash = "a8acdeb8dfc107ab47aebbb55442dc6c9ec7cb5a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Normalize Viewer build lockfile"

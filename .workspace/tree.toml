@@ -5415,3 +5415,11 @@ path = "tools/devkit"
 hash = "05378d74168aeb9a680f63bafd88065fa91f2ecb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Initialize standard app bootstrap logging"
+
+[[entries]]
+date = "2026-10-03T20:45:43.147122054+09:00"
+snapshot = "c9d99b1acfe0a319aa7bacd3"
+path = "applications/terra"
+hash = "5a7eca9aa69da81e2311edf38a242c119f0fed8c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Integrate tabs with the address bar"

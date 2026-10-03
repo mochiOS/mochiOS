@@ -5351,3 +5351,11 @@ path = "libraries/viewkit"
 hash = "32127d5d4c3e2a8fd48707b283338ba3764f1d90"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Deliver platform file handle messages"
+
+[[entries]]
+date = "2026-10-03T20:41:31.376025890+09:00"
+snapshot = "af543ac82b4546b3fbb52b59"
+path = "libraries/viewkit"
+hash = "34cf424265f4d267b62f534713d2d70af15904f9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Make received file handles explicitly owned"

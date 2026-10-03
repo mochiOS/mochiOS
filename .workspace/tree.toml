@@ -5295,3 +5295,11 @@ path = "mboot"
 hash = "0360c2c4a035c8953c2176157787bdc64c9b0963"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Show branded loading scene during boot"
+
+[[entries]]
+date = "2026-10-03T18:49:51.327534175+09:00"
+snapshot = "9167990c2f129da7840f5b8b"
+path = "mboot"
+hash = "6baed17bea57191f956f2fab15d56460d564791c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Present boot failures as modal cards"

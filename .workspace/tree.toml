@@ -5287,3 +5287,11 @@ path = "mboot"
 hash = "54f6762d4a4b9c00e2ff47ac5cf8d774f44cdd96"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Convert boot artwork at build time"
+
+[[entries]]
+date = "2026-10-03T18:48:15.785365211+09:00"
+snapshot = "72011ded7efc245b868070f0"
+path = "mboot"
+hash = "0360c2c4a035c8953c2176157787bdc64c9b0963"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Show branded loading scene during boot"

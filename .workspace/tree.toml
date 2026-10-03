@@ -5167,3 +5167,11 @@ path = "services"
 hash = "776ec3204fd9a1403552b141611f878eaa170d77"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Wait for Binder first-frame readiness"
+
+[[entries]]
+date = "2026-10-03T13:10:49.423023501+09:00"
+snapshot = "509eaf5fb2084ad81443ff00"
+path = "user"
+hash = "fe3ae0563ab010182088ebe2acf3c2c143666dac"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh user dependency lockfile"

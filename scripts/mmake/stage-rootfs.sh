@@ -135,6 +135,7 @@ stage_service input input input.service
 stage_service linux linux linux.service
 stage_service network network network.service
 stage_service package package package.service
+stage_service posix posix-service posix.service
 stage_service signature signature signature.service
 stage_service tty tty tty.service
 stage_service user user-service user.service user

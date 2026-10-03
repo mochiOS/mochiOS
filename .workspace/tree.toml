@@ -5431,3 +5431,51 @@ path = "services"
 hash = "f39618f6ca347b51df34629c058b01340dfc7451"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh workspace dependency revisions"
+
+[[entries]]
+date = "2026-10-03T22:26:37.275734256+09:00"
+snapshot = "f1799442a1979267fadc200b"
+path = "user"
+hash = "6514d89fb7a6d4240250a38623fca463d5a7afcb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add versioned POSIX wire protocol"
+
+[[entries]]
+date = "2026-10-03T22:29:14.663626144+09:00"
+snapshot = "19e075a3a0c723483205ca13"
+path = "user"
+hash = "e151920fc5767eef9ebcf7ca4780b53ddb723300"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add POSIX client transport and descriptor table"
+
+[[entries]]
+date = "2026-10-03T22:32:08.161926071+09:00"
+snapshot = "b913de7ca3315aa934974152"
+path = "services"
+hash = "36b668a7c84fb7285bd062057958ddbb1de14fb7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add POSIX service skeleton"
+
+[[entries]]
+date = "2026-10-03T22:33:41.044447528+09:00"
+snapshot = "94e123238e94d7a78269832a"
+path = "user"
+hash = "68d2f46af8c3f3f0daebfb6aceafdcca38747aa6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Support endpoint service readiness notifications"
+
+[[entries]]
+date = "2026-10-03T22:45:30.364776049+09:00"
+snapshot = "d88941e2bc29c5a52d4b9f03"
+path = "services"
+hash = "7c5df1c7a422952d613c95532ee28a9b43668626"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Start POSIX service during bootstrap"
+
+[[entries]]
+date = "2026-10-03T22:47:26.976867803+09:00"
+snapshot = "d80cfb8b0427a69eccd7f87b"
+path = "services"
+hash = "216200cf8ebbb52509e8c481b0dac2114e3ab9dc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh service workspace lockfile"

@@ -5359,3 +5359,11 @@ path = "libraries/viewkit"
 hash = "34cf424265f4d267b62f534713d2d70af15904f9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Make received file handles explicitly owned"
+
+[[entries]]
+date = "2026-10-03T20:41:32.600278157+09:00"
+snapshot = "ffa4da6cbecb967f996993d7"
+path = "libraries/viewkit"
+hash = "b9a83889596be1d0e70ea39ec5f04be26168c1d7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report the first presented application frame"

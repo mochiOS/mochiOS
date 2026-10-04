@@ -5823,3 +5823,11 @@ path = "services"
 hash = "614c3ffe12b704e647d430b5ba929213f0cf214d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Enforce POSIX file access permissions"
+
+[[entries]]
+date = "2026-10-04T11:11:04.987827876+09:00"
+snapshot = "d4daaf7d6623ee67efe8fefc"
+path = "user"
+hash = "100fc0e9ccb99519385eb6e2da61fe0a78c3ff12"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep POSIX client runtime-independent"

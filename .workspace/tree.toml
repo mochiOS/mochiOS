@@ -6007,3 +6007,11 @@ path = "user"
 hash = "52213ad51c4706d024642e8541a28d5da5cc1ffd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove realpath cwd syscall fallback"
+
+[[entries]]
+date = "2026-10-04T13:02:00.828983723+09:00"
+snapshot = "c5f0deba708f926dbb3f7517"
+path = "services"
+hash = "1fa8248172b98aa15c04b38eb48ac38fd38e5ce2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Store mutable flags on open file descriptions"

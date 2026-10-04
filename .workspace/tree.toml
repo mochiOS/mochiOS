@@ -5775,3 +5775,11 @@ path = "services"
 hash = "e4ea13546c0a3bd5241e29bf7ba6c36428d2a4f1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect POSIX opens to filesystem objects"
+
+[[entries]]
+date = "2026-10-04T10:32:12.384961342+09:00"
+snapshot = "d80cfe8b7161633085b00955"
+path = "user"
+hash = "116d5711155e8096366ca74fa141fe1c5c0fdcb4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Define atomic filesystem open protocol"

@@ -6119,3 +6119,11 @@ path = "core"
 hash = "619f5eccb9e6ada0f0c655b355c6b17b2aff151d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove migrated directory mutation syscalls"
+
+[[entries]]
+date = "2026-10-04T14:06:49.781447487+09:00"
+snapshot = "fc513aa7e699a7402d8265b2"
+path = "core"
+hash = "a3988e3fe849ffd689b3624ead66525afb14ce63"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove migrated pathname syscall ABI"

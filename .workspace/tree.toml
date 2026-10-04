@@ -5719,3 +5719,19 @@ path = "services"
 hash = "ce0638e7c54b7722b1a5c804dcc4ddfbfe9e2466"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Define atomic POSIX filesystem operations"
+
+[[entries]]
+date = "2026-10-04T10:08:01.402823363+09:00"
+snapshot = "40fd4fcf5fd4cfeaccb96445"
+path = "user"
+hash = "a18f29915eb725f4eb968346f0f1f0c5863f25fe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose provider object creation"
+
+[[entries]]
+date = "2026-10-04T10:08:07.164006751+09:00"
+snapshot = "9a540e6b12405614981775a9"
+path = "core"
+hash = "001388d917058ae6770f7592267fa697eb1fef67"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Create opaque provider-backed objects"

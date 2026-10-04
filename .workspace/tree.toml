@@ -6375,3 +6375,11 @@ path = "services"
 hash = "63740ae6deee3450a9b615875a437e3fbe98995e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Bind the late POSIX endpoint locally"
+
+[[entries]]
+date = "2026-10-04T16:50:34.013498767+09:00"
+snapshot = "184192646e4338e5e728a077"
+path = "user"
+hash = "3d4806b49abd7142673f22e1dd3c6dabbf717ca3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement POSIX pipes over native stream handles"

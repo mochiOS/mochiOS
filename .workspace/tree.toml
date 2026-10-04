@@ -5815,3 +5815,11 @@ path = "services"
 hash = "fb787f64adb65240274b067b26682436bdbeb331"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement handle-based POSIX file status"
+
+[[entries]]
+date = "2026-10-04T11:06:37.919522342+09:00"
+snapshot = "9ee3115b8ead13d5768f45d3"
+path = "services"
+hash = "614c3ffe12b704e647d430b5ba929213f0cf214d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Enforce POSIX file access permissions"

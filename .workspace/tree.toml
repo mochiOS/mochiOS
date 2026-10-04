@@ -6335,3 +6335,11 @@ path = "user"
 hash = "27e3c761e198287d112bcae661c297167553ed88"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Decouple MPKG parsing from pathname I/O"
+
+[[entries]]
+date = "2026-10-04T16:04:24.715342268+09:00"
+snapshot = "4d43b8d9122b67b1a3713a2e"
+path = "services"
+hash = "bed00199a1da9caddf56e91257abb1345b283fb0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route package storage through POSIX handles"

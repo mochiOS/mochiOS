@@ -6407,3 +6407,11 @@ path = "user"
 hash = "7fd4588b892cfdc1c0087c16035b852ee37799eb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Name handle deadlines by their ABI unit"
+
+[[entries]]
+date = "2026-10-04T17:07:57.379078076+09:00"
+snapshot = "970502e6a9ef3f3ed6c458c7"
+path = "user"
+hash = "77dbec4a80b96d45329b3ee7ba2189493c607f90"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Permit deadline-only waits in userspace"

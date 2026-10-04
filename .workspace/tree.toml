@@ -5927,3 +5927,11 @@ path = "services"
 hash = "f1a379f097e8e153b823c41c74285882d4550ef0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Resolve paths from open directory handles"
+
+[[entries]]
+date = "2026-10-04T12:12:35.856170545+09:00"
+snapshot = "de2ceb5004d1cf7f55055428"
+path = "services"
+hash = "c3f1bdfffa65d8834bf8202698db945a6edb7acb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Resolve POSIX cwd from directory handles"

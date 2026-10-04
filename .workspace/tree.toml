@@ -6199,3 +6199,11 @@ path = "services"
 hash = "d359a159dfea8eba52463185f128c262de5e0af0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Bind POSIX sessions to native process handles"
+
+[[entries]]
+date = "2026-10-04T14:50:41.012941586+09:00"
+snapshot = "72b4c0888078ffd3f6851ac7"
+path = "user"
+hash = "cdb81579316f754f34d56ff9ba16ba956a7d1d2e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose native process clone"

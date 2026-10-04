@@ -6383,3 +6383,11 @@ path = "user"
 hash = "3d4806b49abd7142673f22e1dd3c6dabbf717ca3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement POSIX pipes over native stream handles"
+
+[[entries]]
+date = "2026-10-04T16:53:03.332217173+09:00"
+snapshot = "e74948304217861015e15b50"
+path = "user"
+hash = "fb94a9234a7033d69c1c03945be084cda9b30d5f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Duplicate spawn file actions by handle"

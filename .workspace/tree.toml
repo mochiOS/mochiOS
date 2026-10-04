@@ -5903,3 +5903,11 @@ path = "services"
 hash = "a1b2234cf965690b6b1298c4854e10cc98638215"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Confine filesystem traversal to root handles"
+
+[[entries]]
+date = "2026-10-04T11:54:45.814778827+09:00"
+snapshot = "37e4f2873097380bac759121"
+path = "services"
+hash = "06562abe2de3585e33e462f57bb2b976160d9747"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Store POSIX root and cwd as handles"

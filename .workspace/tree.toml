@@ -6191,3 +6191,11 @@ path = "user"
 hash = "b7fec00c91b6e4c3377549f6451a8854244ebb0e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose native process lifetime handles"
+
+[[entries]]
+date = "2026-10-04T14:45:27.727011136+09:00"
+snapshot = "f4c5e9f8a2a2d88fcc0494cd"
+path = "services"
+hash = "d359a159dfea8eba52463185f128c262de5e0af0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Bind POSIX sessions to native process handles"

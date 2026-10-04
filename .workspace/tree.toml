@@ -5583,3 +5583,11 @@ path = "core"
 hash = "1a2a5ce06adc6dce4e8c3836fc9050248b27c9d2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Call IPC endpoints through process-local handles"
+
+[[entries]]
+date = "2026-10-04T09:20:09.976250803+09:00"
+snapshot = "0b79feaa12495cf77e7f73ad"
+path = "core"
+hash = "139c0c443a5ae981aa5142bf09076cdc4577a76e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Transfer object handles in synchronous IPC"

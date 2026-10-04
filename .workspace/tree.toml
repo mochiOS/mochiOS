@@ -5975,3 +5975,11 @@ path = "services"
 hash = "b24cd516b8d6e71848d2db129b01cc0965e2afd1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Enforce POSIX credential transition rules"
+
+[[entries]]
+date = "2026-10-04T12:32:03.332778148+09:00"
+snapshot = "f326528599c6980fc6cd4dda"
+path = "user"
+hash = "b60713a17d9f6ddfe97037695a835db393120bae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose POSIX session umask to newlib"

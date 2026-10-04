@@ -6023,3 +6023,11 @@ path = "services"
 hash = "bb49c3f5198ce635408fad3156f525227677a7c8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Create directories through anchored handles"
+
+[[entries]]
+date = "2026-10-04T13:10:37.657121796+09:00"
+snapshot = "7b47033317148664e74fb734"
+path = "services"
+hash = "c7bb23d69b51c286c85d376f95fd1513c2739566"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep orphan cleanup anchored by inode"

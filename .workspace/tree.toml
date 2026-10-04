@@ -5679,3 +5679,19 @@ path = "user"
 hash = "c5822a6e18af8fa089393685fcbc501ed2306561"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve handle rights in POSIX descriptors"
+
+[[entries]]
+date = "2026-10-04T09:56:21.592069984+09:00"
+snapshot = "2b756c876db0a7443abf6889"
+path = "services"
+hash = "cbd379cbdf5c13b473e20cd10f27cc07f6e5cd02"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test object handles in POSIX RPC"
+
+[[entries]]
+date = "2026-10-04T09:56:26.844445454+09:00"
+snapshot = "95d6362fdd5e8ff3492a3fc8"
+path = "user"
+hash = "841e8508040625531ab862b4e2fa9b47e1e5cfd0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Support object handles in POSIX RPC"

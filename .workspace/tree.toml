@@ -6087,3 +6087,11 @@ path = "services"
 hash = "cf9ec41a95f11bc8120f2617cecb61d2ab437e92"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Change ownership through anchored handles"
+
+[[entries]]
+date = "2026-10-04T13:55:38.195056145+09:00"
+snapshot = "3a6f06198a8b7af24dfcc54f"
+path = "services"
+hash = "dc98a75614472beca83edde17a32059df147ea85"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Change attributes through open handles"

@@ -6175,3 +6175,11 @@ path = "core"
 hash = "a0f47846d230e3e5f5e24a75f2bb9471150f3d91"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove obsolete timing syscall aliases"
+
+[[entries]]
+date = "2026-10-04T14:31:03.659058871+09:00"
+snapshot = "2a18752ee8498a4b26c9d42a"
+path = "core"
+hash = "c0dc45d3d0ade0dacfdec9a94f1c20f8b7037733"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove obsolete POSIX exit syscalls"

@@ -5615,3 +5615,11 @@ path = "services"
 hash = "b01e052d898117bba16e467e92b33c14aff6ddfc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test POSIX identity and umask semantics"
+
+[[entries]]
+date = "2026-10-04T09:33:22.416894168+09:00"
+snapshot = "9cf1c806be5794a910c72f4c"
+path = "binaries/coreutils"
+hash = "4a3cd415c3f84a10cb94107e18a0c7cfd7457f9e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh coreutils dependency lockfile"

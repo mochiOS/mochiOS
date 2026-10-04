@@ -5735,3 +5735,11 @@ path = "core"
 hash = "001388d917058ae6770f7592267fa697eb1fef67"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Create opaque provider-backed objects"
+
+[[entries]]
+date = "2026-10-04T10:17:03.911517935+09:00"
+snapshot = "eed962bfb0b7f29caa8ff66d"
+path = "core"
+hash = "559946c48d6d21257f27e824ec6d1fd9b5ffb291"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route provider object I/O through IPC"

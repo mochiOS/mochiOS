@@ -5959,3 +5959,11 @@ path = "user"
 hash = "d620287ec4b1b5f372075c3f84ce725e4ab790af"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route pathname status through POSIX service"
+
+[[entries]]
+date = "2026-10-04T12:28:27.989756339+09:00"
+snapshot = "76be6b6725857853059d2afc"
+path = "user"
+hash = "d6aabac511ea0c11b3e52e2026d19090a9cead4a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Read process credentials from POSIX service"

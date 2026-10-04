@@ -6183,3 +6183,11 @@ path = "core"
 hash = "c0dc45d3d0ade0dacfdec9a94f1c20f8b7037733"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove obsolete POSIX exit syscalls"
+
+[[entries]]
+date = "2026-10-04T14:39:37.939300902+09:00"
+snapshot = "efb0f22cc8ad88deba01d9e8"
+path = "user"
+hash = "b7fec00c91b6e4c3377549f6451a8854244ebb0e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose native process lifetime handles"

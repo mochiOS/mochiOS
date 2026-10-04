@@ -5783,3 +5783,19 @@ path = "user"
 hash = "116d5711155e8096366ca74fa141fe1c5c0fdcb4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Define atomic filesystem open protocol"
+
+[[entries]]
+date = "2026-10-04T10:36:46.150682367+09:00"
+snapshot = "15672e5da787819aa38c1899"
+path = "core"
+hash = "f599e5932594cd4d9f05cfc71b440bd43548624f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Release provider objects on final close"
+
+[[entries]]
+date = "2026-10-04T10:37:08.111772563+09:00"
+snapshot = "8675d07eef768a9da9fd92a7"
+path = "services"
+hash = "f661b94ac810d76c4ef2f5f68bf4093fd75f3e9a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Release filesystem provider objects"

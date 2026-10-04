@@ -6167,3 +6167,11 @@ path = "core"
 hash = "f4112ae125d6571a181a64558f0c3870e58d287c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove migrated POSIX VM syscalls"
+
+[[entries]]
+date = "2026-10-04T14:29:54.936097989+09:00"
+snapshot = "deb46451386fbfa6ee73a8c8"
+path = "core"
+hash = "a0f47846d230e3e5f5e24a75f2bb9471150f3d91"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove obsolete timing syscall aliases"

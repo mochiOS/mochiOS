@@ -5535,3 +5535,19 @@ path = "user"
 hash = "067614cdf2c0a91d2525edf5f44f041dcd0db098"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose process-local object handles to user space"
+
+[[entries]]
+date = "2026-10-04T09:07:57.150501021+09:00"
+snapshot = "daea47e6690d57bf8c55f98c"
+path = "user"
+hash = "462ab18e1a291750c93f704abaf858429a33e934"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Attach object handles to readiness notifications"
+
+[[entries]]
+date = "2026-10-04T09:10:00.230951815+09:00"
+snapshot = "335d38ca38dae7a700ed9b6e"
+path = "services"
+hash = "e0eccd48c747d0b5b33eea3b1fcb4981174b9e5f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh service workspace lockfile"

@@ -5639,3 +5639,27 @@ path = "core"
 hash = "3de612e29efea02c1a4c9ee7faa63b8211a6718e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Represent files as generic kernel objects"
+
+[[entries]]
+date = "2026-10-04T09:49:22.682919372+09:00"
+snapshot = "7e6abe7d22dfc9b2ae98fa07"
+path = "services"
+hash = "56186445304f7ab09c1324acf36707ccec3f3acd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test POSIX file handle fast paths"
+
+[[entries]]
+date = "2026-10-04T09:50:07.137021910+09:00"
+snapshot = "b1884c6c5eb75656144c7813"
+path = "core"
+hash = "22771f821ad5775b7581dee5c05ab065473ba3cf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add native file handle I/O primitives"
+
+[[entries]]
+date = "2026-10-04T09:50:08.000000000+09:00"
+snapshot = "b1884c6c5eb75656144c7813"
+path = "user"
+hash = "28d18d67e648cfb790dfc80ff6bd9370e60f4cb3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route POSIX file I/O through object handles"

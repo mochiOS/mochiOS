@@ -5695,3 +5695,19 @@ path = "user"
 hash = "841e8508040625531ab862b4e2fa9b47e1e5cfd0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Support object handles in POSIX RPC"
+
+[[entries]]
+date = "2026-10-04T10:00:07.843083109+09:00"
+snapshot = "8a9ffc0b5797b7c3523567f9"
+path = "services"
+hash = "ffe0a38aa4b065f6cd9b46ebe49bbbb766cd51e9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Prepare authenticated POSIX open operations"
+
+[[entries]]
+date = "2026-10-04T10:00:13.642773789+09:00"
+snapshot = "b67abeee8770f7f05685bece"
+path = "user"
+hash = "71e5e406953c099937eb1a7f661156a31e6750b0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Define handle-based POSIX open requests"

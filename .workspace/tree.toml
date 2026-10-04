@@ -6055,3 +6055,11 @@ path = "services"
 hash = "cc01e0804e862eaea95a77fc2732b9af10fe8696"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Truncate paths through anchored handles"
+
+[[entries]]
+date = "2026-10-04T13:35:18.886066569+09:00"
+snapshot = "c46165754696ced764107201"
+path = "services"
+hash = "586e3f030c28ff815d053e5c6ecb8e7d272c863f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Create symlinks through anchored handles"

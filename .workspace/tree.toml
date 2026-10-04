@@ -5895,3 +5895,11 @@ path = "services"
 hash = "7d4d1a4f88ad72d4b816986710a91ce768ec1546"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test filesystem root anchor flags"
+
+[[entries]]
+date = "2026-10-04T11:46:15.235109741+09:00"
+snapshot = "d293575bf27118a388bb6941"
+path = "services"
+hash = "a1b2234cf965690b6b1298c4854e10cc98638215"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Confine filesystem traversal to root handles"

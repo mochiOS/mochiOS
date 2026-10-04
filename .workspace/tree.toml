@@ -5991,3 +5991,11 @@ path = "user"
 hash = "529fb3e48f623aca64daf372354ecc04b39c4a7c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route newlib file descriptors through object handles"
+
+[[entries]]
+date = "2026-10-04T12:50:08.969471983+09:00"
+snapshot = "118881db3b4e2c76a3b8d78f"
+path = "services"
+hash = "8dc5ad300805680c3be4acc19fda098120b8863f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Execute file mutations through attached handles"

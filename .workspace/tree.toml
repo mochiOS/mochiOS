@@ -6255,3 +6255,11 @@ path = "services"
 hash = "68680aceb4c57cfeeee6262ba042ee08eb95823b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement POSIX process groups and sessions"
+
+[[entries]]
+date = "2026-10-04T15:23:44.854575801+09:00"
+snapshot = "c47103c26ac3349707a33266"
+path = "user"
+hash = "cd91c51a04ce138b2be949a548d4615f8151f7ea"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose native multi-handle waiting"

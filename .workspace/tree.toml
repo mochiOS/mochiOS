@@ -5631,3 +5631,11 @@ path = "core"
 hash = "7e44cfe76d83077602b8ec7afec37981f1391b72"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Allow object handles to own shared resources"
+
+[[entries]]
+date = "2026-10-04T09:37:19.423518935+09:00"
+snapshot = "194130784499a37bc1e6fa7f"
+path = "core"
+hash = "3de612e29efea02c1a4c9ee7faa63b8211a6718e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Represent files as generic kernel objects"

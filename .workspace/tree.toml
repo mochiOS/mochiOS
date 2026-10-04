@@ -6223,3 +6223,11 @@ path = "user"
 hash = "640652041f7bf2affaa705e2a6588efc58cbfdd9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose native cloned process controls"
+
+[[entries]]
+date = "2026-10-04T15:00:13.301085783+09:00"
+snapshot = "9d032db99d0aecfd44356046"
+path = "user"
+hash = "8f68419f44457e10e2822b25abeb6edf100eb3a2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route POSIX process cloning through posix service"

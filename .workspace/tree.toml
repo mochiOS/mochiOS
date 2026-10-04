@@ -6239,3 +6239,11 @@ path = "services"
 hash = "8e6a0dc4c7620017dea8701e75a55e12a5b203e4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement POSIX child wait state"
+
+[[entries]]
+date = "2026-10-04T15:06:07.695878721+09:00"
+snapshot = "310470494011d61050e380a3"
+path = "user"
+hash = "bc9d6506432a357bb95061cd5bf6d5586f9be2b1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route waitpid through posix service"

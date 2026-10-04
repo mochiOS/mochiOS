@@ -5623,3 +5623,11 @@ path = "binaries/coreutils"
 hash = "4a3cd415c3f84a10cb94107e18a0c7cfd7457f9e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh coreutils dependency lockfile"
+
+[[entries]]
+date = "2026-10-04T09:34:27.346027275+09:00"
+snapshot = "4e341b6b0d3a93b458f80ab4"
+path = "core"
+hash = "7e44cfe76d83077602b8ec7afec37981f1391b72"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Allow object handles to own shared resources"

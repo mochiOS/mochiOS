@@ -5559,3 +5559,19 @@ path = "core"
 hash = "2f444123fa8916b647bfc5d395dfad625dd4c19f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Install inherited handles during process launch"
+
+[[entries]]
+date = "2026-10-04T09:14:22.284123601+09:00"
+snapshot = "c30355fa4a1c9c54e4d8381c"
+path = "user"
+hash = "bd151e6b6b58a097799d2b318f035d785ce960bc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Define POSIX control launch handle key"
+
+[[entries]]
+date = "2026-10-04T09:15:01.805948151+09:00"
+snapshot = "a0974b39518a3ac6aecc48e2"
+path = "services"
+hash = "797c5cd7f66d23cbfee456126c7049c6ecb6e1fe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Inherit POSIX endpoint through launch context"

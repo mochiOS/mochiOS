@@ -6439,3 +6439,11 @@ path = "user"
 hash = "38b10ca1d8b95d8ad638e24a2f83adae6aa17034"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement nonblocking POSIX pipes"
+
+[[entries]]
+date = "2026-10-04T17:32:30.263861148+09:00"
+snapshot = "2f2fd0d9bfef39d92967a171"
+path = "core"
+hash = "749c89439663f380b1b1dbd0c99e8e48d670a276"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove migrated POSIX wait and pipe syscalls"

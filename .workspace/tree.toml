@@ -5911,3 +5911,11 @@ path = "services"
 hash = "06562abe2de3585e33e462f57bb2b976160d9747"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Store POSIX root and cwd as handles"
+
+[[entries]]
+date = "2026-10-04T12:05:08.071449821+09:00"
+snapshot = "0a674fed3b0495293c0da982"
+path = "services"
+hash = "5c2e26686f794fbd002b838a68b7a05ddb71330b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Manage POSIX cwd with directory handles"

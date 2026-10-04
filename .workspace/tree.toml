@@ -5575,3 +5575,11 @@ path = "services"
 hash = "797c5cd7f66d23cbfee456126c7049c6ecb6e1fe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Inherit POSIX endpoint through launch context"
+
+[[entries]]
+date = "2026-10-04T09:17:07.402639270+09:00"
+snapshot = "0d6b03a186f9ace041b77b88"
+path = "core"
+hash = "1a2a5ce06adc6dce4e8c3836fc9050248b27c9d2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Call IPC endpoints through process-local handles"

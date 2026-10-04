@@ -6207,3 +6207,11 @@ path = "user"
 hash = "cdb81579316f754f34d56ff9ba16ba956a7d1d2e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose native process clone"
+
+[[entries]]
+date = "2026-10-04T14:55:16.221987133+09:00"
+snapshot = "9badbc064122ebe018817cdd"
+path = "services"
+hash = "ecf65495317b1faa4a59bb0c6534bda08c41db3f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Track POSIX child relationships in user space"

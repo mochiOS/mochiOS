@@ -6287,3 +6287,11 @@ path = "user"
 hash = "7273cd3f6572a7c7be231e1c383e5b7a534c6449"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove waitpid yield polling"
+
+[[entries]]
+date = "2026-10-04T15:33:25.687539744+09:00"
+snapshot = "9a8237da75f2ac1ca90ffe1c"
+path = "binaries/coreutils"
+hash = "df8cc3741a713e289b9a3797fa48b1f3bf05cc88"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh workspace dependency lock"

@@ -6351,3 +6351,11 @@ path = "services"
 hash = "16feb4dd34bdd9a2dc55d2bcda4c6baa61bf4de7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route logger persistence through POSIX handles"
+
+[[entries]]
+date = "2026-10-04T16:21:27.250492103+09:00"
+snapshot = "6440b8e1a3478a24c3d69a76"
+path = "user"
+hash = "41b0577774fd900974a238484754b6ca3568a29f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reuse the newlib POSIX session client"

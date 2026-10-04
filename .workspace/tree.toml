@@ -5839,3 +5839,11 @@ path = "user"
 hash = "16d8cb54cf081d9c35dc3f33f4842d973c133249"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose inherited launch context values"
+
+[[entries]]
+date = "2026-10-04T11:17:45.167505891+09:00"
+snapshot = "7b577cd4f938aa6219f9f477"
+path = "services"
+hash = "f3d89428306d1b732ee97359415766808383c86a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test POSIX FD launch inheritance"

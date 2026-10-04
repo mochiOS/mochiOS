@@ -6391,3 +6391,11 @@ path = "user"
 hash = "fb94a9234a7033d69c1c03945be084cda9b30d5f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Duplicate spawn file actions by handle"
+
+[[entries]]
+date = "2026-10-04T17:01:36.185343904+09:00"
+snapshot = "433d72521804ef7911d9d3c1"
+path = "user"
+hash = "4535dc152d97e26f958e2f38fc7868c2fbb77902"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose native stream wait signals"

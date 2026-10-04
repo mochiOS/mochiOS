@@ -6071,3 +6071,11 @@ path = "services"
 hash = "6994e9c83fc8319d9cec2bba57a4c18b0ee6aa36"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Read symlinks through anchored handles"
+
+[[entries]]
+date = "2026-10-04T13:44:49.654111582+09:00"
+snapshot = "651f3ae50caa1442f87abb47"
+path = "services"
+hash = "1e48bbbc58425cba7270571d79f5ba01747256d6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Change modes through anchored handles"

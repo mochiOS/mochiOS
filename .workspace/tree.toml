@@ -6359,3 +6359,11 @@ path = "user"
 hash = "41b0577774fd900974a238484754b6ca3568a29f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reuse the newlib POSIX session client"
+
+[[entries]]
+date = "2026-10-04T16:22:55.588351777+09:00"
+snapshot = "bb6a380d663f8f6df1b8384d"
+path = "services"
+hash = "fd780979d109df428a0bdecbf450f57c434aa97a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Correct POSIX errno comparisons"

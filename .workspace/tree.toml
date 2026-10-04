@@ -6295,3 +6295,11 @@ path = "binaries/coreutils"
 hash = "df8cc3741a713e289b9a3797fa48b1f3bf05cc88"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh workspace dependency lock"
+
+[[entries]]
+date = "2026-10-04T15:36:49.577235235+09:00"
+snapshot = "15b9d51f8dbb2bcec8fd7797"
+path = "core"
+hash = "12833d79e4380d380af5a89df66340bedc4ed15e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Decouple process handles from execution records"

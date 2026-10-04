@@ -5847,3 +5847,11 @@ path = "services"
 hash = "f3d89428306d1b732ee97359415766808383c86a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test POSIX FD launch inheritance"
+
+[[entries]]
+date = "2026-10-04T11:26:45.916121240+09:00"
+snapshot = "c66a8687ba17db9dad5bb01e"
+path = "services"
+hash = "579743553dedfb8107a26a27dd1631fd26180b09"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep open filesystem objects inode-backed"

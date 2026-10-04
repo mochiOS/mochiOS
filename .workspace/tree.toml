@@ -6311,3 +6311,11 @@ path = "core"
 hash = "942f6b8abad777aefee580bb5f3e6b5028266532"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reclaim handle-managed process execution state"
+
+[[entries]]
+date = "2026-10-04T15:52:11.682073014+09:00"
+snapshot = "0bc91a8f04d43c4534862976"
+path = "services"
+hash = "8eb79c42f68b17f6d231dbd7556aecfc6a2a05da"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route capability grant persistence through POSIX"

@@ -5983,3 +5983,11 @@ path = "user"
 hash = "b60713a17d9f6ddfe97037695a835db393120bae"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose POSIX session umask to newlib"
+
+[[entries]]
+date = "2026-10-04T12:43:02.929222855+09:00"
+snapshot = "6eaee6fb6ed4be51ac0c5e53"
+path = "user"
+hash = "529fb3e48f623aca64daf372354ecc04b39c4a7c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route newlib file descriptors through object handles"

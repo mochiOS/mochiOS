@@ -5551,3 +5551,11 @@ path = "services"
 hash = "e0eccd48c747d0b5b33eea3b1fcb4981174b9e5f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh service workspace lockfile"
+
+[[entries]]
+date = "2026-10-04T09:12:55.027637874+09:00"
+snapshot = "e8cde52f5574dc2ec39b79c5"
+path = "core"
+hash = "2f444123fa8916b647bfc5d395dfad625dd4c19f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Install inherited handles during process launch"

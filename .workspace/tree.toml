@@ -6103,3 +6103,11 @@ path = "core"
 hash = "3c0191d41fd686e622b9ed18d00141d1d8839829"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove migrated chmod and chown syscalls"
+
+[[entries]]
+date = "2026-10-04T14:00:23.910983252+09:00"
+snapshot = "7aa9aee797278b6dde38b5c1"
+path = "core"
+hash = "adf4232684e559694f698bfba117416569057f74"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove migrated path syscalls"

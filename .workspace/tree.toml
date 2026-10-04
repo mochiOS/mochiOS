@@ -6135,3 +6135,11 @@ path = "core"
 hash = "8a17d8b884428698693c995ded16c5f53448e5ff"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove dead pathname syscall implementations"
+
+[[entries]]
+date = "2026-10-04T14:10:10.113587412+09:00"
+snapshot = "fdd2822c0bba5800f549e4cd"
+path = "core"
+hash = "d8d413b012d0e9bc9ffab45481bb913156f743a5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove migrated identity syscalls"

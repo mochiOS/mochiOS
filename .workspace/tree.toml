@@ -6143,3 +6143,11 @@ path = "core"
 hash = "d8d413b012d0e9bc9ffab45481bb913156f743a5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove migrated identity syscalls"
+
+[[entries]]
+date = "2026-10-04T14:24:17.352291702+09:00"
+snapshot = "50efa661365af174b3929e00"
+path = "applications/system-monitor"
+hash = "6316363728920f627e11dfd66e308cab30740c6d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Read uptime from native clock API"

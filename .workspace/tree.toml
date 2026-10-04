@@ -5743,3 +5743,11 @@ path = "core"
 hash = "559946c48d6d21257f27e824ec6d1fd9b5ffb291"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route provider object I/O through IPC"
+
+[[entries]]
+date = "2026-10-04T10:19:20.173529194+09:00"
+snapshot = "6a93577ff1331e1ba8fb73b8"
+path = "user"
+hash = "b4dd104962d0768961460d07bd497eea58006a23"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Define filesystem control handle key"

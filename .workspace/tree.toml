@@ -5967,3 +5967,11 @@ path = "user"
 hash = "d6aabac511ea0c11b3e52e2026d19090a9cead4a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Read process credentials from POSIX service"
+
+[[entries]]
+date = "2026-10-04T12:31:13.205783713+09:00"
+snapshot = "f8e7d2c3a9d92e51ace62fa6"
+path = "services"
+hash = "b24cd516b8d6e71848d2db129b01cc0965e2afd1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Enforce POSIX credential transition rules"

@@ -5663,3 +5663,19 @@ path = "user"
 hash = "28d18d67e648cfb790dfc80ff6bd9370e60f4cb3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route POSIX file I/O through object handles"
+
+[[entries]]
+date = "2026-10-04T09:53:09.603952927+09:00"
+snapshot = "9bfb125ef216f487e486986c"
+path = "services"
+hash = "ab47c6f44fbcb812125fd43ec782be575c7697ee"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test POSIX descriptor rights preservation"
+
+[[entries]]
+date = "2026-10-04T09:53:16.178460396+09:00"
+snapshot = "e747b0faecd5f12b8be9363d"
+path = "user"
+hash = "c5822a6e18af8fa089393685fcbc501ed2306561"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve handle rights in POSIX descriptors"

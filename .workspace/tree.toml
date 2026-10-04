@@ -5831,3 +5831,11 @@ path = "user"
 hash = "100fc0e9ccb99519385eb6e2da61fe0a78c3ff12"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep POSIX client runtime-independent"
+
+[[entries]]
+date = "2026-10-04T11:15:18.684959362+09:00"
+snapshot = "f2428cdd8a182daa65c0810c"
+path = "user"
+hash = "16d8cb54cf081d9c35dc3f33f4842d973c133249"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose inherited launch context values"

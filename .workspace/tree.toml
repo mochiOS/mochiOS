@@ -6127,3 +6127,11 @@ path = "core"
 hash = "a3988e3fe849ffd689b3624ead66525afb14ce63"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove migrated pathname syscall ABI"
+
+[[entries]]
+date = "2026-10-04T14:08:17.913524550+09:00"
+snapshot = "99e8c9640b8eb2bad8660003"
+path = "core"
+hash = "8a17d8b884428698693c995ded16c5f53448e5ff"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove dead pathname syscall implementations"

@@ -6095,3 +6095,11 @@ path = "services"
 hash = "dc98a75614472beca83edde17a32059df147ea85"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Change attributes through open handles"
+
+[[entries]]
+date = "2026-10-04T13:57:28.916602732+09:00"
+snapshot = "90fe4b3cb21a98371346f259"
+path = "core"
+hash = "3c0191d41fd686e622b9ed18d00141d1d8839829"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove migrated chmod and chown syscalls"

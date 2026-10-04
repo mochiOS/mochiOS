@@ -6063,3 +6063,11 @@ path = "services"
 hash = "586e3f030c28ff815d053e5c6ecb8e7d272c863f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Create symlinks through anchored handles"
+
+[[entries]]
+date = "2026-10-04T13:39:25.047961826+09:00"
+snapshot = "ccf3eca6903c586be7fda9b7"
+path = "services"
+hash = "6994e9c83fc8319d9cec2bba57a4c18b0ee6aa36"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Read symlinks through anchored handles"

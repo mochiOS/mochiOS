@@ -6015,3 +6015,11 @@ path = "services"
 hash = "1fa8248172b98aa15c04b38eb48ac38fd38e5ce2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Store mutable flags on open file descriptions"
+
+[[entries]]
+date = "2026-10-04T13:07:56.399666135+09:00"
+snapshot = "a4548471ed221d8d39334644"
+path = "services"
+hash = "bb49c3f5198ce635408fad3156f525227677a7c8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Create directories through anchored handles"

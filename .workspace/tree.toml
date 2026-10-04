@@ -6399,3 +6399,11 @@ path = "user"
 hash = "4535dc152d97e26f958e2f38fc7868c2fbb77902"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose native stream wait signals"
+
+[[entries]]
+date = "2026-10-04T17:05:50.017989584+09:00"
+snapshot = "38c8aefd4e1109d9c6112020"
+path = "user"
+hash = "7fd4588b892cfdc1c0087c16035b852ee37799eb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Name handle deadlines by their ABI unit"

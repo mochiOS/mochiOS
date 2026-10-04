@@ -5519,3 +5519,11 @@ path = "core"
 hash = "daa048d3c3340a5c559d5af242b2ef26277da259"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Create IPC endpoints as process-local handles"
+
+[[entries]]
+date = "2026-10-04T09:00:32.870417307+09:00"
+snapshot = "a9f38dba882ac39939b2e427"
+path = "core"
+hash = "da33d23c89ebf30c9414c4ea2be3e4cd9c410b65"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Transfer object handles over IPC"

@@ -6263,3 +6263,11 @@ path = "user"
 hash = "cd91c51a04ce138b2be949a548d4615f8151f7ea"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose native multi-handle waiting"
+
+[[entries]]
+date = "2026-10-04T15:27:27.433579861+09:00"
+snapshot = "c73fa85bc2caa2b2493209ca"
+path = "user"
+hash = "991412c41e1e372a4ab3b25e42bb7b0d7539d18c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose native readable handle signals"

@@ -6319,3 +6319,11 @@ path = "services"
 hash = "8eb79c42f68b17f6d231dbd7556aecfc6a2a05da"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route capability grant persistence through POSIX"
+
+[[entries]]
+date = "2026-10-04T15:57:00.969662200+09:00"
+snapshot = "f9fb862f6a0119646a689b1e"
+path = "services"
+hash = "b1e401f7e58ecc82c3d5550eaef03e075bb1d943"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test native directory stream decoding"

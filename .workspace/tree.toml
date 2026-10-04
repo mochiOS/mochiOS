@@ -5887,3 +5887,11 @@ path = "services"
 hash = "d3c96aab1c34d20d8ad96e9b11e7c62b9954d054"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Create files through resolved parent inodes"
+
+[[entries]]
+date = "2026-10-04T11:41:47.164676045+09:00"
+snapshot = "b88b27147bee2b74d54f9d2b"
+path = "services"
+hash = "7d4d1a4f88ad72d4b816986710a91ce768ec1546"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test filesystem root anchor flags"

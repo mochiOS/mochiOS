@@ -6447,3 +6447,11 @@ path = "core"
 hash = "749c89439663f380b1b1dbd0c99e8e48d670a276"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove migrated POSIX wait and pipe syscalls"
+
+[[entries]]
+date = "2026-10-04T17:37:40.384832072+09:00"
+snapshot = "15c3edf2e582c8c674966297"
+path = "core"
+hash = "91a1f075f743385845c57725323cfa20ff585343"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove migrated POSIX file descriptor syscall ABI"

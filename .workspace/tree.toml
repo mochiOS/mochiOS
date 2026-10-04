@@ -6423,3 +6423,11 @@ path = "user"
 hash = "6d127e908ca9c831f1816a056096b169f2d241cb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement select over native handle signals"
+
+[[entries]]
+date = "2026-10-04T17:16:05.425800114+09:00"
+snapshot = "696b5dd75214856fe887faaa"
+path = "build"
+hash = "89f08cc29ae39ca6369a47ff46556fc8558b6406"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Track libc port SDK inputs"

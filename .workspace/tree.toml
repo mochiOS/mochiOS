@@ -5799,3 +5799,11 @@ path = "services"
 hash = "f661b94ac810d76c4ef2f5f68bf4093fd75f3e9a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Release filesystem provider objects"
+
+[[entries]]
+date = "2026-10-04T10:50:20.425048834+09:00"
+snapshot = "e833630906a40c137ebce3b2"
+path = "user"
+hash = "384ebf5f2a2d3f2624e6ef4da1e266be24cdfe84"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Define handle-based POSIX stat protocol"

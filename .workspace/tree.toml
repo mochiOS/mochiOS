@@ -5599,3 +5599,19 @@ path = "user"
 hash = "e2c9bd6300c3a8cfed6a0d78be15f673fbe0cd55"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect POSIX clients through launch handles"
+
+[[entries]]
+date = "2026-10-04T09:28:53.141459489+09:00"
+snapshot = "0a065900461ad6b150b01d49"
+path = "services"
+hash = "b0791965fbe8a52454983fc4a56a6c00da64e152"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Manage POSIX identity and umask state"
+
+[[entries]]
+date = "2026-10-04T09:29:20.855230561+09:00"
+snapshot = "4b7608e7503f76ccd5103bfd"
+path = "services"
+hash = "b01e052d898117bba16e467e92b33c14aff6ddfc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test POSIX identity and umask semantics"

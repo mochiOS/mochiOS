@@ -5807,3 +5807,11 @@ path = "user"
 hash = "384ebf5f2a2d3f2624e6ef4da1e266be24cdfe84"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Define handle-based POSIX stat protocol"
+
+[[entries]]
+date = "2026-10-04T10:57:35.283330070+09:00"
+snapshot = "e4b786a59a2e8e4f17d69a10"
+path = "services"
+hash = "fb787f64adb65240274b067b26682436bdbeb331"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement handle-based POSIX file status"

@@ -5863,3 +5863,11 @@ path = "services"
 hash = "4007fa48ecbd45b26a26163f798331447b8977ee"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Resolve metadata paths by inode traversal"
+
+[[entries]]
+date = "2026-10-04T11:34:28.487091666+09:00"
+snapshot = "71f362f2eaebd289f2565055"
+path = "services"
+hash = "58fb7b44e0dfe9ebd4de7da53c4f10bb65326674"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use ext4 inodes as filesystem node identities"

@@ -5935,3 +5935,11 @@ path = "services"
 hash = "c3f1bdfffa65d8834bf8202698db945a6edb7acb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Resolve POSIX cwd from directory handles"
+
+[[entries]]
+date = "2026-10-04T12:15:27.095576195+09:00"
+snapshot = "8a50c59938700db108a4b29d"
+path = "services"
+hash = "dd909952b36983cbd58195abf8fa4876eac74a2b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Delegate POSIX endpoint to launched applications"

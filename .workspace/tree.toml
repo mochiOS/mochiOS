@@ -6271,3 +6271,19 @@ path = "user"
 hash = "991412c41e1e372a4ab3b25e42bb7b0d7539d18c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose native readable handle signals"
+
+[[entries]]
+date = "2026-10-04T15:31:23.711697454+09:00"
+snapshot = "16b5c4a6f94536b31621d436"
+path = "services"
+hash = "7856da1bf64e702ab78f3912a24d2b46872a5db6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Block POSIX child waits without polling"
+
+[[entries]]
+date = "2026-10-04T15:31:55.066146084+09:00"
+snapshot = "f489eef2c7ee3dbc9cbe8757"
+path = "user"
+hash = "7273cd3f6572a7c7be231e1c383e5b7a534c6449"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove waitpid yield polling"

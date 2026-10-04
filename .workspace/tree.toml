@@ -5855,3 +5855,11 @@ path = "services"
 hash = "579743553dedfb8107a26a27dd1631fd26180b09"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep open filesystem objects inode-backed"
+
+[[entries]]
+date = "2026-10-04T11:32:03.026790239+09:00"
+snapshot = "bb9164337eeae416484fc2e5"
+path = "services"
+hash = "4007fa48ecbd45b26a26163f798331447b8977ee"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Resolve metadata paths by inode traversal"

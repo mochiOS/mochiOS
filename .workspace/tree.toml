@@ -6367,3 +6367,11 @@ path = "services"
 hash = "fd780979d109df428a0bdecbf450f57c434aa97a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Correct POSIX errno comparisons"
+
+[[entries]]
+date = "2026-10-04T16:35:06.259403267+09:00"
+snapshot = "e24493288c207aeceeaec7cd"
+path = "services"
+hash = "63740ae6deee3450a9b615875a437e3fbe98995e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Bind the late POSIX endpoint locally"

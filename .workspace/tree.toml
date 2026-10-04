@@ -6303,3 +6303,11 @@ path = "core"
 hash = "12833d79e4380d380af5a89df66340bedc4ed15e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Decouple process handles from execution records"
+
+[[entries]]
+date = "2026-10-04T15:39:58.007057686+09:00"
+snapshot = "336313d473003c6a26063207"
+path = "core"
+hash = "942f6b8abad777aefee580bb5f3e6b5028266532"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reclaim handle-managed process execution state"

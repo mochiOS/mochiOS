@@ -5951,3 +5951,11 @@ path = "user"
 hash = "e2f81d3aa1452191212e8e3a3af6f5377d8fa074"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route cwd operations through POSIX service"
+
+[[entries]]
+date = "2026-10-04T12:26:23.682647581+09:00"
+snapshot = "8331215e7c3711be907e510d"
+path = "user"
+hash = "d620287ec4b1b5f372075c3f84ce725e4ab790af"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route pathname status through POSIX service"

@@ -5767,3 +5767,11 @@ path = "user"
 hash = "49663df2c266160c60a5de227d45a4197c64dd03"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose provider object identification"
+
+[[entries]]
+date = "2026-10-04T10:31:37.536127877+09:00"
+snapshot = "d80cfe8b7161633085b00955"
+path = "services"
+hash = "e4ea13546c0a3bd5241e29bf7ba6c36428d2a4f1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect POSIX opens to filesystem objects"

@@ -6159,3 +6159,11 @@ path = "services"
 hash = "07ef6fcd4d2d5e070a340bcc035236272bd0d458"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Migrate services to native random fill"
+
+[[entries]]
+date = "2026-10-04T14:28:41.838142536+09:00"
+snapshot = "0068d1e138cd0178e8a5be0e"
+path = "core"
+hash = "f4112ae125d6571a181a64558f0c3870e58d287c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove migrated POSIX VM syscalls"

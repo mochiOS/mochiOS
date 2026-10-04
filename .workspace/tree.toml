@@ -6327,3 +6327,11 @@ path = "services"
 hash = "b1e401f7e58ecc82c3d5550eaef03e075bb1d943"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native directory stream decoding"
+
+[[entries]]
+date = "2026-10-04T15:59:53.165247562+09:00"
+snapshot = "716016a0afa810a481e391fe"
+path = "user"
+hash = "27e3c761e198287d112bcae661c297167553ed88"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Decouple MPKG parsing from pathname I/O"

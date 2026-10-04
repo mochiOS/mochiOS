@@ -6431,3 +6431,11 @@ path = "build"
 hash = "89f08cc29ae39ca6369a47ff46556fc8558b6406"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Track libc port SDK inputs"
+
+[[entries]]
+date = "2026-10-04T17:27:42.909092419+09:00"
+snapshot = "e83d75d172618c226e6572f8"
+path = "user"
+hash = "38b10ca1d8b95d8ad638e24a2f83adae6aa17034"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement nonblocking POSIX pipes"

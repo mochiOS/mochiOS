@@ -5751,3 +5751,19 @@ path = "user"
 hash = "b4dd104962d0768961460d07bd497eea58006a23"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Define filesystem control handle key"
+
+[[entries]]
+date = "2026-10-04T10:20:31.898693445+09:00"
+snapshot = "32c3f78937c08ee2d9247d1b"
+path = "core"
+hash = "c1663892ec3b9b27fc9ee96a8dcb387a7404e924"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Let providers identify their own objects"
+
+[[entries]]
+date = "2026-10-04T10:20:55.888149777+09:00"
+snapshot = "cdd5088ba6f5202b16d382b1"
+path = "user"
+hash = "49663df2c266160c60a5de227d45a4197c64dd03"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose provider object identification"

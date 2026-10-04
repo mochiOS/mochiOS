@@ -5999,3 +5999,11 @@ path = "services"
 hash = "8dc5ad300805680c3be4acc19fda098120b8863f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Execute file mutations through attached handles"
+
+[[entries]]
+date = "2026-10-04T12:51:23.237048747+09:00"
+snapshot = "0002d1d811594a11484ed124"
+path = "user"
+hash = "52213ad51c4706d024642e8541a28d5da5cc1ffd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove realpath cwd syscall fallback"

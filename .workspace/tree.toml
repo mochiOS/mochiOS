@@ -6415,3 +6415,11 @@ path = "user"
 hash = "77dbec4a80b96d45329b3ee7ba2189493c607f90"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Permit deadline-only waits in userspace"
+
+[[entries]]
+date = "2026-10-04T17:12:06.512498109+09:00"
+snapshot = "f5c2049bcd7019e8b6495c43"
+path = "user"
+hash = "6d127e908ca9c831f1816a056096b169f2d241cb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement select over native handle signals"

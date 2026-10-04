@@ -5591,3 +5591,11 @@ path = "core"
 hash = "139c0c443a5ae981aa5142bf09076cdc4577a76e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Transfer object handles in synchronous IPC"
+
+[[entries]]
+date = "2026-10-04T09:23:16.001497112+09:00"
+snapshot = "3fc0be4c7d58961a135d22bc"
+path = "user"
+hash = "e2c9bd6300c3a8cfed6a0d78be15f673fbe0cd55"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect POSIX clients through launch handles"

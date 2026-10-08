@@ -6903,3 +6903,11 @@ path = "services"
 hash = "9ef77d33f69ab91b870fe7c5478b5248bc0aebd1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "service-manager: name process handle status failures"
+
+[[entries]]
+date = "2026-10-08T13:40:28.541488194+09:00"
+snapshot = "a15b6efdb15f9b8f787472b5"
+path = "core"
+hash = "c247262dd03b00f37aa2a50797798084508b2faf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: remove unused file sync syscall ABI"

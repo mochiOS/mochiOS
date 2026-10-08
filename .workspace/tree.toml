@@ -7183,3 +7183,11 @@ path = "services"
 hash = "416c20391562aa333768617361b71abaec6e3d73"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: implement basic PTY line discipline"
+
+[[entries]]
+date = "2026-10-08T17:05:30.618707593+09:00"
+snapshot = "675ca549307b38bfd96e6042"
+path = "services"
+hash = "822cc4eb1b060744abdf720df7ef4eef38f9e55a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: reject unsupported terminal modes"

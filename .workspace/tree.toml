@@ -6767,3 +6767,11 @@ path = "user"
 hash = "957fde83591ed74b15026108ac37ec1462c64af7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "newlib: inherit descriptors through launch context"
+
+[[entries]]
+date = "2026-10-08T12:57:39.750616673+09:00"
+snapshot = "2cae3343eea640ce90d07a2e"
+path = "core"
+hash = "e8fd995405a73a815fe07b5998a4987d28bfdf60"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "exec: retain only launch context handles"

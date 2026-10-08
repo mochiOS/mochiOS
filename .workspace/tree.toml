@@ -6519,3 +6519,11 @@ path = "core"
 hash = "e3a6751d8153f0eeaa17bb87e009950742f1997f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove dead Linux vectored IO ABI"
+
+[[entries]]
+date = "2026-10-08T09:46:08.758229365+09:00"
+snapshot = "8f8be4a7a507bfa62ee28cab"
+path = "core"
+hash = "370305cc0bbded2640dd49285406cca5141a10b8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove dead Linux thread setup ABI"

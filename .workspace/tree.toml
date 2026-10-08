@@ -6559,3 +6559,11 @@ path = "core"
 hash = "ed4ae7ce45dc4a241e812f473f2242e83af1daf8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove dead legacy readdir ABI"
+
+[[entries]]
+date = "2026-10-08T10:08:48.411538635+09:00"
+snapshot = "223dc0ebd18e83f07ad5db32"
+path = "services"
+hash = "690fee28a8489c54250decf3d2670a64317a26b6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh service dependency lock"

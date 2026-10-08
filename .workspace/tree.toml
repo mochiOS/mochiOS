@@ -7239,3 +7239,11 @@ path = "services"
 hash = "08d4d5529322ca7c2ebacae45a6871952810e4ec"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: guard native process suspension boundary"
+
+[[entries]]
+date = "2026-10-08T18:36:56.089455768+09:00"
+snapshot = "2c04d8026e4ef4425186aac6"
+path = "services"
+hash = "1e25f5b295f6a92403d962496b3c3d37d31aa03e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify job-control signal ABI"

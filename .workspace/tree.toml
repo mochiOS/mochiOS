@@ -6871,3 +6871,11 @@ path = "core"
 hash = "00b76b920651296cd161527be821df01ae7aee52"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove unused path stat syscall ABI"
+
+[[entries]]
+date = "2026-10-08T13:30:35.209000996+09:00"
+snapshot = "8b2e2779a7782820752f2a84"
+path = "core"
+hash = "dfa8c61019bba11fb5e02a7026359791ba51fecd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "abi: remove unused legacy syscall numbers"

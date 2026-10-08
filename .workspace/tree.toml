@@ -6879,3 +6879,11 @@ path = "core"
 hash = "dfa8c61019bba11fb5e02a7026359791ba51fecd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "abi: remove unused legacy syscall numbers"
+
+[[entries]]
+date = "2026-10-08T13:31:35.999307145+09:00"
+snapshot = "139676c3ede598f10ca23d19"
+path = "core"
+hash = "3a600dcbb08d52df85cec6897bff2ddddf362532"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "vm: remove redundant allocation syscall ABI"

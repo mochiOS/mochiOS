@@ -6783,3 +6783,11 @@ path = "services"
 hash = "9491151b531fda95fa28566355b0da8f05fc112f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test inherited fd launch metadata"
+
+[[entries]]
+date = "2026-10-08T13:05:34.079035072+09:00"
+snapshot = "1f6f162690abb05a1eee2563"
+path = "services"
+hash = "4583cebbd008d4147c113a558b4517ffba7ee880"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify launch context fd inheritance"

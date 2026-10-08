@@ -6807,3 +6807,11 @@ path = "binaries/msh"
 hash = "c6eba46255c2a9a498c6f3dd26831b19d4ccd669"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "msh: route exec through libc"
+
+[[entries]]
+date = "2026-10-08T13:12:35.112388863+09:00"
+snapshot = "337279267cc67ef3a747e78f"
+path = "services"
+hash = "d2e2824909bb907d38e8830efd17b632e9e3fa5c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify native startup image ABI"

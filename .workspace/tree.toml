@@ -7015,3 +7015,11 @@ path = "tools/devkit"
 hash = "3fb7b575291e1652dcabc7ac5cbe17ac6dd32451"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "appcore: open documents through POSIX handles"
+
+[[entries]]
+date = "2026-10-08T14:32:12.097681497+09:00"
+snapshot = "7e077cbcf64783a37d5eb230"
+path = "services"
+hash = "1b12e7612d77f0d6ae0a4bf4f9f444b7af5a32d6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: manage supplementary group state"

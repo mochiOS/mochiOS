@@ -6495,3 +6495,11 @@ path = "binaries/coreutils"
 hash = "1be3bf2a3a80818157de74c13b2ffb6ecc58be22"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use native process identity in desktop test"
+
+[[entries]]
+date = "2026-10-08T09:40:26.290401586+09:00"
+snapshot = "da44c71ec5e8bc81f05de557"
+path = "binaries/msh"
+hash = "a351b3e5983e3a8f1c08c132d7549251b877e6b9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use native context for shell thread identity"

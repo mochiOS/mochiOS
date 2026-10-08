@@ -7207,3 +7207,11 @@ path = "services"
 hash = "6a49a801caeb1cc3ba1b718c36bf69222568c9c6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: implement drained terminal updates"
+
+[[entries]]
+date = "2026-10-08T17:38:28.038652607+09:00"
+snapshot = "ffaa53f60be3e3ee5f43c3df"
+path = "services"
+hash = "f6fdf08740072107e16669fa0953077d66f94fab"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: implement terminal queue controls"

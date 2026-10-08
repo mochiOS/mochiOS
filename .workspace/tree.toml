@@ -6479,3 +6479,11 @@ path = "services"
 hash = "3fe9e501fa5b71b99421f6d34641fc73450c6990"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Manage POSIX resource limits in user space"
+
+[[entries]]
+date = "2026-10-08T09:32:49.214184200+09:00"
+snapshot = "ab066db5d3c4f17e3cf69a7d"
+path = "libraries/newlib"
+hash = "c3fea0a7d5eef1b39e5e084fd9741e02e42332f0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Declare POSIX resource limit interfaces"

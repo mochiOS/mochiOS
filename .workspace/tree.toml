@@ -7223,3 +7223,11 @@ path = "services"
 hash = "02c61b13eac13322701fdfeeb34b24b5dc88978a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: implement controlling terminal job control"
+
+[[entries]]
+date = "2026-10-08T18:17:31.217058685+09:00"
+snapshot = "8a8d98937f8186a1252c55a2"
+path = "services"
+hash = "def1a081f8138ae9ad1bb4353f622dcf1ad8894c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: deliver terminal input signals"

@@ -6999,3 +6999,11 @@ path = "core"
 hash = "a2c6d006ea566c4c672b34f3ef7909ce06452eae"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove POSIX FD fork hooks"
+
+[[entries]]
+date = "2026-10-08T14:14:32.437474856+09:00"
+snapshot = "897b3b7441bb03e2a1f04e08"
+path = "core"
+hash = "3392a65f9b5d22b28141383961b3faaaced33cd4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: remove unused fork authority hook"

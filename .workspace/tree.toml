@@ -6935,3 +6935,11 @@ path = "core"
 hash = "3f2e9434515e64c47e4d4f16864497d02b0d88d8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: replace pid clone ABI with process handles"
+
+[[entries]]
+date = "2026-10-08T13:57:37.029313989+09:00"
+snapshot = "24b4a446fb0fb550a460b086"
+path = "applications/viewer"
+hash = "8d0770a2f3b5657f66cf5806dcf20bcb9c7a5df7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "viewer: record POSIX document dependencies"

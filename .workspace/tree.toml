@@ -7055,3 +7055,11 @@ path = "services"
 hash = "df5fbef4b04910273ccff8373d6a15550e009b58"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: manage process roots with handles"
+
+[[entries]]
+date = "2026-10-08T15:23:54.094158530+09:00"
+snapshot = "e0b97fc213708482e6927b8d"
+path = "services"
+hash = "33761f2eb680c238390ebe442f69bb84f7e5c58e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test spawn descriptor actions"

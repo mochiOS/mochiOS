@@ -6607,3 +6607,11 @@ path = "user"
 hash = "a43376d4aee38f304172086ff2dcc51e6f65a76c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose native thread exit"
+
+[[entries]]
+date = "2026-10-08T10:34:43.623402969+09:00"
+snapshot = "cfbea7e37f978d14d9224190"
+path = "user"
+hash = "2568481f4dfa34f03a77accee394c8a4cf01a1c4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Pass native thread exit status"

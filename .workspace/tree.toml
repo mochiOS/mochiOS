@@ -7127,3 +7127,11 @@ path = "services"
 hash = "c2c4655dfad11c97c7318952516cab6ca25aecf5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: add raw pseudo-terminal provider objects"
+
+[[entries]]
+date = "2026-10-08T16:25:52.361627342+09:00"
+snapshot = "6edd88530c311cf2d5cd123e"
+path = "services"
+hash = "f38518b002823d0a94b35b43d68b7d919a019915"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: validate provider readiness ABI"

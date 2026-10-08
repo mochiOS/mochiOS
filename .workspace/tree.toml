@@ -7063,3 +7063,11 @@ path = "services"
 hash = "33761f2eb680c238390ebe442f69bb84f7e5c58e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test spawn descriptor actions"
+
+[[entries]]
+date = "2026-10-08T15:29:08.361871621+09:00"
+snapshot = "07ec7e7d7f347935e8cbea32"
+path = "services"
+hash = "1713bd6155eb4e5394b6e51b5528fad301f4f653"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: manage effective credentials independently"

@@ -6471,3 +6471,11 @@ path = "core"
 hash = "b5c63b25b54267b6cfaeaa7760da55fac6062aed"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove dead POSIX utility syscall ABI"
+
+[[entries]]
+date = "2026-10-08T09:30:03.023496091+09:00"
+snapshot = "1cfbf102c77ce520ee193844"
+path = "services"
+hash = "3fe9e501fa5b71b99421f6d34641fc73450c6990"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Manage POSIX resource limits in user space"

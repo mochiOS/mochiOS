@@ -6863,3 +6863,11 @@ path = "services"
 hash = "07a2a4eee723a21d61fcbf6e026694b2885cb057"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify native image replacement ABI"
+
+[[entries]]
+date = "2026-10-08T13:29:34.921044220+09:00"
+snapshot = "980d4f85fe2a57f96f2ea2a2"
+path = "core"
+hash = "00b76b920651296cd161527be821df01ae7aee52"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: remove unused path stat syscall ABI"

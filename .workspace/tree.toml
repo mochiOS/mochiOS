@@ -6455,3 +6455,11 @@ path = "core"
 hash = "91a1f075f743385845c57725323cfa20ff585343"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove migrated POSIX file descriptor syscall ABI"
+
+[[entries]]
+date = "2026-10-08T09:22:52.710902050+09:00"
+snapshot = "43221301209e9738afe169cd"
+path = "services"
+hash = "1cdc8eca3b9f55305f623312d95a6e3a03a9bf51"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use local POSIX capability protocol in tests"

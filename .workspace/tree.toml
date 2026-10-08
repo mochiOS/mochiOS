@@ -7191,3 +7191,11 @@ path = "services"
 hash = "822cc4eb1b060744abdf720df7ef4eef38f9e55a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: reject unsupported terminal modes"
+
+[[entries]]
+date = "2026-10-08T17:07:55.401203101+09:00"
+snapshot = "e7b4e5ba997046476580c93e"
+path = "user"
+hash = "09da37aa6edfb16ddde9f28006e6cc09961bae39"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "newlib: expose pseudo-terminal attributes"

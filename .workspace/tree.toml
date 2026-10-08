@@ -6583,3 +6583,11 @@ path = "user"
 hash = "fc23d6feca9f23c14d76b3106294472a7909ad16"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement newlib runtime locks"
+
+[[entries]]
+date = "2026-10-08T10:24:59.429865667+09:00"
+snapshot = "b4f201657a45ea362258a565"
+path = "user"
+hash = "6a4c232d3330041061e8f1abc0d28cac4b53eae0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Synchronize newlib runtime state"

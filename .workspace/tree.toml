@@ -6919,3 +6919,11 @@ path = "core"
 hash = "6d708c6d0794317f1e77b5ddebe34a3562acb75d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove obsolete service-specific syscall ABI"
+
+[[entries]]
+date = "2026-10-08T13:42:39.814126443+09:00"
+snapshot = "7622246b840896d1cd887d15"
+path = "core"
+hash = "d476fe5d6a30deb233280cb5645c242f60870b42"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "abi: remove dead path exec number"

@@ -7159,3 +7159,11 @@ path = "services"
 hash = "a1abbd0dce28168f060770771e012bbbf5133d3d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: support inherited PTY descriptors"
+
+[[entries]]
+date = "2026-10-08T16:51:47.006800346+09:00"
+snapshot = "5f1ef240b955c0d7aad061b0"
+path = "services"
+hash = "7e7bdee7e91d0715309c65f8e21ea9440d9e3943"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: reject unsupported PTY controls"

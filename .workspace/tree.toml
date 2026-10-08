@@ -6623,3 +6623,11 @@ path = "services"
 hash = "16664165bc10c4fc466df0fc10f11088699d10b0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test POSIX thread identity reuse"
+
+[[entries]]
+date = "2026-10-08T10:42:13.846365978+09:00"
+snapshot = "f5206834113407bbecffd330"
+path = "services"
+hash = "1c923987058c1a07dba37fc45862f6fe9fa5a304"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test native pthread lifecycle"

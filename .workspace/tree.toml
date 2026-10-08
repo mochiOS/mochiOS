@@ -6703,3 +6703,11 @@ path = "user"
 hash = "bab2fc677d8e3f3ae7820f273bd889f8b06e81ad"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement process-local POSIX signal state"
+
+[[entries]]
+date = "2026-10-08T12:06:28.910263983+09:00"
+snapshot = "5e8e3d5a727a8dea87befc04"
+path = "services"
+hash = "298d3121db8c029028fa54730fa245b6a3d31a3c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test native thread upcall ABI"

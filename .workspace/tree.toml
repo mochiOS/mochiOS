@@ -6831,3 +6831,19 @@ path = "services"
 hash = "f63eedb0bdce7d99769086264f5f35ed68809538"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify user-space process entry layout"
+
+[[entries]]
+date = "2026-10-08T13:22:49.444712606+09:00"
+snapshot = "f7038701864aa694db6a42e3"
+path = "user"
+hash = "91dacbfd70be4df2c5d772a0aeb1902889436bb8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "newlib: replace process images from file handles"
+
+[[entries]]
+date = "2026-10-08T13:23:56.157388749+09:00"
+snapshot = "dd43c65b1efe54fbe1aad571"
+path = "core"
+hash = "1b044e53ba1571ae3976cb941843439207d7dd58"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: remove legacy execve syscall ABI"

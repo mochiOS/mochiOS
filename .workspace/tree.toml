@@ -7271,3 +7271,11 @@ path = "services"
 hash = "23b16b0076c23b4c5eadf3b9aaf5ab68803d3eb6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: report signal-terminated child status"
+
+[[entries]]
+date = "2026-10-08T19:17:43.394855854+09:00"
+snapshot = "e819568444d43cf1bc09ea17"
+path = "services"
+hash = "0b62bab7e0c27d336248837b28c1e89da58b0655"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: notify parents of child state changes"

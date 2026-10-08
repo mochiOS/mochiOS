@@ -6511,3 +6511,11 @@ path = "core"
 hash = "748f02790bc29dc431f5428cc6adc83cd4df0cb5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove dead Linux brk ABI"
+
+[[entries]]
+date = "2026-10-08T09:44:40.857689724+09:00"
+snapshot = "822bd21bb1b25cbbd025eba5"
+path = "core"
+hash = "e3a6751d8153f0eeaa17bb87e009950742f1997f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove dead Linux vectored IO ABI"

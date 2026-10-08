@@ -7079,3 +7079,11 @@ path = "services"
 hash = "df9ec4c527654f229da59a79bc1eca038649942a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test spawn attribute policy"
+
+[[entries]]
+date = "2026-10-08T15:34:09.882930597+09:00"
+snapshot = "ff7485eea4109ad5ac2ab052"
+path = "user"
+hash = "27e7887822e797551af73285e848f3bac563e822"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: remove fixed spawn action limits"

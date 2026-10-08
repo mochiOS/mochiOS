@@ -6463,3 +6463,11 @@ path = "services"
 hash = "1cdc8eca3b9f55305f623312d95a6e3a03a9bf51"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use local POSIX capability protocol in tests"
+
+[[entries]]
+date = "2026-10-08T09:24:24.526746409+09:00"
+snapshot = "7a661edddeaf9e2c3c6a90d0"
+path = "core"
+hash = "b5c63b25b54267b6cfaeaa7760da55fac6062aed"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove dead POSIX utility syscall ABI"

@@ -6631,3 +6631,11 @@ path = "services"
 hash = "1c923987058c1a07dba37fc45862f6fe9fa5a304"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native pthread lifecycle"
+
+[[entries]]
+date = "2026-10-08T11:23:32.750225127+09:00"
+snapshot = "67b8d93cedac41afdeecc046"
+path = "services"
+hash = "ac1a0433d7bec2fa0ff73496f512bb1812afd1fe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test per-thread newlib state"

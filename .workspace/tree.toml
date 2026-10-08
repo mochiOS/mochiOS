@@ -6647,3 +6647,11 @@ path = "services"
 hash = "f31051396cc45db6f0949043955270e601418b0e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test generation-safe pthread keys"
+
+[[entries]]
+date = "2026-10-08T11:31:51.773262497+09:00"
+snapshot = "ff78af3495d99382eb31f0ec"
+path = "services"
+hash = "56c9151b2bebe823b7ca9816f38956849531be52"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test pthread thread-specific storage"

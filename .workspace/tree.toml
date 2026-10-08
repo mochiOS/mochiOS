@@ -7047,3 +7047,11 @@ path = "services"
 hash = "cb70d932e717c5862e962275fb9fe2321c2d8fa1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: implement atomic hard links"
+
+[[entries]]
+date = "2026-10-08T15:15:19.229277499+09:00"
+snapshot = "045f27a40b54d54251b19018"
+path = "services"
+hash = "df5fbef4b04910273ccff8373d6a15550e009b58"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: manage process roots with handles"

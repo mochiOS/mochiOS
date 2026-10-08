@@ -6727,3 +6727,11 @@ path = "services"
 hash = "db76f1aecdc3a3d15cc6c189ca147e577bca1cb0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Terminate service trees through process handles"
+
+[[entries]]
+date = "2026-10-08T12:42:54.618840101+09:00"
+snapshot = "699f545f6eb6328dda4df7b5"
+path = "boot"
+hash = "5eb1b6e1ffe2414015fc758f644d9bb656440c18"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Format boot sources"

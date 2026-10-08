@@ -6847,3 +6847,19 @@ path = "core"
 hash = "1b044e53ba1571ae3976cb941843439207d7dd58"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove legacy execve syscall ABI"
+
+[[entries]]
+date = "2026-10-08T13:27:50.630558179+09:00"
+snapshot = "c2706f68d9f8fc2342854e46"
+path = "services"
+hash = "0aec7bb3cffea47c3879121d10dad26930fb314e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify native image replacement ABI"
+
+[[entries]]
+date = "2026-10-08T13:28:22.823475061+09:00"
+snapshot = "4ff036772fd6535681d2ba43"
+path = "services"
+hash = "07a2a4eee723a21d61fcbf6e026694b2885cb057"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify native image replacement ABI"

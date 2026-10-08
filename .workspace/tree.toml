@@ -6991,3 +6991,11 @@ path = "core"
 hash = "0a70eaac4458e67ba4635857d32850eea27ec317"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove dead file capability helpers"
+
+[[entries]]
+date = "2026-10-08T14:13:31.799395077+09:00"
+snapshot = "b2709ed8ba11186d7933de58"
+path = "core"
+hash = "a2c6d006ea566c4c672b34f3ef7909ce06452eae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: remove POSIX FD fork hooks"

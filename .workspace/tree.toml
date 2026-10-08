@@ -6911,3 +6911,11 @@ path = "core"
 hash = "c247262dd03b00f37aa2a50797798084508b2faf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove unused file sync syscall ABI"
+
+[[entries]]
+date = "2026-10-08T13:41:34.747295643+09:00"
+snapshot = "2c24b2d5714c3bd8a375559a"
+path = "core"
+hash = "6d708c6d0794317f1e77b5ddebe34a3562acb75d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: remove obsolete service-specific syscall ABI"

@@ -6615,3 +6615,11 @@ path = "user"
 hash = "2568481f4dfa34f03a77accee394c8a4cf01a1c4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Pass native thread exit status"
+
+[[entries]]
+date = "2026-10-08T10:35:53.688073155+09:00"
+snapshot = "b7ef63f844cfa708c818ffb8"
+path = "services"
+hash = "16664165bc10c4fc466df0fc10f11088699d10b0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test POSIX thread identity reuse"

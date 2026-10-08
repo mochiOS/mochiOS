@@ -7263,3 +7263,11 @@ path = "libraries/newlib"
 hash = "620fb15d43c6e42cb46a00fca91d256e8cd2c416"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "newlib: expose continued child wait state"
+
+[[entries]]
+date = "2026-10-08T19:13:01.374715603+09:00"
+snapshot = "f1f6b15498657401e700c855"
+path = "services"
+hash = "23b16b0076c23b4c5eadf3b9aaf5ab68803d3eb6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: report signal-terminated child status"

@@ -7287,3 +7287,11 @@ path = "services"
 hash = "6afcee56dff88c31e87a2efe0b3a59da0dd1b9bf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: honor SA_NOCLDSTOP"
+
+[[entries]]
+date = "2026-10-08T19:34:08.517093901+09:00"
+snapshot = "cd648bb9d85bc36f5679dfcb"
+path = "services"
+hash = "1e55796cf1dfb2dc6057c13f35a3d06d2208e09e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify native memory protection boundary"

@@ -7111,3 +7111,11 @@ path = "user"
 hash = "cb0fa5662881a8301d8bdae43b58a3740a1344ad"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "newlib: expose process group aliases"
+
+[[entries]]
+date = "2026-10-08T16:02:32.746253259+09:00"
+snapshot = "8f0e593a5473531fe472e5b8"
+path = "services"
+hash = "77e3f33b99dd1c73e593b172a8e899bb3b9040bc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: validate native handle identity ABI"

@@ -6927,3 +6927,11 @@ path = "core"
 hash = "d476fe5d6a30deb233280cb5645c242f60870b42"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "abi: remove dead path exec number"
+
+[[entries]]
+date = "2026-10-08T13:45:36.091454822+09:00"
+snapshot = "35762ae5b0c835b38a492a4e"
+path = "core"
+hash = "3f2e9434515e64c47e4d4f16864497d02b0d88d8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: replace pid clone ABI with process handles"

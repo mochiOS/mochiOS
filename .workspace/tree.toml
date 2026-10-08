@@ -6975,3 +6975,11 @@ path = "user"
 hash = "00d755a2bfe466de0bb5f5873a0f980baca52019"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "platform: remove legacy file transfer right"
+
+[[entries]]
+date = "2026-10-08T14:11:58.773683969+09:00"
+snapshot = "901abeba7aabb6e151f04383"
+path = "user"
+hash = "7188ce2c0051f6f3900795bf546ac3e4b2661072"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "platform: remove legacy file right exports"

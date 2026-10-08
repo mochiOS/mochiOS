@@ -7199,3 +7199,11 @@ path = "user"
 hash = "09da37aa6edfb16ddde9f28006e6cc09961bae39"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "newlib: expose pseudo-terminal attributes"
+
+[[entries]]
+date = "2026-10-08T17:26:37.805896688+09:00"
+snapshot = "63f79303ee7a2c988114a782"
+path = "services"
+hash = "6a49a801caeb1cc3ba1b718c36bf69222568c9c6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: implement drained terminal updates"

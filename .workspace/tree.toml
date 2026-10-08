@@ -6895,3 +6895,11 @@ path = "services"
 hash = "871b2354524813163b9acc041b1229c9f58cbd4a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "service-manager: monitor children with process handles"
+
+[[entries]]
+date = "2026-10-08T13:38:28.448498513+09:00"
+snapshot = "071db3e28486e413eb7e72ce"
+path = "services"
+hash = "9ef77d33f69ab91b870fe7c5478b5248bc0aebd1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "service-manager: name process handle status failures"

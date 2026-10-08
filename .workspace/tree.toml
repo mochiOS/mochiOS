@@ -6959,3 +6959,11 @@ path = "core"
 hash = "53cba8b8c2943398ad09be41630c2c9605ca43dc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove file handle IPC syscall ABI"
+
+[[entries]]
+date = "2026-10-08T14:07:21.458546797+09:00"
+snapshot = "fbab0c17281a52b284e7e783"
+path = "core"
+hash = "78c350b0c70f28e7aa2286cae05b656b66f9ba45"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: remove legacy file handle IPC internals"

@@ -7247,3 +7247,11 @@ path = "services"
 hash = "1e25f5b295f6a92403d962496b3c3d37d31aa03e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify job-control signal ABI"
+
+[[entries]]
+date = "2026-10-08T18:43:41.077564381+09:00"
+snapshot = "959f2003f2e82be597d3ce7d"
+path = "services"
+hash = "522ecee34c1493347c78130aa1b8cd158ff0622b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: resume stopped processes for signal delivery"

@@ -6735,3 +6735,11 @@ path = "boot"
 hash = "5eb1b6e1ffe2414015fc758f644d9bb656440c18"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Format boot sources"
+
+[[entries]]
+date = "2026-10-08T12:49:33.458277922+09:00"
+snapshot = "e9daf5bba3589dbdac6e2ad1"
+path = "services"
+hash = "f6e00b752e5d4018cb9b3081e1525932e342bb53"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: cover bounded fd allocation"

@@ -7151,3 +7151,11 @@ path = "core"
 hash = "8490d62f21e0946da923c8bde0f6fb9fff74c36a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "handle: support provider I/O options"
+
+[[entries]]
+date = "2026-10-08T16:41:38.925214069+09:00"
+snapshot = "5f4e1707d0a8b17bae58efeb"
+path = "services"
+hash = "a1abbd0dce28168f060770771e012bbbf5133d3d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: support inherited PTY descriptors"

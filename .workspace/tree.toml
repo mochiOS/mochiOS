@@ -6887,3 +6887,11 @@ path = "core"
 hash = "3a600dcbb08d52df85cec6897bff2ddddf362532"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "vm: remove redundant allocation syscall ABI"
+
+[[entries]]
+date = "2026-10-08T13:35:44.049349956+09:00"
+snapshot = "408d8af8eaa2d3ee829d1697"
+path = "services"
+hash = "871b2354524813163b9acc041b1229c9f58cbd4a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "service-manager: monitor children with process handles"

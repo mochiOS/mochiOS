@@ -7119,3 +7119,11 @@ path = "services"
 hash = "77e3f33b99dd1c73e593b172a8e899bb3b9040bc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: validate native handle identity ABI"
+
+[[entries]]
+date = "2026-10-08T16:15:52.987847425+09:00"
+snapshot = "30ad9abaadebe1e76b18f3d3"
+path = "services"
+hash = "c2c4655dfad11c97c7318952516cab6ca25aecf5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: add raw pseudo-terminal provider objects"

@@ -7071,3 +7071,11 @@ path = "services"
 hash = "1713bd6155eb4e5394b6e51b5528fad301f4f653"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: manage effective credentials independently"
+
+[[entries]]
+date = "2026-10-08T15:33:04.692218629+09:00"
+snapshot = "b0d37d1db91f84954d344c21"
+path = "services"
+hash = "df9ec4c527654f229da59a79bc1eca038649942a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test spawn attribute policy"

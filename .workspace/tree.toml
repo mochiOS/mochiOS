@@ -7215,3 +7215,11 @@ path = "services"
 hash = "f6fdf08740072107e16669fa0953077d66f94fab"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: implement terminal queue controls"
+
+[[entries]]
+date = "2026-10-08T18:07:30.128131+09:00"
+snapshot = "7d70fbfadc7e23489dafe7fb"
+path = "services"
+hash = "02c61b13eac13322701fdfeeb34b24b5dc88978a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: implement controlling terminal job control"

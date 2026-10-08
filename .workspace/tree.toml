@@ -6655,3 +6655,11 @@ path = "services"
 hash = "56c9151b2bebe823b7ca9816f38956849531be52"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test pthread thread-specific storage"
+
+[[entries]]
+date = "2026-10-08T11:34:02.790002985+09:00"
+snapshot = "d052c70899a136009d73095b"
+path = "libraries/libc"
+hash = "7503c2859a9e6473a9360bb06c307bfe77f46d56"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose mochiOS pthread ABI to Rust"

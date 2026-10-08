@@ -7279,3 +7279,11 @@ path = "services"
 hash = "0b62bab7e0c27d336248837b28c1e89da58b0655"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: notify parents of child state changes"
+
+[[entries]]
+date = "2026-10-08T19:28:09.398005172+09:00"
+snapshot = "9e6ed1656e7b7400618084c6"
+path = "services"
+hash = "6afcee56dff88c31e87a2efe0b3a59da0dd1b9bf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: honor SA_NOCLDSTOP"

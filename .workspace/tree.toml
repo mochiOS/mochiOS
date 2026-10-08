@@ -7175,3 +7175,11 @@ path = "services"
 hash = "8823387832669aeb0a8896e4e435c1e56d97f0b0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: store terminal attributes on PTYs"
+
+[[entries]]
+date = "2026-10-08T17:04:04.771359016+09:00"
+snapshot = "514f8dd4da2a1ae6002561f1"
+path = "services"
+hash = "416c20391562aa333768617361b71abaec6e3d73"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: implement basic PTY line discipline"

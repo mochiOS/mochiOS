@@ -6551,3 +6551,11 @@ path = "binaries/coreutils"
 hash = "005aa5d3a03e8055544f8caf35c21d23f3d61612"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Drop retired futex performance metrics"
+
+[[entries]]
+date = "2026-10-08T09:54:29.956040731+09:00"
+snapshot = "e4e9126f5b1e7e57200ae336"
+path = "core"
+hash = "ed4ae7ce45dc4a241e812f473f2242e83af1daf8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove dead legacy readdir ABI"

@@ -7095,3 +7095,11 @@ path = "services"
 hash = "db7582249e81ef63e1d8e2176a114be475bc0eaf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test spawn exec status protocol"
+
+[[entries]]
+date = "2026-10-08T15:50:52.954764824+09:00"
+snapshot = "1ad241331ef54b607b06d42c"
+path = "services"
+hash = "afaa38e4dac5ab88184fa1a2e57c2782dc92478a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test executable PATH search"

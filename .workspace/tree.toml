@@ -6711,3 +6711,11 @@ path = "services"
 hash = "298d3121db8c029028fa54730fa245b6a3d31a3c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native thread upcall ABI"
+
+[[entries]]
+date = "2026-10-08T12:20:18.180213147+09:00"
+snapshot = "04efb6e64cc35ea1c24186b5"
+path = "services"
+hash = "db1f3d0a35b51a6c5d4c79ee3132e7d78bdda1f6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route process signals to registered threads"

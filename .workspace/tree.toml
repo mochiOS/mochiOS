@@ -6759,3 +6759,11 @@ path = "services"
 hash = "8b9f2cb86a7631af5a1c809d7dbd8fd2580f9230"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test inherited fd launch metadata"
+
+[[entries]]
+date = "2026-10-08T12:56:54.439257067+09:00"
+snapshot = "d13c6282b86c4b03363fe233"
+path = "user"
+hash = "957fde83591ed74b15026108ac37ec1462c64af7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "newlib: inherit descriptors through launch context"

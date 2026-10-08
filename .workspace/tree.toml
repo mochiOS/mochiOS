@@ -7143,3 +7143,11 @@ path = "services"
 hash = "1e741bd6267b465809ddf51d0b255d3185d43512"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: publish PTY readiness signals"
+
+[[entries]]
+date = "2026-10-08T16:36:01.570545588+09:00"
+snapshot = "1398a6fa15c7d7112a2f56f4"
+path = "core"
+hash = "8490d62f21e0946da923c8bde0f6fb9fff74c36a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "handle: support provider I/O options"

@@ -6487,3 +6487,11 @@ path = "libraries/newlib"
 hash = "c3fea0a7d5eef1b39e5e084fd9741e02e42332f0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Declare POSIX resource limit interfaces"
+
+[[entries]]
+date = "2026-10-08T09:37:31.228932444+09:00"
+snapshot = "1ce238d4cb45920a542bd382"
+path = "binaries/coreutils"
+hash = "1be3bf2a3a80818157de74c13b2ffb6ecc58be22"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use native process identity in desktop test"

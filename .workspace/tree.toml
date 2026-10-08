@@ -6671,3 +6671,11 @@ path = "services"
 hash = "64a101a4170c8382185e920e57a84d700ae4d4d9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native nanosleep fast path"
+
+[[entries]]
+date = "2026-10-08T11:40:31.393478270+09:00"
+snapshot = "b039bfe1d00bd2af5ed763a2"
+path = "services"
+hash = "a4dc9b46d642748903ce81e6cb7f56fd46358879"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test Rust native thread lifecycle"

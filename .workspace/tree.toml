@@ -7007,3 +7007,11 @@ path = "core"
 hash = "3392a65f9b5d22b28141383961b3faaaced33cd4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove unused fork authority hook"
+
+[[entries]]
+date = "2026-10-08T14:20:07.396697831+09:00"
+snapshot = "23fa08b6f8a64016bba7860c"
+path = "tools/devkit"
+hash = "3fb7b575291e1652dcabc7ac5cbe17ac6dd32451"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "appcore: open documents through POSIX handles"

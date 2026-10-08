@@ -7023,3 +7023,11 @@ path = "services"
 hash = "1b12e7612d77f0d6ae0a4bf4f9f444b7af5a32d6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: manage supplementary group state"
+
+[[entries]]
+date = "2026-10-08T14:35:42.949755508+09:00"
+snapshot = "38ab6b534030fcb7aef6b0a3"
+path = "services"
+hash = "c28332f420105dbece323194554a97617c14a57f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test filesystem credential envelope"

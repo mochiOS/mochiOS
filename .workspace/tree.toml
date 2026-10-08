@@ -6815,3 +6815,11 @@ path = "services"
 hash = "d2e2824909bb907d38e8830efd17b632e9e3fa5c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify native startup image ABI"
+
+[[entries]]
+date = "2026-10-08T13:17:31.870440871+09:00"
+snapshot = "fa903d3013f724b472488998"
+path = "core"
+hash = "174314365238355a936cc53ca5e86dd6ef6a8cad"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "process: replace images from authorized handles"

@@ -7039,3 +7039,11 @@ path = "services"
 hash = "62ee12426e048095650fa3ab4ca3447135465bac"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: enforce supplementary filesystem groups"
+
+[[entries]]
+date = "2026-10-08T15:03:41.360099675+09:00"
+snapshot = "182777970442a14e879633f2"
+path = "services"
+hash = "cb70d932e717c5862e962275fb9fe2321c2d8fa1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: implement atomic hard links"

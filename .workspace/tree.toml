@@ -6951,3 +6951,11 @@ path = "core"
 hash = "840a51e473d72c64ef5299091e3a381014fcbe77"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove file fstat syscall ABI"
+
+[[entries]]
+date = "2026-10-08T14:02:15.043544214+09:00"
+snapshot = "b660b3b12ee5e469d34572e4"
+path = "core"
+hash = "53cba8b8c2943398ad09be41630c2c9605ca43dc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: remove file handle IPC syscall ABI"

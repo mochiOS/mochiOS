@@ -6591,3 +6591,11 @@ path = "user"
 hash = "6a4c232d3330041061e8f1abc0d28cac4b53eae0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Synchronize newlib runtime state"
+
+[[entries]]
+date = "2026-10-08T10:29:32.109546954+09:00"
+snapshot = "aebbbc2137163c043fab532e"
+path = "services"
+hash = "b98bb6183e84617d3b19500396ecc071bc2b60b5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test native thread start context"

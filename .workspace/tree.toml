@@ -6719,3 +6719,11 @@ path = "services"
 hash = "db1f3d0a35b51a6c5d4c79ee3132e7d78bdda1f6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route process signals to registered threads"
+
+[[entries]]
+date = "2026-10-08T12:35:21.593752402+09:00"
+snapshot = "7e03456d2ccd1d1cd0c7992b"
+path = "services"
+hash = "db76f1aecdc3a3d15cc6c189ca147e577bca1cb0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Terminate service trees through process handles"

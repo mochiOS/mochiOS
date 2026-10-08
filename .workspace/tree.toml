@@ -6775,3 +6775,11 @@ path = "core"
 hash = "e8fd995405a73a815fe07b5998a4987d28bfdf60"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "exec: retain only launch context handles"
+
+[[entries]]
+date = "2026-10-08T13:01:31.306442298+09:00"
+snapshot = "ceae28d59623fc8402173ddd"
+path = "services"
+hash = "9491151b531fda95fa28566355b0da8f05fc112f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test inherited fd launch metadata"

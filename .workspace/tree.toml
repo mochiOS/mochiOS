@@ -6695,3 +6695,11 @@ path = "core"
 hash = "6160a25a123369b6d43c2f1a5fb26c09c8cb207c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove POSIX signal semantics from mnu"
+
+[[entries]]
+date = "2026-10-08T11:58:41.536313072+09:00"
+snapshot = "eb112d58c5bb65d459833dd8"
+path = "user"
+hash = "bab2fc677d8e3f3ae7820f273bd889f8b06e81ad"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement process-local POSIX signal state"

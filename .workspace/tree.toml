@@ -6639,3 +6639,11 @@ path = "services"
 hash = "ac1a0433d7bec2fa0ff73496f512bb1812afd1fe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test per-thread newlib state"
+
+[[entries]]
+date = "2026-10-08T11:26:41.195695931+09:00"
+snapshot = "2cb05ba5aa3a0f4ca7b2d626"
+path = "services"
+hash = "f31051396cc45db6f0949043955270e601418b0e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test generation-safe pthread keys"

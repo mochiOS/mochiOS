@@ -6743,3 +6743,11 @@ path = "services"
 hash = "f6e00b752e5d4018cb9b3081e1525932e342bb53"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: cover bounded fd allocation"
+
+[[entries]]
+date = "2026-10-08T12:53:18.686546260+09:00"
+snapshot = "d8e71ba4a8c216f27fcc3dd4"
+path = "services"
+hash = "f1366e992c2c5c0f8134e8579fa71a3a1e4f91c9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "service-manager: use mutable launch context API"

@@ -6575,3 +6575,11 @@ path = "libraries/rust"
 hash = "52fab7ec7146890526a854454fb2eb1c43305390"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use native address waits for synchronization"
+
+[[entries]]
+date = "2026-10-08T10:19:39.926851955+09:00"
+snapshot = "73ab1d72556289b017b1d9cc"
+path = "user"
+hash = "fc23d6feca9f23c14d76b3106294472a7909ad16"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement newlib runtime locks"

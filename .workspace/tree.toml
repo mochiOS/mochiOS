@@ -7255,3 +7255,11 @@ path = "services"
 hash = "522ecee34c1493347c78130aa1b8cd158ff0622b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: resume stopped processes for signal delivery"
+
+[[entries]]
+date = "2026-10-08T19:01:07.711551947+09:00"
+snapshot = "c2a405bec3bedcac6bb44a76"
+path = "libraries/newlib"
+hash = "620fb15d43c6e42cb46a00fca91d256e8cd2c416"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "newlib: expose continued child wait state"

@@ -6503,3 +6503,11 @@ path = "binaries/msh"
 hash = "a351b3e5983e3a8f1c08c132d7549251b877e6b9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use native context for shell thread identity"
+
+[[entries]]
+date = "2026-10-08T09:43:59.882072319+09:00"
+snapshot = "e981f1aa8d7f17cf4373f3aa"
+path = "core"
+hash = "748f02790bc29dc431f5428cc6adc83cd4df0cb5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove dead Linux brk ABI"

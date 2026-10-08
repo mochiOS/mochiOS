@@ -6943,3 +6943,11 @@ path = "applications/viewer"
 hash = "8d0770a2f3b5657f66cf5806dcf20bcb9c7a5df7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "viewer: record POSIX document dependencies"
+
+[[entries]]
+date = "2026-10-08T14:00:31.146385622+09:00"
+snapshot = "a23355750cd432e96b5da66d"
+path = "core"
+hash = "840a51e473d72c64ef5299091e3a381014fcbe77"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "kernel: remove file fstat syscall ABI"

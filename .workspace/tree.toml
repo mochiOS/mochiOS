@@ -7135,3 +7135,11 @@ path = "services"
 hash = "f38518b002823d0a94b35b43d68b7d919a019915"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: validate provider readiness ABI"
+
+[[entries]]
+date = "2026-10-08T16:33:35.365994913+09:00"
+snapshot = "af4778d3af0b81ca130324be"
+path = "services"
+hash = "1e741bd6267b465809ddf51d0b255d3185d43512"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: publish PTY readiness signals"

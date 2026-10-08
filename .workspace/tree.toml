@@ -6663,3 +6663,11 @@ path = "libraries/libc"
 hash = "7503c2859a9e6473a9360bb06c307bfe77f46d56"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose mochiOS pthread ABI to Rust"
+
+[[entries]]
+date = "2026-10-08T11:36:58.595717240+09:00"
+snapshot = "949413201a1c67f02219b982"
+path = "services"
+hash = "64a101a4170c8382185e920e57a84d700ae4d4d9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test native nanosleep fast path"

@@ -6967,3 +6967,11 @@ path = "core"
 hash = "78c350b0c70f28e7aa2286cae05b656b66f9ba45"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "kernel: remove legacy file handle IPC internals"
+
+[[entries]]
+date = "2026-10-08T14:09:11.339045385+09:00"
+snapshot = "359fbd244ae3963c036ae3ba"
+path = "user"
+hash = "00d755a2bfe466de0bb5f5873a0f980baca52019"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "platform: remove legacy file transfer right"

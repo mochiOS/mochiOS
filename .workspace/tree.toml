@@ -6543,3 +6543,11 @@ path = "core"
 hash = "80f2d113ad09ad7c7fa62b41a7e8e4c190237804"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove dead Linux signal configuration ABI"
+
+[[entries]]
+date = "2026-10-08T09:52:39.131175947+09:00"
+snapshot = "cd00a2c4fa22f8396638c2a7"
+path = "binaries/coreutils"
+hash = "005aa5d3a03e8055544f8caf35c21d23f3d61612"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Drop retired futex performance metrics"

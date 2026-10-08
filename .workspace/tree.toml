@@ -7231,3 +7231,11 @@ path = "services"
 hash = "def1a081f8138ae9ad1bb4353f622dcf1ad8894c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: deliver terminal input signals"
+
+[[entries]]
+date = "2026-10-08T18:34:16.110350426+09:00"
+snapshot = "6b326faefa4c623d00629d82"
+path = "services"
+hash = "08d4d5529322ca7c2ebacae45a6871952810e4ec"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: guard native process suspension boundary"

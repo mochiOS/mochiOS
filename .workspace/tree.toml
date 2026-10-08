@@ -7167,3 +7167,11 @@ path = "services"
 hash = "7e7bdee7e91d0715309c65f8e21ea9440d9e3943"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: reject unsupported PTY controls"
+
+[[entries]]
+date = "2026-10-08T16:58:59.930497978+09:00"
+snapshot = "5928e7c3e253dd2315e961fa"
+path = "services"
+hash = "8823387832669aeb0a8896e4e435c1e56d97f0b0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: store terminal attributes on PTYs"

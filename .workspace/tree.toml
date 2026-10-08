@@ -6751,3 +6751,11 @@ path = "services"
 hash = "f1366e992c2c5c0f8134e8579fa71a3a1e4f91c9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "service-manager: use mutable launch context API"
+
+[[entries]]
+date = "2026-10-08T12:54:53.676472095+09:00"
+snapshot = "3d4c99c5699831d0e148d190"
+path = "services"
+hash = "8b9f2cb86a7631af5a1c809d7dbd8fd2580f9230"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test inherited fd launch metadata"

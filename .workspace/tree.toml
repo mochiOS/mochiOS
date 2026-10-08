@@ -6567,3 +6567,11 @@ path = "services"
 hash = "690fee28a8489c54250decf3d2670a64317a26b6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh service dependency lock"
+
+[[entries]]
+date = "2026-10-08T10:15:40.733926038+09:00"
+snapshot = "628d6163e91fa2745da293b5"
+path = "libraries/rust"
+hash = "52fab7ec7146890526a854454fb2eb1c43305390"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use native address waits for synchronization"

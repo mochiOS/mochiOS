@@ -6799,3 +6799,11 @@ path = "services"
 hash = "b40ee5561ebdac4554cdcdb9ce068c49cdb80e45"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify launch context fd inheritance"
+
+[[entries]]
+date = "2026-10-08T13:09:55.713391411+09:00"
+snapshot = "e38fd64e82f4a1c1019c3008"
+path = "binaries/msh"
+hash = "c6eba46255c2a9a498c6f3dd26831b19d4ccd669"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "msh: route exec through libc"

@@ -7103,3 +7103,11 @@ path = "services"
 hash = "afaa38e4dac5ab88184fa1a2e57c2782dc92478a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test executable PATH search"
+
+[[entries]]
+date = "2026-10-08T15:55:33.376234934+09:00"
+snapshot = "420c808478ab7b1733a4e074"
+path = "user"
+hash = "cb0fa5662881a8301d8bdae43b58a3740a1344ad"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "newlib: expose process group aliases"

@@ -6535,3 +6535,11 @@ path = "core"
 hash = "692c6413ac774ff786ff82f6112e4ddc47c8c31a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove dead Linux thread signal ABI"
+
+[[entries]]
+date = "2026-10-08T09:49:16.066281613+09:00"
+snapshot = "075538aa0e9b7b1089b9b8b0"
+path = "core"
+hash = "80f2d113ad09ad7c7fa62b41a7e8e4c190237804"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove dead Linux signal configuration ABI"

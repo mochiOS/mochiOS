@@ -6823,3 +6823,11 @@ path = "core"
 hash = "174314365238355a936cc53ca5e86dd6ef6a8cad"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "process: replace images from authorized handles"
+
+[[entries]]
+date = "2026-10-08T13:20:54.038590935+09:00"
+snapshot = "5b2a7e7214d6cc618d6cd27d"
+path = "services"
+hash = "f63eedb0bdce7d99769086264f5f35ed68809538"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify user-space process entry layout"

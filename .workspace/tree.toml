@@ -7319,3 +7319,11 @@ path = "services"
 hash = "e7fc28f048792b52d1450f936f6066024ca267cd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(package): reuse native package reader and cover read boundaries"
+
+[[entries]]
+date = "2026-10-09T15:42:26.615521724+09:00"
+snapshot = "bc4cd22f9afcb4834a31a24a"
+path = "services"
+hash = "302163dfd9407f58fe6a7f0ca24eb62446cd733f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(signature): receive POSIX endpoint and read through native Handles"

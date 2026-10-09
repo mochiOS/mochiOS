@@ -7327,3 +7327,11 @@ path = "services"
 hash = "302163dfd9407f58fe6a7f0ca24eb62446cd733f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(signature): receive POSIX endpoint and read through native Handles"
+
+[[entries]]
+date = "2026-10-09T15:45:32.661447569+09:00"
+snapshot = "a9186b9411d3f758741c2d98"
+path = "services"
+hash = "1b7583d5d6ac17da8a015484b1cbbade7ca38862"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(services): read runtime manifests through userspace POSIX std"

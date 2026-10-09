@@ -7343,3 +7343,11 @@ path = "services"
 hash = "582d1c8f82e7207ef9e010384c4ea02786e57e83"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(drivers): authenticate discovery control sender authority"
+
+[[entries]]
+date = "2026-10-09T15:52:45.907591955+09:00"
+snapshot = "38da9371057d0848585c73eb"
+path = "services"
+hash = "74c91b4f357a959561f06fc14b79c8d6dd038d4d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(drivers): inherit POSIX endpoint after filesystem startup"

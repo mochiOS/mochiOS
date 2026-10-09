@@ -7295,3 +7295,11 @@ path = "services"
 hash = "1e55796cf1dfb2dc6057c13f35a3d06d2208e09e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify native memory protection boundary"
+
+[[entries]]
+date = "2026-10-09T15:28:44.273338404+09:00"
+snapshot = "7da85d8c49084730f9a8db44"
+path = "services"
+hash = "65b738e32085de0e14ee3c53d0d050664c4fcee1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): guard native sample file and mapping ABI"

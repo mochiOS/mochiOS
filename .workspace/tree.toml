@@ -7335,3 +7335,11 @@ path = "services"
 hash = "1b7583d5d6ac17da8a015484b1cbbade7ca38862"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(services): read runtime manifests through userspace POSIX std"
+
+[[entries]]
+date = "2026-10-09T15:48:36.771948874+09:00"
+snapshot = "dcfeb5a1b50b066c5d206c5e"
+path = "services"
+hash = "582d1c8f82e7207ef9e010384c4ea02786e57e83"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(drivers): authenticate discovery control sender authority"

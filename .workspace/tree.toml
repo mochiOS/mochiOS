@@ -7311,3 +7311,11 @@ path = "services"
 hash = "ac5ae2ebe9c23d5f1214ed110e7c42bd10a498a1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): guard removal of legacy FileWrite ABI"
+
+[[entries]]
+date = "2026-10-09T15:34:53.451408720+09:00"
+snapshot = "a60e66103417e42844db7522"
+path = "services"
+hash = "e7fc28f048792b52d1450f936f6066024ca267cd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(package): reuse native package reader and cover read boundaries"

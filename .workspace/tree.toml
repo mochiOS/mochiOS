@@ -7303,3 +7303,11 @@ path = "services"
 hash = "65b738e32085de0e14ee3c53d0d050664c4fcee1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): guard native sample file and mapping ABI"
+
+[[entries]]
+date = "2026-10-09T15:31:27.727067663+09:00"
+snapshot = "728f3408f0bae40d7aedbed6"
+path = "services"
+hash = "ac5ae2ebe9c23d5f1214ed110e7c42bd10a498a1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): guard removal of legacy FileWrite ABI"

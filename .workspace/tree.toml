@@ -7615,3 +7615,11 @@ path = "services"
 hash = "2dd2a6ad2f1b114eace38410c80136618b587008"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(filesystem): preserve sequential I/O progress and shared offsets"
+
+[[entries]]
+date = "2026-10-11T17:07:43.126193111+09:00"
+snapshot = "e5d74809305de9beac4831bd"
+path = "services"
+hash = "aadf594ed54f3d0116025ef873d94b2438cac2be"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(service-manager): launch display through image and process handles"

@@ -7815,3 +7815,11 @@ path = "services"
 hash = "fa6b17cc2d9c60554bacf96ed10c8ba09678eca2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "capability: launch applications through native creation and POSIX child registration"
+
+[[entries]]
+date = "2026-10-11T20:01:26.870383414+09:00"
+snapshot = "2f8d4f8322f0ec07c078e4a8"
+path = "services"
+hash = "76a60c4ed18ea3cd8dac0e72bd73ce773af5d1c4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: reclaim failed broker launches without unreported children"

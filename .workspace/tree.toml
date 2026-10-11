@@ -7575,3 +7575,11 @@ path = "services"
 hash = "3eac134320f178900ee483a9162bb1b7693b9049"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(service-manager): encode native launch context in user space"
+
+[[entries]]
+date = "2026-10-11T16:34:00.245073053+09:00"
+snapshot = "8e7eed716672737f12ce754b"
+path = "services"
+hash = "a8cd1899f534bf1e97f93d184e309fb70a8d7d96"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify explicit native creation labels and v2 metadata"

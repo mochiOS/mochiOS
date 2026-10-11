@@ -8135,3 +8135,11 @@ path = "services"
 hash = "569f64637df1a3c8a7ff0786e7a7ac07af019643"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Separate userspace credential policy from kernel context ABI"
+
+[[entries]]
+date = "2026-10-11T23:42:09.884063921+09:00"
+snapshot = "f7e3396d3e8cd0fdd706b934"
+path = "services"
+hash = "222669839ef72f69a68f438b4e8dbc4032024244"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use native endpoint identity for workspace file panels"

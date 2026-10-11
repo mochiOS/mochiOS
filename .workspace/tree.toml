@@ -7511,3 +7511,11 @@ path = "services"
 hash = "0a86f5b32d08eb5f5a8c828cb92b6de73b34c7eb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): guard removal of retired kernel pathname policy"
+
+[[entries]]
+date = "2026-10-11T15:42:00.839966469+09:00"
+snapshot = "6c32eb43832e0276e8401599"
+path = "services"
+hash = "62eff5d9256996a90e8290f5e3f97f314bd941ef"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify single-transfer vector I/O and short pipe reads"

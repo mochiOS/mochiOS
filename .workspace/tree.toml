@@ -7711,3 +7711,11 @@ path = "services"
 hash = "4a83d3f7b23043bcd0cbb971590d21dd3b20b3d4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(service-manager): launch and watch secure login through native process handles"
+
+[[entries]]
+date = "2026-10-11T18:20:56.552904659+09:00"
+snapshot = "4252ef6a9d66432fb10779c9"
+path = "services"
+hash = "d5af00af679cfda5bf54bc81015da1de711cf716"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(service-manager): use native process and endpoint handles for permission prompts"

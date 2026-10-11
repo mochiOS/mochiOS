@@ -7631,3 +7631,11 @@ path = "services"
 hash = "a2cd45bb2e4460a4f215671636a8ae025bbe1110"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(service-manager): create and watch drivers through retained handles"
+
+[[entries]]
+date = "2026-10-11T17:14:14.942434100+09:00"
+snapshot = "aeb39337a57e7bb7de5acf96"
+path = "services"
+hash = "c69432744f27c812eba6d53f6cc311e145e36011"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify clock translation against SDK definitions"

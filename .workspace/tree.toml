@@ -8623,3 +8623,11 @@ path = "services"
 hash = "d53bd22110a7f0bf09ab1ecb980be01052312a07"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Cover repeated detached pthread retirement and exclusive reclamation"
+
+[[entries]]
+date = "2026-10-12T08:25:30.170895333+09:00"
+snapshot = "51ae21cc25f2bac2aed37b4c"
+path = "services"
+hash = "1ffa7848c983231eda559a00254eb3be3f91d2cd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Track and deliver thread-directed pending signals with SIGPIPE regressions"

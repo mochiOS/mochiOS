@@ -8207,3 +8207,11 @@ path = "services"
 hash = "9366ca0c31b23487b1aec054a49e4b26be91ba7d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify userspace credential boundary after kernel state removal"
+
+[[entries]]
+date = "2026-10-12T00:37:54.944401983+09:00"
+snapshot = "dec04a205d7953909f994fcc"
+path = "services"
+hash = "f85de3cf201391351ff60c1e8d738631cd234d84"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Require absolute native path grants and verify userspace cwd boundary"

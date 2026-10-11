@@ -8119,3 +8119,11 @@ path = "services"
 hash = "7ed8609f411c75b3cdf7b7d04daf647a8185485a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retain failed native launch owners until POSIX rollback completes"
+
+[[entries]]
+date = "2026-10-11T23:32:37.143195964+09:00"
+snapshot = "ad2255bc0cf96d5b9a93b81c"
+path = "services"
+hash = "7895f5827c5eb8efcee6889e4ca8b4100dea6c49"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise production launch rollback queue under native and IPC failures"

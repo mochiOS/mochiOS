@@ -7759,3 +7759,11 @@ path = "services"
 hash = "b86d6262eb8e054d05d56c3e00fe999bb10f064d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify attached fresh child credentials through real newlib IPC"
+
+[[entries]]
+date = "2026-10-11T18:50:58.525997339+09:00"
+snapshot = "18a950a7299d9fdcd05ed14e"
+path = "services"
+hash = "dade564f2963d2fb5c2a5490c5141acc18df5685"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(service-manager): clean stopped children when userspace setup fails"

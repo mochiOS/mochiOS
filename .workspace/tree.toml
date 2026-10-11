@@ -7983,3 +7983,11 @@ path = "services"
 hash = "1fd36240bc40f92b192c4e6427e55fbf0a83513a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove unused launch-thread session identity fallback"
+
+[[entries]]
+date = "2026-10-11T21:31:51.801805279+09:00"
+snapshot = "c6ea55671c8cba363608dcd4"
+path = "services"
+hash = "92958a42f247cc11760a4ef226b8e18b66bbbc93"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Select launched process trees using userspace parent relationships"

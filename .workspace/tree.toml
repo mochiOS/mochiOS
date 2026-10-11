@@ -8391,3 +8391,11 @@ path = "services"
 hash = "1522ba72092ac0842b50ecb33daaadfb36b63623"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reset caught dispositions only after successful image startup"
+
+[[entries]]
+date = "2026-10-12T04:28:10.913888493+09:00"
+snapshot = "09ca317cfb772b91e23cbb6b"
+path = "services"
+hash = "56301369c8ef49233bf0944c4c2a6ff635788f01"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Manage per-thread signal masks using authenticated IPC identity"

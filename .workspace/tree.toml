@@ -8215,3 +8215,11 @@ path = "services"
 hash = "f85de3cf201391351ff60c1e8d738631cd234d84"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Require absolute native path grants and verify userspace cwd boundary"
+
+[[entries]]
+date = "2026-10-12T00:50:58.675611940+09:00"
+snapshot = "c81b9a725a3b155ee4663575"
+path = "services"
+hash = "d694c65ca06231b40ee9d7dd501ade5527843a97"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test parent-independent native exit reclamation"

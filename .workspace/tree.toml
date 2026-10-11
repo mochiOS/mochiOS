@@ -8375,3 +8375,11 @@ path = "services"
 hash = "7d6fd2120cc82492c8d25b31cee3c914087b02bd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native result decoding and successful exec FD inheritance"
+
+[[entries]]
+date = "2026-10-12T03:58:52.430997746+09:00"
+snapshot = "19b9bff41f90ad4353bcae6f"
+path = "services"
+hash = "257d47033c8fdc8d69861592234cdefd85cde3f8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Manage signal dispositions and fork inheritance in POSIX service"

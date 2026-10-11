@@ -8383,3 +8383,11 @@ path = "services"
 hash = "257d47033c8fdc8d69861592234cdefd85cde3f8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Manage signal dispositions and fork inheritance in POSIX service"
+
+[[entries]]
+date = "2026-10-12T04:17:08.104210761+09:00"
+snapshot = "2471281cb00c3942f1ef7d4f"
+path = "services"
+hash = "1522ba72092ac0842b50ecb33daaadfb36b63623"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reset caught dispositions only after successful image startup"

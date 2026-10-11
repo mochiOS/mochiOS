@@ -7847,3 +7847,11 @@ path = "services"
 hash = "759b88ef8d68d052b4ad4d0eda20b8494fad4d35"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "service-manager: create session images with userspace POSIX credentials"
+
+[[entries]]
+date = "2026-10-11T20:17:07.509473595+09:00"
+snapshot = "196a3e8e79e9c076a1adc7d7"
+path = "services"
+hash = "000beeed98a91ddc2ea7280976b4d9e57db9a94b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "input: expose startup stages before readiness for POSIX boot diagnostics"

@@ -7863,3 +7863,11 @@ path = "services"
 hash = "f9a8a9e05fe5db145d7eead082b15f31756ec4fc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): measure full dictionary reads with inherited endpoint"
+
+[[entries]]
+date = "2026-10-11T20:24:32.693837970+09:00"
+snapshot = "b5a39418ac7feacbee8f0313"
+path = "services"
+hash = "3b7096cb84ab280a4fa30eeeab08821ce5a4e91a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(service-manager): resolve native identity before process resume"

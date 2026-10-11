@@ -8191,3 +8191,11 @@ path = "services"
 hash = "5147f9720eead25b6a091f2f9816c455cc549879"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify credential-free native security identity across POSIX consumers"
+
+[[entries]]
+date = "2026-10-12T00:27:18.099704682+09:00"
+snapshot = "d33267add8375933f6a56bb9"
+path = "services"
+hash = "a0a587775b6532598e599b16063ed1b3e7dfce96"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Guard against kernel POSIX credential mutation reintroduction"

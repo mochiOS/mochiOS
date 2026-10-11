@@ -7663,3 +7663,11 @@ path = "services"
 hash = "a348c11f6bf6da72913bb8b38220fba03f2ad48c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify newlib errno constants and native API failures"
+
+[[entries]]
+date = "2026-10-11T17:45:33.829339966+09:00"
+snapshot = "6bf84c19f5ed049543c08336"
+path = "services"
+hash = "07b47be9fa612cdc1001cdbddbbe13cb1ad46e4b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify clock sleep deadlines interruption and errno"

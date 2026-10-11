@@ -7375,3 +7375,11 @@ path = "services"
 hash = "4dff66b7fe58bee1ffee1e9b44743bd3e2851621"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(filesystem): preserve progress in positioned I/O"
+
+[[entries]]
+date = "2026-10-11T14:17:16.206259374+09:00"
+snapshot = "fa1bd521a5a7747ebb968362"
+path = "services"
+hash = "16c40dc5c1bed117baf36c144518257b1001fecc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise positioned handle rights and mapping coherence"

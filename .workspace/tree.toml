@@ -8039,3 +8039,11 @@ path = "services"
 hash = "9751b18e80e273cb5fb3ce90abc7fd79e14eeb41"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Separate tree exit confirmation from owned resource reclamation"
+
+[[entries]]
+date = "2026-10-11T22:07:47.642479970+09:00"
+snapshot = "c700bbfff79d0d46a2d80a0d"
+path = "services"
+hash = "6c49876a8707878d317031aaf01719a296c8fffe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use two-phase tree IPC with owner-bound exit acknowledgement"

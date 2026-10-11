@@ -7911,3 +7911,11 @@ path = "services"
 hash = "31ba49ae8db4c43902678e4b668873b66c77ddf3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement atomic POSIX setreuid and setregid state transitions"
+
+[[entries]]
+date = "2026-10-11T20:56:10.566002318+09:00"
+snapshot = "5f340d5e5d776ffe9d8b2b35"
+path = "services"
+hash = "d48e7efd1b7352192d884da40ab27bb65b3fa281"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Permit effective credential no-op without losing saved IDs"

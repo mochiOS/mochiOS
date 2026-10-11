@@ -8087,3 +8087,11 @@ path = "services"
 hash = "969fca25324a83aba420725776b207d3f991865d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify endpoint identity permissions and POSIX signal registration in KVM"
+
+[[entries]]
+date = "2026-10-11T23:13:28.213816507+09:00"
+snapshot = "01d8e9cfaa2d12f6b2c849cc"
+path = "services"
+hash = "c222aab0b47171fe560d83af4d0dc27768caf604"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reparent and reap orphaned POSIX processes in userspace"

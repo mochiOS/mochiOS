@@ -8455,3 +8455,11 @@ path = "services"
 hash = "0fa7297c031814736c8b1397fb79923b05552839"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify active upcall preservation and reset across image replacement"
+
+[[entries]]
+date = "2026-10-12T05:20:59.768561618+09:00"
+snapshot = "12fec1f63d42586f1847b3b6"
+path = "services"
+hash = "247042b45271c6bf94593e02898c2ba1560af1f6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add native regression exposing siblings surviving image replacement"

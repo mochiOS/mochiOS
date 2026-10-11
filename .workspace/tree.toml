@@ -8023,3 +8023,11 @@ path = "services"
 hash = "86bcbf5211c0bc6d323ea822ca9d08c1946a7269"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve launcher process ownership until tree teardown succeeds"
+
+[[entries]]
+date = "2026-10-11T21:53:22.746878611+09:00"
+snapshot = "a532b96e5ee6005d4ab31ecc"
+path = "services"
+hash = "b1afab26cba03b1a6de568d5cd695075194999e7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Track ordered session teardown progress across failed attempts"

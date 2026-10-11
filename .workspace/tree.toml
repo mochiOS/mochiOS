@@ -7543,3 +7543,11 @@ path = "services"
 hash = "688951476e4753ff71a95d3afddf7fb20b402de3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify sysconf reports actual runtime limits"
+
+[[entries]]
+date = "2026-10-11T16:10:55.136086649+09:00"
+snapshot = "bf5cb15753798d0aaca26005"
+path = "services"
+hash = "bf95f696bde8512d5e1c88c95eabfeb34cfe3c51"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native process creation metadata and authorization gates"

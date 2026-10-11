@@ -8591,3 +8591,11 @@ path = "services"
 hash = "724a56b914bee2aef235b299fe279c170e233266"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify restartable terminal handlers and sleep exceptions"
+
+[[entries]]
+date = "2026-10-12T07:41:26.471933539+09:00"
+snapshot = "a8c2899113421c67c6f97fd8"
+path = "services"
+hash = "a4f3e89584e929960e64dc869bf56e0cd767d6d0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify stream try-I/O and pipe signal interruption"

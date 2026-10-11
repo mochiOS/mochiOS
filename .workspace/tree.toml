@@ -8255,3 +8255,11 @@ path = "services"
 hash = "27c2dbb59ee9eaeb64f8c43737d18e8f58f4c785"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test native private-page isolation with warmed source translations"
+
+[[entries]]
+date = "2026-10-12T01:31:51.904253895+09:00"
+snapshot = "9552d5dad0f882cbfc1fc387"
+path = "services"
+hash = "ac0d8f5cb20426db05ba90443c260089f7b31d6c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify explicit clone resume values and POSIX fork policy"

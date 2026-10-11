@@ -8647,3 +8647,11 @@ path = "services"
 hash = "0f8f1abc19a4de2ce25d8a0db7bf468cb7f0b270"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test negative poll timeouts against Linux and exact finite durations"
+
+[[entries]]
+date = "2026-10-12T08:40:40.482830173+09:00"
+snapshot = "0823e8406bee2defedb0ced3"
+path = "services"
+hash = "ea2d59cc3fa128628b549024b756cc26d50d141a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify masked multiplex entry races and signal mask restoration"

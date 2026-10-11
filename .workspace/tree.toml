@@ -8015,3 +8015,11 @@ path = "services"
 hash = "90a227a5d6fffad219df863b455eeac3f0ad2bde"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Authenticate explicit process objects for launched-tree termination IPC"
+
+[[entries]]
+date = "2026-10-11T21:48:58.439075450+09:00"
+snapshot = "bbbd48f16603d8ca7d5ac896"
+path = "services"
+hash = "86bcbf5211c0bc6d323ea822ca9d08c1946a7269"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve launcher process ownership until tree teardown succeeds"

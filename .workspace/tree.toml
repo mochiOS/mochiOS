@@ -8199,3 +8199,11 @@ path = "services"
 hash = "a0a587775b6532598e599b16063ed1b3e7dfce96"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Guard against kernel POSIX credential mutation reintroduction"
+
+[[entries]]
+date = "2026-10-12T00:32:45.517837808+09:00"
+snapshot = "6bbb6e00e8b3ff3554634155"
+path = "services"
+hash = "9366ca0c31b23487b1aec054a49e4b26be91ba7d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify userspace credential boundary after kernel state removal"

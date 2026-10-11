@@ -8415,3 +8415,11 @@ path = "services"
 hash = "230d07fc56e818150a82dd98741369740ec8b7db"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify C signal masks across handlers threads fork and exec"
+
+[[entries]]
+date = "2026-10-12T04:46:41.591052226+09:00"
+snapshot = "adfa93c4de520acc5c3c9676"
+path = "services"
+hash = "584a7415a563e916f650cb92c8e7a64f42532c74"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retire unauthenticated signal dequeue and migrate its tests"

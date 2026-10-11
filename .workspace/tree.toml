@@ -8407,3 +8407,11 @@ path = "services"
 hash = "609e1d147ef7063617a13497440f7a8c3a22c109"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use service-owned thread masks for authenticated signal delivery"
+
+[[entries]]
+date = "2026-10-12T04:44:13.651130014+09:00"
+snapshot = "7ea186029ad523107862c34f"
+path = "services"
+hash = "230d07fc56e818150a82dd98741369740ec8b7db"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify C signal masks across handlers threads fork and exec"

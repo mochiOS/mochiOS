@@ -8151,3 +8151,11 @@ path = "services"
 hash = "7b6acb0a26cc22ab2e45345340540c0d74a795d8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Hang up foreground terminal groups when controlling processes exit"
+
+[[entries]]
+date = "2026-10-11T23:54:18.285478186+09:00"
+snapshot = "f5bdaf9250d5f0ba26b4301a"
+path = "services"
+hash = "ef2ecaea0d9cd030bbde7dfd00cd8aae4337b9f0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Hang up and continue newly orphaned stopped process groups"

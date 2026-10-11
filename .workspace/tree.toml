@@ -8359,3 +8359,11 @@ path = "services"
 hash = "7abb41bae29ce89710b1c7741da4ee07895ab4a6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify newlib native fork inheritance and shared file offsets in KVM"
+
+[[entries]]
+date = "2026-10-12T03:36:26.186560206+09:00"
+snapshot = "94c53457f9641ba7871fc9dd"
+path = "services"
+hash = "9408ffa9cfbba180195a88e5ef81734f32d01e58"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Move clone integration coverage onto explicit native process creation"

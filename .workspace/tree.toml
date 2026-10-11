@@ -7735,3 +7735,11 @@ path = "services"
 hash = "ddb4a79dc8d1e603bebcdf79f09ed5b836183bb0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native secure-ui endpoint publication and denial on KVM"
+
+[[entries]]
+date = "2026-10-11T18:32:06.247094038+09:00"
+snapshot = "15ac69914214de3010320766"
+path = "services"
+hash = "fd61aa108e814e28f02b482209d8a8873216da10"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(service-manager): retire remaining legacy secure-ui launch paths"

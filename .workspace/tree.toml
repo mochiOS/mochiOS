@@ -8447,3 +8447,11 @@ path = "services"
 hash = "0333256427cb3a6f5dd5b265bbba147cf2c2b2de"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reclaim caller signal deliveries after authenticated image startup"
+
+[[entries]]
+date = "2026-10-12T05:17:30.911826763+09:00"
+snapshot = "cdb83e1c14c652a406238a7d"
+path = "services"
+hash = "0fa7297c031814736c8b1397fb79923b05552839"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify active upcall preservation and reset across image replacement"

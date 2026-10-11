@@ -8575,3 +8575,11 @@ path = "services"
 hash = "f76e48f6a0abaa1231997041579f93b032b59eb6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify terminal operation restart after process stops"
+
+[[entries]]
+date = "2026-10-12T07:22:25.050429646+09:00"
+snapshot = "5f5ef21574c5e45273010590"
+path = "services"
+hash = "bf962de0ccdf6fa551bf8b88791592bd0d6fedf9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify upcall delivery during empty terminal waits"

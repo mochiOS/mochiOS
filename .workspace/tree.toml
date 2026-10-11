@@ -7999,3 +7999,11 @@ path = "services"
 hash = "8b8dc82311b77c7739e95b5e1b14826b18e1bd40"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retain launched process trees until every native exit is confirmed"
+
+[[entries]]
+date = "2026-10-11T21:37:17.193018120+09:00"
+snapshot = "ad217668e76d364b71609f0d"
+path = "services"
+hash = "54ec5310dbadfbf146eb6806843786bf324d891c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test handle-only launched-tree termination protocol"

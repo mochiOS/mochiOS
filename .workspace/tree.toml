@@ -8279,3 +8279,11 @@ path = "services"
 hash = "dc3d63d04d48e51e29d9d6e6ed6a07e12c6838fc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Guard shared VM image creation and installation in clone backend"
+
+[[entries]]
+date = "2026-10-12T01:56:26.832138023+09:00"
+snapshot = "d4a273329df4b4330309bf19"
+path = "services"
+hash = "a76aa81aae025de1fe52ae4e24d366bf64f253fe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native thread registers TLS flags and pthread lifecycle"

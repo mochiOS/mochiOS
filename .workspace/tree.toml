@@ -7551,3 +7551,11 @@ path = "services"
 hash = "bf95f696bde8512d5e1c88c95eabfeb34cfe3c51"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native process creation metadata and authorization gates"
+
+[[entries]]
+date = "2026-10-11T16:20:17.983908841+09:00"
+snapshot = "0aef082a504f5c8fe1633591"
+path = "services"
+hash = "2ac7e9c7c8ef3945e281119e9935d154633598d8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise authorized process creation and attenuated inheritance"

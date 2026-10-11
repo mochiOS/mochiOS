@@ -7479,3 +7479,11 @@ path = "services"
 hash = "e5b5ede41c3a93914fe6fbb84f66d88005b7b4eb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): add bounded read-only bootstrap wire requests"
+
+[[entries]]
+date = "2026-10-11T15:24:04.971200685+09:00"
+snapshot = "e992756c161f6928ffb31af0"
+path = "services"
+hash = "0d0502237873ec0f3edfd914fad9db10530d7af1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(capability): delegate bootstrap reads over a restricted IPC Handle"

@@ -8607,3 +8607,11 @@ path = "services"
 hash = "d48ca451d40eddcb08be43345fc74fb3134a3daf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify stale wait guards and invalid memory rejection"
+
+[[entries]]
+date = "2026-10-12T08:12:51.714333768+09:00"
+snapshot = "b9e7831d1fe796b969b7cf1b"
+path = "services"
+hash = "589eaf0761197fad7620f9a313e95f7831e6ebde"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify pthread retirement before stack reclamation"

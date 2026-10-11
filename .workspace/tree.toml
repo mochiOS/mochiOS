@@ -8423,3 +8423,11 @@ path = "services"
 hash = "584a7415a563e916f650cb92c8e7a64f42532c74"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retire unauthenticated signal dequeue and migrate its tests"
+
+[[entries]]
+date = "2026-10-12T04:58:29.781547470+09:00"
+snapshot = "5a5621b8ead376d85f91c251"
+path = "services"
+hash = "9adce3ffffb1737318d3661d7cceb2aff31a6688"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reclaim terminated signal thread masks and retained handles"

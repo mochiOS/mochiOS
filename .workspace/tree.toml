@@ -7471,3 +7471,11 @@ path = "services"
 hash = "d2bc6ee92b0e91fc56fc5ad88a9afa1d53eb2aa7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(filesystem): preserve bootstrap path error kinds"
+
+[[entries]]
+date = "2026-10-11T15:12:24.807947515+09:00"
+snapshot = "94d15020a54c72f67234d4ed"
+path = "services"
+hash = "e5b5ede41c3a93914fe6fbb84f66d88005b7b4eb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): add bounded read-only bootstrap wire requests"

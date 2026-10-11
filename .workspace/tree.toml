@@ -8143,3 +8143,11 @@ path = "services"
 hash = "222669839ef72f69a68f438b4e8dbc4032024244"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use native endpoint identity for workspace file panels"
+
+[[entries]]
+date = "2026-10-11T23:47:20.677160733+09:00"
+snapshot = "76109ea5e03424e279530caf"
+path = "services"
+hash = "7b6acb0a26cc22ab2e45345340540c0d74a795d8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Hang up foreground terminal groups when controlling processes exit"

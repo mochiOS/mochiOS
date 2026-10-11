@@ -7703,3 +7703,11 @@ path = "services"
 hash = "b948b5fbc67cfb28bb626d892a9f70634decdd13"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(service-manager): launch Update with retained native process ownership"
+
+[[entries]]
+date = "2026-10-11T18:10:51.877203446+09:00"
+snapshot = "7e27a20d0f137cb8ffcdab38"
+path = "services"
+hash = "4a83d3f7b23043bcd0cbb971590d21dd3b20b3d4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(service-manager): launch and watch secure login through native process handles"

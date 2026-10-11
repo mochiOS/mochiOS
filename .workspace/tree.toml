@@ -7831,3 +7831,11 @@ path = "services"
 hash = "50f2ab3d2eee699e24ad4b79af1f5588946fbba0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify requester launch retirement and native replacement"
+
+[[entries]]
+date = "2026-10-11T20:08:03.787358800+09:00"
+snapshot = "5406a1c8467ede3f02dacb75"
+path = "services"
+hash = "0e6548421927614279bbc02d3225fa1edca855cd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: support creator-owned rollback for fresh session images"

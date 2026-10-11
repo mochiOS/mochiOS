@@ -7455,3 +7455,11 @@ path = "services"
 hash = "42ed7335b425d7e6241b1b163bebc2e5265f31fb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(capability): propagate bootstrap index errors and remove lookup fallback"
+
+[[entries]]
+date = "2026-10-11T15:03:59.011895210+09:00"
+snapshot = "57662ee6551bc6e06a00cf79"
+path = "services"
+hash = "2769468f61028b614cb7af7355e6a895306c69b9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): add bounded bootstrap range reads and directory pages"

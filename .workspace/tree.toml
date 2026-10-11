@@ -8303,3 +8303,11 @@ path = "services"
 hash = "c59d7dcdf4488c109e1209049006222c1ada0dad"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test explicit process creation contexts and image discrimination"
+
+[[entries]]
+date = "2026-10-12T02:18:21.473942816+09:00"
+snapshot = "1cca93be3b91dd0244569d83"
+path = "services"
+hash = "6d2a8a76cd7dc0120ca6237b41955989001aa948"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify one-shot VM image creation and explicit native context in KVM"

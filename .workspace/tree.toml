@@ -8439,3 +8439,11 @@ path = "services"
 hash = "f44e722aa434ff1cd0e1959b212637d250a336e5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reclaim deliveries abandoned by terminated signal threads"
+
+[[entries]]
+date = "2026-10-12T05:11:53.756079020+09:00"
+snapshot = "515e5119a5d80d8d7dfa3d08"
+path = "services"
+hash = "0333256427cb3a6f5dd5b265bbba147cf2c2b2de"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reclaim caller signal deliveries after authenticated image startup"

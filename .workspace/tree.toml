@@ -8519,3 +8519,11 @@ path = "services"
 hash = "dcfb6843ca456681c585b448629fca2eaac45338"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native user return against preemption after CR3 switch"
+
+[[entries]]
+date = "2026-10-12T06:27:23.623032132+09:00"
+snapshot = "38ef79271324c109f9e709ca"
+path = "services"
+hash = "33170606b86ec521773cf1865984a7bbc6e27ee0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement PTY IXON output stop and start flow control"

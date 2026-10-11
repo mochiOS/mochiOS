@@ -8175,3 +8175,11 @@ path = "services"
 hash = "12d63feee5f28572d541005221f97eeb396f257a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Hang up PTY controlling processes on final master release"
+
+[[entries]]
+date = "2026-10-12T00:09:57.068208896+09:00"
+snapshot = "3d2d7fc847d7f2495e5af466"
+path = "services"
+hash = "7914d1e705b3ad917212aff0a08822066831cbbf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Guard example self identity against credential queries"

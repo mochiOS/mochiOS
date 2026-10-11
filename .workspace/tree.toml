@@ -8239,3 +8239,11 @@ path = "services"
 hash = "39067825836155bc183d3ed3adc4a52e9ad7738b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test retained failed-child cleanup and native spawn rollback"
+
+[[entries]]
+date = "2026-10-12T01:13:39.918583316+09:00"
+snapshot = "3bbad48c4ecf1dceeaa50eea"
+path = "services"
+hash = "01f1d3ed7e6cbe7f9960341d70af1120d1ed275d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify parent-free native inspection ABI and consumers"

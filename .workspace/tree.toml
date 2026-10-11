@@ -7407,3 +7407,11 @@ path = "services"
 hash = "8017195ef10a39d7019ed6dff328a10d46dc7869"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(workspace): normalize errno before encoding failure responses"
+
+[[entries]]
+date = "2026-10-11T14:34:09.070313270+09:00"
+snapshot = "457f5b339952101ed0dea930"
+path = "services"
+hash = "536ba0025a64a370459f62f50aecceddab8dbe5d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(services): preserve signed account and permission failures"

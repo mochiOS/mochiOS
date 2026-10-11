@@ -7823,3 +7823,11 @@ path = "services"
 hash = "76a60c4ed18ea3cd8dac0e72bd73ce773af5d1c4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: reclaim failed broker launches without unreported children"
+
+[[entries]]
+date = "2026-10-11T20:05:42.966327566+09:00"
+snapshot = "bc0749b73d382a884e0dee1c"
+path = "services"
+hash = "50f2ab3d2eee699e24ad4b79af1f5588946fbba0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify requester launch retirement and native replacement"

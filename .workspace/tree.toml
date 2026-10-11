@@ -8063,3 +8063,11 @@ path = "services"
 hash = "103c1575862c9b15751b6c96f42df2347fa495b1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native POSIX process tree teardown through attenuated IPC handles"
+
+[[entries]]
+date = "2026-10-11T22:38:21.160443010+09:00"
+snapshot = "1e3131c4c21ba3cc85ce398f"
+path = "services"
+hash = "ae8d774764efffa5e9b8eee75bc1f8868a9cc2a6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retain and retry cleanup of unpublished POSIX session launches"

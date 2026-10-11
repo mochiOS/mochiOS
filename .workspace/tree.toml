@@ -7751,3 +7751,11 @@ path = "services"
 hash = "fa8dc18f428086b6bea885df590488bfd3586ba2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): initialize fresh child credentials under userspace authority"
+
+[[entries]]
+date = "2026-10-11T18:49:41.820778369+09:00"
+snapshot = "1b438944c2d636b76c88ba25"
+path = "services"
+hash = "b86d6262eb8e054d05d56c3e00fe999bb10f064d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify attached fresh child credentials through real newlib IPC"

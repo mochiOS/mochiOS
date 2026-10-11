@@ -7655,3 +7655,11 @@ path = "services"
 hash = "2cabe35e45c1db0ff653b4818077c286e2c37af8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(service-manager): retain native compositor process creation handles"
+
+[[entries]]
+date = "2026-10-11T17:37:45.773859678+09:00"
+snapshot = "bdfde84143fffd41c294e964"
+path = "services"
+hash = "a348c11f6bf6da72913bb8b38220fba03f2ad48c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify newlib errno constants and native API failures"

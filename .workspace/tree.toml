@@ -7767,3 +7767,11 @@ path = "services"
 hash = "dade564f2963d2fb5c2a5490c5141acc18df5685"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(service-manager): clean stopped children when userspace setup fails"
+
+[[entries]]
+date = "2026-10-11T18:57:33.482623215+09:00"
+snapshot = "7ffce89789f48da7a96ed79c"
+path = "services"
+hash = "f2fc77865996c90fdd4fd09ebf194a978e266ea2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): authenticate process credential inspection using WAIT-only handles"

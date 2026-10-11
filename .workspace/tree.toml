@@ -8567,3 +8567,11 @@ path = "services"
 hash = "445b8b0162146e288c966ed05d656ff8b6c6f914"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: apply job control to terminal parameter changes"
+
+[[entries]]
+date = "2026-10-12T07:15:55.536084514+09:00"
+snapshot = "f7f885ec18311875f5f975ad"
+path = "services"
+hash = "f76e48f6a0abaa1231997041579f93b032b59eb6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify terminal operation restart after process stops"

@@ -7783,3 +7783,11 @@ path = "services"
 hash = "631faf547d4d0470fe0df0c6be6cf1d0048c1a95"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(capability): source requester credentials from authenticated POSIX state"
+
+[[entries]]
+date = "2026-10-11T19:14:56.218309066+09:00"
+snapshot = "ff8de4e0d6ed9854ec520cf8"
+path = "services"
+hash = "276d520089b418d5f4dc7e245535b49be0589e7d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify checked newlib credential queries at the native boundary"

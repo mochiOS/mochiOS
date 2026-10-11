@@ -8327,3 +8327,11 @@ path = "services"
 hash = "82f18ae31968e90f68a87f85dc36126bb52f9664"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native handle metadata bounds and table isolation"
+
+[[entries]]
+date = "2026-10-12T02:43:05.252884926+09:00"
+snapshot = "29f0129fb6cfa227688bab6a"
+path = "services"
+hash = "a6932c68cab95fab5b7106886d1df9dcf5974e2d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test explicit POSIX handle inheritance and native creation encoding"

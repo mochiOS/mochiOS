@@ -8263,3 +8263,11 @@ path = "services"
 hash = "ac0d8f5cb20426db05ba90443c260089f7b31d6c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify explicit clone resume values and POSIX fork policy"
+
+[[entries]]
+date = "2026-10-12T01:41:17.068442877+09:00"
+snapshot = "4e9aacd33a16a1220d76cd29"
+path = "services"
+hash = "e9ee13fce301c84b7c07bf85dace17504f4680f3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test detached VM image ownership and native handle attenuation"

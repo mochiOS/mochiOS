@@ -8159,3 +8159,11 @@ path = "services"
 hash = "ef2ecaea0d9cd030bbde7dfd00cd8aae4337b9f0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Hang up and continue newly orphaned stopped process groups"
+
+[[entries]]
+date = "2026-10-11T23:58:30.226898100+09:00"
+snapshot = "67f0b5b80ecfef03da0c53c6"
+path = "services"
+hash = "994a7c3fe119358625090b33d7b863a007fea9dc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Discard default catchable job-control stops for orphaned groups"

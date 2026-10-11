@@ -8231,3 +8231,11 @@ path = "services"
 hash = "76e2147f3ea7f3a448835d991377da61743980a6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: authorize creator rollback for fork registrations and absent retries"
+
+[[entries]]
+date = "2026-10-12T01:04:44.673160998+09:00"
+snapshot = "efa37a9b472ad0331191ae31"
+path = "services"
+hash = "39067825836155bc183d3ed3adc4a52e9ad7738b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test retained failed-child cleanup and native spawn rollback"

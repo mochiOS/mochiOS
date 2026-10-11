@@ -7935,3 +7935,11 @@ path = "services"
 hash = "9639db9cdfd97a020ac1d7d09c76132f16262c76"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Initialize POSIX launcher credentials from an inherited process handle"
+
+[[entries]]
+date = "2026-10-11T21:11:19.621463060+09:00"
+snapshot = "fc5ce911bd8cce04c57e1931"
+path = "services"
+hash = "d10a4bebf6962e9d7bb3856a5e22c4c3337cc3b3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Initialize early service POSIX environments through selected bootstrap authority"

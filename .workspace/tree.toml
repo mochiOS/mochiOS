@@ -8103,3 +8103,11 @@ path = "services"
 hash = "f8e2c11672cc7f7133df795f3bc869da32798b3c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Allow POSIX SIGCONT across UID changes within a session"
+
+[[entries]]
+date = "2026-10-11T23:23:24.993070729+09:00"
+snapshot = "54b3ab08898253147faee7af"
+path = "services"
+hash = "1b25193180c8d81772c49e264ec37080d7800b20"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify removal of kernel credential-spawn ABI on host and KVM"

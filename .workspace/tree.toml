@@ -8495,3 +8495,11 @@ path = "services"
 hash = "f68ab60cf678f8e41cf8e00b2a12a96abca1b555"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify image entry releases owning buffers and trace repeated exec"
+
+[[entries]]
+date = "2026-10-12T06:10:05.635259153+09:00"
+snapshot = "d6a01ba49ad1cb3ba8ccbee5"
+path = "services"
+hash = "7f7729f2ef49a650ebeaa8f0e82b04ac76cea2d1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Share PTY window size and deliver foreground resize signals"

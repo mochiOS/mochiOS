@@ -7671,3 +7671,11 @@ path = "services"
 hash = "07b47be9fa612cdc1001cdbddbbe13cb1ad46e4b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify clock sleep deadlines interruption and errno"
+
+[[entries]]
+date = "2026-10-11T17:51:26.668286227+09:00"
+snapshot = "3fe08c46d1743480b66c34c9"
+path = "services"
+hash = "0c1548e4ed95fc3d5720436cb2a116240672f2cc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(service-manager): launch and watch Network through retained native process handles"

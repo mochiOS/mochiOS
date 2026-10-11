@@ -7975,3 +7975,11 @@ path = "services"
 hash = "9e72253f4cfe0ff7a64fa7c74f6a0902f263cfcb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Validate signal threads using policy-free execution identity"
+
+[[entries]]
+date = "2026-10-11T21:29:36.671202867+09:00"
+snapshot = "5280f00d6c8499e761fd597f"
+path = "services"
+hash = "1fd36240bc40f92b192c4e6427e55fbf0a83513a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove unused launch-thread session identity fallback"

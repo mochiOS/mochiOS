@@ -7423,3 +7423,11 @@ path = "services"
 hash = "7117996a5cf8ef2e43411077f554c11491fecfd4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify runtime nofile limits and retained descriptors"
+
+[[entries]]
+date = "2026-10-11T14:45:24.558387850+09:00"
+snapshot = "308fa0b3ffee3e75dbb08627"
+path = "services"
+hash = "bb81ece07df0bf4c3f1376c2c82b5e54c2037680"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover pending open reservations and failure cleanup"

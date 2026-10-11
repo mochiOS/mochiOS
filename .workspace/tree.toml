@@ -8615,3 +8615,11 @@ path = "services"
 hash = "589eaf0761197fad7620f9a313e95f7831e6ebde"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify pthread retirement before stack reclamation"
+
+[[entries]]
+date = "2026-10-12T08:15:31.920423804+09:00"
+snapshot = "3efea20778f2470addeb8b35"
+path = "services"
+hash = "d53bd22110a7f0bf09ab1ecb980be01052312a07"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Cover repeated detached pthread retirement and exclusive reclamation"

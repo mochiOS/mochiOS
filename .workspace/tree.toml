@@ -7351,3 +7351,11 @@ path = "services"
 hash = "74c91b4f357a959561f06fc14b79c8d6dd038d4d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(drivers): inherit POSIX endpoint after filesystem startup"
+
+[[entries]]
+date = "2026-10-11T14:03:20.867086661+09:00"
+snapshot = "a83b3a2420f013a5fd21c934"
+path = "services"
+hash = "1db796e0934d8622b9074ac6e6f2d6119a8c7d32"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover select readiness count and host behavior"

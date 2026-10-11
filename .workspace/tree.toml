@@ -8055,3 +8055,11 @@ path = "services"
 hash = "f18e036d00b33b64bc7150f4e7f4fc138991d0f0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Drive logout through retained process handles and retryable POSIX teardown"
+
+[[entries]]
+date = "2026-10-11T22:33:18.331331764+09:00"
+snapshot = "99c8e51bbf155c82117ebdb3"
+path = "services"
+hash = "103c1575862c9b15751b6c96f42df2347fa495b1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test native POSIX process tree teardown through attenuated IPC handles"

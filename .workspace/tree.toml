@@ -7439,3 +7439,11 @@ path = "services"
 hash = "aacd334a8cd719773e6af857079ac8700fe01d71"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(network): preserve signed failures and receive queue status"
+
+[[entries]]
+date = "2026-10-11T14:53:18.729339273+09:00"
+snapshot = "68e6fd7870773236103fcf99"
+path = "services"
+hash = "e1d2ba0b96ac7e80418aa47be53f638df0e808e6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify retired seek ABI and EOF bootstrap reading"

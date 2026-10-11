@@ -8311,3 +8311,11 @@ path = "services"
 hash = "6d2a8a76cd7dc0120ca6237b41955989001aa948"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify one-shot VM image creation and explicit native context in KVM"
+
+[[entries]]
+date = "2026-10-12T02:27:27.508765072+09:00"
+snapshot = "dd487ce5dec4a705f0835af5"
+path = "services"
+hash = "997e7a958bc16b18989e6c442ecb97274e28e1a7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native handle slot inheritance and update creation producers"

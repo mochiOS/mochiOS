@@ -7991,3 +7991,11 @@ path = "services"
 hash = "92958a42f247cc11760a4ef226b8e18b66bbbc93"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Select launched process trees using userspace parent relationships"
+
+[[entries]]
+date = "2026-10-11T21:34:26.533020728+09:00"
+snapshot = "fe09de078e6f8b493169ff98"
+path = "services"
+hash = "8b8dc82311b77c7739e95b5e1b14826b18e1bd40"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retain launched process trees until every native exit is confirmed"

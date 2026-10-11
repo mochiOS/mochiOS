@@ -8631,3 +8631,11 @@ path = "services"
 hash = "1ffa7848c983231eda559a00254eb3be3f91d2cd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Track and deliver thread-directed pending signals with SIGPIPE regressions"
+
+[[entries]]
+date = "2026-10-12T08:30:37.401701928+09:00"
+snapshot = "095e6a4d3d91d53da84e4e82"
+path = "services"
+hash = "fb2228160ffa89c59e4dddd617106b1a635ff8a5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify poll and select interruption with restart handlers and empty FD sets"

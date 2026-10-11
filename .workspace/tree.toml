@@ -7951,3 +7951,11 @@ path = "services"
 hash = "9268e02ea2bbc784a5b2a68f1bc7566abc974024"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Admit IPC peers only through initialized userspace POSIX environments"
+
+[[entries]]
+date = "2026-10-11T21:21:47.741795599+09:00"
+snapshot = "4424eb860c86cd86aff6a978"
+path = "services"
+hash = "0fdba80d5f159010cc219999d8c13a82ecff8f1c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Require initialized POSIX credentials when registering a session"

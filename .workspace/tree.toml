@@ -7791,3 +7791,11 @@ path = "services"
 hash = "276d520089b418d5f4dc7e245535b49be0589e7d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify checked newlib credential queries at the native boundary"
+
+[[entries]]
+date = "2026-10-11T19:23:48.438287044+09:00"
+snapshot = "3350c7ee1b456899ef52a0b7"
+path = "services"
+hash = "b595f1e2f58344b0daab0815f33f1779f221a4ae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover entropy completion and native newlib boundary"

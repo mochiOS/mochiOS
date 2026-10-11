@@ -8247,3 +8247,11 @@ path = "services"
 hash = "01f1d3ed7e6cbe7f9960341d70af1120d1ed275d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify parent-free native inspection ABI and consumers"
+
+[[entries]]
+date = "2026-10-12T01:21:35.146792165+09:00"
+snapshot = "21e9367897e6e5dca680140c"
+path = "services"
+hash = "27c2dbb59ee9eaeb64f8c43737d18e8f58f4c785"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test native private-page isolation with warmed source translations"

@@ -7503,3 +7503,11 @@ path = "services"
 hash = "860c019f84809d0efb53f50e342c42d148316ca8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): guard user-space descriptor ownership"
+
+[[entries]]
+date = "2026-10-11T15:36:25.817364595+09:00"
+snapshot = "e8e07ceff894f68f84785713"
+path = "services"
+hash = "0a86f5b32d08eb5f5a8c828cb92b6de73b34c7eb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): guard removal of retired kernel pathname policy"

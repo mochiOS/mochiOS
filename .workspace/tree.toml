@@ -8399,3 +8399,11 @@ path = "services"
 hash = "56301369c8ef49233bf0944c4c2a6ff635788f01"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Manage per-thread signal masks using authenticated IPC identity"
+
+[[entries]]
+date = "2026-10-12T04:38:00.456982352+09:00"
+snapshot = "86d8972efb744415d0026807"
+path = "services"
+hash = "609e1d147ef7063617a13497440f7a8c3a22c109"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use service-owned thread masks for authenticated signal delivery"

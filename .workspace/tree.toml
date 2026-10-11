@@ -8639,3 +8639,11 @@ path = "services"
 hash = "fb2228160ffa89c59e4dddd617106b1a635ff8a5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify poll and select interruption with restart handlers and empty FD sets"
+
+[[entries]]
+date = "2026-10-12T08:32:10.083674384+09:00"
+snapshot = "9cd35105d6ab5111cb717771"
+path = "services"
+hash = "0f8f1abc19a4de2ce25d8a0db7bf468cb7f0b270"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test negative poll timeouts against Linux and exact finite durations"

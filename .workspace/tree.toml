@@ -7927,3 +7927,11 @@ path = "services"
 hash = "54350e191da46088597e9be9d0f185b7e7af777c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Register native fixed service POSIX state before execution"
+
+[[entries]]
+date = "2026-10-11T21:05:31.823858124+09:00"
+snapshot = "5801472fc73d6748549de34f"
+path = "services"
+hash = "9639db9cdfd97a020ac1d7d09c76132f16262c76"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Initialize POSIX launcher credentials from an inherited process handle"

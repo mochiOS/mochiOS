@@ -7807,3 +7807,11 @@ path = "services"
 hash = "5b8a79c122c864e86475a4295078baefffbdc187"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): inherit requester state for broker-created application processes"
+
+[[entries]]
+date = "2026-10-11T19:55:53.145604278+09:00"
+snapshot = "65f5b286a72536f16e82f098"
+path = "services"
+hash = "fa6b17cc2d9c60554bacf96ed10c8ba09678eca2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "capability: launch applications through native creation and POSIX child registration"

@@ -8527,3 +8527,11 @@ path = "services"
 hash = "33170606b86ec521773cf1865984a7bbc6e27ee0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement PTY IXON output stop and start flow control"
+
+[[entries]]
+date = "2026-10-12T06:34:25.532495263+09:00"
+snapshot = "cfed6648249b3ec10e04fd38"
+path = "services"
+hash = "9a0a129d1867156c0d0345a29d9c9990030a20f8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement and verify terminal flow-control actions"

@@ -7463,3 +7463,11 @@ path = "services"
 hash = "2769468f61028b614cb7af7355e6a895306c69b9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): add bounded bootstrap range reads and directory pages"
+
+[[entries]]
+date = "2026-10-11T15:09:25.663277268+09:00"
+snapshot = "3cfa26bafde05544249022e0"
+path = "services"
+hash = "d2bc6ee92b0e91fc56fc5ad88a9afa1d53eb2aa7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(filesystem): preserve bootstrap path error kinds"

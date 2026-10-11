@@ -7359,3 +7359,11 @@ path = "services"
 hash = "1db796e0934d8622b9074ac6e6f2d6119a8c7d32"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover select readiness count and host behavior"
+
+[[entries]]
+date = "2026-10-11T14:05:27.007577382+09:00"
+snapshot = "2751ed3741a1a0c1bc46dadf"
+path = "services"
+hash = "6f43bfcb93ea6e1a03d336dc778858a1f2ac6cb2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover vector limits and preflight validation"

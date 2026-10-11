@@ -8111,3 +8111,11 @@ path = "services"
 hash = "1b25193180c8d81772c49e264ec37080d7800b20"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify removal of kernel credential-spawn ABI on host and KVM"
+
+[[entries]]
+date = "2026-10-11T23:29:27.899791202+09:00"
+snapshot = "393aaa88d786e26661c17745"
+path = "services"
+hash = "7ed8609f411c75b3cdf7b7d04daf647a8185485a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retain failed native launch owners until POSIX rollback completes"

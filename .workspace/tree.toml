@@ -7855,3 +7855,11 @@ path = "services"
 hash = "000beeed98a91ddc2ea7280976b4d9e57db9a94b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "input: expose startup stages before readiness for POSIX boot diagnostics"
+
+[[entries]]
+date = "2026-10-11T20:23:16.271797141+09:00"
+snapshot = "3bc9c7fc039465839898e62b"
+path = "services"
+hash = "f9a8a9e05fe5db145d7eead082b15f31756ec4fc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): measure full dictionary reads with inherited endpoint"

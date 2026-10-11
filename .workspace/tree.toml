@@ -7895,3 +7895,11 @@ path = "services"
 hash = "0ea91e03f815788dcb9e340ccd73952a2468b0eb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native caller identity boundaries and runtime migration"
+
+[[entries]]
+date = "2026-10-11T20:43:01.038902656+09:00"
+snapshot = "5c58ee739973d5a71e757472"
+path = "services"
+hash = "2aea720af9fbbfabfe3bac2e22e6558838937dcb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(services): separate self identification from kernel credentials"

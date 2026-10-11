@@ -8599,3 +8599,11 @@ path = "services"
 hash = "a4f3e89584e929960e64dc869bf56e0cd767d6d0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify stream try-I/O and pipe signal interruption"
+
+[[entries]]
+date = "2026-10-12T07:55:26.279597343+09:00"
+snapshot = "7bd66be81d9c706ee81bcf1d"
+path = "services"
+hash = "d48ca451d40eddcb08be43345fc74fb3134a3daf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify stale wait guards and invalid memory rejection"

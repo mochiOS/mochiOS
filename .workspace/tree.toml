@@ -7535,3 +7535,11 @@ path = "services"
 hash = "4e4f7e648ca92a7ead3be3e098e48f43846a5165"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(service-manager): distinguish process watch acquisition failures"
+
+[[entries]]
+date = "2026-10-11T15:59:06.879375019+09:00"
+snapshot = "941f9ae6a80327916812e331"
+path = "services"
+hash = "688951476e4753ff71a95d3afddf7fb20b402de3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify sysconf reports actual runtime limits"

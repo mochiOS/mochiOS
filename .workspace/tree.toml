@@ -7391,3 +7391,11 @@ path = "services"
 hash = "ceebd038788c4131ffde52f92c23011d2cb06cf4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify descriptor duplication limits and shared cursor"
+
+[[entries]]
+date = "2026-10-11T14:25:38.828412912+09:00"
+snapshot = "bf9de1c74509c575996d297c"
+path = "services"
+hash = "1c8ed85450579a281bf03fed3eec11c354c16f74"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(linux): propagate negative launch and portal error statuses"

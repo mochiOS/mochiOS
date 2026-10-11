@@ -7591,3 +7591,11 @@ path = "services"
 hash = "4f1cf03cd24ceaf17a1ef91d7e007e0b0863a497"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(service-manager): launch input from delegated image and process handles"
+
+[[entries]]
+date = "2026-10-11T16:49:26.130988177+09:00"
+snapshot = "86292dfa81eec52f9aef3dce"
+path = "services"
+hash = "7c866310c5acf770c39648f0741157fff7941b3d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): measure large file reads independently of application parsing"

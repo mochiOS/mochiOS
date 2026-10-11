@@ -7567,3 +7567,11 @@ path = "services"
 hash = "4dfb5ddfea82ea90481a212b9e91b9b6f1e010ba"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(service-manager): watch retained process handles without thread lookup"
+
+[[entries]]
+date = "2026-10-11T16:29:10.970397881+09:00"
+snapshot = "602188baa68f3c1de833e4c0"
+path = "services"
+hash = "3eac134320f178900ee483a9162bb1b7693b9049"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(service-manager): encode native launch context in user space"

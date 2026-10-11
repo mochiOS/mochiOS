@@ -8295,3 +8295,11 @@ path = "services"
 hash = "305daa1aea3496b68b46200ddf0d1277a8937c25"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test immutable snapshot origin and authority attenuation"
+
+[[entries]]
+date = "2026-10-12T02:08:11.877465034+09:00"
+snapshot = "7fc912c908a67f4fe553127e"
+path = "services"
+hash = "c59d7dcdf4488c109e1209049006222c1ada0dad"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test explicit process creation contexts and image discrimination"

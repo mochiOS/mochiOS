@@ -7527,3 +7527,11 @@ path = "services"
 hash = "13709a0db81ceea1cec3fcc83c29546727090fe2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover atomic and partial stream writes with a live reader"
+
+[[entries]]
+date = "2026-10-11T15:56:08.201366898+09:00"
+snapshot = "f1c517c644792cc8ca24b912"
+path = "services"
+hash = "4e4f7e648ca92a7ead3be3e098e48f43846a5165"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(service-manager): distinguish process watch acquisition failures"

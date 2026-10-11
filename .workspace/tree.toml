@@ -8223,3 +8223,11 @@ path = "services"
 hash = "d694c65ca06231b40ee9d7dd501ade5527843a97"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test parent-independent native exit reclamation"
+
+[[entries]]
+date = "2026-10-12T00:54:32.489276684+09:00"
+snapshot = "29daafa2ecd75323876b3d0d"
+path = "services"
+hash = "76e2147f3ea7f3a448835d991377da61743980a6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: authorize creator rollback for fork registrations and absent retries"

@@ -8551,3 +8551,11 @@ path = "services"
 hash = "0687748adbc20c981659945e51cf48fedde92c27"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: enforce background tcsetpgrp job control"
+
+[[entries]]
+date = "2026-10-12T06:58:25.417012300+09:00"
+snapshot = "92196eaab95dbe1e54fcfd4b"
+path = "services"
+hash = "2a206416f9581bef1cf85f46c14bc8ebfc6b8ccb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: enforce terminal I/O job control in shared service state"

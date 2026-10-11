@@ -7879,3 +7879,11 @@ path = "services"
 hash = "6337952aed76dcd99006c065eb401eed59607b64"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(filesystem): publish shared reads through native positioned writes"
+
+[[entries]]
+date = "2026-10-11T20:34:47.316769624+09:00"
+snapshot = "f3deee175526c753ea8f4e18"
+path = "services"
+hash = "71001471f6529db3ae367a9fa78d935ade421bf1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): isolate dictionary backend and allocation costs"

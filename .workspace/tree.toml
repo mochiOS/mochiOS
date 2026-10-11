@@ -8471,3 +8471,11 @@ path = "services"
 hash = "f8ba334b757c6eeca66c78149d9b975cbf5f0fcd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test production CPU references across native stack handoff"
+
+[[entries]]
+date = "2026-10-12T05:39:38.331099119+09:00"
+snapshot = "9cf123852a79ac534077c2b5"
+path = "services"
+hash = "4309199432638f3e2efdae103f616c9b82486a86"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify multithread image replacement and creation exclusion"

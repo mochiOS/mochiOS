@@ -7839,3 +7839,11 @@ path = "services"
 hash = "0e6548421927614279bbc02d3225fa1edca855cd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: support creator-owned rollback for fresh session images"
+
+[[entries]]
+date = "2026-10-11T20:13:03.196787099+09:00"
+snapshot = "31564b758077cf835a83e4e5"
+path = "services"
+hash = "759b88ef8d68d052b4ad4d0eda20b8494fad4d35"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "service-manager: create session images with userspace POSIX credentials"

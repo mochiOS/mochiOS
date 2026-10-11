@@ -7639,3 +7639,11 @@ path = "services"
 hash = "c69432744f27c812eba6d53f6cc311e145e36011"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify clock translation against SDK definitions"
+
+[[entries]]
+date = "2026-10-11T17:24:43.577894630+09:00"
+snapshot = "370bf23d3185ca7fb491ce3c"
+path = "services"
+hash = "8245050b660e032a21ea6ae91d8b0cd6a428e2bc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover nanosleep signal interruption on native threads"

@@ -7903,3 +7903,11 @@ path = "services"
 hash = "2aea720af9fbbfabfe3bac2e22e6558838937dcb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(services): separate self identification from kernel credentials"
+
+[[entries]]
+date = "2026-10-11T20:54:15.519250209+09:00"
+snapshot = "3095f0607ecca44eed50ea1c"
+path = "services"
+hash = "31ba49ae8db4c43902678e4b668873b66c77ddf3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement atomic POSIX setreuid and setregid state transitions"

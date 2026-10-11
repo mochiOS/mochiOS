@@ -7647,3 +7647,11 @@ path = "services"
 hash = "8245050b660e032a21ea6ae91d8b0cd6a428e2bc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover nanosleep signal interruption on native threads"
+
+[[entries]]
+date = "2026-10-11T17:31:01.890044950+09:00"
+snapshot = "f6880e9b34b88b463791d580"
+path = "services"
+hash = "2cabe35e45c1db0ff653b4818077c286e2c37af8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(service-manager): retain native compositor process creation handles"

@@ -8351,3 +8351,11 @@ path = "services"
 hash = "f7f085a21020e30242de2f8167f989bb6faa84c1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native snapshot caller continuation and initial TLS in KVM"
+
+[[entries]]
+date = "2026-10-12T03:25:56.922795927+09:00"
+snapshot = "ae49354581b4f3916208bd73"
+path = "services"
+hash = "7abb41bae29ce89710b1c7741da4ee07895ab4a6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify newlib native fork inheritance and shared file offsets in KVM"

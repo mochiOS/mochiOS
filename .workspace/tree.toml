@@ -7967,3 +7967,11 @@ path = "services"
 hash = "00ae2bcfa73664b8d21817a158f743b683382c93"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Authenticate POSIX request peers through native IPC endpoint ownership"
+
+[[entries]]
+date = "2026-10-11T21:28:04.412445626+09:00"
+snapshot = "70fe47e8ddc745e2b065a7bc"
+path = "services"
+hash = "9e72253f4cfe0ff7a64fa7c74f6a0902f263cfcb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Validate signal threads using policy-free execution identity"

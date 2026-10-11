@@ -7919,3 +7919,11 @@ path = "services"
 hash = "d48e7efd1b7352192d884da40ab27bb65b3fa281"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Permit effective credential no-op without losing saved IDs"
+
+[[entries]]
+date = "2026-10-11T20:58:50.975809733+09:00"
+snapshot = "b4ed11d03973f1d15e5895f5"
+path = "services"
+hash = "54350e191da46088597e9be9d0f185b7e7af777c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Register native fixed service POSIX state before execution"

@@ -7383,3 +7383,11 @@ path = "services"
 hash = "16c40dc5c1bed117baf36c144518257b1001fecc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise positioned handle rights and mapping coherence"
+
+[[entries]]
+date = "2026-10-11T14:23:18.547999931+09:00"
+snapshot = "d28a0769722affdd3a431b6d"
+path = "services"
+hash = "ceebd038788c4131ffde52f92c23011d2cb06cf4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify descriptor duplication limits and shared cursor"

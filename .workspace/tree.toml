@@ -8319,3 +8319,11 @@ path = "services"
 hash = "997e7a958bc16b18989e6c442ecb97274e28e1a7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native handle slot inheritance and update creation producers"
+
+[[entries]]
+date = "2026-10-12T02:36:30.258270158+09:00"
+snapshot = "50de9961c0bf39973b351796"
+path = "services"
+hash = "82f18ae31968e90f68a87f85dc36126bb52f9664"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test native handle metadata bounds and table isolation"

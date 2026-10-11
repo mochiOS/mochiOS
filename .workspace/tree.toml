@@ -7447,3 +7447,11 @@ path = "services"
 hash = "e1d2ba0b96ac7e80418aa47be53f638df0e808e6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify retired seek ABI and EOF bootstrap reading"
+
+[[entries]]
+date = "2026-10-11T15:00:14.588714523+09:00"
+snapshot = "ef2373ae7c53a96042754db2"
+path = "services"
+hash = "42ed7335b425d7e6241b1b163bebc2e5265f31fb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(capability): propagate bootstrap index errors and remove lookup fallback"

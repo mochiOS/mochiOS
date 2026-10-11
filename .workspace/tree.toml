@@ -8071,3 +8071,11 @@ path = "services"
 hash = "ae8d774764efffa5e9b8eee75bc1f8868a9cc2a6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retain and retry cleanup of unpublished POSIX session launches"
+
+[[entries]]
+date = "2026-10-11T22:45:10.347777398+09:00"
+snapshot = "5c0440d1de54dcc3e96336b9"
+path = "services"
+hash = "87511e333e9606dd67636127141b53352775c8fb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Validate POSIX signal registrations with native endpoint identity"

@@ -7367,3 +7367,11 @@ path = "services"
 hash = "6f43bfcb93ea6e1a03d336dc778858a1f2ac6cb2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover vector limits and preflight validation"
+
+[[entries]]
+date = "2026-10-11T14:08:18.487712524+09:00"
+snapshot = "83b3b7941c72879b5c79289b"
+path = "services"
+hash = "4dff66b7fe58bee1ffee1e9b44743bd3e2851621"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(filesystem): preserve progress in positioned I/O"

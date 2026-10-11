@@ -8183,3 +8183,11 @@ path = "services"
 hash = "7914d1e705b3ad917212aff0a08822066831cbbf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Guard example self identity against credential queries"
+
+[[entries]]
+date = "2026-10-12T00:25:01.176056197+09:00"
+snapshot = "7dc066f99623323cc6d8b3ed"
+path = "services"
+hash = "5147f9720eead25b6a091f2f9816c455cc549879"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify credential-free native security identity across POSIX consumers"

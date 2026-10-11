@@ -7599,3 +7599,11 @@ path = "services"
 hash = "7c866310c5acf770c39648f0741157fff7941b3d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): measure large file reads independently of application parsing"
+
+[[entries]]
+date = "2026-10-11T16:58:16.636399827+09:00"
+snapshot = "f5722404fb195836b1d18886"
+path = "services"
+hash = "bdc1fecf81a6c2396272da6790de879b8f07347e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): isolate resident copy cost from provider reads"

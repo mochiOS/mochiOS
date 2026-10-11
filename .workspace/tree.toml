@@ -7487,3 +7487,11 @@ path = "services"
 hash = "0d0502237873ec0f3edfd914fad9db10530d7af1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(capability): delegate bootstrap reads over a restricted IPC Handle"
+
+[[entries]]
+date = "2026-10-11T15:31:10.624986167+09:00"
+snapshot = "dffb0dc78ed29e6509145bf5"
+path = "services"
+hash = "8e94c72be6cb257853a3ca6fac79fec32faaeca3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify retired file ABI and native bootstrap reads"

@@ -7431,3 +7431,11 @@ path = "services"
 hash = "bb81ece07df0bf4c3f1376c2c82b5e54c2037680"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover pending open reservations and failure cleanup"
+
+[[entries]]
+date = "2026-10-11T14:48:45.598912280+09:00"
+snapshot = "0785c72edc76c3950c374f44"
+path = "services"
+hash = "aacd334a8cd719773e6af857079ac8700fe01d71"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(network): preserve signed failures and receive queue status"

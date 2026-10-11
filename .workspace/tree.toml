@@ -8559,3 +8559,11 @@ path = "services"
 hash = "2a206416f9581bef1cf85f46c14bc8ebfc6b8ccb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: enforce terminal I/O job control in shared service state"
+
+[[entries]]
+date = "2026-10-12T07:02:26.107965454+09:00"
+snapshot = "e268da62624a85a55d9175b5"
+path = "services"
+hash = "445b8b0162146e288c966ed05d656ff8b6c6f914"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: apply job control to terminal parameter changes"

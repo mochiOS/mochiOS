@@ -8047,3 +8047,11 @@ path = "services"
 hash = "6c49876a8707878d317031aaf01719a296c8fffe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use two-phase tree IPC with owner-bound exit acknowledgement"
+
+[[entries]]
+date = "2026-10-11T22:17:49.877261019+09:00"
+snapshot = "b47a06e6425174b7dc303756"
+path = "services"
+hash = "f18e036d00b33b64bc7150f4e7f4fc138991d0f0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Drive logout through retained process handles and retryable POSIX teardown"

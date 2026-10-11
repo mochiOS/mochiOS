@@ -7887,3 +7887,11 @@ path = "services"
 hash = "71001471f6529db3ae367a9fa78d935ade421bf1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): isolate dictionary backend and allocation costs"
+
+[[entries]]
+date = "2026-10-11T20:39:15.371784906+09:00"
+snapshot = "211627be7557d440a7f2f798"
+path = "services"
+hash = "0ea91e03f815788dcb9e340ccd73952a2468b0eb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native caller identity boundaries and runtime migration"

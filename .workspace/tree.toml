@@ -8031,3 +8031,11 @@ path = "services"
 hash = "b1afab26cba03b1a6de568d5cd695075194999e7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Track ordered session teardown progress across failed attempts"
+
+[[entries]]
+date = "2026-10-11T21:58:41.399754901+09:00"
+snapshot = "35fd23bb46f2549e2c1c1c41"
+path = "services"
+hash = "9751b18e80e273cb5fb3ce90abc7fd79e14eeb41"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Separate tree exit confirmation from owned resource reclamation"

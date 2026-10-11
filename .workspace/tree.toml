@@ -8463,3 +8463,11 @@ path = "services"
 hash = "247042b45271c6bf94593e02898c2ba1560af1f6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add native regression exposing siblings surviving image replacement"
+
+[[entries]]
+date = "2026-10-12T05:27:34.163272812+09:00"
+snapshot = "d310b6433f8931edd08ae313"
+path = "services"
+hash = "f8ba334b757c6eeca66c78149d9b975cbf5f0fcd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test production CPU references across native stack handoff"

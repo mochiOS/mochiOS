@@ -8095,3 +8095,11 @@ path = "services"
 hash = "c222aab0b47171fe560d83af4d0dc27768caf604"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reparent and reap orphaned POSIX processes in userspace"
+
+[[entries]]
+date = "2026-10-11T23:16:48.226260491+09:00"
+snapshot = "5da3fd724ee0fb76c6cdc60b"
+path = "services"
+hash = "f8e2c11672cc7f7133df795f3bc869da32798b3c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Allow POSIX SIGCONT across UID changes within a session"

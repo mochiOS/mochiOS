@@ -8079,3 +8079,11 @@ path = "services"
 hash = "87511e333e9606dd67636127141b53352775c8fb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Validate POSIX signal registrations with native endpoint identity"
+
+[[entries]]
+date = "2026-10-11T22:54:07.549263830+09:00"
+snapshot = "40fe196ba9dfa7bce0d14271"
+path = "services"
+hash = "969fca25324a83aba420725776b207d3f991865d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify endpoint identity permissions and POSIX signal registration in KVM"

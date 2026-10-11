@@ -7399,3 +7399,11 @@ path = "services"
 hash = "1c8ed85450579a281bf03fed3eec11c354c16f74"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(linux): propagate negative launch and portal error statuses"
+
+[[entries]]
+date = "2026-10-11T14:28:53.958639804+09:00"
+snapshot = "57a754f7d099d67635a40658"
+path = "services"
+hash = "8017195ef10a39d7019ed6dff328a10d46dc7869"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(workspace): normalize errno before encoding failure responses"

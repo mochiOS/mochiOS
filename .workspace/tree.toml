@@ -8543,3 +8543,11 @@ path = "services"
 hash = "bea72f5fa1d1dc4dee3fcd0057a5091a3764cf03"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Authenticate service-private PTY readiness synchronization"
+
+[[entries]]
+date = "2026-10-12T06:46:12.532781216+09:00"
+snapshot = "acf4b11daf3bd0d074e821a3"
+path = "services"
+hash = "0687748adbc20c981659945e51cf48fedde92c27"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: enforce background tcsetpgrp job control"

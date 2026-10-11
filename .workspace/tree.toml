@@ -7719,3 +7719,11 @@ path = "services"
 hash = "d5af00af679cfda5bf54bc81015da1de711cf716"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(service-manager): use native process and endpoint handles for permission prompts"
+
+[[entries]]
+date = "2026-10-11T18:29:34.691832708+09:00"
+snapshot = "4d9e566c0f3eff75fbd48f4a"
+path = "services"
+hash = "dcf8e536b447915376d3b86435f7b7d38b565b72"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native secure-ui endpoint publication and denial on KVM"

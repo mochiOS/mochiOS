@@ -8271,3 +8271,11 @@ path = "services"
 hash = "e9ee13fce301c84b7c07bf85dace17504f4680f3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test detached VM image ownership and native handle attenuation"
+
+[[entries]]
+date = "2026-10-12T01:47:23.391000584+09:00"
+snapshot = "6eb7567dc8e829d95e8f7ca4"
+path = "services"
+hash = "dc3d63d04d48e51e29d9d6e6ed6a07e12c6838fc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Guard shared VM image creation and installation in clone backend"

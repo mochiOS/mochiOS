@@ -8583,3 +8583,11 @@ path = "services"
 hash = "bf962de0ccdf6fa551bf8b88791592bd0d6fedf9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify upcall delivery during empty terminal waits"
+
+[[entries]]
+date = "2026-10-12T07:28:24.478780449+09:00"
+snapshot = "2596605e99f0b3daf4cde25d"
+path = "services"
+hash = "724a56b914bee2aef235b299fe279c170e233266"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify restartable terminal handlers and sleep exceptions"

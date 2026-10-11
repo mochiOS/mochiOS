@@ -7687,3 +7687,11 @@ path = "services"
 hash = "b013c0cd5494ed2052b525201d331a3e8343ab50"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(service-manager): launch User with native process ownership and readiness"
+
+[[entries]]
+date = "2026-10-11T18:04:20.697851348+09:00"
+snapshot = "f4ed707a651342f5dff92311"
+path = "services"
+hash = "9d50b81e8b8345b3c3c1fb0fb8456711b0cbb1d1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify standard and wide stdio conversion support"

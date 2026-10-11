@@ -8167,3 +8167,11 @@ path = "services"
 hash = "994a7c3fe119358625090b33d7b863a007fea9dc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Discard default catchable job-control stops for orphaned groups"
+
+[[entries]]
+date = "2026-10-12T00:03:14.846280964+09:00"
+snapshot = "1ee64c252a2db8d87f40f32d"
+path = "services"
+hash = "12d63feee5f28572d541005221f97eeb396f257a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Hang up PTY controlling processes on final master release"

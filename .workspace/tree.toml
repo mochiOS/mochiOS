@@ -7775,3 +7775,11 @@ path = "services"
 hash = "f2fc77865996c90fdd4fd09ebf194a978e266ea2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): authenticate process credential inspection using WAIT-only handles"
+
+[[entries]]
+date = "2026-10-11T19:08:16.885986770+09:00"
+snapshot = "547100b57dbd6fbd21d2f9e6"
+path = "services"
+hash = "631faf547d4d0470fe0df0c6be6cf1d0048c1a95"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(capability): source requester credentials from authenticated POSIX state"

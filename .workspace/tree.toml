@@ -7559,3 +7559,11 @@ path = "services"
 hash = "2ac7e9c7c8ef3945e281119e9935d154633598d8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise authorized process creation and attenuated inheritance"
+
+[[entries]]
+date = "2026-10-11T16:26:15.462988428+09:00"
+snapshot = "96237137f0042427af5f7532"
+path = "services"
+hash = "4dfb5ddfea82ea90481a212b9e91b9b6f1e010ba"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(service-manager): watch retained process handles without thread lookup"

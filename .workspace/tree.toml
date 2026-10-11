@@ -7743,3 +7743,11 @@ path = "services"
 hash = "fd61aa108e814e28f02b482209d8a8873216da10"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(service-manager): retire remaining legacy secure-ui launch paths"
+
+[[entries]]
+date = "2026-10-11T18:40:16.346403005+09:00"
+snapshot = "1edfc2ad2d0b08caea8d8ec0"
+path = "services"
+hash = "fa8dc18f428086b6bea885df590488bfd3586ba2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): initialize fresh child credentials under userspace authority"

@@ -8287,3 +8287,11 @@ path = "services"
 hash = "a76aa81aae025de1fe52ae4e24d366bf64f253fe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native thread registers TLS flags and pthread lifecycle"
+
+[[entries]]
+date = "2026-10-12T02:03:58.864065127+09:00"
+snapshot = "be90e7cd687cf3c3d0224c83"
+path = "services"
+hash = "305daa1aea3496b68b46200ddf0d1277a8937c25"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test immutable snapshot origin and authority attenuation"

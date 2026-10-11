@@ -7583,3 +7583,11 @@ path = "services"
 hash = "a8cd1899f534bf1e97f93d184e309fb70a8d7d96"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify explicit native creation labels and v2 metadata"
+
+[[entries]]
+date = "2026-10-11T16:43:03.958152507+09:00"
+snapshot = "c786937545fa8a650798b63f"
+path = "services"
+hash = "4f1cf03cd24ceaf17a1ef91d7e007e0b0863a497"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(service-manager): launch input from delegated image and process handles"

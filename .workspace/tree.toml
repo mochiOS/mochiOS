@@ -8655,3 +8655,11 @@ path = "services"
 hash = "ea2d59cc3fa128628b549024b756cc26d50d141a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify masked multiplex entry races and signal mask restoration"
+
+[[entries]]
+date = "2026-10-12T08:45:34.249094353+09:00"
+snapshot = "1683aa422a824cd94eae6bb3"
+path = "services"
+hash = "aed0c14f1665d304cb50f19dd64d1baf568a2be9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify pause and sigsuspend handler interruption and mask restoration"

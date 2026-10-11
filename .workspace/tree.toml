@@ -8487,3 +8487,11 @@ path = "services"
 hash = "f21c6799a8349dec7c75f245a0045f1ce430e987"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native wait reclamation and retain repeated exec stress reproducer"
+
+[[entries]]
+date = "2026-10-12T06:03:05.757624022+09:00"
+snapshot = "e385acc4a64ebcdab8576749"
+path = "services"
+hash = "f68ab60cf678f8e41cf8e00b2a12a96abca1b555"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify image entry releases owning buffers and trace repeated exec"

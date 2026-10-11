@@ -8503,3 +8503,11 @@ path = "services"
 hash = "7f7729f2ef49a650ebeaa8f0e82b04ac76cea2d1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Share PTY window size and deliver foreground resize signals"
+
+[[entries]]
+date = "2026-10-12T06:18:11.601857057+09:00"
+snapshot = "2a33fdb4e169172e3b0a32fc"
+path = "services"
+hash = "7c09bb1f1afe8c5c2559577ca3f27e7b4fa8c0ae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify userspace terminal ioctl ABI and SDK publication"

@@ -8511,3 +8511,11 @@ path = "services"
 hash = "7c09bb1f1afe8c5c2559577ca3f27e7b4fa8c0ae"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify userspace terminal ioctl ABI and SDK publication"
+
+[[entries]]
+date = "2026-10-12T06:24:14.195186126+09:00"
+snapshot = "05ca31c50fd8cf4b4557f664"
+path = "services"
+hash = "dcfb6843ca456681c585b448629fca2eaac45338"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test native user return against preemption after CR3 switch"

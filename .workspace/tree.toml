@@ -8335,3 +8335,11 @@ path = "services"
 hash = "a6932c68cab95fab5b7106886d1df9dcf5974e2d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test explicit POSIX handle inheritance and native creation encoding"
+
+[[entries]]
+date = "2026-10-12T02:47:25.761213518+09:00"
+snapshot = "d15d38159b894517c1f8874a"
+path = "services"
+hash = "02ef031fc1f42b98d6719cf525c815e961ed8f62"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test POSIX snapshot continuation stack and register preservation"

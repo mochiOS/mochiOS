@@ -7959,3 +7959,11 @@ path = "services"
 hash = "0fdba80d5f159010cc219999d8c13a82ecff8f1c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Require initialized POSIX credentials when registering a session"
+
+[[entries]]
+date = "2026-10-11T21:25:55.687116575+09:00"
+snapshot = "9ba37550f8bb9b3861dc413b"
+path = "services"
+hash = "00ae2bcfa73664b8d21817a158f743b683382c93"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Authenticate POSIX request peers through native IPC endpoint ownership"

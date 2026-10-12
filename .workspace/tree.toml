@@ -8831,3 +8831,11 @@ path = "services"
 hash = "d7ccbb6e4e10be070d51da0ac78591803645dc91"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): expose blocked stdio cancellation regression"
+
+[[entries]]
+date = "2026-10-12T13:35:54.899277743+09:00"
+snapshot = "95eb9c7a7e557a5fe27f7c62"
+path = "services"
+hash = "0c5a631aec14f8c7f081176ed60fc0069938c9a4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify cancelled stdio releases locks and preserves progress"

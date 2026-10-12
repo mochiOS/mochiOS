@@ -8911,3 +8911,11 @@ path = "services"
 hash = "a2b97c56b39e9a3d7f462ed868930efda80e8dc9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): reject path fallback after handle metadata errors"
+
+[[entries]]
+date = "2026-10-12T15:46:20.168705188+09:00"
+snapshot = "cb8aa1d0725854713db37e07"
+path = "services"
+hash = "37dc4094f705ba2aea4d8966552e9349742cf920"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover failed mutex wait wake handoff"

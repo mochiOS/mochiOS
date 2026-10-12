@@ -8687,3 +8687,11 @@ path = "services"
 hash = "c127d3abd35a1a83cd07962daa86ca7fb966b898"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reap SA_NOCLDWAIT children while preserving SIGCHLD handler notification"
+
+[[entries]]
+date = "2026-10-12T09:40:35.019563954+09:00"
+snapshot = "e2934febcff13eaaa002cbb7"
+path = "services"
+hash = "0170bdc36efd50d96e28d2085ddd41304239e441"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Authorize attached thread signal targets and verify directed delivery"

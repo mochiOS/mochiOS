@@ -8743,3 +8743,11 @@ path = "services"
 hash = "7b8027ffefe7ae3729593efbefccd2b129af4f45"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Accumulate native CPU usage only for successfully waited children"
+
+[[entries]]
+date = "2026-10-12T11:16:13.740037984+09:00"
+snapshot = "365e59d27199bce9b603c6f1"
+path = "services"
+hash = "b97e58c43e8a82969cd5d7990e0a14bdeee65ec4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose authenticated child CPU history and verify times clock integration"

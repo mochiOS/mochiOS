@@ -8879,3 +8879,11 @@ path = "services"
 hash = "aed31a2edb1b3c2d2fc41aae146c30d3e51db2ce"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test full-width clock selectors at Rust and C ABI boundaries"
+
+[[entries]]
+date = "2026-10-12T15:09:54.628473726+09:00"
+snapshot = "8305bde37700386dd125b466"
+path = "services"
+hash = "3e649301def9e034e6ad91baf8b98e37dc484e17"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify kernel size-query precedence and removal of POSIX metadata"

@@ -8679,3 +8679,11 @@ path = "services"
 hash = "5442c37d1126803c64a2848b13a7d914a8de374e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Automatically discard exited child status when SIGCHLD is explicitly ignored"
+
+[[entries]]
+date = "2026-10-12T09:28:20.135377575+09:00"
+snapshot = "ef545d782915dd1ebd6316e8"
+path = "services"
+hash = "c127d3abd35a1a83cd07962daa86ca7fb966b898"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reap SA_NOCLDWAIT children while preserving SIGCHLD handler notification"

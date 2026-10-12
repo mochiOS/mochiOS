@@ -8847,3 +8847,11 @@ path = "services"
 hash = "3a9eac27d3faf97164cdcd86a3c1a9df5dcdd54e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test POSIX line input errors and blocked cancellation"
+
+[[entries]]
+date = "2026-10-12T14:03:35.507895992+09:00"
+snapshot = "408b32fe84240aeec9321b18"
+path = "services"
+hash = "08c831bde1492af40911b4b5577b7bff74ed8410"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test pthread mutex ownership, contention, sharing and cancellation boundaries"

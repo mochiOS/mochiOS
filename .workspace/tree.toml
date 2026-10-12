@@ -8703,3 +8703,11 @@ path = "services"
 hash = "1869dc49b0d55b9f18ed209cd2d45070501eb61e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add atomic service-owned synchronous signal selection"
+
+[[entries]]
+date = "2026-10-12T09:54:59.051429114+09:00"
+snapshot = "1a773bc721cf2dec434ef2e8"
+path = "services"
+hash = "ea750d9cb37057aa25c50d7ce6b94d9dc0d37dc9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Defer synchronous signal waits and verify native sigwait delivery"

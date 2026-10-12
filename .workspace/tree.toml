@@ -8895,3 +8895,11 @@ path = "services"
 hash = "dd8542bcc5f1e1d9ed1c3064a46c282fc9781205"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Guard the reduced kernel filesystem RPC surface"
+
+[[entries]]
+date = "2026-10-12T15:28:12.309467975+09:00"
+snapshot = "a261458c413bf7e7c8ce5b91"
+path = "services"
+hash = "206a2806b2301178d207eada6dad92a645c4c831"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify legacy vnode identity and generic provider separation"

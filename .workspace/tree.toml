@@ -8943,3 +8943,11 @@ path = "services"
 hash = "3bc6f83786c464bb0525d786a85872e154b0a53c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): keep native streams free of remote FD state"
+
+[[entries]]
+date = "2026-10-12T16:19:54.773171209+09:00"
+snapshot = "ea9f400148e21057012d8c62"
+path = "services"
+hash = "091d26ce7f1c38907177ec9717cf2e5d2c8ba87e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): retire vnode tests and verify remaining object paths"

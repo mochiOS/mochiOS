@@ -8799,3 +8799,11 @@ path = "services"
 hash = "4e2cd85842004ea52e0a0d2af2e21f5567fa611d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify join cancellation releases claims before cleanup"
+
+[[entries]]
+date = "2026-10-12T12:27:06.441065381+09:00"
+snapshot = "614bcab41865ff4ac0c11133"
+path = "services"
+hash = "0587868b31dbe8c3782d3872240bddb9f05b1fa3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify address wakes and guard subscription cleanup"

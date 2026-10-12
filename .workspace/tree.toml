@@ -8839,3 +8839,11 @@ path = "services"
 hash = "0c5a631aec14f8c7f081176ed60fc0069938c9a4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify cancelled stdio releases locks and preserves progress"
+
+[[entries]]
+date = "2026-10-12T13:53:16.602122900+09:00"
+snapshot = "4649f479618c57eab4c426fb"
+path = "services"
+hash = "3a9eac27d3faf97164cdcd86a3c1a9df5dcdd54e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test POSIX line input errors and blocked cancellation"

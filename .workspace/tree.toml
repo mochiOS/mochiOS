@@ -8711,3 +8711,11 @@ path = "services"
 hash = "ea750d9cb37057aa25c50d7ce6b94d9dc0d37dc9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Defer synchronous signal waits and verify native sigwait delivery"
+
+[[entries]]
+date = "2026-10-12T10:07:16.028935687+09:00"
+snapshot = "735e2d14d9a2c08213666749"
+path = "services"
+hash = "88e2bc7acba665435867fab265ac0c92b875c14f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify persistent process CPU clocks and concurrent native accounting"

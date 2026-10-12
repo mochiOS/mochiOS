@@ -8735,3 +8735,11 @@ path = "services"
 hash = "5f629e0d5457375f3d953b5e3e3e5484173b59b6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify execution accounting rights ABI and retained child Handle snapshots"
+
+[[entries]]
+date = "2026-10-12T10:49:39.144603151+09:00"
+snapshot = "e4d1bad818d240993ba6bf6f"
+path = "services"
+hash = "7b8027ffefe7ae3729593efbefccd2b129af4f45"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Accumulate native CPU usage only for successfully waited children"

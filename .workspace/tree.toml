@@ -8783,3 +8783,11 @@ path = "services"
 hash = "edb20d31bb089a159bc00592c62e216f7d943a47"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): discard pending default-ignored signals on action reset"
+
+[[entries]]
+date = "2026-10-12T12:07:00.898505299+09:00"
+snapshot = "f218bce769e7fcb652aef6de"
+path = "services"
+hash = "7450bf6b040147d7c1a272615bc2f03fff2d92ae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): stress native SIGCHLD disposition transitions"

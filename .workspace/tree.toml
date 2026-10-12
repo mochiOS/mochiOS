@@ -8807,3 +8807,11 @@ path = "services"
 hash = "0587868b31dbe8c3782d3872240bddb9f05b1fa3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify address wakes and guard subscription cleanup"
+
+[[entries]]
+date = "2026-10-12T12:39:19.182028347+09:00"
+snapshot = "6932d2e710c823ee953444e2"
+path = "services"
+hash = "48a6d9485374774a9201443893b49f4e7a1bdaf7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover cancellation of multiplex and signal suspension waits"

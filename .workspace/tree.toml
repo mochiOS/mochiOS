@@ -8855,3 +8855,11 @@ path = "services"
 hash = "08c831bde1492af40911b4b5577b7bff74ed8410"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test pthread mutex ownership, contention, sharing and cancellation boundaries"
+
+[[entries]]
+date = "2026-10-12T14:15:07.999251521+09:00"
+snapshot = "dd47c78b15d705d638c2151d"
+path = "services"
+hash = "03e1f3795120e48dc88c40bc0967630ef127094e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test guarded native address waits and POSIX regressions"

@@ -8759,3 +8759,11 @@ path = "services"
 hash = "0a8420298e237df36f1056aa4aa12312b3f636dd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify deferred cancellation state and TLS cleanup ordering"
+
+[[entries]]
+date = "2026-10-12T11:43:51.428386117+09:00"
+snapshot = "f46e3e4d0f22520f2cb5ea24"
+path = "services"
+hash = "1548db0f554518e8311c6cae161d4dbd2f1d6765"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify cleanup stack SDK layout LIFO behavior and TLS ordering"

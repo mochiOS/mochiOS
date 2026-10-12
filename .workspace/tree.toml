@@ -8887,3 +8887,11 @@ path = "services"
 hash = "3e649301def9e034e6ad91baf8b98e37dc484e17"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify kernel size-query precedence and removal of POSIX metadata"
+
+[[entries]]
+date = "2026-10-12T15:17:30.155845097+09:00"
+snapshot = "0223a66656c4b2cb395399ba"
+path = "services"
+hash = "dd8542bcc5f1e1d9ed1c3064a46c282fc9781205"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Guard the reduced kernel filesystem RPC surface"

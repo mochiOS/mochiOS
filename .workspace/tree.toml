@@ -8919,3 +8919,11 @@ path = "services"
 hash = "37dc4094f705ba2aea4d8966552e9349742cf920"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover failed mutex wait wake handoff"
+
+[[entries]]
+date = "2026-10-12T15:59:13.658928393+09:00"
+snapshot = "403bcf4e3ad7624f70fe0751"
+path = "services"
+hash = "21be81f2d1fa1fa52648b11955e864ec18cd5ec8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify timed mutex clocks and cancellation boundaries"

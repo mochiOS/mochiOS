@@ -8815,3 +8815,11 @@ path = "services"
 hash = "48a6d9485374774a9201443893b49f4e7a1bdaf7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover cancellation of multiplex and signal suspension waits"
+
+[[entries]]
+date = "2026-10-12T12:51:38.152321407+09:00"
+snapshot = "0335a5e3d29877b4d0a3dd8a"
+path = "services"
+hash = "d0bf7f4d9e6f35a7b200f96b3512ad157f0d3ed8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify stream cancellation cleanup and committed prefixes"

@@ -8871,3 +8871,11 @@ path = "services"
 hash = "437908f8c82a40c03d5367897f345f74e44bb964"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test condition notification, timeout, sharing and cancellation cleanup"
+
+[[entries]]
+date = "2026-10-12T14:59:40.356981684+09:00"
+snapshot = "8c782083678bc3e994e8ce6d"
+path = "services"
+hash = "aed31a2edb1b3c2d2fc41aae146c30d3e51db2ce"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test full-width clock selectors at Rust and C ABI boundaries"

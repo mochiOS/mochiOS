@@ -8927,3 +8927,11 @@ path = "services"
 hash = "21be81f2d1fa1fa52648b11955e864ec18cd5ec8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify timed mutex clocks and cancellation boundaries"
+
+[[entries]]
+date = "2026-10-12T16:04:17.141385605+09:00"
+snapshot = "0715469cf1ccc26fb9032a5f"
+path = "services"
+hash = "ffa4e308c734ae2f5d12c8aa07216ad52dc06f35"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): constrain transitional kernel cache interface"

@@ -8719,3 +8719,11 @@ path = "services"
 hash = "88e2bc7acba665435867fab265ac0c92b875c14f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify persistent process CPU clocks and concurrent native accounting"
+
+[[entries]]
+date = "2026-10-12T10:14:02.378923599+09:00"
+snapshot = "a41579b87b88688cf01d3302"
+path = "services"
+hash = "16d74b38fcb6cec1155a3e66623942c13c8de9ad"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native CPU domain counters and trusted timer classification"

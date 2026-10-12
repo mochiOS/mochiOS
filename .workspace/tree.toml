@@ -8775,3 +8775,11 @@ path = "services"
 hash = "0fc9368581f6360c1bdbffeb22634171c68335f7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover deferred cancellation at sleep boundaries"
+
+[[entries]]
+date = "2026-10-12T12:02:03.016534466+09:00"
+snapshot = "8b332801bee5e895f1e495e4"
+path = "services"
+hash = "edb20d31bb089a159bc00592c62e216f7d943a47"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): discard pending default-ignored signals on action reset"

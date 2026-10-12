@@ -8663,3 +8663,11 @@ path = "services"
 hash = "aed0c14f1665d304cb50f19dd64d1baf568a2be9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify pause and sigsuspend handler interruption and mask restoration"
+
+[[entries]]
+date = "2026-10-12T09:06:18.117159849+09:00"
+snapshot = "cdb070dbb936e833839eebdb"
+path = "services"
+hash = "999afd609f8f59d7a0b976e16b8063311f92deeb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Release guarded child waits on authenticated thread signal delivery"

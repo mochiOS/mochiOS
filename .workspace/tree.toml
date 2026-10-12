@@ -8935,3 +8935,11 @@ path = "services"
 hash = "ffa4e308c734ae2f5d12c8aa07216ad52dc06f35"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): constrain transitional kernel cache interface"
+
+[[entries]]
+date = "2026-10-12T16:08:43.017707708+09:00"
+snapshot = "cf99905f1ea0fcee1bbbb721"
+path = "services"
+hash = "3bc6f83786c464bb0525d786a85872e154b0a53c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): keep native streams free of remote FD state"

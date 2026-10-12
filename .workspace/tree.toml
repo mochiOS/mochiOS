@@ -8671,3 +8671,11 @@ path = "services"
 hash = "999afd609f8f59d7a0b976e16b8063311f92deeb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Release guarded child waits on authenticated thread signal delivery"
+
+[[entries]]
+date = "2026-10-12T09:20:09.090623891+09:00"
+snapshot = "0c9a9f55d13a50e08ac2ad44"
+path = "services"
+hash = "5442c37d1126803c64a2848b13a7d914a8de374e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Automatically discard exited child status when SIGCHLD is explicitly ignored"

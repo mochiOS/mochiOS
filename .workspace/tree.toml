@@ -8751,3 +8751,11 @@ path = "services"
 hash = "b97e58c43e8a82969cd5d7990e0a14bdeee65ec4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose authenticated child CPU history and verify times clock integration"
+
+[[entries]]
+date = "2026-10-12T11:29:14.753223495+09:00"
+snapshot = "ea89ce5e2a475a1d765134f5"
+path = "services"
+hash = "0a8420298e237df36f1056aa4aa12312b3f636dd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify deferred cancellation state and TLS cleanup ordering"

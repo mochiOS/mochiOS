@@ -8903,3 +8903,11 @@ path = "services"
 hash = "206a2806b2301178d207eada6dad92a645c4c831"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify legacy vnode identity and generic provider separation"
+
+[[entries]]
+date = "2026-10-12T15:39:17.964001657+09:00"
+snapshot = "d6c18ac00820e57b1d866c1b"
+path = "services"
+hash = "a2b97c56b39e9a3d7f462ed868930efda80e8dc9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): reject path fallback after handle metadata errors"

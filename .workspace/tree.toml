@@ -8727,3 +8727,11 @@ path = "services"
 hash = "16d74b38fcb6cec1155a3e66623942c13c8de9ad"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native CPU domain counters and trusted timer classification"
+
+[[entries]]
+date = "2026-10-12T10:27:17.553108046+09:00"
+snapshot = "47bb23763a8908816993154f"
+path = "services"
+hash = "5f629e0d5457375f3d953b5e3e3e5484173b59b6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify execution accounting rights ABI and retained child Handle snapshots"

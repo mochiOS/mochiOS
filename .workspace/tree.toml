@@ -8695,3 +8695,11 @@ path = "services"
 hash = "0170bdc36efd50d96e28d2085ddd41304239e441"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Authorize attached thread signal targets and verify directed delivery"
+
+[[entries]]
+date = "2026-10-12T09:48:39.460943887+09:00"
+snapshot = "c1f80ab0cfb61b3ab448e0f6"
+path = "services"
+hash = "1869dc49b0d55b9f18ed209cd2d45070501eb61e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add atomic service-owned synchronous signal selection"

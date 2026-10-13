@@ -9607,3 +9607,11 @@ path = "services"
 hash = "de0d9ac9699584e96c1ed9cb8f6cf31b13bd1ffd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise wait-root retention and concurrent mapping replacement"
+
+[[entries]]
+date = "2026-10-14T08:03:46.549825047+09:00"
+snapshot = "0941b4430b303999b8ef22c1"
+path = "services"
+hash = "493f670df41cc62acc6c100329092c33dd6cdde3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify fault diagnostic root lifetime and safe user exception paths"

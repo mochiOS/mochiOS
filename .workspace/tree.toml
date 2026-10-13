@@ -9383,3 +9383,11 @@ path = "services"
 hash = "c2603522fa9963dc3b5d8d642a7eb8ecb5e3a870"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify DMA install rollback and concurrent native lifecycle"
+
+[[entries]]
+date = "2026-10-13T20:30:46.760130394+09:00"
+snapshot = "b5daab3e95265b08e69f1fae"
+path = "services"
+hash = "dd48644b71526dce11f98806e4d17fa9671f0ace"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify atomic borrowed cleanup and native exit exec lifecycle"

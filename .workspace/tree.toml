@@ -9415,3 +9415,11 @@ path = "services"
 hash = "0a3388f29d76903b9257641b5c40361a7aa4d86a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native memory ownership and retryable release failures"
+
+[[entries]]
+date = "2026-10-13T21:03:08.508553739+09:00"
+snapshot = "f5280258cbb77a1f2058cd3d"
+path = "services"
+hash = "a7b34186424dd2b0582583c13b274c5ba3c1ac84"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify readonly RAM offer bounds rights and failure ownership"

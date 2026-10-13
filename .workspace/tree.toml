@@ -9631,3 +9631,11 @@ path = "services"
 hash = "880d46d0d80368c3c9617a607f6543cbbba641a8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise resizable RAM authority, truncation, alias lifetime and byte boundaries"
+
+[[entries]]
+date = "2026-10-14T08:52:46.422736197+09:00"
+snapshot = "967d04000b6f42c467a26dd2"
+path = "services"
+hash = "e0f45e7e20aff832ff8edd3dc3b7b71368474979"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Wire named shared RAM namespace to native backing and attenuated IPC replies"

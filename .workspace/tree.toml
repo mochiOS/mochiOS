@@ -9471,3 +9471,11 @@ path = "services"
 hash = "747d8fa38b45eea654c7320fbb1e71233f01e31e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record dependency resolution for native input ABI rebuild"
+
+[[entries]]
+date = "2026-10-14T05:47:59.045285967+09:00"
+snapshot = "a540ff0315d7ae17d906393f"
+path = "services"
+hash = "f9a677851059ae1a73d84ffb05d7976aebb6e7e3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test mmap-backed newlib allocation and native mapping limits"

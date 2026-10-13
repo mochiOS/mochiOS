@@ -8983,3 +8983,11 @@ path = "services"
 hash = "88bccb17b3df2f7b84d7bcff1155f76dc0767152"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): link independently built snapshot clients together"
+
+[[entries]]
+date = "2026-10-13T11:43:44.436151191+09:00"
+snapshot = "27f50ec6b396c04f029121d7"
+path = "services"
+hash = "722bdf85f7b9cd9f41f6a0210f0e6d9ce8cc73df"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(launch): create mboot agent from an inherited image handle"

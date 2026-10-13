@@ -9335,3 +9335,11 @@ path = "services"
 hash = "2e9ff01f73027b3dd21d973bdf2ba6100e93b1c1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover byte memory growth zeroing and concurrent IO"
+
+[[entries]]
+date = "2026-10-13T19:48:30.326620533+09:00"
+snapshot = "764ebbc6213843ca47181418"
+path = "services"
+hash = "9ec9b841749a4636d204287bc63f76dc8270a178"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify empty byte memory lifecycle and creation limits"

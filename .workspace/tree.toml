@@ -9447,3 +9447,11 @@ path = "services"
 hash = "e0fb49a2ddbadbc277fcfd01715e325fd61661e2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retain readonly IPC buffer mappings across compositor surface commits"
+
+[[entries]]
+date = "2026-10-13T22:11:08.370132783+09:00"
+snapshot = "acdf0109e6fbc6d1162e57f9"
+path = "services"
+hash = "b46dad6361835b62082920c7e5b9b92a22877381"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Cover actual ViewKit buffer ownership and readonly offers on host"

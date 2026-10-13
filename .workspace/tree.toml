@@ -8967,3 +8967,11 @@ path = "services"
 hash = "01ced869e870fe4f0ef02ece7af334cab0686a0e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): exercise caller authority rejection before image loading"
+
+[[entries]]
+date = "2026-10-13T11:35:50.917168075+09:00"
+snapshot = "3530d755a2f407d5944dcf1b"
+path = "services"
+hash = "793771d728e3e139c2866ac95fbeabda6f60f211"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(launch): restrict legacy fixed creation to namespace bootstrap"

@@ -9199,3 +9199,11 @@ path = "services"
 hash = "91fafe0c8816a05ec8a2ae08473f385ba233a95c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): stress barrier publication rounds and delayed reset"
+
+[[entries]]
+date = "2026-10-13T16:40:50.294097040+09:00"
+snapshot = "ecbc29b7ec073b3eca4cc160"
+path = "services"
+hash = "bf66c605acc0a8b7f71a11f966394f21b89cb2f2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify barrier ABI cancellation and shared-process rounds"

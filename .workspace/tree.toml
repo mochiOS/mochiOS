@@ -9535,3 +9535,11 @@ path = "services"
 hash = "4b3abafe62f6b97457427c58a4ed68526f18e1d1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Transfer Linux compositor buffers as attenuated RAM handles with owned mappings"
+
+[[entries]]
+date = "2026-10-14T06:56:33.733249137+09:00"
+snapshot = "11a58d67a067ea4c5831a94f"
+path = "services"
+hash = "decfbf54fddc22f617fe651d94a55e951a8763be"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Replace Linux staging page aliases with authenticated read-only RAM handle offers"

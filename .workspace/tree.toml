@@ -9279,3 +9279,11 @@ path = "services"
 hash = "9186488c287f2db3b54a2e9be6644a319775efce"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native revocation adapter ownership rollback and release order"
+
+[[entries]]
+date = "2026-10-13T18:36:33.600038011+09:00"
+snapshot = "6352775a91f2f5c63f8f7950"
+path = "services"
+hash = "87e5a31ed7e4572f3200cda06efa1a29e2725c55"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify atomic unmap metadata planning and native page reuse"

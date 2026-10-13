@@ -9015,3 +9015,11 @@ path = "services"
 hash = "ea9f6e8898f647afd3cbece999327c487673b072"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(drivers): launch image handles and retain process owners"
+
+[[entries]]
+date = "2026-10-13T12:28:36.975989705+09:00"
+snapshot = "9384d846773305a6a4e612a6"
+path = "services"
+hash = "86dfae992c167927991c91de32ccb230723658cc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(tty): launch shells through the standard POSIX process path"

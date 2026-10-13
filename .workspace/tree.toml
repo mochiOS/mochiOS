@@ -9031,3 +9031,11 @@ path = "services"
 hash = "63fd50f456f93f5771e04736f5d2b3d462d7ac60"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): add userspace null-device open description semantics"
+
+[[entries]]
+date = "2026-10-13T13:36:30.328271726+09:00"
+snapshot = "07839cfcb7b27018048b4255"
+path = "libraries/viewkit"
+hash = "d68c39154bcbd0dca7de0ccbe69f7010d81854e5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(viewkit): accept authenticated endpoint delivery metadata"

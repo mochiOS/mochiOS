@@ -9591,3 +9591,11 @@ path = "services"
 hash = "104c1d8e5c4f8f6d97319c449c22fba56b95b57d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify removed physical lookup ABI without reviving undispatched calls"
+
+[[entries]]
+date = "2026-10-14T07:54:29.455493441+09:00"
+snapshot = "a037bfb1f4e6178abb4927e2"
+path = "services"
+hash = "53ab1462489b77ef4d3d979bf816bd7e074d26f9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Guard retirement of internal IPC page alias transports"

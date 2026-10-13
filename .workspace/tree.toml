@@ -9295,3 +9295,11 @@ path = "services"
 hash = "2e4eeaa7e2aa089eb6a766b5e53d8e2edda3eb02"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify private snapshot generations and native mapping isolation"
+
+[[entries]]
+date = "2026-10-13T19:00:49.722347150+09:00"
+snapshot = "389bd5b7c445abcde4d0bdb9"
+path = "services"
+hash = "92f60a13e6799e2cad3a561cdc1cf7ba6d44fec9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify clone dispatcher VM lock and failure cleanup"

@@ -9495,3 +9495,11 @@ path = "services"
 hash = "014ddeae69abbafb96ef7e332d987f274feae231"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test COW access denial, grant rollback, and fork isolation"
+
+[[entries]]
+date = "2026-10-14T06:30:49.331398965+09:00"
+snapshot = "564360d4d4338a64ca19bf0d"
+path = "services"
+hash = "f0f1a98c825bb873dee202351265da615e941ab2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify sparse VM discovery, rollback, and non-present leaf revocation"

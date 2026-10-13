@@ -9303,3 +9303,11 @@ path = "services"
 hash = "92f60a13e6799e2cad3a561cdc1cf7ba6d44fec9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify clone dispatcher VM lock and failure cleanup"
+
+[[entries]]
+date = "2026-10-13T19:32:00.343562180+09:00"
+snapshot = "b9d74a8aa675f1e64b12d8b9"
+path = "services"
+hash = "60f64ddcce637cd0ac0bbb9b40a20f518d8ba900"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify detached root pins discovery and publication ownership"

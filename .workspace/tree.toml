@@ -9111,3 +9111,11 @@ path = "services"
 hash = "052d33a2211e8c0e4e0a2449bc5ff5f906b1575e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(pthread): preserve live once cleanup across fork snapshots"
+
+[[entries]]
+date = "2026-10-13T14:50:10.686957639+09:00"
+snapshot = "cdf5d9bd38ec2eecb4b9904d"
+path = "services"
+hash = "03dbeb192730b60d96ebbcc251a69e9eb09aa7bb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(pthread): verify shared readers and exclusive writer state"

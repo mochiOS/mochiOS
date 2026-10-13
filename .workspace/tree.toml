@@ -9559,3 +9559,11 @@ path = "services"
 hash = "01139adc20f8d8f1f873d24045776d7f0c5dee2f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify coreutils GUI RAM painting, attenuation and sender-drop lifetime"
+
+[[entries]]
+date = "2026-10-14T07:22:08.258822431+09:00"
+snapshot = "d096009da842f0c59e8b6888"
+path = "services"
+hash = "e17eead8267bc6a0aa559a3375a425fac21d9dfd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retire raw graphics address notifications and verify page ABI removal"

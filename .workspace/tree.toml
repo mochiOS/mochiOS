@@ -9047,3 +9047,11 @@ path = "services"
 hash = "0fd9f11733ef8b90a71ab3e9d07babee8a71252c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): add owned device filesystem nodes and traversal"
+
+[[entries]]
+date = "2026-10-13T13:44:36.631876378+09:00"
+snapshot = "11fab560ca2058b2b82c71a2"
+path = "services"
+hash = "8fbffe69b68817621349b23f0c89ef4b63c5e9e6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): mount device nodes in the owned namespace tree"

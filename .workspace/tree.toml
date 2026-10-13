@@ -8991,3 +8991,11 @@ path = "services"
 hash = "722bdf85f7b9cd9f41f6a0210f0e6d9ce8cc73df"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(launch): create mboot agent from an inherited image handle"
+
+[[entries]]
+date = "2026-10-13T11:47:42.374842678+09:00"
+snapshot = "72a8297894f4bd6071d73807"
+path = "services"
+hash = "66487eade61ecbeff3a4b934a5a1b740c11bb753"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(drivers): reject incomplete legacy launch argument blocks"

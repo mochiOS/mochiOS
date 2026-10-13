@@ -9231,3 +9231,11 @@ path = "services"
 hash = "fdd9a7a255f8ebc171c6959ec1712a92f7083466"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): implement shared memory namespace permissions and lifetime policy"
+
+[[entries]]
+date = "2026-10-13T17:36:02.435805721+09:00"
+snapshot = "af3554b5e02842b03df2464d"
+path = "services"
+hash = "968444a659a5df05cc77ce751ebd9a70db3a3e6c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify shared page resizing revocation and lifetime"

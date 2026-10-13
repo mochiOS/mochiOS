@@ -9583,3 +9583,11 @@ path = "services"
 hash = "1c7d247c7d25d291d7232752d7a20906abac6c37"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise handle-owned RAM across fork and reject retired page syscalls"
+
+[[entries]]
+date = "2026-10-14T07:50:12.936634122+09:00"
+snapshot = "088969ba6829ae3185702e7a"
+path = "services"
+hash = "104c1d8e5c4f8f6d97319c449c22fba56b95b57d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify removed physical lookup ABI without reviving undispatched calls"

@@ -9103,3 +9103,11 @@ path = "services"
 hash = "1ed28bcfab315df187806df580492942a6eefdf2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(pthread): cover once publication and initializer retirement"
+
+[[entries]]
+date = "2026-10-13T14:42:34.299403272+09:00"
+snapshot = "4608221b76aa42f7b5965047"
+path = "services"
+hash = "052d33a2211e8c0e4e0a2449bc5ff5f906b1575e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(pthread): preserve live once cleanup across fork snapshots"

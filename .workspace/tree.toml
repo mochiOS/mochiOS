@@ -9143,3 +9143,11 @@ path = "services"
 hash = "5971387bf29f812e69e08bb49128ddb4f000b4f6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify semaphore capacity and token publication"
+
+[[entries]]
+date = "2026-10-13T15:28:54.725710988+09:00"
+snapshot = "76a07b9237aa8ec131433427"
+path = "services"
+hash = "df6737b8478fbb676beedfb3db335cd8a27b9a73"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify public semaphore cancellation and shared wakes"

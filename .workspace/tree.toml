@@ -9439,3 +9439,11 @@ path = "services"
 hash = "9ffbdc6da5cde7d8538ed312ba574486d9b4bfe8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Transfer compositor frames using readonly memory handles"
+
+[[entries]]
+date = "2026-10-13T21:53:07.770901614+09:00"
+snapshot = "c0732a1f905bd8bafcc0623f"
+path = "services"
+hash = "e0fb49a2ddbadbc277fcfd01715e325fd61661e2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retain readonly IPC buffer mappings across compositor surface commits"

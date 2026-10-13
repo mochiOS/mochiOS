@@ -9127,3 +9127,11 @@ path = "services"
 hash = "ff945fc230b74ae7c5f5108fcf8265d5cebee425"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(pthread): verify public rwlocks and cross-process wake"
+
+[[entries]]
+date = "2026-10-13T15:12:10.260014335+09:00"
+snapshot = "b20b1292652e783589a1a16a"
+path = "services"
+hash = "845e53a851525c8f8e76fffa0f20135bd47aabfb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(pthread): verify future rwlock deadlines and early wake"

@@ -9087,3 +9087,11 @@ path = "services"
 hash = "cef64022608907e0982974634acdbaf004f69ff5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(clock): validate native clock description and ABI"
+
+[[entries]]
+date = "2026-10-13T14:23:22.086766860+09:00"
+snapshot = "f58bfed276c0cd83131c8118"
+path = "services"
+hash = "4cc3ba93cc240d22c6fba85ce5b539fa90a3b885"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover clock_getres ABI and native integration"

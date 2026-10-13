@@ -9391,3 +9391,11 @@ path = "services"
 hash = "dd48644b71526dce11f98806e4d17fa9671f0ace"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify atomic borrowed cleanup and native exit exec lifecycle"
+
+[[entries]]
+date = "2026-10-13T20:38:25.901543562+09:00"
+snapshot = "236fb05054ecb3c04c3c45cb"
+path = "services"
+hash = "e25af44b1f49a4d40a6f5c6095defab6825917a8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify shared borrowed mapper and framebuffer lifecycle"

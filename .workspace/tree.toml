@@ -9503,3 +9503,11 @@ path = "services"
 hash = "f0f1a98c825bb873dee202351265da615e941ab2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify sparse VM discovery, rollback, and non-present leaf revocation"
+
+[[entries]]
+date = "2026-10-14T06:35:22.641233875+09:00"
+snapshot = "9e6994a33a7154f7a782f804"
+path = "services"
+hash = "e2fc32b77f6cb0a37bd89d358c373a21d4906682"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Check reservation coverage equivalence and reject protection across unmapped gaps"

@@ -9135,3 +9135,11 @@ path = "services"
 hash = "845e53a851525c8f8e76fffa0f20135bd47aabfb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(pthread): verify future rwlock deadlines and early wake"
+
+[[entries]]
+date = "2026-10-13T15:21:40.074960642+09:00"
+snapshot = "74f68360b1dcf73da17d8966"
+path = "services"
+hash = "5971387bf29f812e69e08bb49128ddb4f000b4f6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify semaphore capacity and token publication"

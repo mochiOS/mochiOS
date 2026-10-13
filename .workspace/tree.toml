@@ -9407,3 +9407,11 @@ path = "services"
 hash = "b26da2fae890a368eb7f12d7edee85a96122f88f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify raw physical IPC rejection and native handle sharing"
+
+[[entries]]
+date = "2026-10-13T20:54:30.164120242+09:00"
+snapshot = "642785985e07753104f132a4"
+path = "services"
+hash = "0a3388f29d76903b9257641b5c40361a7aa4d86a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native memory ownership and retryable release failures"

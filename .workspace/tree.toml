@@ -9215,3 +9215,11 @@ path = "services"
 hash = "309eeaa0dc8b70071f710053a49ec75d827d02f7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify Rust synchronization layouts and native FFI calls"
+
+[[entries]]
+date = "2026-10-13T17:28:42.618275252+09:00"
+snapshot = "c2a66993d0c42e8a6025b0b5"
+path = "services"
+hash = "e7da45894f289db47041a13a0171dcc0a47171d9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify spin lifecycle contention and shared-process exclusion"

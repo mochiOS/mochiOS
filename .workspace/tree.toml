@@ -9575,3 +9575,11 @@ path = "services"
 hash = "f17fd58db62e44b280c1581d43a6b70d4d489c2e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test retained read roots and concurrent usercopy protection and remapping"
+
+[[entries]]
+date = "2026-10-14T07:44:19.667195372+09:00"
+snapshot = "4b688289758f12b0ef73abf6"
+path = "services"
+hash = "1c7d247c7d25d291d7232752d7a20906abac6c37"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise handle-owned RAM across fork and reject retired page syscalls"

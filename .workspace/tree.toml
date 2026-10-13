@@ -9615,3 +9615,11 @@ path = "services"
 hash = "493f670df41cc62acc6c100329092c33dd6cdde3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify fault diagnostic root lifetime and safe user exception paths"
+
+[[entries]]
+date = "2026-10-14T08:09:29.995524233+09:00"
+snapshot = "9143796059dd74c1a6293819"
+path = "services"
+hash = "b4d541312dce4e6cced2f1e2b60c1f542a2fdf12"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify process creation retains mapping lock through image consumption"

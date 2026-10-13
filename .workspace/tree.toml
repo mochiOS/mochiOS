@@ -9263,3 +9263,11 @@ path = "services"
 hash = "c7056e7dd1b47a6395fc584493160c8bd0880200"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify revocation rollback release order and range validation"
+
+[[entries]]
+date = "2026-10-13T18:10:00.184151019+09:00"
+snapshot = "f834e4be91f90512faae5ad7"
+path = "services"
+hash = "490dcb0c96c085e52b508d27356e5342c1c82a15"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify shared storage generations and resize-install serialization"

@@ -9519,3 +9519,11 @@ path = "services"
 hash = "fdcc12e57fdb7e27ee8cbe82d0c5cbc1b8b49dfd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify sparse shared reservations retain first-fault backing across fork"
+
+[[entries]]
+date = "2026-10-14T06:43:49.751626244+09:00"
+snapshot = "8b6bbe3c3460ed540a82ee80"
+path = "services"
+hash = "aedf77b7cf8141badd453cf1f5907fe3f8ca7737"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify large allocator requests and terabyte private and shared VM reservations"

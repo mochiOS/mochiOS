@@ -9455,3 +9455,11 @@ path = "services"
 hash = "b46dad6361835b62082920c7e5b9b92a22877381"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Cover actual ViewKit buffer ownership and readonly offers on host"
+
+[[entries]]
+date = "2026-10-14T05:23:12.364837477+09:00"
+snapshot = "a5db3516bde06a4ff95e9dc8"
+path = "services"
+hash = "dafd3d2b168b8b244eec240097d80d671c71701d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify SDK time layouts and native Rust sleep durations"

@@ -9463,3 +9463,11 @@ path = "services"
 hash = "dafd3d2b168b8b244eec240097d80d671c71701d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify SDK time layouts and native Rust sleep durations"
+
+[[entries]]
+date = "2026-10-14T05:29:29.156378826+09:00"
+snapshot = "a8559d74b02e3c42dc87399f"
+path = "services"
+hash = "747d8fa38b45eea654c7320fbb1e71233f01e31e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record dependency resolution for native input ABI rebuild"

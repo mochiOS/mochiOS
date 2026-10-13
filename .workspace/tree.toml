@@ -9151,3 +9151,11 @@ path = "services"
 hash = "df6737b8478fbb676beedfb3db335cd8a27b9a73"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify public semaphore cancellation and shared wakes"
+
+[[entries]]
+date = "2026-10-13T15:34:52.219279012+09:00"
+snapshot = "806306e9a575ef7c54e6821d"
+path = "services"
+hash = "cdb67de94d44020c5b486ab17d27bb0f961b8f8c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): manage named semaphore namespace and permissions"

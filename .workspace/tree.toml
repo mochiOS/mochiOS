@@ -9159,3 +9159,11 @@ path = "services"
 hash = "cdb67de94d44020c5b486ab17d27bb0f961b8f8c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): manage named semaphore namespace and permissions"
+
+[[entries]]
+date = "2026-10-13T15:44:30.297283338+09:00"
+snapshot = "8724a3975be1de4c714df4c6"
+path = "services"
+hash = "3190f2e688c64c93b32bc5fa88331c4b27e90102"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): delegate initialized named semaphore backing over IPC"

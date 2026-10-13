@@ -9567,3 +9567,11 @@ path = "services"
 hash = "e17eead8267bc6a0aa559a3375a425fac21d9dfd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retire raw graphics address notifications and verify page ABI removal"
+
+[[entries]]
+date = "2026-10-14T07:31:40.308326040+09:00"
+snapshot = "6a7472ada1d3de86f534887d"
+path = "services"
+hash = "f17fd58db62e44b280c1581d43a6b70d4d489c2e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test retained read roots and concurrent usercopy protection and remapping"

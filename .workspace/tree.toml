@@ -8999,3 +8999,11 @@ path = "services"
 hash = "66487eade61ecbeff3a4b934a5a1b740c11bb753"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(drivers): reject incomplete legacy launch argument blocks"
+
+[[entries]]
+date = "2026-10-13T11:51:32.064565246+09:00"
+snapshot = "4c83cf58ad746c6edd70c4a1"
+path = "services"
+hash = "97d3fead312f0036c2159da405907b3ef70fc62b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(launch): use the shared POSIX client metadata encoder"

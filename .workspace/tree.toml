@@ -9191,3 +9191,11 @@ path = "services"
 hash = "58d2a2bbd18502a8f237d4d55b86c1c025dcdc84"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(scheduler): check process lookup occurs outside run queue guard"
+
+[[entries]]
+date = "2026-10-13T16:28:05.583495178+09:00"
+snapshot = "bdf66bd45182cf29f93cc33d"
+path = "services"
+hash = "91fafe0c8816a05ec8a2ae08473f385ba233a95c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): stress barrier publication rounds and delayed reset"

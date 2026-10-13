@@ -8951,3 +8951,11 @@ path = "services"
 hash = "091d26ce7f1c38907177ec9717cf2e5d2c8ba87e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): retire vnode tests and verify remaining object paths"
+
+[[entries]]
+date = "2026-10-13T11:19:42.980774743+09:00"
+snapshot = "071515ce51d964d6dfe7f730"
+path = "services"
+hash = "3071ccfe0234ed541896a5ae37dcf44acceb5674"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(filesystem): keep mount namespace entirely in user space"

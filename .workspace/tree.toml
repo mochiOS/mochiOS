@@ -9551,3 +9551,11 @@ path = "services"
 hash = "fbe238f8116fac5e0ddb2c090e6664db23db15f9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify Binder decoration RAM ownership, pixels, and attenuated transfer"
+
+[[entries]]
+date = "2026-10-14T07:10:04.883701178+09:00"
+snapshot = "20fd8696c93ded8dedeaf3d4"
+path = "services"
+hash = "01139adc20f8d8f1f873d24045776d7f0c5dee2f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify coreutils GUI RAM painting, attenuation and sender-drop lifetime"

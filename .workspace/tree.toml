@@ -8959,3 +8959,11 @@ path = "services"
 hash = "3071ccfe0234ed541896a5ae37dcf44acceb5674"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(filesystem): keep mount namespace entirely in user space"
+
+[[entries]]
+date = "2026-10-13T11:33:03.204908053+09:00"
+snapshot = "c5f18f2ce4f680eec776a2ac"
+path = "services"
+hash = "01ced869e870fe4f0ef02ece7af334cab0686a0e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): exercise caller authority rejection before image loading"

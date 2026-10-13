@@ -9623,3 +9623,11 @@ path = "services"
 hash = "b4d541312dce4e6cced2f1e2b60c1f542a2fdf12"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify process creation retains mapping lock through image consumption"
+
+[[entries]]
+date = "2026-10-14T08:29:52.656536186+09:00"
+snapshot = "df402f88beea3512f88d4832"
+path = "services"
+hash = "880d46d0d80368c3c9617a607f6543cbbba641a8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise resizable RAM authority, truncation, alias lifetime and byte boundaries"

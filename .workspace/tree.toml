@@ -9039,3 +9039,11 @@ path = "libraries/viewkit"
 hash = "d68c39154bcbd0dca7de0ccbe69f7010d81854e5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(viewkit): accept authenticated endpoint delivery metadata"
+
+[[entries]]
+date = "2026-10-13T13:39:56.077450775+09:00"
+snapshot = "40bfe08b9455bd1515e93435"
+path = "services"
+hash = "0fd9f11733ef8b90a71ab3e9d07babee8a71252c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): add owned device filesystem nodes and traversal"

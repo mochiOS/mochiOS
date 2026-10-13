@@ -9255,3 +9255,11 @@ path = "services"
 hash = "49d1c432e4fde676ffab67c736eb947ab522c3c8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native SMP protection and cooperative shootdown waits"
+
+[[entries]]
+date = "2026-10-13T17:58:00.772405161+09:00"
+snapshot = "f5c98e6e9ad97f772ccbc5fd"
+path = "services"
+hash = "c7056e7dd1b47a6395fc584493160c8bd0880200"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify revocation rollback release order and range validation"

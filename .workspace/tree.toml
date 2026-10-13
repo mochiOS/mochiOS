@@ -9119,3 +9119,11 @@ path = "services"
 hash = "03dbeb192730b60d96ebbcc251a69e9eb09aa7bb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(pthread): verify shared readers and exclusive writer state"
+
+[[entries]]
+date = "2026-10-13T15:05:25.217344820+09:00"
+snapshot = "141d8a3e07a59da5a633e359"
+path = "services"
+hash = "ff945fc230b74ae7c5f5108fcf8265d5cebee425"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(pthread): verify public rwlocks and cross-process wake"

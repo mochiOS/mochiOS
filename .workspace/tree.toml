@@ -8975,3 +8975,11 @@ path = "services"
 hash = "793771d728e3e139c2866ac95fbeabda6f60f211"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(launch): restrict legacy fixed creation to namespace bootstrap"
+
+[[entries]]
+date = "2026-10-13T11:37:34.150409174+09:00"
+snapshot = "94d39a5fe2f9e53b6ee4d565"
+path = "services"
+hash = "88bccb17b3df2f7b84d7bcff1155f76dc0767152"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): link independently built snapshot clients together"

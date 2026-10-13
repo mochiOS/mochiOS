@@ -9487,3 +9487,11 @@ path = "services"
 hash = "97981c8059595e3894eb887ec39a4b030b448118"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify sparse private mappings, COW and shared anonymous fork"
+
+[[entries]]
+date = "2026-10-14T06:25:22.660067070+09:00"
+snapshot = "05dab3943aa65157cd43e40f"
+path = "services"
+hash = "014ddeae69abbafb96ef7e332d987f274feae231"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test COW access denial, grant rollback, and fork isolation"

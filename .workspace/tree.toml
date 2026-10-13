@@ -9479,3 +9479,11 @@ path = "services"
 hash = "f9a677851059ae1a73d84ffb05d7976aebb6e7e3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test mmap-backed newlib allocation and native mapping limits"
+
+[[entries]]
+date = "2026-10-14T05:59:43.880944139+09:00"
+snapshot = "c61d458200cbb7c586d74fd6"
+path = "services"
+hash = "97981c8059595e3894eb887ec39a4b030b448118"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify sparse private mappings, COW and shared anonymous fork"

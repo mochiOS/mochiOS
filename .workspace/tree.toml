@@ -9511,3 +9511,11 @@ path = "services"
 hash = "e2fc32b77f6cb0a37bd89d358c373a21d4906682"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Check reservation coverage equivalence and reject protection across unmapped gaps"
+
+[[entries]]
+date = "2026-10-14T06:39:58.035685105+09:00"
+snapshot = "f4811fd571f0d06815fd2a70"
+path = "services"
+hash = "fdcc12e57fdb7e27ee8cbe82d0c5cbc1b8b49dfd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify sparse shared reservations retain first-fault backing across fork"

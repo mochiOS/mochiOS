@@ -9207,3 +9207,11 @@ path = "services"
 hash = "bf66c605acc0a8b7f71a11f966394f21b89cb2f2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify barrier ABI cancellation and shared-process rounds"
+
+[[entries]]
+date = "2026-10-13T17:07:33.979862206+09:00"
+snapshot = "46edffa92b5e73037e676d5a"
+path = "services"
+hash = "309eeaa0dc8b70071f710053a49ec75d827d02f7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify Rust synchronization layouts and native FFI calls"

@@ -9543,3 +9543,11 @@ path = "services"
 hash = "decfbf54fddc22f617fe651d94a55e951a8763be"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Replace Linux staging page aliases with authenticated read-only RAM handle offers"
+
+[[entries]]
+date = "2026-10-14T07:03:23.168902831+09:00"
+snapshot = "ffa163d91a3bb89002af3717"
+path = "services"
+hash = "fbe238f8116fac5e0ddb2c090e6664db23db15f9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify Binder decoration RAM ownership, pixels, and attenuated transfer"

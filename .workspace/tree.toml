@@ -9399,3 +9399,11 @@ path = "services"
 hash = "e25af44b1f49a4d40a6f5c6095defab6825917a8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify shared borrowed mapper and framebuffer lifecycle"
+
+[[entries]]
+date = "2026-10-13T20:45:14.903051678+09:00"
+snapshot = "1cc88c52b2f1aaab604a90d3"
+path = "services"
+hash = "b26da2fae890a368eb7f12d7edee85a96122f88f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify raw physical IPC rejection and native handle sharing"

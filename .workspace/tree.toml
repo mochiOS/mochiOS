@@ -9287,3 +9287,11 @@ path = "services"
 hash = "87e5a31ed7e4572f3200cda06efa1a29e2725c55"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify atomic unmap metadata planning and native page reuse"
+
+[[entries]]
+date = "2026-10-13T18:49:39.538393640+09:00"
+snapshot = "ae20b59e22b09535c6814059"
+path = "services"
+hash = "2e4eeaa7e2aa089eb6a766b5e53d8e2edda3eb02"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify private snapshot generations and native mapping isolation"

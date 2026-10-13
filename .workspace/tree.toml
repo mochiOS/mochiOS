@@ -9343,3 +9343,11 @@ path = "services"
 hash = "9ec9b841749a4636d204287bc63f76dc8270a178"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify empty byte memory lifecycle and creation limits"
+
+[[entries]]
+date = "2026-10-13T19:53:35.952278691+09:00"
+snapshot = "febe32662e941f2622730ffd"
+path = "services"
+hash = "95d6efc2da450aa3658611aeec290af1a88456b2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify reserved RAM ranges reject absent page access"

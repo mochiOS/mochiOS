@@ -9007,3 +9007,11 @@ path = "services"
 hash = "97d3fead312f0036c2159da405907b3ef70fc62b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(launch): use the shared POSIX client metadata encoder"
+
+[[entries]]
+date = "2026-10-13T12:06:41.190639319+09:00"
+snapshot = "af3078dff6d6bd96d452a806"
+path = "services"
+hash = "ea9f6e8898f647afd3cbece999327c487673b072"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(drivers): launch image handles and retain process owners"

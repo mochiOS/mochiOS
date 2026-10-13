@@ -9327,3 +9327,11 @@ path = "services"
 hash = "416a8c6b2cb82e60eb9725c0d89ccc608ec55ae7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify byte storage resize commit and rollback"
+
+[[entries]]
+date = "2026-10-13T19:46:30.785203146+09:00"
+snapshot = "81f0a1d5bd91dc1f1e72ae03"
+path = "services"
+hash = "2e9ff01f73027b3dd21d973bdf2ba6100e93b1c1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover byte memory growth zeroing and concurrent IO"

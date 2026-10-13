@@ -9375,3 +9375,11 @@ path = "services"
 hash = "65d284c6011866e90a0a651b6a437db4e40b4a25"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify DMA free ordering and native zeroed VA reuse"
+
+[[entries]]
+date = "2026-10-13T20:18:01.203985951+09:00"
+snapshot = "ae7a10262d84b677aefcbc5f"
+path = "services"
+hash = "c2603522fa9963dc3b5d8d642a7eb8ecb5e3a870"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify DMA install rollback and concurrent native lifecycle"

@@ -9223,3 +9223,11 @@ path = "services"
 hash = "e7da45894f289db47041a13a0171dcc0a47171d9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify spin lifecycle contention and shared-process exclusion"
+
+[[entries]]
+date = "2026-10-13T17:32:43.728918232+09:00"
+snapshot = "45b368c484fd284c3f191905"
+path = "services"
+hash = "fdd9a7a255f8ebc171c6959ec1712a92f7083466"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): implement shared memory namespace permissions and lifetime policy"

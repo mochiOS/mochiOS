@@ -9095,3 +9095,11 @@ path = "services"
 hash = "4cc3ba93cc240d22c6fba85ce5b539fa90a3b885"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover clock_getres ABI and native integration"
+
+[[entries]]
+date = "2026-10-13T14:36:03.527479781+09:00"
+snapshot = "7770bf5409927ddf86d3e7c2"
+path = "services"
+hash = "1ed28bcfab315df187806df580492942a6eefdf2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(pthread): cover once publication and initializer retirement"

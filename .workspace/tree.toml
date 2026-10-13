@@ -9247,3 +9247,11 @@ path = "services"
 hash = "537360583772a9de31eb20055a29f9b79553c5bc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify TLB acknowledgements coalescing and failed flushes"
+
+[[entries]]
+date = "2026-10-13T17:51:10.671879239+09:00"
+snapshot = "daf9d00efbeb6299d3b08a9f"
+path = "services"
+hash = "49d1c432e4fde676ffab67c736eb947ab522c3c8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native SMP protection and cooperative shootdown waits"

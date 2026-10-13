@@ -9311,3 +9311,11 @@ path = "services"
 hash = "60f64ddcce637cd0ac0bbb9b40a20f518d8ba900"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify detached root pins discovery and publication ownership"
+
+[[entries]]
+date = "2026-10-13T19:39:47.950590364+09:00"
+snapshot = "fdf3ed110812fa7aeb3506d3"
+path = "services"
+hash = "7d1bf943172dd28c79f3d807f7454f3bfcc31657"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover byte extent resize geometry and limits"

@@ -9319,3 +9319,11 @@ path = "services"
 hash = "7d1bf943172dd28c79f3d807f7454f3bfcc31657"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover byte extent resize geometry and limits"
+
+[[entries]]
+date = "2026-10-13T19:42:35.434386327+09:00"
+snapshot = "01d0dac2dd9212e1ffcc398f"
+path = "services"
+hash = "416a8c6b2cb82e60eb9725c0d89ccc608ec55ae7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify byte storage resize commit and rollback"

@@ -9167,3 +9167,11 @@ path = "services"
 hash = "3190f2e688c64c93b32bc5fa88331c4b27e90102"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): delegate initialized named semaphore backing over IPC"
+
+[[entries]]
+date = "2026-10-13T15:54:28.420169239+09:00"
+snapshot = "9d654343a1791ac005cb890e"
+path = "services"
+hash = "ce2a17c8ec32e7cd4ba7902c7f8240ae617d0765"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify named semaphore ABI mapping references and fork"

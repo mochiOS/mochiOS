@@ -9599,3 +9599,11 @@ path = "services"
 hash = "53ab1462489b77ef4d3d979bf816bd7e074d26f9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Guard retirement of internal IPC page alias transports"
+
+[[entries]]
+date = "2026-10-14T08:00:04.036315381+09:00"
+snapshot = "e3bd1c1d7f0d3bde819ef97d"
+path = "services"
+hash = "de0d9ac9699584e96c1ed9cb8f6cf31b13bd1ffd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise wait-root retention and concurrent mapping replacement"

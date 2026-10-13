@@ -9271,3 +9271,11 @@ path = "services"
 hash = "490dcb0c96c085e52b508d27356e5342c1c82a15"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify shared storage generations and resize-install serialization"
+
+[[entries]]
+date = "2026-10-13T18:18:59.887478671+09:00"
+snapshot = "84626fa03fe4dd9076415eea"
+path = "services"
+hash = "9186488c287f2db3b54a2e9be6644a319775efce"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native revocation adapter ownership rollback and release order"

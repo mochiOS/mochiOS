@@ -9071,3 +9071,11 @@ path = "services"
 hash = "b8563a1dc7f69739bc2d2c10a1241e6c0939653a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(filesystem): preserve device handle mutation error semantics"
+
+[[entries]]
+date = "2026-10-13T14:09:02.533856680+09:00"
+snapshot = "a8ab54ce6efcb55a3fae0793"
+path = "services"
+hash = "f4436fde50fac8df0c83410b34116b360df1c9c6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(filesystem): resolve device path operation errors by node identity"

@@ -9055,3 +9055,11 @@ path = "services"
 hash = "8fbffe69b68817621349b23f0c89ef4b63c5e9e6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): mount device nodes in the owned namespace tree"
+
+[[entries]]
+date = "2026-10-13T14:00:10.560067649+09:00"
+snapshot = "bbbab87cb8e7d80e76483ed2"
+path = "services"
+hash = "a8b11a049851daf56d03469527d4eb18d6ca49e0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): serve userspace devfs through native file handles"

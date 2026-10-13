@@ -9359,3 +9359,11 @@ path = "services"
 hash = "62ebc8b26e7ecbd359b471332cdac054309f7c9f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify stack VM locking and native reserved-range exclusion"
+
+[[entries]]
+date = "2026-10-13T20:07:29.612427946+09:00"
+snapshot = "b51879d15504102f66218869"
+path = "services"
+hash = "e1a8fc08343c3b7518f8592ee820ad84061d1b52"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify MMIO lock rollback and native mapping lifecycle"

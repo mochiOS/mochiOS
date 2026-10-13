@@ -9023,3 +9023,11 @@ path = "services"
 hash = "86dfae992c167927991c91de32ccb230723658cc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(tty): launch shells through the standard POSIX process path"
+
+[[entries]]
+date = "2026-10-13T12:43:10.178767720+09:00"
+snapshot = "f01de1053f7c1198136b8cfb"
+path = "services"
+hash = "63fd50f456f93f5771e04736f5d2b3d462d7ac60"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): add userspace null-device open description semantics"

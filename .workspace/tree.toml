@@ -9431,3 +9431,11 @@ path = "services"
 hash = "4d5c679e3f0e20f54f2796c5ef979639af91e881"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Receive display buffers through attenuated memory handles"
+
+[[entries]]
+date = "2026-10-13T21:46:38.116312697+09:00"
+snapshot = "6083b843f764e472d702303a"
+path = "services"
+hash = "9ffbdc6da5cde7d8538ed312ba574486d9b4bfe8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Transfer compositor frames using readonly memory handles"

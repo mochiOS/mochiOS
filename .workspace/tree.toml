@@ -9423,3 +9423,11 @@ path = "services"
 hash = "a7b34186424dd2b0582583c13b274c5ba3c1ac84"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify readonly RAM offer bounds rights and failure ownership"
+
+[[entries]]
+date = "2026-10-13T21:37:38.895726117+09:00"
+snapshot = "0e73f9b088b65752011d7492"
+path = "services"
+hash = "4d5c679e3f0e20f54f2796c5ef979639af91e881"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Receive display buffers through attenuated memory handles"

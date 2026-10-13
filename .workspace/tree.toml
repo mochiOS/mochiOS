@@ -9175,3 +9175,11 @@ path = "services"
 hash = "ce2a17c8ec32e7cd4ba7902c7f8240ae617d0765"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify named semaphore ABI mapping references and fork"
+
+[[entries]]
+date = "2026-10-13T16:11:39.443234012+09:00"
+snapshot = "707f2ab56f7a0f5ed7cf62d4"
+path = "services"
+hash = "5848dadc58e1a7eee62cc7f1227dc113de7d2ec4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover signal posting and named semaphore exec lifetime"

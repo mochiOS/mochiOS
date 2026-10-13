@@ -9351,3 +9351,11 @@ path = "services"
 hash = "95d6efc2da450aa3658611aeec290af1a88456b2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify reserved RAM ranges reject absent page access"
+
+[[entries]]
+date = "2026-10-13T19:59:05.441412606+09:00"
+snapshot = "883333d014029d86528b380b"
+path = "services"
+hash = "62ebc8b26e7ecbd359b471332cdac054309f7c9f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify stack VM locking and native reserved-range exclusion"

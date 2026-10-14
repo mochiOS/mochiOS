@@ -10551,3 +10551,11 @@ path = "services"
 hash = "1b446665622a7ee9576aefdbf425d1ab0efd5bb7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): transfer complete records through delegated RAM buffers"
+
+[[entries]]
+date = "2026-10-15T02:30:25.402930236+09:00"
+snapshot = "c5aaf97c5631ad130ae90d97"
+path = "services"
+hash = "16a9140a0ee7d7b08ee3ac98414a5de7370c2f4a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): connect datagram descriptions to authenticated record worker IPC"

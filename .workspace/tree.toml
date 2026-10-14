@@ -10727,3 +10727,11 @@ path = "services"
 hash = "67f6f1453c428602af5d4291ae9996b25d554f27"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): retain quota-bounded peek snapshots without native duplication"
+
+[[entries]]
+date = "2026-10-15T05:45:32.075019443+09:00"
+snapshot = "556bab8740c81ddc64cac3eb"
+path = "services"
+hash = "661733e4880f8b051673a72d0140b4f0c3920d40"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): publish atomic peek receipts without consuming queued rights"

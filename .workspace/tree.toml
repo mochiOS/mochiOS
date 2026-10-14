@@ -10231,3 +10231,11 @@ path = "services"
 hash = "b6aa9fbfe516789746a499c749446dd87b98bd46"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover fault backing bounds and provider failures"
+
+[[entries]]
+date = "2026-10-14T19:04:09.585121865+09:00"
+snapshot = "31d53bc0e4ff0bf49b9450d7"
+path = "services"
+hash = "39bea96283137ba2e88aaae54d563ade18c76031"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native fault causes and backing bounds delivery"

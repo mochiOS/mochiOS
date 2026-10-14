@@ -10815,3 +10815,11 @@ path = "services"
 hash = "a8ba3d7dece7d3a69eb59cefd240a2e6a89d23ae"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify PTY pair and terminal reply ownership under faults"
+
+[[entries]]
+date = "2026-10-15T07:09:59.043732221+09:00"
+snapshot = "4479c19939a651227b83d636"
+path = "services"
+hash = "a071bdb5f1cfefc79b06acc58b1dcb8583312b61"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify process reply ownership and error preservation"

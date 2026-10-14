@@ -9663,3 +9663,11 @@ path = "services"
 hash = "b7412dc87a5c9b2512d8344f6d5c8251b631dee2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: retain shared-memory open descriptions through namespace resolution"
+
+[[entries]]
+date = "2026-10-14T09:12:34.296024770+09:00"
+snapshot = "0b8ff8a8804bb096730968ce"
+path = "services"
+hash = "602d1b76845108e1e03d621e757565c4943c87f5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: enforce RAM description extent controls and access modes"

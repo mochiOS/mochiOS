@@ -10527,3 +10527,11 @@ path = "services"
 hash = "baed232288579ce3bddf7da594aab0f6ea6db58a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify unread queue retirement generation isolation and send races"
+
+[[entries]]
+date = "2026-10-15T02:11:33.708998813+09:00"
+snapshot = "32054725e3db3bd23d6269be"
+path = "services"
+hash = "4829138debb779f8ad61255cddca2cdac1bec9c2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify stream message address API semantics"

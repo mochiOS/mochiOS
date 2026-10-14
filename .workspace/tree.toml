@@ -10887,3 +10887,11 @@ path = "services"
 hash = "da85992ba7cab2c5572cfd490c03c5dde8c1370e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify allocator exclusion and clone failure cleanup"
+
+[[entries]]
+date = "2026-10-15T08:00:20.187893545+09:00"
+snapshot = "6f83ba7de4c8075ab5cc592c"
+path = "services"
+hash = "69d577a97f5797ffc93520c8c3dca1b28c3a41d5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify clone admission and retained CPU contexts"

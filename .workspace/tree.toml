@@ -9679,3 +9679,11 @@ path = "services"
 hash = "6f59cef4c59467b6139530822498337d74b28f0f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: serve shared-memory descriptions through authenticated native Providers"
+
+[[entries]]
+date = "2026-10-14T09:26:22.467769738+09:00"
+snapshot = "d7fb18111a771a0523faf81c"
+path = "services"
+hash = "68020f2aec10feae0cd91513b1976f1c2b9a272e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test mapping delegation and production transport ownership failures"

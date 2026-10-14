@@ -9711,3 +9711,11 @@ path = "services"
 hash = "9a0e34c1e3cb1b1bd7388366e7dffcfedf3bafe7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: retain shared RAM metadata identity across opens and unlink"
+
+[[entries]]
+date = "2026-10-14T09:46:58.565201433+09:00"
+snapshot = "b0c6ce09feeb67fe99dcd298"
+path = "services"
+hash = "cd3992eea06df83352afef33b77350549a40f129"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: report shared RAM identity, permissions, extent and unlink status"

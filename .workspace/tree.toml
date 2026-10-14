@@ -9775,3 +9775,11 @@ path = "services"
 hash = "72b89840d79d2b1de4155c9db889c11288af0dab"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: implement userspace UNIX stream pair descriptions"
+
+[[entries]]
+date = "2026-10-14T10:45:41.872648763+09:00"
+snapshot = "cecf3266b5e5bb919cbcd52f"
+path = "services"
+hash = "a7b3c08c0e25140559a464a39ce548856f6123e8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: dispatch authenticated stream Provider requests"

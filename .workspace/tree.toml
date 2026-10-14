@@ -10311,3 +10311,11 @@ path = "services"
 hash = "7421092898f713666a91f5619b0187253bb7d242"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): schedule synchronous signal wait deadlines"
+
+[[entries]]
+date = "2026-10-14T20:27:39.222609686+09:00"
+snapshot = "ee5b910aa973c8c5ba14b256"
+path = "services"
+hash = "596f9da9f7e8ede05503a4c94848e9885bacd443"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(filesystem): require a userspace backend instead of legacy kernel fallback"

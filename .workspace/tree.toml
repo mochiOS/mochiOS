@@ -10903,3 +10903,11 @@ path = "services"
 hash = "027e2aece065f0e608f63b446617a7fb3b6e3947"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise allocator-owned atfork registration during fork"
+
+[[entries]]
+date = "2026-10-15T08:11:56.902025583+09:00"
+snapshot = "d2f71f547aca3d5812be769b"
+path = "services"
+hash = "6431b7dc458ebe48e869ce22ca29a441e6dd4679"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover thread lifecycle snapshot exclusion"

@@ -9855,3 +9855,11 @@ path = "services"
 hash = "cbc3ca6e244187f943e1bbb5f6362bab1c3e4f88"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: create single authenticated socket Handles and verify libc socket"
+
+[[entries]]
+date = "2026-10-14T11:42:35.965273786+09:00"
+snapshot = "53c79977a57f3b6284a15d37"
+path = "services"
+hash = "c69ff3c1c6f9a081ee401a5e470f2bdaaa08d0f5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test sockaddr input bounds binary names and network byte order"

@@ -10583,3 +10583,11 @@ path = "services"
 hash = "725881417393239076442c2d51325e749a755c90"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): retain authorized sendto targets across blocking retries"
+
+[[entries]]
+date = "2026-10-15T03:22:32.585504832+09:00"
+snapshot = "17229df132bdf839a8bba08c"
+path = "services"
+hash = "6251ab0a5f6e6012a50c03dc9b14b28a8d01cd00"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): detach datagram peers without resetting local state"

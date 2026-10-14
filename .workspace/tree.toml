@@ -10943,3 +10943,11 @@ path = "services"
 hash = "93d9f0efa442e3d23cb69add2c7f4b84703f58f3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover pinned fork inheritance and capture cleanup"
+
+[[entries]]
+date = "2026-10-15T08:58:54.221291106+09:00"
+snapshot = "a58097f2913dc205208e617d"
+path = "services"
+hash = "ea83f59490bce45d1155df67958fb3d7ffde2189"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): prepare owner-scoped fork policy snapshots with cancellation"

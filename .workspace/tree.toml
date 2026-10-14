@@ -10647,3 +10647,11 @@ path = "services"
 hash = "ead1869efb4e1c2c58055d4f4c6ee84df3191186"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): receive ancillary ownership through bounded delivery receipts"
+
+[[entries]]
+date = "2026-10-15T04:28:47.279343186+09:00"
+snapshot = "a1aa58cf378f4f0e494ff407"
+path = "services"
+hash = "5dbf6cb4f385545fd90d7a5731b030fa0f2c0639"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): receive ancillary handles through authenticated IPC receipts"

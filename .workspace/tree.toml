@@ -10111,3 +10111,11 @@ path = "services"
 hash = "2a864aeb7f61755eb16e86fcbe2dedf60421e530"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): share receive timeouts across socket descriptions"
+
+[[entries]]
+date = "2026-10-14T16:39:56.943183468+09:00"
+snapshot = "707159ecb577c68b63a712b3"
+path = "services"
+hash = "a8eee7d218f4d6a0db99e6dba7569714d2d2f3cc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): share socket send timeout policy"

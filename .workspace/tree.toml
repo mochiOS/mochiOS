@@ -10447,3 +10447,11 @@ path = "services"
 hash = "c844bb445c48d8dd41d6b23c49fc5bee087a892b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify signal jumps across masks stacks native upcalls and fork"
+
+[[entries]]
+date = "2026-10-14T23:56:24.249258948+09:00"
+snapshot = "aae7385747407b17437c80c1"
+path = "services"
+hash = "2d93e3c377d7ef93ab8b6ff7bcde04ffa9e6ca66"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify plain jump ABI runtime routes and SDK backend retirement"

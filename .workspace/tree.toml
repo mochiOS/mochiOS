@@ -9767,3 +9767,11 @@ path = "services"
 hash = "1c5e2ca0048d7e518d775eb49ed293cdca42652d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test socket wire bounds, canonical fields and unsupported backend"
+
+[[entries]]
+date = "2026-10-14T10:42:26.759550862+09:00"
+snapshot = "8382ac060c80897c076682dd"
+path = "services"
+hash = "72b89840d79d2b1de4155c9db889c11288af0dab"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: implement userspace UNIX stream pair descriptions"

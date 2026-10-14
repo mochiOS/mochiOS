@@ -10031,3 +10031,11 @@ path = "services"
 hash = "550b33a6536197803dab97146033667faed38410"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose native socket kind and accept-state controls with regression tests"
+
+[[entries]]
+date = "2026-10-14T15:27:48.587697330+09:00"
+snapshot = "727bfc12321747ca9a715d50"
+path = "services"
+hash = "0034c5bd64e46fadc30f75df33eb3324b6f0cb44"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve and consume UNIX socket reset errors across shared descriptions"

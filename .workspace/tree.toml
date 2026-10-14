@@ -10703,3 +10703,11 @@ path = "services"
 hash = "5709474929cae40d1736bad13b654a541f5d516a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): track owned ancillary stream markers and consuming boundaries"
+
+[[entries]]
+date = "2026-10-15T05:16:02.020269874+09:00"
+snapshot = "97f3ef0e7258702adbc99192"
+path = "services"
+hash = "5e7a7c50e29dceefccd9ad87e1d9e817190f4883"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): commit staged stream rights with partial-send and marker readiness"

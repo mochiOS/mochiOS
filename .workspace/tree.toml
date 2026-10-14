@@ -10351,3 +10351,11 @@ path = "services"
 hash = "8873bbb72ac4985a333e9508d796ec46e9c4c0da"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify alternate stacks across nested signals fork and exec"
+
+[[entries]]
+date = "2026-10-14T21:36:47.695215795+09:00"
+snapshot = "7021db1d8f6e4e9b0998dfec"
+path = "services"
+hash = "75d068a062119d9a6d5f1d7edca1af03b74183ed"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify independent native CPU context restoration"

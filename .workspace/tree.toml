@@ -9807,3 +9807,11 @@ path = "services"
 hash = "b2ab3511cdaca85b2712278f91146437125b2ee6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test pair reservation rollback and stale tokens"
+
+[[entries]]
+date = "2026-10-14T11:06:52.609310601+09:00"
+snapshot = "fd72bee4db59c858e819c296"
+path = "services"
+hash = "25e5fb8329dd791f2b79c7071dce64766857ba9a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: distinguish socket shutdown from errors and verify libc integration"

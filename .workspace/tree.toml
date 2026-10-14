@@ -10679,3 +10679,11 @@ path = "services"
 hash = "26b5701fbd3828a39fbe85fe0e01c7df5fd8c6f7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): validate recvmsg C ABI and native ancillary FD installation"
+
+[[entries]]
+date = "2026-10-15T04:54:37.474237473+09:00"
+snapshot = "b11f7b7fc55cebc66e702e79"
+path = "services"
+hash = "5c0877d8f45d818aee9c21dd6d802b91820ef07e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native sendmsg round trips and failed-send ownership"

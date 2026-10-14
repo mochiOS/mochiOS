@@ -10183,3 +10183,11 @@ path = "services"
 hash = "16da994d1877e43635768e669071758eefb89c04"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify manifest launch ABI retirement and native execution"
+
+[[entries]]
+date = "2026-10-14T17:57:05.886966902+09:00"
+snapshot = "765992563264c0ddf56a57bd"
+path = "services"
+hash = "4c13c83ad9c2c6ca0568b7ea17e588098bd591f1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): enforce initfs-only bootstrap and explicit process labels"

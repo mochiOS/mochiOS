@@ -10463,3 +10463,11 @@ path = "services"
 hash = "8c375fc2f4efae3345792c1b00e0df270abb2bfa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify owned jump staging and multi-generation stack reclamation"
+
+[[entries]]
+date = "2026-10-15T00:20:46.356198050+09:00"
+snapshot = "48be2fc53848a2959fdbc5fa"
+path = "services"
+hash = "786fc4b2cb921a9edb19f07abc65c524a109aa21"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): inject jump failures before exit and verify guard retention"

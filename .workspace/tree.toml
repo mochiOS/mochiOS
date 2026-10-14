@@ -9967,3 +9967,11 @@ path = "services"
 hash = "956bd07c56975c9c48b1a8e2ee8f452af640c18b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: resolve UNIX connections by retained inode and preserve address snapshots"
+
+[[entries]]
+date = "2026-10-14T14:11:25.144370099+09:00"
+snapshot = "11d24c97e75d16c8653a9143"
+path = "services"
+hash = "94ca9c2c8ccb8ef4f286369fcf910fa901f36101"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix tests: cover accept attachment attenuation and reply cleanup"

@@ -10279,3 +10279,11 @@ path = "services"
 hash = "68ce70eb7d43eab8dd68b8019d9dd1deda677c7f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify signal context ABI and lossless native conversion"
+
+[[entries]]
+date = "2026-10-14T19:58:20.943483735+09:00"
+snapshot = "dfe8d3b14c367fe69d396d31"
+path = "services"
+hash = "eb6c695ce77b9eb744cd9b1a51c87fb87ed4d15f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): preserve child event status across reaping and delivery"

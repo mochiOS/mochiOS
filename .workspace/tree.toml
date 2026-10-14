@@ -10655,3 +10655,11 @@ path = "services"
 hash = "5dbf6cb4f385545fd90d7a5731b030fa0f2c0639"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): receive ancillary handles through authenticated IPC receipts"
+
+[[entries]]
+date = "2026-10-15T04:33:45.261593923+09:00"
+snapshot = "5a287188161430a5df7435a4"
+path = "services"
+hash = "85ab91f924bf00e3c8fd9029cd9b749b3c03c300"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover ancillary FD group publication and cancellation"

@@ -10055,3 +10055,11 @@ path = "services"
 hash = "c689a38e6b2cc87ec3bb5969889c9ab54bb16a73"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retain unlinked open files outside removable user directories"
+
+[[entries]]
+date = "2026-10-14T15:45:47.472466453+09:00"
+snapshot = "a1fdd03bbe099521ff0c4575"
+path = "services"
+hash = "b98a07171ecf5dd390a6019d2dd49a3b66d1e3fc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Evacuate retained rename backups before removing empty directories"

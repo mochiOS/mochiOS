@@ -9847,3 +9847,11 @@ path = "services"
 hash = "3fd6136db3f3b897e2a72508b789eb26975fdb3c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: distinguish unconnected UNIX sockets from disconnected peers"
+
+[[entries]]
+date = "2026-10-14T11:38:59.666724314+09:00"
+snapshot = "3ba1d8fb851b010d69a18cfd"
+path = "services"
+hash = "cbc3ca6e244187f943e1bbb5f6362bab1c3e4f88"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: create single authenticated socket Handles and verify libc socket"

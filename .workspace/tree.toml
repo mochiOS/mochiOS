@@ -10199,3 +10199,11 @@ path = "services"
 hash = "ae1aa91a461a7f852463939d809bba0acfb8de40"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify memory share retirement and retained object mappings"
+
+[[entries]]
+date = "2026-10-14T18:11:02.742017511+09:00"
+snapshot = "c13b4fe2a1711ff10fff6ec1"
+path = "services"
+hash = "4c8137f2496387938605c8049b7d9075cd32d01a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify upcall floating-point restoration and token ownership"

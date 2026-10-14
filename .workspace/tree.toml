@@ -10807,3 +10807,11 @@ path = "services"
 hash = "6b74d3015f4653e6783012ad6f61492cf7633f9e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover shared memory reply ownership under faults"
+
+[[entries]]
+date = "2026-10-15T07:07:57.070902085+09:00"
+snapshot = "90354d08a6b2446c4902845a"
+path = "services"
+hash = "a8ba3d7dece7d3a69eb59cefd240a2e6a89d23ae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify PTY pair and terminal reply ownership under faults"

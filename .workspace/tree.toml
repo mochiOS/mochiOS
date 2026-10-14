@@ -9799,3 +9799,11 @@ path = "services"
 hash = "05d66e53116041bfbf9eb43ec3d73d2eea69de36"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify socket client reply authority and cleanup"
+
+[[entries]]
+date = "2026-10-14T10:56:03.949442364+09:00"
+snapshot = "f4ce2ba9f97693e7f0e03c6d"
+path = "services"
+hash = "b2ab3511cdaca85b2712278f91146437125b2ee6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test pair reservation rollback and stale tokens"

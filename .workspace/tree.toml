@@ -9999,3 +9999,11 @@ path = "services"
 hash = "567810372b3b3d82c357d279975c50e8f8d149ae"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Manage cancellable socket connect backlog jobs in userspace"
+
+[[entries]]
+date = "2026-10-14T15:00:16.930608617+09:00"
+snapshot = "f0c55f50480ab304039705c5"
+path = "services"
+hash = "57e813d2ef8c1f49ee6e008a0bbd29f6dec0ceff"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test socket connect authority and wait job reply validation"

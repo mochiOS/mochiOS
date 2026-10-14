@@ -9751,3 +9751,11 @@ path = "services"
 hash = "2ea632ac2ae118f2313a81bceb65de9b9986dc99"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify exec authority without kernel identity storage policy"
+
+[[entries]]
+date = "2026-10-14T10:16:02.128774152+09:00"
+snapshot = "d7201accf2c406755d1686f9"
+path = "services"
+hash = "0d2a4f67a1e1260826b6534167766d678afd956c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify kernel process labels do not load userspace alias files"

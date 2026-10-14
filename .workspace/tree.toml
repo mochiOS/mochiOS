@@ -10743,3 +10743,11 @@ path = "services"
 hash = "673db11624c59907c698e1ac37497920678d7c9a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): dispatch authenticated peek receipts and verify native FD ownership"
+
+[[entries]]
+date = "2026-10-15T05:59:45.070127840+09:00"
+snapshot = "d8392d4c7f5dce2bc164a7b9"
+path = "services"
+hash = "d284f8d39c12fb0cb979284d5b95efb6905710ff"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify host-matched peek WAITALL and native receive regressions"

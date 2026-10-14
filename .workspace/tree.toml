@@ -9911,3 +9911,11 @@ path = "services"
 hash = "0319595984c57f49bcf2e477ca7406716d5833df"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: return attenuated retained socket Handles through native IPC"
+
+[[entries]]
+date = "2026-10-14T12:55:58.970962614+09:00"
+snapshot = "933aee414cc4e7587eb79d11"
+path = "services"
+hash = "c0213e867e47c7db6a78f2f4f2f8889885dfa109"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: separate borrowed filesystem IPC attachments from owned replies"

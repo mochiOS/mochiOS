@@ -10663,3 +10663,11 @@ path = "services"
 hash = "85ab91f924bf00e3c8fd9029cd9b749b3c03c300"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover ancillary FD group publication and cancellation"
+
+[[entries]]
+date = "2026-10-15T04:38:01.428560540+09:00"
+snapshot = "981395c6e814a410e1d1ce0a"
+path = "services"
+hash = "dabb26a76efbc51ed7869cb6642cc64ca65c846a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise ancillary receive client failure ownership and FD publication"

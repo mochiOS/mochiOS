@@ -10255,3 +10255,11 @@ path = "services"
 hash = "f4056e1da8301a7fbd4668e6de3b72c3d28d3d31"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify upcall snapshot scope and context immutability"
+
+[[entries]]
+date = "2026-10-14T19:25:47.309534486+09:00"
+snapshot = "500d3827d84c9c2bb1fe5997"
+path = "services"
+hash = "88e9ae5706d279dc3ccbec467cf34bf5173258cc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify safe context changes and rejected privilege state"

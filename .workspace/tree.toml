@@ -10103,3 +10103,11 @@ path = "services"
 hash = "5f0139c523fd149eece7f812f09e7a586cb82377"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): enforce shared UNIX stream send limits"
+
+[[entries]]
+date = "2026-10-14T16:35:24.884700472+09:00"
+snapshot = "f2a0fe3e8bf3ab641704ac95"
+path = "services"
+hash = "2a864aeb7f61755eb16e86fcbe2dedf60421e530"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): share receive timeouts across socket descriptions"

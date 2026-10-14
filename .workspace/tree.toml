@@ -9743,3 +9743,11 @@ path = "services"
 hash = "d13d110dce1473c603b0dc2005ae97de2fc2378c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify regular-file and shared-memory poll select readiness"
+
+[[entries]]
+date = "2026-10-14T10:08:12.441030158+09:00"
+snapshot = "fb7eeef2def3a356f18b100e"
+path = "services"
+hash = "2ea632ac2ae118f2313a81bceb65de9b9986dc99"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify exec authority without kernel identity storage policy"

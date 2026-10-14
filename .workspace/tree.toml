@@ -9927,3 +9927,11 @@ path = "services"
 hash = "e7d4b265a2948812c0870794cc5455577d02d3f4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: add retained-inode pathname socket binding state"
+
+[[entries]]
+date = "2026-10-14T13:11:26.156921144+09:00"
+snapshot = "1aaae06666c7c0c450389830"
+path = "services"
+hash = "046aeb81912969a052a1dcf07c9a6e2bd638617b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: bind UNIX socket paths using authenticated session anchors and retained Handles"

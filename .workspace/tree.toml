@@ -10407,3 +10407,11 @@ path = "services"
 hash = "e218a9ad363286048c17432ddc04b868e881846e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify nested signal scope ownership and completion"
+
+[[entries]]
+date = "2026-10-14T23:13:45.855012184+09:00"
+snapshot = "0f0bed9029dd575f76e6fbab"
+path = "services"
+hash = "b8436b56e8f92bd738f17423534b503584938d42"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise guarded signal registration and failure paths"

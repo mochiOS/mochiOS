@@ -9695,3 +9695,11 @@ path = "services"
 hash = "21416161863d737bb3de7cadca67611d19de98a1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify newlib shared-memory FD lifetime, inheritance and mappings"
+
+[[entries]]
+date = "2026-10-14T09:37:34.961544315+09:00"
+snapshot = "97bc4896a23d1fc64b44d9ea"
+path = "services"
+hash = "7506ef83a924a88c1fbfab392061d8581fd0b611"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: share RAM description status flags across dup and fork"

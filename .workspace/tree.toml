@@ -10391,3 +10391,11 @@ path = "services"
 hash = "0dd8200ece1f69a115f5d37c9a1efb47a523558e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): simulate fork across queued and fault delivery replies"
+
+[[entries]]
+date = "2026-10-14T22:44:56.132991012+09:00"
+snapshot = "021a22d6f68e780ac09b84d2"
+path = "services"
+hash = "b511d34ae47f293015e04da390c9167dae7eefb2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify signal preparation handoff and default stop continuation"

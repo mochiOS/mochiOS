@@ -10423,3 +10423,11 @@ path = "services"
 hash = "44b90295e96073c45deb3beaf1364fa4af19b214"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native signal frame identity and ownership"
+
+[[entries]]
+date = "2026-10-14T23:25:44.958278749+09:00"
+snapshot = "514c7db6e4c6642b003cffb9"
+path = "services"
+hash = "61ba01bea08c85fe79d2f5fb2172df121721b857"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover selective signal unwind and copied fork scopes"

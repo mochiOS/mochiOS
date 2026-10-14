@@ -10359,3 +10359,11 @@ path = "services"
 hash = "75d068a062119d9a6d5f1d7edca1af03b74183ed"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify independent native CPU context restoration"
+
+[[entries]]
+date = "2026-10-14T21:54:33.307696752+09:00"
+snapshot = "97541fb04a580bbb10303472"
+path = "services"
+hash = "5c7e0093c39b49a2eaa7d56617d621ef38674f48"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise fork from async nested and fault handlers"

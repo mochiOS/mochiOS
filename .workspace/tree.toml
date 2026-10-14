@@ -9759,3 +9759,11 @@ path = "services"
 hash = "0d2a4f67a1e1260826b6534167766d678afd956c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify kernel process labels do not load userspace alias files"
+
+[[entries]]
+date = "2026-10-14T10:29:59.844834422+09:00"
+snapshot = "108e76df562ab769b9ecfc42"
+path = "services"
+hash = "1c5e2ca0048d7e518d775eb49ed293cdca42652d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test socket wire bounds, canonical fields and unsupported backend"

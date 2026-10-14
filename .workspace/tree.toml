@@ -10367,3 +10367,11 @@ path = "services"
 hash = "5c7e0093c39b49a2eaa7d56617d621ef38674f48"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise fork from async nested and fault handlers"
+
+[[entries]]
+date = "2026-10-14T22:12:09.609666664+09:00"
+snapshot = "e3809435e5d1f7f2d51f2839"
+path = "services"
+hash = "569c9d19fb4bf2c8003252bce8c330b99762bc34"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native deferral and asynchronous runtime reentry"

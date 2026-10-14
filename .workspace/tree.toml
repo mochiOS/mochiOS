@@ -9823,3 +9823,11 @@ path = "services"
 hash = "289038bad10109bf1e2090b95a03d9fc4f357051"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: report socket description metadata and verify fstat inheritance"
+
+[[entries]]
+date = "2026-10-14T11:18:36.362386909+09:00"
+snapshot = "91c41029230f3951caea1d33"
+path = "services"
+hash = "9beaaf939d9297ff0795dd1a30eda3be17f7407a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify socket message flags and partial receive preservation"

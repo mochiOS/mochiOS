@@ -9647,3 +9647,11 @@ path = "services"
 hash = "ef1462a38e4896bb60ec084e5987730637e7cfbb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: add RAM-backed open description ownership and cursor operations"
+
+[[entries]]
+date = "2026-10-14T09:09:10.183805703+09:00"
+snapshot = "420516b243191afcf202fe8b"
+path = "services"
+hash = "f3c35f470316a4c0ca53ee6b45387045b02597cd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: dispatch authenticated RAM open-description provider frames"

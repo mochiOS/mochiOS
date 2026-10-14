@@ -10039,3 +10039,11 @@ path = "services"
 hash = "0034c5bd64e46fadc30f75df33eb3324b6f0cb44"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve and consume UNIX socket reset errors across shared descriptions"
+
+[[entries]]
+date = "2026-10-14T15:32:43.717201703+09:00"
+snapshot = "b012154a46fc537a4d986727"
+path = "services"
+hash = "9ef536b9c5db91ce53b0f3d2aff431eecc21607f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Apply shared socket receive limits to stream flow control"

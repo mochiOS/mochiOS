@@ -10839,3 +10839,11 @@ path = "services"
 hash = "199aa23c4081af3ea8ce5ea125e127194893f6f2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): enforce empty stream send errors and verify native Provider dispatch"
+
+[[entries]]
+date = "2026-10-15T07:24:11.521886443+09:00"
+snapshot = "b91d1eb0a5d70c6eee8cc0fa"
+path = "services"
+hash = "be3c3aabbf812b4a96ccdd91c4414084bce65810"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): observe stream readiness for empty ancillary receives"

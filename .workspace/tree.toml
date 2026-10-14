@@ -9991,3 +9991,11 @@ path = "services"
 hash = "3013d48945f6ed2fbbb3abf831f55baaf6b20ba2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retain authorized socket targets across connect backlog retries"
+
+[[entries]]
+date = "2026-10-14T14:57:06.172202315+09:00"
+snapshot = "fde3c682d771724ca03561e1"
+path = "services"
+hash = "567810372b3b3d82c357d279975c50e8f8d149ae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Manage cancellable socket connect backlog jobs in userspace"

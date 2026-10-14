@@ -10503,3 +10503,11 @@ path = "services"
 hash = "83053ab58fc8e6247f4fe6137f9ccc49946de09c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): provide atomic receive threshold notifications for MSG_PEEK waits"
+
+[[entries]]
+date = "2026-10-15T01:32:34.055086302+09:00"
+snapshot = "ab43948b809181f0e3753885"
+path = "services"
+hash = "6f59d2d573f65e571eddcec7fbfc5dfca3b49e1e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover endpoint death wakeups reply generations and socket regressions"

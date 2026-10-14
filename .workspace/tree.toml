@@ -9975,3 +9975,11 @@ path = "services"
 hash = "94ca9c2c8ccb8ef4f286369fcf910fa901f36101"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix tests: cover accept attachment attenuation and reply cleanup"
+
+[[entries]]
+date = "2026-10-14T14:50:32.321473432+09:00"
+snapshot = "7ab68db9bbf6f4afee59997d"
+path = "services"
+hash = "9fb31b00290e6a4adfce12e73583fd3069378d03"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Transfer accepted socket handles through authenticated POSIX IPC"

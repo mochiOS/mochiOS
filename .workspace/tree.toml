@@ -9703,3 +9703,11 @@ path = "services"
 hash = "7506ef83a924a88c1fbfab392061d8581fd0b611"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: share RAM description status flags across dup and fork"
+
+[[entries]]
+date = "2026-10-14T09:40:52.589346055+09:00"
+snapshot = "407357c0b1e38ffbd07e854b"
+path = "services"
+hash = "9a0e34c1e3cb1b1bd7388366e7dffcfedf3bafe7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: retain shared RAM metadata identity across opens and unlink"

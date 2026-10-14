@@ -10079,3 +10079,11 @@ path = "services"
 hash = "c6b3d914b3a2bb35665e6d5be152719836dd49da"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test diagnostic cursor gaps retries overflow and actual audit history"
+
+[[entries]]
+date = "2026-10-14T16:12:42.188070899+09:00"
+snapshot = "11600354a2677b711452223b"
+path = "services"
+hash = "ea0da2cd85015d188ea1d8b9c16d2130c1cc2362"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover diagnostic authorization and cursor ownership"

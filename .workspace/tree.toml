@@ -10223,3 +10223,11 @@ path = "services"
 hash = "83c80a16fb2a0ab3c7eef3602684d4f7439b07b7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native exception recovery and recursive fault rejection"
+
+[[entries]]
+date = "2026-10-14T18:58:50.491471348+09:00"
+snapshot = "ac6800a4ae32cbbc090ba726"
+path = "services"
+hash = "b6aa9fbfe516789746a499c749446dd87b98bd46"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover fault backing bounds and provider failures"

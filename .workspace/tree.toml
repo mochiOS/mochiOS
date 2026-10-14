@@ -10191,3 +10191,11 @@ path = "services"
 hash = "4c13c83ad9c2c6ca0568b7ea17e588098bd591f1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): enforce initfs-only bootstrap and explicit process labels"
+
+[[entries]]
+date = "2026-10-14T18:02:28.057544785+09:00"
+snapshot = "9370f9c1ac575eaedfed7b6e"
+path = "services"
+hash = "ae1aa91a461a7f852463939d809bba0acfb8de40"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify memory share retirement and retained object mappings"

@@ -9871,3 +9871,11 @@ path = "services"
 hash = "8ab7a5ac819c3b2abf3e7bc82f4894f7eeecec3d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: create exclusive socket inodes within authenticated path anchors"
+
+[[entries]]
+date = "2026-10-14T12:09:29.799887755+09:00"
+snapshot = "75210de83c7de75d1174048b"
+path = "services"
+hash = "1e86fc0d9ecbc5f27a8510efa3f390f5e97bc229"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: dispatch socket creation through delegated control and test IPC authority"

@@ -10847,3 +10847,11 @@ path = "services"
 hash = "be3c3aabbf812b4a96ccdd91c4414084bce65810"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): observe stream readiness for empty ancillary receives"
+
+[[entries]]
+date = "2026-10-15T07:32:36.795795715+09:00"
+snapshot = "d9ecf59c2dcba054e18cf913"
+path = "services"
+hash = "88bf93b5fba1f80ca5ed63aaf7a6928b27b17d0b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native processor counts through sysconf and Rust std"

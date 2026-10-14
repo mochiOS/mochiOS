@@ -10927,3 +10927,11 @@ path = "services"
 hash = "3292fbcbc429790b448af4e58ca8b46fd204f64d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify pinned handle identity and capture allocation failure"
+
+[[entries]]
+date = "2026-10-15T08:49:01.886182592+09:00"
+snapshot = "538480b95ebdaab087461f3d"
+path = "services"
+hash = "fb9329e979d475474e0f0aa37cecceaa39cec41a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify captured handle grants across slot reuse and process launch"

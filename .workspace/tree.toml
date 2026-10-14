@@ -10263,3 +10263,11 @@ path = "services"
 hash = "88e9ae5706d279dc3ccbec467cf34bf5173258cc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify safe context changes and rejected privilege state"
+
+[[entries]]
+date = "2026-10-14T19:36:45.349127167+09:00"
+snapshot = "6ac1c9035fd756421dca6f97"
+path = "services"
+hash = "e41239eceea0bd8e8789229259ed69a54820bbd8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): retain signal origins through coalescing and delivery"

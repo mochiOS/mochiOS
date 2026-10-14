@@ -10303,3 +10303,11 @@ path = "services"
 hash = "466f1348b4bfae49c7f48b4b8ccf98db57030f1d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): preserve provenance in atomic synchronous signal waits"
+
+[[entries]]
+date = "2026-10-14T20:21:32.829998233+09:00"
+snapshot = "78d65208c24a1b7076d5a79f"
+path = "services"
+hash = "7421092898f713666a91f5619b0187253bb7d242"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): schedule synchronous signal wait deadlines"

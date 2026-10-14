@@ -10375,3 +10375,11 @@ path = "services"
 hash = "569c9d19fb4bf2c8003252bce8c330b99762bc34"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native deferral and asynchronous runtime reentry"
+
+[[entries]]
+date = "2026-10-14T22:18:43.486050707+09:00"
+snapshot = "aba2e30623449ae277b8bfae"
+path = "services"
+hash = "b80d53dac80816aead39c48f92e5722344aba71f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): reproduce fork during native thread identity lookup"

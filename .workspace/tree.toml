@@ -10327,3 +10327,11 @@ path = "services"
 hash = "9c3e959b4ea1711b7f383071f2e993ee9bd43a39"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native-only initfs and mounted System identity"
+
+[[entries]]
+date = "2026-10-14T20:44:51.209207052+09:00"
+snapshot = "afb2587b64afe437efd96bd6"
+path = "services"
+hash = "20ba8b8aceeecb6542e5fc76eecc88a3b536d9b4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): execute signal checkpoint register and continuation round trips"

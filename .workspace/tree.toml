@@ -10455,3 +10455,11 @@ path = "services"
 hash = "2d93e3c377d7ef93ab8b6ff7bcde04ffa9e6ca66"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify plain jump ABI runtime routes and SDK backend retirement"
+
+[[entries]]
+date = "2026-10-15T00:16:34.360969012+09:00"
+snapshot = "287f8ff67e658e59a2ce2298"
+path = "services"
+hash = "8c375fc2f4efae3345792c1b00e0df270abb2bfa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify owned jump staging and multi-generation stack reclamation"

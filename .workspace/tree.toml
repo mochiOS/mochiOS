@@ -10383,3 +10383,11 @@ path = "services"
 hash = "b80d53dac80816aead39c48f92e5722344aba71f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): reproduce fork during native thread identity lookup"
+
+[[entries]]
+date = "2026-10-14T22:29:05.567847484+09:00"
+snapshot = "33474b7609aacfc12467de49"
+path = "services"
+hash = "0dd8200ece1f69a115f5d37c9a1efb47a523558e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): simulate fork across queued and fault delivery replies"

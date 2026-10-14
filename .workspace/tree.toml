@@ -10863,3 +10863,11 @@ path = "services"
 hash = "2f9a245e1508513b000ef9cda000e1093f213d22"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify fork callback ordering and error cleanup"
+
+[[entries]]
+date = "2026-10-15T07:48:44.515237938+09:00"
+snapshot = "89c5d1a1b6cf32429458c51c"
+path = "services"
+hash = "d6fc85a078d482ba20611be3c4714a8efe818ebc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise inherited runtime state after fork"

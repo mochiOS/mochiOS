@@ -10783,3 +10783,11 @@ path = "services"
 hash = "691e38ace76af16844c99c072a16c15ec79d7642"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify file reply ownership through faults and malformed replies"
+
+[[entries]]
+date = "2026-10-15T06:59:36.511265362+09:00"
+snapshot = "1e19aba8ad898dc00278cc8f"
+path = "services"
+hash = "75a039359d887a6dd00828c4ab005544895d7bc7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover path reply ownership and multi-anchor failures"

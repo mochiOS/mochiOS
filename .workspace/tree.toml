@@ -10047,3 +10047,11 @@ path = "services"
 hash = "9ef536b9c5db91ce53b0f3d2aff431eecc21607f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Apply shared socket receive limits to stream flow control"
+
+[[entries]]
+date = "2026-10-14T15:38:34.001674874+09:00"
+snapshot = "ca382dcc8b6c018a41397264"
+path = "services"
+hash = "c689a38e6b2cc87ec3bb5969889c9ab54bb16a73"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retain unlinked open files outside removable user directories"

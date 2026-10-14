@@ -9719,3 +9719,11 @@ path = "services"
 hash = "cd3992eea06df83352afef33b77350549a40f129"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: report shared RAM identity, permissions, extent and unlink status"
+
+[[entries]]
+date = "2026-10-14T09:50:49.327190218+09:00"
+snapshot = "72305883d290ef37611832bd"
+path = "services"
+hash = "072ee61ca5dc6c7d9a1d5b5d9d560b313a57b1b8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify shared-memory FD survival and attenuation across exec"

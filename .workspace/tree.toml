@@ -10695,3 +10695,11 @@ path = "services"
 hash = "6ec1de5ee54b6d95c33be00a750805a062c67a1c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): atomically commit ancillary rights through retained sendto routes"
+
+[[entries]]
+date = "2026-10-15T05:09:06.858276132+09:00"
+snapshot = "f6098fed1f8a5a657ffb3920"
+path = "services"
+hash = "5709474929cae40d1736bad13b654a541f5d516a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): track owned ancillary stream markers and consuming boundaries"

@@ -10519,3 +10519,11 @@ path = "services"
 hash = "46455237de1bc069c84ad5341e966457c41be7f0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify discarded IPC attachments release their final references"
+
+[[entries]]
+date = "2026-10-15T01:58:34.249585879+09:00"
+snapshot = "99980f59bee712550edbc2bd"
+path = "services"
+hash = "baed232288579ce3bddf7da594aab0f6ea6db58a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify unread queue retirement generation isolation and send races"

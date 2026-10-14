@@ -10119,3 +10119,11 @@ path = "services"
 hash = "a8eee7d218f4d6a0db99e6dba7569714d2d2f3cc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): share socket send timeout policy"
+
+[[entries]]
+date = "2026-10-14T16:46:14.968962199+09:00"
+snapshot = "d0cd6e88d765fc54c1672ee9"
+path = "services"
+hash = "1214c6b77b3273b7312f90635e0ec5c2cedfbe26"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): resolve connect expiry atomically with commit"

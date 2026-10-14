@@ -10159,3 +10159,11 @@ path = "services"
 hash = "64945180e4abf293527ce21385cdce7011d336dc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(service-manager): retire legacy fixed launch argument encoder"
+
+[[entries]]
+date = "2026-10-14T17:39:36.815836715+09:00"
+snapshot = "6da2410a1a3eea84df6ff8ca"
+path = "services"
+hash = "23ba06531ebac59fed9734cccfd8b16c5e13a8ac"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(service-manager): reuse platform prepared image client"

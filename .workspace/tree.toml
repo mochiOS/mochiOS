@@ -10063,3 +10063,11 @@ path = "services"
 hash = "b98a07171ecf5dd390a6019d2dd49a3b66d1e3fc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Evacuate retained rename backups before removing empty directories"
+
+[[entries]]
+date = "2026-10-14T15:52:55.181827419+09:00"
+snapshot = "da7075f00466901ac7ce6e81"
+path = "services"
+hash = "d3ddc4964963077fd885a296137ce5dd18e8e3c4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify exact native process lookup without suffix or substring aliases"

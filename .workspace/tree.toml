@@ -10751,3 +10751,11 @@ path = "services"
 hash = "d284f8d39c12fb0cb979284d5b95efb6905710ff"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify host-matched peek WAITALL and native receive regressions"
+
+[[entries]]
+date = "2026-10-15T06:14:24.350284793+09:00"
+snapshot = "598da08307db65bc251e8672"
+path = "services"
+hash = "8e0887e0d94ac52aa43371f60a0c3e400189be36"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify generated Rust socket ABI against C and native public bindings"

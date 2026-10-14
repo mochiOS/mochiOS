@@ -9887,3 +9887,11 @@ path = "services"
 hash = "1cf79dc3b4466ab87433af5b0765f8f70f694d9c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: retain socket inode descriptions across unlink and report visible links"
+
+[[entries]]
+date = "2026-10-14T12:37:30.291249458+09:00"
+snapshot = "688ba186bee4836b540cd04b"
+path = "services"
+hash = "08192db7e2897a2cab3d741caf5de5c7371812cf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: restrict retained links to their registered private entries"

@@ -10015,3 +10015,11 @@ path = "services"
 hash = "358563a8ce1846f2cfbe3d8ef05e015f13222b9f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Wire authenticated socket connections into native POSIX provider"
+
+[[entries]]
+date = "2026-10-14T15:15:41.283122454+09:00"
+snapshot = "81ccb3992e0542a8765ae6cb"
+path = "services"
+hash = "9b2ba09a98674dd75617d5935130b6482af06ce3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify connect EINTR restart and process-exit cleanup on native runtime"

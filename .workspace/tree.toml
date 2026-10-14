@@ -10607,3 +10607,11 @@ path = "services"
 hash = "18cf021e00bed2f942c11b674cb2ba4ac08d6f62"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): own staged and queued ancillary references transactionally"
+
+[[entries]]
+date = "2026-10-15T03:42:46.549893421+09:00"
+snapshot = "d6da8ec32be485cfe686b08a"
+path = "services"
+hash = "80587cb3b611b021ef0c750be7b238c67f99ecd4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): receive ancillary handle batches through owned staging objects"

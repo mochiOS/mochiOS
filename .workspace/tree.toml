@@ -10831,3 +10831,11 @@ path = "services"
 hash = "c02e7b980e4dcc3ed7d9f990f1d9e5af3da2e126"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify socket reply ownership across malformed responses"
+
+[[entries]]
+date = "2026-10-15T07:19:07.682274966+09:00"
+snapshot = "31f8ba913cebd8419d096ccc"
+path = "services"
+hash = "199aa23c4081af3ea8ce5ea125e127194893f6f2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): enforce empty stream send errors and verify native Provider dispatch"

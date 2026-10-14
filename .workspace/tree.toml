@@ -10767,3 +10767,11 @@ path = "services"
 hash = "67a77b3aa1d3a20ba328295eece2e2a8a443dcb6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): enforce controlled atomic OFD flag updates and verify FIONBIO end to end"
+
+[[entries]]
+date = "2026-10-15T06:53:04.475410948+09:00"
+snapshot = "4109d6146a697ae66f16a8a8"
+path = "services"
+hash = "716d45821b5b1757456ddc3f905e049a957563a0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): enforce file mutation rights at policy and filesystem boundaries"

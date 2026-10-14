@@ -10567,3 +10567,11 @@ path = "services"
 hash = "cee6658696271a857817e24ccdd9cc0699c7162e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): notify full-record send capacity and verify datagram C API"
+
+[[entries]]
+date = "2026-10-15T02:55:51.015123451+09:00"
+snapshot = "7123a7114581c03ec2a9bf86"
+path = "services"
+hash = "855a0506eb95108bf995bded2f301001a6b7ffa9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): connect pathname datagrams through authorized inode handles"

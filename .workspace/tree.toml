@@ -10479,3 +10479,11 @@ path = "services"
 hash = "9b4bfc7b30ab1d39ca11e49ee147f6e3375f1782"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify getrusage conversion routing and waited descendants"
+
+[[entries]]
+date = "2026-10-15T00:47:15.669544130+09:00"
+snapshot = "324528fb5e06b11dbf947f55"
+path = "services"
+hash = "221d1defe1d3d0d0a72273d6b35f9ebdb15a33f1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): add non-consuming stream queue inspection"

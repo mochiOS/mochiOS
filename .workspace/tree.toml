@@ -10823,3 +10823,11 @@ path = "services"
 hash = "a071bdb5f1cfefc79b06acc58b1dcb8583312b61"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify process reply ownership and error preservation"
+
+[[entries]]
+date = "2026-10-15T07:13:09.683288810+09:00"
+snapshot = "af77b364948cd60034f7f3a5"
+path = "services"
+hash = "c02e7b980e4dcc3ed7d9f990f1d9e5af3da2e126"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify socket reply ownership across malformed responses"

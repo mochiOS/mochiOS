@@ -10023,3 +10023,11 @@ path = "services"
 hash = "9b2ba09a98674dd75617d5935130b6482af06ce3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify connect EINTR restart and process-exit cleanup on native runtime"
+
+[[entries]]
+date = "2026-10-14T15:20:14.410381301+09:00"
+snapshot = "d447b713206cdbe5d7123a7d"
+path = "services"
+hash = "550b33a6536197803dab97146033667faed38410"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose native socket kind and accept-state controls with regression tests"

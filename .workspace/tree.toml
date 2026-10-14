@@ -10471,3 +10471,11 @@ path = "services"
 hash = "786fc4b2cb921a9edb19f07abc65c524a109aa21"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): inject jump failures before exit and verify guard retention"
+
+[[entries]]
+date = "2026-10-15T00:41:34.093278084+09:00"
+snapshot = "c1b933baf78e9d8907705076"
+path = "services"
+hash = "9b4bfc7b30ab1d39ca11e49ee147f6e3375f1782"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify getrusage conversion routing and waited descendants"

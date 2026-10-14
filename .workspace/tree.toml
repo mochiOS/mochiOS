@@ -9863,3 +9863,11 @@ path = "services"
 hash = "c69ff3c1c6f9a081ee401a5e470f2bdaaa08d0f5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test sockaddr input bounds binary names and network byte order"
+
+[[entries]]
+date = "2026-10-14T11:54:17.348411501+09:00"
+snapshot = "23528711f23b08d98d31b72d"
+path = "services"
+hash = "8ab7a5ac819c3b2abf3e7bc82f4894f7eeecec3d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: create exclusive socket inodes within authenticated path anchors"

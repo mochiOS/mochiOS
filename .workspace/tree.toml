@@ -10879,3 +10879,11 @@ path = "services"
 hash = "313832b49cde6ffb0c49163dcdb1ef08f22e081c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover retained newlib lock ownership across fork"
+
+[[entries]]
+date = "2026-10-15T07:56:43.043963669+09:00"
+snapshot = "3c2a2c6ac98f3d0a8ad969f9"
+path = "services"
+hash = "da85992ba7cab2c5572cfd490c03c5dde8c1370e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify allocator exclusion and clone failure cleanup"

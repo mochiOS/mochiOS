@@ -10127,3 +10127,11 @@ path = "services"
 hash = "1214c6b77b3273b7312f90635e0ec5c2cedfbe26"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): resolve connect expiry atomically with commit"
+
+[[entries]]
+date = "2026-10-14T17:03:00.827172596+09:00"
+snapshot = "cbeb56ed075fc9a4a086aabc"
+path = "services"
+hash = "a876eec031c896bae9453ce56dfe5eb78a00f018"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(core): launch bootstrap services through native process objects"

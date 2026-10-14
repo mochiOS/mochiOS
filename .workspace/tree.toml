@@ -10919,3 +10919,11 @@ path = "services"
 hash = "d7f8e532ae6ab85e5f634e9bb27dda9c9472fa38"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify VM sibling quiescence and COW resumption"
+
+[[entries]]
+date = "2026-10-15T08:28:18.228280656+09:00"
+snapshot = "38a63766575ec1235335d802"
+path = "services"
+hash = "3292fbcbc429790b448af4e58ca8b46fd204f64d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify pinned handle identity and capture allocation failure"

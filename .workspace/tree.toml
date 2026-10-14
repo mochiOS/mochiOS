@@ -10935,3 +10935,11 @@ path = "services"
 hash = "fb9329e979d475474e0f0aa37cecceaa39cec41a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify captured handle grants across slot reuse and process launch"
+
+[[entries]]
+date = "2026-10-15T08:53:48.220667435+09:00"
+snapshot = "680361c1de0d3ec67da9ea76"
+path = "services"
+hash = "93d9f0efa442e3d23cb69add2c7f4b84703f58f3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover pinned fork inheritance and capture cleanup"

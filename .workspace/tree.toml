@@ -9735,3 +9735,11 @@ path = "services"
 hash = "a25db74123afc00d1c7ce3d7e88b2df058ea34f6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test production stat conversion for full fields and overflow"
+
+[[entries]]
+date = "2026-10-14T09:59:24.449247849+09:00"
+snapshot = "950b33c0cc64ebf5649676d7"
+path = "services"
+hash = "d13d110dce1473c603b0dc2005ae97de2fc2378c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify regular-file and shared-memory poll select readiness"

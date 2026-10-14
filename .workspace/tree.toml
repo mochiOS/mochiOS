@@ -10151,3 +10151,11 @@ path = "services"
 hash = "f4f658fe86b1f57020fecffa594228c8f6472fab"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(service-manager): launch namespace services through prepared image handles"
+
+[[entries]]
+date = "2026-10-14T17:36:14.500276588+09:00"
+snapshot = "c510e87fe3cee8f44067c808"
+path = "services"
+hash = "64945180e4abf293527ce21385cdce7011d336dc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(service-manager): retire legacy fixed launch argument encoder"

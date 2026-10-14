@@ -9839,3 +9839,11 @@ path = "services"
 hash = "fd390670e7341e192d6582214c84d3e37122d964"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: expose unnamed UNIX pair addresses and verify socket name queries"
+
+[[entries]]
+date = "2026-10-14T11:31:13.772862577+09:00"
+snapshot = "7610909318c0adaa99c07602"
+path = "services"
+hash = "3fd6136db3f3b897e2a72508b789eb26975fdb3c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: distinguish unconnected UNIX sockets from disconnected peers"

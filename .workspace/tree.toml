@@ -10719,3 +10719,11 @@ path = "services"
 hash = "add75fdd7fcae95ac66092bfc068444408dbd4cc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): publish stream receive receipts before consuming bytes and rights"
+
+[[entries]]
+date = "2026-10-15T05:39:37.096013792+09:00"
+snapshot = "d5b3563460b0f3975f70afd3"
+path = "services"
+hash = "67f6f1453c428602af5d4291ae9996b25d554f27"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): retain quota-bounded peek snapshots without native duplication"

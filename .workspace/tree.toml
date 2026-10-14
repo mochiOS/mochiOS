@@ -10855,3 +10855,11 @@ path = "services"
 hash = "88bf93b5fba1f80ca5ed63aaf7a6928b27b17d0b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native processor counts through sysconf and Rust std"
+
+[[entries]]
+date = "2026-10-15T07:45:26.418400090+09:00"
+snapshot = "697c21f2330a701fbef1001b"
+path = "services"
+hash = "2f9a245e1508513b000ef9cda000e1093f213d22"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify fork callback ordering and error cleanup"

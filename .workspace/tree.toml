@@ -10575,3 +10575,11 @@ path = "services"
 hash = "855a0506eb95108bf995bded2f301001a6b7ffa9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): connect pathname datagrams through authorized inode handles"
+
+[[entries]]
+date = "2026-10-15T03:12:34.796348200+09:00"
+snapshot = "39b62dde5cca8fbd5e5c6a68"
+path = "services"
+hash = "725881417393239076442c2d51325e749a755c90"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): retain authorized sendto targets across blocking retries"

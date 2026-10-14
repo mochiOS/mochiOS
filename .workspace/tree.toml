@@ -10543,3 +10543,11 @@ path = "services"
 hash = "beed23f0fda86f04e0e8744c25cb5fbd0ceb13f3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): add bounded datagram record queue with source snapshots"
+
+[[entries]]
+date = "2026-10-15T02:22:14.230072031+09:00"
+snapshot = "6299c909d01987bdef5ce20d"
+path = "services"
+hash = "1b446665622a7ee9576aefdbf425d1ab0efd5bb7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): transfer complete records through delegated RAM buffers"

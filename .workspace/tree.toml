@@ -9983,3 +9983,11 @@ path = "services"
 hash = "9fb31b00290e6a4adfce12e73583fd3069378d03"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Transfer accepted socket handles through authenticated POSIX IPC"
+
+[[entries]]
+date = "2026-10-14T14:53:43.349534536+09:00"
+snapshot = "27e10f41ac1d4ba701af0eb6"
+path = "services"
+hash = "3013d48945f6ed2fbbb3abf831f55baaf6b20ba2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retain authorized socket targets across connect backlog retries"

@@ -10511,3 +10511,11 @@ path = "services"
 hash = "6f59d2d573f65e571eddcec7fbfc5dfca3b49e1e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover endpoint death wakeups reply generations and socket regressions"
+
+[[entries]]
+date = "2026-10-15T01:42:44.054259201+09:00"
+snapshot = "2584861da6a689219ccebfa6"
+path = "services"
+hash = "46455237de1bc069c84ad5341e966457c41be7f0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify discarded IPC attachments release their final references"

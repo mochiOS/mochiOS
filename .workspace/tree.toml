@@ -10871,3 +10871,11 @@ path = "services"
 hash = "d6fc85a078d482ba20611be3c4714a8efe818ebc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise inherited runtime state after fork"
+
+[[entries]]
+date = "2026-10-15T07:53:32.480850682+09:00"
+snapshot = "d70ab61008b5628a0073a91d"
+path = "services"
+hash = "313832b49cde6ffb0c49163dcdb1ef08f22e081c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover retained newlib lock ownership across fork"

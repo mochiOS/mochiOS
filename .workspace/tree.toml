@@ -10791,3 +10791,11 @@ path = "services"
 hash = "75a039359d887a6dd00828c4ab005544895d7bc7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover path reply ownership and multi-anchor failures"
+
+[[entries]]
+date = "2026-10-15T07:03:42.641750917+09:00"
+snapshot = "e9cc8e045d5fafcec235f316"
+path = "services"
+hash = "8a29c173c844f2f2c0f8edf21b12faa8a695b27e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify open Handle ownership through malformed replies"

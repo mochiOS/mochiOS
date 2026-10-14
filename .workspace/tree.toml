@@ -9671,3 +9671,11 @@ path = "services"
 hash = "602d1b76845108e1e03d621e757565c4943c87f5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: enforce RAM description extent controls and access modes"
+
+[[entries]]
+date = "2026-10-14T09:22:31.237467477+09:00"
+snapshot = "7e81101d2251f4e33be9a4d0"
+path = "services"
+hash = "6f59cef4c59467b6139530822498337d74b28f0f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: serve shared-memory descriptions through authenticated native Providers"

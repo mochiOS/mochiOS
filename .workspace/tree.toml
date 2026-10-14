@@ -10599,3 +10599,11 @@ path = "services"
 hash = "b2e43605f802d01718abdf984318e2ad5c2d7571"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify ancillary framing against host SCM_RIGHTS behavior"
+
+[[entries]]
+date = "2026-10-15T03:34:35.373606135+09:00"
+snapshot = "df01b6c3ea4c1b7ff0da661c"
+path = "services"
+hash = "18cf021e00bed2f942c11b674cb2ba4ac08d6f62"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): own staged and queued ancillary references transactionally"

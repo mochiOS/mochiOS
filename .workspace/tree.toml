@@ -9687,3 +9687,11 @@ path = "services"
 hash = "68020f2aec10feae0cd91513b1976f1c2b9a272e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test mapping delegation and production transport ownership failures"
+
+[[entries]]
+date = "2026-10-14T09:33:25.771269069+09:00"
+snapshot = "9b374e364c0426f5e7c59c22"
+path = "services"
+hash = "21416161863d737bb3de7cadca67611d19de98a1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify newlib shared-memory FD lifetime, inheritance and mappings"

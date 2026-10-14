@@ -9895,3 +9895,11 @@ path = "services"
 hash = "08192db7e2897a2cab3d741caf5de5c7371812cf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: restrict retained links to their registered private entries"
+
+[[entries]]
+date = "2026-10-14T12:40:30.483221350+09:00"
+snapshot = "e4a78654386f013d97fd9ba4"
+path = "services"
+hash = "b2fc372290b3c955b8a9caba45c907aefc3bafb7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: retain open inodes only after removing their last public link"

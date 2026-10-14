@@ -9903,3 +9903,11 @@ path = "services"
 hash = "b2fc372290b3c955b8a9caba45c907aefc3bafb7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: retain open inodes only after removing their last public link"
+
+[[entries]]
+date = "2026-10-14T12:47:22.709388692+09:00"
+snapshot = "1969b4159900e91237a822f7"
+path = "services"
+hash = "0319595984c57f49bcf2e477ca7406716d5833df"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: return attenuated retained socket Handles through native IPC"

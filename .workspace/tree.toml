@@ -10671,3 +10671,11 @@ path = "services"
 hash = "dabb26a76efbc51ed7869cb6642cc64ca65c846a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise ancillary receive client failure ownership and FD publication"
+
+[[entries]]
+date = "2026-10-15T04:46:50.519086479+09:00"
+snapshot = "26207723ae58458880c9456d"
+path = "services"
+hash = "26b5701fbd3828a39fbe85fe0e01c7df5fd8c6f7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): validate recvmsg C ABI and native ancillary FD installation"

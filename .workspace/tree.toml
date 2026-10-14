@@ -10319,3 +10319,11 @@ path = "services"
 hash = "596f9da9f7e8ede05503a4c94848e9885bacd443"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(filesystem): require a userspace backend instead of legacy kernel fallback"
+
+[[entries]]
+date = "2026-10-14T20:35:57.259059872+09:00"
+snapshot = "7c9d0a2e199fbbf5bbfd92f3"
+path = "services"
+hash = "9c3e959b4ea1711b7f383071f2e993ee9bd43a39"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native-only initfs and mounted System identity"

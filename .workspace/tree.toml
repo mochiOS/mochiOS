@@ -10495,3 +10495,11 @@ path = "services"
 hash = "f887b2d126cbf82f615d4bbd394ea8f192fdad78"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): route native indexed reads to non-consuming socket inspection"
+
+[[entries]]
+date = "2026-10-15T01:05:42.809355197+09:00"
+snapshot = "228d2ea0e3fffcd04e1a594c"
+path = "services"
+hash = "83053ab58fc8e6247f4fe6137f9ccc49946de09c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): provide atomic receive threshold notifications for MSG_PEEK waits"

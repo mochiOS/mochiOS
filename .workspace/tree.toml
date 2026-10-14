@@ -10559,3 +10559,11 @@ path = "services"
 hash = "16a9140a0ee7d7b08ee3ac98414a5de7370c2f4a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): connect datagram descriptions to authenticated record worker IPC"
+
+[[entries]]
+date = "2026-10-15T02:44:49.510222513+09:00"
+snapshot = "3366bd02a6845408d230025c"
+path = "services"
+hash = "cee6658696271a857817e24ccdd9cc0699c7162e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): notify full-record send capacity and verify datagram C API"

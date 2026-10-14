@@ -10207,3 +10207,11 @@ path = "services"
 hash = "4c8137f2496387938605c8049b7d9075cd32d01a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify upcall floating-point restoration and token ownership"
+
+[[entries]]
+date = "2026-10-14T18:23:02.951627270+09:00"
+snapshot = "362fe48e44bde24a6477b74f"
+path = "services"
+hash = "614b088e64820c649f532fb68905e6fccf95451b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover interrupt upcalls and cross-entry register restoration"

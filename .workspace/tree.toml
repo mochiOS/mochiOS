@@ -10687,3 +10687,11 @@ path = "services"
 hash = "5c0877d8f45d818aee9c21dd6d802b91820ef07e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native sendmsg round trips and failed-send ownership"
+
+[[entries]]
+date = "2026-10-15T05:01:17.693328200+09:00"
+snapshot = "0b898e09d8fe69f7527fc507"
+path = "services"
+hash = "6ec1de5ee54b6d95c33be00a750805a062c67a1c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): atomically commit ancillary rights through retained sendto routes"

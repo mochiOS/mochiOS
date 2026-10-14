@@ -10095,3 +10095,11 @@ path = "boot"
 hash = "f3257bac419de61c33a6d2938b3451c2fab7232a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore(config): remove retired kernel audit storage path"
+
+[[entries]]
+date = "2026-10-14T16:26:42.600596068+09:00"
+snapshot = "468818a47a4bd5727b621eae"
+path = "services"
+hash = "5f0139c523fd149eece7f812f09e7a586cb82377"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): enforce shared UNIX stream send limits"

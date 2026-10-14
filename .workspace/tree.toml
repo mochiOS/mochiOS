@@ -10759,3 +10759,11 @@ path = "services"
 hash = "8e0887e0d94ac52aa43371f60a0c3e400189be36"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify generated Rust socket ABI against C and native public bindings"
+
+[[entries]]
+date = "2026-10-15T06:35:50.188993022+09:00"
+snapshot = "7cbbf275436ad9963bd1d91b"
+path = "services"
+hash = "67a77b3aa1d3a20ba328295eece2e2a8a443dcb6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): enforce controlled atomic OFD flag updates and verify FIONBIO end to end"

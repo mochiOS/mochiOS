@@ -9815,3 +9815,11 @@ path = "services"
 hash = "25e5fb8329dd791f2b79c7071dce64766857ba9a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: distinguish socket shutdown from errors and verify libc integration"
+
+[[entries]]
+date = "2026-10-14T11:11:43.140750648+09:00"
+snapshot = "4812c1e194cd0f7013371492"
+path = "services"
+hash = "289038bad10109bf1e2090b95a03d9fc4f357051"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: report socket description metadata and verify fstat inheritance"

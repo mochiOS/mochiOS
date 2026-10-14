@@ -9959,3 +9959,11 @@ path = "services"
 hash = "099c2f7fd219469cf23e50bb2bc4f3fc258ef196"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: authorize and retain existing socket inodes atomically"
+
+[[entries]]
+date = "2026-10-14T13:53:58.568632484+09:00"
+snapshot = "2de73ed9aeed09119d3fb5b0"
+path = "services"
+hash = "956bd07c56975c9c48b1a8e2ee8f452af640c18b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: resolve UNIX connections by retained inode and preserve address snapshots"

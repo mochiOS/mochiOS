@@ -10775,3 +10775,11 @@ path = "services"
 hash = "716d45821b5b1757456ddc3f905e049a957563a0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): enforce file mutation rights at policy and filesystem boundaries"
+
+[[entries]]
+date = "2026-10-15T06:57:14.915382618+09:00"
+snapshot = "a12dcf686f5518a51472aba2"
+path = "services"
+hash = "691e38ace76af16844c99c072a16c15ec79d7642"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify file reply ownership through faults and malformed replies"

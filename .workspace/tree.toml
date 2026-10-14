@@ -10431,3 +10431,11 @@ path = "services"
 hash = "61ba01bea08c85fe79d2f5fb2172df121721b857"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover selective signal unwind and copied fork scopes"
+
+[[entries]]
+date = "2026-10-14T23:27:34.089010204+09:00"
+snapshot = "f1d06e947a894244d18e01b3"
+path = "services"
+hash = "5ced94cf2fac27dffec4b076dd96667e117bf9fd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover selective native callback unwind across fork ancestry"

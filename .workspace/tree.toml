@@ -10167,3 +10167,11 @@ path = "services"
 hash = "23ba06531ebac59fed9734cccfd8b16c5e13a8ac"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(service-manager): reuse platform prepared image client"
+
+[[entries]]
+date = "2026-10-14T17:43:57.422026002+09:00"
+snapshot = "091f079336e0bc41a205fce3"
+path = "services"
+hash = "31fefd385a0b7b67bdedd8995e30255f2c6861fa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover native sample launch and child cleanup"

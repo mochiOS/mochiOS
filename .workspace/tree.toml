@@ -10615,3 +10615,11 @@ path = "services"
 hash = "80587cb3b611b021ef0c750be7b238c67f99ecd4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): receive ancillary handle batches through owned staging objects"
+
+[[entries]]
+date = "2026-10-15T03:48:10.562993855+09:00"
+snapshot = "6b5ab127e01ab11989739ead"
+path = "services"
+hash = "5691ced1661d7d9d6928db96945ac3b0dccbe22e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): commit datagram payload and ancillary leases atomically"

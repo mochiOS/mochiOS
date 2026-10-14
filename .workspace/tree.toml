@@ -10135,3 +10135,11 @@ path = "services"
 hash = "a876eec031c896bae9453ce56dfe5eb78a00f018"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(core): launch bootstrap services through native process objects"
+
+[[entries]]
+date = "2026-10-14T17:13:04.730441362+09:00"
+snapshot = "0043ed8ca21b58330d17ae69"
+path = "services"
+hash = "e8e777d653523d9a0e7bfeb55673437ebd9221ce"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(capability): launch initial services with native image objects"

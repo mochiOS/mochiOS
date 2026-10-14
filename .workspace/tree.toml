@@ -10239,3 +10239,11 @@ path = "services"
 hash = "39bea96283137ba2e88aaae54d563ade18c76031"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native fault causes and backing bounds delivery"
+
+[[entries]]
+date = "2026-10-14T19:12:02.373051780+09:00"
+snapshot = "70721b79392dd0930bc9c7ce"
+path = "services"
+hash = "166818f370added57df98a0bcceabc26f2ae2c42"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): manage authenticated synchronous fault deliveries"

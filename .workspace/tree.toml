@@ -9783,3 +9783,11 @@ path = "services"
 hash = "a7b3c08c0e25140559a464a39ce548856f6123e8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: dispatch authenticated stream Provider requests"
+
+[[entries]]
+date = "2026-10-14T10:51:29.297947410+09:00"
+snapshot = "50c218caf3fe03ba9602abe9"
+path = "services"
+hash = "4420d179d95b01b32525c2a6deac7c8b99224023"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: expose UNIX stream pairs through native Provider Handles"

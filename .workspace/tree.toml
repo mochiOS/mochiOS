@@ -9943,3 +9943,11 @@ path = "services"
 hash = "b114a4f86587b8150add8d5ec7a1eddfb247ffda"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: add bounded UNIX listener state and correct idle readiness"
+
+[[entries]]
+date = "2026-10-14T13:27:45.744991139+09:00"
+snapshot = "73d3a835d8177aae6d7711ab"
+path = "services"
+hash = "fcf9ca404a273979cf542b8121fd6c5d61d7538e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: add transactional UNIX connection queue and accept lifecycle"

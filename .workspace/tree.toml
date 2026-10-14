@@ -10591,3 +10591,11 @@ path = "services"
 hash = "6251ab0a5f6e6012a50c03dc9b14b28a8d01cd00"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): detach datagram peers without resetting local state"
+
+[[entries]]
+date = "2026-10-15T03:28:11.037189891+09:00"
+snapshot = "7b1700f46c6f7de203ca3af3"
+path = "services"
+hash = "b2e43605f802d01718abdf984318e2ad5c2d7571"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify ancillary framing against host SCM_RIGHTS behavior"

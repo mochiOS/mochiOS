@@ -10711,3 +10711,11 @@ path = "services"
 hash = "5e7a7c50e29dceefccd9ad87e1d9e817190f4883"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): commit staged stream rights with partial-send and marker readiness"
+
+[[entries]]
+date = "2026-10-15T05:27:13.073130476+09:00"
+snapshot = "fdadc13805d1e66b583e462c"
+path = "services"
+hash = "add75fdd7fcae95ac66092bfc068444408dbd4cc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): publish stream receive receipts before consuming bytes and rights"

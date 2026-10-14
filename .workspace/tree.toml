@@ -10735,3 +10735,11 @@ path = "services"
 hash = "661733e4880f8b051673a72d0140b4f0c3920d40"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): publish atomic peek receipts without consuming queued rights"
+
+[[entries]]
+date = "2026-10-15T05:50:25.266404707+09:00"
+snapshot = "a62c68079be6e7a8fdf3b21e"
+path = "services"
+hash = "673db11624c59907c698e1ac37497920678d7c9a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): dispatch authenticated peek receipts and verify native FD ownership"

@@ -10487,3 +10487,11 @@ path = "services"
 hash = "221d1defe1d3d0d0a72273d6b35f9ebdb15a33f1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): add non-consuming stream queue inspection"
+
+[[entries]]
+date = "2026-10-15T00:52:03.459751652+09:00"
+snapshot = "830ce2b1433f35d398c0a819"
+path = "services"
+hash = "f887b2d126cbf82f615d4bbd394ea8f192fdad78"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): route native indexed reads to non-consuming socket inspection"

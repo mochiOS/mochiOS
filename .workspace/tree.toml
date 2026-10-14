@@ -10399,3 +10399,11 @@ path = "services"
 hash = "b511d34ae47f293015e04da390c9167dae7eefb2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify signal preparation handoff and default stop continuation"
+
+[[entries]]
+date = "2026-10-14T23:09:55.528475426+09:00"
+snapshot = "7d2a8d911c74cdea282bdca8"
+path = "services"
+hash = "e218a9ad363286048c17432ddc04b868e881846e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify nested signal scope ownership and completion"

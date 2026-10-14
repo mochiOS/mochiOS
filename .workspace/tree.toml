@@ -9935,3 +9935,11 @@ path = "services"
 hash = "046aeb81912969a052a1dcf07c9a6e2bd638617b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: bind UNIX socket paths using authenticated session anchors and retained Handles"
+
+[[entries]]
+date = "2026-10-14T13:17:50.772789929+09:00"
+snapshot = "c57678db9e34c4f91cc4a9a9"
+path = "services"
+hash = "b114a4f86587b8150add8d5ec7a1eddfb247ffda"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: add bounded UNIX listener state and correct idle readiness"

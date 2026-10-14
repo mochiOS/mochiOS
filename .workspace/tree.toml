@@ -9655,3 +9655,11 @@ path = "services"
 hash = "f3c35f470316a4c0ca53ee6b45387045b02597cd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: dispatch authenticated RAM open-description provider frames"
+
+[[entries]]
+date = "2026-10-14T09:10:36.734154735+09:00"
+snapshot = "eb3e7f284e407726e83277bb"
+path = "services"
+hash = "b7412dc87a5c9b2512d8344f6d5c8251b631dee2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: retain shared-memory open descriptions through namespace resolution"

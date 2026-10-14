@@ -9879,3 +9879,11 @@ path = "services"
 hash = "1e86fc0d9ecbc5f27a8510efa3f390f5e97bc229"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: dispatch socket creation through delegated control and test IPC authority"
+
+[[entries]]
+date = "2026-10-14T12:22:17.762072048+09:00"
+snapshot = "d37c40f2cfa408d39c0a4d28"
+path = "services"
+hash = "1cf79dc3b4466ab87433af5b0765f8f70f694d9c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: retain socket inode descriptions across unlink and report visible links"

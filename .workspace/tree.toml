@@ -10535,3 +10535,11 @@ path = "services"
 hash = "4829138debb779f8ad61255cddca2cdac1bec9c2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify stream message address API semantics"
+
+[[entries]]
+date = "2026-10-15T02:15:45.391462433+09:00"
+snapshot = "90bbf8c67a18c710cfd9119b"
+path = "services"
+hash = "beed23f0fda86f04e0e8744c25cb5fbd0ceb13f3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): add bounded datagram record queue with source snapshots"

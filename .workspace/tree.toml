@@ -10247,3 +10247,11 @@ path = "services"
 hash = "166818f370added57df98a0bcceabc26f2ae2c42"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): manage authenticated synchronous fault deliveries"
+
+[[entries]]
+date = "2026-10-14T19:18:00.204300286+09:00"
+snapshot = "8f1fe062c0a6a5a39ad13999"
+path = "services"
+hash = "f4056e1da8301a7fbd4668e6de3b72c3d28d3d31"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify upcall snapshot scope and context immutability"

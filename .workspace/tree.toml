@@ -10415,3 +10415,11 @@ path = "services"
 hash = "b8436b56e8f92bd738f17423534b503584938d42"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise guarded signal registration and failure paths"
+
+[[entries]]
+date = "2026-10-14T23:19:48.629322916+09:00"
+snapshot = "172be0631b3947c9c5fbb206"
+path = "services"
+hash = "44b90295e96073c45deb3beaf1364fa4af19b214"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native signal frame identity and ownership"

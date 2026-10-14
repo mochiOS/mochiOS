@@ -10087,3 +10087,11 @@ path = "services"
 hash = "ea0da2cd85015d188ea1d8b9c16d2130c1cc2362"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover diagnostic authorization and cursor ownership"
+
+[[entries]]
+date = "2026-10-14T16:21:44.592242212+09:00"
+snapshot = "b2c95885c32f6496def2c129"
+path = "boot"
+hash = "f3257bac419de61c33a6d2938b3451c2fab7232a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore(config): remove retired kernel audit storage path"

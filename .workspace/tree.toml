@@ -10215,3 +10215,11 @@ path = "services"
 hash = "614b088e64820c649f532fb68905e6fccf95451b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover interrupt upcalls and cross-entry register restoration"
+
+[[entries]]
+date = "2026-10-14T18:49:52.566277046+09:00"
+snapshot = "e9f555e373f8aa02494c41a1"
+path = "services"
+hash = "83c80a16fb2a0ab3c7eef3602684d4f7439b07b7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native exception recovery and recursive fault rejection"

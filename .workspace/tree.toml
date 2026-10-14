@@ -10799,3 +10799,11 @@ path = "services"
 hash = "8a29c173c844f2f2c0f8edf21b12faa8a695b27e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify open Handle ownership through malformed replies"
+
+[[entries]]
+date = "2026-10-15T07:05:57.247969811+09:00"
+snapshot = "13f8225640cb1eed52d43e6b"
+path = "services"
+hash = "6b74d3015f4653e6783012ad6f61492cf7633f9e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover shared memory reply ownership under faults"

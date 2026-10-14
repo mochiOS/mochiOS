@@ -9831,3 +9831,11 @@ path = "services"
 hash = "9beaaf939d9297ff0795dd1a30eda3be17f7407a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify socket message flags and partial receive preservation"
+
+[[entries]]
+date = "2026-10-14T11:26:50.544589477+09:00"
+snapshot = "176ccce75dd763510098f282"
+path = "services"
+hash = "fd390670e7341e192d6582214c84d3e37122d964"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: expose unnamed UNIX pair addresses and verify socket name queries"

@@ -10343,3 +10343,11 @@ path = "services"
 hash = "39ab898b5f09ad0e820ace1919ce6f249def506d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify typed signal delivery and edited fault return"
+
+[[entries]]
+date = "2026-10-14T21:28:49.625675816+09:00"
+snapshot = "3571a6ce4dee1c49df52fa1b"
+path = "services"
+hash = "8873bbb72ac4985a333e9508d796ec46e9c4c0da"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify alternate stacks across nested signals fork and exec"

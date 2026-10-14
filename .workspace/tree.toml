@@ -10287,3 +10287,11 @@ path = "services"
 hash = "eb6c695ce77b9eb744cd9b1a51c87fb87ed4d15f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): preserve child event status across reaping and delivery"
+
+[[entries]]
+date = "2026-10-14T20:09:54.133471248+09:00"
+snapshot = "313a1c5e67b3ee18a4d323e3"
+path = "services"
+hash = "b0ce0cfb9da8a0b01a0c5512b4bca87debffe514"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): guard explicit bootstrap launch authority"

@@ -6,15 +6,18 @@ image=$2
 slot=${3:-A}
 expected=${4:-stable}
 case "$slot" in
-    A) part_index=1 ;;
-    B) part_index=2 ;;
+    A|B) ;;
     *) echo "slot must be A or B" >&2; exit 2 ;;
 esac
 command -v sfdisk >/dev/null || { echo "sfdisk is required" >&2; exit 1; }
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
 partition_table=$(sfdisk -J "$image")
-rootfs_start=$(jq -r --argjson index "$part_index" '.partitiontable.partitions[$index].start' <<< "$partition_table")
-rootfs_size=$(jq -r --argjson index "$part_index" '.partitiontable.partitions[$index].size' <<< "$partition_table")
+system_partition=$(jq -ce --arg name "mochiOS System $slot" '
+    .partitiontable.partitions | map(select(.name == $name)) |
+    if length == 1 then .[0] else error("missing or ambiguous System partition") end
+' <<< "$partition_table")
+rootfs_start=$(jq -er '.start' <<< "$system_partition")
+rootfs_size=$(jq -er '.size' <<< "$system_partition")
 data_start=$(jq -r '.partitiontable.partitions[] | select(.name == "mochiOS Data") | .start' <<< "$partition_table")
 data_size=$(jq -r '.partitiontable.partitions[] | select(.name == "mochiOS Data") | .size' <<< "$partition_table")
 [[ $rootfs_start =~ ^[1-9][0-9]*$ && $rootfs_size =~ ^[1-9][0-9]*$ ]] || {
@@ -59,8 +62,8 @@ grep -Fq "A/B boot assets: slot $slot" "$serial" || {
     echo "bootloader did not load slot $slot boot assets: $serial" >&2
     exit 1
 }
-grep -Fq "ext2.cext: mounted system $slot" "$serial" || {
-    echo "ext2 did not mount the selected system $slot partition: $serial" >&2
+grep -Fq "filesystem.service: native System mounted at LBA $rootfs_start (ready)" "$serial" || {
+    echo "userspace filesystem did not mount the selected system $slot partition: $serial" >&2
     exit 1
 }
 echo "A/B layout booted system $slot under KVM; serial log: $serial"

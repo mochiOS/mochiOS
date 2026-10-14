@@ -57,7 +57,7 @@ fi
 cmp -s "$esp_image" <(dd if="$image" bs=1M skip="$esp_start" count="$esp_mb" status=none)
 initfs_image=$(dirname "$image")/initfs.img
 mmake_out=$(dirname "$(dirname "$image")")
-for bundle in disk ext2; do
+for bundle in disk; do
     manifest="$mmake_out/cexts/$bundle.cext/manifest.toml"
     expected_abi=$(sed -n 's/^abi = \([0-9][0-9]*\)$/\1/p' "$manifest")
     [[ $expected_abi =~ ^[1-9][0-9]*$ ]] || { echo "invalid $bundle CEXT ABI" >&2; exit 1; }
@@ -72,6 +72,11 @@ for bundle in disk ext2; do
         echo "$bundle CEXT package ABI does not match its manifest" >&2; exit 1;
     }
 done
+if debugfs -R 'ls -p /' "$initfs_image" 2>/dev/null \
+    | awk -F/ '$6 == "ext2.cext" { found=1 } END { exit !found }'; then
+    echo "retired filesystem CEXT must not be staged in initfs" >&2
+    exit 1
+fi
 boot_a_image=$temp_dir/boot-a.img
 boot_b_image=$temp_dir/boot-b.img
 dd if="$image" of="$boot_a_image" bs=1M skip="$boot_a_start" count="$boot_mb" status=none

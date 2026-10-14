@@ -778,7 +778,7 @@ while ((SECONDS < DEADLINE)); do
     fi
 
     if log_has "cext: loaded bundle disk" \
-        && log_has "cext: loaded bundle ext2" \
+        && log_has "filesystem.service: native System mounted at LBA " \
         && log_has "Kernel initialization complete. Entering idle loop" \
         && log_has "exec: loaded '/init' from initfs" \
         && log_has "exec: loaded '/system/services/logger.service'" \

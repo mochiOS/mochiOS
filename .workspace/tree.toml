@@ -10271,3 +10271,11 @@ path = "services"
 hash = "e41239eceea0bd8e8789229259ed69a54820bbd8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): retain signal origins through coalescing and delivery"
+
+[[entries]]
+date = "2026-10-14T19:48:47.087185633+09:00"
+snapshot = "6e6d12e62ca84499b0393991"
+path = "services"
+hash = "68ce70eb7d43eab8dd68b8019d9dd1deda677c7f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify signal context ABI and lossless native conversion"

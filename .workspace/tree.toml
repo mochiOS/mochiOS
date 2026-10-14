@@ -10143,3 +10143,11 @@ path = "services"
 hash = "e8e777d653523d9a0e7bfeb55673437ebd9221ce"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(capability): launch initial services with native image objects"
+
+[[entries]]
+date = "2026-10-14T17:33:41.454230924+09:00"
+snapshot = "4b57452a17372018ed74938a"
+path = "services"
+hash = "f4f658fe86b1f57020fecffa594228c8f6472fab"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(service-manager): launch namespace services through prepared image handles"

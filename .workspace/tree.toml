@@ -9951,3 +9951,11 @@ path = "services"
 hash = "fcf9ca404a273979cf542b8121fd6c5d61d7538e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: add transactional UNIX connection queue and accept lifecycle"
+
+[[entries]]
+date = "2026-10-14T13:37:00.174285301+09:00"
+snapshot = "3f31f222b9332461a290ffd1"
+path = "services"
+hash = "099c2f7fd219469cf23e50bb2bc4f3fc258ef196"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: authorize and retain existing socket inodes atomically"

@@ -11367,3 +11367,11 @@ path = "services"
 hash = "ad4970677f38b216246b70040e50f4b6baae326e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover unavailable backing lifetime and mapping cleanup"
+
+[[entries]]
+date = "2026-10-15T18:38:15.603131902+09:00"
+snapshot = "c5cbc946d017332b4a647117"
+path = "services"
+hash = "09012ed65c798a67674d7a111a146f35e053c0cc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover external extent uncertainty and confirmed outcomes"

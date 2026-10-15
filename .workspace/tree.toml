@@ -11383,3 +11383,11 @@ path = "user"
 hash = "983a29446409a83d9607e66f0ad94ed9c1b6e33b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(platform): add owned provider memory update wrapper"
+
+[[entries]]
+date = "2026-10-15T19:33:32.095050827+09:00"
+snapshot = "01ac0afc89af3f810e3b87f2"
+path = "services"
+hash = "8c8c0440bdd1ebec068ace784962d6d27cb23fae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): coordinate truncate and O_TRUNC with provider memory updates"

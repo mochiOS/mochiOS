@@ -11039,3 +11039,11 @@ path = "services"
 hash = "1836e4e75afce3bae0fd2384365b1fb0e252cc1d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover data-limited break growth and activation rollback"
+
+[[entries]]
+date = "2026-10-15T11:16:10.458832385+09:00"
+snapshot = "158ddacc4cc0f44556152fd6"
+path = "services"
+hash = "7b53fce08369145d242a40c467ec222a63b13ce9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify live VM budgets and concurrent mapping admission"

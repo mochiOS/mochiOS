@@ -11415,3 +11415,11 @@ path = "services"
 hash = "0b7bb47764a0dbc96c0a0bd30ecdadb6a24b4ca9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify admission ticket authority lifetime and mapped publication"
+
+[[entries]]
+date = "2026-10-15T21:25:43.160589743+09:00"
+snapshot = "0465999ed20ff95ddfd213c3"
+path = "services"
+hash = "c17be8f11f064efac33dcafab431c86d6a9a85b2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): prepare provider updates with transferable admission"

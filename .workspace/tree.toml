@@ -11055,3 +11055,11 @@ path = "services"
 hash = "e96b026f76fa139428caff07340912f048c2addd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify AS limits and pre-start pthread admission failures"
+
+[[entries]]
+date = "2026-10-15T11:52:38.645484650+09:00"
+snapshot = "e5defff024bdf197cca928c1"
+path = "services"
+hash = "41a5422250a5aaed7f3284fd3654c9e250292108"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify adaptive heap reservations and non-destructive regrowth"

@@ -11431,3 +11431,11 @@ path = "services"
 hash = "f094ad5385d057c39656bcfcc1562e6a8ad8e3fa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): scope queued admission to atomic file mutations"
+
+[[entries]]
+date = "2026-10-15T21:43:59.398425865+09:00"
+snapshot = "ca22cce91fd85922ce0187fd"
+path = "services"
+hash = "fa5dc09d7fcc39130bc1930e292e16e9df7706b0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): transfer queued mutation positions over IPC"

@@ -11231,3 +11231,11 @@ path = "services"
 hash = "6ba6513fbdfce5ffb70a7c726d05c6c94906bd8e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover nonblocking backing extent admission"
+
+[[entries]]
+date = "2026-10-15T15:40:53.991108734+09:00"
+snapshot = "34603f6f5e0193c1dab0d803"
+path = "services"
+hash = "89bd148d428f36e0439eb22bd3ffa020ebb84a53"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise reserved backing publication races"

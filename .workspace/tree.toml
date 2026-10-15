@@ -11239,3 +11239,11 @@ path = "services"
 hash = "89bd148d428f36e0439eb22bd3ffa020ebb84a53"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise reserved backing publication races"
+
+[[entries]]
+date = "2026-10-15T15:46:41.662006933+09:00"
+snapshot = "cc1eeeea6fa3509617725ec5"
+path = "services"
+hash = "840796427358071ab7b81cd73c353d32f2aa4404"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify clone reservation rejection and current image gates"

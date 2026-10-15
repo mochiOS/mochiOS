@@ -11455,3 +11455,11 @@ path = "services"
 hash = "e2f81483194aeccdaa7ba3073d8c50c1726ad4f1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify client admission cleanup and reader fairness"
+
+[[entries]]
+date = "2026-10-15T22:41:30.042942019+09:00"
+snapshot = "6d5785de78d6c2106bff5e0e"
+path = "services"
+hash = "37f885d93041e8eec5de26eb2799033c7a9ab370"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify prepared input lifetime and restart wire bounds"

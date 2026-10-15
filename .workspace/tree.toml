@@ -10999,3 +10999,11 @@ path = "services"
 hash = "3dc08ff2897e2b43d6eff5d2c73cf30117292236"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify cached resource policy lifetime and fork isolation"
+
+[[entries]]
+date = "2026-10-15T10:08:28.032481219+09:00"
+snapshot = "d0ab40a4a20a3073b9d31616"
+path = "services"
+hash = "974222c3d7c82bf32d6277a4b556e44cbb3ce1fe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover pwrite file-size policy and signal dispositions"

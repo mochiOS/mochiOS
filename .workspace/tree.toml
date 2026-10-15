@@ -11463,3 +11463,11 @@ path = "services"
 hash = "37f885d93041e8eec5de26eb2799033c7a9ab370"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify prepared input lifetime and restart wire bounds"
+
+[[entries]]
+date = "2026-10-15T22:58:49.246381182+09:00"
+snapshot = "60c42d61877cc6fdc87b79ce"
+path = "services"
+hash = "28d2498af192161239ccc58a1023568f63bf3768"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover callback resource retirement and notification deferral"

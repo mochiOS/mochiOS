@@ -11559,3 +11559,11 @@ path = "services"
 hash = "fb1bac34f8b28fe934b23350c16ba41aac8b729c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify cancellation while open owns admission wait"
+
+[[entries]]
+date = "2026-10-16T00:26:20.502445812+09:00"
+snapshot = "5248311caed1f1d38a4fd4f7"
+path = "services"
+hash = "6b859369c9f9a43e6dffa4ea10d3f35b82a07699"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover public close cancellation boundaries"

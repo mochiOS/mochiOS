@@ -10991,3 +10991,11 @@ path = "services"
 hash = "1cd22ae7e0ad1e054036d2d6010186821c39be69"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): publish live resource limits through attenuated RAM objects"
+
+[[entries]]
+date = "2026-10-15T10:00:44.984223206+09:00"
+snapshot = "5500b0fc4e761dec4ed80422"
+path = "services"
+hash = "3dc08ff2897e2b43d6eff5d2c73cf30117292236"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify cached resource policy lifetime and fork isolation"

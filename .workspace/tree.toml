@@ -11023,3 +11023,11 @@ path = "services"
 hash = "76d848f7a913feb7b32549b6879d34877fc9de21"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): enforce atomic byte bounds on sequential provider writes"
+
+[[entries]]
+date = "2026-10-15T10:53:18.798412986+09:00"
+snapshot = "198c86baa949710523e6e5eb"
+path = "services"
+hash = "52d8302aed758eb1b253bc1e68beabd85438206e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover policy reads while fork waits for allocator"

@@ -11335,3 +11335,11 @@ path = "services"
 hash = "3ebfb7b37e94bae375b25290861bd27b51a2d7d9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): compose real extent cache pins records and deferred retries"
+
+[[entries]]
+date = "2026-10-15T17:55:37.500014167+09:00"
+snapshot = "f9463463df50b059ee727615"
+path = "services"
+hash = "083f690d84e1bbca2e5e74c2303510f8fb3c3a3c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify reserved cache epoch and guard-bound writeback identity"

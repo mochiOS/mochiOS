@@ -11359,3 +11359,11 @@ path = "services"
 hash = "a363d695512ae78f519eb062124d6d2f977361a1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify irrevocable extent retries and retired root ownership"
+
+[[entries]]
+date = "2026-10-15T18:31:35.518324857+09:00"
+snapshot = "c1305231350bf0dedd73c118"
+path = "services"
+hash = "ad4970677f38b216246b70040e50f4b6baae326e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover unavailable backing lifetime and mapping cleanup"

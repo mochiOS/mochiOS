@@ -11127,3 +11127,11 @@ path = "services"
 hash = "ce086c0357d1ce8540d78ff55104f65bf3bb852f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): bound shared-memory provider writes at the atomic cursor selection"
+
+[[entries]]
+date = "2026-10-15T13:20:35.336398264+09:00"
+snapshot = "b26251b514ae3d2cab70e464"
+path = "services"
+hash = "6742a45ada84673868e00bb2b569e0baa39f458c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): reserve per-user process slots during fork preparation"

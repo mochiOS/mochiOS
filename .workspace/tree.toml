@@ -11175,3 +11175,11 @@ path = "services"
 hash = "fc6692a94c93ba781e2969ef2edc2717a85d8118"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): interleave provider cache invalidation at publication edges"
+
+[[entries]]
+date = "2026-10-15T14:32:47.633928137+09:00"
+snapshot = "ff35f473ccea939589152ec4"
+path = "services"
+hash = "628d536ed11b99c21263dc5ead934b5380b698a4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): retain provider identities across detached VM ownership"

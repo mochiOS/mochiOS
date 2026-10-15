@@ -11511,3 +11511,11 @@ path = "services"
 hash = "c1e4a96ae0b642e52f1f09b7cb2b754ddc8058c8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify reentrant open selective signal cleanup"
+
+[[entries]]
+date = "2026-10-15T23:35:18.295846799+09:00"
+snapshot = "9e4a121d318ed5c21cf90d13"
+path = "services"
+hash = "cf67831b66787b26bdceeda6939cb5ee0c05c506"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover contended spawn file actions through exec"

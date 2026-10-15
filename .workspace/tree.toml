@@ -11327,3 +11327,11 @@ path = "services"
 hash = "b36b095fdeb2b3bc84037739f333300e78820244"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify recorded PTE rewalk rejection and allocation-free retries"
+
+[[entries]]
+date = "2026-10-15T17:43:31.163608377+09:00"
+snapshot = "744a0857396bf33979cb3a63"
+path = "services"
+hash = "3ebfb7b37e94bae375b25290861bd27b51a2d7d9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): compose real extent cache pins records and deferred retries"

@@ -11623,3 +11623,11 @@ path = "services"
 hash = "28ae97b2b78dfa6f477edce9a9db5007542ef907"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover process exit admission and CPU handoff races"
+
+[[entries]]
+date = "2026-10-16T02:25:51.610479370+09:00"
+snapshot = "7f71ca2cb9bff0095fd779c5"
+path = "services"
+hash = "31352a45361004e3ca106378be3d29c333e0e046"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify I/O resources across C escapes and cancellation"

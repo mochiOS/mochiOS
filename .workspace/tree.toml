@@ -11399,3 +11399,11 @@ path = "services"
 hash = "eea7e31f912c7a1d885ca9613cb2e5beed3f53e5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): report replay-safe extent admission contention"
+
+[[entries]]
+date = "2026-10-15T20:09:11.140864725+09:00"
+snapshot = "9cac1c2efcaa7ff06fc3b42b"
+path = "services"
+hash = "9f5f9b2a5f9aedfcc315035ec169ef5192cb8501"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify owned admission ordering and cancellation"

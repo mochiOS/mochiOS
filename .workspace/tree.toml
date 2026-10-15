@@ -11167,3 +11167,11 @@ path = "services"
 hash = "11672849cae31c59e8a3e6302ba20aa4853986b1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover provider release allocation faults and mailbox retries"
+
+[[entries]]
+date = "2026-10-15T14:30:09.051650944+09:00"
+snapshot = "7f73e4d0a4433114ec1a3b01"
+path = "services"
+hash = "fc6692a94c93ba781e2969ef2edc2717a85d8118"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): interleave provider cache invalidation at publication edges"

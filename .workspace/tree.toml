@@ -10983,3 +10983,11 @@ path = "services"
 hash = "c1559e2c2383a533bb51eb51263987bd2020681f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify atomic resource policy reads and read-only mappings"
+
+[[entries]]
+date = "2026-10-15T09:51:09.103876910+09:00"
+snapshot = "787be2f8870717fea62b0571"
+path = "services"
+hash = "1cd22ae7e0ad1e054036d2d6010186821c39be69"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): publish live resource limits through attenuated RAM objects"

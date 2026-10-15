@@ -11583,3 +11583,11 @@ path = "services"
 hash = "0da558fdccd59ae9a29c1e5a1307cf9163480eba"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify openat authority survives directory FD reuse"
+
+[[entries]]
+date = "2026-10-16T01:00:25.447104715+09:00"
+snapshot = "00ab47fb22d7226bb71d9c77"
+path = "services"
+hash = "72486f2c09d33d822104f4a96d022b307f3db1c4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify mkdtemp creation collisions and cleanup"

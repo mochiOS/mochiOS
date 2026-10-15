@@ -11071,3 +11071,11 @@ path = "services"
 hash = "8978a35612c8c5e66dae578b3282bc85cb2b3c93"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify bounded exec rollback and finite-AS startup"
+
+[[entries]]
+date = "2026-10-15T12:16:48.419479608+09:00"
+snapshot = "85d3bdc11d9daa75cc326f04"
+path = "services"
+hash = "b4508a835329481c2bd879b70197a99b73f9d63a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover child startup errors and failed creation cleanup"

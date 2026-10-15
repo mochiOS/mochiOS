@@ -10967,3 +10967,11 @@ path = "services"
 hash = "eba947514cd0c74a8f2d452bad203960392fb742"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify transactional newlib fork cleanup and retire unprepared registration"
+
+[[entries]]
+date = "2026-10-15T09:26:54.931445124+09:00"
+snapshot = "46d5a3241891343332865377"
+path = "services"
+hash = "20d7606e8739e30a2e4372fdf3686050678d4105"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): preserve inherited FILEs while reclaiming exited fork siblings"

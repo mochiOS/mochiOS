@@ -11143,3 +11143,11 @@ path = "services"
 hash = "e1a9202b29206177ed65976c1c5d96f2f09f1ceb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover FD lifetime across close replacement and cancellation"
+
+[[entries]]
+date = "2026-10-15T13:53:27.862348409+09:00"
+snapshot = "9b50ccda857b92873edbe453"
+path = "services"
+hash = "eec7fc101b83a3467a29e373865b76dd9cd889ca"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify transactional exec launch context"

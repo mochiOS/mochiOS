@@ -11087,3 +11087,11 @@ path = "services"
 hash = "922e264e64f33e0fd97304e6c53ea5f404e1e566"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): inject allocation failures into native image preparation"
+
+[[entries]]
+date = "2026-10-15T12:36:38.499599324+09:00"
+snapshot = "ac38d8d764098c2f84026161"
+path = "services"
+hash = "ced5aa497f0f43fc83d775d2c0ce9608cc20eabe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify prepared exec mappings and read-only policy adoption"

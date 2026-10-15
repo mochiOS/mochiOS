@@ -11247,3 +11247,11 @@ path = "services"
 hash = "840796427358071ab7b81cd73c353d32f2aa4404"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify clone reservation rejection and current image gates"
+
+[[entries]]
+date = "2026-10-15T15:55:23.035981795+09:00"
+snapshot = "287577c67f77bbd75dcba48d"
+path = "services"
+hash = "8dd8608007a87149d95de2bc719c9f5f50c3f8d5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify root pin retirement races and allocation failures"

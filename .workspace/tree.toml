@@ -11311,3 +11311,11 @@ path = "services"
 hash = "9cf0c7f16d2ef9df94c7a4a111da0a7324e9edc0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify deferred cleanup ownership and journal cancellation"
+
+[[entries]]
+date = "2026-10-15T17:11:27.287465944+09:00"
+snapshot = "422c13e420cfbaa216b8ce14"
+path = "services"
+hash = "14a795853bdd6c267c047d548096d26f4fa40187"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify captured extent authority and root retirement lifetimes"

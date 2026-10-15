@@ -11223,3 +11223,11 @@ path = "services"
 hash = "61258fa63b154337ca027b033c74fc0926224965"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): retain private prefixes across shrink and regrowth"
+
+[[entries]]
+date = "2026-10-15T15:35:49.903965556+09:00"
+snapshot = "36dc5794d603317ae2337f61"
+path = "services"
+hash = "6ba6513fbdfce5ffb70a7c726d05c6c94906bd8e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover nonblocking backing extent admission"

@@ -11375,3 +11375,11 @@ path = "services"
 hash = "09012ed65c798a67674d7a111a146f35e053c0cc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover external extent uncertainty and confirmed outcomes"
+
+[[entries]]
+date = "2026-10-15T18:55:43.701219932+09:00"
+snapshot = "7b1b1dc4b1c49c9ba7205a7b"
+path = "user"
+hash = "983a29446409a83d9607e66f0ad94ed9c1b6e33b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(platform): add owned provider memory update wrapper"

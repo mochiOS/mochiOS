@@ -11199,3 +11199,11 @@ path = "services"
 hash = "ee8e2a2f652046d303daa278a188c6e93e8e4448"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): reject stale provider frames and private page installations"
+
+[[entries]]
+date = "2026-10-15T14:52:12.658709858+09:00"
+snapshot = "54e5163172cb7d75b6b6bef0"
+path = "services"
+hash = "2f0b2e438a1be6a48f3c804af84c3e363dc4edfa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover backing gate lifetime and allocation failure propagation"

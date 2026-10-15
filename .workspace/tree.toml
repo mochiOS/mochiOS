@@ -11119,3 +11119,11 @@ path = "services"
 hash = "bf1e7af146511c311dfc4d223f66ab48d0ecfcf4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): serialize bounded shared-memory resize with extent mutation"
+
+[[entries]]
+date = "2026-10-15T13:09:35.280271400+09:00"
+snapshot = "620187fe01dba210fe90b608"
+path = "services"
+hash = "ce086c0357d1ce8540d78ff55104f65bf3bb852f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): bound shared-memory provider writes at the atomic cursor selection"

@@ -11191,3 +11191,11 @@ path = "services"
 hash = "ba3e8f4a352b540578e9715a4f6aa23d441c31ae"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify revocation commit ordering and failure rollback"
+
+[[entries]]
+date = "2026-10-15T14:42:18.226394817+09:00"
+snapshot = "cc64008c9dbb51bbd159657a"
+path = "services"
+hash = "ee8e2a2f652046d303daa278a188c6e93e8e4448"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): reject stale provider frames and private page installations"

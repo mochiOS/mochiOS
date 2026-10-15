@@ -11047,3 +11047,11 @@ path = "services"
 hash = "7b53fce08369145d242a40c467ec222a63b13ce9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify live VM budgets and concurrent mapping admission"
+
+[[entries]]
+date = "2026-10-15T11:31:05.268139577+09:00"
+snapshot = "d2d4b5f6198f0ddf23722d9e"
+path = "services"
+hash = "e96b026f76fa139428caff07340912f048c2addd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify AS limits and pre-start pthread admission failures"

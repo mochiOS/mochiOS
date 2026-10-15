@@ -11095,3 +11095,11 @@ path = "services"
 hash = "ced5aa497f0f43fc83d775d2c0ce9608cc20eabe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify prepared exec mappings and read-only policy adoption"
+
+[[entries]]
+date = "2026-10-15T12:43:53.328656519+09:00"
+snapshot = "80d2e9d513bd64fb459fc8f5"
+path = "services"
+hash = "8bb847e42cab361e3c2bc99b864ec83bdce28f60"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify empty native bootstrap entry and userspace parsing"

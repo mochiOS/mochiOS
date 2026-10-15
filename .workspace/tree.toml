@@ -11207,3 +11207,11 @@ path = "services"
 hash = "2f0b2e438a1be6a48f3c804af84c3e363dc4edfa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover backing gate lifetime and allocation failure propagation"
+
+[[entries]]
+date = "2026-10-15T15:09:23.299767970+09:00"
+snapshot = "2e65bc1b9a2cf3f2e02d9917"
+path = "services"
+hash = "4558872205900176a4517259ee599de31347c9b2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover cache extent publication and backing-scoped epochs"

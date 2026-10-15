@@ -11519,3 +11519,11 @@ path = "services"
 hash = "cf67831b66787b26bdceeda6939cb5ee0c05c506"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover contended spawn file actions through exec"
+
+[[entries]]
+date = "2026-10-15T23:43:28.625250641+09:00"
+snapshot = "25d67f485437dcf299171b36"
+path = "services"
+hash = "eacfc58da1c0d2f281771e710df471b0a5b2c805"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify queued wait restart keeps the original file lease"

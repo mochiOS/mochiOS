@@ -10959,3 +10959,11 @@ path = "services"
 hash = "e360bd0305ff572addcd41035a1d956adfd1488a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): commit prepared fork policy through authenticated process objects"
+
+[[entries]]
+date = "2026-10-15T09:16:22.765785904+09:00"
+snapshot = "93c8d24f0c2178a0c180cdcb"
+path = "services"
+hash = "eba947514cd0c74a8f2d452bad203960392fb742"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify transactional newlib fork cleanup and retire unprepared registration"

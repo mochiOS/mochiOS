@@ -11031,3 +11031,11 @@ path = "services"
 hash = "52d8302aed758eb1b253bc1e68beabd85438206e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover policy reads while fork waits for allocator"
+
+[[entries]]
+date = "2026-10-15T11:04:25.367501574+09:00"
+snapshot = "b11a3e3c971ed6bbf7b8c045"
+path = "services"
+hash = "1836e4e75afce3bae0fd2384365b1fb0e252cc1d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover data-limited break growth and activation rollback"

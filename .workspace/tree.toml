@@ -11111,3 +11111,11 @@ path = "services"
 hash = "0578ac4a6745184dcab2ed63c6f5524327b328e9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover prepared stack rollback and exec with a running sibling"
+
+[[entries]]
+date = "2026-10-15T13:00:45.453473925+09:00"
+snapshot = "c8c049106047a80b24ac1bc7"
+path = "services"
+hash = "bf1e7af146511c311dfc4d223f66ab48d0ecfcf4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): serialize bounded shared-memory resize with extent mutation"

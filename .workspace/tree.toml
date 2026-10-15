@@ -11151,3 +11151,11 @@ path = "services"
 hash = "eec7fc101b83a3467a29e373865b76dd9cd889ca"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify transactional exec launch context"
+
+[[entries]]
+date = "2026-10-15T14:01:37.309895119+09:00"
+snapshot = "6ffe39adeb0fdde7e32353da"
+path = "services"
+hash = "156f978467d53ce70848ba38dc93aa3019c91398"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): enforce allocation-free image identity publication"

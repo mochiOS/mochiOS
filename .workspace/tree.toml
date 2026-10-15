@@ -11407,3 +11407,11 @@ path = "services"
 hash = "9f5f9b2a5f9aedfcc315035ec169ef5192cb8501"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify owned admission ordering and cancellation"
+
+[[entries]]
+date = "2026-10-15T21:16:08.209867437+09:00"
+snapshot = "fb924e5b64f37afc2e702a6b"
+path = "services"
+hash = "0b7bb47764a0dbc96c0a0bd30ecdadb6a24b4ca9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify admission ticket authority lifetime and mapped publication"

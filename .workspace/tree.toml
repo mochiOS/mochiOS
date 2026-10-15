@@ -11567,3 +11567,11 @@ path = "services"
 hash = "6b859369c9f9a43e6dffa4ea10d3f35b82a07699"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover public close cancellation boundaries"
+
+[[entries]]
+date = "2026-10-16T00:32:09.449786196+09:00"
+snapshot = "b0fd49ca696d87c74f95aa71"
+path = "services"
+hash = "284c894593831a7a1c09ada31d6fc9b0184a85b0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover sleep wrappers cancellation and SDK ABI widths"

@@ -11279,3 +11279,11 @@ path = "services"
 hash = "0cf9799808c73116f230ad6ddd40b0162cb26e3a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify reserved resident accesses and kernel COW copies"
+
+[[entries]]
+date = "2026-10-15T16:31:32.134309025+09:00"
+snapshot = "4f4c3f9a9739762ace16de8e"
+path = "services"
+hash = "f2a26ef4f5b3ab2a87945e3a8064a5bc9fbcc2f8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify owned suspension cancellation and lease ordering"

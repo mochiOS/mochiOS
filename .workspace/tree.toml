@@ -11319,3 +11319,11 @@ path = "services"
 hash = "14a795853bdd6c267c047d548096d26f4fa40187"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify captured extent authority and root retirement lifetimes"
+
+[[entries]]
+date = "2026-10-15T17:21:13.064859561+09:00"
+snapshot = "30a791947aefd97b26df0cc4"
+path = "services"
+hash = "b36b095fdeb2b3bc84037739f333300e78820244"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify recorded PTE rewalk rejection and allocation-free retries"

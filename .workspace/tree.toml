@@ -11615,3 +11615,11 @@ path = "services"
 hash = "b826b244f60e4795d8d55a4348948085290698b5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise immutable native process exit results"
+
+[[entries]]
+date = "2026-10-16T02:06:41.669490374+09:00"
+snapshot = "12ff1056e2da34736a2cfd00"
+path = "services"
+hash = "28ae97b2b78dfa6f477edce9a9db5007542ef907"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover process exit admission and CPU handoff races"

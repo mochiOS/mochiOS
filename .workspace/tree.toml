@@ -11015,3 +11015,11 @@ path = "services"
 hash = "a676b2de3820e4bab1059aa37ef3baa678e2ec87"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): enforce authenticated file-size ceilings in atomic truncate"
+
+[[entries]]
+date = "2026-10-15T10:40:09.776529633+09:00"
+snapshot = "f2b0b06f31e2de7278ddc12c"
+path = "services"
+hash = "76d848f7a913feb7b32549b6879d34877fc9de21"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): enforce atomic byte bounds on sequential provider writes"

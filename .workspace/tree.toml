@@ -10951,3 +10951,11 @@ path = "services"
 hash = "ea83f59490bce45d1155df67958fb3d7ffde2189"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): prepare owner-scoped fork policy snapshots with cancellation"
+
+[[entries]]
+date = "2026-10-15T09:09:20.326733822+09:00"
+snapshot = "3d52d47db6789b74511c4368"
+path = "services"
+hash = "e360bd0305ff572addcd41035a1d956adfd1488a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): commit prepared fork policy through authenticated process objects"

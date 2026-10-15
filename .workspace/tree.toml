@@ -11007,3 +11007,11 @@ path = "services"
 hash = "974222c3d7c82bf32d6277a4b556e44cbb3ce1fe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover pwrite file-size policy and signal dispositions"
+
+[[entries]]
+date = "2026-10-15T10:23:37.601307917+09:00"
+snapshot = "96580b9d084a46749b6bb326"
+path = "services"
+hash = "a676b2de3820e4bab1059aa37ef3baa678e2ec87"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): enforce authenticated file-size ceilings in atomic truncate"

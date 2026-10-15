@@ -11535,3 +11535,11 @@ path = "services"
 hash = "b76a31bc164ac0a14773668a364427838935fca9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify queued pathname mutations retain captured input"
+
+[[entries]]
+date = "2026-10-15T23:56:33.240820345+09:00"
+snapshot = "62d4d7deb3197b33a0da6c81"
+path = "services"
+hash = "f28840d7fdbd557ebc990462cd4cd27dd72ffd6e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify runtime resources retire before pthread exit cleanup"

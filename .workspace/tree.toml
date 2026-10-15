@@ -11271,3 +11271,11 @@ path = "services"
 hash = "566285bf17d7baaab97b68ae7fa28df7a0018119"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): reject reserved mapping edits before any publication"
+
+[[entries]]
+date = "2026-10-15T16:22:47.033417430+09:00"
+snapshot = "b7238425e04ee06e9dcf3794"
+path = "services"
+hash = "0cf9799808c73116f230ad6ddd40b0162cb26e3a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify reserved resident accesses and kernel COW copies"

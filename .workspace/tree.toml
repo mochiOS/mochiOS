@@ -10975,3 +10975,11 @@ path = "services"
 hash = "20d7606e8739e30a2e4372fdf3686050678d4105"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): preserve inherited FILEs while reclaiming exited fork siblings"
+
+[[entries]]
+date = "2026-10-15T09:35:44.608265541+09:00"
+snapshot = "36ba553088b77db80d80552b"
+path = "services"
+hash = "c1559e2c2383a533bb51eb51263987bd2020681f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify atomic resource policy reads and read-only mappings"

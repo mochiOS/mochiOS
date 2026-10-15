@@ -11351,3 +11351,11 @@ path = "services"
 hash = "6a5c34721827d5a5296bf12c36a818ca6f6fadd2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify preflight faults rollback retries and cache entry relocation"
+
+[[entries]]
+date = "2026-10-15T18:13:10.368947196+09:00"
+snapshot = "306370aa70851c0d9f970784"
+path = "services"
+hash = "a363d695512ae78f519eb062124d6d2f977361a1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify irrevocable extent retries and retired root ownership"

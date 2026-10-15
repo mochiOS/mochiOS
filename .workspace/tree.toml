@@ -11495,3 +11495,11 @@ path = "services"
 hash = "35997308eecbd0232ebea9a285afa9cdd0cf6cb6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover queued libc open and reservation reuse"
+
+[[entries]]
+date = "2026-10-15T23:19:33.851196202+09:00"
+snapshot = "562a160a85af99fcee944863"
+path = "services"
+hash = "5e4832d7e8f30c853a52fc268800310b65836515"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify siglongjmp reclaims unpublished open resources"

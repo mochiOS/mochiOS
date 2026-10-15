@@ -11503,3 +11503,11 @@ path = "services"
 hash = "5e4832d7e8f30c853a52fc268800310b65836515"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify siglongjmp reclaims unpublished open resources"
+
+[[entries]]
+date = "2026-10-15T23:25:14.926560483+09:00"
+snapshot = "7c20634d61170cd2904bd501"
+path = "services"
+hash = "c1e4a96ae0b642e52f1f09b7cb2b754ddc8058c8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify reentrant open selective signal cleanup"

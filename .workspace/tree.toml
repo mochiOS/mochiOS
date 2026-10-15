@@ -11487,3 +11487,11 @@ path = "services"
 hash = "d10574284c3fb8424886c2d187bdba330a49fb5f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise queued libc pathname truncation"
+
+[[entries]]
+date = "2026-10-15T23:12:57.861283805+09:00"
+snapshot = "35770c9b0299c74239681e37"
+path = "services"
+hash = "35997308eecbd0232ebea9a285afa9cdd0cf6cb6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover queued libc open and reservation reuse"

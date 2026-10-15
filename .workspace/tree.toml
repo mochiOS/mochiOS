@@ -11575,3 +11575,11 @@ path = "services"
 hash = "284c894593831a7a1c09ada31d6fc9b0184a85b0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover sleep wrappers cancellation and SDK ABI widths"
+
+[[entries]]
+date = "2026-10-16T00:46:33.441821976+09:00"
+snapshot = "b26acc4845109125acd9356c"
+path = "services"
+hash = "0da558fdccd59ae9a29c1e5a1307cf9163480eba"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify openat authority survives directory FD reuse"

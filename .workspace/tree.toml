@@ -11079,3 +11079,11 @@ path = "services"
 hash = "b4508a835329481c2bd879b70197a99b73f9d63a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover child startup errors and failed creation cleanup"
+
+[[entries]]
+date = "2026-10-15T12:25:10.792332488+09:00"
+snapshot = "09bcaa704ba8b17d1a1cadaf"
+path = "services"
+hash = "922e264e64f33e0fd97304e6c53ea5f404e1e566"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): inject allocation failures into native image preparation"

@@ -11183,3 +11183,11 @@ path = "services"
 hash = "628d536ed11b99c21263dc5ead934b5380b698a4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): retain provider identities across detached VM ownership"
+
+[[entries]]
+date = "2026-10-15T14:36:07.654593824+09:00"
+snapshot = "d854002ab8f8e723029185e8"
+path = "services"
+hash = "ba3e8f4a352b540578e9715a4f6aa23d441c31ae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify revocation commit ordering and failure rollback"

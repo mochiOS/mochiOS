@@ -11439,3 +11439,11 @@ path = "services"
 hash = "fa5dc09d7fcc39130bc1930e292e16e9df7706b0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): transfer queued mutation positions over IPC"
+
+[[entries]]
+date = "2026-10-15T22:02:43.526281670+09:00"
+snapshot = "abfd6f32a32a2594c5a9e569"
+path = "services"
+hash = "e14c1592b7119db0bee6d2e6b2b9d661d5e2e0d0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): relay queued file mutations without blocking services"

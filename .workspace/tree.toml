@@ -11295,3 +11295,11 @@ path = "services"
 hash = "bb5537663d4f0920e82178c4005134e0bc3634f5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): preserve image aliases and authorization across reservation retries"
+
+[[entries]]
+date = "2026-10-15T16:53:16.827550276+09:00"
+snapshot = "bbdb29929dc768d9081ee7cc"
+path = "services"
+hash = "8fd1a4c1f40ce4886b40bea6c0da5900e7f2a5f6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify owned boundary journal finish and rollback lifetimes"

@@ -11103,3 +11103,11 @@ path = "services"
 hash = "8bb847e42cab361e3c2bc99b864ec83bdce28f60"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify empty native bootstrap entry and userspace parsing"
+
+[[entries]]
+date = "2026-10-15T12:52:52.670272175+09:00"
+snapshot = "f2dc4065c4510ab402e7624c"
+path = "services"
+hash = "0578ac4a6745184dcab2ed63c6f5524327b328e9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover prepared stack rollback and exec with a running sibling"

@@ -11423,3 +11423,11 @@ path = "services"
 hash = "c17be8f11f064efac33dcafab431c86d6a9a85b2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): prepare provider updates with transferable admission"
+
+[[entries]]
+date = "2026-10-15T21:30:51.826104435+09:00"
+snapshot = "ab9b2665c0566ffb4a36aa87"
+path = "services"
+hash = "f094ad5385d057c39656bcfcc1562e6a8ad8e3fa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): scope queued admission to atomic file mutations"

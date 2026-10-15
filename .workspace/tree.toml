@@ -11287,3 +11287,11 @@ path = "services"
 hash = "f2a26ef4f5b3ab2a87945e3a8064a5bc9fbcc2f8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify owned suspension cancellation and lease ordering"
+
+[[entries]]
+date = "2026-10-15T16:42:43.310167910+09:00"
+snapshot = "33c80f7cdeff6292113689ad"
+path = "services"
+hash = "bb5537663d4f0920e82178c4005134e0bc3634f5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): preserve image aliases and authorization across reservation retries"

@@ -11471,3 +11471,11 @@ path = "services"
 hash = "28d2498af192161239ccc58a1023568f63bf3768"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover callback resource retirement and notification deferral"
+
+[[entries]]
+date = "2026-10-15T23:04:14.782630350+09:00"
+snapshot = "64075bc1e16b99f1a15677bd"
+path = "services"
+hash = "00bc96186981bf6e6f086f9c99a367f35e30e7d1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise queued libc ftruncate under continuous reads"

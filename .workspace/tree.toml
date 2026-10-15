@@ -11159,3 +11159,11 @@ path = "services"
 hash = "156f978467d53ce70848ba38dc93aa3019c91398"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): enforce allocation-free image identity publication"
+
+[[entries]]
+date = "2026-10-15T14:22:04.951880941+09:00"
+snapshot = "e13ba9db8f000b0a426e409a"
+path = "services"
+hash = "11672849cae31c59e8a3e6302ba20aa4853986b1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover provider release allocation faults and mailbox retries"

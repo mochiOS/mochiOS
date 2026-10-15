@@ -11135,3 +11135,11 @@ path = "services"
 hash = "6742a45ada84673868e00bb2b569e0baa39f458c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): reserve per-user process slots during fork preparation"
+
+[[entries]]
+date = "2026-10-15T13:37:33.241327622+09:00"
+snapshot = "80d8d7593860b8b169009a34"
+path = "services"
+hash = "e1a9202b29206177ed65976c1c5d96f2f09f1ceb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover FD lifetime across close replacement and cancellation"

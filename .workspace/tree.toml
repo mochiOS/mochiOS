@@ -11263,3 +11263,11 @@ path = "services"
 hash = "1801fb1a2e60bf05ec64ab5992ccdefcb535a93e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise transient private and shared hardware faults"
+
+[[entries]]
+date = "2026-10-15T16:10:39.734877552+09:00"
+snapshot = "321da53d2309dc6ca085f09b"
+path = "services"
+hash = "566285bf17d7baaab97b68ae7fa28df7a0018119"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): reject reserved mapping edits before any publication"

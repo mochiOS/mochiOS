@@ -11631,3 +11631,11 @@ path = "services"
 hash = "31352a45361004e3ca106378be3d29c333e0e046"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify I/O resources across C escapes and cancellation"
+
+[[entries]]
+date = "2026-10-16T02:48:31.134375512+09:00"
+snapshot = "3c8cefe78f9d4d047df43d20"
+path = "services"
+hash = "75ff0185567259600c5634c1ba7ef916f73a9013"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover stable vector metadata across callbacks and unmap"

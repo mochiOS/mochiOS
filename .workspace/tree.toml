@@ -11391,3 +11391,11 @@ path = "services"
 hash = "8c8c0440bdd1ebec068ace784962d6d27cb23fae"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): coordinate truncate and O_TRUNC with provider memory updates"
+
+[[entries]]
+date = "2026-10-15T19:55:38.425009347+09:00"
+snapshot = "e84e8bb8c1fed4b467dfe255"
+path = "services"
+hash = "eea7e31f912c7a1d885ca9613cb2e5beed3f53e5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): report replay-safe extent admission contention"

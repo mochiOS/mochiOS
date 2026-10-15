@@ -11255,3 +11255,11 @@ path = "services"
 hash = "8dd8608007a87149d95de2bc719c9f5f50c3f8d5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify root pin retirement races and allocation failures"
+
+[[entries]]
+date = "2026-10-15T16:03:50.333443794+09:00"
+snapshot = "231e000804e9d05ed9b403a6"
+path = "services"
+hash = "1801fb1a2e60bf05ec64ab5992ccdefcb535a93e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise transient private and shared hardware faults"

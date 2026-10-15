@@ -11063,3 +11063,11 @@ path = "services"
 hash = "41a5422250a5aaed7f3284fd3654c9e250292108"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify adaptive heap reservations and non-destructive regrowth"
+
+[[entries]]
+date = "2026-10-15T12:08:45.282988487+09:00"
+snapshot = "312d5c8bab99ef3bf4c7f824"
+path = "services"
+hash = "8978a35612c8c5e66dae578b3282bc85cb2b3c93"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify bounded exec rollback and finite-AS startup"

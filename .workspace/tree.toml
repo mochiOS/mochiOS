@@ -11447,3 +11447,11 @@ path = "services"
 hash = "e14c1592b7119db0bee6d2e6b2b9d661d5e2e0d0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): relay queued file mutations without blocking services"
+
+[[entries]]
+date = "2026-10-15T22:22:15.613161674+09:00"
+snapshot = "24b47a202032f61c137d780c"
+path = "services"
+hash = "e2f81483194aeccdaa7ba3073d8c50c1726ad4f1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify client admission cleanup and reader fairness"

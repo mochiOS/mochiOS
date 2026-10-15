@@ -11479,3 +11479,11 @@ path = "services"
 hash = "00bc96186981bf6e6f086f9c99a367f35e30e7d1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise queued libc ftruncate under continuous reads"
+
+[[entries]]
+date = "2026-10-15T23:07:07.327487708+09:00"
+snapshot = "07241d274bde0c638c513664"
+path = "services"
+hash = "d10574284c3fb8424886c2d187bdba330a49fb5f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise queued libc pathname truncation"

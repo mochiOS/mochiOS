@@ -11343,3 +11343,11 @@ path = "services"
 hash = "083f690d84e1bbca2e5e74c2303510f8fb3c3a3c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify reserved cache epoch and guard-bound writeback identity"
+
+[[entries]]
+date = "2026-10-15T18:06:28.982913738+09:00"
+snapshot = "3ae6c3ebe970fe2e6818b058"
+path = "services"
+hash = "6a5c34721827d5a5296bf12c36a818ca6f6fadd2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify preflight faults rollback retries and cache entry relocation"

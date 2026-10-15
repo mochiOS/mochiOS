@@ -11527,3 +11527,11 @@ path = "services"
 hash = "eacfc58da1c0d2f281771e710df471b0a5b2c805"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify queued wait restart keeps the original file lease"
+
+[[entries]]
+date = "2026-10-15T23:48:24.359170892+09:00"
+snapshot = "e90a7b585318f78cdd764fd2"
+path = "services"
+hash = "b76a31bc164ac0a14773668a364427838935fca9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify queued pathname mutations retain captured input"

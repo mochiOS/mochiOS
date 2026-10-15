@@ -11599,3 +11599,11 @@ path = "services"
 hash = "1bc5a1ca0651b01f53877f87f7c8fc3df0e2e6f6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify fstatat authority lifetime and C metadata semantics"
+
+[[entries]]
+date = "2026-10-16T01:35:26.509735821+09:00"
+snapshot = "a98e5fff143223640f2a9e6d"
+path = "services"
+hash = "605d4b02798b73f89edda235ba27932e89726d8d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify CPU budgets signals accounting and inheritance"

@@ -11607,3 +11607,11 @@ path = "services"
 hash = "605d4b02798b73f89edda235ba27932e89726d8d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify CPU budgets signals accounting and inheritance"
+
+[[entries]]
+date = "2026-10-16T01:49:22.408840769+09:00"
+snapshot = "fbac64acc7196de5555f9ed5"
+path = "services"
+hash = "b826b244f60e4795d8d55a4348948085290698b5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise immutable native process exit results"

@@ -12959,3 +12959,11 @@ path = "services"
 hash = "3449af1440ce8693eeb364ffabd0828d9ca203f6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover native lifetime context and reference exhaustion"
+
+[[entries]]
+date = "2026-10-17T07:46:35.705297768+09:00"
+snapshot = "2b7246b5c1651b6172530e09"
+path = "services"
+hash = "07e4d6525352084c6d1ae5c1b44c41621e1e5bfd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): recognize native no-ready outcomes in service wait loops"

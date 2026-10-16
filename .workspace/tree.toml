@@ -12303,3 +12303,11 @@ path = "services"
 hash = "8785df657503bb6b735bd5842080493f7a39fd34"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify normal pthread attributes and unsupported classes"
+
+[[entries]]
+date = "2026-10-17T01:35:41.664954792+09:00"
+snapshot = "f2a760ed4cb85374a5d3c519"
+path = "services"
+hash = "17e25a7978f36d001fe7c9f1434c41828bb3fc9f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): observe child events without reaping or charging CPU time"

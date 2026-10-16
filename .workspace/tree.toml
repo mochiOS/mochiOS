@@ -11703,3 +11703,11 @@ path = "services"
 hash = "5351bf441da5477605163b6f876a3ecfccae04fc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover pipe creation failures and output rollback"
+
+[[entries]]
+date = "2026-10-16T18:01:57.985767915+09:00"
+snapshot = "c68d3b022816dd200c681ce8"
+path = "services"
+hash = "6748d4ea5e12a78274d7221c7aceed18c3ce2dd3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover PTY creation rollback and publication faults"

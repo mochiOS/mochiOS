@@ -12375,3 +12375,11 @@ path = "services"
 hash = "f321254a26ba0ecf5478e77c84aee867c5554e4b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native target capture without errno fixtures"
+
+[[entries]]
+date = "2026-10-17T02:27:33.290978312+09:00"
+snapshot = "a80c3549ddfb143e7cbf4d9b"
+path = "services"
+hash = "d509e0ba032525dd04b3cd8d5733da72f746d42b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify typed replacement failures and KVM fixed mappings"

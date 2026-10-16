@@ -12511,3 +12511,11 @@ path = "services"
 hash = "95aeb2ba73f4f6f33427ae37d1f9c2ef55ac113f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): classify native provider identity observations"
+
+[[entries]]
+date = "2026-10-17T04:20:41.759269887+09:00"
+snapshot = "a291fa988d7c8d93b87b93fa"
+path = "services"
+hash = "18dfc5dfa191b553ff489240eece36ab42a203f7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): handle native provider notification retirement"

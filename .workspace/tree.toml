@@ -12903,3 +12903,11 @@ path = "services"
 hash = "4c917228363e7e18f6306bc03da6df7699d002eb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise full-width values across process exit paths"
+
+[[entries]]
+date = "2026-10-17T07:33:24.152852560+09:00"
+snapshot = "153d10965a2c96e6ed408e9c"
+path = "services"
+hash = "6b967f0a3352847bc88d307e13ff7f55d0b4075b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): inject allocation and subscription failures into object waits"

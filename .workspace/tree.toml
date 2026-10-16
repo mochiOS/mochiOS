@@ -12119,3 +12119,11 @@ path = "services"
 hash = "d00753b08c206f8120c9297eda2fb4dc14c3851f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify mapping planning error propagation before edits"
+
+[[entries]]
+date = "2026-10-16T23:37:56.202795396+09:00"
+snapshot = "17674fe9d596806d9709c3a2"
+path = "services"
+hash = "dbbb68eea25bdd6e163213a66e4c50ada974b2ba"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify signal metadata faults and committed action coherence"

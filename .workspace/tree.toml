@@ -12007,3 +12007,11 @@ path = "services"
 hash = "e64a11ef88812cd2c7e78972f2ebb2aca6dff611"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify terminal EFAULT copies and active-handler cleanup"
+
+[[entries]]
+date = "2026-10-16T22:15:11.628494956+09:00"
+snapshot = "2e938ffd75f1eecf8a7f8b87"
+path = "services"
+hash = "6fe18770b41f59482a235550d1a370dea7efb0c5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify PTY creation EFAULT rollback inside signal handlers"

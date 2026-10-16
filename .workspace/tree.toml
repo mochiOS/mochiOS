@@ -13039,3 +13039,11 @@ path = "services"
 hash = "4719b1d0d924e3e768b14c4d3138c13676961717"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover native unmap failures and libc errno translation"
+
+[[entries]]
+date = "2026-10-17T08:18:50.964817152+09:00"
+snapshot = "8fa4069b510ac214b7af1578"
+path = "services"
+hash = "3e7c777beb885da586fe08bd5670b291356d13e1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify sync planning allocation failures and native boundaries"

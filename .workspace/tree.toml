@@ -13095,3 +13095,11 @@ path = "services"
 hash = "699b7d8ed12e64b4521db2a8865d01b71a29a6ac"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify received handle rollback with real table exhaustion"
+
+[[entries]]
+date = "2026-10-17T08:37:33.365374094+09:00"
+snapshot = "4f46b33cdf98a1c0feea04ef"
+path = "services"
+hash = "0acdf946102e4da3fe8b7efc2241db4d1bc47d70"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): validate native handle transfer and rollback in isolated KVM"

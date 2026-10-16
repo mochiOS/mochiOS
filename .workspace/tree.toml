@@ -12599,3 +12599,11 @@ path = "services"
 hash = "8ab672616241cd5c3e9fa472517300b16ea8619a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): verify native export authority and partial-grant cleanup"
+
+[[entries]]
+date = "2026-10-17T05:06:19.933961412+09:00"
+snapshot = "0e4ee4d968f8b4a68fa22dda"
+path = "services"
+hash = "31a7db71978e5385b967134ea5606e0463d71026"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): verify unpublished inheritance installation and failure cleanup"

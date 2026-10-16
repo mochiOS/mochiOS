@@ -12167,3 +12167,11 @@ path = "services"
 hash = "5d183d4ad0ddca202094b335672d50713e35f61d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(logger): recognize missing directories by raw status"
+
+[[entries]]
+date = "2026-10-17T00:08:04.522635167+09:00"
+snapshot = "233a1ddb0df8d812b5f47d30"
+path = "services"
+hash = "e19d580915e312be213d206380c323d0e9a87a06"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(input): retry queue pressure using native raw status"

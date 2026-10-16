@@ -11751,3 +11751,11 @@ path = "services"
 hash = "d0e83466c6cf3938519eb7575d9389fc813e43ed"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover nonblocking update reentry and shared flags"
+
+[[entries]]
+date = "2026-10-16T18:36:07.204091826+09:00"
+snapshot = "2642c51f61273c2974c7002b"
+path = "services"
+hash = "f3d935d3e8ebdd0613e3400be3876970d0ce8923"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify multiplex reference recovery on signals and faults"

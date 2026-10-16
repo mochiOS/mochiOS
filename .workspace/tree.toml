@@ -12951,3 +12951,11 @@ path = "services"
 hash = "749a2902bc108e5f52f4e443dbbe5f7e4026c24c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover endpoint wait ownership and subscription failures"
+
+[[entries]]
+date = "2026-10-17T07:44:38.935302380+09:00"
+snapshot = "ff9fb337933b9a8fdc670425"
+path = "services"
+hash = "3449af1440ce8693eeb364ffabd0828d9ca203f6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover native lifetime context and reference exhaustion"

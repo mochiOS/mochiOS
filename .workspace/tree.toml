@@ -11823,3 +11823,11 @@ path = "services"
 hash = "4478af1175b1c24bd4f44a00c243fe8f04cb4688"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify readlink scope recovery across memory faults"
+
+[[entries]]
+date = "2026-10-16T19:39:59.917251039+09:00"
+snapshot = "4621100adc1d1d738278adac"
+path = "services"
+hash = "9b9e33c4157e577619aff0015016aebffc00704f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify scoped single-path mutations and fault recovery"

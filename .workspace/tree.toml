@@ -12031,3 +12031,11 @@ path = "services"
 hash = "37ac819728bf89ee7bbb575ccc75e61640b85cbf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify socket control EFAULT copies inside active handlers"
+
+[[entries]]
+date = "2026-10-16T22:26:54.736853839+09:00"
+snapshot = "a199ded0f686e760b6c6f3ab"
+path = "services"
+hash = "c73e51f2bf626004ea97897b6958c128482a2acb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify accept EFAULT cleanup and queued connection retention"

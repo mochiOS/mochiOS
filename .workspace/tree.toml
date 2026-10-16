@@ -12447,3 +12447,11 @@ path = "services"
 hash = "929ca07bdf983e5ab25aa2c92f17b85343de9e94"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native handle metadata failures and allocation bounds"
+
+[[entries]]
+date = "2026-10-17T03:11:22.010477708+09:00"
+snapshot = "4a38d8822105b8224722e206"
+path = "services"
+hash = "c37fc84a013f2591993f7ba8b77da380032965b1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover native capture failures and fork errno conversion"

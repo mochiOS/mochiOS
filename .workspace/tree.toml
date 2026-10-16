@@ -12791,3 +12791,11 @@ path = "services"
 hash = "70eb892c3c3ce7fd33990f31983061ae41ecd5f0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(stream): verify native peer closure and userspace SIGPIPE policy"
+
+[[entries]]
+date = "2026-10-17T06:29:11.410767398+09:00"
+snapshot = "fee799ddec0a21bf876a026f"
+path = "services"
+hash = "a562e75658013e450be932b9f5e1b69fe1e1d59f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(stream): inject storage failures before queue or waiter mutation"

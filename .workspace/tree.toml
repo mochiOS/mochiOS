@@ -12367,3 +12367,11 @@ path = "services"
 hash = "a36e48e2fdd785e5947ac3039fc337a94a46fcb3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify typed revocation failures and retained DMA ownership"
+
+[[entries]]
+date = "2026-10-17T02:24:10.684678731+09:00"
+snapshot = "00fcbdd55554b6b14c26e41b"
+path = "services"
+hash = "f321254a26ba0ecf5478e77c84aee867c5554e4b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native target capture without errno fixtures"

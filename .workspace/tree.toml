@@ -12727,3 +12727,11 @@ path = "services"
 hash = "731a474591de2614411266cd7a398301d485bc6a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): inject clone metadata failures before COW publication"
+
+[[entries]]
+date = "2026-10-17T06:04:40.270270989+09:00"
+snapshot = "a6c598c7241d67f618ccaa16"
+path = "services"
+hash = "167ab629f3662832369272673ecde145d8514214"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify detached root allocation rollback and ownership"

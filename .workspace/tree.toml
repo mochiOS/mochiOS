@@ -12159,3 +12159,11 @@ path = "services"
 hash = "cd4f9df8700282bc3c12246058aa1f7b14753a09"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): keep policy errno definitions outside native ABI"
+
+[[entries]]
+date = "2026-10-17T00:05:40.241138207+09:00"
+snapshot = "1467e2e166d9107b31992abf"
+path = "services"
+hash = "5d183d4ad0ddca202094b335672d50713e35f61d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(logger): recognize missing directories by raw status"

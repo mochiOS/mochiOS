@@ -12535,3 +12535,11 @@ path = "services"
 hash = "91b1bee67d1b9282c3cb2aa5de21a9f77b77b76c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(handle): exercise native close ownership and launch alias cleanup"
+
+[[entries]]
+date = "2026-10-17T04:32:57.117810614+09:00"
+snapshot = "a4ba5859e9155423ada4ad57"
+path = "services"
+hash = "e15702085d2bfb98fb6821c5720e03d301fe168f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(handle): cover native authority and restricted duplication failures"

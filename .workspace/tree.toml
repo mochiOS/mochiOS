@@ -12759,3 +12759,11 @@ path = "services"
 hash = "b37a225ecee6f3a1b4e1605aea70340c2244f526"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(thread): verify native creation failures and pthread cleanup"
+
+[[entries]]
+date = "2026-10-17T06:15:48.954673446+09:00"
+snapshot = "b6b3f169b893b8eab68ba82b"
+path = "services"
+hash = "4825031eb62991b6029925a2425600bee827ac6e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(task): remove retired discovery mocks from native creation probe"

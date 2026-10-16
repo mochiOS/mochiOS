@@ -13127,3 +13127,11 @@ path = "services"
 hash = "433b3a8bebf732d8c257df26806596fc4b216b47"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover handle lifetime on saturated IPC queues"
+
+[[entries]]
+date = "2026-10-17T08:51:55.970069756+09:00"
+snapshot = "37de8f66e5a6c8d2a8b79927"
+path = "services"
+hash = "2216746dd17be9c944e5692bf8bc63f225124d57"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(ipc): migrate event send retries and verify native failure categories"

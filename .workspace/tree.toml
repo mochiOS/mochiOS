@@ -12455,3 +12455,11 @@ path = "services"
 hash = "c37fc84a013f2591993f7ba8b77da380032965b1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover native capture failures and fork errno conversion"
+
+[[entries]]
+date = "2026-10-17T03:17:03.429260363+09:00"
+snapshot = "331e37a7baaebc95d728b09a"
+path = "services"
+hash = "175dd1e2b5d00d457b5ae8fda3185a309c3dcd4c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover native provider IO failures and quarantine cleanup"

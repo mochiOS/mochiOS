@@ -12335,3 +12335,11 @@ path = "services"
 hash = "a3a6e6ca50e49b11f6ecd2fe9ec9adc34ea2c91c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native protection errors and retained backing authority"
+
+[[entries]]
+date = "2026-10-17T02:12:20.678453929+09:00"
+snapshot = "907ab12d02e635747ca45230"
+path = "services"
+hash = "e09f2d60b424263ca15371e4c5e5c8f613e22a2c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native backing gates and legacy callback preservation"

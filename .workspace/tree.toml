@@ -12983,3 +12983,11 @@ path = "services"
 hash = "2988cdffc9f54991d5fe1e40f99ef9a798a0273a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover wait target replacement and admission cancellation lifetime"
+
+[[entries]]
+date = "2026-10-17T07:58:07.139363273+09:00"
+snapshot = "720f8b57337985687b3cb8ac"
+path = "services"
+hash = "2bdb06d86dbd8489d31de98302f45645d76d3acf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native object waits on isolated KVM bootstrap"

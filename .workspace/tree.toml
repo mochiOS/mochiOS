@@ -12687,3 +12687,11 @@ path = "services"
 hash = "fe7e1f4c7e0afa45db7904ce9c8aa4ca93d15dce"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): inject failures across authorization input allocations"
+
+[[entries]]
+date = "2026-10-17T05:45:00.153387558+09:00"
+snapshot = "a1aa12ba626d232dd971d676"
+path = "services"
+hash = "53a7974dacfd5534804f514cc57e9d2a3609f452"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): verify native authorization publication and failure paths"

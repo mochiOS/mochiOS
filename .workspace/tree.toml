@@ -12495,3 +12495,11 @@ path = "services"
 hash = "1e220182991f7c333dd23dfc47d787d5b2ea4a2a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native provider creation failures"
+
+[[entries]]
+date = "2026-10-17T04:10:48.609873090+09:00"
+snapshot = "87227545d7157c325ef8b9e6"
+path = "services"
+hash = "c4db98a633de5e9286307fed667c251d1341af87"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): retry retired provider reference observations"

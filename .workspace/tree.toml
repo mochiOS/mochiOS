@@ -12711,3 +12711,11 @@ path = "services"
 hash = "1a03a15614d024eb39111ffa8fbb3ffabcafbf68"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(capability): compare sorted set behavior and inject native grant failures"
+
+[[entries]]
+date = "2026-10-17T05:55:09.933495809+09:00"
+snapshot = "20487afed472c2c8547c1b02"
+path = "services"
+hash = "58f0d647544587a00195f1c8452b63a68d95e4c2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify origin allocation failures preserve source authority"

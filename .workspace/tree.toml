@@ -11711,3 +11711,11 @@ path = "services"
 hash = "6748d4ea5e12a78274d7221c7aceed18c3ce2dd3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover PTY creation rollback and publication faults"
+
+[[entries]]
+date = "2026-10-16T18:08:36.700123080+09:00"
+snapshot = "fc8bc7c71ffd3f7eb5ddc026"
+path = "services"
+hash = "da2d38b0e09f20ad2ee2d899f23a5764fa1ef5fe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify terminal lease cleanup during signals and faults"

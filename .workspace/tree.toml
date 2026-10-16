@@ -12423,3 +12423,11 @@ path = "services"
 hash = "79f60a8b3c6d21b93391258ecf5e329e37f56a13"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover native address-space backing failures"
+
+[[entries]]
+date = "2026-10-17T02:59:45.313117594+09:00"
+snapshot = "b53c2bff9453e25f24a5822f"
+path = "services"
+hash = "ed4e74d5253bdfa8fc0866bb7af5164b79f3dd32"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native clone status and allocation cleanup"

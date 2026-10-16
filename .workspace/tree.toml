@@ -11807,3 +11807,11 @@ path = "services"
 hash = "e4902380d0e54c5ff964cb0ec6f40b9806d04912"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify opaque directory cursor record codec"
+
+[[entries]]
+date = "2026-10-16T19:30:04.848465001+09:00"
+snapshot = "2853e8862b391faf2781995b"
+path = "services"
+hash = "aaaf93fbe32b543a5271198b146712b739318b38"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): serve opt-in directory cursors and verify libc bookmarks"

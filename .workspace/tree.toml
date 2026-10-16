@@ -11903,3 +11903,11 @@ path = "services"
 hash = "9fd3af75ee90a4019111b35e40ce5276a711daf4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): expose deleted cwd reconstruction failure with mounted namespaces"
+
+[[entries]]
+date = "2026-10-16T20:38:15.285432718+09:00"
+snapshot = "56ceaa29bd26bd2abc9ef499"
+path = "services"
+hash = "88b13e68d5bcf32820fab3cc6524f7bcc81d2333"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(ext4): separate namespace unlink from unlinked inode reclamation"

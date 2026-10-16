@@ -11951,3 +11951,11 @@ path = "services"
 hash = "1e30b4ffe0b63985922cb1b3937b498cba5c5e7e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): validate filesystem reply frames against delivered bytes"
+
+[[entries]]
+date = "2026-10-16T21:23:30.319695354+09:00"
+snapshot = "745936264ce5589d0deaf6d3"
+path = "services"
+hash = "0e811c438553d0a51ada4aba9b79b6bf4d6fa74e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): retain opaque pathname bytes across policy preparation"

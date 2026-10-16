@@ -11879,3 +11879,11 @@ path = "services"
 hash = "a88f107afe8f700638892ea9ab773b2a9f2c2447"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify mmap source ownership and native map lifetime"
+
+[[entries]]
+date = "2026-10-16T20:17:15.720843169+09:00"
+snapshot = "5d1c89131a06f6aa5d38fa33"
+path = "services"
+hash = "88561fed5514eeca3296ff8fc252217d00c10d29"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify shared backing cleanup at receive and mapping boundaries"

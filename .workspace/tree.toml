@@ -12631,3 +12631,11 @@ path = "services"
 hash = "1801faff65c389eb50198fc3e28160a4f6c23355"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): verify native snapshot failures and storage cleanup"
+
+[[entries]]
+date = "2026-10-17T05:26:05.440344688+09:00"
+snapshot = "1c5700508f13010984cf3379"
+path = "services"
+hash = "a44218e8e0865627631a3f6b5902aa9d535f0074"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): verify image replacement admission and error propagation"

@@ -12055,3 +12055,11 @@ path = "services"
 hash = "2f358b6c3ddd8efd567b2c08eb61951e7832b085"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify message EFAULT cleanup and SCM_RIGHTS rollback"
+
+[[entries]]
+date = "2026-10-16T22:49:47.055350980+09:00"
+snapshot = "483808476de8e4d637a23b41"
+path = "services"
+hash = "4442a35bf244870680222cc82de38cebe042ae5f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify time EFAULT copies and interrupted sleep output"

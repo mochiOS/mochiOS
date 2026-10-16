@@ -12111,3 +12111,11 @@ path = "services"
 hash = "40cad0fd5f0bb8049763a986fc89c258f322cd60"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): inject every mapping preparation allocation failure"
+
+[[entries]]
+date = "2026-10-16T23:29:04.680346784+09:00"
+snapshot = "3927ac4bff52edcc09be317e"
+path = "services"
+hash = "d00753b08c206f8120c9297eda2fb4dc14c3851f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify mapping planning error propagation before edits"

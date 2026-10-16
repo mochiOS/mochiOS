@@ -11863,3 +11863,11 @@ path = "services"
 hash = "8184ba3777ba103709bf83859fbca352fc873545"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify access IDs modes nofollow and scoped fault recovery"
+
+[[entries]]
+date = "2026-10-16T20:04:04.670519283+09:00"
+snapshot = "1cf649f868679af9376ee9d1"
+path = "services"
+hash = "47505714f1d9d2cc0f305938904dc5880d924503"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify linkat header ABI and reject foreign flag bits"

@@ -11919,3 +11919,11 @@ path = "services"
 hash = "3076922ad84d90bd5b708646830f59b72c846132"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(filesystem): retain removed directory and ancestor identities until last close"
+
+[[entries]]
+date = "2026-10-16T20:54:43.922011343+09:00"
+snapshot = "bcae0fc9144fb7c7a330d876"
+path = "services"
+hash = "3325e4c28b7601f7a25897a9b52534626bc93265"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(filesystem): flush the selected object volume and propagate durability errors"

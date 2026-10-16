@@ -12671,3 +12671,11 @@ path = "services"
 hash = "d633659f61f96b77d748bae475ff857f42c775ab"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): verify native mapping authority and preparation cleanup"
+
+[[entries]]
+date = "2026-10-17T05:39:01.289927078+09:00"
+snapshot = "ff9e79343566522219b09739"
+path = "services"
+hash = "cc4e1118de0f0182de7d43956bdf89775d30ed95"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): exercise full spawn failure and cleanup paths"

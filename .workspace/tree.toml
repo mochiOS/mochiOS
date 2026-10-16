@@ -12015,3 +12015,11 @@ path = "services"
 hash = "6fe18770b41f59482a235550d1a370dea7efb0c5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify PTY creation EFAULT rollback inside signal handlers"
+
+[[entries]]
+date = "2026-10-16T22:18:50.215613922+09:00"
+snapshot = "581ae1d206a68d67fa2eeb7c"
+path = "services"
+hash = "77ecfe9c8dabb3cdb5f17b06c9c5018c0268d65c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify pipe and socket pair EFAULT rollback in active handlers"

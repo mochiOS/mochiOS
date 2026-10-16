@@ -11783,3 +11783,11 @@ path = "services"
 hash = "6b1733c8a11cda20f0496a6af77b49586750668f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify guarded directory close on success and failure"
+
+[[entries]]
+date = "2026-10-16T19:10:45.322346305+09:00"
+snapshot = "1cc11a6cc1c5fd96e5ca0f68"
+path = "services"
+hash = "f8e6b021de6c5f33bf36095f171544f9c90cdd64"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify fdopendir ownership flags and shared cursor"

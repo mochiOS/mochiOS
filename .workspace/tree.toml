@@ -13111,3 +13111,11 @@ path = "services"
 hash = "32be10670a7f27a158bc029ae330661a13266644"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native endpoint resolution and receiver ownership"
+
+[[entries]]
+date = "2026-10-17T08:42:29.602069355+09:00"
+snapshot = "7dc108f14c4cb2cba0e379f9"
+path = "services"
+hash = "5fd9423c89aca7c8964e469f2def5a3cd3ea67bb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify endpoint creation capability ceilings and table exhaustion"

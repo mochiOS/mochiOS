@@ -12351,3 +12351,11 @@ path = "services"
 hash = "66c5eecd2e0ec6b21f0b905f3ce3332333f9b4de"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise native access admission across extent cleanup"
+
+[[entries]]
+date = "2026-10-17T02:19:04.822923218+09:00"
+snapshot = "7017096ececb5ca07be502d5"
+path = "services"
+hash = "8d8d0142931fe3afbdd88a03212a0fe63236bb27"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native unmap admission and resident access regressions"

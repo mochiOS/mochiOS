@@ -12871,3 +12871,11 @@ path = "services"
 hash = "592f5b2206d041b366306d4492449f90ae4d63d3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(process): verify retained lifecycle and native query failures"
+
+[[entries]]
+date = "2026-10-17T07:19:32.759911447+09:00"
+snapshot = "6ea4aef195c7a6de4daf9b33"
+path = "services"
+hash = "6402e6987fa4fd15b6d18fd1aa993e381d5ad8aa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(process): exercise retained wait targets and failure cleanup"

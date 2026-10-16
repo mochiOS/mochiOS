@@ -12975,3 +12975,11 @@ path = "services"
 hash = "3c03fa8e5a7a92b349eca4a9b1336f8bd2993557"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native platform wait wrappers and malformed indices"
+
+[[entries]]
+date = "2026-10-17T07:52:33.294078076+09:00"
+snapshot = "463f1fec018a86a7b6282616"
+path = "services"
+hash = "2988cdffc9f54991d5fe1e40f99ef9a798a0273a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover wait target replacement and admission cancellation lifetime"

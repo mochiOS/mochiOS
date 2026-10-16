@@ -11967,3 +11967,11 @@ path = "services"
 hash = "90562e71a386c40b98bd8d3d778200e1139653f2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify readlink private output and fault cleanup"
+
+[[entries]]
+date = "2026-10-16T21:33:07.742296520+09:00"
+snapshot = "7d124a3d4fced70b4a6bf42e"
+path = "services"
+hash = "bd31ac02a4d321e8a0556b470113bce94d9c6f41"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify bounded pathname snapshots at guard pages"

@@ -12855,3 +12855,11 @@ path = "services"
 hash = "11588d2c5c9f4955aeef2b5e48fe34d223f7ac1d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(upcall): preserve delivery state across native context failures"
+
+[[entries]]
+date = "2026-10-17T07:10:38.227243558+09:00"
+snapshot = "1196ab43d5f5b075bc58a031"
+path = "services"
+hash = "feecdc2dfeab922f39d263f6daf6c73691d9f376"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(sync): verify native admission and setup failure propagation"

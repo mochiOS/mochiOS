@@ -12879,3 +12879,11 @@ path = "services"
 hash = "6402e6987fa4fd15b6d18fd1aa993e381d5ad8aa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(process): exercise retained wait targets and failure cleanup"
+
+[[entries]]
+date = "2026-10-17T07:23:55.557478215+09:00"
+snapshot = "2820b0b0b79223d983b38557"
+path = "services"
+hash = "dfaabe807741410b3d9ec3b829270b64a0dc2007"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): translate native lifecycle failures at the service boundary"

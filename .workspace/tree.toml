@@ -12831,3 +12831,11 @@ path = "services"
 hash = "f773364ed5a68b89cb65b8d8211273bb9ce3c0f2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(process): inject faults into unpublished process container allocation"
+
+[[entries]]
+date = "2026-10-17T06:52:47.428916311+09:00"
+snapshot = "9a2525bb14ceb0cae85f44b5"
+path = "services"
+hash = "1387245a3f56b005aae487b321ccc1381e20fe31"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(handle): verify native option authority and errno conversion"

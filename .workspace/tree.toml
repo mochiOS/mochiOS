@@ -11927,3 +11927,11 @@ path = "services"
 hash = "3325e4c28b7601f7a25897a9b52534626bc93265"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(filesystem): flush the selected object volume and propagate durability errors"
+
+[[entries]]
+date = "2026-10-16T21:03:42.362804125+09:00"
+snapshot = "c344bf4153a71da3bc97ed8f"
+path = "services"
+hash = "f144c80c00117ae6d560b0e01b157abba5f48f27"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): resolve canonical paths atomically within the namespace"

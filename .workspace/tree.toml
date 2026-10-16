@@ -11815,3 +11815,11 @@ path = "services"
 hash = "aaaf93fbe32b543a5271198b146712b739318b38"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): serve opt-in directory cursors and verify libc bookmarks"
+
+[[entries]]
+date = "2026-10-16T19:36:02.680133924+09:00"
+snapshot = "cb32f97005468d6e8b56be77"
+path = "services"
+hash = "4478af1175b1c24bd4f44a00c243fe8f04cb4688"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify readlink scope recovery across memory faults"

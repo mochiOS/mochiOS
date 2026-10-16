@@ -11983,3 +11983,11 @@ path = "services"
 hash = "25d2e8183a1b00329f23a9e7fa9c3ed797947642"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify native memory copy permissions COW and nested use"
+
+[[entries]]
+date = "2026-10-16T21:51:38.396969243+09:00"
+snapshot = "5206f89d97988c9aa336ef2c"
+path = "services"
+hash = "ad519daa8d611fcf435bcabbea71cfdbf731a711"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify EFAULT copy paths without swallowing ordinary signals"

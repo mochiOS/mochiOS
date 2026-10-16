@@ -12551,3 +12551,11 @@ path = "services"
 hash = "3ff27654c41080d6f1a5b320060691608de4260d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(context): verify native mutation failures and preserve bind diagnostics"
+
+[[entries]]
+date = "2026-10-17T04:39:34.895740498+09:00"
+snapshot = "63675616327cce9334810c72"
+path = "services"
+hash = "534f76b22ee073c14e64d9042e01a233e23695f3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(filesystem): propagate native NotFound without retrying admission"

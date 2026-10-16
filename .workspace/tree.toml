@@ -13055,3 +13055,11 @@ path = "services"
 hash = "7625aa2dc4a14e8f29f8e28a8ef238167112d730"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise cache writeback allocation failures and retries"
+
+[[entries]]
+date = "2026-10-17T08:23:32.430273372+09:00"
+snapshot = "7bfbae4fe0c6321a8509f2dd"
+path = "services"
+hash = "1ce73b098e14e6906bbcc853da1d68e51cb22e60"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify provider buffer failures and malformed replies"

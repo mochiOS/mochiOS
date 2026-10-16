@@ -11887,3 +11887,11 @@ path = "services"
 hash = "88561fed5514eeca3296ff8fc252217d00c10d29"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify shared backing cleanup at receive and mapping boundaries"
+
+[[entries]]
+date = "2026-10-16T20:24:52.688087449+09:00"
+snapshot = "24188bbf8d29ec874635d2e8"
+path = "services"
+hash = "d2192db33dcc309094c0d36525d8b42292c53340"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify shared memory namespace ownership and fault recovery"

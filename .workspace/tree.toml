@@ -12183,3 +12183,11 @@ path = "services"
 hash = "a0ee51891870fa53d2d23c48406772bb70255525"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(package): distinguish native status from positive errno"
+
+[[entries]]
+date = "2026-10-17T00:11:23.402239174+09:00"
+snapshot = "c38611ac4ed9493c23e27c19"
+path = "services"
+hash = "853b725134b94989ccc1382538eb290564a6f094"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify keyboard native error status recovery"

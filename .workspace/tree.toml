@@ -12231,3 +12231,11 @@ path = "services"
 hash = "d7722a0ab824e45c94a3db14e102556dbe602ea2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native clocks with and without realtime authority"
+
+[[entries]]
+date = "2026-10-17T00:59:44.389279184+09:00"
+snapshot = "d9496bfb4111b0407a80b682"
+path = "services"
+hash = "4a3184988fcdaac0f5944c7671fc38389bd3d282"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify random source with and without capability"

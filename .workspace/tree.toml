@@ -12663,3 +12663,11 @@ path = "services"
 hash = "8100f4f4d112bcc0f094ad337c0e2ce5117478f2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): distinguish native image admission failure categories"
+
+[[entries]]
+date = "2026-10-17T05:35:50.378492496+09:00"
+snapshot = "17e98002bf79b5b20a1f0462"
+path = "services"
+hash = "d633659f61f96b77d748bae475ff857f42c775ab"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): verify native mapping authority and preparation cleanup"

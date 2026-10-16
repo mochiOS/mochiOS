@@ -12247,3 +12247,11 @@ path = "services"
 hash = "cb10098a97f8a4c5e9d1d91e6b39427e8538349a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): normalize native failures before service replies"
+
+[[entries]]
+date = "2026-10-17T01:10:41.179598693+09:00"
+snapshot = "3e0f0c6479f75253fe9e1bcb"
+path = "services"
+hash = "972f099bde120c224bfde1a1aaf8c707848b15a1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(package): preserve native failures in POSIX wire replies"

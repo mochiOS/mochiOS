@@ -11895,3 +11895,11 @@ path = "services"
 hash = "d2192db33dcc309094c0d36525d8b42292c53340"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify shared memory namespace ownership and fault recovery"
+
+[[entries]]
+date = "2026-10-16T20:34:08.914860431+09:00"
+snapshot = "642ad1ccdaa812e1ea152ecc"
+path = "services"
+hash = "9fd3af75ee90a4019111b35e40ce5276a711daf4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): expose deleted cwd reconstruction failure with mounted namespaces"

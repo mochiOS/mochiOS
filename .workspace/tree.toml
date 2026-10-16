@@ -12079,3 +12079,11 @@ path = "services"
 hash = "428c2892b11bb9600f0dfcce6a42cc11f411e410"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify bounded poll snapshots and copy counts"
+
+[[entries]]
+date = "2026-10-16T23:07:32.013016858+09:00"
+snapshot = "e1533be4399cedb0c2d5fcaa"
+path = "services"
+hash = "6d2e02eef79c5b647636633b2c45270d525cb586"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover resource limit memory faults and aliasing"

@@ -11975,3 +11975,11 @@ path = "services"
 hash = "bd31ac02a4d321e8a0556b470113bce94d9c6f41"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify bounded pathname snapshots at guard pages"
+
+[[entries]]
+date = "2026-10-16T21:42:01.918958099+09:00"
+snapshot = "fa8f9b0b98e59399616fc24d"
+path = "services"
+hash = "25d2e8183a1b00329f23a9e7fa9c3ed797947642"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): verify native memory copy permissions COW and nested use"

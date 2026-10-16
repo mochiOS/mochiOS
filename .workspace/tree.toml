@@ -12911,3 +12911,11 @@ path = "services"
 hash = "6b967f0a3352847bc88d307e13ff7f55d0b4075b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): inject allocation and subscription failures into object waits"
+
+[[entries]]
+date = "2026-10-17T07:35:08.515011319+09:00"
+snapshot = "a86581dab7199cf55671935b"
+path = "services"
+hash = "4516839cd34f35b2870ec5708f51d140f1d5a34f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native object wait copy and guard snapshot failures"

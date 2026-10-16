@@ -12943,3 +12943,11 @@ path = "services"
 hash = "ba62c2535461329a75bb83c9d110a335dc12d5fd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover native wait target identity and readiness failures"
+
+[[entries]]
+date = "2026-10-17T07:42:39.276495220+09:00"
+snapshot = "75c15e085fba960e4c8337a8"
+path = "services"
+hash = "749a2902bc108e5f52f4e443dbbe5f7e4026c24c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover endpoint wait ownership and subscription failures"

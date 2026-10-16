@@ -13079,3 +13079,11 @@ path = "services"
 hash = "e456804eb42abda8b0ceaa1a977eee0cd966789b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise kernel IPC retry ownership and waiter cleanup"
+
+[[entries]]
+date = "2026-10-17T08:31:18.304044015+09:00"
+snapshot = "0faddba4de292efa315ba382"
+path = "services"
+hash = "5eede50bb81a86fa2a7cda6b5353017d947df6a2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover native attachment decode failures and partial export cleanup"

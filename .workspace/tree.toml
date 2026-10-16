@@ -11791,3 +11791,11 @@ path = "services"
 hash = "f8e6b021de6c5f33bf36095f171544f9c90cdd64"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify fdopendir ownership flags and shared cursor"
+
+[[entries]]
+date = "2026-10-16T19:15:03.470138809+09:00"
+snapshot = "c2c15a22817e423de072cdb1"
+path = "services"
+hash = "80608b122eff930ee255fd1764616ae138c5e898"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(filesystem): enable directory cursor rewind without pager authority"

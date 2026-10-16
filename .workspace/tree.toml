@@ -11767,3 +11767,11 @@ path = "services"
 hash = "7560409c84167207971dc6205ae9d3382b129f60"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify directory refill ownership and public directory ABI"
+
+[[entries]]
+date = "2026-10-16T18:56:13.155192482+09:00"
+snapshot = "8f0e90e0473183b427d4253a"
+path = "services"
+hash = "f5bf78974ec10e410274d2e65fe2fdf6dced909b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify directory ownership through reentrant nonlocal escape"

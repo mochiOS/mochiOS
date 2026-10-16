@@ -13135,3 +13135,11 @@ path = "services"
 hash = "2216746dd17be9c944e5692bf8bc63f225124d57"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(ipc): migrate event send retries and verify native failure categories"
+
+[[entries]]
+date = "2026-10-17T08:53:58.209082623+09:00"
+snapshot = "bbd12bb243b1eefdad8d74ed"
+path = "services"
+hash = "2c7171258e2475aead60882430eb7053996e4cb8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify public send authority and native error propagation"

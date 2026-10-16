@@ -12751,3 +12751,11 @@ path = "services"
 hash = "f0566b6c74710d802d5f1de8840d1c1414f16dc8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(time): exercise native deadline admission and Sleep errors"
+
+[[entries]]
+date = "2026-10-17T06:13:37.961032545+09:00"
+snapshot = "eb2bcfc46cf054b7d330ece3"
+path = "services"
+hash = "b37a225ecee6f3a1b4e1605aea70340c2244f526"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(thread): verify native creation failures and pthread cleanup"

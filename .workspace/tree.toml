@@ -12063,3 +12063,11 @@ path = "services"
 hash = "4442a35bf244870680222cc82de38cebe042ae5f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify time EFAULT copies and interrupted sleep output"
+
+[[entries]]
+date = "2026-10-16T22:55:12.833162631+09:00"
+snapshot = "9493e65ba306c646770bca4c"
+path = "services"
+hash = "c3c6beeae5aaef2302f9b7286f59fe12630948d1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify multiplex EFAULT cleanup and signal mask restoration"

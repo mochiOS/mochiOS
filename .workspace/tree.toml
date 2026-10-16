@@ -12679,3 +12679,11 @@ path = "services"
 hash = "cc4e1118de0f0182de7d43956bdf89775d30ed95"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): exercise full spawn failure and cleanup paths"
+
+[[entries]]
+date = "2026-10-17T05:41:08.927563675+09:00"
+snapshot = "150453bec4647ced00dca5a9"
+path = "services"
+hash = "fe7e1f4c7e0afa45db7904ce9c8aa4ca93d15dce"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): inject failures across authorization input allocations"

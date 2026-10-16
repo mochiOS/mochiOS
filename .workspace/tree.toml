@@ -12487,3 +12487,11 @@ path = "services"
 hash = "c696823372aff512456bc6708b88d08c134575b1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover shared provider creation authority checks"
+
+[[entries]]
+date = "2026-10-17T04:06:19.328439302+09:00"
+snapshot = "645481ecd7c4e7cb8acc3c7b"
+path = "services"
+hash = "1e220182991f7c333dd23dfc47d787d5b2ea4a2a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native provider creation failures"

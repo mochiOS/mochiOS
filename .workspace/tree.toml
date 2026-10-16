@@ -12143,3 +12143,11 @@ path = "services"
 hash = "7230d4150411f35c4857281627a34c865399a684"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify exec input faults and owned image replacement"
+
+[[entries]]
+date = "2026-10-16T23:55:49.180815990+09:00"
+snapshot = "58538f1532be9f718d9560d1"
+path = "services"
+hash = "9ee997780d572f75182b0972a2564132ea4102d2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify wait status faults and consumed child events"

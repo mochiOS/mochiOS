@@ -11719,3 +11719,11 @@ path = "services"
 hash = "da2d38b0e09f20ad2ee2d899f23a5764fa1ef5fe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify terminal lease cleanup during signals and faults"
+
+[[entries]]
+date = "2026-10-16T18:12:11.441753199+09:00"
+snapshot = "0dd81818f11a53a7fcc94126"
+path = "services"
+hash = "65cf07fe2808ea12a53673c93c4f9f7890722366"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify metadata copyout cleanup across descriptor kinds"

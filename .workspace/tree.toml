@@ -12319,3 +12319,11 @@ path = "services"
 hash = "25d8e9a7c4c6dac048dc976d582cc87a78459f6d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): select child event kinds without spinning on ignored exits"
+
+[[entries]]
+date = "2026-10-17T01:50:04.273201878+09:00"
+snapshot = "88ecd6158d2f272537dea011"
+path = "services"
+hash = "c35319319a0ad5b230c7f35efa36c6b395604f49"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): return pre-reap child identity in detailed waits"

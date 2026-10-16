@@ -12743,3 +12743,11 @@ path = "services"
 hash = "7f8a88907e0454e78040ad44801686628a1f2e5a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(diagnostic): verify native errors and usercopy failure propagation"
+
+[[entries]]
+date = "2026-10-17T06:10:01.624910130+09:00"
+snapshot = "805efd9b153cab5bdf4f529b"
+path = "services"
+hash = "f0566b6c74710d802d5f1de8840d1c1414f16dc8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(time): exercise native deadline admission and Sleep errors"

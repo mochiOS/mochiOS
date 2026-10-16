@@ -12503,3 +12503,11 @@ path = "services"
 hash = "c4db98a633de5e9286307fed667c251d1341af87"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): retry retired provider reference observations"
+
+[[entries]]
+date = "2026-10-17T04:14:23.347165849+09:00"
+snapshot = "dd53a40bb4cf8c7d502e19f0"
+path = "services"
+hash = "95aeb2ba73f4f6f33427ae37d1f9c2ef55ac113f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): classify native provider identity observations"

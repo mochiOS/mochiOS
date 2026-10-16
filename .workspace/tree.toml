@@ -12863,3 +12863,11 @@ path = "services"
 hash = "feecdc2dfeab922f39d263f6daf6c73691d9f376"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(sync): verify native admission and setup failure propagation"
+
+[[entries]]
+date = "2026-10-17T07:15:08.412495113+09:00"
+snapshot = "b4da6da0adaadca9d16a8ca3"
+path = "services"
+hash = "592f5b2206d041b366306d4492449f90ae4d63d3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(process): verify retained lifecycle and native query failures"

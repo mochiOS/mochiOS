@@ -13047,3 +13047,11 @@ path = "services"
 hash = "3e7c777beb885da586fe08bd5670b291356d13e1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify sync planning allocation failures and native boundaries"
+
+[[entries]]
+date = "2026-10-17T08:21:18.034280840+09:00"
+snapshot = "8f6c76fd47106494a2aaf4de"
+path = "services"
+hash = "7625aa2dc4a14e8f29f8e28a8ef238167112d730"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise cache writeback allocation failures and retries"

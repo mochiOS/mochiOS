@@ -12271,3 +12271,11 @@ path = "services"
 hash = "9b398925f418da9ca648a32fe4cc1daadc1654fc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(signature): translate native failures before encoding replies"
+
+[[entries]]
+date = "2026-10-17T01:16:27.226372532+09:00"
+snapshot = "5d39ac0f9fd7013b18e8d85d"
+path = "services"
+hash = "c4a7c31e5c6698efb312bc0c6a9c76f1e04ff9e1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(logger): retain native failure meaning in POSIX replies"

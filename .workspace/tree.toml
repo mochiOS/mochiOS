@@ -12647,3 +12647,11 @@ path = "services"
 hash = "cc0954d47b8950be2243e8fbe0a40be92296684d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): cover real ELF bounds and native preparation failures"
+
+[[entries]]
+date = "2026-10-17T05:31:31.890043405+09:00"
+snapshot = "d622ca058168d6f80780c254"
+path = "services"
+hash = "7f617c9b404fdc1192024fb62843b2f6ad3b5d62"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): verify native startup memory layout and failures"

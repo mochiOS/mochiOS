@@ -12439,3 +12439,11 @@ path = "services"
 hash = "610ca25787cf3dbf9065667e5a828863dd5da213"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native RAM control and reference validation"
+
+[[entries]]
+date = "2026-10-17T03:08:26.317703627+09:00"
+snapshot = "82ce02dbdaf6a8c2c9ca636d"
+path = "services"
+hash = "929ca07bdf983e5ab25aa2c92f17b85343de9e94"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native handle metadata failures and allocation bounds"

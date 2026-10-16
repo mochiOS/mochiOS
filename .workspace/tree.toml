@@ -12967,3 +12967,11 @@ path = "services"
 hash = "07e4d6525352084c6d1ae5c1b44c41621e1e5bfd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): recognize native no-ready outcomes in service wait loops"
+
+[[entries]]
+date = "2026-10-17T07:48:22.124214627+09:00"
+snapshot = "5cedf77aed59015f74fb4989"
+path = "services"
+hash = "3c03fa8e5a7a92b349eca4a9b1336f8bd2993557"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native platform wait wrappers and malformed indices"

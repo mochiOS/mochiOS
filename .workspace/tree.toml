@@ -11727,3 +11727,11 @@ path = "services"
 hash = "65cf07fe2808ea12a53673c93c4f9f7890722366"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify metadata copyout cleanup across descriptor kinds"
+
+[[entries]]
+date = "2026-10-16T18:16:27.234013660+09:00"
+snapshot = "7138a1dd2ef20e7cb3738cac"
+path = "services"
+hash = "d9a1c6c607d800fa26d9e815e85fefaa8db10f1f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify socket control reference cleanup on user faults"

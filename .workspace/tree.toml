@@ -13031,3 +13031,11 @@ path = "services"
 hash = "54f27672ed94df6e9b228e747532c550f3ac0779"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise std address wait bridge and native deadlines"
+
+[[entries]]
+date = "2026-10-17T08:15:27.866330834+09:00"
+snapshot = "63c0f4e196d430a76780f377"
+path = "services"
+hash = "4719b1d0d924e3e768b14c4d3138c13676961717"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover native unmap failures and libc errno translation"

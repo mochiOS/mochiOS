@@ -13015,3 +13015,11 @@ path = "services"
 hash = "17b8ecfed1d2a77363784a091fe7f39ae14b3f47"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise native platform fast-path error contracts"
+
+[[entries]]
+date = "2026-10-17T08:09:56.464419833+09:00"
+snapshot = "aa99505e3fd048291dcc5337"
+path = "services"
+hash = "f77843ef32f94b98b6c580508d1f532988a90033"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): validate native client wait and wake responses"

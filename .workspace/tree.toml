@@ -12039,3 +12039,11 @@ path = "services"
 hash = "c73e51f2bf626004ea97897b6958c128482a2acb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify accept EFAULT cleanup and queued connection retention"
+
+[[entries]]
+date = "2026-10-16T22:35:39.980131227+09:00"
+snapshot = "9cd6beac2e20522c55625c64"
+path = "services"
+hash = "8f128f040f342077f58b1be41443d0a03a0facd4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify recvfrom address faults and retained socket identity"

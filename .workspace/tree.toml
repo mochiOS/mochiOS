@@ -13103,3 +13103,11 @@ path = "services"
 hash = "0acdf946102e4da3fe8b7efc2241db4d1bc47d70"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): validate native handle transfer and rollback in isolated KVM"
+
+[[entries]]
+date = "2026-10-17T08:40:28.878656738+09:00"
+snapshot = "2b203a5ec3e9d79d467466db"
+path = "services"
+hash = "32be10670a7f27a158bc029ae330661a13266644"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native endpoint resolution and receiver ownership"

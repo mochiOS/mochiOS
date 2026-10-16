@@ -11655,3 +11655,11 @@ path = "services"
 hash = "0a38a916e5d9e06c5d8195dbcd7c04af80587a93"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise blocked socket I/O nonlocal cleanup"
+
+[[entries]]
+date = "2026-10-16T17:06:30.014019108+09:00"
+snapshot = "519f7a174e61c610d7b97058"
+path = "services"
+hash = "9c4faee2b25b6a30a5cc7300ec6bb8b7372f2708"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): qualify datagram resources before callback escape"

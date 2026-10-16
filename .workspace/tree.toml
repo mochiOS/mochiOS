@@ -12215,3 +12215,11 @@ path = "services"
 hash = "652b390a64a033b790c3ce09ce2d508ed67237ee"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native copy faults and POSIX errno translation"
+
+[[entries]]
+date = "2026-10-17T00:33:12.585330669+09:00"
+snapshot = "fec8fe42192343a03e4f2062"
+path = "services"
+hash = "c5394efc9bd6e2f4be33aeb2af5a05ecc55163a5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): keep kernel result types free of userspace policy"

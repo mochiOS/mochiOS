@@ -12343,3 +12343,11 @@ path = "services"
 hash = "e09f2d60b424263ca15371e4c5e5c8f613e22a2c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native backing gates and legacy callback preservation"
+
+[[entries]]
+date = "2026-10-17T02:15:13.461349952+09:00"
+snapshot = "a05dc638460811271a78c417"
+path = "services"
+hash = "66c5eecd2e0ec6b21f0b905f3ce3332333f9b4de"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise native access admission across extent cleanup"

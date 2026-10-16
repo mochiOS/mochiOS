@@ -12615,3 +12615,11 @@ path = "services"
 hash = "e5f2191edac5d68cbc09a80c6316b0c38a6fb41a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): verify created reference ownership and rollback guards"
+
+[[entries]]
+date = "2026-10-17T05:19:32.772123316+09:00"
+snapshot = "755304f7cab1af28bc918a7d"
+path = "services"
+hash = "5d5cbe9fe0fe11bf5e74b93acd092ec8a7a4e1ef"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): cover native process creation admission and allocation failures"

@@ -12895,3 +12895,11 @@ path = "services"
 hash = "b3c074c634b50fd3309f278a3c4a5801e701752a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover native process handle acquisition failures"
+
+[[entries]]
+date = "2026-10-17T07:30:33.813784472+09:00"
+snapshot = "d2e940f8ad20b3021c702806"
+path = "services"
+hash = "4c917228363e7e18f6306bc03da6df7699d002eb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise full-width values across process exit paths"

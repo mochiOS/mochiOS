@@ -12591,3 +12591,11 @@ path = "services"
 hash = "3855519d6ac117ba996545df1e60ecabeab1875d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): cover native image consumption status and lock boundaries"
+
+[[entries]]
+date = "2026-10-17T05:00:58.855044572+09:00"
+snapshot = "ba4044ebb95ae20efecffd92"
+path = "services"
+hash = "8ab672616241cd5c3e9fa472517300b16ea8619a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): verify native export authority and partial-grant cleanup"

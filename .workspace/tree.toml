@@ -11759,3 +11759,11 @@ path = "services"
 hash = "f3d935d3e8ebdd0613e3400be3876970d0ce8923"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify multiplex reference recovery on signals and faults"
+
+[[entries]]
+date = "2026-10-16T18:43:07.125442980+09:00"
+snapshot = "b6a6017d0a016e5497306b50"
+path = "services"
+hash = "7560409c84167207971dc6205ae9d3382b129f60"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify directory refill ownership and public directory ABI"

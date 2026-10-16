@@ -12327,3 +12327,11 @@ path = "services"
 hash = "c35319319a0ad5b230c7f35efa36c6b395604f49"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): return pre-reap child identity in detailed waits"
+
+[[entries]]
+date = "2026-10-17T01:57:59.000190911+09:00"
+snapshot = "250eaff419c68330f85066f7"
+path = "services"
+hash = "a3a6e6ca50e49b11f6ecd2fe9ec9adc34ea2c91c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native protection errors and retained backing authority"

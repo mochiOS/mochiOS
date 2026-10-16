@@ -12623,3 +12623,11 @@ path = "services"
 hash = "5d5cbe9fe0fe11bf5e74b93acd092ec8a7a4e1ef"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): cover native process creation admission and allocation failures"
+
+[[entries]]
+date = "2026-10-17T05:23:34.230679160+09:00"
+snapshot = "3349d3dc87597c0b7d70df17"
+path = "services"
+hash = "1801faff65c389eb50198fc3e28160a4f6c23355"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): verify native snapshot failures and storage cleanup"

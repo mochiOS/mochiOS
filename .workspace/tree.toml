@@ -11735,3 +11735,11 @@ path = "services"
 hash = "d9a1c6c607d800fa26d9e815e85fefaa8db10f1f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify socket control reference cleanup on user faults"
+
+[[entries]]
+date = "2026-10-16T18:23:03.363692379+09:00"
+snapshot = "71953bf30b02b1dc2090456d"
+path = "services"
+hash = "a623a2b3734567a2338031e8d1ac9722f3e04988"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify reentrant status providers and shared descriptor flags"

@@ -11831,3 +11831,11 @@ path = "services"
 hash = "9b9e33c4157e577619aff0015016aebffc00704f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify scoped single-path mutations and fault recovery"
+
+[[entries]]
+date = "2026-10-16T19:44:22.179104253+09:00"
+snapshot = "5a781e4e8da39eab652f2e35"
+path = "services"
+hash = "953716286a88a3469b5428c2cd8cc40d17d270b5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify paired pathname capture and partial-owner recovery"

@@ -12383,3 +12383,11 @@ path = "services"
 hash = "d509e0ba032525dd04b3cd8d5733da72f746d42b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify typed replacement failures and KVM fixed mappings"
+
+[[entries]]
+date = "2026-10-17T02:31:20.091489022+09:00"
+snapshot = "f28d7493bd08b6203b2032e0"
+path = "services"
+hash = "9aa99fea768f748afb11d41b77beb3beea57efcd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify typed RAM resize failure atomicity and native lifecycle"

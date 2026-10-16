@@ -11799,3 +11799,11 @@ path = "services"
 hash = "80608b122eff930ee255fd1764616ae138c5e898"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): enable directory cursor rewind without pager authority"
+
+[[entries]]
+date = "2026-10-16T19:19:05.685098848+09:00"
+snapshot = "c9ed1c5d46046fbb48ded2f2"
+path = "services"
+hash = "e4902380d0e54c5ff964cb0ec6f40b9806d04912"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify opaque directory cursor record codec"

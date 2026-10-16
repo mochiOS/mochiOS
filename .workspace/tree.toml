@@ -12815,3 +12815,11 @@ path = "services"
 hash = "dc147d3789d16a1c948501349b46134d1f34fa7d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(stream): verify pair rollback across allocation registration and usercopy"
+
+[[entries]]
+date = "2026-10-17T06:43:13.500300214+09:00"
+snapshot = "5bd901407e55afef728b74fa"
+path = "services"
+hash = "9ddfbffacda54b1507643f32421022025657f6f5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(handle): verify fallible storage against numbering and ownership model"

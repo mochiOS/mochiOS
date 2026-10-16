@@ -12295,3 +12295,11 @@ path = "services"
 hash = "383725b6b32d3f7af303bf8587818e9450e69d96"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover variable and disabled pthread stack guards"
+
+[[entries]]
+date = "2026-10-17T01:32:33.755281968+09:00"
+snapshot = "a07ab2e918188fc81848ee54"
+path = "services"
+hash = "8785df657503bb6b735bd5842080493f7a39fd34"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify normal pthread attributes and unsupported classes"

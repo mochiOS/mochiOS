@@ -12191,3 +12191,11 @@ path = "services"
 hash = "853b725134b94989ccc1382538eb290564a6f094"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify keyboard native error status recovery"
+
+[[entries]]
+date = "2026-10-17T00:15:38.146380918+09:00"
+snapshot = "5788c491389935f2f4acbf2c"
+path = "services"
+hash = "d449a3d1d3001e13dcd16e464784e0873d50c5e2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "refactor(posix): consume directory errors outside native ABI"

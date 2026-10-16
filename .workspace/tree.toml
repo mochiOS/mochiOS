@@ -12583,3 +12583,11 @@ path = "services"
 hash = "52c6b6f773f5ebeadb74f756bb2e0901efb7564e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(context): cover native preparation failures and allocation-free commit"
+
+[[entries]]
+date = "2026-10-17T04:55:15.350843317+09:00"
+snapshot = "92d608b66270907e00632888"
+path = "services"
+hash = "3855519d6ac117ba996545df1e60ecabeab1875d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): cover native image consumption status and lock boundaries"

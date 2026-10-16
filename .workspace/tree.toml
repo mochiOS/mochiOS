@@ -11991,3 +11991,11 @@ path = "services"
 hash = "ad519daa8d611fcf435bcabbea71cfdbf731a711"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify EFAULT copy paths without swallowing ordinary signals"
+
+[[entries]]
+date = "2026-10-16T22:06:53.371704068+09:00"
+snapshot = "3ddb4320d98b8ccc14acf5df"
+path = "services"
+hash = "98230d9d44693e08d004945505e0a0b43d67fe42"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify stat ABI copyout and nested EFAULT resource cleanup"

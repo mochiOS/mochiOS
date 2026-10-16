@@ -11679,3 +11679,11 @@ path = "services"
 hash = "bdffcfc8ad32ad04261b27365efb071b46c522a7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify recvmsg cleanup and transactional FD publication"
+
+[[entries]]
+date = "2026-10-16T17:36:24.522940384+09:00"
+snapshot = "6932095424808f6a3b1b0dec"
+path = "services"
+hash = "92dc58611f05a4dc41f7ed141ece833b3d6aa77b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover connection callback escapes and accept output faults"

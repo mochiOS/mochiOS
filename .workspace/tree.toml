@@ -11639,3 +11639,11 @@ path = "services"
 hash = "75ff0185567259600c5634c1ba7ef916f73a9013"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover stable vector metadata across callbacks and unmap"
+
+[[entries]]
+date = "2026-10-16T16:55:15.339837781+09:00"
+snapshot = "ce409f065fdc247b13045959"
+path = "services"
+hash = "80e33a976029dcd2e42df0780ef68f98b7f903b7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover nonlocal escape during vector initialization"

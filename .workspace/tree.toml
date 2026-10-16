@@ -12767,3 +12767,11 @@ path = "services"
 hash = "4825031eb62991b6029925a2425600bee827ac6e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(task): remove retired discovery mocks from native creation probe"
+
+[[entries]]
+date = "2026-10-17T06:18:36.074800183+09:00"
+snapshot = "cee4f541b1d30f13157f71e7"
+path = "services"
+hash = "e77abd80cf9b3e30028f55d3dba77f17c27d47fb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(identity): preserve inspect authority and native query failures"

@@ -12095,3 +12095,11 @@ path = "services"
 hash = "eded281bc648c6ebe38a3772942a27355bb8aeec"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify terminal helper transforms and memory faults"
+
+[[entries]]
+date = "2026-10-16T23:22:10.189420436+09:00"
+snapshot = "0823c8a343421f4afde9a627"
+path = "services"
+hash = "04b26cde7c603d70bc5ea3963a4d3deacc4c9e48"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify mapping replacement rollback and backing isolation"

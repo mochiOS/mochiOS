@@ -11959,3 +11959,11 @@ path = "services"
 hash = "0e811c438553d0a51ada4aba9b79b6bf4d6fa74e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): retain opaque pathname bytes across policy preparation"
+
+[[entries]]
+date = "2026-10-16T21:28:11.160435399+09:00"
+snapshot = "10f67f51804d33d94710e9b0"
+path = "services"
+hash = "90562e71a386c40b98bd8d3d778200e1139653f2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify readlink private output and fault cleanup"

@@ -11671,3 +11671,11 @@ path = "services"
 hash = "503a6926bae43d44e213d1534e9afbfb67cde1b3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover blocked sendmsg with staged descriptor transfers"
+
+[[entries]]
+date = "2026-10-16T17:23:35.847926148+09:00"
+snapshot = "bd3e16d5221648d61675d3f4"
+path = "services"
+hash = "bdffcfc8ad32ad04261b27365efb071b46c522a7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify recvmsg cleanup and transactional FD publication"

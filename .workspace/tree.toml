@@ -12199,3 +12199,11 @@ path = "services"
 hash = "d449a3d1d3001e13dcd16e464784e0873d50c5e2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "refactor(posix): consume directory errors outside native ABI"
+
+[[entries]]
+date = "2026-10-17T00:22:28.916152558+09:00"
+snapshot = "973fe8a5088d62e9972fa477"
+path = "services"
+hash = "d8c0784c735f7ef856cbf419fca479db057ebab3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify tagged native status and memory copy boundary"

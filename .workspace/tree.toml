@@ -12807,3 +12807,11 @@ path = "services"
 hash = "05e2b2e96579963155d7f1e8b815565903e187d1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(stream): verify native errors preserve rights data and wait ordering"
+
+[[entries]]
+date = "2026-10-17T06:37:22.909840267+09:00"
+snapshot = "860f221861039a19b5e5dcad"
+path = "services"
+hash = "dc147d3789d16a1c948501349b46134d1f34fa7d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(stream): verify pair rollback across allocation registration and usercopy"

@@ -12639,3 +12639,11 @@ path = "services"
 hash = "a44218e8e0865627631a3f6b5902aa9d535f0074"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): verify image replacement admission and error propagation"
+
+[[entries]]
+date = "2026-10-17T05:28:58.587158445+09:00"
+snapshot = "deb85a5719be8effcd427927"
+path = "services"
+hash = "cc0954d47b8950be2243e8fbe0a40be92296684d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): cover real ELF bounds and native preparation failures"

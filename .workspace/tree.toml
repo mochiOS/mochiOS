@@ -12391,3 +12391,11 @@ path = "services"
 hash = "9aa99fea768f748afb11d41b77beb3beea57efcd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify typed RAM resize failure atomicity and native lifecycle"
+
+[[entries]]
+date = "2026-10-17T02:36:35.016456875+09:00"
+snapshot = "c208551b0a30450bcd7cb83d"
+path = "services"
+hash = "8a4dbd282b057cf661460787548286d12da51d8f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): inject RAM creation allocation failures and verify native errors"

@@ -13023,3 +13023,11 @@ path = "services"
 hash = "f77843ef32f94b98b6c580508d1f532988a90033"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): validate native client wait and wake responses"
+
+[[entries]]
+date = "2026-10-17T08:11:57.985272393+09:00"
+snapshot = "8d63252c022ffd9909084e24"
+path = "services"
+hash = "54f27672ed94df6e9b228e747532c550f3ac0779"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise std address wait bridge and native deadlines"

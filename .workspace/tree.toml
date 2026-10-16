@@ -12559,3 +12559,11 @@ path = "services"
 hash = "534f76b22ee073c14e64d9042e01a233e23695f3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(filesystem): propagate native NotFound without retrying admission"
+
+[[entries]]
+date = "2026-10-17T04:45:19.614461077+09:00"
+snapshot = "c10517f2aa47b86588778dd6"
+path = "services"
+hash = "b22ca7ec015226b365fed7456deb143f62bdd84c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(context): compose native launch lookups with runtime absence policy"

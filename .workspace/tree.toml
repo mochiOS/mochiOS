@@ -12775,3 +12775,11 @@ path = "services"
 hash = "e77abd80cf9b3e30028f55d3dba77f17c27d47fb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(identity): preserve inspect authority and native query failures"
+
+[[entries]]
+date = "2026-10-17T06:21:58.773277121+09:00"
+snapshot = "226293bf97abd609e0287a71"
+path = "services"
+hash = "581921d409ba2a72a02e19781990382c4abb2134"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(identity): verify native failures and endpoint generation checks"

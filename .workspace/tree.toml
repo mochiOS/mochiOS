@@ -12919,3 +12919,11 @@ path = "services"
 hash = "4516839cd34f35b2870ec5708f51d140f1d5a34f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native object wait copy and guard snapshot failures"
+
+[[entries]]
+date = "2026-10-17T07:37:12.500252185+09:00"
+snapshot = "4e06aad5e83f9c6916ba4e7a"
+path = "services"
+hash = "8f5cef2cf5ff56f4eb4984f165ff849fcd5791c2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native wait readiness and resource outcomes"

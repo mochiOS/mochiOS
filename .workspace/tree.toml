@@ -13151,3 +13151,11 @@ path = "services"
 hash = "7f2dd9e8af3e538b29f20f40881339f17bbd1dde"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify call admission and generation-scoped reply authority"
+
+[[entries]]
+date = "2026-10-17T08:58:23.222412994+09:00"
+snapshot = "8f5c64521c7899c91d2e59a1"
+path = "services"
+hash = "1ac28b2397c0e67c0a200bf24c86734c572c3fc2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native receive copies retain retryable authority"

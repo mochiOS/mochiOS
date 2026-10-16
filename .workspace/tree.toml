@@ -12927,3 +12927,11 @@ path = "services"
 hash = "8f5cef2cf5ff56f4eb4984f165ff849fcd5791c2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native wait readiness and resource outcomes"
+
+[[entries]]
+date = "2026-10-17T07:38:51.106810048+09:00"
+snapshot = "21af5ffc856fc7c2778a4918"
+path = "services"
+hash = "fb79fc8df11c565a9bb93cab55b5434a256ac567"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover provider waiter growth failure and wake lifetime"

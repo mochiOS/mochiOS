@@ -11935,3 +11935,11 @@ path = "services"
 hash = "f144c80c00117ae6d560b0e01b157abba5f48f27"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(filesystem): resolve canonical paths atomically within the namespace"
+
+[[entries]]
+date = "2026-10-16T21:09:02.257804128+09:00"
+snapshot = "6d07bd50312681cdd9e6b5db"
+path = "services"
+hash = "e5cfb7e167be97dae34b4bbbcdda15d3aea01d91"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): serve canonical pathname resolution with stored credentials"

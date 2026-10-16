@@ -13119,3 +13119,11 @@ path = "services"
 hash = "5fd9423c89aca7c8964e469f2def5a3cd3ea67bb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify endpoint creation capability ceilings and table exhaustion"
+
+[[entries]]
+date = "2026-10-17T08:47:46.170424471+09:00"
+snapshot = "34c337924ad6ead7a3032b43"
+path = "services"
+hash = "433b3a8bebf732d8c257df26806596fc4b216b47"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover handle lifetime on saturated IPC queues"

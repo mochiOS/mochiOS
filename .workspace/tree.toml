@@ -11663,3 +11663,11 @@ path = "services"
 hash = "9c4faee2b25b6a30a5cc7300ec6bb8b7372f2708"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): qualify datagram resources before callback escape"
+
+[[entries]]
+date = "2026-10-16T17:12:04.753861717+09:00"
+snapshot = "ac108432c60b4a6f7e71ccb9"
+path = "services"
+hash = "503a6926bae43d44e213d1534e9afbfb67cde1b3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover blocked sendmsg with staged descriptor transfers"

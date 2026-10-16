@@ -12847,3 +12847,11 @@ path = "services"
 hash = "3b0dfbedb15f4109a681c9b32a40ddf8b427e755"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): consume native thread retirement observations with regression coverage"
+
+[[entries]]
+date = "2026-10-17T07:04:17.795284975+09:00"
+snapshot = "543002d72ea70823af866707"
+path = "services"
+hash = "11588d2c5c9f4955aeef2b5e48fe34d223f7ac1d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(upcall): preserve delivery state across native context failures"

@@ -12407,3 +12407,11 @@ path = "services"
 hash = "2ecd444674cbc07eeb01b77da4a0de27e3b7cbc5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native RAM I/O faults without errno storage fixtures"
+
+[[entries]]
+date = "2026-10-17T02:48:11.024759585+09:00"
+snapshot = "80c7ef735cc6b8be92358c5b"
+path = "services"
+hash = "babb614afcab1d804d7e46c9906e49c1f30b3308"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native generation cutover and final mapping retry ownership"

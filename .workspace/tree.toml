@@ -12703,3 +12703,11 @@ path = "services"
 hash = "09bc5dc9faa2dc552eb06414a479eb70ff03b3a6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(capability): inject registry and authority allocation failures"
+
+[[entries]]
+date = "2026-10-17T05:50:49.397573142+09:00"
+snapshot = "146b2abc0be14a3d0443df9e"
+path = "services"
+hash = "1a03a15614d024eb39111ffa8fbb3ffabcafbf68"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(capability): compare sorted set behavior and inject native grant failures"

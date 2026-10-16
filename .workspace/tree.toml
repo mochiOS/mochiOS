@@ -12543,3 +12543,11 @@ path = "services"
 hash = "e15702085d2bfb98fb6821c5720e03d301fe168f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(handle): cover native authority and restricted duplication failures"
+
+[[entries]]
+date = "2026-10-17T04:36:35.690682520+09:00"
+snapshot = "a4127f780930b42a4c00998a"
+path = "services"
+hash = "3ff27654c41080d6f1a5b320060691608de4260d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(context): verify native mutation failures and preserve bind diagnostics"

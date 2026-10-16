@@ -12799,3 +12799,11 @@ path = "services"
 hash = "a562e75658013e450be932b9f5e1b69fe1e1d59f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(stream): inject storage failures before queue or waiter mutation"
+
+[[entries]]
+date = "2026-10-17T06:33:28.621919982+09:00"
+snapshot = "95c0f13de8af3fec38cacd5d"
+path = "services"
+hash = "05e2b2e96579963155d7f1e8b815565903e187d1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(stream): verify native errors preserve rights data and wait ordering"

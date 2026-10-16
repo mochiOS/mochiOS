@@ -12887,3 +12887,11 @@ path = "services"
 hash = "dfaabe807741410b3d9ec3b829270b64a0dc2007"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): translate native lifecycle failures at the service boundary"
+
+[[entries]]
+date = "2026-10-17T07:28:28.126671784+09:00"
+snapshot = "6057cdb7886e3e2a3ffc686b"
+path = "services"
+hash = "b3c074c634b50fd3309f278a3c4a5801e701752a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover native process handle acquisition failures"

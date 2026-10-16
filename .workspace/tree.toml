@@ -12991,3 +12991,11 @@ path = "services"
 hash = "2bdb06d86dbd8489d31de98302f45645d76d3acf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native object waits on isolated KVM bootstrap"
+
+[[entries]]
+date = "2026-10-17T08:00:10.750246659+09:00"
+snapshot = "2deb2207484fa9b41a83ad2e"
+path = "services"
+hash = "21c5f2c88f8bdf6e61e9d55f592010b17c05b5ac"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover self suspension context loss and resume observation"

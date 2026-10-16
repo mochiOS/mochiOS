@@ -12655,3 +12655,11 @@ path = "services"
 hash = "7f617c9b404fdc1192024fb62843b2f6ad3b5d62"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): verify native startup memory layout and failures"
+
+[[entries]]
+date = "2026-10-17T05:33:23.855108172+09:00"
+snapshot = "8b4d85e3c8c5ec76b273992f"
+path = "services"
+hash = "8100f4f4d112bcc0f094ad337c0e2ce5117478f2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): distinguish native image admission failure categories"

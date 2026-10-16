@@ -12127,3 +12127,11 @@ path = "services"
 hash = "dbbb68eea25bdd6e163213a66e4c50ada974b2ba"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify signal metadata faults and committed action coherence"
+
+[[entries]]
+date = "2026-10-16T23:42:02.839646803+09:00"
+snapshot = "bb56ae9a0ad9ba4cd1cff58e"
+path = "services"
+hash = "c26985fd03a4fabcc1cd06d0e15ce4a60eddddd4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify committed mask completion across copyout errors"

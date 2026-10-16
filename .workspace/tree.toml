@@ -12719,3 +12719,11 @@ path = "services"
 hash = "58f0d647544587a00195f1c8452b63a68d95e4c2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify origin allocation failures preserve source authority"
+
+[[entries]]
+date = "2026-10-17T05:58:31.452281600+09:00"
+snapshot = "dfe6fe4a00a535cd2645e631"
+path = "services"
+hash = "731a474591de2614411266cd7a398301d485bc6a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(vm): inject clone metadata failures before COW publication"

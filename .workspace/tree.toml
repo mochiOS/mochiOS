@@ -13087,3 +13087,11 @@ path = "services"
 hash = "5eede50bb81a86fa2a7cda6b5353017d947df6a2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover native attachment decode failures and partial export cleanup"
+
+[[entries]]
+date = "2026-10-17T08:33:48.410673124+09:00"
+snapshot = "1d52f93cca6414092dd2d8a4"
+path = "services"
+hash = "699b7d8ed12e64b4521db2a8865d01b71a29a6ac"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify received handle rollback with real table exhaustion"

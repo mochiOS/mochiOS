@@ -12567,3 +12567,11 @@ path = "services"
 hash = "b22ca7ec015226b365fed7456deb143f62bdd84c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(context): compose native launch lookups with runtime absence policy"
+
+[[entries]]
+date = "2026-10-17T04:49:03.604396544+09:00"
+snapshot = "d0f79738b68cc322e64ad1a3"
+path = "services"
+hash = "a81ac8c2b27097e8329e6359ac880a54fcafd53b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(context): verify native launch queries and C bootstrap allocation in KVM"

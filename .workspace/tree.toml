@@ -11687,3 +11687,11 @@ path = "services"
 hash = "92dc58611f05a4dc41f7ed141ece833b3d6aa77b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover connection callback escapes and accept output faults"
+
+[[entries]]
+date = "2026-10-16T17:44:38.575385606+09:00"
+snapshot = "c539117a5536954db5e5be56"
+path = "services"
+hash = "2cf94c2a61a25c675e483318dfc0db1b108a3d31"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify socket creation output faults and FD limits"

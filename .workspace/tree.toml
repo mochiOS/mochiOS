@@ -12311,3 +12311,11 @@ path = "services"
 hash = "17e25a7978f36d001fe7c9f1434c41828bb3fc9f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): observe child events without reaping or charging CPU time"
+
+[[entries]]
+date = "2026-10-17T01:39:11.788665809+09:00"
+snapshot = "363aa785cce7b76f7742a936"
+path = "services"
+hash = "25d8e9a7c4c6dac048dc976d582cc87a78459f6d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(posix): select child event kinds without spinning on ignored exits"

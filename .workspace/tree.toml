@@ -12279,3 +12279,11 @@ path = "services"
 hash = "c4a7c31e5c6698efb312bc0c6a9c76f1e04ff9e1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(logger): retain native failure meaning in POSIX replies"
+
+[[entries]]
+date = "2026-10-17T01:23:29.667727724+09:00"
+snapshot = "c5af04f92b1ec629aa382c1e"
+path = "services"
+hash = "888ffec7b7965047ddc17501f263e53a0dcceced"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify pthread stack guards and mapping reclamation"

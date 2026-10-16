@@ -12071,3 +12071,11 @@ path = "services"
 hash = "c3c6beeae5aaef2302f9b7286f59fe12630948d1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify multiplex EFAULT cleanup and signal mask restoration"
+
+[[entries]]
+date = "2026-10-16T23:03:06.569656604+09:00"
+snapshot = "dbd9c932d9837d277589d4ac"
+path = "services"
+hash = "428c2892b11bb9600f0dfcce6a42cc11f411e410"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify bounded poll snapshots and copy counts"

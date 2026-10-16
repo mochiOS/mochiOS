@@ -12087,3 +12087,11 @@ path = "services"
 hash = "6d2e02eef79c5b647636633b2c45270d525cb586"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover resource limit memory faults and aliasing"
+
+[[entries]]
+date = "2026-10-16T23:12:13.320788893+09:00"
+snapshot = "46f5ed3153a205220ea2619a"
+path = "services"
+hash = "eded281bc648c6ebe38a3772942a27355bb8aeec"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify terminal helper transforms and memory faults"

@@ -12471,3 +12471,11 @@ path = "services"
 hash = "8c29615b6e17f6720ad2696b1eebed440d6b39e3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(filesystem): preserve native memory admission failure policy"
+
+[[entries]]
+date = "2026-10-17T03:32:06.611077903+09:00"
+snapshot = "51fb068afb5d3e46e0d02ace"
+path = "services"
+hash = "587270ecce406d409b40da77c29df77867b6d584"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover native admission creation authority and failure cleanup"

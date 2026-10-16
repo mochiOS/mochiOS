@@ -12735,3 +12735,11 @@ path = "services"
 hash = "167ab629f3662832369272673ecde145d8514214"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(vm): verify detached root allocation rollback and ownership"
+
+[[entries]]
+date = "2026-10-17T06:06:56.521072951+09:00"
+snapshot = "2a3ad6094af115adb0d354e8"
+path = "services"
+hash = "7f8a88907e0454e78040ad44801686628a1f2e5a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(diagnostic): verify native errors and usercopy failure propagation"

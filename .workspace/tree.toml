@@ -12151,3 +12151,11 @@ path = "services"
 hash = "9ee997780d572f75182b0972a2564132ea4102d2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify wait status faults and consumed child events"
+
+[[entries]]
+date = "2026-10-17T00:03:59.772905221+09:00"
+snapshot = "10b92859e724fc1c2d843c95"
+path = "services"
+hash = "cd4f9df8700282bc3c12246058aa1f7b14753a09"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): keep policy errno definitions outside native ABI"

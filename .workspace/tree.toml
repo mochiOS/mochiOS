@@ -12287,3 +12287,11 @@ path = "services"
 hash = "888ffec7b7965047ddc17501f263e53a0dcceced"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify pthread stack guards and mapping reclamation"
+
+[[entries]]
+date = "2026-10-17T01:28:16.499180967+09:00"
+snapshot = "587d11b50f6fce5687873677"
+path = "services"
+hash = "383725b6b32d3f7af303bf8587818e9450e69d96"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover variable and disabled pthread stack guards"

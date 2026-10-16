@@ -12463,3 +12463,11 @@ path = "services"
 hash = "175dd1e2b5d00d457b5ae8fda3185a309c3dcd4c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover native provider IO failures and quarantine cleanup"
+
+[[entries]]
+date = "2026-10-17T03:25:35.560607495+09:00"
+snapshot = "f0757431c410abae526c3230"
+path = "services"
+hash = "8c29615b6e17f6720ad2696b1eebed440d6b39e3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(filesystem): preserve native memory admission failure policy"

@@ -12103,3 +12103,11 @@ path = "services"
 hash = "04b26cde7c603d70bc5ea3963a4d3deacc4c9e48"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify mapping replacement rollback and backing isolation"
+
+[[entries]]
+date = "2026-10-16T23:25:52.655199075+09:00"
+snapshot = "e1bc958221f62f8955500bc4"
+path = "services"
+hash = "40cad0fd5f0bb8049763a986fc89c258f322cd60"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): inject every mapping preparation allocation failure"

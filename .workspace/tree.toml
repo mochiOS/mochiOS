@@ -12175,3 +12175,11 @@ path = "services"
 hash = "e19d580915e312be213d206380c323d0e9a87a06"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(input): retry queue pressure using native raw status"
+
+[[entries]]
+date = "2026-10-17T00:10:08.141350702+09:00"
+snapshot = "4ce09d584f87308078702d02"
+path = "services"
+hash = "a0ee51891870fa53d2d23c48406772bb70255525"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(package): distinguish native status from positive errno"

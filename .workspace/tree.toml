@@ -12223,3 +12223,11 @@ path = "services"
 hash = "c5394efc9bd6e2f4be33aeb2af5a05ecc55163a5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): keep kernel result types free of userspace policy"
+
+[[entries]]
+date = "2026-10-17T00:50:52.951937685+09:00"
+snapshot = "07f3e43e175615cb3923195b"
+path = "services"
+hash = "d7722a0ab824e45c94a3db14e102556dbe602ea2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native clocks with and without realtime authority"

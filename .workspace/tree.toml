@@ -12479,3 +12479,11 @@ path = "services"
 hash = "587270ecce406d409b40da77c29df77867b6d584"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover native admission creation authority and failure cleanup"
+
+[[entries]]
+date = "2026-10-17T03:37:29.517608493+09:00"
+snapshot = "985644ab65e52677e06b5e6b"
+path = "services"
+hash = "c696823372aff512456bc6708b88d08c134575b1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover shared provider creation authority checks"

@@ -12519,3 +12519,11 @@ path = "services"
 hash = "18dfc5dfa191b553ff489240eece36ab42a203f7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): handle native provider notification retirement"
+
+[[entries]]
+date = "2026-10-17T04:23:04.545148439+09:00"
+snapshot = "1c765ce4b66b9c1686389c19"
+path = "services"
+hash = "8fd2ccae96fc604b73b4b8b0a1fdd98edcbfd543"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover caller scoped native Handle comparison"

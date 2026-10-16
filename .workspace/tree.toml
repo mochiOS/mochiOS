@@ -12263,3 +12263,11 @@ path = "services"
 hash = "0b99e9851e2ff128c9a94893ba7758e015476d05"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(capability): normalize native failures at reply boundaries"
+
+[[entries]]
+date = "2026-10-17T01:14:46.782271322+09:00"
+snapshot = "a8647428bb9c73550dea6406"
+path = "services"
+hash = "9b398925f418da9ca648a32fe4cc1daadc1654fc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(signature): translate native failures before encoding replies"

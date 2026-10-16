@@ -12399,3 +12399,11 @@ path = "services"
 hash = "8a4dbd282b057cf661460787548286d12da51d8f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): inject RAM creation allocation failures and verify native errors"
+
+[[entries]]
+date = "2026-10-17T02:42:54.122285461+09:00"
+snapshot = "8e3370e1ff8904ad82c916a4"
+path = "services"
+hash = "2ecd444674cbc07eeb01b77da4a0de27e3b7cbc5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native RAM I/O faults without errno storage fixtures"

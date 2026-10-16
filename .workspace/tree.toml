@@ -12023,3 +12023,11 @@ path = "services"
 hash = "77ecfe9c8dabb3cdb5f17b06c9c5018c0268d65c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify pipe and socket pair EFAULT rollback in active handlers"
+
+[[entries]]
+date = "2026-10-16T22:23:18.029160673+09:00"
+snapshot = "0af415e1a344e3688d6d915f"
+path = "services"
+hash = "37ac819728bf89ee7bbb575ccc75e61640b85cbf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify socket control EFAULT copies inside active handlers"

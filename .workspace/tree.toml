@@ -12607,3 +12607,11 @@ path = "services"
 hash = "31a7db71978e5385b967134ea5606e0463d71026"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(exec): verify unpublished inheritance installation and failure cleanup"
+
+[[entries]]
+date = "2026-10-17T05:11:01.539219224+09:00"
+snapshot = "dd7a0dc5cc7bf67460bc01cc"
+path = "services"
+hash = "e5f2191edac5d68cbc09a80c6316b0c38a6fb41a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(exec): verify created reference ownership and rollback guards"

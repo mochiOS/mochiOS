@@ -11855,3 +11855,11 @@ path = "services"
 hash = "c7beaa4a50f1215493a2bf1737f7a45f998494ac"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise actual metadata scopes and memory fault recovery"
+
+[[entries]]
+date = "2026-10-16T20:00:20.291246256+09:00"
+snapshot = "c4718c0002eb1ff40cb6054b"
+path = "services"
+hash = "8184ba3777ba103709bf83859fbca352fc873545"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify access IDs modes nofollow and scoped fault recovery"

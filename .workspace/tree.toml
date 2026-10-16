@@ -12839,3 +12839,11 @@ path = "services"
 hash = "1387245a3f56b005aae487b321ccc1381e20fe31"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(handle): verify native option authority and errno conversion"
+
+[[entries]]
+date = "2026-10-17T06:59:54.396257976+09:00"
+snapshot = "671861588e3437306d3bc2c5"
+path = "services"
+hash = "3b0dfbedb15f4109a681c9b32a40ddf8b427e755"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): consume native thread retirement observations with regression coverage"

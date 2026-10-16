@@ -11647,3 +11647,11 @@ path = "services"
 hash = "80e33a976029dcd2e42df0780ef68f98b7f903b7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover nonlocal escape during vector initialization"
+
+[[entries]]
+date = "2026-10-16T16:58:58.103793365+09:00"
+snapshot = "8980addde67ae91b9d426f01"
+path = "services"
+hash = "0a38a916e5d9e06c5d8195dbcd7c04af80587a93"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise blocked socket I/O nonlocal cleanup"

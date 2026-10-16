@@ -11911,3 +11911,11 @@ path = "services"
 hash = "88b13e68d5bcf32820fab3cc6524f7bcc81d2333"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(ext4): separate namespace unlink from unlinked inode reclamation"
+
+[[entries]]
+date = "2026-10-16T20:44:53.803138511+09:00"
+snapshot = "717e291fe45d9c9cb0a919d1"
+path = "services"
+hash = "3076922ad84d90bd5b708646830f59b72c846132"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(filesystem): retain removed directory and ancestor identities until last close"

@@ -12047,3 +12047,11 @@ path = "services"
 hash = "8f128f040f342077f58b1be41443d0a03a0facd4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify recvfrom address faults and retained socket identity"
+
+[[entries]]
+date = "2026-10-16T22:41:36.476763952+09:00"
+snapshot = "7f8ba36182efe3dedecc640d"
+path = "services"
+hash = "2f358b6c3ddd8efd567b2c08eb61951e7832b085"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify message EFAULT cleanup and SCM_RIGHTS rollback"

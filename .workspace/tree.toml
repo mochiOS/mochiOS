@@ -13007,3 +13007,11 @@ path = "services"
 hash = "1bf42ce175dd9e641245d36e88c11e6c31fc2eb2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): enforce legacy event removal and native sample synchronization"
+
+[[entries]]
+date = "2026-10-17T08:08:36.554358303+09:00"
+snapshot = "1638b93590d6879da6543b23"
+path = "services"
+hash = "17b8ecfed1d2a77363784a091fe7f39ae14b3f47"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise native platform fast-path error contracts"

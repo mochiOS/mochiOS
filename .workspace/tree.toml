@@ -12575,3 +12575,11 @@ path = "services"
 hash = "a81ac8c2b27097e8329e6359ac880a54fcafd53b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(context): verify native launch queries and C bootstrap allocation in KVM"
+
+[[entries]]
+date = "2026-10-17T04:52:16.678777809+09:00"
+snapshot = "3d9b079f36aa18691acd68bb"
+path = "services"
+hash = "52c6b6f773f5ebeadb74f756bb2e0901efb7564e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(context): cover native preparation failures and allocation-free commit"

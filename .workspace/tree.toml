@@ -11943,3 +11943,11 @@ path = "services"
 hash = "e5cfb7e167be97dae34b4bbbcdda15d3aea01d91"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(posix): serve canonical pathname resolution with stored credentials"
+
+[[entries]]
+date = "2026-10-16T21:12:53.401458061+09:00"
+snapshot = "d87ac8e219b3449e35e84238"
+path = "services"
+hash = "1e30b4ffe0b63985922cb1b3937b498cba5c5e7e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): validate filesystem reply frames against delivered bytes"

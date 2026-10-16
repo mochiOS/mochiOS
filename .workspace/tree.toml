@@ -12239,3 +12239,11 @@ path = "services"
 hash = "4a3184988fcdaac0f5944c7671fc38389bd3d282"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify random source with and without capability"
+
+[[entries]]
+date = "2026-10-17T01:06:03.319959951+09:00"
+snapshot = "7c9c3748151f838d96820d40"
+path = "services"
+hash = "cb10098a97f8a4c5e9d1d91e6b39427e8538349a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): normalize native failures before service replies"

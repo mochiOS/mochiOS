@@ -12415,3 +12415,11 @@ path = "services"
 hash = "babb614afcab1d804d7e46c9906e49c1f30b3308"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native generation cutover and final mapping retry ownership"
+
+[[entries]]
+date = "2026-10-17T02:56:02.853251813+09:00"
+snapshot = "6beb7d4ed8db911eaf0ede1c"
+path = "services"
+hash = "79f60a8b3c6d21b93391258ecf5e329e37f56a13"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover native address-space backing failures"

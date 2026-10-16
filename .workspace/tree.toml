@@ -12527,3 +12527,11 @@ path = "services"
 hash = "8fd2ccae96fc604b73b4b8b0a1fdd98edcbfd543"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover caller scoped native Handle comparison"
+
+[[entries]]
+date = "2026-10-17T04:29:26.020905937+09:00"
+snapshot = "730e78557f3a049d056f7fb8"
+path = "services"
+hash = "91b1bee67d1b9282c3cb2aa5de21a9f77b77b76c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(handle): exercise native close ownership and launch alias cleanup"

@@ -11775,3 +11775,11 @@ path = "services"
 hash = "f5bf78974ec10e410274d2e65fe2fdf6dced909b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify directory ownership through reentrant nonlocal escape"
+
+[[entries]]
+date = "2026-10-16T19:00:19.627901110+09:00"
+snapshot = "1b132dac29d8ec78b9809cf4"
+path = "services"
+hash = "6b1733c8a11cda20f0496a6af77b49586750668f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify guarded directory close on success and failure"

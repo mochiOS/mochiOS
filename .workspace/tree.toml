@@ -13679,3 +13679,11 @@ path = "services"
 hash = "2a35c6e70db6a8a65780f48919aa513dfe449125"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "network: report connection quotas without kernel POSIX errno"
+
+[[entries]]
+date = "2026-10-18T07:20:30.470932626+09:00"
+snapshot = "5b4bc70f5c7bcdc1b18f8c2b"
+path = "services"
+hash = "6178b5075d73b47bcef2faf25815a0fb8e188712"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "network: keep configuration failures outside kernel POSIX ABI"

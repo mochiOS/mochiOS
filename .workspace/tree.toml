@@ -13415,3 +13415,11 @@ path = "services"
 hash = "e38ac2b32f4847ae75d5a245d698423832f51ed0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native dispatch rejection and update retired syscall probes"
+
+[[entries]]
+date = "2026-10-17T11:28:54.201487954+09:00"
+snapshot = "a88dd65d8ddcea6c7b987917"
+path = "services"
+hash = "df4b0e2165bffe9dc06aac4feb77968eab8c27ca"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify writeback ownership capacity and explicit failure retirement"

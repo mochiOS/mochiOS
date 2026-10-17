@@ -13639,3 +13639,11 @@ path = "services"
 hash = "9d8769b8b2b742d606d74ae1937c4d8b8d418a2a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: reject native transfer counts exceeding caller buffers"
+
+[[entries]]
+date = "2026-10-18T07:11:28.170980158+09:00"
+snapshot = "8d3641b64cd1fa7ec9cbd47b"
+path = "services"
+hash = "20491384c901b316465539f7d794edda0fc32ca1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: distinguish empty exec descriptor tables from native bootstrap"

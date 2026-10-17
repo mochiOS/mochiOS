@@ -13551,3 +13551,11 @@ path = "services"
 hash = "44730b61192b35aef80f389dd4ceeeb22800998e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover capability transfer failure atomicity and revocation"
+
+[[entries]]
+date = "2026-10-17T12:45:45.224871682+09:00"
+snapshot = "c0a230e8718e92811f3fbae9"
+path = "services"
+hash = "b786f69977d19679b60ff870c5f67a1d4cffc70f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: verify fault-safe stream read locking and consumption"

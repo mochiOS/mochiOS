@@ -13647,3 +13647,11 @@ path = "services"
 hash = "20491384c901b316465539f7d794edda0fc32ca1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: distinguish empty exec descriptor tables from native bootstrap"
+
+[[entries]]
+date = "2026-10-18T07:12:48.691031582+09:00"
+snapshot = "81aaacbb89e0183b82cd8d26"
+path = "services"
+hash = "18ada481ea95117461f519a8441916d4b45b5979"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: keep retired data and message errno out of native exports"

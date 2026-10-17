@@ -13199,3 +13199,11 @@ path = "services"
 hash = "b3372d5bf6476185a67032ad0bef679326b9578c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use native NotReady for empty IPC receives"
+
+[[entries]]
+date = "2026-10-17T09:39:04.302448908+09:00"
+snapshot = "cc69c974997616042e4e8827"
+path = "services"
+hash = "3508113b05f268705f93948259b8521cc4382dbf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test native endpoint query errors and inspection authority"

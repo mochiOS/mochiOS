@@ -13191,3 +13191,11 @@ path = "services"
 hash = "52b876b23ba42d108d9bfeae527b75b9dd13384b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify receive entry authority and context failures"
+
+[[entries]]
+date = "2026-10-17T09:37:42.977970169+09:00"
+snapshot = "fff30de205d6e869218f35f6"
+path = "services"
+hash = "b3372d5bf6476185a67032ad0bef679326b9578c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use native NotReady for empty IPC receives"

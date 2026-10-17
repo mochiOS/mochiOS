@@ -13671,3 +13671,11 @@ path = "services"
 hash = "f4f7997c19cece9b0e70c3b52644798a5ae2b1df"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "service-manager: normalize native failures at POSIX reply boundaries"
+
+[[entries]]
+date = "2026-10-18T07:18:22.503908095+09:00"
+snapshot = "a95db0cf3f68496fb0fcca59"
+path = "services"
+hash = "2a35c6e70db6a8a65780f48919aa513dfe449125"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "network: report connection quotas without kernel POSIX errno"

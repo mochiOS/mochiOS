@@ -13271,3 +13271,11 @@ path = "services"
 hash = "478eb304182a6dbb5a82dc70dadf6f8d7d77cbc5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test ordinary native I/O faults allocation and partial transfers"
+
+[[entries]]
+date = "2026-10-17T10:07:21.183832395+09:00"
+snapshot = "c305018273517e658281f21e"
+path = "services"
+hash = "e7381b8f029cd5288027d9480f939beaecc715a1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test shared read authority cleanup and native failures"

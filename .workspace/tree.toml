@@ -13335,3 +13335,11 @@ path = "services"
 hash = "e1c352189f6a1015ee69ebe112b43fd7e3d3e616"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native provider fault readiness on host and KVM"
+
+[[entries]]
+date = "2026-10-17T10:41:44.417481125+09:00"
+snapshot = "ec8aee32192ff1c3eb3427ec"
+path = "services"
+hash = "ca814e2cae02d0202374e67582f10d0bf9c5fee3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify inspection authority allocation and copy failure boundaries"

@@ -13727,3 +13727,11 @@ path = "services"
 hash = "989511ba65c33e58a8b3974088283923b54e37b2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: validate native debug output adapters without POSIX errno"
+
+[[entries]]
+date = "2026-10-18T07:33:10.201430804+09:00"
+snapshot = "776520808abfaf73a8f94bb0"
+path = "services"
+hash = "fd7a752114fd2345f02f55233efcb934ce288f81"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: reject false positive native sample file checks"

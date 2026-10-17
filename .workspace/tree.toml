@@ -13527,3 +13527,11 @@ path = "services"
 hash = "4ff01ef5f16ad955f9b36a09a846430464671147"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: reproduce provider registration racing final close"
+
+[[entries]]
+date = "2026-10-17T12:34:44.698870279+09:00"
+snapshot = "5bb61ac19d7e7c64b235952c"
+path = "services"
+hash = "623179065b8a6f4dc32e62ccf28739869baec11e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: verify read-only sync through retained writer on native kernel"

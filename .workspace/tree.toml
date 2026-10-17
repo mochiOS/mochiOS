@@ -13703,3 +13703,11 @@ path = "services"
 hash = "c7acd00b848732f93131abc608f9dd48cc09f02e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: retain retired thread ownership until native close succeeds"
+
+[[entries]]
+date = "2026-10-18T07:27:12.440057182+09:00"
+snapshot = "be3e713f5aa020712b488e1a"
+path = "services"
+hash = "fe471384975266aaefdf8811515e3d9436ac5f97"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: distinguish native memory validation authority and backing errors"

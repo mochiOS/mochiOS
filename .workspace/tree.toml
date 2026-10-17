@@ -13583,3 +13583,11 @@ path = "services"
 hash = "a8d94792ba4d89cc2345ba55c284cf2f165bcb88"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: verify native display query limit and commit failures"
+
+[[entries]]
+date = "2026-10-17T12:57:01.362452784+09:00"
+snapshot = "6d408de3a8429aa827973a07"
+path = "services"
+hash = "ee3f00fb61f408b3064c49e7fbc18ffdfe303073"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover reentrant display snapshots and pooled allocation failures"

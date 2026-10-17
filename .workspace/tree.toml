@@ -13287,3 +13287,11 @@ path = "services"
 hash = "37d2e5dd7eeda481f8ce6e1c5cc4aec29afef363"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test private update creator failures and retire old lookup probes"
+
+[[entries]]
+date = "2026-10-17T10:12:16.441695207+09:00"
+snapshot = "4079c10af35307d84021f530"
+path = "services"
+hash = "875adb7232da8f437a9587313fa89cafce94bba9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native update controls and extent failure recovery"

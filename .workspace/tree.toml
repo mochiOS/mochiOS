@@ -13519,3 +13519,11 @@ path = "services"
 hash = "cf5adc27bb4659a02623a20658c787c51cb25a6d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover synchronous and asynchronous mapping refresh policy"
+
+[[entries]]
+date = "2026-10-17T12:33:18.674025750+09:00"
+snapshot = "b61b677a9f8f44bb5e8d8d52"
+path = "services"
+hash = "4ff01ef5f16ad955f9b36a09a846430464671147"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: reproduce provider registration racing final close"

@@ -13303,3 +13303,11 @@ path = "services"
 hash = "b0ca95a5e17cd4e0344c057eaf6a5ce3b00e6ef5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native backing extent failures and retry safety"
+
+[[entries]]
+date = "2026-10-17T10:19:54.478156204+09:00"
+snapshot = "f7668340c09247211b075a9d"
+path = "services"
+hash = "0150592bc42de34323b6f133da5adcd4eaac5bdb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify explicit shared read decline without replaying errors"

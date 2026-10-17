@@ -13295,3 +13295,11 @@ path = "services"
 hash = "875adb7232da8f437a9587313fa89cafce94bba9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native update controls and extent failure recovery"
+
+[[entries]]
+date = "2026-10-17T10:16:40.805932398+09:00"
+snapshot = "3057e382ad279508a303322a"
+path = "services"
+hash = "b0ca95a5e17cd4e0344c057eaf6a5ce3b00e6ef5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native backing extent failures and retry safety"

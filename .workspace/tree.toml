@@ -13623,3 +13623,11 @@ path = "services"
 hash = "acd96fea3569df8028219a5040c7e6bd3f830a47"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: keep file size policy outside the kernel ABI"
+
+[[entries]]
+date = "2026-10-17T13:12:21.367072691+09:00"
+snapshot = "24dccf6aa8ae48c4027c06f3"
+path = "services"
+hash = "e076bbc41f4640eaa7bbf3407b5c48ccad4c9d84"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: validate native handle wrapper results and error propagation"

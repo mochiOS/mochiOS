@@ -13775,3 +13775,11 @@ path = "services"
 hash = "75b800e323527c1f12941b959c3fb37f8236b223"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover cursor-independent native package reads and partial failures"
+
+[[entries]]
+date = "2026-10-18T07:52:57.345310988+09:00"
+snapshot = "583ee91da22f8813cecbc858"
+path = "services"
+hash = "3354394370479ff6179191d3af567fb602fb92e5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: resolve terminal session ID under controlling-session policy"

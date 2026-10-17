@@ -13783,3 +13783,11 @@ path = "services"
 hash = "3354394370479ff6179191d3af567fb602fb92e5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: resolve terminal session ID under controlling-session policy"
+
+[[entries]]
+date = "2026-10-18T08:01:24.098633286+09:00"
+snapshot = "91afc41f7479c480c4a296f2"
+path = "services"
+hash = "686cea3da3ddd0ba4f11df4645f88332819406d6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: resolve PlugKit from the workspace for services"

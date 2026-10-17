@@ -13319,3 +13319,11 @@ path = "services"
 hash = "7618fceac87c64a174072443610c3d9e81be58e3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native mapping failures and POSIX errno translation"
+
+[[entries]]
+date = "2026-10-17T10:32:01.892990680+09:00"
+snapshot = "5585d1c90883d15b82646e70"
+path = "services"
+hash = "0e3489b31fe42d8fb0a45cd58bf481a15f49d83f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native cache failures frame ownership and EOF classification"

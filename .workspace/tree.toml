@@ -13175,3 +13175,11 @@ path = "services"
 hash = "7c3109f40a7515821223fe45ce8873725ffb46aa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover blocking receive wake races and native rollback"
+
+[[entries]]
+date = "2026-10-17T09:22:55.798905331+09:00"
+snapshot = "52f4457537dc485b62f3ff59"
+path = "services"
+hash = "a3a7aedf0d5709812f4bdec71662a99df2cbb990"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover hidden handle reservations reuse and thread cleanup"

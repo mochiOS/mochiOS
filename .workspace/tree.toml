@@ -13591,3 +13591,11 @@ path = "services"
 hash = "ee3f00fb61f408b3064c49e7fbc18ffdfe303073"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover reentrant display snapshots and pooled allocation failures"
+
+[[entries]]
+date = "2026-10-17T12:59:18.159072764+09:00"
+snapshot = "21c25ebf16d3c789e7c840cd"
+path = "services"
+hash = "5c6e0dce2589a2700943f063656647c92b8c84ea"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: enforce native-only usercopy and explicit fault categories"

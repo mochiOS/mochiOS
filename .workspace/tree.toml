@@ -13511,3 +13511,11 @@ path = "services"
 hash = "27e4a4ac84152fedaa50cf3cdf1bb354dbff74d5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover read-only shared sync admission and failures"
+
+[[entries]]
+date = "2026-10-17T12:31:57.586132285+09:00"
+snapshot = "a962184142b40470e4c1958b"
+path = "services"
+hash = "cf5adc27bb4659a02623a20658c787c51cb25a6d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover synchronous and asynchronous mapping refresh policy"

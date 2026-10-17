@@ -13495,3 +13495,11 @@ path = "services"
 hash = "b618c2ad9f053e4e43ff7a435897eb6b308316cc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: exercise native shared refresh private preservation and rollback"
+
+[[entries]]
+date = "2026-10-17T12:24:53.762395386+09:00"
+snapshot = "1a23edbcc1d229bbe6851b99"
+path = "services"
+hash = "3fc6e3aa0e1d54dc87669fda5ab5980d902abb8b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: exercise read-only native refresh after writer handle close"

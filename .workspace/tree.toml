@@ -13535,3 +13535,11 @@ path = "services"
 hash = "623179065b8a6f4dc32e62ccf28739869baec11e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: verify read-only sync through retained writer on native kernel"
+
+[[entries]]
+date = "2026-10-17T12:37:34.148929761+09:00"
+snapshot = "13f31b23846ef5bd925f2048"
+path = "services"
+hash = "d66ee82e561f55dd3dff5c0176834df8bd27d5fe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: use native wait ABI in runtime refresh coverage"

@@ -13599,3 +13599,11 @@ path = "services"
 hash = "5c6e0dce2589a2700943f063656647c92b8c84ea"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: enforce native-only usercopy and explicit fault categories"
+
+[[entries]]
+date = "2026-10-17T13:01:27.486863222+09:00"
+snapshot = "e3f98f13348812d7f5fc9010"
+path = "services"
+hash = "e5d0bfb92e8deb9b87117dc5ca99df6f82621988"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: guard kernel implementation against errno regression"

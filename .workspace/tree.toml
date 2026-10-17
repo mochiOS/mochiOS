@@ -13855,3 +13855,11 @@ path = "services"
 hash = "d220454cfbfd282160ede2248aff6e48533fd514"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify TLS lookup fallback fork safety and native I/O costs"
+
+[[entries]]
+date = "2026-10-18T08:59:49.017398789+09:00"
+snapshot = "6f7aaa95c54a33009bff9c56"
+path = "services"
+hash = "1104a3d0be2076665ffc39cce53a74a5614c8d4a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "input: add native engine initialization regression probe"

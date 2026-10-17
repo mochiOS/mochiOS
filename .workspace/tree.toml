@@ -13167,3 +13167,11 @@ path = "services"
 hash = "08f511e4ac61166fd8ec78a6b25edcb1dfa2f09e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify unlocked receive commits and reject message slot reuse"
+
+[[entries]]
+date = "2026-10-17T09:12:42.159238465+09:00"
+snapshot = "98bcbf44a4f4c236787560f8"
+path = "services"
+hash = "7c3109f40a7515821223fe45ce8873725ffb46aa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): cover blocking receive wake races and native rollback"

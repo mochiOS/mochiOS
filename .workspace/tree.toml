@@ -13207,3 +13207,11 @@ path = "services"
 hash = "3508113b05f268705f93948259b8521cc4382dbf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native endpoint query errors and inspection authority"
+
+[[entries]]
+date = "2026-10-17T09:39:58.280443521+09:00"
+snapshot = "59820ccba0594d7f0e7ed260"
+path = "services"
+hash = "9807cb6658b14552c2649335012cbb00d0f28b95"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep IPC boundary probes on active native paths"

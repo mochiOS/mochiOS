@@ -13719,3 +13719,11 @@ path = "services"
 hash = "559df658a282315e6d61376602ed86511dc04b71"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: keep address fault errno outside native ABI exports"
+
+[[entries]]
+date = "2026-10-18T07:30:48.272774344+09:00"
+snapshot = "1654e46fa6e5afbbd106cde4"
+path = "services"
+hash = "989511ba65c33e58a8b3974088283923b54e37b2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: validate native debug output adapters without POSIX errno"

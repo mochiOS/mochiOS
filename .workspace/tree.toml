@@ -13223,3 +13223,11 @@ path = "services"
 hash = "a7c75a90210776db53f4bdd8b6642b40a3e3f2c9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise native HandleControl admission and allocation failures"
+
+[[entries]]
+date = "2026-10-17T09:44:46.063114651+09:00"
+snapshot = "7b882888f4f7d9576076b2fe"
+path = "services"
+hash = "6d0aeee2c7f8cc4c81f47a998cf14b6ed3c124e1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test positioned native I/O faults and partial transfers"

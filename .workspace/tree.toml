@@ -13391,3 +13391,11 @@ path = "services"
 hash = "d19050c81e3770f9c14edb49f086f222cf3ad391"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native performance failures and unsupported status propagation"
+
+[[entries]]
+date = "2026-10-17T11:13:19.280556693+09:00"
+snapshot = "d319d5fa17de056f209125bc"
+path = "services"
+hash = "603d10bee9b7145d90f96f5972f9775088d7a8f0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify boot query failures through the actual processor sysconf path"

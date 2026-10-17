@@ -13695,3 +13695,11 @@ path = "services"
 hash = "65101498191cff9b301f32a11fba7a9865a0813b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "network: keep peer closure policy outside kernel POSIX ABI"
+
+[[entries]]
+date = "2026-10-18T07:25:34.109574934+09:00"
+snapshot = "c8a7a6c3b2e84d059c1bd515"
+path = "services"
+hash = "c7acd00b848732f93131abc608f9dd48cc09f02e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: retain retired thread ownership until native close succeeds"

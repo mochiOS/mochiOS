@@ -13455,3 +13455,11 @@ path = "services"
 hash = "8424ead242f1b3697ed7142f6fc52ec953447e12"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover operation result reads and completion waits"
+
+[[entries]]
+date = "2026-10-17T11:51:47.952824885+09:00"
+snapshot = "c8182780e0ece4af1e7bcc17"
+path = "services"
+hash = "f6c418153e20e7638df4823c37e19dd28b5b53bc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover deferred writeback admission and native execution"

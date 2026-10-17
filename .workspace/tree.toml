@@ -13247,3 +13247,11 @@ path = "services"
 hash = "b2ddb82c078dcbbe7121a15d91c9d35c864d8150"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report explicit provider backing absence and test native queries"
+
+[[entries]]
+date = "2026-10-17T09:58:14.761340085+09:00"
+snapshot = "5d1e993bdbc2957cb1439ae6"
+path = "services"
+hash = "33bfb84b28e3b7062dd092ab2970c027b1d0b6e5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test native seek admission offsets and result boundaries"

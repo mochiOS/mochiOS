@@ -13183,3 +13183,11 @@ path = "services"
 hash = "a3a7aedf0d5709812f4bdec71662a99df2cbb990"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): cover hidden handle reservations reuse and thread cleanup"
+
+[[entries]]
+date = "2026-10-17T09:27:20.128786273+09:00"
+snapshot = "b3d707e64e88935769bde823"
+path = "services"
+hash = "52b876b23ba42d108d9bfeae527b75b9dd13384b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify receive entry authority and context failures"

@@ -13215,3 +13215,11 @@ path = "services"
 hash = "9807cb6658b14552c2649335012cbb00d0f28b95"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep IPC boundary probes on active native paths"
+
+[[entries]]
+date = "2026-10-17T09:42:06.190278248+09:00"
+snapshot = "76821449a93ace0fdf10232c"
+path = "services"
+hash = "a7c75a90210776db53f4bdd8b6642b40a3e3f2c9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise native HandleControl admission and allocation failures"

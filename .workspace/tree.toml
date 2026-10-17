@@ -13503,3 +13503,11 @@ path = "services"
 hash = "3fc6e3aa0e1d54dc87669fda5ab5980d902abb8b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: exercise read-only native refresh after writer handle close"
+
+[[entries]]
+date = "2026-10-17T12:29:02.037012405+09:00"
+snapshot = "a21d9755c2e935407a4b4783"
+path = "services"
+hash = "27e4a4ac84152fedaa50cf3cdf1bb354dbff74d5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover read-only shared sync admission and failures"

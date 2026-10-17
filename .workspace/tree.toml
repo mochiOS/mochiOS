@@ -13751,3 +13751,11 @@ path = "services"
 hash = "55de526e2069fc1d1976b831ffc245fbd6d86802"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "secure-ui: claim account home with exclusive directory creation"
+
+[[entries]]
+date = "2026-10-18T07:42:28.660137481+09:00"
+snapshot = "247e1dfd34bdd3fa8b8b7c3c"
+path = "services"
+hash = "530d92048fb4bf221b849c2db5aa4e20c8defcb6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "capability: distinguish POSIX entry conflicts from native transport failures"

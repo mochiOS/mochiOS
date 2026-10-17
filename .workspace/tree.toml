@@ -13479,3 +13479,11 @@ path = "services"
 hash = "8aea3aabab087872900c07022fe3346afbc923e9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: verify refresh publication and failed writeback retention"
+
+[[entries]]
+date = "2026-10-17T12:05:45.794366908+09:00"
+snapshot = "340a85f25b85f3c8bc5dc16c"
+path = "services"
+hash = "df2b64218527bd6e211627980f526cbb21ca0a9d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: verify shared refresh target ownership and rollback"

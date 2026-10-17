@@ -13367,3 +13367,11 @@ path = "services"
 hash = "09fe371a38db9954f646b3e03abe84d5ce84cd92"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise capability input allocation and native copy failures"
+
+[[entries]]
+date = "2026-10-17T11:03:54.991112053+09:00"
+snapshot = "9d0149feca2b2ecf266cb35d"
+path = "services"
+hash = "ea736f1713e6deb375f3ece84a051982aedf668f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native storage failures and opaque driver status"

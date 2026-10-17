@@ -13743,3 +13743,11 @@ path = "services"
 hash = "0074949d52b483f9335758bdc2d1ec179e604ca7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "network: preserve stream ownership errors without kernel FD errno"
+
+[[entries]]
+date = "2026-10-18T07:40:14.338137428+09:00"
+snapshot = "26a4e5fa8c94c2c57d121bee"
+path = "services"
+hash = "55de526e2069fc1d1976b831ffc245fbd6d86802"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "secure-ui: claim account home with exclusive directory creation"

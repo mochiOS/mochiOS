@@ -13831,3 +13831,11 @@ path = "services"
 hash = "53cb49ee92dafe2a54461a40da76f2c8eb539fac"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "user: translate native failures before account protocol replies"
+
+[[entries]]
+date = "2026-10-18T08:38:35.204791537+09:00"
+snapshot = "ef8c281c30ebbc46230a8b1e"
+path = "applications/binder"
+hash = "54316fc608ff34c885dd69c302f05e4e5d03ec44"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: record native ABI dependency of POSIX protocol"

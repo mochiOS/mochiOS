@@ -13423,3 +13423,11 @@ path = "services"
 hash = "df4b0e2165bffe9dc06aac4feb77968eab8c27ca"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify writeback ownership capacity and explicit failure retirement"
+
+[[entries]]
+date = "2026-10-17T11:29:35.766476426+09:00"
+snapshot = "664215717bdcf0b6fd002668"
+path = "services"
+hash = "c10241b4efa0ae5d5db45cc301f9fec54ae2d52c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Refresh deferred cancellation probe with real callback resource cleanup"

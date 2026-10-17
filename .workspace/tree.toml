@@ -13735,3 +13735,11 @@ path = "services"
 hash = "fd7a752114fd2345f02f55233efcb934ce288f81"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: reject false positive native sample file checks"
+
+[[entries]]
+date = "2026-10-18T07:35:26.167437468+09:00"
+snapshot = "e7172faf746eb12cee6122c7"
+path = "services"
+hash = "0074949d52b483f9335758bdc2d1ec179e604ca7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "network: preserve stream ownership errors without kernel FD errno"

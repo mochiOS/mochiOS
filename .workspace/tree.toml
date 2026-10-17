@@ -13559,3 +13559,11 @@ path = "services"
 hash = "b786f69977d19679b60ff870c5f67a1d4cffc70f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: verify fault-safe stream read locking and consumption"
+
+[[entries]]
+date = "2026-10-17T12:47:55.185448327+09:00"
+snapshot = "0d9e30744c187f6e87b41283"
+path = "services"
+hash = "2f58199d270c1bd52f3814c305d9ab7e3fcdeb39"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: exercise provider stream I/O during native receive fault"

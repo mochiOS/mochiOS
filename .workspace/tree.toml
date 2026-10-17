@@ -13327,3 +13327,11 @@ path = "services"
 hash = "0e3489b31fe42d8fb0a45cd58bf481a15f49d83f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native cache failures frame ownership and EOF classification"
+
+[[entries]]
+date = "2026-10-17T10:37:36.424279089+09:00"
+snapshot = "51346cf2ecea467f2893d24e"
+path = "services"
+hash = "e1c352189f6a1015ee69ebe112b43fd7e3d3e616"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native provider fault readiness on host and KVM"

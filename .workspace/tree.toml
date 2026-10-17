@@ -13575,3 +13575,11 @@ path = "services"
 hash = "2ce965355cef85602190df3c7f068e12b2f71add"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover native borrowed mapping failures and metadata allocation"
+
+[[entries]]
+date = "2026-10-17T12:53:57.247897391+09:00"
+snapshot = "e446db7e2d3951eca41a7fdf"
+path = "services"
+hash = "a8d94792ba4d89cc2345ba55c284cf2f165bcb88"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: verify native display query limit and commit failures"

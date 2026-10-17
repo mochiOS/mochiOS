@@ -13375,3 +13375,11 @@ path = "services"
 hash = "ea736f1713e6deb375f3ece84a051982aedf668f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native storage failures and opaque driver status"
+
+[[entries]]
+date = "2026-10-17T11:06:57.422506451+09:00"
+snapshot = "041ba1b31900fc6b1b11e18b"
+path = "services"
+hash = "19273d5d877e197aa0c20aa113d0b06b7cb5970c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify authority restriction with real sets and allocation faults"

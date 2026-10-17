@@ -13799,3 +13799,11 @@ path = "services"
 hash = "d9bbf90ae4e1a95caa067f547dff45953c1963d0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: verify heap growth releases mapping locks before restoring interrupts"
+
+[[entries]]
+date = "2026-10-18T08:21:40.443765837+09:00"
+snapshot = "98608c027eab6594b193c73a"
+path = "services"
+hash = "618835ee7738a59df41890c675abece6a6f6f550"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "service-manager: retain bootstrap lifecycle records in release builds"

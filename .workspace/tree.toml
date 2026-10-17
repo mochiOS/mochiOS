@@ -13687,3 +13687,11 @@ path = "services"
 hash = "6178b5075d73b47bcef2faf25815a0fb8e188712"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "network: keep configuration failures outside kernel POSIX ABI"
+
+[[entries]]
+date = "2026-10-18T07:23:11.487764176+09:00"
+snapshot = "a002358e0fa654b0f614c1a8"
+path = "services"
+hash = "65101498191cff9b301f32a11fba7a9865a0813b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "network: keep peer closure policy outside kernel POSIX ABI"

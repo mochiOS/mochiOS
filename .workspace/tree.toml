@@ -13767,3 +13767,11 @@ path = "tools/devkit"
 hash = "3627c034976f8c339dd0376586958c6ee536cdce"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "appcore: recognize workspace-owned file panel capacity status"
+
+[[entries]]
+date = "2026-10-18T07:47:41.142184832+09:00"
+snapshot = "76ad0a1e3d0400f58051ad80"
+path = "services"
+hash = "75b800e323527c1f12941b959c3fb37f8236b223"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover cursor-independent native package reads and partial failures"

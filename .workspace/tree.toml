@@ -13759,3 +13759,11 @@ path = "services"
 hash = "530d92048fb4bf221b849c2db5aa4e20c8defcb6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "capability: distinguish POSIX entry conflicts from native transport failures"
+
+[[entries]]
+date = "2026-10-18T07:45:23.235148995+09:00"
+snapshot = "71cc35621561ceb1e471949b"
+path = "tools/devkit"
+hash = "3627c034976f8c339dd0376586958c6ee536cdce"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "appcore: recognize workspace-owned file panel capacity status"

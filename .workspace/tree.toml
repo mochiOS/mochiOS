@@ -13655,3 +13655,11 @@ path = "services"
 hash = "18ada481ea95117461f519a8441916d4b45b5979"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: keep retired data and message errno out of native exports"
+
+[[entries]]
+date = "2026-10-18T07:14:28.260693397+09:00"
+snapshot = "291fdecf32a46e46db2e82ee"
+path = "services"
+hash = "13781b2b33146ce9e113d38ccd7ba5a545cd1db5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "service-manager: keep missing POSIX owner status in userspace"

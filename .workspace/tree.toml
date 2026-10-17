@@ -13239,3 +13239,11 @@ path = "services"
 hash = "34f3ed24512162c3d3e08931741d5ae945e59fa2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native VM I/O range and backing-count failures"
+
+[[entries]]
+date = "2026-10-17T09:56:17.413228525+09:00"
+snapshot = "7b6a18da4658ff215cd750c0"
+path = "services"
+hash = "b2ddb82c078dcbbe7121a15d91c9d35c864d8150"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report explicit provider backing absence and test native queries"

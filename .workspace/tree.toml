@@ -13847,3 +13847,11 @@ path = "services"
 hash = "a83d53cc12b5da795ddd85ab5e83a9ef1bca7d84"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: expect tagged native errors in dictionary I/O probe"
+
+[[entries]]
+date = "2026-10-18T08:51:39.627873132+09:00"
+snapshot = "35b27d284b98c91e97dd6ddc"
+path = "services"
+hash = "d220454cfbfd282160ede2248aff6e48533fd514"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify TLS lookup fallback fork safety and native I/O costs"

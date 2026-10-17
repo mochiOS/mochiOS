@@ -13399,3 +13399,11 @@ path = "services"
 hash = "603d10bee9b7145d90f96f5972f9775088d7a8f0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify boot query failures through the actual processor sysconf path"
+
+[[entries]]
+date = "2026-10-17T11:14:55.936711078+09:00"
+snapshot = "40502dc7158bdd6231101dc7"
+path = "services"
+hash = "2f308030147265f8cec808f486bb37191126226e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise local capability validation and exact removal failures"

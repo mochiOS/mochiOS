@@ -13807,3 +13807,11 @@ path = "services"
 hash = "618835ee7738a59df41890c675abece6a6f6f550"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "service-manager: retain bootstrap lifecycle records in release builds"
+
+[[entries]]
+date = "2026-10-18T08:24:26.802860117+09:00"
+snapshot = "7164c167489cc81234254ae0"
+path = "services"
+hash = "1c8d4a812b66954f69d6a0701745b4146a161d25"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "service-manager: identify POSIX endpoint handoff failures in release logs"

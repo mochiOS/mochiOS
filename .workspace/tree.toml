@@ -13383,3 +13383,11 @@ path = "services"
 hash = "19273d5d877e197aa0c20aa113d0b06b7cb5970c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify authority restriction with real sets and allocation faults"
+
+[[entries]]
+date = "2026-10-17T11:10:20.160727528+09:00"
+snapshot = "c1979cd0f8ab0ee7bbed6b1a"
+path = "services"
+hash = "d19050c81e3770f9c14edb49f086f222cf3ad391"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native performance failures and unsupported status propagation"

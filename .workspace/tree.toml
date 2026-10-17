@@ -13823,3 +13823,11 @@ path = "services"
 hash = "679a41cf3e89d67ae782ff240e79e9db255171c5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test terminal session across foreground group changes"
+
+[[entries]]
+date = "2026-10-18T08:32:43.893112452+09:00"
+snapshot = "a7a27c274078a6c5c976cc5b"
+path = "services"
+hash = "53cb49ee92dafe2a54461a40da76f2c8eb539fac"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "user: translate native failures before account protocol replies"

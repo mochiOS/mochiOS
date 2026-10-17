@@ -13407,3 +13407,11 @@ path = "services"
 hash = "2f308030147265f8cec808f486bb37191126226e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise local capability validation and exact removal failures"
+
+[[entries]]
+date = "2026-10-17T11:20:16.541147455+09:00"
+snapshot = "697439c7bbeb8a7aa90ae0c2"
+path = "services"
+hash = "e38ac2b32f4847ae75d5a245d698423832f51ed0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native dispatch rejection and update retired syscall probes"

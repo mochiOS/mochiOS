@@ -13567,3 +13567,11 @@ path = "services"
 hash = "2f58199d270c1bd52f3814c305d9ab7e3fcdeb39"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: exercise provider stream I/O during native receive fault"
+
+[[entries]]
+date = "2026-10-17T12:51:34.202397487+09:00"
+snapshot = "eb81c254419fa75f7c9bd03d"
+path = "services"
+hash = "2ce965355cef85602190df3c7f068e12b2f71add"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover native borrowed mapping failures and metadata allocation"

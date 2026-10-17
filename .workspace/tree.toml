@@ -13263,3 +13263,11 @@ path = "services"
 hash = "feaa2c65f75778bf2bd536d946b84cd52b1ebd89"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test partial reads without hiding later pager failures"
+
+[[entries]]
+date = "2026-10-17T10:03:26.357768065+09:00"
+snapshot = "78f3e7d8c601a164300ac102"
+path = "services"
+hash = "478eb304182a6dbb5a82dc70dadf6f8d7d77cbc5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test ordinary native I/O faults allocation and partial transfers"

@@ -13615,3 +13615,11 @@ path = "services"
 hash = "52e5c1f547a50cab5a1ed24358f2bfbc0b9e144a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "service-manager: retain pending rollback with native readiness failure"
+
+[[entries]]
+date = "2026-10-17T13:07:10.182214452+09:00"
+snapshot = "13b5f3cabeebfbee587fa79a"
+path = "services"
+hash = "acd96fea3569df8028219a5040c7e6bd3f830a47"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: keep file size policy outside the kernel ABI"

@@ -13471,3 +13471,11 @@ path = "services"
 hash = "f88c2397df68a9b8a7b168197c00e5c24e637a07"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover asynchronous msync admission and receipt cleanup"
+
+[[entries]]
+date = "2026-10-17T11:58:47.518743903+09:00"
+snapshot = "b2e0d8a5988d40657adb9f42"
+path = "services"
+hash = "8aea3aabab087872900c07022fe3346afbc923e9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: verify refresh publication and failed writeback retention"

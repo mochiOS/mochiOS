@@ -13607,3 +13607,11 @@ path = "services"
 hash = "e5d0bfb92e8deb9b87117dc5ca99df6f82621988"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: guard kernel implementation against errno regression"
+
+[[entries]]
+date = "2026-10-17T13:04:47.120675716+09:00"
+snapshot = "d2ed699d728547a0d8852416"
+path = "services"
+hash = "52e5c1f547a50cab5a1ed24358f2bfbc0b9e144a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "service-manager: retain pending rollback with native readiness failure"

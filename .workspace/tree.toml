@@ -13351,3 +13351,11 @@ path = "services"
 hash = "2685999c257ca142a3557b1285f5618763e12c49"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify diagnostic allocation usercopy and port authority boundaries"
+
+[[entries]]
+date = "2026-10-17T10:55:28.450370649+09:00"
+snapshot = "b9dc155925e8568d487c988a"
+path = "services"
+hash = "327fc1a07d0b0993ff4727e0af665a2dfdbc7934"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native DMA allocation rollback and cleanup failure retention"

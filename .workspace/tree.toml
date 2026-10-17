@@ -13839,3 +13839,11 @@ path = "applications/binder"
 hash = "54316fc608ff34c885dd69c302f05e4e5d03ec44"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: record native ABI dependency of POSIX protocol"
+
+[[entries]]
+date = "2026-10-18T08:42:49.582322771+09:00"
+snapshot = "1b478f27a7f96ed007b174ee"
+path = "services"
+hash = "a83d53cc12b5da795ddd85ab5e83a9ef1bca7d84"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: expect tagged native errors in dictionary I/O probe"

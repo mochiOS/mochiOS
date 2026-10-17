@@ -13159,3 +13159,11 @@ path = "services"
 hash = "1ac28b2397c0e67c0a200bf24c86734c572c3fc2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native receive copies retain retryable authority"
+
+[[entries]]
+date = "2026-10-17T09:06:04.036882363+09:00"
+snapshot = "a3d631aa071cca20fc8332f8"
+path = "services"
+hash = "08f511e4ac61166fd8ec78a6b25edcb1dfa2f09e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify unlocked receive commits and reject message slot reuse"

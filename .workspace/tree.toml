@@ -13711,3 +13711,11 @@ path = "services"
 hash = "fe471384975266aaefdf8811515e3d9436ac5f97"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: distinguish native memory validation authority and backing errors"
+
+[[entries]]
+date = "2026-10-18T07:28:53.708790309+09:00"
+snapshot = "6c4a588d8727e6115ffb24f9"
+path = "services"
+hash = "559df658a282315e6d61376602ed86511dc04b71"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: keep address fault errno outside native ABI exports"

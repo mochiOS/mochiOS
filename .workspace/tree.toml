@@ -13431,3 +13431,11 @@ path = "services"
 hash = "c10241b4efa0ae5d5db45cc301f9fec54ae2d52c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh deferred cancellation probe with real callback resource cleanup"
+
+[[entries]]
+date = "2026-10-17T11:32:26.593475020+09:00"
+snapshot = "4bf56f264d7f14b7618b54bf"
+path = "services"
+hash = "69014a7397c327610096d1510e3c635fd14e4330"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify failed work acknowledgement preserves ownership and queue isolation"

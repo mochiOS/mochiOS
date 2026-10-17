@@ -13791,3 +13791,11 @@ path = "services"
 hash = "686cea3da3ddd0ba4f11df4645f88332819406d6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: resolve PlugKit from the workspace for services"
+
+[[entries]]
+date = "2026-10-18T08:15:31.322232647+09:00"
+snapshot = "653c2aad748c24f22bf2bb6e"
+path = "services"
+hash = "d9bbf90ae4e1a95caa067f547dff45953c1963d0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: verify heap growth releases mapping locks before restoring interrupts"

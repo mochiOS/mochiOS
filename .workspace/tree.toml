@@ -13543,3 +13543,11 @@ path = "services"
 hash = "d66ee82e561f55dd3dff5c0176834df8bd27d5fe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: use native wait ABI in runtime refresh coverage"
+
+[[entries]]
+date = "2026-10-17T12:42:47.481206986+09:00"
+snapshot = "158001c11d0223f0eef57bdc"
+path = "services"
+hash = "44730b61192b35aef80f389dd4ceeeb22800998e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover capability transfer failure atomicity and revocation"

@@ -13255,3 +13255,11 @@ path = "services"
 hash = "33bfb84b28e3b7062dd092ab2970c027b1d0b6e5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Test native seek admission offsets and result boundaries"
+
+[[entries]]
+date = "2026-10-17T09:59:44.055053391+09:00"
+snapshot = "e4656b77db2aeadc1bac1c01"
+path = "services"
+hash = "feaa2c65f75778bf2bd536d946b84cd52b1ebd89"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test partial reads without hiding later pager failures"

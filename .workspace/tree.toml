@@ -13463,3 +13463,11 @@ path = "services"
 hash = "f6c418153e20e7638df4823c37e19dd28b5b53bc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover deferred writeback admission and native execution"
+
+[[entries]]
+date = "2026-10-17T11:53:14.459315535+09:00"
+snapshot = "f1ca292df3e1b7d904666201"
+path = "services"
+hash = "f88c2397df68a9b8a7b168197c00e5c24e637a07"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover asynchronous msync admission and receipt cleanup"

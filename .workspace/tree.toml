@@ -13447,3 +13447,11 @@ path = "services"
 hash = "cc274fde9cbf15ab708a80f60e257fcf4501a3b5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: verify owned executor completion and admission"
+
+[[entries]]
+date = "2026-10-17T11:44:13.121028119+09:00"
+snapshot = "de07adb99974ab00f7021731"
+path = "services"
+hash = "8424ead242f1b3697ed7142f6fc52ec953447e12"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover operation result reads and completion waits"

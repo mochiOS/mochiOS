@@ -13311,3 +13311,11 @@ path = "services"
 hash = "0150592bc42de34323b6f133da5adcd4eaac5bdb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify explicit shared read decline without replaying errors"
+
+[[entries]]
+date = "2026-10-17T10:26:12.259921561+09:00"
+snapshot = "7ddb3d858cfe534f085e286e"
+path = "services"
+hash = "7618fceac87c64a174072443610c3d9e81be58e3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native mapping failures and POSIX errno translation"

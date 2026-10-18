@@ -13879,3 +13879,11 @@ path = "services"
 hash = "4b15b107ddbe86ffc28899023da28bbf2f24b7d2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "user: translate libc errors before account and readiness replies"
+
+[[entries]]
+date = "2026-10-18T09:26:43.153183995+09:00"
+snapshot = "8e57b574a6ce4dcad2dda5a1"
+path = "services"
+hash = "2244c381e613a2a07dfa5966815da9806a575178"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify inherited FD alias lifetime without duplicate rights"

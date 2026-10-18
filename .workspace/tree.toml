@@ -13887,3 +13887,11 @@ path = "services"
 hash = "2244c381e613a2a07dfa5966815da9806a575178"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify inherited FD alias lifetime without duplicate rights"
+
+[[entries]]
+date = "2026-10-18T09:29:47.790738351+09:00"
+snapshot = "a6219764f1a39535e356781b"
+path = "services"
+hash = "c3c54d1dd1d4e5e15040b37361e6d27976d31e15"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "display: use native unsupported status and guard ENOSYS retirement"

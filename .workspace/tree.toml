@@ -13871,3 +13871,11 @@ path = "services"
 hash = "e68d1f6eef82724481e426638fc76406b4ca6554"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: cover ordered dirty pages across VM metadata edits"
+
+[[entries]]
+date = "2026-10-18T09:21:21.866042731+09:00"
+snapshot = "96cf9dee2646c9c4c9405488"
+path = "services"
+hash = "4b15b107ddbe86ffc28899023da28bbf2f24b7d2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "user: translate libc errors before account and readiness replies"

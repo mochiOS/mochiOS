@@ -13927,3 +13927,11 @@ path = "services"
 hash = "20bd46840abf5a81f5087f3038f8e3d179952c1e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "display: report geometry and DMA bounds with native limit errors"
+
+[[entries]]
+date = "2026-10-18T09:50:29.235270511+09:00"
+snapshot = "87e6ee8902e522a4322209b3"
+path = "services"
+hash = "56242349eb646ac3536f283911877e768070d874"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "services: finish native ERANGE retirement while preserving wire policy"

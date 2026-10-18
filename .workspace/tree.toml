@@ -13903,3 +13903,11 @@ path = "services"
 hash = "2de6b7937880ea9f32ac0c688b8d5de35f120141"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "services: replace native ENOTSUP imports with typed or wire errors"
+
+[[entries]]
+date = "2026-10-18T09:37:57.685093880+09:00"
+snapshot = "c60e1cb4d0eadb9a5c2378c3"
+path = "services"
+hash = "bd5305373296a6444b4d958732289623eb9d3db1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "services: keep EPERM permission policy in userspace protocol"

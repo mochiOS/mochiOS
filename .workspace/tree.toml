@@ -13919,3 +13919,11 @@ path = "services"
 hash = "c2b96a4557abae84e6e3d0dd4f4cf3127b2dee0a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: cover native package bounds and inclusive entry budget"
+
+[[entries]]
+date = "2026-10-18T09:46:03.458380208+09:00"
+snapshot = "6bdc7963cb19dc864dfbe810"
+path = "services"
+hash = "20bd46840abf5a81f5087f3038f8e3d179952c1e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "display: report geometry and DMA bounds with native limit errors"

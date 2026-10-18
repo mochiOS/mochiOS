@@ -13911,3 +13911,11 @@ path = "services"
 hash = "bd5305373296a6444b4d958732289623eb9d3db1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "services: keep EPERM permission policy in userspace protocol"
+
+[[entries]]
+date = "2026-10-18T09:42:51.492409162+09:00"
+snapshot = "d192f75d0af8e8b11f1933e5"
+path = "services"
+hash = "c2b96a4557abae84e6e3d0dd4f4cf3127b2dee0a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: cover native package bounds and inclusive entry budget"

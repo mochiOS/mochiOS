@@ -13863,3 +13863,11 @@ path = "services"
 hash = "1104a3d0be2076665ffc39cce53a74a5614c8d4a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "input: add native engine initialization regression probe"
+
+[[entries]]
+date = "2026-10-18T09:18:29.387022793+09:00"
+snapshot = "523de7240a9423b766904ee7"
+path = "services"
+hash = "e68d1f6eef82724481e426638fc76406b4ca6554"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: cover ordered dirty pages across VM metadata edits"

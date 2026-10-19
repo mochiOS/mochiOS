@@ -13991,3 +13991,11 @@ path = "services"
 hash = "893605c006a8781f35d599fbc3655d96d68c2550"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: validate signed timestamp updates before modifying inodes"
+
+[[entries]]
+date = "2026-10-19T10:08:16.864083571+09:00"
+snapshot = "845550a8f4359c86699198bc"
+path = "services"
+hash = "2a3eb4f746baeeb6c0220219ac760ecc0b168c5c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: authorize and apply timestamp updates through explicit handles"

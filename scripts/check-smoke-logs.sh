@@ -159,7 +159,7 @@ for signature_pattern in \
 done
 
 assert_order "serial boot log" "${SERIAL_LOG}" \
-    "init" "exec: loaded '/init' from initfs" \
+    "initial image" "exec: boot-selected initial image" \
     "capability.service" "exec: loaded '/system/services/capability.service'" \
     "service-manager.service" "exec: loaded '/system/services/service-manager.service'" \
     "drivers.service" "exec: loaded '/system/services/drivers.service'" \

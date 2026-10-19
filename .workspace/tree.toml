@@ -13983,3 +13983,11 @@ path = "services"
 hash = "c6a185938cd77da5ce88ea3250fefd318258e1dd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: preserve signed ext4 epochs and nanoseconds in stat replies"
+
+[[entries]]
+date = "2026-10-19T09:54:28.708825819+09:00"
+snapshot = "bfa7104b084f426b67ed086a"
+path = "services"
+hash = "893605c006a8781f35d599fbc3655d96d68c2550"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "filesystem: validate signed timestamp updates before modifying inodes"

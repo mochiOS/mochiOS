@@ -13951,3 +13951,11 @@ path = "services"
 hash = "5cc93687ad60613ea352b42860dfe0efc721fa6d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: translate newlib IO errno before service wire replies"
+
+[[entries]]
+date = "2026-10-19T09:25:28.332770831+09:00"
+snapshot = "520312216b7813d3120dda86"
+path = "build"
+hash = "b45ef66b0fa43054cd92ab815414d83cc0f9207f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: track boot-module packer as initfs input"

@@ -13959,3 +13959,11 @@ path = "build"
 hash = "b45ef66b0fa43054cd92ab815414d83cc0f9207f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: track boot-module packer as initfs input"
+
+[[entries]]
+date = "2026-10-19T09:30:51.489707193+09:00"
+snapshot = "85657aa6e79cefcb89cbba33"
+path = "services"
+hash = "a25f5093d7a0d8a5f6bb0155a8fd20515ab679cc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: verify kernel bootstrap byte selection and no path fallback"

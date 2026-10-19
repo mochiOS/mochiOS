@@ -13943,3 +13943,11 @@ path = "applications/binder"
 hash = "db882771efaf4f7a416f513d5882a092340a3a74"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: record shared net protocol patch in lockfile"
+
+[[entries]]
+date = "2026-10-19T09:20:10.971333963+09:00"
+snapshot = "baeae162d208dc3d901ee34e"
+path = "services"
+hash = "5cc93687ad60613ea352b42860dfe0efc721fa6d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: translate newlib IO errno before service wire replies"

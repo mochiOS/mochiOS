@@ -780,7 +780,7 @@ while ((SECONDS < DEADLINE)); do
     if log_has "cext: loaded bundle disk" \
         && log_has "filesystem.service: native System mounted at LBA " \
         && log_has "Kernel initialization complete. Entering idle loop" \
-        && log_has "exec: loaded '/init' from initfs" \
+        && log_has "exec: boot-selected initial image" \
         && log_has "exec: loaded '/system/services/logger.service'" \
         && log_has "exec: loaded '/system/services/capability.service'" \
         && log_has "exec: loaded '/system/services/service-manager.service'" \

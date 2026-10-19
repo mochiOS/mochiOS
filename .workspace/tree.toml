@@ -13935,3 +13935,11 @@ path = "services"
 hash = "56242349eb646ac3536f283911877e768070d874"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "services: finish native ERANGE retirement while preserving wire policy"
+
+[[entries]]
+date = "2026-10-19T09:17:17.721899349+09:00"
+snapshot = "dfba8cce93f3c9a3e32de6f4"
+path = "applications/binder"
+hash = "db882771efaf4f7a416f513d5882a092340a3a74"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: record shared net protocol patch in lockfile"

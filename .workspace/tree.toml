@@ -13967,3 +13967,11 @@ path = "services"
 hash = "a25f5093d7a0d8a5f6bb0155a8fd20515ab679cc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: verify kernel bootstrap byte selection and no path fallback"
+
+[[entries]]
+date = "2026-10-19T09:36:23.369214094+09:00"
+snapshot = "d59325f584716f6dae75ce0a"
+path = "services"
+hash = "56b58395241151b927071065e88a0c744b87df9d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: test exec and fork authorization errno boundaries"

@@ -16,11 +16,21 @@ else
 fi
 state=$image.state.json
 mkdir -p "$(dirname "$image")"
-if [[ -f $image && -f $state && $(stat -c %s "$image") -eq $((size * 1024 * 1024)) ]]; then
+image_matches_size() {
+    if [[ $kind == initfs ]]; then
+        perl "$(dirname "$0")/pack-boot-module.pl" check "$image" "$((size * 1024 * 1024))"
+    else
+        [[ $(stat -c %s "$image") -eq $((size * 1024 * 1024)) ]]
+    fi
+}
+if [[ -f $image && -f $state ]] && image_matches_size; then
     python3 "$(dirname "$0")/sync-ext2.py" sync "$stage" "$image" "$state"
 else
     temporary=$image.new; rm -f "$temporary"; truncate -s "${size}M" "$temporary"
     fakeroot -- sh -c 'stage=$1; image=$2; block=$3; chown -R 0:0 "$stage"; exec mke2fs -q -t ext2 -b "$block" -d "$stage" -F "$image"' mmake-ext2 "$stage" "$temporary" "$block"
     mv "$temporary" "$image"
     python3 "$(dirname "$0")/sync-ext2.py" record "$stage" "$image" "$state"
+fi
+if [[ $kind == initfs ]]; then
+    perl "$(dirname "$0")/pack-boot-module.pl" pack "$image" "$((size * 1024 * 1024))" "$stage/init"
 fi

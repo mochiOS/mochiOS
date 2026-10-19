@@ -13975,3 +13975,11 @@ path = "services"
 hash = "56b58395241151b927071065e88a0c744b87df9d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "posix: test exec and fork authorization errno boundaries"
+
+[[entries]]
+date = "2026-10-19T09:45:46.139821848+09:00"
+snapshot = "cbca89a1bf90649bdca24860"
+path = "services"
+hash = "c6a185938cd77da5ce88ea3250fefd318258e1dd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "posix: preserve signed ext4 epochs and nanoseconds in stat replies"

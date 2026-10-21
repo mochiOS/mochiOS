@@ -14015,3 +14015,11 @@ path = "services"
 hash = "6c5d7274f00841c58720cb8e2e20a7115a2a2e23"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover kernel path registry removal and scoped grant isolation"
+
+[[entries]]
+date = "2026-10-21T19:13:25.294056877+09:00"
+snapshot = "c6686f0fa4ca5db2022c35bf"
+path = "services"
+hash = "9778d225414fe7d70f506aca739d521d54c3dbb8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: report ext4 allocated sectors and preserve adjacent inode fields"

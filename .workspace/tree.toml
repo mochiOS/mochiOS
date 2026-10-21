@@ -14023,3 +14023,11 @@ path = "services"
 hash = "9778d225414fe7d70f506aca739d521d54c3dbb8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: report ext4 allocated sectors and preserve adjacent inode fields"
+
+[[entries]]
+date = "2026-10-21T19:17:15.637353987+09:00"
+snapshot = "cf974609f0a94c3c4da915ba"
+path = "services"
+hash = "67334a7cdc8db77a8dda9bed5651ec0e81a4058a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: inherit setgid directory ownership during atomic creation"

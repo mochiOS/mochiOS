@@ -14063,3 +14063,11 @@ path = "services"
 hash = "27eee4fb0d9a8c8f65d1438cae37aba5d468102c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: notify stopped orphan jobs after session and group changes"
+
+[[entries]]
+date = "2026-10-21T19:46:04.689275685+09:00"
+snapshot = "84028221c13289925945d6b9"
+path = "services"
+hash = "d43d0d96b53881a4f6b55bbb0b627dcd9f774cfd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat: schedule POSIX alarms in the userspace reactor"

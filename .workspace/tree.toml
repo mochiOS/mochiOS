@@ -14071,3 +14071,11 @@ path = "services"
 hash = "d43d0d96b53881a4f6b55bbb0b627dcd9f774cfd"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat: schedule POSIX alarms in the userspace reactor"
+
+[[entries]]
+date = "2026-10-21T19:50:20.192031827+09:00"
+snapshot = "e14cd45a344ccae19eba34fd"
+path = "services"
+hash = "024a9908707c646ca0160713a3874d3f33f341e7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: keep POSIX reactor responsive across clock observation failures"

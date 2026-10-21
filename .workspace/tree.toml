@@ -14111,3 +14111,11 @@ path = "services"
 hash = "ddfe2e025561c30fc8347e8c01a90efa4bf39ae7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(filesystem): refresh retained inode metadata for legacy stat"
+
+[[entries]]
+date = "2026-10-21T20:23:26.829548133+09:00"
+snapshot = "30153642d19a1f009bc455ed"
+path = "services"
+hash = "511d4c6d65e18c4583191b7ecd635fe93bf4651b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): check current COW capture synchronization ordering"

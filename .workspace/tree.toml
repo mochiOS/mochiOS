@@ -14095,3 +14095,11 @@ path = "services"
 hash = "f1efb100147a622b4a06d612e0ac7f39492b9469"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): guard kernel configuration policy boundary"
+
+[[entries]]
+date = "2026-10-21T20:08:35.577457188+09:00"
+snapshot = "6d4b7df99220e623b0b667fe"
+path = "services"
+hash = "63f37fc2f190000d673349b0c3b1afefcdc5e3af"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): clear stale path fault-injection pointers between cases"

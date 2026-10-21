@@ -13999,3 +13999,11 @@ path = "services"
 hash = "2a3eb4f746baeeb6c0220219ac760ecc0b168c5c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "filesystem: authorize and apply timestamp updates through explicit handles"
+
+[[entries]]
+date = "2026-10-21T19:04:02.157307274+09:00"
+snapshot = "4753c3c654e4dc09cc20acd2"
+path = "libraries/libc"
+hash = "06f0067634d17d3ec8d271b4f89df5ac59360e50"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: declare existing upstream cfg selectors for host checks"

@@ -14079,3 +14079,11 @@ path = "services"
 hash = "024a9908707c646ca0160713a3874d3f33f341e7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: keep POSIX reactor responsive across clock observation failures"
+
+[[entries]]
+date = "2026-10-21T19:54:39.706409783+09:00"
+snapshot = "fd16ca64a2ce339ca5399d0c"
+path = "services"
+hash = "db0f9207f14406045f6b9bc17daf21e6b257c3da"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): reject alarm deadlines reserved for infinite waits"

@@ -14087,3 +14087,11 @@ path = "services"
 hash = "db0f9207f14406045f6b9bc17daf21e6b257c3da"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): reject alarm deadlines reserved for infinite waits"
+
+[[entries]]
+date = "2026-10-21T19:56:32.307475103+09:00"
+snapshot = "b3c33fdb1fd755c6ffed42ac"
+path = "services"
+hash = "f1efb100147a622b4a06d612e0ac7f39492b9469"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): guard kernel configuration policy boundary"

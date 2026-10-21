@@ -14031,3 +14031,11 @@ path = "services"
 hash = "67334a7cdc8db77a8dda9bed5651ec0e81a4058a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: inherit setgid directory ownership during atomic creation"
+
+[[entries]]
+date = "2026-10-21T19:22:13.576030700+09:00"
+snapshot = "1bc5b5dcd0fe994cc7f32bdf"
+path = "services"
+hash = "fdaad3794a2ceec4f7f6e62f00bb0a42bcc76fd2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: revoke set-ID bits before delegated file data writes"

@@ -14039,3 +14039,11 @@ path = "services"
 hash = "fdaad3794a2ceec4f7f6e62f00bb0a42bcc76fd2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix: revoke set-ID bits before delegated file data writes"
+
+[[entries]]
+date = "2026-10-21T19:25:30.136631650+09:00"
+snapshot = "e3f427b7af6b6cd1625fd5f9"
+path = "services"
+hash = "ab429a9d0a4b9fcf22d496aa24af805848b02772"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover cursor-free exec image authority and denied handle cleanup"

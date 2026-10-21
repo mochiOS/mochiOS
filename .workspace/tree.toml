@@ -14055,3 +14055,11 @@ path = "services"
 hash = "2dc86fd753a17d7157f61ed68875fed9772e2159"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover reentrant signal masks and NODEFER header ABI"
+
+[[entries]]
+date = "2026-10-21T19:36:53.737616044+09:00"
+snapshot = "dabe49f67cf83c27ea327e16"
+path = "services"
+hash = "27eee4fb0d9a8c8f65d1438cae37aba5d468102c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix: notify stopped orphan jobs after session and group changes"

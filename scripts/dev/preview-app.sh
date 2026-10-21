@@ -6,14 +6,26 @@ root=$(cd "$script_dir/../.." && pwd)
 app=${1:-}
 mode=${2:-run}
 shift 2 || true
-cargo_patches=("$@")
+cargo_patches=()
+while (($#)); do
+    # Host previews use the installed Rust standard library. OS build-std
+    # patches point at a generated sysroot that need not exist on the host.
+    if [[ $1 == --config && $# -ge 2 && $2 == patch.crates-io.rustc-std-workspace-*.path=* ]]; then
+        shift 2
+        continue
+    fi
+    cargo_patches+=("$1")
+    shift
+done
 
 if [[ $app == check || $app == test ]]; then
     if [[ $app == test ]]; then
-        cargo test --offline --manifest-path "$root/libraries/viewkit/Cargo.toml" \
-            "${cargo_patches[@]}" --lib
+        python3 "$script_dir/prepare-preview.py" "$root"
+        env CARGO_TARGET_DIR="$root/out/preview/target" CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL=0 \
+            cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
+            "${cargo_patches[@]}" -p viewkit --lib
     fi
-    for name in files settings binder appstore edit; do
+    for name in files settings binder appstore edit terminal system-monitor viewer; do
         "$0" "$name" "--$app" "${cargo_patches[@]}"
     done
     exit 0
@@ -25,33 +37,16 @@ case "$app" in
     binder) source_dir="$root/applications/binder" ;;
     appstore) source_dir="$root/applications/appstore" ;;
     edit) source_dir="$root/applications/edit" ;;
-    *) echo "usage: $0 <files|settings|binder|appstore|edit|check|test>" >&2; exit 2 ;;
+    terminal) source_dir="$root/applications/terminal" ;;
+    system-monitor) source_dir="$root/applications/system-monitor" ;;
+    viewer) source_dir="$root/applications/viewer" ;;
+    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|check|test>" >&2; exit 2 ;;
 esac
 
-# Cargo resolves host-only dependencies into Cargo.lock. Keep that lockfile in
-# the ignored preview tree so a preview never rewrites the OS build's lockfile.
+# Source manifests/lockfiles remain untouched; host dependencies share one
+# isolated workspace and a single build cache.
+python3 "$script_dir/prepare-preview.py" "$root"
 preview_dir="$root/out/preview/applications/${source_dir##*/}"
-mkdir -p "$preview_dir"
-cp "$source_dir/Cargo.toml" "$source_dir/Cargo.lock" "$preview_dir/"
-for entry in src resources appicon.svg appicon.png manifest.toml; do
-    if [[ -e "$source_dir/$entry" && ! -e "$preview_dir/$entry" ]]; then
-        ln -s "$source_dir/$entry" "$preview_dir/$entry"
-    fi
-done
-if [[ $app == binder ]]; then
-    mkdir -p "$preview_dir/crates"
-    cp -a "$source_dir/crates/." "$preview_dir/crates/"
-    # Binder embeds the shared cursor SVG via ../../resources.
-    if [[ ! -e "$root/out/preview/resources" ]]; then
-        ln -s "$root/resources" "$root/out/preview/resources"
-    fi
-fi
-if [[ $app == appstore ]]; then
-    mkdir -p "$root/out/preview/libraries"
-    if [[ ! -e "$root/out/preview/libraries/viewkit" ]]; then
-        ln -s "$root/libraries/viewkit" "$root/out/preview/libraries/viewkit"
-    fi
-fi
 manifest="$preview_dir/Cargo.toml"
 
 command -v cargo >/dev/null || { echo "cargo is required" >&2; exit 1; }
@@ -74,35 +69,14 @@ if [[ $mode == run ]]; then
     export MOCHIOS_PREVIEW_ROOT="$preview_root"
 fi
 export CARGO_TARGET_DIR="$root/out/preview/target"
+# Host UI builds do not need multi-gigabyte DWARF/incremental caches. Callers
+# can opt back into either when debugging the renderer.
+export CARGO_PROFILE_DEV_DEBUG="${CARGO_PROFILE_DEV_DEBUG:-0}"
+export CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-0}"
 export MOCHIOS_VERSION="$(sed -n 's/^release = "\([^"]*\)"/\1/p' "$root/version.toml" | head -n 1)"
 export MOCHIOS_BUILD_NUMBER="$(sed -n 's/^build = \([0-9]*\)/\1/p' "$root/version.toml" | head -n 1)"
 export MNU_VERSION="${MNU_VERSION:-preview}"
 export MBOOT_VERSION="${MBOOT_VERSION:-preview}"
 
-case "$app" in
-    files)
-        exec cargo "$cargo_command" --offline --manifest-path "$manifest" \
-            "${cargo_patches[@]}" \
-            --bin files
-        ;;
-    settings)
-        exec cargo "$cargo_command" --offline --manifest-path "$manifest" \
-            "${cargo_patches[@]}" \
-            --bin settings
-        ;;
-    binder)
-        exec cargo "$cargo_command" --offline --manifest-path "$manifest" \
-            "${cargo_patches[@]}" \
-            --bin binder
-        ;;
-    appstore)
-        exec cargo "$cargo_command" --offline --manifest-path "$manifest" \
-            "${cargo_patches[@]}" \
-            --bin appstore
-        ;;
-    edit)
-        exec cargo "$cargo_command" --offline --manifest-path "$manifest" \
-            "${cargo_patches[@]}" \
-            --bin edit
-        ;;
-esac
+exec cargo "$cargo_command" --offline --manifest-path "$manifest" \
+    "${cargo_patches[@]}" --bin "$app"

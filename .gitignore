@@ -2,6 +2,7 @@
 .repo/
 .mmake/
 .config
+.codex/
 memo/
 out/
 /mdev.toml

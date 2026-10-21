@@ -82,6 +82,45 @@ The bootable raw disk image is written to `out/artifacts/disk.img`.
 
 ## Preview the interface without booting
 
+On Linux, run the desktop and standard applications together in one resizable
+host window:
+
+```sh
+mmake ui
+```
+
+This builds Binder, Files, Settings, Edit, Terminal, AppStore, System Monitor,
+and Viewer for Linux. The applications run as separate processes; their real
+ViewKit display lists and input events are transported into Binder's existing
+window layer. Moving, resizing, minimizing, restoring, switching applications,
+text input, scrolling, context menus, and application dialogs use the existing
+shell and application implementations. The normal Linux ViewKit renderer draws
+the complete desktop. No OS image or VM is required.
+
+The session has a disposable home, application catalogue, settings and text
+clipboard under `out/preview/session.*`. Closing the desktop stops its child
+applications and removes this state. Volume, network, battery and power actions
+use preview data and never change the Linux host's system configuration. Power
+actions produce preview notifications. A sample notification is available for
+notification-center checks.
+
+This is a UI development environment, not a replacement for mochiOS services:
+Capability enforcement, the native compositor/display path, user management,
+package installation, file association/open/save service integrations, and
+Terminal's mochiOS shell session still require the OS. An app's existing
+unsupported host operations remain unavailable.
+
+To compile this environment without opening any windows:
+
+```sh
+mmake ui-check
+```
+
+Host previews share an isolated Cargo workspace and lockfile under
+`out/preview`; source lockfiles are left intact. Debug information and
+incremental compilation are disabled by default to keep build output small.
+Set `CARGO_PROFILE_DEV_DEBUG` or `CARGO_INCREMENTAL` to override this.
+
 On a Linux desktop, open the standard apps with the host ViewKit backend:
 
 ```sh

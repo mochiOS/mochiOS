@@ -14103,3 +14103,11 @@ path = "services"
 hash = "63f37fc2f190000d673349b0c3b1afefcdc5e3af"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): clear stale path fault-injection pointers between cases"
+
+[[entries]]
+date = "2026-10-21T20:11:40.182187061+09:00"
+snapshot = "d00cc72ba5c8c82366cb4c87"
+path = "services"
+hash = "ddfe2e025561c30fc8347e8c01a90efa4bf39ae7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(filesystem): refresh retained inode metadata for legacy stat"

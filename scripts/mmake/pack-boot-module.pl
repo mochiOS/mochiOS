@@ -7,12 +7,12 @@ use File::Temp qw(tempfile);
 # The generated ext2 image reserves its first 1024 bytes for boot code. Use
 # only the first 64 bytes for the generic mnu boot-module range descriptor;
 # append selected configuration, module index and ELF without changing filesystem blocks.
-my ($operation, $image, $resource_bytes, $executable, $configuration, $extension_stage) = @ARGV;
-die "usage: $0 check <image> <resource-bytes> | pack <image> <resource-bytes> <ELF> [<kernel-config>|-] [<extension-stage>]\n"
+my ($operation, $image, $resource_bytes, $executable, $configuration, $extension_stage, $platform_data) = @ARGV;
+die "usage: $0 check <image> <resource-bytes> | pack <image> <resource-bytes> <ELF> [<kernel-config>|-] [<extension-stage>] [<platform-data>|-]\n"
     unless defined($operation) && defined($resource_bytes)
         && $resource_bytes =~ /\A[1-9][0-9]*\z/
         && (($operation eq 'check' && @ARGV == 3)
-            || ($operation eq 'pack' && @ARGV >= 4 && @ARGV <= 6));
+            || ($operation eq 'pack' && @ARGV >= 4 && @ARGV <= 7));
 
 open my $input, '<:raw', $image or die "open $image: $!\n";
 my @image_stat = stat($input);
@@ -65,11 +65,21 @@ if (defined($extension_stage)) {
     close($modules) or die "native boot module selection failed\n";
 }
 my $module_length = length($module_bytes);
+my $platform_bytes = '';
+if (defined($platform_data) && $platform_data ne '-') {
+    open my $platform, '<:raw', $platform_data or die "open platform data $platform_data: $!\n";
+    my $length = -s $platform;
+    die "platform data must be at most 64 KiB: $platform_data\n"
+        unless defined($length) && $length <= 64 * 1024;
+    read($platform, $platform_bytes, $length) == $length or die "short platform data: $platform_data\n";
+    close($platform) or die "close platform data: $!\n";
+}
+my $platform_length = length($platform_bytes);
 my ($output, $temporary) = tempfile('boot-module-XXXXXX', DIR => dirname($image), UNLINK => 1);
 binmode($output);
-my $header = pack('a8 V V Q< Q< Q< Q< Q<', "MNUBMOD\0", 3, 64,
-    $resource_bytes, $resource_bytes + $configuration_length + $module_length, $image_bytes,
-    $configuration_length, $module_length) . "\0" x 8;
+my $header = pack('a8 V V Q< Q< Q< Q< Q< V V', "MNUBMOD\0", 4, 64,
+    $resource_bytes, $resource_bytes + $configuration_length + $module_length + $platform_length, $image_bytes,
+    $configuration_length, $module_length, $platform_length, 0);
 print {$output} $header or die "write boot descriptor: $!\n";
 sub copy_exact {
     my ($source, $destination, $remaining) = @_;
@@ -83,6 +93,7 @@ sub copy_exact {
 copy_exact($input, $output, $resource_bytes - 64);
 print {$output} $configuration_bytes or die "write kernel configuration: $!\n";
 print {$output} $module_bytes or die "write selected native modules: $!\n";
+print {$output} $platform_bytes or die "write selected platform data: $!\n";
 copy_exact($elf, $output, $image_bytes);
 close($input) or die "close $image: $!\n";
 close($elf) or die "close $executable: $!\n";

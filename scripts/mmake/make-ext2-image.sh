@@ -35,5 +35,8 @@ if [[ $kind == initfs ]]; then
     options=(-)
     [[ ! -f $stage/config/kernel.conf ]] || options=("$stage/config/kernel.conf")
     options+=("$stage")
+    platform_data=-
+    [[ ! -f $stage/install/rootfs.sha256 ]] || platform_data=$stage/install/rootfs.sha256
+    options+=("$platform_data")
     perl "$(dirname "$0")/pack-boot-module.pl" pack "$image" "$((size * 1024 * 1024))" "$stage/init" "${options[@]}"
 fi

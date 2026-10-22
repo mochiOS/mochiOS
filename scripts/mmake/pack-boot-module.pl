@@ -6,13 +6,13 @@ use File::Temp qw(tempfile);
 
 # The generated ext2 image reserves its first 1024 bytes for boot code. Use
 # only the first 64 bytes for the generic mnu boot-module range descriptor;
-# append the selected ELF without changing any filesystem block or pathname.
-my ($operation, $image, $resource_bytes, $executable) = @ARGV;
-die "usage: $0 check <image> <resource-bytes> | pack <image> <resource-bytes> <ELF>\n"
+# append selected configuration bytes and ELF without changing filesystem blocks.
+my ($operation, $image, $resource_bytes, $executable, $configuration) = @ARGV;
+die "usage: $0 check <image> <resource-bytes> | pack <image> <resource-bytes> <ELF> [<kernel-config>]\n"
     unless defined($operation) && defined($resource_bytes)
         && $resource_bytes =~ /\A[1-9][0-9]*\z/
         && (($operation eq 'check' && @ARGV == 3)
-            || ($operation eq 'pack' && @ARGV == 4));
+            || ($operation eq 'pack' && (@ARGV == 4 || @ARGV == 5)));
 
 open my $input, '<:raw', $image or die "open $image: $!\n";
 my @image_stat = stat($input);
@@ -40,10 +40,22 @@ die "initial image must be a little-endian ELF64: $executable\n"
     unless substr($ident, 0, 7) eq "\x7fELF\x02\x01\x01";
 seek($elf, 0, 0) or die "seek initial ELF: $!\n";
 
+my $configuration_bytes = '';
+if (defined($configuration)) {
+    open my $options, '<:raw', $configuration or die "open kernel configuration $configuration: $!\n";
+    my $length = -s $options;
+    die "kernel configuration must be at most 64 KiB: $configuration\n"
+        unless defined($length) && $length <= 64 * 1024;
+    read($options, $configuration_bytes, $length) == $length
+        or die "short kernel configuration: $configuration\n";
+    close($options) or die "close kernel configuration: $!\n";
+}
+my $configuration_length = length($configuration_bytes);
 my ($output, $temporary) = tempfile('boot-module-XXXXXX', DIR => dirname($image), UNLINK => 1);
 binmode($output);
-my $header = pack('a8 V V Q< Q< Q<', "MNUBMOD\0", 1, 64,
-    $resource_bytes, $resource_bytes, $image_bytes) . "\0" x 24;
+my $header = pack('a8 V V Q< Q< Q< Q<', "MNUBMOD\0", 2, 64,
+    $resource_bytes, $resource_bytes + $configuration_length, $image_bytes,
+    $configuration_length) . "\0" x 16;
 print {$output} $header or die "write boot descriptor: $!\n";
 sub copy_exact {
     my ($source, $destination, $remaining) = @_;
@@ -55,6 +67,7 @@ sub copy_exact {
     }
 }
 copy_exact($input, $output, $resource_bytes - 64);
+print {$output} $configuration_bytes or die "write kernel configuration: $!\n";
 copy_exact($elf, $output, $image_bytes);
 close($input) or die "close $image: $!\n";
 close($elf) or die "close $executable: $!\n";

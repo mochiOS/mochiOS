@@ -1,0 +1,21 @@
+# Development-tree overrides only. Keep user/Cargo.toml relocatable so the
+# standalone SDK build can use its own explicit source overrides.
+[patch.crates-io]
+libc = { path = "libraries/libc" }
+mnu-abi = { path = "core/crates/abi" }
+
+[patch."https://github.com/mochiOS/mnu"]
+mnu-abi = { path = "core/crates/abi" }
+
+[patch."https://github.com/mochiOS/mBoot"]
+mboot-protocol = { path = "services/mboot-protocol" }
+
+[patch."https://github.com/mochiOS/syscalls"]
+mochi-user-platform = { path = "user/crates/platform" }
+mochi-user-runtime = { path = "user/crates/runtime" }
+mochi-user-syscall = { path = "user/crates/syscall" }
+mochios-capability-protocol = { path = "user/crates/capability-protocol" }
+mochios-filesystem-protocol = { path = "user/crates/filesystem-protocol" }
+mochios-workspace-protocol = { path = "user/crates/workspace-protocol" }
+mochios-posix-protocol = { path = "user/crates/posix-protocol" }
+mochios-posix-client = { path = "user/crates/posix-client" }

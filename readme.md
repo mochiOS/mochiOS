@@ -97,6 +97,37 @@ text input, scrolling, context menus, and application dialogs use the existing
 shell and application implementations. The normal Linux ViewKit renderer draws
 the complete desktop. No OS image or VM is required.
 
+While the desktop is focused, the pointer is confined to its host window.
+Press Ctrl+Alt+G to release it; click inside the desktop to capture it again.
+Switching focus away also releases the pointer. The host window title displays
+this shortcut.
+
+The logo opens the OS menu. The battery/network area opens Control Center;
+click outside or press Esc to close either. Control Center uses application
+controls declared in manifests and published through AppCore. ViewKit Test
+provides example cards for checking this path in the preview. Right-click the
+controls to edit their visibility/order. Brightness control is currently
+unavailable; volume uses the session's preview state.
+
+The VK Symbols notification bell to the right of A/あ opens Notification Center;
+the date/time area is reserved for the calendar. Notifications are grouped by
+application in delivery order, with expandable groups, individual dismissal,
+Clear All, and a slide from the right edge. The panel uses ViewKit's shared
+omochi surfaces and controls. AppCore's `UserNotification::deliver` also works
+inside this Linux preview; ViewKit Test's Send Notification button exercises
+that path. Notification history lasts for the preview session.
+
+ViewKit Test includes an omochi control gallery for hover, press, input, menu,
+and keyboard focus behavior. The shared component rules are documented in
+[`libraries/viewkit/docs/omochi.md`](libraries/viewkit/docs/omochi.md).
+
+The preview runs mochiOS's own IME with the same input.service conversion engine
+and `ja.mime` dictionary. Ctrl+Space or clicking A/あ in the status area switches Japanese input, Space converts,
+and Enter confirms. Candidate selection uses the existing ViewKit UI. Input
+mode is shared across applications and the status area. The first `mmake ui`
+fetches the dictionary through the existing SHA-256-verified build target;
+subsequent launches reuse it. The IME process stops with the desktop.
+
 The session has a disposable home, application catalogue, settings and text
 clipboard under `out/preview/session.*`. Closing the desktop stops its child
 applications and removes this state. Volume, network, battery and power actions

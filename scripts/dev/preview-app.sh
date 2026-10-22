@@ -39,6 +39,8 @@ case "$app" in
     edit) source_dir="$root/applications/edit" ;;
     terminal) source_dir="$root/applications/terminal" ;;
     system-monitor) source_dir="$root/applications/system-monitor" ;;
+    ime) source_dir="$root/tools/desktop-ime" ;;
+    test-app) source_dir="$root/applications/test.app" ;;
     viewer) source_dir="$root/applications/viewer" ;;
     *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|check|test>" >&2; exit 2 ;;
 esac
@@ -47,6 +49,7 @@ esac
 # isolated workspace and a single build cache.
 python3 "$script_dir/prepare-preview.py" "$root"
 preview_dir="$root/out/preview/applications/${source_dir##*/}"
+[[ $app != ime ]] || preview_dir="$root/out/preview/tools/desktop-ime"
 manifest="$preview_dir/Cargo.toml"
 
 command -v cargo >/dev/null || { echo "cargo is required" >&2; exit 1; }
@@ -68,6 +71,9 @@ if [[ $mode == run ]]; then
     mkdir -p "$preview_root"/{Desktop,Documents,Downloads,Movies,Music,Pictures}
     export MOCHIOS_PREVIEW_ROOT="$preview_root"
 fi
+preview_binary=$app
+[[ $app != test-app ]] || preview_binary=test_app
+[[ $app != ime ]] || preview_binary=mochios-preview-ime
 export CARGO_TARGET_DIR="$root/out/preview/target"
 # Host UI builds do not need multi-gigabyte DWARF/incremental caches. Callers
 # can opt back into either when debugging the renderer.
@@ -79,4 +85,4 @@ export MNU_VERSION="${MNU_VERSION:-preview}"
 export MBOOT_VERSION="${MBOOT_VERSION:-preview}"
 
 exec cargo "$cargo_command" --offline --manifest-path "$manifest" \
-    "${cargo_patches[@]}" --bin "$app"
+    "${cargo_patches[@]}" --bin "$preview_binary"

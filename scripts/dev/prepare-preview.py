@@ -8,7 +8,7 @@ import sys
 
 root = pathlib.Path(sys.argv[1]).resolve()
 preview = root / "out/preview"
-applications = ("binder", "file", "settings", "edit", "terminal", "appstore", "system-monitor", "viewer")
+applications = ("binder", "file", "settings", "edit", "terminal", "appstore", "system-monitor", "viewer", "test.app")
 
 
 def link(source, target):
@@ -44,10 +44,26 @@ for name in applications:
         shutil.copytree(source / "crates/binder_protocol", destination / "crates/binder_protocol", dirs_exist_ok=True)
         members.append('"applications/binder/crates/binder_protocol"')
 
+# The host input adapter shares input.service's library, not a separate IME implementation.
+ime_source = root / "tools/desktop-ime"
+ime_destination = preview / "tools/desktop-ime"
+ime_destination.mkdir(parents=True, exist_ok=True)
+ime_manifest = (ime_source / "Cargo.toml").read_text().replace("[workspace]\n", "")
+ime_manifest = re.sub(
+    r'(\bpath\s*=\s*")(\.\./[^"]+)(")',
+    lambda match: match[1] + (ime_source / match[2]).resolve().as_posix() + match[3],
+    ime_manifest,
+)
+write_if_changed(ime_destination / "Cargo.toml", ime_manifest)
+link(ime_source / "src", ime_destination / "src")
+members.append('"tools/desktop-ime"')
+
 link(root / "resources", preview / "resources")
 write_if_changed(preview / "Cargo.toml",
     '[workspace]\nresolver = "2"\nmembers = [\n    ' + ",\n    ".join(members)
     + '\n]\n\n[profile.dev]\npanic = "abort"\ndebug = 0\nincremental = false\n'
+    + '\n[profile.dev.package.viewkit]\nopt-level = 2\n'
+    + '\n[profile.dev.package.binder]\nopt-level = 1\n'
 )
 if not (preview / "Cargo.lock").exists():
     shutil.copyfile(root / "applications/binder/Cargo.lock", preview / "Cargo.lock")

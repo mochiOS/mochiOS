@@ -14119,3 +14119,11 @@ path = "services"
 hash = "511d4c6d65e18c4583191b7ecd635fe93bf4651b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): check current COW capture synchronization ordering"
+
+[[entries]]
+date = "2026-10-22T17:24:20.094038700+09:00"
+snapshot = "62ee504022f236cc45cf77e9"
+path = "services"
+hash = "a9d7cad337183c4565503d12db90848a2b3b167f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Authorize PTY factory creation through attached master handles"

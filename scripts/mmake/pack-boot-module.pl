@@ -6,13 +6,13 @@ use File::Temp qw(tempfile);
 
 # The generated ext2 image reserves its first 1024 bytes for boot code. Use
 # only the first 64 bytes for the generic mnu boot-module range descriptor;
-# append selected configuration bytes and ELF without changing filesystem blocks.
-my ($operation, $image, $resource_bytes, $executable, $configuration) = @ARGV;
-die "usage: $0 check <image> <resource-bytes> | pack <image> <resource-bytes> <ELF> [<kernel-config>]\n"
+# append selected configuration, module index and ELF without changing filesystem blocks.
+my ($operation, $image, $resource_bytes, $executable, $configuration, $extension_stage) = @ARGV;
+die "usage: $0 check <image> <resource-bytes> | pack <image> <resource-bytes> <ELF> [<kernel-config>|-] [<extension-stage>]\n"
     unless defined($operation) && defined($resource_bytes)
         && $resource_bytes =~ /\A[1-9][0-9]*\z/
         && (($operation eq 'check' && @ARGV == 3)
-            || ($operation eq 'pack' && (@ARGV == 4 || @ARGV == 5)));
+            || ($operation eq 'pack' && @ARGV >= 4 && @ARGV <= 6));
 
 open my $input, '<:raw', $image or die "open $image: $!\n";
 my @image_stat = stat($input);
@@ -41,7 +41,7 @@ die "initial image must be a little-endian ELF64: $executable\n"
 seek($elf, 0, 0) or die "seek initial ELF: $!\n";
 
 my $configuration_bytes = '';
-if (defined($configuration)) {
+if (defined($configuration) && $configuration ne '-') {
     open my $options, '<:raw', $configuration or die "open kernel configuration $configuration: $!\n";
     my $length = -s $options;
     die "kernel configuration must be at most 64 KiB: $configuration\n"
@@ -51,11 +51,25 @@ if (defined($configuration)) {
     close($options) or die "close kernel configuration: $!\n";
 }
 my $configuration_length = length($configuration_bytes);
+my $module_bytes = '';
+if (defined($extension_stage)) {
+    open my $modules, '-|', 'python3', dirname($0) . '/pack-boot-extensions.py', $extension_stage
+        or die "start boot module selector: $!\n";
+    while (1) {
+        my $read = read($modules, my $chunk, 1048576);
+        die "read selected boot modules: $!\n" unless defined($read);
+        last unless $read;
+        $module_bytes .= $chunk;
+        die "selected native modules exceed 64 MiB\n" if length($module_bytes) > 64 * 1024 * 1024;
+    }
+    close($modules) or die "native boot module selection failed\n";
+}
+my $module_length = length($module_bytes);
 my ($output, $temporary) = tempfile('boot-module-XXXXXX', DIR => dirname($image), UNLINK => 1);
 binmode($output);
-my $header = pack('a8 V V Q< Q< Q< Q<', "MNUBMOD\0", 2, 64,
-    $resource_bytes, $resource_bytes + $configuration_length, $image_bytes,
-    $configuration_length) . "\0" x 16;
+my $header = pack('a8 V V Q< Q< Q< Q< Q<', "MNUBMOD\0", 3, 64,
+    $resource_bytes, $resource_bytes + $configuration_length + $module_length, $image_bytes,
+    $configuration_length, $module_length) . "\0" x 8;
 print {$output} $header or die "write boot descriptor: $!\n";
 sub copy_exact {
     my ($source, $destination, $remaining) = @_;
@@ -68,6 +82,7 @@ sub copy_exact {
 }
 copy_exact($input, $output, $resource_bytes - 64);
 print {$output} $configuration_bytes or die "write kernel configuration: $!\n";
+print {$output} $module_bytes or die "write selected native modules: $!\n";
 copy_exact($elf, $output, $image_bytes);
 close($input) or die "close $image: $!\n";
 close($elf) or die "close $executable: $!\n";

@@ -32,7 +32,8 @@ else
     python3 "$(dirname "$0")/sync-ext2.py" record "$stage" "$image" "$state"
 fi
 if [[ $kind == initfs ]]; then
-    options=()
-    [[ ! -f $stage/config/kernel.conf ]] || options+=("$stage/config/kernel.conf")
+    options=(-)
+    [[ ! -f $stage/config/kernel.conf ]] || options=("$stage/config/kernel.conf")
+    options+=("$stage")
     perl "$(dirname "$0")/pack-boot-module.pl" pack "$image" "$((size * 1024 * 1024))" "$stage/init" "${options[@]}"
 fi

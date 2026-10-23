@@ -14271,3 +14271,11 @@ path = "services"
 hash = "2f7b2ce5f33c6a6aa42ce706ff6314738b75f2c8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify async cancellation transitions and native cleanup with blocked signals"
+
+[[entries]]
+date = "2026-10-24T01:57:48.828685610+09:00"
+snapshot = "f8e5b46c4369862b439413f6"
+path = "services"
+hash = "56359d17b724075f5b6f7509276326e1fe49d709"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add service-owned record lock intervals and process exit retirement"

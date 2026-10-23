@@ -14463,3 +14463,11 @@ path = "services"
 hash = "74801d3e9929f0f2b040c1346b13e4c1c8dab462"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Resolve pathname limits under retained authority without opening target data"
+
+[[entries]]
+date = "2026-10-24T07:21:35.515170158+09:00"
+snapshot = "7c51952e3ccb25d7b39871d6"
+path = "services"
+hash = "6f873d110b16f4ced7e7807e13053e9c688264fc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify IO option discovery without errno loss or native query fallback"

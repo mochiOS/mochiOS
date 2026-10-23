@@ -48,7 +48,7 @@ Dock・ステータスバーの描画をログとスクリーンショットで�
 
 `pathconf`・`fpathconf`は現在のnewlibランタイムとSDK libcに定義がありません。
 提供元の実際の制約を問い合わせる設計が必要で、固定値で実装済みとしてはいません。
-また、元のpathname自身が`/`で終わる場合の各操作のnofollow方針、
+また、作成系・hard link sourceなどに残る末尾`/`のエラー方針や、
 walker外の入口で行う長さ検査には別の確認が必要です。167の修正は
 リンク先の内容にある末尾区切りの扱いであり、pathname互換性全体の完了ではありません。
 
@@ -95,3 +95,32 @@ suffixが増えた場合にはその増加を数えず、実際の長さ超過�
 対象79件と全体652ターゲット・3,131件が成功し、失敗は0件でした。
 ログは`out/checks/mochios-path-expansion-169-focused.log`と
 `out/checks/mochios-posix-host-audit-169.log`へ保存しています。
+
+## 参照パス自身の末尾区切り（170）
+
+[POSIXのpathname resolution](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap04.html)
+では、最終リンク自体を返す条件に、pathnameに末尾の区切りがないことが含まれます。
+従来はNOFOLLOW指定だけで最終リンクを残したため、`lstat("dir-link/")`相当の参照や
+`O_NOFOLLOW`付きopenが、ディレクトリへのリンクでもENOTDIRになっていました。
+
+共有walkerの厳密なnofollow指定を変更する代わりに、対象を参照する入口で
+`lookup_symlinks`を使います。stat・readlink・access・chown・set_times、および
+exclusive create以外のopenで、末尾`/`がある場合はディレクトリへ解決します。
+末尾`/`のないNOFOLLOWは従来通りリンク自体を対象にします。
+readlinkの`dir-link/`は解決先がリンクではないためEINVAL、ファイルへのリンクは
+ENOTDIR、欠けたリンク先はENOENTです。対象の取得と操作は従来通り同じprovider処理内で行います。
+
+unlink・renameは最終リンク自体を保持する指定を維持します。これらへ参照用の
+追従処理を適用して、リンク先のディレクトリを削除・移動することはありません。
+mkdir・symlink作成・socket作成・hard link・exclusive createの細かなエラー方針は、
+この変更の完了範囲には含めていません。
+
+`support/trailing_lookup.rs`の実ext4テストで、stat/readlink/openの末尾区切り、
+参照先のaccess判定、最終ディレクトリに不要なsearchを要求しないこと、chown・時刻更新が
+リンク自体の属性を変えないこと、unlink・renameがリンク先を変更しないことを確認します。
+試験用ルートをsearch可能にし、アクセス試験はlink自体のF_OKと参照先のR_OKを区別します。
+カーネル・IPC・SDKへの変更はなく、ホストで検証できるためVMと通常イメージは更新しません。
+
+対象84件と全体652ターゲット・3,136件が成功し、失敗は0件でした。
+ログは`out/checks/mochios-trailing-lookup-170-focused.log`と
+`out/checks/mochios-posix-host-audit-170.log`へ保存しています。

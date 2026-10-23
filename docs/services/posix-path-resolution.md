@@ -48,7 +48,7 @@ Dock・ステータスバーの描画をログとスクリーンショットで�
 
 `pathconf`・`fpathconf`は現在のnewlibランタイムとSDK libcに定義がありません。
 提供元の実際の制約を問い合わせる設計が必要で、固定値で実装済みとしてはいません。
-また、作成系・hard link sourceなどに残る末尾`/`のエラー方針や、
+また、既存リンクを宛先とした作成系・exclusive createの末尾`/`のエラー方針や、
 walker外の入口で行う長さ検査には別の確認が必要です。167の修正は
 リンク先の内容にある末尾区切りの扱いであり、pathname互換性全体の完了ではありません。
 
@@ -124,3 +124,29 @@ mkdir・symlink作成・socket作成・hard link・exclusive createの細かな�
 対象84件と全体652ターゲット・3,136件が成功し、失敗は0件でした。
 ログは`out/checks/mochios-trailing-lookup-170-focused.log`と
 `out/checks/mochios-posix-host-audit-170.log`へ保存しています。
+
+## 末尾区切りを落とした誤作成の防止（171）
+
+名前探索は、mkdirのために末尾`/`のある未存在エントリもMissingとして返します。
+この結果を非ディレクトリ作成やrenameで無条件に使うと、symlink・socket・hard linkが
+`new/`への要求から`new`を作成し、renameも本来失敗すべき宛先へ移動していました。
+
+各操作の同じprovider処理で、Missingとなった宛先の末尾区切りを調べ、inode作成・
+link countや時刻の更新前に拒否します。symlinkとsocketはENOENT、hard linkは
+ENOTDIRです。renameは非ディレクトリの移動ならENOTDIR、ディレクトリならENOENTとし、
+いずれも元のエントリを保持します。事前statや別RPCによる再探索は追加しません。
+mkdirの末尾区切りによる作成と、既存ディレクトリ宛先へのrenameは維持します。
+
+[POSIX rename](https://pubs.opengroup.org/onlinepubs/9799919799/functions/rename.html)は、
+末尾区切り付きの宛先が既存ディレクトリを指さない場合、失敗することを要求します。
+またhard linkのsourceは参照用の末尾区切り解決を使い、ディレクトリリンクをたどった場合も
+ディレクトリのhard link作成は禁止します。区切りなしのsourceリンク自体へのhard linkは維持します。
+
+`support/trailing_creation.rs`の6件中5件が修正前に失敗することを確認しました。
+実ext4で拒否後の宛先不在、元のinodeとlink countの維持、socketのretained・非retained両経路、
+mkdirと既存ディレクトリへのrename、sourceリンク自体へのhard linkを検証します。
+この変更もホストで検証可能な処理のみで、カーネル・IPC・SDK・通常イメージは変更しません。
+
+対象90件と全体652ターゲット・3,142件が成功し、失敗は0件でした。
+ログは`out/checks/mochios-trailing-creation-171-focused.log`と
+`out/checks/mochios-posix-host-audit-171.log`へ保存しています。

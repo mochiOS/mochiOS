@@ -14255,3 +14255,11 @@ path = "services"
 hash = "bc9a6bbe19dbf32d5ebbdc92a5330b1de608b9d3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise explicit pthread attributes through timer callbacks"
+
+[[entries]]
+date = "2026-10-24T01:23:37.376317865+09:00"
+snapshot = "1dd016f177eb1aff67ca4c0d"
+path = "services"
+hash = "6aeefadfae1ba6b7721a571a022f5d2533e8d856"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify cancellation target lifetime through retirement and startup races"

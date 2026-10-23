@@ -14431,3 +14431,11 @@ path = "services"
 hash = "2a9bd7976708a82b02471d801031bcefc09374a8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Resolve trailing separators for nofollow object lookups"
+
+[[entries]]
+date = "2026-10-24T06:43:57.536833866+09:00"
+snapshot = "7ccf52f9441aa370fcf04602"
+path = "services"
+hash = "60bb23b4f99cdb11f0eb085440d96b7b3449a7eb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reject nonexistent trailing-slash targets before namespace mutation"

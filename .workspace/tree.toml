@@ -14391,3 +14391,11 @@ path = "services"
 hash = "ace151aba41ad4d03a1b4e4f585b7962e8dd2a62"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Separate read-only PTY observations from mutation controls"
+
+[[entries]]
+date = "2026-10-24T05:58:49.027667826+09:00"
+snapshot = "b74ba74dbb7ecd943c5f0204"
+path = "services"
+hash = "369ec3444709f13356e2f83f90e7479a17380634"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify concurrency hints through production Rust and C exports"

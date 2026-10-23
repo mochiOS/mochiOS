@@ -14535,3 +14535,11 @@ path = "services"
 hash = "9c03833265a10eec04585ef9ba801cda985d14f0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement userspace FIFO rendezvous and buffered channel state"
+
+[[entries]]
+date = "2026-10-24T08:56:36.458308413+09:00"
+snapshot = "f0530dbebb80fc284e7752ba"
+path = "services"
+hash = "762ef5f5a141a0937b82b7d1e1466f6fab4ca908"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Create and retain FIFO inodes without exposing disk data paths"

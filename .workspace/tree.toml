@@ -14423,3 +14423,11 @@ path = "services"
 hash = "e7101a215831021633a518377262dabdb2f14fe6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Account for unresolved pathname bytes across symlink expansions"
+
+[[entries]]
+date = "2026-10-24T06:38:08.151702068+09:00"
+snapshot = "245d49d4e58c77d3cdaee938"
+path = "services"
+hash = "2a9bd7976708a82b02471d801031bcefc09374a8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Resolve trailing separators for nofollow object lookups"

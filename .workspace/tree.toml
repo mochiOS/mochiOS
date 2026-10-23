@@ -14399,3 +14399,11 @@ path = "services"
 hash = "369ec3444709f13356e2f83f90e7479a17380634"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify concurrency hints through production Rust and C exports"
+
+[[entries]]
+date = "2026-10-24T06:17:25.679593938+09:00"
+snapshot = "42784477ed8cbd276a885d62"
+path = "services"
+hash = "5a29cd5878ccfe989bdab86cdec0bf6b6a753869"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve directory requirements in expanded symlink targets"

@@ -14503,3 +14503,11 @@ path = "services"
 hash = "df7c7c1a07bc5d10a41da770713934b2c8409368"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Resolve terminal configuration through authenticated namespace and owner observation"
+
+[[entries]]
+date = "2026-10-24T08:17:39.562766566+09:00"
+snapshot = "c1cac6abd43fde10c146014d"
+path = "services"
+hash = "09ec5e161934dced2912b687f7d908a7cc1f1090"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove unused status flag relay and reject unknown requests before attachment admission"

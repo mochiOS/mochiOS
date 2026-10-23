@@ -14383,3 +14383,11 @@ path = "services"
 hash = "d020192162dee14a87b569d551fe18c0bc5641d9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify direct special-file flags without a POSIX endpoint"
+
+[[entries]]
+date = "2026-10-24T05:48:08.012680370+09:00"
+snapshot = "4372d49aca599897107a3a58"
+path = "services"
+hash = "ace151aba41ad4d03a1b4e4f585b7962e8dd2a62"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Separate read-only PTY observations from mutation controls"

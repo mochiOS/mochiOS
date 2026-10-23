@@ -14191,3 +14191,11 @@ path = "services"
 hash = "8fe38337bdbd1ee9e5853428a1ff440720dafe6b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Cover sleep cancellation racing native failures and clock errors"
+
+[[entries]]
+date = "2026-10-23T22:52:34.489776741+09:00"
+snapshot = "9a3477832ab8013ef0c3bfda"
+path = "services"
+hash = "a0abcfa3e4c0b0bc39d95f720155b1334a718d38"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add owned service-side process CPU sleep scheduling"

@@ -14263,3 +14263,11 @@ path = "services"
 hash = "6aeefadfae1ba6b7721a571a022f5d2533e8d856"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify cancellation target lifetime through retirement and startup races"
+
+[[entries]]
+date = "2026-10-24T01:38:40.057598360+09:00"
+snapshot = "124690cca5b2fe605667f120"
+path = "services"
+hash = "2f7b2ce5f33c6a6aa42ce706ff6314738b75f2c8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify async cancellation transitions and native cleanup with blocked signals"

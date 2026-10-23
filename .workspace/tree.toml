@@ -14311,3 +14311,11 @@ path = "services"
 hash = "7a5c2c70ec55ad1475308f80a0664bb9d98db7c4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Prepare close-on-exec lock retirement and commit only on observed native image change"
+
+[[entries]]
+date = "2026-10-24T03:02:52.631467318+09:00"
+snapshot = "818006cfc0886b203ee55f65"
+path = "services"
+hash = "93772b5708fe9d69f72c6ef050ff057a445d7fcf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect exec lock preparations to FileHandle IPC and observe image commits before conflicts"

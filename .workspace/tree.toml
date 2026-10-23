@@ -14455,3 +14455,11 @@ path = "services"
 hash = "3bf179a720fe865c26bc6dbf53d04133c52cc4f9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify fpathconf through production adapter and native attenuated Handles"
+
+[[entries]]
+date = "2026-10-24T07:11:03.933841535+09:00"
+snapshot = "2540547c91a9fb1fa973aeb3"
+path = "services"
+hash = "74801d3e9929f0f2b040c1346b13e4c1c8dab462"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Resolve pathname limits under retained authority without opening target data"

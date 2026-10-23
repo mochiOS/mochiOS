@@ -14239,3 +14239,11 @@ path = "services"
 hash = "1c24c5a4a25154b9e270852e506e6a7c35835015"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Deliver timer callback events through authenticated deferred replies"
+
+[[entries]]
+date = "2026-10-24T01:07:35.065669053+09:00"
+snapshot = "e33952e84a9b2b6e5991412a"
+path = "services"
+hash = "0f487251bfc01d67d1a9dec0ffe870e761817a45"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify libc thread callbacks, rollback and process lifetime"

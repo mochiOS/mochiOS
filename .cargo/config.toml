@@ -3,9 +3,17 @@
 [patch.crates-io]
 libc = { path = "libraries/libc" }
 mnu-abi = { path = "core/crates/abi" }
+viewkit = { path = "libraries/viewkit" }
 
 [patch."https://github.com/mochiOS/mnu"]
 mnu-abi = { path = "core/crates/abi" }
+mnu = { path = "core" }
+
+[patch."https://github.com/mochiOS/libc"]
+libc = { path = "libraries/libc" }
+
+[patch."https://github.com/mochiOS/viewkit"]
+viewkit = { path = "libraries/viewkit" }
 
 [patch."https://github.com/mochiOS/mBoot"]
 mboot-protocol = { path = "services/mboot-protocol" }
@@ -19,3 +27,12 @@ mochios-filesystem-protocol = { path = "user/crates/filesystem-protocol" }
 mochios-workspace-protocol = { path = "user/crates/workspace-protocol" }
 mochios-posix-protocol = { path = "user/crates/posix-protocol" }
 mochios-posix-client = { path = "user/crates/posix-client" }
+mochios-user-database = { path = "user/crates/user-database" }
+mochios-user-protocol = { path = "user/crates/user-protocol" }
+mochios-signature-protocol = { path = "user/crates/signature-protocol" }
+mochios-linux-gui-protocol = { path = "user/crates/linux-gui-protocol" }
+mochios-linux-portal-protocol = { path = "user/crates/linux-portal-protocol" }
+mochios-viewkit-gpu-protocol = { path = "user/crates/viewkit-gpu-protocol" }
+mochios-virtio-gpu-protocol = { path = "user/crates/virtio-gpu-protocol" }
+mochios-net-device-protocol = { path = "user/crates/net-device-protocol" }
+mochios-tls-client = { path = "user/crates/tls-client" }

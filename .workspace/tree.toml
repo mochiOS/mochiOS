@@ -14303,3 +14303,11 @@ path = "services"
 hash = "87670c31416d1488f35fe7d9fb64f07d14cca1e7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Continue independent exit observations after status or parent notification errors"
+
+[[entries]]
+date = "2026-10-24T02:43:40.870138834+09:00"
+snapshot = "67bf163803caa6f31b4c92d1"
+path = "services"
+hash = "7a5c2c70ec55ad1475308f80a0664bb9d98db7c4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Prepare close-on-exec lock retirement and commit only on observed native image change"

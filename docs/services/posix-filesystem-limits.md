@@ -49,11 +49,48 @@ Rust std overlayを入力としてビルド済みです。SDK・Rust std・通�
 
 ## 残る実装
 
-`pathconf`・`fpathconf`のlibc exportと名前番号の変換はまだ未実装です。
-次に保持FDのleaseからこの経路へ接続し、pathname版はread権限を不必要に要求するopenへ
+`fpathconf`の先行対応は173で追加しています。`pathconf`のlibc exportと
+pathname版は、read権限を不必要に要求するopenへ
 置き換えず、認証済みcredentialsとroot/base Handleで対象を解決する経路を作ります。
 pipe・terminal・deviceには各提供元の制限と適用可否の処理が必要です。
 
 [POSIXのunistd定義](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/unistd.h.html)
 にある各`_PC_*`への対応、上限不定と未対応の区別、errno維持、C文字列長の扱い、
 実newlibからのKVM試験まで確認するまでは、pathconf互換性を完了扱いにはしません。
+
+## fpathconfの先行対応（173）
+
+`newlib-runtime::file_configuration`でC ABIの`fpathconf`を追加しました。
+FD lookupとlease取得をSTATE内で行い、問い合わせ中はSTATEを保持せず、callback用の
+resource scopeでdescriptionを維持します。再openやPOSIX endpointへのRPCは行いません。
+READ権限があればHandleQuery、write-onlyなら明示されたHandleControlの観測を使い、
+権限エラーが出た後に別経路へfallbackしません。
+
+| newlib selector | 対応 |
+| --- | --- |
+| `_PC_LINK_MAX` | 提供元のlink count上限 |
+| `_PC_NAME_MAX` | 提供元の名前byte上限 |
+| `_PC_PATH_MAX` | 提供元とPOSIX wireのpathname byte上限の小さい方にNUL 1バイトを加算 |
+| `_PC_PIPE_BUF` | pipe read/write端で、既存のatomic write方針`stream::PIPE_BUF`を直接返す |
+
+現在のext4では順に65,535・255・4,097、pipeでは512です。
+SDKヘッダのPATH_MAXに基づくcaller-owned realpath出力バッファの制限は変更していません。
+問い合わせ成功時にerrnoを書き換えません。無効FDはEBADF、未知の名前番号はEINVALです。
+既知でも未対応の項目や種類はENOTSUPとし、未実装を「上限なし」として返しません。
+不正な応答長や取得対象の上限が0である応答はEIOです。
+
+ホストは実ランタイムモジュールを含む6件で、FD lease、selector、応答長・上限、
+エラー伝播、errno、query/control選択、pipeで問い合わせを発生させないことを確認しています。
+全体654ターゲット・3,154件も成功し、失敗0件でした。
+
+`native_fpathconf.c`を独立ビルドの実newlib-runtimeへリンクし、ELF内の実定義も確認しました。
+KVMの4グループは、owner値とアクセスモード・errno、READだけへ権限縮小したHandle、
+pipeと未対応・エラー、unlink/dup後の対象維持・cursor・Handle回収をすべて通過しました。
+ログは`out/checks/mochios-fpathconf-173-native.log`と
+`out/checks/mochios-posix-host-audit-173.log`です。SDK・Rust stdは再生成していません。
+この4項目の先行実装であり、pathconf/fpathconf全項目の完了ではありません。
+
+通常イメージには172でビルドしたfilesystem-serviceを配置し、診断用に置き換えた
+compositor・service-managerは元へ戻しました。BinderのreadyとDock・ステータスバーの描画を
+ログとスクリーンショットで確認しています。既存アプリ全体の再リンク検証ではありません。
+保存先は`out/checks/mochios-normal-173.log`と`mochios-normal-173.png`です。

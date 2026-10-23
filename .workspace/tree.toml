@@ -14159,3 +14159,11 @@ path = "user"
 hash = "5554fab9af6d0ca2a015b41a66b8d10e1f0d5216"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve workspace lockfile ordering after native integration builds"
+
+[[entries]]
+date = "2026-10-23T21:26:24.027273268+09:00"
+snapshot = "719e149a1b1e94d1aabf5454"
+path = "services"
+hash = "bfb1e5d9bc0c26b49e66fa5111611927ebd06360"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify shared file descriptions and descriptor policy across native exec"

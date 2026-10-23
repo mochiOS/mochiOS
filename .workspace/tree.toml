@@ -14231,3 +14231,11 @@ path = "services"
 hash = "148eb768ab72d6536cd75802a7ccc43273316992"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Authenticate thread CPU sleep selection and verify native lifetimes"
+
+[[entries]]
+date = "2026-10-24T00:49:03.413797161+09:00"
+snapshot = "97e63420830ecf3d5bde90dd"
+path = "services"
+hash = "1c24c5a4a25154b9e270852e506e6a7c35835015"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Deliver timer callback events through authenticated deferred replies"

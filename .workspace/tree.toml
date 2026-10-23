@@ -14223,3 +14223,11 @@ path = "services"
 hash = "2de639e18b4628bef7fd4709a71be0db90a0c01a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify private wait lifetimes through handler forks and slot reuse"
+
+[[entries]]
+date = "2026-10-24T00:35:16.371260098+09:00"
+snapshot = "44cf9095b74c637a8c61ab68"
+path = "services"
+hash = "148eb768ab72d6536cd75802a7ccc43273316992"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Authenticate thread CPU sleep selection and verify native lifetimes"

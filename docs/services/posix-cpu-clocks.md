@@ -39,8 +39,8 @@ exec・終了による破棄とは分離しています。資格情報の変更�
 
 ホスト試験は`services/posix/tests/process_clock*.rs`、
 newlib・実IPC・forkの統合試験は`native_process_clock.c`です。
-これらのIDを使うclock_nanosleep、SIGEV_THREAD、POSIX全体への適合は
-未完了です。
+プロセスCPUクロックでの`clock_nanosleep`もランタイムへ接続しています。
+スレッドCPUクロックでの待機、SIGEV_THREAD、POSIX全体への適合は未完了です。
 
 ## CPU時間での待機処理
 
@@ -48,7 +48,9 @@ newlib・実IPC・forkの統合試験は`native_process_clock.c`です。
 観測して完了する待機レジストリを追加しています。
 `OP_PROCESS_CPU_SLEEP`で要求し、`posix-client::begin_process_cpu_sleep`は
 サンプルから決めた絶対期限と専用の完了Handleを返します。
-libcへの接続前であり、`clock_nanosleep`からはまだ利用できません。
+ランタイムの`clock_nanosleep`は、`CLOCK_PROCESS_CPUTIME_ID`と
+`clock_getcpuclockid`で取得したIDについて、この経路を使います。
+絶対・相対時間を扱い、エラー番号を直接返してerrnoを保存します。
 
 登録時に認証済み所有者のイメージと、選択対象の資格情報・生存を確認し、
 相対時間はその時のCPUサンプルから絶対期限へ変換します。ゼロ時間や
@@ -74,5 +76,20 @@ WRITE・CONTROL・DUPLICATE・TRANSFERは委譲しません。
 ホスト試験は`services/posix/tests/support/cpu_sleep.rs`と
 `services/posix/tests/cpu_sleep_ipc.rs`です。
 実IPCとネイティブHandleの診断は`native_cpu_sleep.rs`です。
-libcのキャンセル・fork時の参照解放とnewlibからの呼び出しは、
-ランタイム接続後に実OSで確認する必要があります。
+実newlib経由の待機・シグナル中断・キャンセルと、別スレッドの待機中に
+行うforkは`native_cpu_sleep.c`で確認します。
+
+ランタイムは完了HandleにFD番号を割り当てず、専用の参照を既存の
+FD参照管理へ登録します。待機はシグナル世代とキャンセル通知で保護した
+`HandleWaitManyGuarded`を使い、SA_RESTART付きハンドラーもEINTRにします。
+返却時は参照を解放してからキャンセル処理と残り時間のコピーを行います。
+相対時間の中断だけが残り時間を書き、絶対時間と成功時は変更しません。
+
+forkでは、retire済みで子に残るスレッドのpinがない参照を明示的に
+継承から除外します。子の参照管理からも削除し、継承されなかった数値の
+スロットを閉じません。所有者の残る参照や、由来不明の再委譲不可Handleは
+この除外の対象にしません。
+
+待機呼び出し元自身のシグナルハンドラーからforkする場合は、現在の
+スレッドに残る再委譲不可参照の扱いが未完了です。この場合も含む完全な
+fork適合は、別スレッドの待機を残す試験だけでは証明できません。

@@ -14207,3 +14207,11 @@ path = "services"
 hash = "ab35f239f9f702ec422f62b9430e714a2445bb76"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Deliver process CPU sleep completion through attenuated native streams"
+
+[[entries]]
+date = "2026-10-23T23:33:47.202652163+09:00"
+snapshot = "8b79331bd81a5cb220b6fef3"
+path = "services"
+hash = "de4aab6d72f5d0bd4f7ca9559acacdbe0f5eacce"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify libc CPU sleeps, cancellation cleanup and foreign-thread fork disposal"

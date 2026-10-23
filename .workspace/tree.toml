@@ -14327,3 +14327,11 @@ path = "services"
 hash = "91b4c36874e140ea34cb802108f6d202d86fd1d0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify prepared FD replacement isolation rollback and ownership"
+
+[[entries]]
+date = "2026-10-24T03:52:06.681146097+09:00"
+snapshot = "e826ed477d359cef9adddac7"
+path = "libraries/newlib"
+hash = "9e46329bf97006902aae8bc859b015a6a21ccc97"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use full-width process IDs in mochiOS flock"

@@ -14335,3 +14335,11 @@ path = "libraries/newlib"
 hash = "9e46329bf97006902aae8bc859b015a6a21ccc97"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use full-width process IDs in mochiOS flock"
+
+[[entries]]
+date = "2026-10-24T04:03:08.019688861+09:00"
+snapshot = "275a99faa5c3ab12a3cb4d26"
+path = "services"
+hash = "7511ee6276baf0221cb183f17c9b39fecdfa70de"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add bounded record-lock waits with live deadlock detection"

@@ -1,5 +1,7 @@
 # 名前付きFIFO
 
+最新の実装範囲は末尾の184です。183は共有状態を追加した時点の記録です。
+
 ## 共有状態（183）
 
 `services/posix/src/fifo.rs`に、1つの保持されたFIFO inodeに対応するユーザー空間の
@@ -35,7 +37,7 @@ IDはowner内部の識別子であり、Handleの代わりとなる権限では�
 writer参照を残す方法ではEOFを壊すため、その方法には依存しません。
 FIFO名やinode、openの待ち合わせをカーネルへ持ち込むこともしません。
 
-次の接続は未実装です。
+183終了時点では、次の接続が未実装でした。
 
 - filesystem.serviceでのFIFO inode作成・識別と、権限・umaskを伴うatomicなpathname操作。
 - 保持されたinodeの権限に基づくチャネル取得。自己申告のパスやdev/inode番号だけで
@@ -71,3 +73,52 @@ posix.serviceのmochiOS向けビルドも成功し、
 今回の変更はホストで検証可能な状態処理と共通定数だけです。
 IPC・カーネルABI・SDK・Rust stdを変更せず、VM起動も通常イメージへの配置も行っていません。
 FIFOの実アプリ統合試験や完全なPOSIX互換性を確認したものではありません。
+
+## ext4 namespaceと保持参照（184）
+
+filesystem.serviceに`create_fifo_at`と`open_fifo_at_retained`を追加しました。
+これはサービス内部の操作で、IPC opcodeやlibcの`mkfifo`公開はまだ追加していません。
+前節のチャネル状態との接続、native Provider Handleの応答公開、待機通知も未実装です。
+
+作成は既存socket inodeの排他的な作成処理を共通化して使用します。探索、親のsearch/write
+権限確認、親setgidからのgroup継承、inode作成とlinkを提供元の直列化された操作内で行います。
+事前statと後続createに分割しません。既存の最終symlinkも置換せずEEXISTとし、過長入力と
+未存在宛先の末尾`/`も拒否します。FIFO作成ではopen descriptionを消費しません。
+
+[POSIX mkfifo](https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/functions/mkfifo.html)
+が要求するmode・umaskの関係に対して、filesystem側には認証済みcredentialsと適用済みmodeを
+渡す既存の境界を維持します。umaskの取得と適用は今後追加するPOSIX要求処理の責務です。
+今回の内部APIがumaskを取得するわけではありません。
+
+`open_fifo_at_retained`は指定した読み取りまたは書き込み方向の権限を確認して、解決済みの
+inodeそのものを保持します。POSIX openの待ち合わせは完了させず、ディスクのFileも作りません。
+参照は既存のopen tableとunlink保持処理を使うため、unlink後に同名FIFOを作り直しても
+元の参照は元のinodeを指し続けます。別々の保持参照も同じinodeの更新されたmetadataを読みます。
+現段階では内部open IDを返すだけで、これをクライアントの権限として公開しません。
+
+通常のopen_atからFIFOをディスクFileとして開く経路は、O_TRUNCや参照公開より前にENOTSUPで
+拒否します。直接のtruncateも変更前に拒否します。metadata参照からのread/seekも拒否し、
+pager backingは返しません。これはチャネルへのデータ経路がつながるまでの明示的な未対応です。
+FIFOを空の通常ファイルとして動作させる代用実装にはしません。
+
+filesystem-protocolのNodeStatusにNODE_TYPE_FIFOを追加し、POSIX metadata変換でS_IFIFOを
+復元します。NodeStatus.mode自体は従来どおりpermission bitsです。カーネルのABIや処理に
+FIFOの概念を追加していません。
+
+実ext4を使う試験を8件追加しました。作成後にファイルシステムを再読込した場合の型とmode、
+ゼロのディスクデータ、通常open/truncate拒否、既存エントリの不変、親権限・group継承、
+入力flags/anchorsの拒否、unlink後の保持と同名置換、NOFOLLOW、参照IDの未消費、別volumeの
+identity、root制限、非UTF-8名、読み取り専用volumeを確認します。
+既存socket作成を含むマウントとファイル操作、metadata変換、FIFO状態・確保失敗の試験を合わせ、
+5ターゲット・193件が成功しました。全POSIX試験や実OSからのFIFO利用の確認ではありません。
+
+最初の試験ではNodeStatus.modeに型bitを含める誤った期待と、chown fixtureの誤った要求形式で
+3件が失敗しました。既存の表現に合わせて試験を修正し、成功ログとは区別しています。
+ログは`out/checks/mochios-fifo-namespace-184-focused-before.log`、
+`out/checks/mochios-fifo-namespace-184-focused-second.log`、
+`out/checks/mochios-fifo-namespace-184-related.log`です。
+
+filesystem.serviceとposix.serviceのmochiOS向けビルドも成功しました。
+`out/checks/mochios-fifo-namespace-184-native-build.log`に記録しています。
+実IPCの変更はまだないためVMを起動せず、通常イメージのサービスも変更していません。
+SDK・Rust stdの再生成も行っていません。

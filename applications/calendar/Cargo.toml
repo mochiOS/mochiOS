@@ -1,0 +1,26 @@
+[workspace]
+
+[package]
+name = "calendar"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+appcore = { package = "mochios-appcore", path = "../../tools/devkit/crates/appcore" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+
+[[bin]]
+name = "calendar"
+path = "src/main.rs"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("mochios"))'] }

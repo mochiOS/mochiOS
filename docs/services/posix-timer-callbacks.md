@@ -38,6 +38,9 @@ newlibの`timer_create(..., SIGEV_THREAD, ...)`は、関数・sigvalとpthread�
 属性がNULLなら標準のスタック・ガードを使い、通知スレッドはdetachedにします。
 joinable属性が指定された場合も、通知にjoinの所有者はないためdetachedへ
 正規化します。その他の属性の対応範囲は既存pthread実装に従います。
+`pthread_attr_setinheritsched`で選んだ継承方式もコピーします。
+通常クラスの属性APIはmochiOS向けヘッダーで宣言しますが、これを理由に
+優先度スケジューリング対応の機能マクロを有効にはしません。
 
 受信スレッドはプロセスごとに必要時に1本生成し、キャンセルを無効化し、
 アプリケーションのシグナルをブロックします。受信後にdetached pthreadを

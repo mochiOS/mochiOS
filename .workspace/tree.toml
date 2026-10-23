@@ -14199,3 +14199,11 @@ path = "services"
 hash = "a0abcfa3e4c0b0bc39d95f720155b1334a718d38"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add owned service-side process CPU sleep scheduling"
+
+[[entries]]
+date = "2026-10-23T23:07:42.731164252+09:00"
+snapshot = "931ba152f649e00161c31011"
+path = "services"
+hash = "ab35f239f9f702ec422f62b9430e714a2445bb76"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Deliver process CPU sleep completion through attenuated native streams"

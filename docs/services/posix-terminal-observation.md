@@ -92,8 +92,9 @@ isatty・tcgetattr・tcgetwinsizeと新しいfpathconfが同じ権限処理を�
 ホストfixtureもこの実アダプタをコンパイルします。提供元とは異なる容量と無効化文字を
 返すfixtureで、newlibが定数ではなく実際の応答を採用することを確認します。
 
-この段階では端末pathnameへの`pathconf`は未対応です。filesystemの上限を端末の値として
-返したり、暗黙にREAD権限を要求して端末を開いたりする回避実装は追加していません。
+177では端末pathnameへの`pathconf`は未対応でした。
+179では[登録済みデバイスの情報観測](posix-device-observation.md)を通して接続しました。
+filesystemの上限を端末の値として返したり、暗黙に端末を開いたりせずに取得できます。
 
 全体のホスト検証は655ターゲット・3,169件成功、失敗0件でした。
 実newlibをリンクした`native_terminal_observation.c`では3アクセスモード、

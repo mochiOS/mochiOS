@@ -14135,3 +14135,11 @@ path = "services"
 hash = "9b01e9870c8f5df6a45373eafa3fe33a91318c40"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report retained process CPU usage on readiness failures"
+
+[[entries]]
+date = "2026-10-23T19:45:22.689806352+09:00"
+snapshot = "80ab1b256d45f7ced1b61a75"
+path = "services"
+hash = "8f2b6d557a9265573cbda9be7f9bb22fa26d0583"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise TLS cache invalidation across thread lifecycle and fork"

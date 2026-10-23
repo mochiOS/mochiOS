@@ -107,6 +107,7 @@ for resource in folder.svg file.svg application.svg image.svg archive.svg disk.s
 stage_app "$root/applications/settings" Settings.app settings appicon.png
 stage_app "$root/applications/system-monitor" SystemMonitor.app system-monitor appicon.png
 stage_app "$root/applications/terra" Terra.app terra appicon.png
+stage_app "$root/applications/calculator" Calculator.app calculator appicon.svg
 stage_app "$root/applications/calendar" Calendar.app calendar appicon.svg
 stage_app "$root/applications/viewer" Viewer.app viewer appicon.png
 stage_app "$root/applications/installer" Installer.app installer appicon.svg
@@ -118,6 +119,7 @@ install_manifest "$root/applications/file/manifest.toml" files
 install_manifest "$root/applications/settings/manifest.toml" settings
 install_manifest "$root/applications/system-monitor/manifest.toml" system-monitor
 install_manifest "$root/applications/terra/manifest.toml" terra
+install_manifest "$root/applications/calculator/manifest.toml" calculator
 install_manifest "$root/applications/calendar/manifest.toml" calendar
 install_manifest "$root/applications/viewer/manifest.toml" viewer
 install_manifest "$root/applications/installer/manifest.toml" installer

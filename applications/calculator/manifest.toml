@@ -1,0 +1,23 @@
+format = 1
+
+[package]
+provenance = "built-in"
+id = "org.mochios.calculator"
+name = "Calculator"
+version = "0.1.0"
+revision = 1
+vendor = "mochiOS"
+kind = "application"
+architecture = "x86_64"
+abi = "mochios-1"
+
+[application]
+entry = "entry.elf"
+description = "Calculate, convert units, and work with numbers"
+icon = "appicon.svg"
+resources = ["appicon.svg"]
+
+[[binary]]
+path = "/system/applications/Calculator.app/entry.elf"
+kind = "application"
+requires = ["ipc.client", "ipc.server", "window.create", "fs.read.user", "fs.write.user", "clipboard.read", "clipboard.write"]

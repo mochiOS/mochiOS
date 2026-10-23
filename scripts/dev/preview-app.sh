@@ -25,7 +25,7 @@ if [[ $app == check || $app == test ]]; then
             cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
             "${cargo_patches[@]}" -p viewkit --lib
     fi
-    for name in files settings binder appstore edit terminal system-monitor viewer calendar; do
+    for name in files settings binder appstore edit terminal system-monitor viewer calendar calculator; do
         "$0" "$name" "--$app" "${cargo_patches[@]}"
     done
     exit 0
@@ -41,9 +41,10 @@ case "$app" in
     system-monitor) source_dir="$root/applications/system-monitor" ;;
     ime) source_dir="$root/tools/desktop-ime" ;;
     test-app) source_dir="$root/applications/test.app" ;;
+    calculator) source_dir="$root/applications/calculator" ;;
     calendar) source_dir="$root/applications/calendar" ;;
     viewer) source_dir="$root/applications/viewer" ;;
-    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|calendar|check|test>" >&2; exit 2 ;;
+    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|calendar|calculator|check|test>" >&2; exit 2 ;;
 esac
 
 # Source manifests/lockfiles remain untouched; host dependencies share one
@@ -71,6 +72,8 @@ if [[ $mode == run ]]; then
     preview_root="$root/out/preview/home"
     mkdir -p "$preview_root"/{Desktop,Documents,Downloads,Movies,Music,Pictures}
     export MOCHIOS_PREVIEW_ROOT="$preview_root"
+    export MOCHIOS_PREVIEW_CONFIG_ROOT="${MOCHIOS_PREVIEW_CONFIG_ROOT:-$root/out/preview/config}"
+    mkdir -p "$MOCHIOS_PREVIEW_CONFIG_ROOT"
 fi
 preview_binary=$app
 [[ $app != test-app ]] || preview_binary=test_app

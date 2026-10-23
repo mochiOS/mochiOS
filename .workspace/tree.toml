@@ -14279,3 +14279,11 @@ path = "services"
 hash = "56359d17b724075f5b6f7509276326e1fe49d709"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add service-owned record lock intervals and process exit retirement"
+
+[[entries]]
+date = "2026-10-24T02:08:48.118309070+09:00"
+snapshot = "972626210a14eee57d195f35"
+path = "services"
+hash = "0389695ccf7344dab6702f8f076fb3e0a02045f9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Apply decoded record lock operations with checked ranges and errno"

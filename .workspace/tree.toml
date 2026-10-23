@@ -14495,3 +14495,11 @@ path = "services"
 hash = "37f693ad20e1369ab612f939ed3c7c866ebb3987"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Observe PTY metadata through scoped device factory grants without opening data"
+
+[[entries]]
+date = "2026-10-24T08:03:53.938186871+09:00"
+snapshot = "bd051917011c9bce8c79126a"
+path = "services"
+hash = "df7c7c1a07bc5d10a41da770713934b2c8409368"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Resolve terminal configuration through authenticated namespace and owner observation"

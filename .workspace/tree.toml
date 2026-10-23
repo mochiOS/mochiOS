@@ -14143,3 +14143,11 @@ path = "services"
 hash = "8f2b6d557a9265573cbda9be7f9bb22fa26d0583"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise TLS cache invalidation across thread lifecycle and fork"
+
+[[entries]]
+date = "2026-10-23T20:43:30.387685967+09:00"
+snapshot = "3b1a64bf77b2595383b31cf1"
+path = "services"
+hash = "ace5e2476f3be3203bf3aa9f88fef32a63870e09"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose provider byte extents and cover bounded image snapshot memory"

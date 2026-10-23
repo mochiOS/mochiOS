@@ -35,7 +35,7 @@ STATEロックをRPC中に保持せず、ハンドラがFDを閉じて再利用�
 自動で切り替えません。端末として分類した参照、ソケット、共有メモリ、
 ネイティブストリームは各提供元向けの既存経路を継続します。
 全てのメタデータ操作の中継がなくなったという意味ではありません。
-また、以前の公開RPCそのものの撤去は今回の変更には含めていません。
+163では以前の公開RPCを残していました。180での撤去範囲は後述します。
 
 ## 検証（163）
 
@@ -86,3 +86,49 @@ READだけへ縮小したネイティブ参照のquery成功とCONTROL拒否も�
 診断終了後は元の通常起動用compositor・service-managerをバイト比較付きで復元しました。
 通常起動に使う実行体は163で確認したものと同じなので、今回はその起動試験を
 繰り返して新ランタイムの確認とみなすことはしません。
+
+## 旧POSIX中継RPCの撤去（180）
+
+通常ファイル・ディレクトリ・非端末特殊ファイルの実装を再検索し、newlibは既に直接
+Handle経路を使い、旧POSIX ClientのフラグRPCを呼ぶproduction利用者がいないことを
+確認しました。`OP_FGETFL`・`OP_FSETFL`・`OP_FUPDATEFL`の定義、Clientの
+get/set/update_status_flags、PosixServiceのdispatchとFilesystemBackendの対応メソッド、
+native filesystem中継と専用応答ヘルパーを削除しています。互換aliasは設けていません。
+filesystem自身の提供元API、共有メモリ・socketのローカル状態処理は対象ではありません。
+
+旧RPCだけを試すClient fixtureは撤去し、残るファイル操作の権限・応答参照回収・
+STATEロック・image置換の検証行列は維持しています。共有メモリの提供元が引き続き
+使用するmask/value codecと、その不正な入力を拒否する試験は残しました。
+実runtimeをPOSIX endpointなしで組み込む既存試験も、そのまま直接経路を検証します。
+
+添付Handle付き未知要求が既存の添付検査でEINVALになっていたため、assigned requestの
+認識をprotocol側へ追加しました。PosixServiceは未知opcodeを添付の種類の判定より前に
+ENOSYSで拒否し、filesystemへ転送しません。OP_STATUSも要求としては拒否します。
+既知opcodeで余分なHandleがある場合は、従来通り操作を実行せず拒否します。
+公開された全request定数と認識範囲の一致を検証し、未割り当て値を公開定数や互換操作として
+残しません。ネイティブIPCで受信した参照の破棄は既存のadapterの責務のままです。
+
+公開カーネルABIも確認し、SyscallNumberの124項目には旧POSIX syscall名がありませんでした。
+これはenum名の確認であり、全引数契約・カーネル内部がPOSIX非依存であることの最終証明では
+ありません。この変更でカーネルを変更したわけでも、POSIX全体を完成したわけでもありません。
+
+ホスト全体は656ターゲット・3,182件成功、失敗0件です。旧RPC専用のClient試験3件を
+削除し、従来の中継動作の試験1件を、未知要求の拒否・backend未到達・公開opcodeの照合の
+3件へ置き換えたため、179より件数は1件少なくなっています。
+最初の対象試験で添付付き未知要求のEINVALを検出し、上記の拒否順序を修正しました。
+失敗ログは`out/checks/mochios-flag-relay-removal-180-unknown-handle-rejection-before.log`、
+成功ログは`out/checks/mochios-posix-host-audit-180-final.log`に分けて保存しています。
+
+KVMでは新runtimeをリンクした`native_special_description_flags.c`を、新しいposix.serviceと
+組み合わせて実行しました。通常ファイルのalias・独立open・mask更新・append・
+READだけのqueryとCONTROL拒否・書き込み専用・directory・fork・Handle回収の4グループと、
+`/dev/null`の3アクセスモードの計7グループが成功しました。
+ログは`out/checks/mochios-flag-relay-removal-180-native.log`です。
+未知opcodeの拒否はホスト上の実dispatcherで検証しており、このCプローブが未知要求を
+ネイティブIPCで送信した結果としては数えません。SDK・Rust stdは再生成していません。
+
+診断用compositor・service-managerを元のバイナリへ戻し、新しいposix.serviceを通常イメージへ
+配置しました。filesystemは179のバイナリを維持しています。同じ通常起動でBinderのREADY、
+Dockとステータスバーを確認しました。ログと視覚確認した画像は
+`out/checks/mochios-normal-180.log`・`out/checks/mochios-normal-180.png`です。
+既存アプリ全体の新runtimeでの再リンクや、POSIX全体の適合を確認したものではありません。

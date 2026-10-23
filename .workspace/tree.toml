@@ -14439,3 +14439,11 @@ path = "services"
 hash = "60bb23b4f99cdb11f0eb085440d96b7b3449a7eb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reject nonexistent trailing-slash targets before namespace mutation"
+
+[[entries]]
+date = "2026-10-24T06:51:32.385288915+09:00"
+snapshot = "b18ea6bb0d6ea72c907b166f"
+path = "services"
+hash = "91ad3ec1237f5fb94d978dbe05cb4c1679d0a2df"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Observe limits from the retained filesystem volume without pathname lookup"

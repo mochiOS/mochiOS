@@ -14127,3 +14127,11 @@ path = "services"
 hash = "a9d7cad337183c4565503d12db90848a2b3b167f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Authorize PTY factory creation through attached master handles"
+
+[[entries]]
+date = "2026-10-23T19:33:54.720498988+09:00"
+snapshot = "3747dc0f234948f512e91a5f"
+path = "services"
+hash = "9b01e9870c8f5df6a45373eafa3fe33a91318c40"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report retained process CPU usage on readiness failures"

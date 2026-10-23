@@ -14287,3 +14287,11 @@ path = "services"
 hash = "0389695ccf7344dab6702f8f076fb3e0a02045f9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Apply decoded record lock operations with checked ranges and errno"
+
+[[entries]]
+date = "2026-10-24T02:24:16.255268892+09:00"
+snapshot = "598b4e1e7bae5ed0648cc4e1"
+path = "services"
+hash = "ed3eb540664e07edcace447a5270a73842d3a484"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect record locks to authenticated FileHandle IPC with retained file lifetimes"

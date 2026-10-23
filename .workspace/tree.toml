@@ -14511,3 +14511,11 @@ path = "services"
 hash = "09ec5e161934dced2912b687f7d908a7cc1f1090"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove unused status flag relay and reject unknown requests before attachment admission"
+
+[[entries]]
+date = "2026-10-24T08:28:12.473581035+09:00"
+snapshot = "3a75cae33f30e79d01e59b3f"
+path = "services"
+hash = "06a516d96d46a417aff8b1003384afc2a5c69707"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use userspace launch policy definitions in service and application launchers"

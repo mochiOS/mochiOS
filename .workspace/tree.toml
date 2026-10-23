@@ -14519,3 +14519,11 @@ path = "services"
 hash = "06a516d96d46a417aff8b1003384afc2a5c69707"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use userspace launch policy definitions in service and application launchers"
+
+[[entries]]
+date = "2026-10-24T08:38:51.421977697+09:00"
+snapshot = "3afc5daee7abdc12e8433a5e"
+path = "services"
+hash = "7fc7d35811420b02a2a051717777031846ce4ee6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reject existing creation destinations before trailing-slash directory checks"

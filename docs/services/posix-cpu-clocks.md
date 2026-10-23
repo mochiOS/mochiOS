@@ -25,7 +25,19 @@ timespecへの変換を行い、オーバーフロー・不正な周波数・バ
 ゼロ時間に置き換えません。終了済み対象の取得はESRCH、終了済みクロックIDの
 読み出しはEINVALです。分解能の取得でもIDの生存と権限を確認します。
 
+取得したIDは`timer_create`でも利用できます。`OP_TIMER_CREATE_PROCESS_CPU`は
+既存の作成フレームに計測対象のPIDを添え、通知先とタイマーIDの所有者には
+認証済みの呼び出し元を使います。自プロセスのIDは既存のProcessCpu計測へ
+まとめ、別プロセスは登録済みのHandleと資格情報を確認して計測します。
+リアクターは所有者・時計・対象ごとにサンプルを共有します。
+
+対象がexecしてもCPUクロックの寿命は続きます。対象の終了を観測した時は、
+その対象を計測するタイマーと未配送通知を除去します。タイマー所有者自身の
+exec・終了による破棄とは分離しています。資格情報の変更で対象を観測できなく
+なった場合はエラーを返し、サンプルを捏造したり別対象のタイマーを止めたり
+しません。所有者は観測権限を失ったタイマーでも削除できます。
+
 ホスト試験は`services/posix/tests/process_clock*.rs`、
 newlib・実IPC・forkの統合試験は`native_process_clock.c`です。
-この実装だけでは、これらのIDを使うtimer_createやclock_nanosleep、
-SIGEV_THREAD、POSIX全体への適合は完了していません。
+これらのIDを使うclock_nanosleep、SIGEV_THREAD、POSIX全体への適合は
+未完了です。

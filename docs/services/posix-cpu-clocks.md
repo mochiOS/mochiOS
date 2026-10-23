@@ -45,9 +45,10 @@ newlib・実IPC・forkの統合試験は`native_process_clock.c`です。
 ## CPU時間での待機処理
 
 `services/posix/src/cpu_sleep.rs`に、サービス側でプロセスCPU時間を
-観測して完了する待機レジストリを追加しています。現段階ではIPCの
-dispatcher・ネイティブ完了チャネル・libcへの接続前であり、
-`clock_nanosleep`からはまだ利用できません。
+観測して完了する待機レジストリを追加しています。
+`OP_PROCESS_CPU_SLEEP`で要求し、`posix-client::begin_process_cpu_sleep`は
+サンプルから決めた絶対期限と専用の完了Handleを返します。
+libcへの接続前であり、`clock_nanosleep`からはまだ利用できません。
 
 登録時に認証済み所有者のイメージと、選択対象の資格情報・生存を確認し、
 相対時間はその時のCPUサンプルから絶対期限へ変換します。ゼロ時間や
@@ -60,7 +61,18 @@ dispatcher・ネイティブ完了チャネル・libcへの接続前であり、
 保持して次の観測で一度だけ再試行します。対象の終了・権限喪失・計測失敗は
 エラー完了とし、所有者のexecは完了通知前に再確認して古い待機を破棄します。
 登録上限は所有者ごとに128件、サービス全体で4096件です。
+実際の登録数はネイティブ資源の空きにも制限されます。現在の汎用Streamは
+システム全体で64枠のため、POSIXの登録上限より先にENOMEMとなり得ます。
 
-ホスト試験は`services/posix/tests/support/cpu_sleep.rs`です。
-実際のネイティブHandleでの完了通知、キャンセル・fork時の参照解放と
-newlibからの呼び出しは、接続後に実OSで確認する必要があります。
+ネイティブアダプターは既存の`StreamPairCreate`を使います。
+読み取り端にREAD・WAITだけを付けて明示的にIPC転送し、
+WRITE・CONTROL・DUPLICATE・TRANSFERは委譲しません。
+サービスは10ms間隔でCPU時間を観測し、8バイトの完了レコードを
+`StreamWrite`の全量・非ブロッキング指定で送って書き込み端を閉じます。
+カーネルABIの追加やPOSIXシグナルの予約はありません。
+
+ホスト試験は`services/posix/tests/support/cpu_sleep.rs`と
+`services/posix/tests/cpu_sleep_ipc.rs`です。
+実IPCとネイティブHandleの診断は`native_cpu_sleep.rs`です。
+libcのキャンセル・fork時の参照解放とnewlibからの呼び出しは、
+ランタイム接続後に実OSで確認する必要があります。

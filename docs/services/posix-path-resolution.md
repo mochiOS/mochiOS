@@ -46,11 +46,12 @@ Dock・ステータスバーの描画をログとスクリーンショットで�
 
 ## 残るパス互換性の作業
 
-`pathconf`・`fpathconf`は現在のnewlibランタイムとSDK libcに定義がありません。
-提供元の実際の制約を問い合わせる設計が必要で、固定値で実装済みとしてはいません。
-また、既存リンクを宛先とした作成系・exclusive createの末尾`/`のエラー方針や、
-walker外の入口で行う長さ検査には別の確認が必要です。167の修正は
-リンク先の内容にある末尾区切りの扱いであり、pathname互換性全体の完了ではありません。
+167では未定義だった`pathconf`・`fpathconf`は、現在は一部の項目を提供元へ問い合わせます。
+対応範囲は[ファイルシステム制限](posix-filesystem-limits.md)と
+[端末pathnameの観測](posix-device-observation.md)を参照してください。
+既存リンクを宛先としたmkdir・symlink・hard link・socketの末尾`/`は182で整理しています。
+openのexclusive createやその他の入口の長さ検査は引き続き確認が必要です。
+pathname互換性全体の完了を意味するものではありません。
 
 ## 成分数と長さエラー（168）
 
@@ -150,3 +151,42 @@ mkdirと既存ディレクトリへのrename、sourceリンク自体へのhard l
 対象90件と全体652ターゲット・3,142件が成功し、失敗は0件でした。
 ログは`out/checks/mochios-trailing-creation-171-focused.log`と
 `out/checks/mochios-posix-host-audit-171.log`へ保存しています。
+
+## 既存の作成先と末尾区切り（182）
+
+mkdir・symlink・hard link・socket作成で、既存の最終シンボリックリンクに`/`を付けると、
+既存エントリとしての拒否より先にwalkerのディレクトリ条件が働き、ENOTDIRになっていました。
+[POSIX mkdir](https://pubs.opengroup.org/onlinepubs/9799919799/functions/mkdir.html)は、
+作成先がシンボリックリンクを指す場合にEEXISTで失敗することを規定しています。
+この作成系の最終エントリは、リンク先へ変換せずに既存と判定する必要があります。
+
+作成先の探索だけで、入力末尾の`/`を取り除いた借用sliceを使います。元のpathnameは保持し、
+未存在なら171で定めた非ディレクトリ作成の末尾区切り拒否をそのまま適用します。
+mkdirの新規ディレクトリ作成は維持します。親の`.`・`..`・symlinkは通常通り探索し、
+親ディレクトリのsearch/write権限も維持します。これは提供元の同じ排他的な操作内で行い、
+別のstat要求や再探索を追加しません。
+
+元の長さを検査してからsliceを作るので、大量の末尾`/`でMAX_PATH_LENを超えた入力が
+短くなって許可されることはありません。symlinkとhard linkの入口に残っていた
+過長パスのEINVALもENAMETOOLONGへ揃えています。unlink・renameや通常の参照用walkerは
+変更していません。openのO_CREAT|O_EXCLへの適用も、この変更には含めません。
+
+`support/trailing_creation.rs`へ追加した6件のうち、修正前は5件が失敗しました。
+既存ディレクトリ・通常ファイル・dir/file/danglingリンクへの作成失敗、inodeとlink countの
+維持、dangling参照先の未作成、retained socketでのopen ID未消費を確認します。
+また親の検索拒否、親リンクを通した正当なmkdir、MAX_PATH_LENの境界と過長入力も確認します。
+既存の未存在宛先・rename・hard link sourceの試験と合わせた対象12件は成功しています。
+
+この変更は提供元内のpathnameとinodeの状態処理だけです。IPC・native ABIは変更せず、
+ホスト上の実ext4試験とfilesystem.serviceのネイティブビルドで検証します。
+VM起動、通常イメージへの配置、SDK・Rust stdの再生成は行っていません。
+
+全体656ターゲット・3,188件が成功し、失敗0件でした。
+修正前と途中の長さ検査の失敗は成功ログと区別しています。
+保存先は`out/checks/mochios-creation-destination-182-before.log`、
+`out/checks/mochios-creation-destination-182-intermediate-length-failure.log`、
+`out/checks/mochios-creation-destination-182-focused-final.log`、
+`out/checks/mochios-posix-host-audit-182-final.log`です。
+filesystem.serviceのビルドも成功し、`out/checks/mochios-creation-destination-182-native-build.log`
+へ保存しています。通常イメージ上のfilesystem・POSIXバイナリは180の証跡と同じことを
+ハッシュで確認しており、この変更の起動試験を済ませたものとして扱いません。

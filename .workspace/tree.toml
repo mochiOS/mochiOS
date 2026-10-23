@@ -14215,3 +14215,11 @@ path = "services"
 hash = "de4aab6d72f5d0bd4f7ca9559acacdbe0f5eacce"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify libc CPU sleeps, cancellation cleanup and foreign-thread fork disposal"
+
+[[entries]]
+date = "2026-10-24T00:12:14.295611321+09:00"
+snapshot = "5cae101ef9b2cd7238bf3864"
+path = "services"
+hash = "2de639e18b4628bef7fd4709a71be0db90a0c01a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify private wait lifetimes through handler forks and slot reuse"

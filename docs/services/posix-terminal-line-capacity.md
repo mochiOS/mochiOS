@@ -44,3 +44,11 @@ VMは起動せず、SDK・Rust std・通常イメージは更新していませ�
 全体655ターゲット・3,166件が成功し、失敗0件でした。
 ログは`out/checks/mochios-posix-host-audit-176-final.log`と
 `out/checks/mochios-canonical-capacity-176-focused-final-2.log`へ保存しています。
+
+## 統合（177）
+
+端末のfpathconfと接続し、同じPTY提供元が返した65,536バイトのcanonical行容量に対し、
+実newlibから65,535文字・余剰8文字・改行を送信しました。余剰文字を保持せず、元の文字と
+改行を合わせて65,536バイト読み出せることをKVM上で確認しました。
+この検証では176の行末領域確保も含むposix.serviceをイメージへ配置しています。
+ログは`out/checks/mochios-terminal-limits-177-native.log`です。

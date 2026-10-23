@@ -67,3 +67,45 @@ O_NOCTTY修正後のホスト全体は650ターゲット・3,113件成功、失�
 確認しました。画面も取得して確認し、`out/checks/mochios-normal-165.log`・
 `out/checks/mochios-normal-165.png`へ保存しています。全アプリの新ランタイムでの
 再リンクや、未撤去の公開フラグRPCの整理までを確認したものではありません。
+
+## 端末のfpathconf（177）
+
+newlibの`fpathconf`から`_PC_MAX_CANON`・`_PC_MAX_INPUT`・`_PC_VDISABLE`を
+取得できます。FDのleaseを保持したまま、READ権限ならHandleQuery、書き込み専用なら
+既存のCONTROL権限でHandleControlを一度だけ呼びます。問い合わせ失敗後の再試行や
+権限の追加、pathnameでの開き直しは行いません。
+
+PTY提供元へ`PTY_QUERY_LIMITS`（0x5054595100000004）または読み取り専用の
+`PTY_CONTROL_GET_LIMITS`（0x505459000000000d）を渡します。入力は空、応答は
+12バイト固定で、canonical行容量u32、入力queue容量u32、無効化文字u8、予約3バイトです。
+整数はlittle endian、予約領域は0です。応答の長さ・予約領域・容量の整合性を検査し、
+不正な応答はEIOにします。カーネルはselectorや端末データを解釈しません。
+
+返す容量はPTYの実際の`CANONICAL_LINE_CAPACITY`と`BUFFER_CAPACITY`に結び付けます。
+現在はいずれも65,536バイトで、canonical行容量は終端の改行も含みます。
+無効化文字は現在の制御文字処理に合わせて0です。newlibへこれらの値を固定しません。
+非端末への端末固有の問い合わせはEINVAL、無効なFDはEBADFです。errnoは成功時に
+保持され、観測によって属性・queue・readiness・端末signalは変更されません。
+
+共通の端末観測アダプタを`newlib-runtime/src/terminal_observation.rs`へ移し、既存の
+isatty・tcgetattr・tcgetwinsizeと新しいfpathconfが同じ権限処理を使います。
+ホストfixtureもこの実アダプタをコンパイルします。提供元とは異なる容量と無効化文字を
+返すfixtureで、newlibが定数ではなく実際の応答を採用することを確認します。
+
+この段階では端末pathnameへの`pathconf`は未対応です。filesystemの上限を端末の値として
+返したり、暗黙にREAD権限を要求して端末を開いたりする回避実装は追加していません。
+
+全体のホスト検証は655ターゲット・3,169件成功、失敗0件でした。
+実newlibをリンクした`native_terminal_observation.c`では3アクセスモード、
+READだけに縮小したネイティブ参照、過長行からの改行による読み出し、無効FDと
+非端末の拒否をKVM上で確認しました。既存の属性・window・O_NOCTTY試験も成功しました。
+ログは`out/checks/mochios-posix-host-audit-177-final.log`と
+`out/checks/mochios-terminal-limits-177-native.log`です。
+
+診断用compositor・service-managerを元のバイナリへ戻し、filesystemを変更せず、
+176の行容量修正と今回の問い合わせを含む新posix.serviceを通常イメージへ配置しました。
+同じ通常起動でBinderのREADY、Dockとステータスバーを確認しました。
+ログと実際に確認した画面は`out/checks/mochios-normal-177.log`・
+`out/checks/mochios-normal-177.png`です。SDKとRust stdは再生成していません。
+これは端末問い合わせと通常起動の検証であり、全アプリの再リンクやVim・WebKitの
+実行、POSIX全体の適合を確認したものではありません。

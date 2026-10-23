@@ -14479,3 +14479,11 @@ path = "services"
 hash = "2dabd5a9f87d01264714cd584ed70708c0e6a556"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep a canonical line terminator slot without weakening PTY backpressure"
+
+[[entries]]
+date = "2026-10-24T07:42:03.208259651+09:00"
+snapshot = "337388247fea30327cada764"
+path = "services"
+hash = "054ea9aa5292dec78c0444597970c15d19b3ef9b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report PTY owner limits with read-only provider observations"

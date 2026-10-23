@@ -49,9 +49,8 @@ Rust std overlayを入力としてビルド済みです。SDK・Rust std・通�
 
 ## 残る実装
 
-`fpathconf`の先行対応は173で追加しています。`pathconf`のlibc exportと
-pathname版は、read権限を不必要に要求するopenへ
-置き換えず、認証済みcredentialsとroot/base Handleで対象を解決する経路を作ります。
+`fpathconf`の先行対応は173、`pathconf`の3項目への接続は174で追加しています。
+対象ごとの全項目対応は未完了です。
 pipe・terminal・deviceには各提供元の制限と適用可否の処理が必要です。
 
 [POSIXのunistd定義](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/unistd.h.html)
@@ -94,3 +93,41 @@ pipeと未対応・エラー、unlink/dup後の対象維持・cursor・Handle回
 compositor・service-managerは元へ戻しました。BinderのreadyとDock・ステータスバーの描画を
 ログとスクリーンショットで確認しています。既存アプリ全体の再リンク検証ではありません。
 保存先は`out/checks/mochios-normal-173.log`と`mochios-normal-173.png`です。
+
+## pathconfのパス解決（174）
+
+`pathconf`のLINK_MAX・NAME_MAX・PATH_MAXを接続しました。callerの文字列は既存の
+`path_io` resource scopeでsnapshotし、POSIXの`OP_PATH_LIMITS_AT`へ渡します。
+新しい番号はユーザー空間のwire protocolであり、mnuのsyscallは追加していません。
+
+POSIX側は既存の読み取り専用`path_query`/`path_request`経路を利用します。
+認証されたprocessの保存済みeffective credentialsとroot/cwdを取得・保持し、状態ロックを
+解放してからfilesystemへ問い合わせます。明示的なbaseは添付Handleでしか指定できず、
+要求内の自己申告identity・FD・生ポインタは使いません。NOFOLLOWなどの余分なflagsは拒否します。
+
+filesystemの`OP_OBJECT_LIMITS_AT`は、認証済みcontrol endpointとroot/base添付を使って
+一度だけ対象を解決します。親のsearch権限を検査し、最終対象をopenしたりデータをreadしたりせず、
+同じnamespace処理内で解決先ボリュームの制限を返します。新しいFileHandleやFDは作りません。
+提供元の値とnewlib selectorの変換はfpathconfと共有します。
+
+ホストでは、read権限のない対象・search権限のない親、rootからの脱出拒否、flagsとHandle数、
+保存済みidentity、1KiB/4KiBのmount先、wireの過不足を確認しています。新しい要求も
+読み取り専用操作の既存テスト行列へ加え、状態ロック外の問い合わせ、anchor回収、
+要求中のimage置換後に応答を渡さない処理まで検証しています。
+対象565件と全体654ターゲット・3,158件が成功し、失敗0件でした。
+
+実newlibの`native_pathconf.c`をKVMで実行し、5グループすべて成功しました。
+提供元の上限・symlinkと末尾区切り、callerポインタとselectorのエラー、UID変更後の
+read不可対象への問い合わせと親searchの拒否、chrootと絶対リンクの閉じ込め、
+128回の問い合わせ後のHandle回収を確認しています。通常のfilesystemとposixの
+両バイナリを独立ビルドし、SDK・Rust stdは入力としてのみ使用しています。
+ログは`out/checks/mochios-pathconf-174-native.log`と
+`out/checks/mochios-posix-host-audit-174.log`です。
+
+診断用compositor・service-managerを元へ戻し、新しいfilesystem・posix両サービスを
+通常イメージへ残しました。BinderのreadyとDock・ステータスバーの描画も確認済みです。
+既存の全アプリを再リンクしたという検証ではありません。通常起動の証跡は
+`out/checks/mochios-normal-174.log`と`mochios-normal-174.png`へ保存しています。
+
+pathconfはこの3項目の先行対応です。pipe・terminal・deviceの適用可否や未実装項目を
+上限不定に偽装する処理は追加していません。

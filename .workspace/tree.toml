@@ -14415,3 +14415,11 @@ path = "services"
 hash = "db716301bf8b9a01b5e03e49c32a391bd5151e7c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Distinguish pathname length errors and preserve valid long walks"
+
+[[entries]]
+date = "2026-10-24T06:31:25.154934372+09:00"
+snapshot = "f1b87cef0f4ba10f71025321"
+path = "services"
+hash = "e7101a215831021633a518377262dabdb2f14fe6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Account for unresolved pathname bytes across symlink expansions"

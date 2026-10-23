@@ -19,12 +19,12 @@ Query/Set/Unlock/ReleaseFileとSEEK_SET/CUR/END相当の起点を表し、
 EOVERFLOWへ変換します。照会は絶対範囲、または競合なしの応答を返します。
 この内部API自体はHandleの認証やアクセスモードの検査を代行しません。
 
-libcの`F_GETLK`・`F_SETLK`と、close・dup2・execによる解放へ接続しています。
+libcの`F_GETLK`・`F_SETLK`・`F_SETLKW`と、close・dup2・execによる解放へ接続しています。
 `fcntl`はC可変長引数としてポインタを保持し、`flock`は検査付きコピーで
 入出力します。mochiOS向けnewlibヘッダーの`l_pid`は32ビットです。
 既存SDKの再生成は行わず、ネイティブ試験では更新したソースヘッダーを使います。
-**`F_SETLKW`の待機は未実装で、ロック取得はENOSYSを返します。**
-同コマンドの明示的なアンロックは利用できます。
+`F_SETLKW`は競合中にサービスで待機し、明示的なアンロックも利用できます。
+シグナルとpthread取消を含むランタイム経路は後述します。
 
 ## 所有者とファイルの識別
 
@@ -151,7 +151,6 @@ forkのロック順はlifecycle → record-lock gate → libc → allocator → 
 
 ## 残る接続
 
-- F_SETLKWの待機・中断・キャンセル・待機循環の検出を追加します。
 - サービス停止・応答消失を跨ぐ変更の成否確認は、通常RPCと共通の課題です。
 
 ## ブロッキング要求の状態管理
@@ -185,10 +184,7 @@ ENOLCKとし、既存のロックや要求を保持します。待機枠が満�
 最後の取得済みロックがなくなっても、待機者が残るファイルの保持参照は破棄せず、
 取得・取消・exec・終了後に再評価します。
 
-**待機要求はIPCへ接続済みですが、libcのF_SETLKWはまだENOSYSです。**
-libcへ接続する際には、待機中のFD変更ゲート解放、割り込み・pthread取消・
-返信との競合、放棄するランタイム資源の所有権処理を揃える必要があります。
-待機トークンだけで取得成功とは扱いません。
+待機要求はIPCとlibcへ接続しています。待機トークンだけで取得成功とは扱いません。
 
 待機状態管理（159）のホスト検証は645ターゲット・3,089件成功、失敗0件です。
 ログは`out/checks/mochios-posix-host-audit-159.log`へ保存しています。
@@ -223,6 +219,50 @@ libcへ接続する際には、待機中のFD変更ゲート解放、割り込�
 別openした子の競合待機、解除前の非完了、解除後の応答と所有者の引き継ぎを確認します。
 この試験もlibcのF_SETLKWやpthreadキャンセルが完成した証拠にはしません。
 カーネルABIとSDKの再生成は不要です。
+
+## libcのブロッキング経路
+
+`newlib-runtime/src/record_lock_blocking.rs`は、入口で取消を確認し、FDのLeaseと
+検査済み要求値をcallback-resource scopeへ記録します。FD変更ゲートは準備時だけ
+保持し、待機中に他スレッドのdup・closeを止めません。所有するのはFD pinと
+コピー済みの値だけなので、既存のfork-opaque scopeを使います。子では古いLeaseの
+寿命識別を確認し、親の応答や数値Handleを再利用しません。
+
+配送世代を取得する前後に取消と捕捉シグナルの世代を確認します。サービスのEINTR後は
+配送を処理し、SA_RESTARTのない捕捉ならEINTR、再開可能なら再び待機します。
+資源を破棄してからdeferred cancellationのcleanupへ入り、成功した取得が先に
+確定した場合は、その成功を隠して取消終了しません。
+
+同期IPCはローカルな待機カウンタの通知だけでは戻れません。そのためpthread_cancelは、
+TCB参照保護を外した後に`OP_THREAD_WAIT_INTERRUPT`を送ります。WAIT|TRANSFERだけに
+権限縮小したThreadHandleを明示的に添付し、サービスはnative ThreadStatusから
+送信元と同一プロセスであること、スレッドの生存と登録を確認します。
+要求へPID/TIDを自己申告せず、アプリ用のsignalを予約・配送しません。
+処理は対象の待機世代を進めるため、取消が待機登録の直前に届く場合も古い要求が
+取得されません。サービスとカーネルの専用共有領域は追加していません。
+
+取消が無効な対象には新しい解除RPCを送らず、保留状態だけを記録します。
+POSIX endpointのない起動初期のランタイムにもRPCを要求せず、既存のローカル・
+ネイティブ取消を使います。対象の終了や未登録が確認できた場合も、以前の寿命の
+待機へ通知するためにIDを探し直しません。
+
+`native_record_lock_wait.c`は既存の非ブロッキング・dup2・exec試験に加え、実際の
+CのF_SETLKWについて通常取得、deferred取消、SA_RESTARTなしの中断、ありの再開、
+取消無効中の取得、非同期取消、入口前の保留取消の7ケースを確認します。
+保持者が解放する前に取消された待機者をjoinし、取消後にロックが遅れて取得されない
+ことを別プロセスで照会します。待機中の別スレッドからのdup・closeと、forkによる
+照会も確認します。SDKは再生成せず、更新したランタイムを別の検証用出力でリンクします。
+
+libc待機接続（161）のホスト検証は646ターゲット・3,103件成功、失敗0件です。
+実KVMでは既存4グループと追加7ケースが成功しました。pthread_cancelの変更については
+別途、既存のCPU時間スリープ4グループ、取消寿命2グループ（各32反復）、
+非同期取消24ケースも成功しています。起動引数の判定で追加試験を飛ばした最初のログは
+`mochios-libc-lock-wait-161-skipped-waits.log`として区別し、成功の根拠に含めません。
+最終ログは`out/checks/mochios-posix-host-audit-161.log`、
+`out/checks/mochios-libc-lock-wait-161.log`、
+`out/checks/mochios-async-cancel-regression-161.log`です。
+診断用compositorとmanagerを戻した通常イメージでもBinderとDockを実画面で確認し、
+`out/checks/mochios-normal-161*`へログと画面を保存しています。
 
 IPC接続（160）の最終検証はホスト645ターゲット・3,098件成功、失敗0件です。
 ログは`out/checks/mochios-posix-host-audit-160-final.log`です。

@@ -1,0 +1,31 @@
+# POSIXプロセスCPUクロック
+
+`clock_getcpuclockid(pid, &id)`、取得したIDでの`clock_gettime`と
+`clock_getres`をユーザー空間で提供します。カーネルABIは追加しません。
+`clock_getcpuclockid`はエラー番号を直接返し、errnoを保存します。
+
+IDは組み込みクロックとpthreadクロックの間の値域でプロセスを識別します。
+取得済みIDをforkでコピーした場合も、取得時に選択したプロセスを指します。
+`CLOCK_PROCESS_CPUTIME_ID`のような呼び出し元を示す定数とは区別します。
+現在の32ビットPOSIX PIDで表せないプロセスにはIDを発行しません。
+
+自プロセスのサンプルは既存の`ProcessExecutionRead`を直接使います。
+他プロセスのサンプルは`OP_PROCESS_CPU_CLOCK`でPOSIXサービスへ依頼します。
+他プロセスでは登録・終了状態と資格情報の確認が必要なため、この経路はRPCです。
+一般の時計読み出しと組み込みの自プロセスCPUクロックの経路は変えません。
+
+サービスは起動登録時に委譲されたProcessHandleだけを使います。
+要求中のPIDでカーネルからHandleを取得したり、呼び出し元にProcessHandleを
+渡したりしません。資格情報も要求の自己申告値ではなく登録済みセッションを使います。
+自プロセス以外は、実効UIDが0、または呼び出し元の実UID・実効UIDのいずれかが
+対象の実UID・実効UIDと一致する場合に観測を許可します。
+
+サービスは生のuser/kernel ticksと周波数を返します。libc境界で合計と
+timespecへの変換を行い、オーバーフロー・不正な周波数・バックエンドエラーを
+ゼロ時間に置き換えません。終了済み対象の取得はESRCH、終了済みクロックIDの
+読み出しはEINVALです。分解能の取得でもIDの生存と権限を確認します。
+
+ホスト試験は`services/posix/tests/process_clock*.rs`、
+newlib・実IPC・forkの統合試験は`native_process_clock.c`です。
+この実装だけでは、これらのIDを使うtimer_createやclock_nanosleep、
+SIGEV_THREAD、POSIX全体への適合は完了していません。

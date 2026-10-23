@@ -14367,3 +14367,11 @@ path = "services"
 hash = "50c279209a622ec9222aac4c06b58d4d79960e65"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Give input dictionary initialization a bounded cold-start budget"
+
+[[entries]]
+date = "2026-10-24T05:23:43.733294238+09:00"
+snapshot = "a7f2d267d9676b0493d4abac"
+path = "services"
+hash = "cc6e886c246147ae6aba9df1f63d6c40bd6cb570"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Serve atomic description flags through authenticated Provider calls"

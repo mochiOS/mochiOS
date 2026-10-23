@@ -14319,3 +14319,11 @@ path = "services"
 hash = "93772b5708fe9d69f72c6ef050ff057a445d7fcf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect exec lock preparations to FileHandle IPC and observe image commits before conflicts"
+
+[[entries]]
+date = "2026-10-24T03:17:32.118976107+09:00"
+snapshot = "f36d7ca34c1c249b9683934c"
+path = "services"
+hash = "91b4c36874e140ea34cb802108f6d202d86fd1d0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify prepared FD replacement isolation rollback and ownership"

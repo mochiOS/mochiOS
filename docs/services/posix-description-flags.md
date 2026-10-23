@@ -1,6 +1,6 @@
 # ファイルの共有状態フラグと直接Handle経路
 
-通常ファイルとディレクトリの`F_GETFL`・`F_SETFL`・`FIONBIO`は、保持済みの
+通常ファイル・ディレクトリ・非端末の特殊ファイルの`F_GETFL`・`F_SETFL`・`FIONBIO`は、保持済みの
 Provider Handleから提供元を直接呼びます。POSIX endpointの取得、パス解決、
 Handle転送、posix.serviceへの中継は行いません。カーネルへの追加・変更もありません。
 FD番号、newlibのフラグ、errnoへの変換はユーザー空間に置きます。
@@ -28,10 +28,14 @@ STATEロックをRPC中に保持せず、ハンドラがFDを閉じて再利用�
 回収前まで維持します。不正な応答長・未知の応答ビットはEIOです。
 エラー時に古いメタデータを成功値として返しません。
 
-外部デバイスは異なる提供元の契約を持つため、今回の直接経路の対象ではありません。
-`ObjectSpecial`は既存のメタデータ委譲経路を使います。ソケット、共有メモリ、
-PTY、ネイティブストリームは各提供元向けの既存経路を継続します。
-これらを含む全操作の中継がなくなったという意味ではありません。
+非端末の特殊ファイル（`ObjectSpecial`）も、提供元の同じ契約を使います。
+現在の`/dev/null`では、filesystem.serviceが保持するNullDescriptionのフラグを
+操作します。新しい非端末デバイスの提供元も、このquery/control契約を実装する
+必要があります。未対応を受け取っても、POSIX endpointや別のメタデータ参照へ
+自動で切り替えません。端末として分類した参照、ソケット、共有メモリ、
+ネイティブストリームは各提供元向けの既存経路を継続します。
+全てのメタデータ操作の中継がなくなったという意味ではありません。
+また、以前の公開RPCそのものの撤去は今回の変更には含めていません。
 
 ## 検証（163）
 
@@ -59,3 +63,26 @@ filesystem.serviceを組み込んでBinderのREADYとDock・ステータスバ�
 画面は実際に取得して確認し、`out/checks/mochios-normal-163.png`と
 `out/checks/mochios-normal-163.log`へ保存しています。通常起動は既存のデスクトップ
 実行体との統合確認であり、全アプリを新ランタイムで再リンクした試験ではありません。
+
+## 非端末の特殊ファイルへの接続（164）
+
+`ObjectSpecial`の残っていた中継を外しました。`fcntl_status_resources.rs`からも
+POSIX Clientの模擬実装を削除し、特殊ファイルを含む再入・FD再利用の試験を
+その実装なしで動かしています。`ext4_mount_namespace.rs`ではディレクトリと
+実際のNullDescriptionに対して同じ直接query・マスク更新を実行します。
+
+ホスト全体は648ターゲット・3,109件成功、失敗0件です。NullDescriptionへの
+マスク更新の確認を追加した後、対象2ターゲット・87件も再実行して成功しました。
+`native_special_description_flags.c`は前節の通常ファイル4グループに加え、
+`/dev/null`の読み取り専用・書き込み専用・読み書きの3グループをKVMで確認します。
+各モードでアクセスモード・CLOEXEC、独立open、FD・fork間の共有、マスク更新、
+EOF・破棄書き込み、Handle回収を確認しました。読み取り可能なモードでは、
+READだけへ縮小したネイティブ参照のquery成功とCONTROL拒否も確認しています。
+
+ログは`out/checks/mochios-posix-host-audit-164.log`、
+`out/checks/mochios-special-flags-focused-164-final.log`、
+`out/checks/mochios-special-flags-164.log`です。新ランタイムをリンクした診断実行体での
+確認であり、配布用SDK・Rust std・既存デスクトップ実行体は再生成していません。
+診断終了後は元の通常起動用compositor・service-managerをバイト比較付きで復元しました。
+通常起動に使う実行体は163で確認したものと同じなので、今回はその起動試験を
+繰り返して新ランタイムの確認とみなすことはしません。

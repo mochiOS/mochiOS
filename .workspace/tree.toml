@@ -14487,3 +14487,11 @@ path = "services"
 hash = "054ea9aa5292dec78c0444597970c15d19b3ef9b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report PTY owner limits with read-only provider observations"
+
+[[entries]]
+date = "2026-10-24T07:51:18.551442074+09:00"
+snapshot = "cba789f0f9eae594acf1e8af"
+path = "services"
+hash = "37f693ad20e1369ab612f939ed3c7c866ebb3987"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Observe PTY metadata through scoped device factory grants without opening data"

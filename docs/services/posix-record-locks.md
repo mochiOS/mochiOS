@@ -6,6 +6,19 @@
 読み取り共有・書き込み競合、所有者自身の範囲置換、分割・結合・解放を
 提供します。カーネルにPOSIXのロック状態を追加しません。
 
+`posix-protocol::record_lock`に要求・応答の固定長codecを追加しています。
+Query/Set/Unlock/ReleaseFileとSEEK_SET/CUR/END相当の起点を表し、
+要求にはPID・FD・パス・device/inode・ポインタを含めません。
+競合する所有者のIDは応答でのみ返します。version・予約領域・長さ・列挙値を
+厳密に検査し、ReleaseFileに範囲や種類を載せる形式も拒否します。
+このcodec用のopcodeはまだ公開していません。
+
+サービス内部の`OwnedLocks::apply`で、decode済みの要求を既存のロック状態へ
+接続しています。CUR/ENDは呼び出し側が添付FileHandleから観測した位置・サイズで
+解決し、SETは基点0とします。競合はEAGAIN、上限はENOLCK、範囲超過は
+EOVERFLOWへ変換します。照会は絶対範囲、または競合なしの応答を返します。
+この内部API自体はHandleの認証やアクセスモードの検査を代行しません。
+
 **FileHandleによるIPC、libcのfcntl、待機処理には未接続です。**
 F_GETLK・F_SETLK・F_SETLKWが利用可能になったとは扱いません。
 
@@ -20,6 +33,8 @@ F_GETLK・F_SETLK・F_SETLKWが利用可能になったとは扱いません。
 filesystem側の観測から識別と読み書き権限を取得する必要があります。
 要求内のパス・FD・device/inode・PIDを認証や対象選択に使ってはいけません。
 観測中のexecも再検証し、ファイルの寿命とinode再利用を区別する必要があります。
+既存のGET_FLAGS_HANDLEはAPPEND/NONBLOCKのみを返すため、読み書きの
+アクセスモードを取得できるAPIとして流用してはいけません。
 
 ## 区間と資源管理
 
@@ -65,3 +80,7 @@ dup2による置換・CLOEXECによるcloseにも接続する必要がありま�
 ホスト試験は`services/posix/tests/support/record_lock.rs`です。区間の仕様例に
 加え、4,000回の操作をバイト単位の独立モデルと照合し、所有者別・全体の
 上限と失敗時の状態維持、exec後の保持、終了確認と通知失敗の区別を検証します。
+`services/posix/tests/record_lock_wire.rs`でcodecの破損入力・符号付き極値・
+不正応答と、短い出力領域での非破壊性も確認します。内部アダプターの試験は
+要求のencode/decodeから状態更新と応答のencode/decodeまでを通します。
+これらはホスト上の試験であり、実FileHandle転送の成功を示すものではありません。

@@ -14151,3 +14151,11 @@ path = "services"
 hash = "ace5e2476f3be3203bf3aa9f88fef32a63870e09"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose provider byte extents and cover bounded image snapshot memory"
+
+[[entries]]
+date = "2026-10-23T21:21:39.234528647+09:00"
+snapshot = "0af5c2ce004ce8a7c2679848"
+path = "user"
+hash = "5554fab9af6d0ca2a015b41a66b8d10e1f0d5216"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve workspace lockfile ordering after native integration builds"

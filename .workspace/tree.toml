@@ -14375,3 +14375,11 @@ path = "services"
 hash = "cc6e886c246147ae6aba9df1f63d6c40bd6cb570"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Serve atomic description flags through authenticated Provider calls"
+
+[[entries]]
+date = "2026-10-24T05:33:09.593103368+09:00"
+snapshot = "a242f367c5e0c08051028d38"
+path = "services"
+hash = "d020192162dee14a87b569d551fe18c0bc5641d9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify direct special-file flags without a POSIX endpoint"

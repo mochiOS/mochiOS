@@ -42,6 +42,7 @@ newlib・実IPC・forkの統合試験は`native_process_clock.c`です。
 プロセスCPUクロックでの`clock_nanosleep`もランタイムへ接続しています。
 `pthread_getcpuclockid`で取得した別スレッドのCPUクロックでの待機にも
 対応します。SIGEV_THREADとPOSIX全体への適合は未完了です。
+SIGEV_THREADの[通知受信経路](posix-timer-callbacks.md)は別途実装しています。
 
 ## CPU時間での待機処理
 

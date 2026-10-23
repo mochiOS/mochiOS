@@ -14247,3 +14247,11 @@ path = "services"
 hash = "0f487251bfc01d67d1a9dec0ffe870e761817a45"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify libc thread callbacks, rollback and process lifetime"
+
+[[entries]]
+date = "2026-10-24T01:14:13.264693785+09:00"
+snapshot = "03a5b11ab88409abbe32b57e"
+path = "services"
+hash = "bc9a6bbe19dbf32d5ebbdc92a5330b1de608b9d3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise explicit pthread attributes through timer callbacks"

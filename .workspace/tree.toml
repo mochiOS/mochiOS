@@ -14447,3 +14447,11 @@ path = "services"
 hash = "91ad3ec1237f5fb94d978dbe05cb4c1679d0a2df"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Observe limits from the retained filesystem volume without pathname lookup"
+
+[[entries]]
+date = "2026-10-24T06:58:23.705480948+09:00"
+snapshot = "d197060c874e301e4509b81b"
+path = "services"
+hash = "3bf179a720fe865c26bc6dbf53d04133c52cc4f9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify fpathconf through production adapter and native attenuated Handles"

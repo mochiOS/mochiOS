@@ -129,5 +129,42 @@ read不可対象への問い合わせと親searchの拒否、chrootと絶対リ�
 既存の全アプリを再リンクしたという検証ではありません。通常起動の証跡は
 `out/checks/mochios-normal-174.log`と`mochios-normal-174.png`へ保存しています。
 
+## 未提供のI/O optionと問い合わせエラーの区別（175）
+
+現在のnative POSIX runtimeとSDK libcにはPOSIX AIOの実定義がなく、openも同期I/Oの
+追加モードを受け付けません。これらの機能があるように見せる値は返しません。
+一方、既知の未提供optionを未知のselectorと同じEINVAL/ENOTSUPにする処理も分けます。
+
+`configuration::system_option`はnewlibのSC_ASYNCHRONOUS_IO・SC_PRIORITIZED_IO・
+SC_SYNCHRONIZED_IOへ-1、`file_option`はPC_ASYNC_IO・PC_PRIO_IO・PC_SYNC_IOへ-1を返します。
+これはoption不在の回答であり、size上限が不定・無限であるという意味ではありません。
+`sysconf`は直接返し、`fpathconf`はFDのlease取得・検証後に返します。errnoは変更せず、
+無効FDや未知selectorは従来通りエラーです。FD版のoption回答にowner RPCは不要です。
+
+`pathconf`はcaller文字列のsnapshot後に、既存の認証済みstat経路で対象の存在・親のsearchと
+root閉じ込めを確認してからoption不在を返します。対象のデータをread用にopenしません。
+存在しない対象やsearch不可の親で、option不在を成功として返すことはありません。
+deviceでもext4の制限値を借りず、既知の全体option不在とnamespace内の存在確認を区別します。
+
+[unistdの実行時option定義](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/unistd.h.html)
+と[sysconfの戻り値](https://pubs.opengroup.org/onlinepubs/9699919799/functions/sysconf.html)
+に従い、-1という値だけを問い合わせ失敗として扱わず、errnoと区別します。
+SDKヘッダは変更・再生成せず、実際のターゲット向けプリプロセス結果でも、これらのoptionを
+対応済みとするPOSIXマクロが出ないことを確認しています。
+
+ホストの対象12件でselector値・FD検証・errnoとowner呼び出しの有無を確認しています。
+boot query fixtureも新しい実装関数を取り込み、CPU情報を取得できない場合でも
+既知の未提供optionの回答はnative CPU問い合わせを行わないことを確認しました。
+全体654ターゲット・3,160件が成功し、失敗0件です。
+実newlibのKVM試験も、既存分を含む6グループすべて通過しました。
+全APIのerrno維持とdevice、欠けた対象、UID変更後のsearch判定も含みます。
+ログは`out/checks/mochios-posix-host-audit-175-final.log`と
+`out/checks/mochios-io-options-175-native.log`です。
+
+診断用compositor・service-managerは元の同じバイト列へ戻し、通常イメージを再生成しました。
+filesystem・posixの通常バイナリも174の証跡と同じハッシュであることを確認しています。
+今回は通常デスクトップの再起動試験は行っておらず、最後の通常起動確認は174です。
+この変更はI/O機能そのものの実装ではなく、機能検出を正しくするものです。
+
 pathconfはこの3項目の先行対応です。pipe・terminal・deviceの適用可否や未実装項目を
 上限不定に偽装する処理は追加していません。

@@ -14167,3 +14167,11 @@ path = "services"
 hash = "bfb1e5d9bc0c26b49e66fa5111611927ebd06360"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify shared file descriptions and descriptor policy across native exec"
+
+[[entries]]
+date = "2026-10-23T21:50:36.868968852+09:00"
+snapshot = "b6461ac31d5d32a7495c72a1"
+path = "services"
+hash = "51a3490703296cea32d60f25e84de88feb33c7c2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Observe managed process CPU clocks with POSIX permission and lifetime checks"

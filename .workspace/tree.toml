@@ -14687,3 +14687,11 @@ path = "services"
 hash = "1f42f08ac9166f726c8b57f4d6e5fd9cc745f295"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Broker captured image authorization and verify unlinked-image fork"
+
+[[entries]]
+date = "2026-10-24T17:03:19.764299251+09:00"
+snapshot = "c821ce74a386a04e98b25a76"
+path = "services"
+hash = "4eea6395fb39cba0c6b188e78bda6daf01b2ad1c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Admit execute-only images and verify unregistered pathname execution"

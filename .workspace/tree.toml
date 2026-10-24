@@ -14663,3 +14663,11 @@ path = "services"
 hash = "fa2fc67d01289b7d07250b670a138c25f6b9f931"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Authorize explicit executable objects without pathname or grant expansion"
+
+[[entries]]
+date = "2026-10-24T15:37:31.317741887+09:00"
+snapshot = "7acfab99f0c3741467181ec6"
+path = "services"
+hash = "5c67ca68044f8b726758b29e9af559c93677e617"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep unresponsive providers outside the image authorization broker"

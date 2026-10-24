@@ -14583,3 +14583,11 @@ path = "services"
 hash = "b9147946fc257fae93da84163ce406a68dfa50c1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Track FIFO rendezvous and capacity waits with retained source leases"
+
+[[entries]]
+date = "2026-10-24T12:30:04.385694561+09:00"
+snapshot = "1dfb33050412f1cfe6e6ac81"
+path = "services"
+hash = "6d40dd2401c4b06789d8a8236e2ecda02b654593"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Issue FIFO wait Handles from explicitly delegated data authority"

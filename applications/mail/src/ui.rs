@@ -2,6 +2,7 @@ use crate::account_ui::{AccountForm, AccountPage, Provider};
 use crate::backend::{self, Account, Error, Result};
 use crate::layout::{Layout, Width};
 use crate::model::{Folder, Mailbox, Model, Page};
+use crate::protocol::ImapFlag;
 use appcore::prelude::*;
 use appcore::viewkit::draw_command::DrawCommand;
 use appcore::viewkit::event::{
@@ -99,9 +100,9 @@ struct Core {
     form: AccountForm,
     worker: RefCell<Option<mpsc::Receiver<Result<Reply>>>>,
     sending: Cell<bool>,
-    active_read: RefCell<Option<ReadChange>>,
-    read_queue: RefCell<VecDeque<ReadChange>>,
-    read_error: Cell<Option<Error>>,
+    active_flag: RefCell<Option<FlagChange>>,
+    flag_queue: RefCell<VecDeque<FlagChange>>,
+    flag_error: Cell<Option<Error>>,
     status: RefCell<String>,
     accounts_loaded: Cell<bool>,
     sender: Cell<usize>,
@@ -124,19 +125,22 @@ struct Core {
     draft: Draft,
 }
 #[derive(Clone)]
-struct ReadChange {
+struct FlagChange {
     account: Account,
     message: crate::protocol::ImapMessageId,
-    unread: bool,
+    flag: ImapFlag,
+    enabled: bool,
 }
-impl ReadChange {
-    fn same_message(&self, other: &Self) -> bool {
-        self.account.id == other.account.id && self.message == other.message
+impl FlagChange {
+    fn same_update(&self, other: &Self) -> bool {
+        self.account.id == other.account.id
+            && self.message == other.message
+            && self.flag == other.flag
     }
 }
 enum Job {
     Load,
-    Read(ReadChange),
+    Flag(FlagChange),
     Add(backend::Credential),
     Remove(usize, Account),
     Sync(usize, Account),
@@ -144,7 +148,7 @@ enum Job {
 }
 enum Reply {
     Loaded(Vec<Account>),
-    ReadChanged(ReadChange),
+    FlagChanged(FlagChange),
     Added(Account),
     Removed(usize),
     Synced(usize, Vec<(String, crate::model::Thread)>),
@@ -153,9 +157,9 @@ enum Reply {
 fn execute(job: Job) -> Result<Reply> {
     match job {
         Job::Load => backend::accounts().map(Reply::Loaded),
-        Job::Read(change) => {
-            backend::set_seen(&change.account, change.message, !change.unread)?;
-            Ok(Reply::ReadChanged(change))
+        Job::Flag(change) => {
+            backend::set_flag(&change.account, change.message, change.flag, change.enabled)?;
+            Ok(Reply::FlagChanged(change))
         }
         Job::Add(c) => backend::add(c).map(Reply::Added),
         Job::Remove(i, a) => backend::remove(a.id).map(|_| Reply::Removed(i)),
@@ -209,20 +213,24 @@ impl Core {
         if self.worker.borrow().is_some() {
             return;
         }
-        let starting_read = matches!(&job, Job::Read(_));
+        let starting_flag = matches!(&job, Job::Flag(_));
         self.sending.set(matches!(&job, Job::Send(..)));
-        *self.active_read.borrow_mut() = match &job {
-            Job::Read(c) => Some(c.clone()),
+        *self.active_flag.borrow_mut() = match &job {
+            Job::Flag(c) => Some(c.clone()),
             _ => None,
         };
         let (tx, rx) = mpsc::channel();
         *self.worker.borrow_mut() = Some(rx);
         *self.status.borrow_mut() = match &job {
-            Job::Read(_) => {
-                if self.read_error.get().is_some() {
-                    "Some read updates failed. Use Get Mail to refresh. Updating remaining messages…".into()
+            Job::Flag(change) => {
+                if self.flag_error.get().is_some() {
+                    "Some message updates failed. Use Get Mail to refresh. Updating remaining messages…".into()
                 } else {
-                    "Updating read status…".into()
+                    match change.flag {
+                        ImapFlag::Seen => "Updating read status…",
+                        ImapFlag::Flagged => "Updating flag…",
+                    }
+                    .into()
                 }
             }
             Job::Sync(_, a) => format!("Receiving mail for {}…", a.config.email),
@@ -237,59 +245,64 @@ impl Core {
             .is_err()
         {
             self.worker.borrow_mut().take();
-            self.active_read.borrow_mut().take();
+            self.active_flag.borrow_mut().take();
             self.sending.set(false);
-            if starting_read {
-                self.read_error.set(Some(Error::Network));
+            if starting_flag {
+                self.flag_error.set(Some(Error::Network));
             }
             *self.status.borrow_mut() = Error::Network.label().into();
         }
     }
-    fn read_pending(&self, account: [u8; 16], message: crate::protocol::ImapMessageId) -> bool {
-        self.active_read
+    fn flag_pending(
+        &self,
+        account: [u8; 16],
+        message: crate::protocol::ImapMessageId,
+        flag: ImapFlag,
+    ) -> bool {
+        self.active_flag
             .borrow()
             .as_ref()
-            .is_some_and(|c| c.account.id == account && c.message == message)
+            .is_some_and(|c| c.account.id == account && c.message == message && c.flag == flag)
             || self
-                .read_queue
+                .flag_queue
                 .borrow()
                 .iter()
-                .any(|c| c.account.id == account && c.message == message)
+                .any(|c| c.account.id == account && c.message == message && c.flag == flag)
     }
-    fn queue_read(&self, change: ReadChange) {
+    fn queue_flag(&self, change: FlagChange) {
         if self.preview.get() {
             return;
         }
         if let Some(queued) = self
-            .read_queue
+            .flag_queue
             .borrow_mut()
             .iter_mut()
-            .find(|c| c.same_message(&change))
+            .find(|c| c.same_update(&change))
         {
-            queued.unread = change.unread;
+            queued.enabled = change.enabled;
             return;
         }
         if self
-            .active_read
+            .active_flag
             .borrow()
             .as_ref()
-            .is_some_and(|c| c.same_message(&change) && c.unread == change.unread)
+            .is_some_and(|c| c.same_update(&change) && c.enabled == change.enabled)
         {
             return;
         }
-        if self.read_queue.borrow().len() >= 2000 {
+        if self.flag_queue.borrow().len() >= 2000 {
             *self.status.borrow_mut() =
-                "Too many pending read updates. Wait for them to finish.".into();
+                "Too many pending message updates. Wait for them to finish.".into();
             return;
         }
-        if self.active_read.borrow().is_none() && self.read_queue.borrow().is_empty() {
-            self.read_error.set(None);
+        if self.active_flag.borrow().is_none() && self.flag_queue.borrow().is_empty() {
+            self.flag_error.set(None);
         }
-        self.read_queue.borrow_mut().push_back(change);
+        self.flag_queue.borrow_mut().push_back(change);
     }
-    fn take_next_read(&self) -> Option<ReadChange> {
+    fn take_next_flag(&self) -> Option<FlagChange> {
         loop {
-            let change = self.read_queue.borrow_mut().pop_front()?;
+            let change = self.flag_queue.borrow_mut().pop_front()?;
             let m = self.model.borrow();
             let current = m
                 .accounts
@@ -301,12 +314,12 @@ impl Core {
             }
         }
     }
-    fn start_next_read(&self) {
+    fn start_next_flag(&self) {
         if self.worker.borrow().is_some() {
             return;
         }
-        while let Some(change) = self.take_next_read() {
-            self.start(Job::Read(change));
+        while let Some(change) = self.take_next_flag() {
+            self.start(Job::Flag(change));
             if self.worker.borrow().is_some() {
                 return;
             }
@@ -324,12 +337,12 @@ impl Core {
         };
         self.worker.borrow_mut().take();
         self.sending.set(false);
-        let was_read = self.active_read.borrow_mut().take().is_some();
+        let was_flag = self.active_flag.borrow_mut().take().is_some();
         let mut receive_after_add = None;
         match result {
             Err(e) => {
-                if was_read {
-                    self.read_error.set(Some(e));
+                if was_flag {
+                    self.flag_error.set(Some(e));
                 }
                 *self.status.borrow_mut() = e.label().into();
                 if self.form.open.get() {
@@ -339,14 +352,25 @@ impl Core {
             Ok(reply) => {
                 let mut m = self.model.borrow_mut();
                 match reply {
-                    Reply::ReadChanged(change) => {
-                        if m.confirm_read(change.account.id, change.message, change.unread) {
-                            *self.status.borrow_mut() = self.read_error.get().map_or_else(
-                                || "Read status updated.".into(),
+                    Reply::FlagChanged(change) => {
+                        if m.confirm_flag(
+                            change.account.id,
+                            change.message,
+                            change.flag,
+                            change.enabled,
+                        ) {
+                            *self.status.borrow_mut() = self.flag_error.get().map_or_else(
+                                || {
+                                    match change.flag {
+                                        ImapFlag::Seen => "Read status updated.",
+                                        ImapFlag::Flagged => "Flag updated.",
+                                    }
+                                    .into()
+                                },
                                 |e| e.label().into(),
                             );
                         } else {
-                            self.read_error.set(Some(Error::MailboxChanged));
+                            self.flag_error.set(Some(Error::MailboxChanged));
                             *self.status.borrow_mut() = Error::MailboxChanged.label().into();
                         }
                     }
@@ -462,7 +486,7 @@ impl Core {
         if let Some(job) = receive_after_add {
             self.start(job);
         }
-        self.start_next_read();
+        self.start_next_flag();
     }
     fn save_draft(&self) {
         if let Some(id) = self.active_draft.get() {
@@ -686,25 +710,34 @@ impl Core {
                 if let Some((account, message)) = remote {
                     // Opening again after a queued mark-unread means read it.
                     let desired = self
-                        .read_queue
+                        .flag_queue
                         .borrow()
                         .iter()
                         .rev()
-                        .find(|c| c.account.id == account.id && c.message == message)
-                        .map(|c| c.unread)
+                        .find(|c| {
+                            c.account.id == account.id
+                                && c.message == message
+                                && c.flag == ImapFlag::Seen
+                        })
+                        .map(|c| !c.enabled)
                         .or_else(|| {
-                            self.active_read
+                            self.active_flag
                                 .borrow()
                                 .as_ref()
-                                .filter(|c| c.account.id == account.id && c.message == message)
-                                .map(|c| c.unread)
+                                .filter(|c| {
+                                    c.account.id == account.id
+                                        && c.message == message
+                                        && c.flag == ImapFlag::Seen
+                                })
+                                .map(|c| !c.enabled)
                         })
                         .unwrap_or(unread);
                     if desired {
-                        self.queue_read(ReadChange {
+                        self.queue_flag(FlagChange {
                             account,
                             message,
-                            unread: false,
+                            flag: ImapFlag::Seen,
+                            enabled: true,
                         });
                     }
                 } else {
@@ -776,12 +809,13 @@ impl Core {
             Action::Unread => {
                 if let Some(id) = m.selected {
                     if let Some((account, message)) = m.imap_identity(id) {
-                        if !self.read_pending(account.id, message) {
+                        if !self.flag_pending(account.id, message, ImapFlag::Seen) {
                             let unread = !m.thread(id).unwrap().unread;
-                            self.queue_read(ReadChange {
+                            self.queue_flag(FlagChange {
                                 account,
                                 message,
-                                unread,
+                                flag: ImapFlag::Seen,
+                                enabled: !unread,
                             });
                         }
                     } else if let Some(t) = m.threads.iter_mut().find(|t| t.id == id) {
@@ -790,14 +824,31 @@ impl Core {
                     }
                 }
             }
-            Action::Archive | Action::Delete | Action::Flag => {
+            Action::Flag => {
+                if let Some(id) = m.selected {
+                    if let Some((account, message)) = m.imap_identity(id) {
+                        if !self.flag_pending(account.id, message, ImapFlag::Flagged) {
+                            let enabled = !m.thread(id).unwrap().flagged;
+                            self.queue_flag(FlagChange {
+                                account,
+                                message,
+                                flag: ImapFlag::Flagged,
+                                enabled,
+                            });
+                        }
+                    } else if let Some(t) = m.threads.iter_mut().find(|t| t.id == id) {
+                        t.flagged = !t.flagged;
+                        m.local_state.insert(id);
+                    }
+                }
+            }
+            Action::Archive | Action::Delete => {
                 if let Some(id) = m.selected {
                     m.local_state.insert(id);
                     if let Some(t) = m.threads.iter_mut().find(|t| t.id == id) {
                         match action {
                             Action::Archive => t.folder = Folder::Archive,
                             Action::Delete => t.folder = Folder::Trash,
-                            Action::Flag => t.flagged = !t.flagged,
                             _ => {}
                         }
                         if matches!(action, Action::Archive | Action::Delete) {
@@ -815,7 +866,7 @@ impl Core {
             Action::Details => {}
         }
         drop(m);
-        self.start_next_read();
+        self.start_next_flag();
     }
 }
 impl MailView {
@@ -845,9 +896,9 @@ impl MailView {
                 form: AccountForm::new(),
                 worker: RefCell::new(None),
                 sending: Cell::new(false),
-                active_read: RefCell::new(None),
-                read_queue: RefCell::new(VecDeque::new()),
-                read_error: Cell::new(None),
+                active_flag: RefCell::new(None),
+                flag_queue: RefCell::new(VecDeque::new()),
+                flag_error: Cell::new(None),
                 status: RefCell::new(if preview {
                     "Preview · Sample messages. No email is sent.".into()
                 } else {
@@ -2167,7 +2218,9 @@ impl MailView {
                         "Flag Message"
                     }
                     .into(),
-                    enabled: true,
+                    enabled: m.imap_identity(t.id).is_none_or(|(a, key)| {
+                        !self.core.flag_pending(a.id, key, ImapFlag::Flagged)
+                    }),
                     checked: t.flagged,
                     destructive: false,
                     separator: false,
@@ -2182,7 +2235,7 @@ impl MailView {
                     .into(),
                     enabled: m
                         .imap_identity(t.id)
-                        .is_none_or(|(a, key)| !self.core.read_pending(a.id, key)),
+                        .is_none_or(|(a, key)| !self.core.flag_pending(a.id, key, ImapFlag::Seen)),
                     checked: false,
                     destructive: false,
                     separator: false,
@@ -3276,20 +3329,20 @@ mod tests {
         f.view.core.apply(Action::Open(2), true);
         assert!(f.view.core.model.borrow().thread(1).unwrap().unread);
         assert!(f.view.core.model.borrow().thread(2).unwrap().unread);
-        let first = f.view.core.take_next_read().unwrap();
-        let second = f.view.core.take_next_read().unwrap();
-        assert!(f.view.core.take_next_read().is_none());
+        let first = f.view.core.take_next_flag().unwrap();
+        let second = f.view.core.take_next_flag().unwrap();
+        assert!(f.view.core.take_next_flag().is_none());
         assert_eq!(first.account.id, [1; 16]);
         assert_eq!(first.message.uid, 7);
         assert_eq!(second.account.id, [2; 16]);
         assert_eq!(second.message.uid, 8);
-        *f.view.core.active_read.borrow_mut() = Some(first.clone());
-        completion(&f, Ok(Reply::ReadChanged(first)));
+        *f.view.core.active_flag.borrow_mut() = Some(first.clone());
+        completion(&f, Ok(Reply::FlagChanged(first)));
         assert!(!f.view.core.model.borrow().thread(1).unwrap().unread);
         assert!(f.view.core.model.borrow().thread(2).unwrap().unread);
         assert_eq!(f.view.core.model.borrow().selected, Some(2));
-        *f.view.core.active_read.borrow_mut() = Some(second.clone());
-        completion(&f, Ok(Reply::ReadChanged(second)));
+        *f.view.core.active_flag.borrow_mut() = Some(second.clone());
+        completion(&f, Ok(Reply::FlagChanged(second)));
         assert!(!f.view.core.model.borrow().thread(2).unwrap().unread);
     }
     #[test]
@@ -3310,11 +3363,11 @@ mod tests {
                 .unwrap()
                 .enabled
         );
-        let change = f.view.core.take_next_read().unwrap();
-        *f.view.core.active_read.borrow_mut() = Some(change.clone());
+        let change = f.view.core.take_next_flag().unwrap();
+        *f.view.core.active_flag.borrow_mut() = Some(change.clone());
         completion(&f, Err(Error::ReadStatusUnknown));
         assert!(f.view.core.model.borrow().thread(1).unwrap().unread);
-        assert!(f.view.core.active_read.borrow().is_none());
+        assert!(f.view.core.active_flag.borrow().is_none());
         assert!(
             f.view
                 .core
@@ -3324,21 +3377,21 @@ mod tests {
         );
         let _hold2 = hold_network(&f);
         f.view.core.apply(Action::Unread, true);
-        let retry = f.view.core.take_next_read().unwrap();
-        assert!(!retry.unread);
-        *f.view.core.active_read.borrow_mut() = Some(retry.clone());
-        completion(&f, Ok(Reply::ReadChanged(retry)));
+        let retry = f.view.core.take_next_flag().unwrap();
+        assert!(retry.enabled);
+        *f.view.core.active_flag.borrow_mut() = Some(retry.clone());
+        completion(&f, Ok(Reply::FlagChanged(retry)));
         assert!(!f.view.core.model.borrow().thread(1).unwrap().unread);
         let _hold3 = hold_network(&f);
         f.view.core.apply(Action::Unread, true);
-        let unread = f.view.core.take_next_read().unwrap();
-        assert!(unread.unread);
-        *f.view.core.active_read.borrow_mut() = Some(unread.clone());
-        completion(&f, Ok(Reply::ReadChanged(unread)));
+        let unread = f.view.core.take_next_flag().unwrap();
+        assert!(!unread.enabled);
+        *f.view.core.active_flag.borrow_mut() = Some(unread.clone());
+        completion(&f, Ok(Reply::FlagChanged(unread)));
         assert!(f.view.core.model.borrow().thread(1).unwrap().unread);
     }
     #[test]
-    fn stale_read_queue_is_discarded_and_late_ack_cannot_change_a_replaced_message() {
+    fn stale_flag_queue_is_discarded_and_late_ack_cannot_change_a_replaced_message() {
         let f = remote_fixture();
         let _hold = hold_network(&f);
         f.view.core.apply(Action::Open(1), true);
@@ -3347,17 +3400,18 @@ mod tests {
             m.remote_ids.remove(&(0, "imap:42:7".into()));
             m.remote_ids.insert((0, "imap:43:7".into()), 1);
         }
-        assert!(f.view.core.take_next_read().is_none());
+        assert!(f.view.core.take_next_flag().is_none());
         let account = f.view.core.model.borrow().accounts[0].clone();
         completion(
             &f,
-            Ok(Reply::ReadChanged(ReadChange {
+            Ok(Reply::FlagChanged(FlagChange {
                 account,
                 message: crate::protocol::ImapMessageId {
                     validity: 42,
                     uid: 7,
                 },
-                unread: false,
+                flag: ImapFlag::Seen,
+                enabled: true,
             })),
         );
         assert!(f.view.core.model.borrow().thread(1).unwrap().unread);
@@ -3391,13 +3445,165 @@ mod tests {
             uid: 7,
         };
         for unread in [false, true, false] {
-            f.view.core.queue_read(ReadChange {
+            f.view.core.queue_flag(FlagChange {
                 account: account.clone(),
                 message,
-                unread,
+                flag: ImapFlag::Seen,
+                enabled: !unread,
             });
         }
-        assert_eq!(f.view.core.read_queue.borrow().len(), 1);
-        assert!(!f.view.core.take_next_read().unwrap().unread);
+        assert_eq!(f.view.core.flag_queue.borrow().len(), 1);
+        assert!(f.view.core.take_next_flag().unwrap().enabled);
+    }
+    #[test]
+    fn seen_and_flagged_updates_on_one_message_are_independent() {
+        let f = remote_fixture();
+        let _hold = hold_network(&f);
+        f.view.core.model.borrow_mut().threads[0].flagged = false;
+        f.view.core.apply(Action::Open(1), true);
+        f.view.core.apply(Action::Flag, true);
+        assert_eq!(f.view.core.flag_queue.borrow().len(), 2);
+        assert!(!f.view.core.model.borrow().thread(1).unwrap().flagged);
+        assert!(f.view.core.model.borrow().thread(1).unwrap().unread);
+        let seen = f.view.core.take_next_flag().unwrap();
+        let flag = f.view.core.take_next_flag().unwrap();
+        assert_eq!(seen.flag, ImapFlag::Seen);
+        assert_eq!(flag.flag, ImapFlag::Flagged);
+        *f.view.core.active_flag.borrow_mut() = Some(flag.clone());
+        completion(&f, Ok(Reply::FlagChanged(flag)));
+        assert!(f.view.core.model.borrow().thread(1).unwrap().flagged);
+        assert!(f.view.core.model.borrow().thread(1).unwrap().unread);
+        *f.view.core.active_flag.borrow_mut() = Some(seen.clone());
+        completion(&f, Ok(Reply::FlagChanged(seen)));
+        assert!(f.view.core.model.borrow().thread(1).unwrap().flagged);
+        assert!(!f.view.core.model.borrow().thread(1).unwrap().unread);
+    }
+    #[test]
+    fn failed_flag_update_preserves_confirmed_state_and_can_be_retried() {
+        let f = remote_fixture();
+        {
+            let mut m = f.view.core.model.borrow_mut();
+            m.threads[0].unread = false;
+            m.threads[0].flagged = false;
+        }
+        let _hold = hold_network(&f);
+        f.view.core.apply(Action::Open(1), true);
+        f.view.core.apply(Action::Flag, true);
+        f.paint();
+        let reader = f.view.core.layout(f.bounds.get()).reader.unwrap();
+        let menu = f
+            .click(Point::new(reader.origin.x + reader.size.width - 74.0, 22.0))
+            .unwrap();
+        assert!(
+            !menu
+                .items
+                .iter()
+                .find(|i| i.command_id == 2)
+                .unwrap()
+                .enabled
+        );
+        assert!(
+            menu.items
+                .iter()
+                .find(|i| i.command_id == 3)
+                .unwrap()
+                .enabled
+        );
+        let flag = f.view.core.take_next_flag().unwrap();
+        *f.view.core.active_flag.borrow_mut() = Some(flag);
+        completion(&f, Err(Error::FlagStatusUnknown));
+        assert!(!f.view.core.model.borrow().thread(1).unwrap().flagged);
+        assert!(
+            f.view
+                .core
+                .status
+                .borrow()
+                .contains("Flag status could not be confirmed")
+        );
+        for enabled in [true, false] {
+            let _hold = hold_network(&f);
+            f.view.core.apply(Action::Flag, true);
+            let flag = f.view.core.take_next_flag().unwrap();
+            assert_eq!(flag.flag, ImapFlag::Flagged);
+            assert_eq!(flag.enabled, enabled);
+            *f.view.core.active_flag.borrow_mut() = Some(flag.clone());
+            completion(&f, Ok(Reply::FlagChanged(flag)));
+            assert_eq!(
+                f.view.core.model.borrow().thread(1).unwrap().flagged,
+                enabled
+            );
+            assert!(!f.view.core.model.borrow().thread(1).unwrap().unread);
+        }
+    }
+    #[test]
+    fn queue_coalesces_per_flag_and_opening_ignores_pending_flagged_intent() {
+        let f = remote_fixture();
+        let _hold = hold_network(&f);
+        let account = f.view.core.model.borrow().accounts[0].clone();
+        let message = crate::protocol::ImapMessageId {
+            validity: 42,
+            uid: 7,
+        };
+        f.view.core.queue_flag(FlagChange {
+            account: account.clone(),
+            message,
+            flag: ImapFlag::Seen,
+            enabled: true,
+        });
+        f.view.core.queue_flag(FlagChange {
+            account: account.clone(),
+            message,
+            flag: ImapFlag::Flagged,
+            enabled: true,
+        });
+        f.view.core.queue_flag(FlagChange {
+            account: account.clone(),
+            message,
+            flag: ImapFlag::Seen,
+            enabled: false,
+        });
+        assert_eq!(f.view.core.flag_queue.borrow().len(), 2);
+        let first = f.view.core.take_next_flag().unwrap();
+        let second = f.view.core.take_next_flag().unwrap();
+        assert_eq!(first.flag, ImapFlag::Seen);
+        assert!(!first.enabled);
+        assert_eq!(second.flag, ImapFlag::Flagged);
+        assert!(second.enabled);
+        *f.view.core.active_flag.borrow_mut() = Some(second);
+        f.view.core.apply(Action::Open(1), true);
+        let opened = f.view.core.take_next_flag().unwrap();
+        assert_eq!(opened.flag, ImapFlag::Seen);
+        assert!(opened.enabled);
+    }
+    #[test]
+    fn stale_flagged_ack_does_not_change_a_replacement_message() {
+        let f = remote_fixture();
+        let _hold = hold_network(&f);
+        f.view.core.model.borrow_mut().selected = Some(1);
+        f.view.core.apply(Action::Flag, true);
+        let change = f.view.core.take_next_flag().unwrap();
+        {
+            let mut m = f.view.core.model.borrow_mut();
+            m.remote_ids.remove(&(0, "imap:42:7".into()));
+            m.remote_ids.insert((0, "imap:43:7".into()), 1);
+        }
+        *f.view.core.active_flag.borrow_mut() = Some(change.clone());
+        completion(&f, Ok(Reply::FlagChanged(change)));
+        assert!(!f.view.core.model.borrow().thread(1).unwrap().flagged);
+        assert!(f.view.core.status.borrow().contains("mailbox changed"));
+    }
+    #[test]
+    fn pop3_flagging_stays_local_and_does_not_create_a_worker() {
+        let f = remote_fixture();
+        {
+            let mut m = f.view.core.model.borrow_mut();
+            m.accounts[0].config.protocol = backend::Protocol::Pop3;
+            m.selected = Some(1);
+            m.threads[0].flagged = false;
+        }
+        f.view.core.apply(Action::Flag, true);
+        assert!(f.view.core.model.borrow().thread(1).unwrap().flagged);
+        assert!(f.view.core.worker.borrow().is_none());
+        assert!(f.view.core.flag_queue.borrow().is_empty());
     }
 }

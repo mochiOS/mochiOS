@@ -151,8 +151,58 @@ impl ImapMessageId {
         format!("imap:{}:{}", self.validity, self.uid)
     }
 }
-fn fetch_seen(response: &Response, expected: u32) -> Result<bool> {
-    let mut seen = None;
+/// Only supported system flags can be written; arbitrary command text is not accepted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ImapFlag {
+    Seen,
+    Flagged,
+}
+impl ImapFlag {
+    fn wire(self) -> &'static str {
+        match self {
+            Self::Seen => "\\Seen",
+            Self::Flagged => "\\Flagged",
+        }
+    }
+    fn unknown(self) -> Error {
+        match self {
+            Self::Seen => Error::ReadStatusUnknown,
+            Self::Flagged => Error::FlagStatusUnknown,
+        }
+    }
+}
+fn check_permanent_flag(response: &Response, flag: ImapFlag) -> Result<()> {
+    // Missing PERMANENTFLAGS means all flags are permanent for older servers.
+    // The \* permission covers new keywords, not the predefined \Flagged flag.
+    if flag != ImapFlag::Flagged {
+        return Ok(());
+    }
+    let mut allowed = None;
+    for line in &response.lines {
+        let upper = line.to_ascii_uppercase();
+        if let Some(rest) = upper.strip_prefix("* OK [PERMANENTFLAGS ") {
+            let list = rest
+                .strip_prefix('(')
+                .and_then(|r| r.split_once(")]").map(|(l, _)| l))
+                .ok_or(Error::Protocol)?;
+            if list.contains(['(', ')']) {
+                return Err(Error::Protocol);
+            }
+            let supports = list
+                .split_whitespace()
+                .any(|atom| atom.eq_ignore_ascii_case(flag.wire()));
+            if allowed.replace(supports).is_some() {
+                return Err(Error::Protocol);
+            }
+        }
+    }
+    if allowed == Some(false) {
+        return Err(Error::FlagNotPermanent);
+    }
+    Ok(())
+}
+fn fetch_flag(response: &Response, expected: u32, target: ImapFlag) -> Result<bool> {
+    let mut value = None;
     if !response.literals.is_empty() {
         return Err(Error::Protocol);
     }
@@ -201,38 +251,39 @@ fn fetch_seen(response: &Response, expected: u32) -> Result<bool> {
                         return Err(Error::Protocol);
                     }
                     let mut flag = first.strip_prefix('(').unwrap();
-                    let mut has_seen = false;
+                    let mut has_flag = false;
                     loop {
                         let end = flag.ends_with(')');
                         let atom = if end { &flag[..flag.len() - 1] } else { flag };
                         if atom.contains(['(', ')']) {
                             return Err(Error::Protocol);
                         }
-                        has_seen |= atom == "\\SEEN";
+                        has_flag |= atom.eq_ignore_ascii_case(target.wire());
                         if end {
                             break;
                         }
                         flag = tokens.next().ok_or(Error::Protocol)?;
                     }
-                    flags = Some(has_seen);
+                    flags = Some(has_flag);
                 }
                 _ => return Err(Error::Protocol),
             }
         }
         if uid == Some(expected) {
-            seen = Some(flags.ok_or(Error::Protocol)?);
+            value = Some(flags.ok_or(Error::Protocol)?);
         }
     }
-    seen.ok_or(Error::MessageGone)
+    value.ok_or(Error::MessageGone)
 }
-/// Add/remove Seen without replacing flags. A final UID FETCH confirms the
+/// Add/remove one system flag without replacing other flags. UID FETCH confirms the
 /// actual state; UID STORE may succeed without modifying an expunged message.
-pub fn imap_set_seen<S: BufRead + Write>(
+pub fn imap_set_flag<S: BufRead + Write>(
     s: &mut S,
     user: &str,
     password: &str,
     message: ImapMessageId,
-    seen: bool,
+    flag: ImapFlag,
+    enabled: bool,
 ) -> Result<()> {
     if message.validity == 0 || message.uid == 0 {
         return Err(Error::Invalid);
@@ -249,30 +300,45 @@ pub fn imap_set_seen<S: BufRead + Write>(
     {
         return Err(Error::ReadOnly);
     }
+    check_permanent_flag(&selected, flag)?;
     // Fetch first as well: a missing or mismatched UID must cause no mutation.
     let current = imap(s, "R2", &format!("UID FETCH {} (UID FLAGS)", message.uid))?;
-    if fetch_seen(&current, message.uid)? == seen {
+    check_permanent_flag(&current, flag)?;
+    if fetch_flag(&current, message.uid, flag)? == enabled {
         return Ok(());
     }
     let result = imap(
         s,
         "R3",
         &format!(
-            "UID STORE {} {}FLAGS.SILENT (\\Seen)",
+            "UID STORE {} {}FLAGS.SILENT ({})",
             message.uid,
-            if seen { "+" } else { "-" }
+            if enabled { "+" } else { "-" },
+            flag.wire()
         ),
     );
-    result.map_err(|e| match e {
+    let stored = result.map_err(|e| match e {
         Error::Rejected => e,
-        _ => Error::ReadStatusUnknown,
+        _ => flag.unknown(),
     })?;
+    check_permanent_flag(&stored, flag)?;
     let verified = imap(s, "R4", &format!("UID FETCH {} (UID FLAGS)", message.uid))
-        .map_err(|_| Error::ReadStatusUnknown)?;
-    if fetch_seen(&verified, message.uid).map_err(|_| Error::ReadStatusUnknown)? != seen {
-        return Err(Error::ReadStatusUnknown);
+        .map_err(|_| flag.unknown())?;
+    check_permanent_flag(&verified, flag)?;
+    if fetch_flag(&verified, message.uid, flag).map_err(|_| flag.unknown())? != enabled {
+        return Err(flag.unknown());
     }
     Ok(())
+}
+// Keep the existing read operation as a thin wrapper over the shared engine.
+pub fn imap_set_seen<S: BufRead + Write>(
+    s: &mut S,
+    user: &str,
+    password: &str,
+    message: ImapMessageId,
+    seen: bool,
+) -> Result<()> {
+    imap_set_flag(s, user, password, message, ImapFlag::Seen, seen)
 }
 pub fn imap_receive<S: BufRead + Write>(
     s: &mut S,
@@ -328,6 +394,15 @@ pub fn imap_receive<S: BufRead + Write>(
         if returned_uid != Some(uid) {
             return Err(Error::Protocol);
         }
+        let flag_text = upper
+            .match_indices("FLAGS (")
+            .find(|(i, _)| *i == 0 || matches!(upper.as_bytes()[i - 1], b' ' | b'('))
+            .and_then(|(i, _)| upper[i + 7..].split_once(')').map(|(flags, _)| flags))
+            .ok_or(Error::Protocol)?;
+        if flag_text.contains('(') {
+            return Err(Error::Protocol);
+        }
+        let is_set = |flag: &str| flag_text.split_whitespace().any(|atom| atom == flag);
         let raw = fetched.literals.into_iter().next().unwrap();
         total += raw.len();
         if total > MAX_SESSION {
@@ -336,8 +411,8 @@ pub fn imap_receive<S: BufRead + Write>(
         out.push(Incoming {
             key: format!("imap:{validity}:{uid}"),
             raw,
-            unread: !upper.contains("\\SEEN"),
-            flagged: upper.contains("\\FLAGGED"),
+            unread: !is_set("\\SEEN"),
+            flagged: is_set("\\FLAGGED"),
         });
     }
     Ok(out)

@@ -22,6 +22,8 @@ pub enum Error {
     MessageGone,
     ReadOnly,
     ReadStatusUnknown,
+    FlagStatusUnknown,
+    FlagNotPermanent,
 }
 impl Error {
     pub fn label(self) -> &'static str {
@@ -46,16 +48,22 @@ impl Error {
             Self::Message => "This message could not be decoded.",
             Self::Keychain => "Keychain is unavailable or locked. Unlock it, then try again.",
             Self::MailboxChanged => {
-                "This mailbox changed on the server. Use Get Mail before changing read status."
+                "This mailbox changed on the server. Use Get Mail before changing message flags."
             }
             Self::MessageGone => {
                 "This message is no longer on the server. Use Get Mail to refresh the mailbox."
             }
             Self::ReadOnly => {
-                "The server opened this mailbox as read-only. Read status was not changed."
+                "The server opened this mailbox as read-only. Message flags were not changed."
             }
             Self::ReadStatusUnknown => {
                 "Read status could not be confirmed. Use Get Mail to refresh before trying again."
+            }
+            Self::FlagStatusUnknown => {
+                "Flag status could not be confirmed. Use Get Mail to refresh before trying again."
+            }
+            Self::FlagNotPermanent => {
+                "This server does not permit saving this flag permanently. Use Get Mail to refresh."
             }
             Self::Duplicate => "This email account has already been added.",
             Self::DeliveryUnknown => {
@@ -274,7 +282,12 @@ pub fn send(account: &Account, to: &str, subject: &str, body: &str) -> Result<()
 }
 
 /// Credentials and transport are resolved only when this queued mutation runs.
-pub fn set_seen(account: &Account, message: protocol::ImapMessageId, seen: bool) -> Result<()> {
+pub fn set_flag(
+    account: &Account,
+    message: protocol::ImapMessageId,
+    flag: protocol::ImapFlag,
+    enabled: bool,
+) -> Result<()> {
     if account.config.protocol != Protocol::Imap {
         return Err(Error::Invalid);
     }
@@ -289,5 +302,17 @@ pub fn set_seen(account: &Account, message: protocol::ImapMessageId, seen: bool)
         return Err(Error::MailboxChanged);
     }
     let mut s = incoming(&c)?;
-    protocol::imap_set_seen(&mut s, &c.config.username, &c.password, message, seen)
+    match flag {
+        protocol::ImapFlag::Seen => {
+            protocol::imap_set_seen(&mut s, &c.config.username, &c.password, message, enabled)
+        }
+        protocol::ImapFlag::Flagged => protocol::imap_set_flag(
+            &mut s,
+            &c.config.username,
+            &c.password,
+            message,
+            flag,
+            enabled,
+        ),
+    }
 }

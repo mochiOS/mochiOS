@@ -290,16 +290,16 @@ impl Model {
                 });
             if self.local_state.contains(&thread.id) {
                 if let Some(old) = self.thread(thread.id) {
-                    // IMAP Seen is authoritative on the server even when
-                    // archive/folder/flag organization is still session-local.
+                    // IMAP flags remain authoritative even while folder
+                    // organization is still session-local.
                     if self
                         .accounts
                         .get(account)
                         .is_none_or(|a| a.config.protocol != crate::backend::Protocol::Imap)
                     {
                         thread.unread = old.unread;
+                        thread.flagged = old.flagged;
                     }
-                    thread.flagged = old.flagged;
                     thread.folder = old.folder;
                 }
             }
@@ -389,11 +389,12 @@ impl Model {
             crate::protocol::ImapMessageId::from_key(key)?,
         ))
     }
-    pub fn confirm_read(
+    pub fn confirm_flag(
         &mut self,
         account_id: [u8; 16],
         message: crate::protocol::ImapMessageId,
-        unread: bool,
+        flag: crate::protocol::ImapFlag,
+        enabled: bool,
     ) -> bool {
         let Some(account) = self.accounts.iter().position(|a| a.id == account_id) else {
             return false;
@@ -404,7 +405,10 @@ impl Model {
         let Some(thread) = self.threads.iter_mut().find(|t| t.id == id) else {
             return false;
         };
-        thread.unread = unread;
+        match flag {
+            crate::protocol::ImapFlag::Seen => thread.unread = !enabled,
+            crate::protocol::ImapFlag::Flagged => thread.flagged = enabled,
+        }
         true
     }
     pub fn open(&mut self, id: usize) {

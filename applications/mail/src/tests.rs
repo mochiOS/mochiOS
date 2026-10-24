@@ -404,7 +404,7 @@ fn imap_seen_already_matches_skips_store_and_rejects_malformed_uidvalidity() {
     }
 }
 #[test]
-fn read_refresh_uses_server_state_while_retaining_local_folder_and_flag() {
+fn refresh_uses_server_flags_while_retaining_local_folder() {
     let mut m = Model::empty();
     m.accounts = vec![backend::Account {
         id: [1; 16],
@@ -422,14 +422,221 @@ fn read_refresh_uses_server_state_while_retaining_local_folder_and_flag() {
     m.local_state.insert(id);
     m.threads[0].flagged = true;
     m.threads[0].folder = Folder::Archive;
-    assert!(m.confirm_read([1; 16], read_target(), false));
+    assert!(m.confirm_flag([1; 16], read_target(), protocol::ImapFlag::Seen, true));
     assert!(!m.thread(id).unwrap().unread);
     m.merge(0, decode("imap:42:7", true)).unwrap();
     assert!(m.thread(id).unwrap().unread);
-    assert!(m.thread(id).unwrap().flagged);
+    assert!(!m.thread(id).unwrap().flagged);
     assert_eq!(m.thread(id).unwrap().folder, Folder::Archive);
-    assert!(!m.confirm_read([2; 16], read_target(), false));
+    assert!(!m.confirm_flag([2; 16], read_target(), protocol::ImapFlag::Seen, true));
     m.merge(0, decode("imap:43:7", true)).unwrap();
-    assert!(!m.confirm_read([1; 16], read_target(), false));
+    assert!(!m.confirm_flag([1; 16], read_target(), protocol::ImapFlag::Seen, true));
     assert!(m.threads[0].unread);
+}
+
+#[test]
+fn flagged_sync_adds_or_removes_only_the_requested_flag() {
+    for enabled in [true, false] {
+        let before = if enabled {
+            "\\Seen $custom"
+        } else {
+            "\\Flagged \\Seen $custom"
+        };
+        let after = if enabled {
+            "\\Flagged \\Seen $custom"
+        } else {
+            "\\Seen $custom"
+        };
+        let mut s = Script::new(format!(
+            "{}* 3 FETCH (UID 7 FLAGS ({before}))\r\nR2 OK flags\r\nR3 OK stored\r\n* 3 FETCH (UID 7 FLAGS ({after}))\r\nR4 OK flags\r\n",
+            read_prefix(42, false)
+        ));
+        protocol::imap_set_flag(
+            &mut s,
+            "u",
+            "p",
+            read_target(),
+            protocol::ImapFlag::Flagged,
+            enabled,
+        )
+        .unwrap();
+        let written = String::from_utf8(s.output).unwrap();
+        let store: Vec<_> = written
+            .lines()
+            .filter(|s| s.contains("UID STORE"))
+            .collect();
+        assert_eq!(
+            store,
+            vec![format!(
+                "R3 UID STORE 7 {}FLAGS.SILENT (\\Flagged)",
+                if enabled { "+" } else { "-" }
+            )]
+        );
+        assert_eq!(written.matches("UID FETCH 7 (UID FLAGS)").count(), 2);
+    }
+}
+#[test]
+fn flagged_sync_respects_permanent_flags_and_keyword_wildcards() {
+    for (permanent, allowed) in [
+        (Some("\\Seen \\Flagged \\*"), true),
+        (Some("\\flagged"), true),
+        (None, true),
+        (Some("\\Seen \\*"), false),
+        (Some(""), false),
+        (Some("\\FlaggedExtra"), false),
+    ] {
+        let prefix = if let Some(flags) = permanent {
+            read_prefix(42, false).replace(
+                "R1 OK",
+                &format!("* OK [PERMANENTFLAGS ({flags})] allowed\r\nR1 OK"),
+            )
+        } else {
+            read_prefix(42, false)
+        };
+        let mut s = Script::new(format!(
+            "{prefix}* 3 FETCH (UID 7 FLAGS (\\Flagged \\Seen))\r\nR2 OK flags\r\n"
+        ));
+        assert_eq!(
+            protocol::imap_set_flag(
+                &mut s,
+                "u",
+                "p",
+                read_target(),
+                protocol::ImapFlag::Flagged,
+                true
+            ),
+            if allowed {
+                Ok(())
+            } else {
+                Err(Error::FlagNotPermanent)
+            }
+        );
+        assert!(!String::from_utf8(s.output).unwrap().contains("UID STORE"));
+    }
+}
+#[test]
+fn flagged_sync_blocks_stale_readonly_missing_and_rejected_mutations() {
+    for (input, error) in [
+        (read_prefix(43, false), Error::MailboxChanged),
+        (read_prefix(42, true), Error::ReadOnly),
+        (
+            format!("{}R2 OK no data\r\n", read_prefix(42, false)),
+            Error::MessageGone,
+        ),
+    ] {
+        let mut s = Script::new(input);
+        assert_eq!(
+            protocol::imap_set_flag(
+                &mut s,
+                "u",
+                "p",
+                read_target(),
+                protocol::ImapFlag::Flagged,
+                true
+            ),
+            Err(error)
+        );
+        assert!(!String::from_utf8(s.output).unwrap().contains("UID STORE"));
+    }
+    let mut s = Script::new(format!(
+        "{}* 3 FETCH (UID 7 FLAGS (\\Seen))\r\nR2 OK flags\r\nR3 NO rejected\r\n",
+        read_prefix(42, false)
+    ));
+    assert_eq!(
+        protocol::imap_set_flag(
+            &mut s,
+            "u",
+            "p",
+            read_target(),
+            protocol::ImapFlag::Flagged,
+            true
+        ),
+        Err(Error::Rejected)
+    );
+}
+#[test]
+fn flagged_sync_requires_confirmation_and_rechecks_persistence_permissions() {
+    for tail in [
+        "",
+        "R4 OK no data\r\n",
+        "* 3 FETCH (UID 7 FLAGS (\\FlaggedExtra \\Seen))\r\nR4 OK flags\r\n",
+    ] {
+        let mut s = Script::new(format!(
+            "{}* 3 FETCH (UID 7 FLAGS (\\Seen))\r\nR2 OK flags\r\nR3 OK stored\r\n{tail}",
+            read_prefix(42, false)
+        ));
+        assert_eq!(
+            protocol::imap_set_flag(
+                &mut s,
+                "u",
+                "p",
+                read_target(),
+                protocol::ImapFlag::Flagged,
+                true
+            ),
+            Err(Error::FlagStatusUnknown)
+        );
+    }
+    let mut s = Script::new(format!(
+        "{}* 3 FETCH (UID 7 FLAGS ())\r\nR2 OK flags\r\n* OK [PERMANENTFLAGS (\\Seen)] changed\r\nR3 OK stored\r\n",
+        read_prefix(42, false)
+    ));
+    assert_eq!(
+        protocol::imap_set_flag(
+            &mut s,
+            "u",
+            "p",
+            read_target(),
+            protocol::ImapFlag::Flagged,
+            true
+        ),
+        Err(Error::FlagNotPermanent)
+    );
+}
+#[test]
+fn refreshed_and_fresh_models_use_server_flagged_state() {
+    let account = backend::Account {
+        id: [1; 16],
+        config: config(),
+    };
+    let batch = |flagged| {
+        let mut m = message("imap:42:7", "body");
+        m.flagged = flagged;
+        vec![mime::decode(m, 0, 0).unwrap()]
+    };
+    let mut m = Model::empty();
+    m.accounts = vec![account.clone()];
+    m.merge(0, batch(false)).unwrap();
+    let id = m.threads[0].id;
+    assert!(m.confirm_flag(account.id, read_target(), protocol::ImapFlag::Flagged, true));
+    assert!(m.thread(id).unwrap().flagged);
+    assert!(m.thread(id).unwrap().unread);
+    m.local_state.insert(id);
+    m.threads[0].folder = Folder::Archive;
+    m.merge(0, batch(false)).unwrap();
+    assert!(!m.thread(id).unwrap().flagged);
+    assert_eq!(m.thread(id).unwrap().folder, Folder::Archive);
+    let mut fresh = Model::empty();
+    fresh.accounts = vec![account];
+    fresh.merge(0, batch(true)).unwrap();
+    assert!(fresh.threads[0].flagged);
+    assert!(!fresh.confirm_flag([2; 16], read_target(), protocol::ImapFlag::Flagged, false));
+    assert!(fresh.threads[0].flagged);
+}
+
+#[test]
+fn inbox_flags_require_exact_tokens_not_similar_keywords() {
+    for (flags, expected) in [
+        ("\\FlaggedExtra \\SeenExtra", false),
+        ("\\Flagged \\Seen", true),
+    ] {
+        let raw = b"Subject: test\r\n\r\nbody";
+        let mut input=format!("A1 OK login\r\n* OK [UIDVALIDITY 42] valid\r\nA2 OK examine\r\n* SEARCH 7\r\nA3 OK search\r\n* 3 FETCH (UID 7 FLAGS ({flags}) BODY[] {{{}}}\r\n",raw.len()).into_bytes();
+        input.extend_from_slice(raw);
+        input.extend_from_slice(b")\r\nA4 OK done\r\n");
+        let mut s = Script::new(input);
+        let messages = protocol::imap_receive(&mut s, "u", "p").unwrap();
+        assert_eq!(messages[0].flagged, expected);
+        assert_eq!(messages[0].unread, !expected);
+    }
 }

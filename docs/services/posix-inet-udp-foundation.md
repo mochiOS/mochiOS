@@ -82,3 +82,5 @@ NetworkStack本体にIPv4/UDP packetを渡す試験で、DNS処理がfilterを�
 関連5 targets・31件が成功しています。
 記録はout/checks/mochios-udp-peer-208-final.log、-build.log、-evidence.jsonです。
 この変更でもnative IPC・Handle ABIを追加せず、VMとSDK再生成は使っていません。
+
+次の権限委譲境界は[ネットワーク権限Handle](posix-network-authority.md)に記録しています。

@@ -14623,3 +14623,11 @@ path = "services"
 hash = "ff7583ecee02bf786bd390c73f7eb51394233fc4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose live volume accounting through retained filesystem authority"
+
+[[entries]]
+date = "2026-10-24T14:23:22.967416518+09:00"
+snapshot = "86ac354613da53f58817afe4"
+path = "services"
+hash = "7807ce3b4724e858a8860b43b2e716c530d8c9a0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route POSIX volume observations with retained authority and verify libc integration"

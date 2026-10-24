@@ -14631,3 +14631,11 @@ path = "services"
 hash = "7807ce3b4724e858a8860b43b2e716c530d8c9a0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route POSIX volume observations with retained authority and verify libc integration"
+
+[[entries]]
+date = "2026-10-24T14:34:56.790410590+09:00"
+snapshot = "f5b98d5bbd1519fdbd6b49d0"
+path = "services"
+hash = "05cef55e2cb29f1d02b540d4c32cbdbe0def83a5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report devfs volume accounting through retained namespace authority"

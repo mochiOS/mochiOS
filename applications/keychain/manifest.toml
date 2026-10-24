@@ -14,6 +14,8 @@ abi = "mochios-1"
 [application]
 entry = "entry.elf"
 description = "Manage local passwords and application secrets"
+icon = "appicon.png"
+resources = ["appicon.png"]
 
 [[binary]]
 path = "/system/applications/Keychain.app/entry.elf"

@@ -109,7 +109,7 @@ stage_app "$root/applications/settings" Settings.app settings appicon.png
 stage_app "$root/applications/system-monitor" SystemMonitor.app system-monitor appicon.png
 stage_app "$root/applications/terra" Terra.app terra appicon.png
 stage_app "$root/applications/calculator" Calculator.app calculator appicon.svg
-stage_app "$root/applications/keychain" Keychain.app keychain
+stage_app "$root/applications/keychain" Keychain.app keychain appicon.png
 stage_app "$root/applications/mail" Mail.app mail appicon.png
 stage_app "$root/applications/calendar" Calendar.app calendar appicon.svg
 stage_app "$root/applications/viewer" Viewer.app viewer appicon.png

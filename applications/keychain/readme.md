@@ -20,6 +20,6 @@ explicitly disposable. Native deployment installs both Keychain.app and
 keychain.service. See `services/keychain/README.md` for the security boundary,
 storage format and current lifecycle limitations.
 
-There is no dedicated Keychain application icon among the supplied assets; the
-launcher uses its existing generic fallback. No other application's icon changes.
+The supplied Keychain icon is bundled as `appicon.png`; its original copy is
+also kept at `docs/resources/appicons/Key Chain.app.png`.
 The first API is Rust AppCore; C/Kome bindings are not added in this stage.

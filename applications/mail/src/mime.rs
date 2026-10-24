@@ -106,7 +106,7 @@ pub fn decode(incoming: Incoming, account: usize, id: usize) -> Result<(String, 
     let subject = parsed
         .headers
         .get_first_value("Subject")
-        .unwrap_or_else(|| "（件名なし）".into());
+        .unwrap_or_else(|| "(No Subject)".into());
     let date = parsed.headers.get_first_value("Date").unwrap_or_default();
     let mut sender = String::new();
     let mut address = String::new();
@@ -139,7 +139,7 @@ pub fn decode(incoming: Incoming, account: usize, id: usize) -> Result<(String, 
                 .get("filename")
                 .cloned()
                 .or_else(|| part.ctype.params.get("name").cloned())
-                .unwrap_or_else(|| "添付ファイル".into());
+                .unwrap_or_else(|| "Attachment".into());
             // Display metadata only; no path or external content is opened.
             attachments.push(name.replace(['\r', '\n', '\0'], " "));
         } else if part.subparts.is_empty()
@@ -153,7 +153,7 @@ pub fn decode(incoming: Incoming, account: usize, id: usize) -> Result<(String, 
         }
     }
     let body = text.unwrap_or_else(|| {
-        "このメールにはテキスト形式の本文がありません。HTML表示は未対応です。".into()
+        "This message has no plain-text body. HTML display is not yet available.".into()
     });
     let snippet = body
         .chars()

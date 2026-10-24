@@ -1,4 +1,4 @@
-use crate::account_ui::AccountForm;
+use crate::account_ui::{AccountForm, AccountPage, Provider};
 use crate::backend::{self, Account, Error, Result};
 use crate::layout::{Layout, Width};
 use crate::model::{Folder, Mailbox, Model, Page};
@@ -20,10 +20,15 @@ enum Action {
     Accounts,
     CloseAccounts,
     AddAccount,
-    RemoveAccount,
+    RemoveAccount(usize),
+    ManageAccount(usize),
+    ConfirmRemove(usize),
+    ChooseProvider,
+    AccountBack,
+    Advanced,
+    IncomingSecurityValue(backend::Security),
+    SmtpSecurityValue(backend::Security),
     Preset(u8),
-    IncomingSecurity,
-    SmtpSecurity,
     Refresh,
     Send,
     Sender,
@@ -64,13 +69,13 @@ impl Draft {
         let body = TextEditorInteractionState::new();
         let to_field = TextField::with_interaction(to.clone())
             .bordered(false)
-            .placeholder("メールアドレス");
+            .placeholder("Email address");
         let subject_field = TextField::with_interaction(subject.clone())
             .bordered(false)
-            .placeholder("件名");
+            .placeholder("Subject");
         let editor = TextEditor::with_interaction(body.clone())
             .bordered(false)
-            .placeholder("メッセージを入力");
+            .placeholder("Write your message");
         Self {
             to,
             subject,
@@ -93,7 +98,10 @@ struct Core {
     form: AccountForm,
     worker: RefCell<Option<mpsc::Receiver<Result<Reply>>>>,
     status: RefCell<String>,
+    accounts_loaded: Cell<bool>,
     sender: Cell<usize>,
+    sender_menu: Cell<u64>,
+    sender_menu_draft: Cell<Option<usize>>,
     pending: Rc<Cell<Option<Action>>>,
     buttons: RefCell<BTreeMap<Action, ButtonInteractionState>>,
     query: TextFieldInteractionState,
@@ -177,9 +185,9 @@ impl Core {
         let (tx, rx) = mpsc::channel();
         *self.worker.borrow_mut() = Some(rx);
         *self.status.borrow_mut() = match &job {
-            Job::Sync(_, a) => format!("{} を受信中…", a.config.email),
-            Job::Send(_, a, _) => format!("{} から送信中…", a.config.email),
-            _ => "接続中…".into(),
+            Job::Sync(_, a) => format!("Receiving mail for {}…", a.config.email),
+            Job::Send(_, a, _) => format!("Sending from {}…", a.config.email),
+            _ => "Connecting…".into(),
         };
         if std::thread::Builder::new()
             .name("Mail network".into())
@@ -203,26 +211,38 @@ impl Core {
             Err(_) => Err(Error::Network),
         };
         self.worker.borrow_mut().take();
+        let mut receive_after_add = None;
         match result {
-            Err(e) => *self.status.borrow_mut() = e.label().into(),
+            Err(e) => {
+                *self.status.borrow_mut() = e.label().into();
+                if self.form.open.get() {
+                    *self.form.feedback.borrow_mut() = e.label().into();
+                }
+            }
             Ok(reply) => {
                 let mut m = self.model.borrow_mut();
                 match reply {
                     Reply::Loaded(accounts) => {
+                        self.accounts_loaded.set(true);
                         m.accounts = accounts;
                         *self.status.borrow_mut() = if m.accounts.is_empty() {
-                            "「アカウント」からメールを追加してください。"
+                            "Add an account to start using Mail."
                         } else {
-                            "「受信」で選択中のアカウントを更新します。"
+                            "Choose a mailbox, then Get Mail to refresh it."
                         }
                         .into();
                     }
                     Reply::Added(a) => {
+                        let index = m.accounts.len();
+                        receive_after_add = Some(Job::Sync(index, a.clone()));
                         m.accounts.push(a);
+                        m.switch(Mailbox {
+                            account: Some(index),
+                            folder: Folder::Inbox,
+                        });
                         self.form.open.set(false);
                         self.sender.set(m.accounts.len() - 1);
-                        *self.status.borrow_mut() =
-                            "アカウントを追加しました。「受信」で読み込みます。".into();
+                        *self.status.borrow_mut() = "Account connected.".into();
                     }
                     Reply::Removed(i) => {
                         m.accounts.remove(i);
@@ -252,13 +272,18 @@ impl Core {
                             .collect();
                         m.selected = None;
                         m.mailbox = Mailbox::default();
+                        self.form.page.set(if m.accounts.is_empty() {
+                            AccountPage::Choose
+                        } else {
+                            AccountPage::List
+                        });
                         self.sender.set(0);
                         *self.status.borrow_mut() =
-                            "アカウントを解除しました。サーバーのメールは保持しています。".into();
+                            "Account removed. Messages on the server are unchanged.".into();
                     }
                     Reply::Synced(i, messages) => {
                         *self.status.borrow_mut() = match m.merge(i, messages) {
-                            Ok(n) => format!("{n}件を受信 · 整理状態はこの起動中のみ"),
+                            Ok(n) => format!("{} — {n} messages received", m.account_label(i)),
                             Err(e) => e.label().into(),
                         };
                     }
@@ -272,7 +297,7 @@ impl Core {
                                 account: i,
                                 subject: d.subject,
                                 snippet: d.body.chars().take(160).collect(),
-                                time: "送信済み".into(),
+                                time: "Sent".into(),
                                 unread: false,
                                 flagged: false,
                                 folder: Folder::Sent,
@@ -280,7 +305,7 @@ impl Core {
                                     sender: email.clone(),
                                     address: email,
                                     recipient: d.to,
-                                    date: "送信済み".into(),
+                                    date: "Sent".into(),
                                     body: d.body,
                                 }],
                                 attachment: None,
@@ -293,10 +318,13 @@ impl Core {
                         self.draft.subject.set_value("");
                         self.draft.body.set_value("");
                         m.page = Page::List;
-                        *self.status.borrow_mut() = "送信サーバーがメールを受理しました。".into();
+                        *self.status.borrow_mut() = "Message accepted by the mail server.".into();
                     }
                 }
             }
+        }
+        if let Some(job) = receive_after_add {
+            self.start(job);
         }
     }
     fn save_draft(&self) {
@@ -376,10 +404,20 @@ impl Core {
         let mut m = self.model.borrow_mut();
         match action {
             Action::Accounts => {
-                if m.accounts.is_empty() && self.worker.borrow().is_none() {
+                if m.accounts.is_empty()
+                    && !self.accounts_loaded.get()
+                    && self.worker.borrow().is_none()
+                {
                     self.start(Job::Load);
                 }
                 self.account_scroll.reset();
+                self.form.clear_secret();
+                self.form.feedback.borrow_mut().clear();
+                self.form.page.set(if m.accounts.is_empty() {
+                    AccountPage::Choose
+                } else {
+                    AccountPage::List
+                });
                 self.form.open.set(true);
                 m.folders_open = false;
             }
@@ -387,21 +425,58 @@ impl Core {
                 self.form.clear_secret();
                 self.form.open.set(false);
             }
-            Action::Preset(kind) => self.form.preset(kind),
-            Action::IncomingSecurity => self.form.incoming_security.set(
-                if self.form.incoming_security.get() == backend::Security::Tls {
-                    backend::Security::StartTls
+            Action::ChooseProvider => {
+                self.form.page.set(AccountPage::Choose);
+                self.form.feedback.borrow_mut().clear();
+                self.account_scroll.reset();
+            }
+            Action::AccountBack => {
+                self.form.clear_secret();
+                self.form.feedback.borrow_mut().clear();
+                self.form.page.set(match self.form.page.get() {
+                    AccountPage::Details => AccountPage::Choose,
+                    AccountPage::Remove(i) => AccountPage::Manage(i),
+                    _ => AccountPage::List,
+                });
+                self.account_scroll.reset();
+            }
+            Action::Preset(kind) => {
+                self.form.preset(kind);
+                self.account_scroll.reset();
+            }
+            Action::Advanced => self.form.advanced.set(!self.form.advanced.get()),
+            Action::IncomingSecurityValue(value) => {
+                self.form.incoming_security.set(value);
+                self.form
+                    .set_incoming_port(if value == backend::Security::Tls {
+                        if self.form.protocol.get() == backend::Protocol::Pop3 {
+                            995
+                        } else {
+                            993
+                        }
+                    } else if self.form.protocol.get() == backend::Protocol::Pop3 {
+                        110
+                    } else {
+                        143
+                    });
+            }
+            Action::SmtpSecurityValue(value) => {
+                self.form.smtp_security.set(value);
+                self.form.set_smtp_port(if value == backend::Security::Tls {
+                    465
                 } else {
-                    backend::Security::Tls
-                },
-            ),
-            Action::SmtpSecurity => self.form.smtp_security.set(
-                if self.form.smtp_security.get() == backend::Security::Tls {
-                    backend::Security::StartTls
-                } else {
-                    backend::Security::Tls
-                },
-            ),
+                    587
+                });
+            }
+            Action::ManageAccount(i) => {
+                self.form.page.set(AccountPage::Manage(i));
+                self.account_scroll.reset();
+                self.form.feedback.borrow_mut().clear();
+            }
+            Action::ConfirmRemove(i) => {
+                self.form.page.set(AccountPage::Remove(i));
+                self.account_scroll.reset();
+            }
             Action::AddAccount => {
                 if self.worker.borrow().is_some() {
                     return;
@@ -411,12 +486,16 @@ impl Core {
                         self.form.clear_secret();
                         self.start(Job::Add(c));
                     }
-                    Err(e) => *self.status.borrow_mut() = e.label().into(),
+                    Err(e) => {
+                        if self.form.feedback.borrow().is_empty() {
+                            *self.form.feedback.borrow_mut() = e.label().into();
+                        }
+                    }
                 }
             }
-            Action::RemoveAccount => {
-                if let Some(a) = m.accounts.get(self.sender.get()).cloned() {
-                    self.start(Job::Remove(self.sender.get(), a));
+            Action::RemoveAccount(i) => {
+                if let Some(a) = m.accounts.get(i).cloned() {
+                    self.start(Job::Remove(i, a));
                 }
             }
             Action::Refresh => {
@@ -429,11 +508,7 @@ impl Core {
                     self.start(Job::Sync(i, a));
                 }
             }
-            Action::Sender => {
-                if !m.accounts.is_empty() {
-                    self.sender.set((self.sender.get() + 1) % m.accounts.len());
-                }
-            }
+            Action::Sender => {}
             Action::Send => {
                 if let Some(a) = m.accounts.get(self.sender.get()).cloned() {
                     let d = DraftRecord {
@@ -512,7 +587,7 @@ impl Core {
                     );
                     let body = if action == Action::Forward {
                         format!(
-                            "\n\n---------- 転送メッセージ ----------\n{}\n\n{}",
+                            "\n\n---------- Forwarded message ----------\n{}\n\n{}",
                             &t.subject,
                             t.messages.last().unwrap().body
                         )
@@ -556,7 +631,7 @@ impl MailView {
     pub fn new() -> Self {
         let query = TextFieldInteractionState::new();
         let search = TextField::with_interaction(query.clone())
-            .placeholder("メールを検索")
+            .placeholder("Search mail")
             .leading_symbol(SymbolName::Search);
         let view = Self {
             core: Rc::new(Core {
@@ -573,7 +648,10 @@ impl MailView {
                 form: AccountForm::new(),
                 worker: RefCell::new(None),
                 status: RefCell::new(String::new()),
+                accounts_loaded: Cell::new(false),
                 sender: Cell::new(0),
+                sender_menu: Cell::new(0x4d41494c10000000),
+                sender_menu_draft: Cell::new(None),
                 pending: Rc::new(Cell::new(None)),
                 buttons: RefCell::new(BTreeMap::new()),
                 query,
@@ -595,73 +673,205 @@ impl MailView {
         view.core.start(Job::Load);
         view
     }
+    fn account_bounds(b: Rect) -> Rect {
+        rect(
+            b.origin.x + ((b.size.width - 560.0) / 2.0).max(0.0),
+            b.origin.y,
+            b.size.width.min(560.0),
+            b.size.height,
+        )
+    }
+    fn account_height(&self) -> f32 {
+        match self.core.form.page.get() {
+            AccountPage::Details => self.core.form.height(),
+            AccountPage::List => 320.0 + self.core.model.borrow().accounts.len() as f32 * 64.0,
+            _ => 560.0,
+        }
+    }
     fn account_buttons(&self, b: Rect) -> Vec<(Rect, String, Action)> {
-        let x = b.origin.x;
-        let y = b.origin.y;
+        let f = &self.core.form;
         let w = b.size.width;
-        let incoming = if self.core.form.incoming_security.get() == backend::Security::Tls {
-            "受信: TLS"
-        } else {
-            "受信: STARTTLS"
+        let m = self.core.model.borrow();
+        let mut buttons = vec![(
+            rect(b.origin.x + w - 88.0, b.origin.y + 20.0, 64.0, 28.0),
+            "Done".into(),
+            Action::CloseAccounts,
+        )];
+        if f.page.get() != AccountPage::List
+            && !(f.page.get() == AccountPage::Choose && m.accounts.is_empty())
+        {
+            buttons.push((
+                rect(b.origin.x + 24.0, b.origin.y + 20.0, 72.0, 28.0),
+                "Back".into(),
+                Action::AccountBack,
+            ));
+        }
+        match f.page.get() {
+            AccountPage::List => {
+                for (i, a) in m.accounts.iter().enumerate() {
+                    buttons.push((
+                        rect(
+                            b.origin.x + 24.0,
+                            b.origin.y + 148.0 + i as f32 * 64.0,
+                            w - 48.0,
+                            48.0,
+                        ),
+                        a.config.email.clone(),
+                        Action::ManageAccount(i),
+                    ));
+                }
+                buttons.push((
+                    rect(
+                        b.origin.x + 24.0,
+                        b.origin.y + 140.0 + m.accounts.len() as f32 * 64.0,
+                        144.0,
+                        30.0,
+                    ),
+                    "Add Account…".into(),
+                    Action::ChooseProvider,
+                ));
+            }
+            AccountPage::Choose => {
+                for (i, (label, kind)) in [
+                    ("Gmail", 0),
+                    ("Other Account · IMAP", 1),
+                    ("Other Account · POP3", 2),
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    buttons.push((
+                        rect(
+                            b.origin.x + 24.0,
+                            b.origin.y + 152.0 + i as f32 * 72.0,
+                            w - 48.0,
+                            48.0,
+                        ),
+                        label.into(),
+                        Action::Preset(kind),
+                    ));
+                }
+            }
+            AccountPage::Details => {
+                buttons.push((
+                    rect(b.origin.x + 24.0, b.origin.y + 348.0, 180.0, 28.0),
+                    if f.advanced.get() {
+                        "Hide Advanced Settings"
+                    } else {
+                        "Advanced Settings…"
+                    }
+                    .into(),
+                    Action::Advanced,
+                ));
+                if f.expanded() {
+                    for (y, selected, actions) in [
+                        (
+                            510.0,
+                            f.incoming_security.get(),
+                            [
+                                Action::IncomingSecurityValue(backend::Security::Tls),
+                                Action::IncomingSecurityValue(backend::Security::StartTls),
+                            ],
+                        ),
+                        (
+                            680.0,
+                            f.smtp_security.get(),
+                            [
+                                Action::SmtpSecurityValue(backend::Security::Tls),
+                                Action::SmtpSecurityValue(backend::Security::StartTls),
+                            ],
+                        ),
+                    ] {
+                        let _ = selected;
+                        let cell = (w - 164.0) / 2.0;
+                        for (i, label) in ["TLS", "STARTTLS"].into_iter().enumerate() {
+                            buttons.push((
+                                rect(
+                                    b.origin.x + 140.0 + i as f32 * cell,
+                                    b.origin.y + y,
+                                    cell - 4.0,
+                                    32.0,
+                                ),
+                                label.into(),
+                                actions[i],
+                            ));
+                        }
+                    }
+                }
+                buttons.push((
+                    rect(
+                        b.origin.x + w - 148.0,
+                        b.origin.y + f.submit_y(),
+                        124.0,
+                        32.0,
+                    ),
+                    if self.core.worker.borrow().is_some() {
+                        "Connecting…"
+                    } else {
+                        "Connect"
+                    }
+                    .into(),
+                    Action::AddAccount,
+                ));
+            }
+            AccountPage::Manage(i) => {
+                if m.accounts.get(i).is_some() {
+                    buttons.push((
+                        rect(b.origin.x + 24.0, b.origin.y + 346.0, 152.0, 30.0),
+                        "Remove Account…".into(),
+                        Action::ConfirmRemove(i),
+                    ));
+                }
+            }
+            AccountPage::Remove(i) => {
+                buttons.push((
+                    rect(b.origin.x + 24.0, b.origin.y + 270.0, 96.0, 32.0),
+                    "Cancel".into(),
+                    Action::AccountBack,
+                ));
+                buttons.push((
+                    rect(b.origin.x + w - 176.0, b.origin.y + 270.0, 152.0, 32.0),
+                    "Remove Account".into(),
+                    Action::RemoveAccount(i),
+                ));
+            }
+        }
+        buttons
+    }
+    fn account_button(&self, label: &str, action: Action) -> Button {
+        let f = &self.core.form;
+        let style = match action {
+            Action::AddAccount => ButtonStyle::Accent,
+            Action::RemoveAccount(_) => ButtonStyle::Danger,
+            Action::Preset(_) | Action::ManageAccount(_) => ButtonStyle::Standard,
+            _ => ButtonStyle::Ghost,
         };
-        let smtp = if self.core.form.smtp_security.get() == backend::Security::Tls {
-            "送信: TLS"
-        } else {
-            "送信: STARTTLS"
+        let selected = match action {
+            Action::IncomingSecurityValue(v) => f.incoming_security.get() == v,
+            Action::SmtpSecurityValue(v) => f.smtp_security.get() == v,
+            _ => false,
         };
-        let account = self
+        let button = self
             .core
-            .model
-            .borrow()
-            .account_label(self.core.sender.get())
-            .to_owned();
-        vec![
-            (
-                rect(x + w - 80.0, y + 10.0, 64.0, 30.0),
-                "戻る".into(),
-                Action::CloseAccounts,
-            ),
-            (
-                rect(x + 16.0, y + 52.0, 80.0, 30.0),
-                "Gmail".into(),
-                Action::Preset(0),
-            ),
-            (
-                rect(x + 100.0, y + 52.0, 80.0, 30.0),
-                "IMAP".into(),
-                Action::Preset(1),
-            ),
-            (
-                rect(x + 184.0, y + 52.0, 80.0, 30.0),
-                "POP3".into(),
-                Action::Preset(2),
-            ),
-            (
-                rect(x + 16.0, y + 410.0, 150.0, 28.0),
-                incoming.into(),
-                Action::IncomingSecurity,
-            ),
-            (
-                rect(x + 174.0, y + 410.0, 150.0, 28.0),
-                smtp.into(),
-                Action::SmtpSecurity,
-            ),
-            (
-                rect(x + 16.0, y + 520.0, 150.0, 30.0),
-                "確認して追加".into(),
-                Action::AddAccount,
-            ),
-            (
-                rect(x + 16.0, y + 559.0, (w - 136.0).max(40.0), 30.0),
-                format!("登録済み：{account}"),
-                Action::Sender,
-            ),
-            (
-                rect(x + w - 112.0, y + 559.0, 96.0, 30.0),
-                "登録を解除".into(),
-                Action::RemoveAccount,
-            ),
-        ]
+            .button(label, action)
+            .style(if selected {
+                ButtonStyle::Standard
+            } else {
+                style
+            })
+            .accessibility_selected(selected)
+            .enabled(self.core.worker.borrow().is_none());
+        if matches!(action, Action::Preset(_) | Action::ManageAccount(_)) {
+            button.content(
+                HStack::new()
+                    .alignment(StackAlignment::Center)
+                    .gap(StackGap::Small)
+                    .child(Text::label(label).layout().flex_grow(1.0))
+                    .child(Glyph(SymbolName::ChevronRight)),
+            )
+        } else {
+            button
+        }
     }
     fn account_panel(&self, b: Rect, c: &mut PaintContext<'_>) {
         Scroll::new(self.core.account_scroll.clone())
@@ -678,32 +888,186 @@ impl MailView {
             .handle_event(b, e, c)
     }
     fn account_content(&self, b: Rect, c: &mut PaintContext<'_>) {
-        let b = rect(
-            b.origin.x + ((b.size.width - 600.0) / 2.0).max(0.0),
-            b.origin.y,
-            b.size.width.min(600.0),
-            b.size.height,
-        );
+        let b = Self::account_bounds(b);
+        let f = &self.core.form;
+        let m = self.core.model.borrow();
         let mut scope = AccessibilityNode::new(AccessibilityRole::Dialog, b);
         scope.focus_scope = true;
-        scope.label = Some("メールアカウント".into());
+        scope.label = Some("Mail Accounts".into());
         c.record_accessibility(scope);
-        self.core.form.paint(b, c);
-        for (frame, label, action) in self.account_buttons(b) {
-            self.core
-                .button(&label, action)
-                .enabled(self.core.worker.borrow().is_none())
-                .paint(frame, c);
-        }
-        Text::caption(self.core.status.borrow().clone())
+        let (title, subtitle) = match f.page.get() {
+            AccountPage::List => (
+                "Mail Accounts".to_owned(),
+                "Manage the accounts you use with Mail.",
+            ),
+            AccountPage::Choose => (
+                "Add an Account".into(),
+                "Choose your email service to get started.",
+            ),
+            AccountPage::Details => (
+                format!("Connect {}", f.provider.get().title()),
+                if f.provider.get() == Provider::Gmail {
+                    "Enter your email address and Google app password."
+                } else {
+                    "Use the server settings from your email provider."
+                },
+            ),
+            AccountPage::Manage(_) => (
+                "Account Details".into(),
+                "Connection settings are stored in Keychain.",
+            ),
+            AccountPage::Remove(_) => (
+                "Remove this account?".into(),
+                "Messages on the server will not be deleted.",
+            ),
+        };
+        Text::styled(title, TextRole::TitleSmall).paint(
+            rect(
+                b.origin.x + 24.0,
+                b.origin.y + 68.0,
+                b.size.width - 48.0,
+                28.0,
+            ),
+            c,
+        );
+        Text::caption(subtitle)
             .color(c.theme.colors.text_secondary)
             .paint(
                 rect(
-                    b.origin.x + 16.0,
-                    b.origin.y + 600.0,
-                    b.size.width - 32.0,
-                    60.0,
+                    b.origin.x + 24.0,
+                    b.origin.y + 100.0,
+                    b.size.width - 48.0,
+                    36.0,
                 ),
+                c,
+            );
+        match f.page.get() {
+            AccountPage::Choose => {
+                Text::caption("Gmail uses an app password. Google sign-in is not available yet.")
+                    .color(c.theme.colors.text_secondary)
+                    .paint(
+                        rect(
+                            b.origin.x + 24.0,
+                            b.origin.y + 382.0,
+                            b.size.width - 48.0,
+                            52.0,
+                        ),
+                        c,
+                    );
+            }
+            AccountPage::Details => {
+                f.paint(b, c);
+                Text::caption("Your password is saved securely in Keychain.")
+                    .color(c.theme.colors.text_secondary)
+                    .paint(
+                        rect(
+                            b.origin.x + 24.0,
+                            b.origin.y + f.submit_y() + 46.0,
+                            b.size.width - 48.0,
+                            28.0,
+                        ),
+                        c,
+                    );
+            }
+            AccountPage::Manage(i) => {
+                if let Some(a) = m.accounts.get(i) {
+                    for (n, (label, value)) in [
+                        ("Email", a.config.email.clone()),
+                        (
+                            "Incoming",
+                            format!(
+                                "{}:{} · {:?}",
+                                a.config.incoming_host,
+                                a.config.incoming_port,
+                                a.config.incoming_security.label()
+                            ),
+                        ),
+                        (
+                            "Outgoing",
+                            format!(
+                                "{}:{} · {:?}",
+                                a.config.smtp_host,
+                                a.config.smtp_port,
+                                a.config.smtp_security.label()
+                            ),
+                        ),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        Text::caption(label)
+                            .color(c.theme.colors.text_secondary)
+                            .paint(
+                                rect(
+                                    b.origin.x + 24.0,
+                                    b.origin.y + 146.0 + n as f32 * 62.0,
+                                    b.size.width - 48.0,
+                                    20.0,
+                                ),
+                                c,
+                            );
+                        single(
+                            &value,
+                            TextRole::Body,
+                            rect(
+                                b.origin.x + 24.0,
+                                b.origin.y + 168.0 + n as f32 * 62.0,
+                                b.size.width - 48.0,
+                                24.0,
+                            ),
+                            c,
+                            c.theme.colors.text_primary,
+                            false,
+                        );
+                    }
+                }
+            }
+            AccountPage::Remove(i) => {
+                if let Some(a) = m.accounts.get(i) {
+                    Text::body(&a.config.email).paint(
+                        rect(
+                            b.origin.x + 24.0,
+                            b.origin.y + 158.0,
+                            b.size.width - 48.0,
+                            28.0,
+                        ),
+                        c,
+                    );
+                    Text::caption(
+                        "This removes its saved credentials and downloaded messages from Mail.",
+                    )
+                    .color(c.theme.colors.text_secondary)
+                    .paint(
+                        rect(
+                            b.origin.x + 24.0,
+                            b.origin.y + 198.0,
+                            b.size.width - 48.0,
+                            60.0,
+                        ),
+                        c,
+                    );
+                }
+            }
+            _ => {}
+        }
+        drop(m);
+        for (frame, label, action) in self.account_buttons(b) {
+            self.account_button(&label, action).paint(frame, c);
+        }
+        let feedback = if self.core.worker.borrow().is_some() {
+            self.core.status.borrow().clone()
+        } else {
+            f.feedback.borrow().clone()
+        };
+        let y = if f.page.get() == AccountPage::Details {
+            f.submit_y() + 84.0
+        } else {
+            self.account_height() - 100.0
+        };
+        Text::caption(feedback)
+            .color(c.theme.colors.text_secondary)
+            .paint(
+                rect(b.origin.x + 24.0, b.origin.y + y, b.size.width - 48.0, 88.0),
                 c,
             );
     }
@@ -713,16 +1077,15 @@ impl MailView {
         e: &ViewEvent,
         c: &mut EventContext<'_>,
     ) -> EventResult {
-        let b = rect(
-            b.origin.x + ((b.size.width - 600.0) / 2.0).max(0.0),
-            b.origin.y,
-            b.size.width.min(600.0),
-            b.size.height,
-        );
+        let b = Self::account_bounds(b);
         if self.core.worker.borrow().is_some() {
             return EventResult::Consumed;
         }
-        let mut result = self.core.form.event(b, e, c);
+        let mut result = if self.core.form.page.get() == AccountPage::Details {
+            self.core.form.event(b, e, c)
+        } else {
+            EventResult::Ignored
+        };
         if matches!(
             e,
             ViewEvent::KeyPressed {
@@ -735,7 +1098,10 @@ impl MailView {
             return EventResult::Consumed;
         }
         for (frame, label, action) in self.account_buttons(b) {
-            result = result.merge(self.core.button(&label, action).handle_event(frame, e, c));
+            result = result.merge(
+                self.account_button(&label, action)
+                    .handle_event(frame, e, c),
+            );
         }
         if let Some(a) = self.core.pending.take() {
             self.core.apply(a, false);
@@ -745,7 +1111,7 @@ impl MailView {
     }
     fn folder_panel(&self, b: Rect, c: &mut PaintContext<'_>) {
         fill(b, c.theme.colors.surface_subtle, c);
-        Text::styled("メールボックス", TextRole::TitleSmall).paint(
+        Text::styled("Mailboxes", TextRole::TitleSmall).paint(
             rect(
                 b.origin.x + 16.0,
                 b.origin.y + 14.0,
@@ -756,7 +1122,7 @@ impl MailView {
         );
         if self.core.model.borrow().folders_open {
             self.core
-                .icon(SymbolName::X, "閉じる", Action::CloseFolders)
+                .icon(SymbolName::X, "Close", Action::CloseFolders)
                 .paint(
                     rect(
                         b.origin.x + b.size.width - 40.0,
@@ -768,13 +1134,13 @@ impl MailView {
                 );
         }
         self.core
-            .button("新規メール", Action::New)
+            .button("New Message", Action::New)
             .style(ButtonStyle::Standard)
             .content(
                 HStack::new()
                     .gap(StackGap::Small)
                     .child(Glyph(SymbolName::Pencil))
-                    .child(Text::label("新規メール")),
+                    .child(Text::label("New Message")),
             )
             .paint(
                 rect(
@@ -792,9 +1158,12 @@ impl MailView {
     fn list_header(&self, l: &Layout, b: Rect, c: &mut PaintContext<'_>) {
         let m = self.core.model.borrow();
         let title = m.mailbox.folder.label();
-        for (i, (label, action)) in [("受信", Action::Refresh), ("アカウント", Action::Accounts)]
-            .into_iter()
-            .enumerate()
+        for (i, (label, action)) in [
+            ("Get Mail", Action::Refresh),
+            ("Accounts", Action::Accounts),
+        ]
+        .into_iter()
+        .enumerate()
         {
             self.core
                 .button(label, action)
@@ -811,7 +1180,7 @@ impl MailView {
         }
         let compact = l.width == Width::Compact;
         self.core
-            .icon(SymbolName::List, "メールボックス", Action::Folders)
+            .icon(SymbolName::List, "Mailboxes", Action::Folders)
             .paint(rect(b.origin.x + 8.0, b.origin.y + 7.0, 30.0, 30.0), c);
         if !compact {
             Text::label(title).paint(
@@ -834,7 +1203,7 @@ impl MailView {
                 c,
             );
             let unread = m.unread(m.mailbox.account);
-            Text::caption(format!("未読 {unread}件"))
+            Text::caption(format!("{unread} unread"))
                 .color(c.theme.colors.text_secondary)
                 .paint(
                     rect(
@@ -851,16 +1220,20 @@ impl MailView {
             .search
             .paint(rect(b.origin.x + 12.0, y, b.size.width - 24.0, 30.0), c);
         if !compact {
-            Text::caption(format!(
-                "{}件",
-                if m.mailbox.folder == Folder::Drafts {
-                    self.core.drafts.borrow().len()
-                } else {
-                    self.core.ids().len()
-                }
-            ))
-            .color(c.theme.colors.text_secondary)
-            .paint(
+            let count = if m.mailbox.folder == Folder::Drafts {
+                self.core.drafts.borrow().len()
+            } else {
+                self.core.ids().len()
+            };
+            let target = m.account_label(m.mailbox.account.unwrap_or(self.core.sender.get()));
+            let summary = if target.is_empty() {
+                format!("{count} messages")
+            } else {
+                format!("{count} messages · {target}")
+            };
+            single(
+                &summary,
+                TextRole::Caption,
                 rect(
                     b.origin.x + 16.0,
                     b.origin.y + 87.0,
@@ -868,6 +1241,8 @@ impl MailView {
                     20.0,
                 ),
                 c,
+                c.theme.colors.text_secondary,
+                false,
             );
         }
     }
@@ -876,11 +1251,11 @@ impl MailView {
         let x = b.origin.x;
         if l.width == Width::Compact {
             self.core
-                .icon(SymbolName::ChevronLeft, "一覧に戻る", Action::Back)
+                .icon(SymbolName::ChevronLeft, "Back to Messages", Action::Back)
                 .paint(rect(x + 8.0, b.origin.y + 7.0, 30.0, 30.0), c);
         }
         self.core
-            .button("返信", Action::Reply)
+            .button("Reply", Action::Reply)
             .enabled(active)
             .paint(
                 rect(
@@ -890,36 +1265,36 @@ impl MailView {
                         16.0
                     },
                     b.origin.y + 7.0,
-                    54.0,
+                    60.0,
                     30.0,
                 ),
                 c,
             );
         self.core
-            .button("転送", Action::Forward)
+            .button("Forward", Action::Forward)
             .enabled(active)
             .paint(
                 rect(
                     x + if l.width == Width::Compact {
-                        104.0
+                        108.0
                     } else {
-                        74.0
+                        78.0
                     },
                     b.origin.y + 7.0,
-                    54.0,
+                    72.0,
                     30.0,
                 ),
                 c,
             );
         self.core
-            .button("整理", Action::Details)
+            .button("More", Action::Details)
             .enabled(active)
             .paint(
                 rect(x + b.size.width - 102.0, b.origin.y + 7.0, 56.0, 30.0),
                 c,
             );
         self.core
-            .icon(SymbolName::Trash, "ゴミ箱へ移動", Action::Delete)
+            .icon(SymbolName::Trash, "Move to Trash", Action::Delete)
             .enabled(active)
             .paint(
                 rect(x + b.size.width - 40.0, b.origin.y + 7.0, 30.0, 30.0),
@@ -928,83 +1303,158 @@ impl MailView {
         line(rect(x, b.origin.y + 43.0, b.size.width, 1.0), c);
     }
     fn composer(&self, b: Rect, c: &mut PaintContext<'_>) {
-        let x = b.origin.x;
-        let w = b.size.width;
+        let frames = ComposeFrames::new(b);
         self.core
-            .button("閉じる", Action::SaveDraft)
-            .paint(rect(x + 12.0, b.origin.y + 8.0, 100.0, 30.0), c);
+            .button("Save Draft", Action::SaveDraft)
+            .paint(frames.close, c);
         self.core
-            .button("送信", Action::Send)
+            .button("Send", Action::Send)
             .style(ButtonStyle::Accent)
             .enabled(
                 !self.core.model.borrow().accounts.is_empty()
                     && self.core.worker.borrow().is_none(),
             )
-            .paint(rect(x + w - 76.0, b.origin.y + 8.0, 64.0, 30.0), c);
-        self.core
-            .button(
-                &format!(
-                    "送信元：{}",
-                    self.core
-                        .model
-                        .borrow()
-                        .account_label(self.core.sender.get())
+            .paint(frames.send, c);
+        if b.size.width >= 600.0 {
+            Text::label("New Message")
+                .alignment(TextAlignment::Center)
+                .paint(
+                    rect(
+                        b.origin.x + 128.0,
+                        b.origin.y + 12.0,
+                        b.size.width - 240.0,
+                        24.0,
+                    ),
+                    c,
+                );
+        }
+        line(rect(b.origin.x, b.origin.y + 44.0, b.size.width, 1.0), c);
+        for (label, frame) in [
+            ("From", frames.from),
+            ("To", frames.to),
+            ("Subject", frames.subject),
+        ] {
+            Text::caption(label)
+                .color(c.theme.colors.text_secondary)
+                .paint(rect(b.origin.x + 16.0, frame.origin.y + 6.0, 56.0, 24.0), c);
+            line(
+                rect(
+                    b.origin.x + 16.0,
+                    frame.origin.y + 38.0,
+                    b.size.width - 32.0,
+                    1.0,
                 ),
-                Action::Sender,
-            )
-            .enabled(self.core.worker.borrow().is_none())
-            .paint(
-                rect(x + 116.0, b.origin.y + 8.0, (w - 208.0).max(0.0), 30.0),
                 c,
             );
-        let form = rect(x + 16.0, b.origin.y + 58.0, w - 32.0, b.size.height - 58.0);
-        Text::caption("宛先")
-            .color(c.theme.colors.text_secondary)
-            .paint(rect(form.origin.x, form.origin.y + 6.0, 40.0, 24.0), c);
-        self.core.draft.to_field.paint(
-            rect(
-                form.origin.x + 44.0,
-                form.origin.y,
-                form.size.width - 44.0,
-                32.0,
-            ),
-            c,
-        );
-        line(
-            rect(form.origin.x, form.origin.y + 38.0, form.size.width, 1.0),
-            c,
-        );
-        Text::caption("件名")
-            .color(c.theme.colors.text_secondary)
-            .paint(rect(form.origin.x, form.origin.y + 52.0, 40.0, 24.0), c);
-        self.core.draft.subject_field.paint(
-            rect(
-                form.origin.x + 44.0,
-                form.origin.y + 46.0,
-                form.size.width - 44.0,
-                32.0,
-            ),
-            c,
-        );
-        line(
-            rect(form.origin.x, form.origin.y + 84.0, form.size.width, 1.0),
-            c,
-        );
-        self.core.draft.editor.paint(
-            rect(
-                form.origin.x,
-                form.origin.y + 96.0,
-                form.size.width,
-                form.size.height - 130.0,
-            ),
-            c,
-        );
+        }
+        self.sender_button()
+            .enabled(self.core.worker.borrow().is_none())
+            .paint(frames.from, c);
+        self.core.draft.to_field.paint(frames.to, c);
+        self.core.draft.subject_field.paint(frames.subject, c);
+        self.core.draft.editor.paint(frames.body, c);
         Text::caption(self.core.status.borrow().clone())
             .color(c.theme.colors.text_secondary)
             .paint(
-                rect(x + 16.0, b.origin.y + b.size.height - 56.0, w - 32.0, 52.0),
+                rect(
+                    b.origin.x + 16.0,
+                    b.origin.y + b.size.height - 52.0,
+                    b.size.width - 32.0,
+                    48.0,
+                ),
                 c,
             );
+    }
+    fn sender_button(&self) -> Button {
+        let label = self
+            .core
+            .model
+            .borrow()
+            .account_label(self.core.sender.get())
+            .to_owned();
+        self.core
+            .button(&label, Action::Sender)
+            .accessibility_label(format!("From: {label}. Choose sending account"))
+            .content(
+                HStack::new()
+                    .alignment(StackAlignment::Center)
+                    .gap(StackGap::Small)
+                    .child(Text::caption(label).layout().flex_grow(1.0))
+                    .child(Glyph(SymbolName::ChevronDown)),
+            )
+    }
+    fn needs_account(&self) -> bool {
+        let m = self.core.model.borrow();
+        m.accounts.is_empty() && m.threads.is_empty()
+    }
+    fn welcome_button(b: Rect) -> Rect {
+        rect(
+            b.origin.x + (b.size.width - 152.0) / 2.0,
+            b.origin.y + b.size.height / 2.0 + 20.0,
+            152.0,
+            32.0,
+        )
+    }
+    fn welcome(&self, b: Rect, c: &mut PaintContext<'_>) {
+        let x = b.origin.x + ((b.size.width - 400.0) / 2.0).max(0.0);
+        let w = b.size.width.min(400.0);
+        let y = b.origin.y + b.size.height / 2.0;
+        Text::styled("Welcome to Mail", TextRole::TitleSmall)
+            .alignment(TextAlignment::Center)
+            .paint(rect(x, y - 76.0, w, 30.0), c);
+        Text::body("Add your email account to read and send messages.")
+            .alignment(TextAlignment::Center)
+            .color(c.theme.colors.text_secondary)
+            .paint(rect(x + 20.0, y - 34.0, w - 40.0, 44.0), c);
+        self.core
+            .button("Add Account…", Action::Accounts)
+            .style(ButtonStyle::Accent)
+            .enabled(self.core.worker.borrow().is_none())
+            .paint(Self::welcome_button(b), c);
+        if !self.core.status.borrow().is_empty() {
+            Text::caption(self.core.status.borrow().clone())
+                .color(c.theme.colors.text_secondary)
+                .paint(
+                    rect(
+                        b.origin.x + 20.0,
+                        b.origin.y + b.size.height - 84.0,
+                        b.size.width - 40.0,
+                        76.0,
+                    ),
+                    c,
+                );
+        }
+    }
+}
+struct ComposeFrames {
+    close: Rect,
+    send: Rect,
+    from: Rect,
+    to: Rect,
+    subject: Rect,
+    body: Rect,
+}
+impl ComposeFrames {
+    fn new(b: Rect) -> Self {
+        let field = |y| rect(b.origin.x + 80.0, b.origin.y + y, b.size.width - 96.0, 32.0);
+        Self {
+            close: rect(b.origin.x + 12.0, b.origin.y + 8.0, 100.0, 30.0),
+            send: rect(
+                b.origin.x + b.size.width - 76.0,
+                b.origin.y + 8.0,
+                64.0,
+                30.0,
+            ),
+            from: field(54.0),
+            to: field(96.0),
+            subject: field(138.0),
+            body: rect(
+                b.origin.x + 16.0,
+                b.origin.y + 190.0,
+                b.size.width - 32.0,
+                b.size.height - 250.0,
+            ),
+        }
     }
 }
 struct AccountContents {
@@ -1012,7 +1462,13 @@ struct AccountContents {
 }
 impl View for AccountContents {
     fn measure(&self, c: Constraints, _: &mut MeasureContext<'_>) -> Size {
-        Size::new(c.maximum.width, 680.0)
+        Size::new(
+            c.maximum.width,
+            MailView {
+                core: self.core.clone(),
+            }
+            .account_height(),
+        )
     }
     fn paint(&self, b: Rect, c: &mut PaintContext<'_>) {
         MailView {
@@ -1039,6 +1495,10 @@ impl View for MailView {
         fill(b, c.theme.colors.background, c);
         if self.core.form.open.get() {
             self.account_panel(b, c);
+            return;
+        }
+        if self.needs_account() {
+            self.welcome(b, c);
             return;
         }
         let l = self.core.layout(b);
@@ -1085,13 +1545,13 @@ impl View for MailView {
         }
         if let Some(frame) = l.floating_compose() {
             self.core
-                .button("新規メール", Action::New)
+                .button("New Message", Action::New)
                 .style(ButtonStyle::Standard)
                 .content(
                     HStack::new()
                         .gap(StackGap::Small)
                         .child(Glyph(SymbolName::Pencil))
-                        .child(Text::label("作成")),
+                        .child(Text::label("New")),
                 )
                 .paint(frame, c);
         }
@@ -1116,7 +1576,7 @@ impl View for MailView {
             );
             let mut scope = AccessibilityNode::new(AccessibilityRole::Dialog, panel);
             scope.focus_scope = true;
-            scope.label = Some("メールボックス".into());
+            scope.label = Some("Mailboxes".into());
             c.record_accessibility(scope);
             self.folder_panel(panel, c);
             line(
@@ -1131,8 +1591,45 @@ impl View for MailView {
         }
     }
     fn handle_event(&self, b: Rect, event: &ViewEvent, c: &mut EventContext<'_>) -> EventResult {
+        if let ViewEvent::ContextMenuResult {
+            request_id,
+            command_id,
+        } = event
+        {
+            if *request_id == self.core.sender_menu.get() {
+                let same_draft = self.core.sender_menu_draft.take() == self.core.active_draft.get();
+                if same_draft
+                    && self.core.worker.borrow().is_none()
+                    && self.core.model.borrow().page == Page::Compose
+                {
+                    if let Some(index) = command_id
+                        .and_then(|id| id.checked_sub(1))
+                        .map(|id| id as usize)
+                        .filter(|i| *i < self.core.model.borrow().accounts.len())
+                    {
+                        self.core.sender.set(index);
+                        self.core.save_draft();
+                        c.request_redraw_in(b);
+                    }
+                }
+                return EventResult::Consumed;
+            }
+        }
         if self.core.form.open.get() {
             return self.account_event(b, event, c);
+        }
+        if self.needs_account() {
+            let result = self
+                .core
+                .button("Add Account…", Action::Accounts)
+                .style(ButtonStyle::Accent)
+                .enabled(self.core.worker.borrow().is_none())
+                .handle_event(Self::welcome_button(b), event, c);
+            if let Some(action) = self.core.pending.take() {
+                self.core.apply(action, false);
+                c.request_redraw_in(b);
+            }
+            return result;
         }
         let l = self.core.layout(b);
         if l.composer && self.core.worker.borrow().is_some() {
@@ -1208,10 +1705,12 @@ impl View for MailView {
             return EventResult::Consumed;
         }
         if let Some(list) = l.list {
-            for (i, (label, action)) in
-                [("受信", Action::Refresh), ("アカウント", Action::Accounts)]
-                    .into_iter()
-                    .enumerate()
+            for (i, (label, action)) in [
+                ("Get Mail", Action::Refresh),
+                ("Accounts", Action::Accounts),
+            ]
+            .into_iter()
+            .enumerate()
             {
                 let frame = rect(
                     list.origin.x + list.size.width - 180.0 + i as f32 * 74.0,
@@ -1236,88 +1735,37 @@ impl View for MailView {
             if self.core.worker.borrow().is_some() {
                 return EventResult::Consumed;
             }
-            for (frame, label, action) in [
-                (
-                    rect(
-                        b.origin.x + b.size.width - 76.0,
-                        b.origin.y + 8.0,
-                        64.0,
-                        30.0,
-                    ),
-                    "送信",
-                    Action::Send,
-                ),
-                (
-                    rect(
-                        b.origin.x + 116.0,
-                        b.origin.y + 8.0,
-                        (b.size.width - 208.0).max(0.0),
-                        30.0,
-                    ),
-                    "送信元",
-                    Action::Sender,
-                ),
-            ] {
-                {
-                    let r = self
-                        .core
-                        .button(label, action)
-                        .enabled(!self.core.model.borrow().accounts.is_empty())
-                        .handle_event(frame, event, c);
-                    if r.is_consumed() {
-                        self.flush(&l, b, c);
-                        return r;
-                    }
-                }
-            }
-            let form = rect(
-                b.origin.x + 16.0,
-                b.origin.y + 58.0,
-                b.size.width - 32.0,
-                b.size.height - 58.0,
+            let frames = ComposeFrames::new(b);
+            let mut result = self
+                .core
+                .button("Save Draft", Action::SaveDraft)
+                .handle_event(frames.close, event, c);
+            result = result.merge(
+                self.core
+                    .button("Send", Action::Send)
+                    .style(ButtonStyle::Accent)
+                    .enabled(!self.core.model.borrow().accounts.is_empty())
+                    .handle_event(frames.send, event, c),
             );
-            let mut result = self.core.button("閉じる", Action::SaveDraft).handle_event(
-                rect(b.origin.x + 12.0, b.origin.y + 8.0, 100.0, 30.0),
-                event,
-                c,
+            result = result.merge(
+                self.sender_button()
+                    .enabled(!self.core.model.borrow().accounts.is_empty())
+                    .handle_event(frames.from, event, c),
             );
-            result = result.merge(self.core.draft.to_field.handle_event(
-                rect(
-                    form.origin.x + 44.0,
-                    form.origin.y,
-                    form.size.width - 44.0,
-                    32.0,
-                ),
-                event,
-                c,
-            ));
+            result = result.merge(self.core.draft.to_field.handle_event(frames.to, event, c));
             result = result.merge(self.core.draft.subject_field.handle_event(
-                rect(
-                    form.origin.x + 44.0,
-                    form.origin.y + 46.0,
-                    form.size.width - 44.0,
-                    32.0,
-                ),
+                frames.subject,
                 event,
                 c,
             ));
-            result = result.merge(self.core.draft.editor.handle_event(
-                rect(
-                    form.origin.x,
-                    form.origin.y + 96.0,
-                    form.size.width,
-                    form.size.height - 130.0,
-                ),
-                event,
-                c,
-            ));
+            result = result.merge(self.core.draft.editor.handle_event(frames.body, event, c));
             self.flush(&l, b, c);
             return result;
         }
         if let Some(frame) = l.floating_compose() {
             if event.position().is_some_and(|p| frame.contains(p)) {
                 self.core
-                    .button("新規メール", Action::New)
+                    .button("New Message", Action::New)
                     .style(ButtonStyle::Standard)
                     .handle_event(frame, event, c);
                 self.flush(&l, b, c);
@@ -1334,7 +1782,7 @@ impl View for MailView {
         if let Some(list) = l.list {
             result = result.merge(
                 self.core
-                    .icon(SymbolName::List, "メールボックス", Action::Folders)
+                    .icon(SymbolName::List, "Mailboxes", Action::Folders)
                     .handle_event(
                         rect(list.origin.x + 8.0, list.origin.y + 7.0, 30.0, 30.0),
                         event,
@@ -1382,7 +1830,7 @@ impl View for MailView {
             if l.width == Width::Compact {
                 result = result.merge(
                     self.core
-                        .icon(SymbolName::ChevronLeft, "一覧に戻る", Action::Back)
+                        .icon(SymbolName::ChevronLeft, "Back to Messages", Action::Back)
                         .handle_event(
                             rect(reader.origin.x + 8.0, reader.origin.y + 7.0, 30.0, 30.0),
                             event,
@@ -1393,26 +1841,26 @@ impl View for MailView {
             let active = self.core.model.borrow().selected.is_some();
             for (label, action, x, w) in [
                 (
-                    "返信",
+                    "Reply",
                     Action::Reply,
                     if l.width == Width::Compact {
                         46.0
                     } else {
                         16.0
                     },
-                    54.0,
+                    60.0,
                 ),
                 (
-                    "転送",
+                    "Forward",
                     Action::Forward,
                     if l.width == Width::Compact {
-                        104.0
+                        108.0
                     } else {
-                        74.0
+                        78.0
                     },
-                    54.0,
+                    72.0,
                 ),
-                ("整理", Action::Details, reader.size.width - 102.0, 56.0),
+                ("More", Action::Details, reader.size.width - 102.0, 56.0),
             ] {
                 result = result.merge(
                     self.core
@@ -1427,7 +1875,7 @@ impl View for MailView {
             }
             result = result.merge(
                 self.core
-                    .icon(SymbolName::Trash, "ゴミ箱へ移動", Action::Delete)
+                    .icon(SymbolName::Trash, "Move to Trash", Action::Delete)
                     .enabled(active)
                     .handle_event(
                         rect(
@@ -1445,7 +1893,7 @@ impl View for MailView {
         if let Some(frame) = l.floating_compose() {
             result = result.merge(
                 self.core
-                    .button("新規メール", Action::New)
+                    .button("New Message", Action::New)
                     .style(ButtonStyle::Standard)
                     .handle_event(frame, event, c),
             );
@@ -1459,7 +1907,32 @@ impl View for MailView {
 impl MailView {
     fn flush(&self, l: &Layout, b: Rect, c: &mut EventContext<'_>) -> bool {
         if let Some(a) = self.core.pending.take() {
-            if a == Action::Details {
+            if a == Action::Sender {
+                self.core
+                    .sender_menu_draft
+                    .set(self.core.active_draft.get());
+                let m = self.core.model.borrow();
+                self.core
+                    .sender_menu
+                    .set(self.core.sender_menu.get().wrapping_add(1));
+                c.show_context_menu(ContextMenuRequest {
+                    request_id: self.core.sender_menu.get(),
+                    position: Point::new(b.origin.x + 60.0, b.origin.y + 88.0),
+                    items: m
+                        .accounts
+                        .iter()
+                        .enumerate()
+                        .map(|(i, a)| ContextMenuItem {
+                            command_id: i as u32 + 1,
+                            label: a.config.email.clone(),
+                            enabled: true,
+                            checked: i == self.core.sender.get(),
+                            destructive: false,
+                            separator: false,
+                        })
+                        .collect(),
+                });
+            } else if a == Action::Details {
                 if let Some(reader) = l.reader {
                     self.show_menu(
                         Point::new(
@@ -1493,7 +1966,7 @@ impl MailView {
             items: vec![
                 ContextMenuItem {
                     command_id: 1,
-                    label: "アーカイブ".into(),
+                    label: "Archive".into(),
                     enabled: t.folder != Folder::Archive,
                     checked: false,
                     destructive: false,
@@ -1502,9 +1975,9 @@ impl MailView {
                 ContextMenuItem {
                     command_id: 2,
                     label: if t.flagged {
-                        "フラグを解除"
+                        "Remove Flag"
                     } else {
-                        "フラグを付ける"
+                        "Flag Message"
                     }
                     .into(),
                     enabled: true,
@@ -1515,9 +1988,9 @@ impl MailView {
                 ContextMenuItem {
                     command_id: 3,
                     label: if t.unread {
-                        "既読にする"
+                        "Mark as Read"
                     } else {
-                        "未読にする"
+                        "Mark as Unread"
                     }
                     .into(),
                     enabled: true,
@@ -1531,7 +2004,7 @@ impl MailView {
     fn folder_event(&self, b: Rect, event: &ViewEvent, c: &mut EventContext<'_>) -> EventResult {
         let mut r = self
             .core
-            .button("新規メール", Action::New)
+            .button("New Message", Action::New)
             .style(ButtonStyle::Standard)
             .handle_event(
                 rect(
@@ -1546,7 +2019,7 @@ impl MailView {
         if self.core.model.borrow().folders_open {
             r = r.merge(
                 self.core
-                    .icon(SymbolName::X, "閉じる", Action::CloseFolders)
+                    .icon(SymbolName::X, "Close", Action::CloseFolders)
                     .handle_event(
                         rect(
                             b.origin.x + b.size.width - 40.0,
@@ -1631,7 +2104,7 @@ impl Contents {
         let mut stack = VStack::new()
             .alignment(StackAlignment::Stretch)
             .gap(StackGap::ExtraSmall);
-        let mut accounts = vec![(None, "すべてのアカウント".to_owned())];
+        let mut accounts = vec![(None, "All Accounts".to_owned())];
         #[cfg(test)]
         if m.accounts.is_empty() {
             accounts.extend(
@@ -1681,6 +2154,7 @@ impl Contents {
                 if let Some(symbol) = symbol {
                     row = row.child(
                         Icon::new(symbol)
+                            .size(theme.layout.compact_icon_size)
                             .color(theme.colors.text_secondary)
                             .frame(16.0, 16.0),
                     );
@@ -1730,13 +2204,9 @@ impl Contents {
                 );
             }
         }
-        stack.child(
-            Padding::all(16.0).content(
-                Text::caption("アカウントを追加し、受信ボタンでメールを読み込みます。")
-                    .color(theme.colors.text_secondary),
-            ),
-        )
+        stack
     }
+
     fn reader(&self, width: f32, theme: &Theme) -> Padding<VStack> {
         let m = self.core.model.borrow();
         let mut stack = VStack::new()
@@ -1745,9 +2215,9 @@ impl Contents {
         let Some(t) = m.selected.and_then(|id| m.thread(id)) else {
             return Padding::all(28.0).content(
                 stack
-                    .child(Text::styled("メールを選択", TextRole::TitleSmall))
+                    .child(Text::styled("No Message Selected", TextRole::TitleSmall))
                     .child(
-                        Text::body("一覧からメールを選ぶと、ここに本文が表示されます。")
+                        Text::body("Select a message to read it here.")
                             .color(theme.colors.text_secondary),
                     ),
             );
@@ -1762,9 +2232,9 @@ impl Contents {
                         &message.sender,
                         &message.date,
                         if expanded {
-                            "閉じる"
+                            "Close"
                         } else {
-                            "以前のメールを表示"
+                            "Show Earlier Message"
                         }
                     ),
                     Action::Expand(t.id, n),
@@ -1786,7 +2256,7 @@ impl Contents {
                         .child(Text::caption(&message.date).color(theme.colors.text_secondary)),
                 )
                 .child(
-                    Text::caption(format!("{}\n宛先：{}", message.address, message.recipient))
+                    Text::caption(format!("{}\nTo：{}", message.address, message.recipient))
                         .color(theme.colors.text_secondary),
                 )
                 .child(Text::body(&message.body));
@@ -1801,13 +2271,13 @@ impl Contents {
                         .child(Text::caption(name).layout().flex_grow(1.0)),
                 )
                 .child(
-                    Text::caption("添付ファイルの表示・保存は未対応です")
+                    Text::caption("Attachment opening and saving are not yet available.")
                         .color(theme.colors.text_secondary),
                 );
         }
         stack = stack.child(Divider::new()).child(
             self.core
-                .button("返信", Action::Reply)
+                .button("Reply", Action::Reply)
                 .style(ButtonStyle::Standard)
                 .layout()
                 .width(80.0),
@@ -1835,7 +2305,7 @@ impl Contents {
                 &t.messages.last().unwrap().sender,
                 &t.subject,
                 &t.time,
-                if t.unread { "、未読" } else { "" }
+                if t.unread { ", unread" } else { "" }
             ))
             .style(ButtonStyle::Custom {
                 background: if selected {
@@ -1886,7 +2356,7 @@ impl View for Contents {
                 if m.mailbox.folder == Folder::Drafts {
                     let drafts = self.core.drafts.borrow();
                     if drafts.is_empty() {
-                        Text::body("下書きはありません")
+                        Text::body("No Drafts")
                             .color(c.theme.colors.text_secondary)
                             .paint(
                                 rect(
@@ -1900,7 +2370,7 @@ impl View for Contents {
                     }
                     for (i, (id, d)) in drafts.iter().rev().enumerate() {
                         let label = if d.subject.is_empty() {
-                            "（件名なし）"
+                            "(No Subject)"
                         } else {
                             &d.subject
                         };
@@ -1912,7 +2382,7 @@ impl View for Contents {
                                     .child(Text::body_emphasized(label))
                                     .child(
                                         Text::caption(if d.to.is_empty() {
-                                            "宛先なし"
+                                            "No recipient"
                                         } else {
                                             &d.to
                                         })
@@ -1934,9 +2404,9 @@ impl View for Contents {
                 let ids = m.visible(&self.core.query.value());
                 if ids.is_empty() {
                     Text::body(if self.core.query.value().is_empty() {
-                        "メールはありません"
+                        "No Messages"
                     } else {
-                        "一致するメールがありません"
+                        "No Matching Messages"
                     })
                     .color(c.theme.colors.text_secondary)
                     .paint(
@@ -1981,7 +2451,7 @@ impl View for Contents {
                     for (i, (id, _)) in self.core.drafts.borrow().iter().rev().enumerate() {
                         result = result.merge(
                             self.core
-                                .button("下書きを開く", Action::ResumeDraft(*id))
+                                .button("Open Draft", Action::ResumeDraft(*id))
                                 .handle_event(
                                     rect(
                                         b.origin.x + 12.0,
@@ -2052,7 +2522,7 @@ impl View for MailRow {
             false,
         );
         if t.flagged {
-            Text::caption("フラグ")
+            Text::caption("Flagged")
                 .color(c.theme.colors.text_secondary)
                 .alignment(TextAlignment::End)
                 .paint(rect(x + w - 48.0, y + 49.0, 48.0, 20.0), c);
@@ -2115,11 +2585,12 @@ fn single(
 struct Glyph(SymbolName);
 impl View for Glyph {
     fn measure(&self, c: Constraints, ctx: &mut MeasureContext<'_>) -> Size {
-        let n = ctx.theme.layout.control_icon_size;
+        let n = ctx.theme.layout.compact_icon_size;
         c.constrain(Size::new(n, n))
     }
     fn paint(&self, b: Rect, c: &mut PaintContext<'_>) {
         Icon::new(self.0)
+            .size(c.theme.layout.compact_icon_size)
             .color(c.theme.colors.text_secondary)
             .paint(b, c);
     }
@@ -2238,11 +2709,11 @@ mod tests {
         let f = Fixture::new(400.0);
         f.view.core.apply(Action::New, false);
         f.paint();
-        f.click(Point::new(140.0, 74.0));
+        f.click(Point::new(140.0, 112.0));
         f.event(ViewEvent::TextInput {
             text: "friend@example.test".into(),
         });
-        f.click(Point::new(140.0, 120.0));
+        f.click(Point::new(140.0, 154.0));
         f.event(ViewEvent::TextInput {
             text: "こんにちは".into(),
         });
@@ -2356,6 +2827,7 @@ mod tests {
         );
     }
     fn with_accounts(f: &Fixture) {
+        f.view.core.accounts_loaded.set(true);
         let mut cfg = crate::tests::config();
         let first = backend::Account {
             id: [1; 16],
@@ -2454,5 +2926,93 @@ mod tests {
         }
         assert_eq!(f.view.core.active_draft.get(), id);
         assert_eq!(f.view.core.model.borrow().page, Page::Compose);
+    }
+    #[test]
+    fn sender_menu_lists_accounts_and_updates_only_the_open_draft() {
+        let f = Fixture::new(360.0);
+        with_accounts(&f);
+        f.view.core.apply(Action::New, false);
+        let frame = ComposeFrames::new(f.bounds.get()).from;
+        let request = f
+            .click(Point::new(frame.origin.x + 24.0, frame.origin.y + 16.0))
+            .unwrap();
+        assert_eq!(request.items.len(), 2);
+        assert!(request.items[0].checked);
+        f.event(ViewEvent::ContextMenuResult {
+            request_id: request.request_id,
+            command_id: Some(2),
+        });
+        assert_eq!(f.view.core.sender.get(), 1);
+        let request = f
+            .click(Point::new(frame.origin.x + 24.0, frame.origin.y + 16.0))
+            .unwrap();
+        f.view.core.apply(Action::New, false);
+        f.event(ViewEvent::ContextMenuResult {
+            request_id: request.request_id,
+            command_id: Some(1),
+        });
+        assert_eq!(f.view.core.sender.get(), 1);
+    }
+    #[test]
+    fn account_navigation_separates_setup_details_and_removal() {
+        for width in [320.0, 560.0, 1080.0] {
+            let f = Fixture::new(width);
+            with_accounts(&f);
+            f.view.core.apply(Action::Accounts, false);
+            assert!(f.view.core.form.page.get() == AccountPage::List);
+            f.paint();
+            f.view.core.apply(Action::ChooseProvider, false);
+            f.paint();
+            f.view.core.apply(Action::Preset(0), false);
+            f.paint();
+            assert!(f.view.core.form.page.get() == AccountPage::Details);
+            f.view.core.apply(Action::Advanced, false);
+            f.paint();
+            f.view.core.apply(Action::AccountBack, false);
+            assert!(f.view.core.form.page.get() == AccountPage::Choose);
+            f.view.core.apply(Action::ManageAccount(1), false);
+            f.paint();
+            f.view.core.apply(Action::ConfirmRemove(1), false);
+            f.paint();
+            assert_eq!(f.view.core.model.borrow().accounts.len(), 2);
+            f.view.core.apply(Action::AccountBack, false);
+            assert!(f.view.core.form.page.get() == AccountPage::Manage(1));
+        }
+    }
+    #[test]
+    fn empty_mailbox_has_a_direct_add_account_action() {
+        let f = Fixture::new(360.0);
+        *f.view.core.model.borrow_mut() = Model::empty();
+        f.view.core.accounts_loaded.set(true);
+        f.paint();
+        let button = MailView::welcome_button(f.bounds.get());
+        f.click(Point::new(button.origin.x + 40.0, button.origin.y + 16.0));
+        assert!(f.view.core.form.open.get());
+        assert!(f.view.core.form.page.get() == AccountPage::Choose);
+    }
+    #[test]
+    fn symbols_remain_compact_in_an_oversized_allocation() {
+        let theme = Theme::current();
+        let mut measurer = TextMeasurer::new();
+        let mut list = DisplayList::new();
+        Glyph(SymbolName::Mail).paint(
+            Rect::new(10.0, 20.0, 300.0, 180.0),
+            &mut PaintContext::new(&mut list, &theme, &theme.typography, &mut measurer),
+        );
+        let shapes: Vec<_> = list
+            .commands()
+            .iter()
+            .filter_map(|c| match c {
+                DrawCommand::DrawSvg { command } => Some(command.bounds),
+                _ => None,
+            })
+            .collect();
+        assert!(!shapes.is_empty());
+        for r in shapes {
+            assert!(
+                r.size.width <= theme.layout.compact_icon_size * 2.0
+                    && r.size.height <= theme.layout.compact_icon_size * 2.0
+            );
+        }
     }
 }

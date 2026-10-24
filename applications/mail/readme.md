@@ -6,13 +6,22 @@ are retained. Default window: 1080 × 720. No web view is used.
 
 ## Connecting
 
-Open **アカウント**, choose Gmail, IMAP or POP3, and enter the email address,
-username (blank uses the email address), password, incoming server/port and
-SMTP server/port. Choose implicit TLS or required STARTTLS independently for
-incoming and outgoing. **確認して追加** checks incoming authentication and SMTP
-AUTH before saving. It never sends a test email. Both services currently use the
-same username/password. Up to 16 accounts can be registered. To replace settings,
-remove the selected registration and add it again; server messages are retained.
+With no registered accounts, **Add Account…** opens a service chooser. Choose
+**Gmail**, **Other Account · IMAP** or **Other Account · POP3**. Gmail initially
+asks only for an email address and an app password. **Advanced Settings…** reveals
+username and server overrides. Other services show separate **Incoming Mail** and
+**Outgoing Mail** groups, with explicit TLS / STARTTLS selections. Selecting a
+security mode fills its standard port; it remains editable.
+
+**Connect** checks incoming authentication and SMTP AUTH before saving, then
+starts the first receive automatically. It never sends a test email. Both
+services currently use the same username/password; blank username uses the email
+address. Up to 16 accounts can be registered.
+
+**Accounts** lists registered accounts separately from the add-account flow.
+Choose one to view its connection settings. **Remove Account…** names the account
+and asks for confirmation; it removes the saved registration, not server messages.
+To replace settings, remove the registration and add it again.
 
 Gmail presets `imap.gmail.com:993` (TLS) and `smtp.gmail.com:587` (STARTTLS).
 Use a Google **app password**, not the ordinary Google password. App passwords
@@ -27,18 +36,30 @@ login page or deprecated out-of-band authorization code flow.
 - [Gmail POP configuration](https://support.google.com/mail/answer/7104828)
 - [Google native application OAuth](https://developers.google.com/identity/protocols/oauth2/native-app)
 
-Select an account's mailbox and press **受信**. With the combined mailbox
-selected, receive targets the account selected in the account/from selector.
+Select an account's mailbox and press **Get Mail**. With the combined mailbox
+selected, receive targets the current sending account; its address is shown in
+the message-list header.
 Receive currently downloads that account's newest **100 Inbox messages**, up to
 8 MiB per message and 32 MiB per receive. There is no background polling or older
 mail pagination yet. Reading/searching/organizing uses the in-memory copy.
 
-In the composer, click **送信元** to cycle accounts; replies use the received
-account, and each session draft remembers its sender. **送信** submits to SMTP;
+In the composer, click the **From** menu to choose an account; replies use the
+received account, and each session draft remembers its sender. The From row has
+its own selector, including in compact windows. **Send** submits to SMTP;
 recipient addresses are comma-separated. SMTP acceptance is reported only after
 the final DATA response. Delivery status cannot be inferred after a connection
 loss there, so the UI reports an uncertain outcome and never automatically
 retries. A successful submission does not guarantee recipient delivery.
+
+## Interface
+
+UI labels, status messages, errors and message fallbacks use English. Received
+message content keeps its original language. The original reading-pane layout,
+colors, fonts and icon assets are retained. VK Symbols in the toolbar, folder
+list and disclosure controls use the shared compact icon token (16 logical px)
+instead of stretching to fill the control's allocation. Compose uses the same
+field frames for paint and input; setup shares its field geometry too. Native
+menus are used for choosing a sending account and organizing messages.
 
 ## Credentials and transport
 
@@ -95,7 +116,9 @@ Use `scripts/dev/preview-app.sh mail --test` with the workspace Cargo patches
 (the root `mmake ui-test` target supplies them for all applications).
 `mmake preview-mail` runs the UI; `mmake ui-check` builds the desktop preview.
 
-Tests cover the original responsive UI/navigation/drafts and native menus, IMAP
+Tests cover the responsive UI/navigation/drafts and native menus, account setup
+steps, selective Gmail fields, nonoverlapping controls, credential validation,
+sender-menu identity and bounded icon drawing, as well as IMAP
 literal framing/UID matching, POP UIDL/dot unstuffing, SMTP multiline responses,
 AUTH PLAIN/LOGIN and dot stuffing, uncertain delivery, command/header injection,
 response bounds, Japanese MIME round trips, attachment names, recursive MIME

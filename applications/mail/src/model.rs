@@ -13,13 +13,13 @@ pub enum Folder {
 impl Folder {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Inbox => "受信トレイ",
-            Self::Unread => "未読",
-            Self::Flagged => "フラグ付き",
-            Self::Drafts => "下書き",
-            Self::Archive => "アーカイブ",
-            Self::Sent => "送信済み",
-            Self::Trash => "ゴミ箱",
+            Self::Inbox => "Inbox",
+            Self::Unread => "Unread",
+            Self::Flagged => "Flagged",
+            Self::Drafts => "Drafts",
+            Self::Archive => "Archive",
+            Self::Sent => "Sent",
+            Self::Trash => "Trash",
         }
     }
 }

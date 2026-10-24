@@ -23,29 +23,27 @@ impl Error {
     pub fn label(self) -> &'static str {
         match self {
             Self::Invalid => {
-                "入力内容を確認してください。宛先はメールアドレスをカンマ区切りで指定します。"
+                "Check your settings. Enter recipient email addresses separated by commas."
             }
             Self::Network => {
-                "サーバーに接続できません。ホスト名・ポート・ネットワークを確認してください。"
+                "Could not reach the server. Check the server address, port and network connection."
             }
             Self::Tls => {
-                "安全なTLS接続を確立できません。証明書・日時・TLS 1.3対応を確認してください。"
+                "Could not establish a secure connection. Check the certificate, system date and TLS 1.3 support."
             }
-            Self::Protocol => "メールサーバーから未対応の応答を受信しました。",
-            Self::Rejected => {
-                "サーバーが操作を拒否しました。設定とサービスの利用状況を確認してください。"
-            }
+            Self::Protocol => "The mail server returned an unsupported response.",
+            Self::Rejected => "The server declined this operation. Check the account settings.",
             Self::Authentication => {
-                "認証に失敗しました。ユーザー名・パスワードを確認してください。Gmailにはアプリパスワードが必要です。"
+                "Sign-in failed. Check the username and password. Gmail requires an app password."
             }
-            Self::Limit => "メールまたは応答が上限を超えています（1通8MiB、1回32MiB、最新100件）。",
-            Self::Message => "メールの形式を解析できませんでした。",
-            Self::Keychain => {
-                "Keychainを利用できません。ログイン状態と保管庫のロックを確認してください。"
+            Self::Limit => {
+                "Mail exceeds the receive limit: 8 MiB per message, 32 MiB per receive, newest 100 messages."
             }
-            Self::Duplicate => "このメールアカウントは登録済みです。",
+            Self::Message => "This message could not be decoded.",
+            Self::Keychain => "Keychain is unavailable or locked. Unlock it, then try again.",
+            Self::Duplicate => "This email account has already been added.",
             Self::DeliveryUnknown => {
-                "送信結果を確認できません。重複送信を防ぐため、送信先を確認してから再送してください。"
+                "Delivery could not be confirmed. Check whether the message arrived before sending it again."
             }
         }
     }
@@ -55,10 +53,18 @@ pub enum Protocol {
     Imap,
     Pop3,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Security {
     Tls,
     StartTls,
+}
+impl Security {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Tls => "TLS",
+            Self::StartTls => "STARTTLS",
+        }
+    }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -80,24 +86,28 @@ impl Config {
         }
         protocol::single(&self.username)?;
         for host in [&self.incoming_host, &self.smtp_host] {
-            if host.len() > 253
-                || host.is_empty()
-                || host.split('.').any(|s| {
-                    s.is_empty()
-                        || s.len() > 63
-                        || s.starts_with('-')
-                        || s.ends_with('-')
-                        || !s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
-                })
-            {
-                return Err(Error::Invalid);
-            }
+            validate_server(host)?;
         }
         if self.incoming_port == 0 || self.smtp_port == 0 {
             return Err(Error::Invalid);
         }
         Ok(())
     }
+}
+pub(crate) fn validate_server(host: &str) -> Result<()> {
+    if host.len() > 253
+        || host.is_empty()
+        || host.split('.').any(|s| {
+            s.is_empty()
+                || s.len() > 63
+                || s.starts_with('-')
+                || s.ends_with('-')
+                || !s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        })
+    {
+        return Err(Error::Invalid);
+    }
+    Ok(())
 }
 #[derive(Clone)]
 pub struct Account {

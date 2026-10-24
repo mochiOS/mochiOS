@@ -78,6 +78,14 @@ magic `MNET`、version、opcode、message length、reserved、request IDを持�
 interface情報はinterface ID、MAC、link、MTU、driver name、driver ID、PCI device identifierを
 含みます。frame長は1514 bytes以下に制限し、受信frameがない場合は`EAGAIN`を返します。
 
+各要求はカーネルが保証したIPC senderの`net.raw`を検査し、持たない呼び出し元には
+対応するresponse opcodeのstatus-only frameで`-13`を返します。
+NIC不在は`STATUS_NETWORK_UNAVAILABLE`（`-6`）として扱います。
+初期化やqueue処理に失敗してもIPC endpointを残し、有効な要求へ失敗statusを返します。
+`InterfaceInfo` / `Statistics`も失敗時は同じstatus-only形式です。
+queue失敗時はFAILEDを設定した後もdeviceとDMA allocationを保持し、
+deviceが参照する可能性があるqueue領域を解放しません。
+
 ## 6. テストと診断
 
 driver固有testはfeature集合とmodern header境界を固定します。共有PlugKitのmock transport/

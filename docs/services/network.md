@@ -114,7 +114,16 @@ DNSはDHCP Bound後、TCPはIPv4設定後に利用できます。driver IPCが�
 ## 7. 起動とdebug
 
 service-managerはdriver discovery後に`network.service`を起動します。driver processが見つからない
-場合は5秒でready failureを返して常駐し、OS bootを停止させません。DHCP成功時のinterface設定、
+場合は5秒でready failureを返します。driverが存在してNIC初期化に失敗した場合も、
+その失敗statusをready failureへ伝えます。失敗後は要求を受け付けて、Capability検査後に
+TCP / TLS / HTTPなど各operationの形式でエラーを返します。通常callとone-way requestの
+両方を完了させ、成功したようにready通知することはありません。
+NIC不在時のstatusは`-6`です。統計responseにはstatus欄がないため、既存形式のゼロ値を返します。
+
+one-way requestへの返信ではnative `AccessDenied`でcall-reply権限がないと判明した場合だけ、
+認証済みsenderへIPC sendでcompletionを返します。旧errnoとの比較は使いません。
+
+DHCP成功時のinterface設定、
 gateway ARP、最初のEcho Replyは`/var/log/services/network.log`に記録されます。
 
 ```text

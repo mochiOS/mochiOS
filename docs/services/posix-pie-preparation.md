@@ -65,7 +65,9 @@ native_pie_exec.c から pathname と unlink 済み FD の両方で実行し、
 通常構成へ戻した後の input READY、デスクトップと Dock も確認し、VM は停止しています。
 
 ただし、同じ通常起動ログには network.service の READY 待ち TimedOut が記録されています。
-全サービスの正常起動とは扱いません。原因の切り分けとネットワークの起動確認が残っています。
+全サービスの正常起動とは扱いません。後続の調査で、試験runnerはNICを付けない設定で、
+初期化に失敗したdriverがIPC要求を受け付けず待ち続けていたことが分かりました。
+失敗状態の応答経路は[ネットワークの機器不在時の応答](network-unavailable.md)で修正しています。
 
 記録は `out/checks/mochios-pie-204-host.log`、`mochios-pie-204-boundaries-final.log`、
 `mochios-pie-204-native.log`、`mochios-pie-204-normal.log` と `.png`、

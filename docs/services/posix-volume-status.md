@@ -1,6 +1,6 @@
 # POSIX volume status
 
-現行の実装は 196 の statvfs / fstatvfs 接続まで進んでいます。195 は基盤追加時の記録です。
+現行の実装は 197 の devfs 対応まで進んでいます。195 / 196 は各段階の記録です。
 
 ## 195: filesystem owner の容量照会
 
@@ -113,3 +113,46 @@ Dock・上部バーの表示を実際に確認し、VM は停止しています�
 196 で未解決なのは、devfs 等の volume accounting、read-only 以外の mount 属性、匿名
 pipe / PTY の共有 metadata といった残りの監査事項です。Vim / WebKit の動作確認や
 POSIX 全体の完了を意味しません。
+
+## 197: devfs と公開解除後の terminal-file
+
+devfs の path / FD volume observation を接続しました。新しい wire opcode や kernel API は
+追加せず、既存の sealed Node と volume identity を使います。pathname は同じ一回の解決で
+ext4 / devfs に振り分け、open description は保持している Node の namespace を照会します。
+数値 ID が同じ別 namespace の Node は拒否し、公開名を再 open する fallback はありません。
+
+データブロックを割り当てない devfs は block count / free block count を 0 とし、単位は
+1 byte です。これは device の内容を保存できる RAM 容量や、外部 device の容量を表す値では
+ありません。inode 総数は register_node が実際に使う nonzero u32 ID domain の上限、空き数は
+next_id から求める未割り当て ID の残量です。root / null の初期 2 ID も使用済みとして数えます。
+IDs は削除後も再利用しない実装なので、unregister / 最後の close でも空き数を回復させません。
+名前長上限は独立した応答用定数ではなく、register 時の validation と同じ定数を使います。
+
+/dev directory / null の READ と write-only CONTROL observation に対応します。filesystem
+metadata を持つ named PTY slave も、最後の master close による名前の公開解除を確認した後、
+保持済み slave FD から同じ devfs を照会できます。匿名 PTY master や匿名 pipe の volume
+accounting を追加したものではありません。
+
+関連ホスト試験では異なる device mount、root confinement、FD の close 後の拒否、foreign
+Node の拒否、register の ID 消費、失敗時の count 不変、削除後の非再利用を確認しています。
+filesystem.service を native build し、既存 runtime / SDK と新 C probe をリンクしました。
+KVM では devfs の照会と unpublication 後の PTY slave を含む 6 群が成功しています。
+従来の Data / System / FIFO / permission / chroot / fault-safe output の試験も再実行しました。
+
+- 関連ホスト試験: `out/checks/mochios-devfs-volume-197-host-final.log`
+- native build: `out/checks/mochios-devfs-volume-197-filesystem-build.log`
+- C probe build: `out/checks/mochios-devfs-volume-197-probe-build.log`
+- KVM C integration: `out/checks/mochios-devfs-volume-197-native.log`
+
+SDK / Rust std の再生成、runtime archive の再ビルド、全アプリの再リンクは行っていません。
+C runtime の実 OS 証明は今回リンクした probe に限ります。診断終了後の CompositorNotFound は
+通常起動の結果とは扱いません。POSIX 全体の完成や Vim / WebKit の動作確認ではありません。
+
+全ホスト試験 3,277 件が成功し、失敗 0 件でした。追加した namespace authority 検査を含む
+関連 93 件も再実行して成功しています。全体ログは
+`out/checks/mochios-devfs-volume-197-host-all.log` です。
+
+C 試験用 compositor / manager / manifest / verification record を元へ戻し、通常イメージを
+再生成しました。別の KVM 起動で Binder ready と Dock・上部バーの画面表示を確認し、VM は
+停止しています。`out/checks/mochios-devfs-volume-197-normal.log` / `-normal.png` と
+`-artifacts.json` / `-evidence.json` に保存しています。

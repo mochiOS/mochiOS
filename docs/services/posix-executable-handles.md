@@ -45,19 +45,19 @@ C では newlib の補助 object を合成した archive を使用しました�
 `out/checks/mochios-fexecve-201-final-native.log`、
 `out/checks/mochios-fexecve-201-std-final-link.log` です。
 
-通常イメージの起動確認は完了していません。二回とも input.service の初期化が
+201 段階の通常イメージの起動確認は失敗しました。二回とも input.service の初期化が
 READY 待ち上限を越え、その後に READY が到着しました。service-manager の配置バイナリは
 変更前のものと SHA-256 が同一で、検証用 compositor / manager / payload は除去済みです。
 ログは `out/checks/mochios-fexecve-201-normal.log` と
 `out/checks/mochios-fexecve-201-normal-retry.log`、VM は停止済みです。
-デスクトップ起動の成功としては扱いません。
+201 の記録はデスクトップ起動の成功としては扱いません。
+202 の通常構成では input READY とデスクトップ・Dock の表示を確認しています。
+詳細は [captured image の生成認可](posix-captured-image-creation.md) を参照してください。
 
 ## 続ける必要がある項目
 
 既存のパス経由 execve にも package index に登録された実行名への依存が残っています。
-現在の fork は、実行名を使って package index から生成認可を取得しています。
-fexecve 後の不透明な実行名や未登録 image にはこの経路が適合しないため、
-取得済み address-space image の origin と現在の security domain に基づく汎用生成認可へ
-変更する必要があります。パスを復元する回避策では解決しません。
+fork の実行名による package index 依存は、[captured image の生成認可](posix-captured-image-creation.md)
+で解消しています。実行名をパスへ復元せず、取得済み image の origin と現在の security domain を検証します。
 また、set-id 実行や動的 ELF loader の完了を、この変更の実績としては扱いません。
 POSIX 互換環境全体の目標は継続中です。

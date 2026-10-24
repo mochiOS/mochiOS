@@ -14615,3 +14615,11 @@ path = "services"
 hash = "abc4dd254d8a55646574ff0523e578877b946508"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(keychain): add encrypted vault service and session lock integration"
+
+[[entries]]
+date = "2026-10-24T14:06:36.586339534+09:00"
+snapshot = "bbe735da2bfb07b4cdea8c27"
+path = "services"
+hash = "ff7583ecee02bf786bd390c73f7eb51394233fc4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose live volume accounting through retained filesystem authority"

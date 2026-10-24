@@ -14559,3 +14559,11 @@ path = "services"
 hash = "a04bf08d74412ec7ececba93e261827e6f15c685"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Adapt FIFO descriptions to authenticated native Provider operations"
+
+[[entries]]
+date = "2026-10-24T09:36:11.808759975+09:00"
+snapshot = "366efb5f7e59f2200283deb8"
+path = "services"
+hash = "f161e9c48e44c2a8ebe26625650f06c5e8f7964f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retain authorized FIFO inodes during open and publish metadata-only Handles"

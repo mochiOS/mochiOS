@@ -14751,3 +14751,11 @@ path = "services"
 hash = "8721d09fd3c22fd7d0bd5d65cdab8d056bde8ada"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Issue and retain explicit network authority Handles through native IPC"
+
+[[entries]]
+date = "2026-10-24T20:23:18.056345465+09:00"
+snapshot = "ab35e030027a4f484b62d31c"
+path = "services"
+hash = "39e62cd7ad826b10ef6cfba9a55910716beb8213"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Serve delegated UDP packet Handles with bounded queues"

@@ -59,6 +59,14 @@ impl Value {
         }
     }
 
+    pub fn literal(self) -> String {
+        match self {
+            Self::Real(Number::Exact(n, d)) if d != 1 => format!("({n}/{d})"),
+            Self::Real(Number::Approx(n)) => n.to_string(),
+            Self::Real(n) => n.display(),
+            Self::Word(n) => format!("0x{n:X}"),
+        }
+    }
     pub fn approximate(self) -> bool {
         matches!(self,Self::Real(n)if n.is_approximate())
     }
@@ -185,16 +193,63 @@ fn lex(text: &str, program: bool) -> Result<Vec<Token>> {
     tokens.push(Token::End);
     Ok(tokens)
 }
+#[derive(Clone, Copy, Debug)]
+pub struct Repeat {
+    op: &'static str,
+    operand: Value,
+    percent: bool,
+}
+impl Repeat {
+    pub fn apply(self, left: Value, settings: Settings) -> Result<Value> {
+        Parser {
+            tokens: vec![],
+            at: 0,
+            settings,
+            answer: None,
+        }
+        .binary(
+            self.op,
+            left,
+            Eval {
+                value: self.operand,
+                percent: self.percent,
+                repeat: None,
+            },
+        )
+    }
+    pub fn expression(self, left: Value) -> String {
+        let operand = if self.percent {
+            if let Value::Real(n) = self.operand {
+                n.mul(Number::Exact(100, 1))
+                    .map(|n| Value::Real(n).literal())
+                    .unwrap_or_else(|_| self.operand.literal())
+            } else {
+                self.operand.literal()
+            }
+        } else {
+            self.operand.literal()
+        };
+        format!(
+            "({}) {} ({operand}){}",
+            left.literal(),
+            self.op,
+            if self.percent { "%" } else { "" }
+        )
+    }
+}
+
 #[derive(Clone, Copy)]
 struct Eval {
     value: Value,
     percent: bool,
+    repeat: Option<Repeat>,
 }
 impl Eval {
     fn new(value: Value) -> Self {
         Self {
             value,
             percent: false,
+            repeat: None,
         }
     }
 }
@@ -205,6 +260,13 @@ struct Parser {
     answer: Option<Value>,
 }
 pub fn evaluate(text: &str, settings: Settings, answer: Option<Value>) -> Result<Value> {
+    evaluate_with_repeat(text, settings, answer).map(|(value, _)| value)
+}
+pub fn evaluate_with_repeat(
+    text: &str,
+    settings: Settings,
+    answer: Option<Value>,
+) -> Result<(Value, Option<Repeat>)> {
     if ![8, 16, 32, 64].contains(&settings.bits) || ![2, 8, 10, 16].contains(&settings.base) {
         return Err("Invalid programmer settings".into());
     }
@@ -214,11 +276,11 @@ pub fn evaluate(text: &str, settings: Settings, answer: Option<Value>) -> Result
         settings,
         answer,
     };
-    let result = parser.expression(0, 0)?.value;
+    let result = parser.expression(0, 0)?;
     if parser.tokens[parser.at] != Token::End {
         return Err("Check the expression and parentheses".into());
     }
-    Ok(result)
+    Ok((result.value, result.repeat))
 }
 impl Parser {
     fn expression(&mut self, min: u8, depth: usize) -> Result<Eval> {
@@ -272,6 +334,7 @@ impl Parser {
                 Eval {
                     value,
                     percent: operand.percent && op != "~",
+                    repeat: None,
                 }
             }
             _ => return Err("Enter a complete expression".into()),
@@ -290,6 +353,7 @@ impl Parser {
                     Eval {
                         value: Value::Real(n.div(Number::Exact(100, 1))?),
                         percent: true,
+                        repeat: None,
                     }
                 } else {
                     self.scientific()?;
@@ -325,7 +389,15 @@ impl Parser {
             }
             let rhs =
                 self.expression(if right { precedence } else { precedence + 1 }, depth + 1)?;
-            left = Eval::new(self.binary(op, left.value, rhs)?);
+            left = Eval {
+                value: self.binary(op, left.value, rhs)?,
+                percent: false,
+                repeat: Some(Repeat {
+                    op,
+                    operand: rhs.value,
+                    percent: rhs.percent,
+                }),
+            };
         }
         Ok(left)
     }
@@ -538,6 +610,30 @@ impl Parser {
         Number::approximate(y).map(Value::Real)
     }
 }
+pub fn materialize_answer(text: &str, answer: Option<Value>) -> String {
+    let Some(answer) = answer else {
+        return text.into();
+    };
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(start) = rest.find(|c: char| c.is_ascii_alphabetic()) {
+        out.push_str(&rest[..start]);
+        rest = &rest[start..];
+        let end = rest
+            .find(|c: char| !c.is_ascii_alphanumeric())
+            .unwrap_or(rest.len());
+        let name = &rest[..end];
+        if name.eq_ignore_ascii_case("ans") {
+            out.push_str(&format!("({})", answer.literal()));
+        } else {
+            out.push_str(name);
+        }
+        rest = &rest[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -546,6 +642,47 @@ mod tests {
             .unwrap()
             .display(Settings::default())
     }
+    #[test]
+    fn last_operation_repeats_with_exact_percentage_and_word_semantics() {
+        let settings = Settings::default();
+        let (value, repeat) = evaluate_with_repeat("1*2", settings, None).unwrap();
+        let repeat = repeat.unwrap();
+        assert_eq!(
+            repeat.apply(value, settings).unwrap().display(settings),
+            "4"
+        );
+        assert_eq!(
+            repeat
+                .apply(repeat.apply(value, settings).unwrap(), settings)
+                .unwrap()
+                .display(settings),
+            "8"
+        );
+        let (value, repeat) = evaluate_with_repeat("100+15%", settings, None).unwrap();
+        let repeat = repeat.unwrap();
+        assert_eq!(
+            repeat.apply(value, settings).unwrap().display(settings),
+            "132.25"
+        );
+        assert_eq!(
+            evaluate(
+                &repeat.expression(Value::Real(Number::Exact(150, 1))),
+                settings,
+                None
+            )
+            .unwrap()
+            .display(settings),
+            "172.5"
+        );
+        let exact = evaluate("1/3", settings, None).unwrap();
+        assert_eq!(
+            evaluate(&materialize_answer("Ans*3", Some(exact)), settings, None)
+                .unwrap()
+                .display(settings),
+            "1"
+        );
+    }
+
     #[test]
     fn basic_precedence_parentheses_and_percent() {
         assert_eq!(calc("0.1+0.2"), "0.3");

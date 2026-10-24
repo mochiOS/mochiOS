@@ -31,35 +31,46 @@ pub fn path() -> Result<PathBuf, String> {
     }
 }
 pub fn load(path: &Path) -> Result<Mode, String> {
-    let parent = path.parent().ok_or("Invalid preferences path")?;
+    match read_data(path, 64)? {
+        None => Ok(Mode::Standard),
+        Some(bytes) => std::str::from_utf8(&bytes)
+            .ok()
+            .and_then(|text| Mode::parse(text.trim()))
+            .ok_or_else(|| "The saved start mode is invalid; Standard mode is in use".into()),
+    }
+}
+pub fn read_data(path: &Path, limit: u64) -> Result<Option<Vec<u8>>, String> {
+    let parent = path.parent().ok_or("Invalid storage path")?;
     if !parent.try_exists().map_err(|e| e.to_string())? {
-        return Ok(Mode::Standard);
+        return Ok(None);
     }
     let lock = path.with_extension("lock");
-    fs::create_dir(&lock).map_err(|e| format!("Preferences are busy or unavailable: {e}"))?;
+    fs::create_dir(&lock).map_err(|e| format!("Storage is busy or unavailable: {e}"))?;
     let _lock = Lock(lock);
     recover(path).map_err(|e| e.to_string())?;
     match fs::File::open(path) {
         Ok(file) => {
-            let mut text = String::new();
-            file.take(129)
-                .read_to_string(&mut text)
+            let mut bytes = Vec::new();
+            file.take(limit + 1)
+                .read_to_end(&mut bytes)
                 .map_err(|e| e.to_string())?;
-            if text.len() > 64 {
-                return Err("The saved start mode is invalid; Standard mode is in use".into());
+            if bytes.len() as u64 > limit {
+                return Err("Stored data exceeds its size limit".into());
             }
-            Mode::parse(text.trim())
-                .ok_or_else(|| "The saved start mode is invalid; Standard mode is in use".into())
+            Ok(Some(bytes))
         }
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(Mode::Standard),
-        Err(e) => Err(format!("Cannot read the start mode: {e}")),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e.to_string()),
     }
 }
 pub fn save(path: &Path, mode: Mode) -> Result<(), String> {
-    let parent = path.parent().ok_or("Invalid preferences path")?;
+    write_data(path, format!("{}\n", mode.label()).as_bytes())
+}
+pub fn write_data(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = path.parent().ok_or("Invalid storage path")?;
     fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     let lock = path.with_extension("lock");
-    fs::create_dir(&lock).map_err(|e| format!("Preferences are busy or unavailable: {e}"))?;
+    fs::create_dir(&lock).map_err(|e| format!("Storage is busy or unavailable: {e}"))?;
     let _lock = Lock(lock);
     recover(path).map_err(|e| e.to_string())?;
     let temporary = path.with_extension("new");
@@ -70,7 +81,7 @@ pub fn save(path: &Path, mode: Mode) -> Result<(), String> {
             .create_new(true)
             .write(true)
             .open(&temporary)?;
-        writeln!(file, "{}", mode.label())?;
+        file.write_all(bytes)?;
         file.flush()?;
         file.sync_all()?;
         drop(file);
@@ -90,7 +101,7 @@ pub fn save(path: &Path, mode: Mode) -> Result<(), String> {
     })();
     if let Err(e) = result {
         let _ = remove(&temporary);
-        return Err(format!("Cannot save the start mode: {e}"));
+        return Err(format!("Cannot save calculator data: {e}"));
     }
     Ok(())
 }

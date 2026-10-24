@@ -1,10 +1,18 @@
 use crate::engine::{self, Mode, Settings, Value};
-use crate::{preferences, units};
+use crate::{
+    editing,
+    history::{self, History},
+    preferences, units,
+};
 use appcore::prelude::*;
+use appcore::viewkit::app::WindowId;
 use appcore::viewkit::draw_command::DrawCommand;
-use appcore::viewkit::event::{EventContext, EventResult, ViewEvent};
+use appcore::viewkit::event::{
+    ContextMenuItem, ContextMenuRequest, EventContext, EventResult, ViewEvent,
+};
 use appcore::viewkit::platform::Key;
 use appcore::viewkit::view::{Constraints, MeasureContext, PaintContext};
+use appcore::viewkit::{close_window, request_new_window};
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -14,6 +22,14 @@ use std::rc::Rc;
 enum Action {
     Insert(&'static str),
     Clear,
+    ClearEntry,
+    Function(&'static str),
+    More,
+    Undo,
+    Redo,
+    CopyExpression,
+    Delete(usize),
+    CopyHistory(usize, bool),
     Back,
     Equals,
     Negate,
@@ -23,6 +39,7 @@ enum Action {
     Copy,
     History,
     ClearHistory,
+    ConfirmClearHistory,
     Recall(usize),
     Mode(Mode),
     Base(u32),
@@ -33,13 +50,6 @@ enum Action {
     Swap,
     SetDefault,
 }
-#[derive(Clone)]
-struct History {
-    input: String,
-    result: Value,
-    settings: Settings,
-    units: (usize, usize, usize),
-}
 struct Model {
     settings: Settings,
     start_mode: Mode,
@@ -47,15 +57,18 @@ struct Model {
     answers: [Option<Value>; 4],
     drafts: [String; 4],
     evaluated: bool,
+    repeat: [Option<engine::Repeat>; 4],
+    repeat_input: bool,
+    entry_cleared: bool,
+    history_writable: bool,
     error: Option<String>,
     status: Option<String>,
     history: Vec<History>,
-    history_visible: bool,
     scroll: f32,
     category: usize,
     from: usize,
     to: usize,
-    conversion_input: Option<String>,
+    preview: Option<(String, Settings, usize, usize, usize)>,
 }
 struct Pickers {
     mode: Picker,
@@ -74,6 +87,14 @@ struct Core {
     action: Rc<Cell<Option<Action>>>,
     input: TextFieldInteractionState,
     field: TextField,
+    target: TextFieldInteractionState,
+    target_field: TextField,
+    target_editing: Cell<bool>,
+    history_window: Cell<Option<WindowId>>,
+    revision: State<u64>,
+    undo: [UndoManager; 4],
+    menu: RefCell<Vec<Action>>,
+    menu_id: Cell<u64>,
     pickers: RefCell<Pickers>,
     degrees: State<usize>,
     angle: SegmentedControl,
@@ -90,6 +111,7 @@ struct Core {
 #[derive(Clone)]
 pub struct CalculatorView {
     core: Rc<Core>,
+    history_only: bool,
 }
 fn index(mode: Mode) -> usize {
     match mode {
@@ -98,6 +120,27 @@ fn index(mode: Mode) -> usize {
         Mode::Convert => 2,
         Mode::Programmer => 3,
     }
+}
+fn grouped(value: &str) -> String {
+    let end = value.find(['.', 'e', 'E']).unwrap_or(value.len());
+    let (whole, rest) = value.split_at(end);
+    let (sign, digits) = if let Some(n) = whole.strip_prefix('-') {
+        ("-", n)
+    } else {
+        ("", whole)
+    };
+    if !digits.bytes().all(|c| c.is_ascii_digit()) {
+        return value.into();
+    }
+    let mut out = sign.to_owned();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out.push_str(rest);
+    out
 }
 fn action_button(label: &str, action: Action, pending: &Rc<Cell<Option<Action>>>) -> Button {
     let pending = pending.clone();
@@ -154,52 +197,18 @@ fn pickers(model: &Model, action: &Rc<Cell<Option<Action>>>) -> Pickers {
     }
 }
 fn key_specs(mode: Mode) -> Vec<(&'static str, Action)> {
-    use Action::{Back, Clear, Copy, Equals, Insert, Negate, Not, Reciprocal, Square};
+    use Action::{Back, Clear, Copy, Equals, Insert, Negate, Not};
     if mode == Mode::Scientific {
-        return vec![
-            ("AC", Clear),
-            ("(", Insert("(")),
-            (")", Insert(")")),
-            ("Back", Back),
-            ("±", Negate),
-            ("÷", Insert("/")),
-            ("sin", Insert("sin(")),
-            ("cos", Insert("cos(")),
-            ("tan", Insert("tan(")),
-            ("asin", Insert("asin(")),
-            ("acos", Insert("acos(")),
-            ("atan", Insert("atan(")),
-            ("ln", Insert("ln(")),
-            ("log", Insert("log(")),
-            ("√", Insert("sqrt(")),
-            ("x²", Square),
-            ("xʸ", Insert("^")),
-            ("n!", Insert("!")),
-            ("7", Insert("7")),
-            ("8", Insert("8")),
-            ("9", Insert("9")),
-            ("π", Insert("pi")),
-            ("e", Insert("e")),
-            ("×", Insert("*")),
-            ("4", Insert("4")),
-            ("5", Insert("5")),
-            ("6", Insert("6")),
-            ("1/x", Reciprocal),
-            ("%", Insert("%")),
-            ("−", Insert("-")),
-            ("1", Insert("1")),
-            ("2", Insert("2")),
-            ("3", Insert("3")),
-            ("exp", Insert("exp(")),
-            ("Ans", Insert("Ans")),
-            ("+", Insert("+")),
-            ("0", Insert("0")),
-            (".", Insert(".")),
-            ("00", Insert("00")),
-            ("abs", Insert("abs(")),
-            ("Copy", Copy),
-            ("=", Equals),
+        let mut specs = vec![
+            ("sin", Action::Function("sin")),
+            ("cos", Action::Function("cos")),
+            ("tan", Action::Function("tan")),
+            ("ln", Action::Function("ln")),
+            ("log", Action::Function("log")),
+            ("√", Action::Function("sqrt")),
         ];
+        specs.extend(key_specs(Mode::Standard));
+        return specs;
     }
     if mode == Mode::Programmer {
         return vec![
@@ -242,13 +251,9 @@ fn key_specs(mode: Mode) -> Vec<(&'static str, Action)> {
         ];
     }
     vec![
-        ("AC", Clear),
-        ("(", Insert("(")),
-        (")", Insert(")")),
-        ("Back", Back),
-        ("%", Insert("%")),
+        ("C", Action::ClearEntry),
         ("±", Negate),
-        ("1/x", Reciprocal),
+        ("%", Insert("%")),
         ("÷", Insert("/")),
         ("7", Insert("7")),
         ("8", Insert("8")),
@@ -264,14 +269,18 @@ fn key_specs(mode: Mode) -> Vec<(&'static str, Action)> {
         ("+", Insert("+")),
         ("0", Insert("0")),
         (".", Insert(".")),
-        ("Ans", Insert("Ans")),
         ("=", Equals),
     ]
 }
-fn keys(model: &Model, action: &Rc<Cell<Option<Action>>>) -> Vec<KeyButton> {
+fn keys(
+    model: &Model,
+    action: &Rc<Cell<Option<Action>>>,
+    states: &[ButtonInteractionState],
+) -> Vec<KeyButton> {
     key_specs(model.settings.mode)
         .into_iter()
-        .map(|(label, a)| {
+        .enumerate()
+        .map(|(i, (label, a))| {
             let enabled = if model.settings.mode == Mode::Programmer
                 && label.len() == 1
                 && label.as_bytes()[0].is_ascii_alphanumeric()
@@ -285,19 +294,40 @@ fn keys(model: &Model, action: &Rc<Cell<Option<Action>>>) -> Vec<KeyButton> {
             } else {
                 true
             };
-            let mut button = action_button(label, a, action)
-                .size(ButtonSize::Large)
-                .style(if matches!(a, Action::Equals) {
-                    ButtonStyle::Accent
+            let label =
+                if matches!(a, Action::ClearEntry) && (model.evaluated || model.entry_cleared) {
+                    "AC"
+                } else {
+                    label
+                };
+            let pending = action.clone();
+            let mut button = Button::with_interaction_and_label(
+                states.get(i).cloned().unwrap_or_default(),
+                label,
+            )
+            .on_click(move || pending.set(Some(a)))
+            .size(ButtonSize::Large)
+            .style(if matches!(a, Action::Equals) {
+                ButtonStyle::Accent
+            } else {
+                if matches!(
+                    a,
+                    Action::Insert("+" | "-" | "*" | "/" | "%")
+                        | Action::ClearEntry
+                        | Action::Negate
+                        | Action::Function(_)
+                ) {
+                    ButtonStyle::Primary
                 } else {
                     ButtonStyle::Standard
-                })
-                .enabled(enabled);
+                }
+            })
+            .enabled(enabled);
             if matches!(a, Action::Back) {
                 button = button.accessibility_label("Delete previous character");
             }
             if matches!(a, Action::Negate) {
-                button = button.accessibility_label("Negate expression");
+                button = button.accessibility_label("Change sign of current number");
             }
             KeyButton { button }
         })
@@ -319,6 +349,12 @@ impl CalculatorView {
         Self::with_preferences(path, mode, error)
     }
     fn with_preferences(path: Option<PathBuf>, mode: Mode, error: Option<String>) -> Self {
+        let (saved_history, history_error) = match path.as_ref().map(|p| history::load(p)) {
+            Some(Ok(entries)) => (entries, None),
+            Some(Err(e)) => (vec![], Some(e)),
+            None => (vec![], None),
+        };
+        let history_writable = history_error.is_none();
         let model = Model {
             settings: Settings {
                 mode,
@@ -329,23 +365,31 @@ impl CalculatorView {
             answers: [None; 4],
             drafts: std::array::from_fn(|_| String::new()),
             evaluated: false,
-            error,
+            repeat: [None; 4],
+            repeat_input: false,
+            entry_cleared: true,
+            history_writable,
+            error: error.or(history_error),
             status: None,
-            history: vec![],
-            history_visible: false,
+            history: saved_history,
             scroll: 0.0,
             category: 0,
             from: 0,
             to: 1,
-            conversion_input: None,
+            preview: None,
         };
         let action = Rc::new(Cell::new(None));
         let input = TextFieldInteractionState::new();
         input.set_focused(true);
         let submit = action.clone();
         let field = TextField::with_interaction(input.clone())
-            .placeholder("Enter an expression")
+            .placeholder("0")
+            .bordered(false)
             .on_submit(move || submit.set(Some(Action::Equals)));
+        let target = TextFieldInteractionState::new();
+        let target_field = TextField::with_interaction(target.clone())
+            .placeholder("0")
+            .bordered(false);
         let degrees = State::new(0);
         let angle = SegmentedControl::new(degrees.binding())
             .item(0, "Degrees")
@@ -353,11 +397,10 @@ impl CalculatorView {
         let signed = State::new(false);
         let signed_control = Checkbox::new(signed.binding()).label("Signed");
         let pickers = RefCell::new(pickers(&model, &action));
-        let keys = RefCell::new(keys(&model, &action));
-        let copy = action_button("Copy Result", Action::Copy, &action);
-        let history = action_button("History", Action::History, &action);
-        let default_mode =
-            action_button("Use at Startup", Action::SetDefault, &action).style(ButtonStyle::Ghost);
+        let keys = RefCell::new(keys(&model, &action, &[]));
+        let copy = action_button("Back", Action::Back, &action).style(ButtonStyle::Ghost);
+        let history = action_button("History", Action::History, &action).style(ButtonStyle::Ghost);
+        let default_mode = action_button("More", Action::More, &action).style(ButtonStyle::Ghost);
         let clear_history =
             action_button("Clear History", Action::ClearHistory, &action).style(ButtonStyle::Ghost);
         let swap = action_button("Swap", Action::Swap, &action);
@@ -368,6 +411,14 @@ impl CalculatorView {
                 action,
                 input,
                 field,
+                target,
+                target_field,
+                target_editing: Cell::new(false),
+                history_window: Cell::new(None),
+                revision: State::new(0),
+                undo: std::array::from_fn(|_| UndoManager::new()),
+                menu: RefCell::new(vec![]),
+                menu_id: Cell::new(0x43414c4300000000),
                 pickers,
                 degrees,
                 angle,
@@ -381,12 +432,25 @@ impl CalculatorView {
                 swap,
                 history_buttons: RefCell::new(BTreeMap::new()),
             }),
+            history_only: false,
         }
     }
     fn refresh_controls(&self) {
         let model = self.core.model.borrow();
         *self.core.pickers.borrow_mut() = pickers(&model, &self.core.action);
-        *self.core.keys.borrow_mut() = keys(&model, &self.core.action);
+        drop(model);
+        self.refresh_keys();
+    }
+    fn refresh_keys(&self) {
+        let model = self.core.model.borrow();
+        let states: Vec<_> = self
+            .core
+            .keys
+            .borrow()
+            .iter()
+            .map(|key| key.button.interaction().clone())
+            .collect();
+        *self.core.keys.borrow_mut() = keys(&model, &self.core.action, &states);
     }
     fn current_settings(&self) -> Settings {
         let mut settings = self.core.model.borrow().settings;
@@ -394,63 +458,374 @@ impl CalculatorView {
         settings.signed = self.core.signed.get();
         settings
     }
+    fn persist_history(&self) {
+        let mut model = self.core.model.borrow_mut();
+        if !model.history_writable {
+            return;
+        }
+        if let Some(path) = &self.core.path {
+            if let Err(e) = history::save(path, &model.history) {
+                model.error = Some(e);
+            }
+        }
+    }
+    pub fn history_view(&self) -> Self {
+        Self {
+            core: self.core.clone(),
+            history_only: true,
+        }
+    }
+    pub fn closing(&self, window: WindowId) {
+        if window == WindowId::PRIMARY {
+            if let Some(id) = self.core.history_window.take() {
+                close_window(id);
+            }
+        } else if self.core.history_window.get() == Some(window) {
+            self.core.history_window.set(None);
+        }
+    }
     fn calculate(&self, explicit: bool) {
-        let text = self.core.input.value();
         let settings = self.current_settings();
         let mut model = self.core.model.borrow_mut();
-        model.status = None;
-        let previous = model.answers[index(settings.mode)];
-        let result = engine::evaluate(&text, settings, previous).and_then(|value| {
-            if settings.mode != Mode::Convert {
-                return Ok(value);
+        let slot = index(settings.mode);
+        model.preview = Some((
+            self.core.input.value(),
+            settings,
+            model.category,
+            model.from,
+            model.to,
+        ));
+        let previous = model.answers[slot];
+        let mut text = editing::complete(&self.core.input.value());
+        let parsed = if explicit && model.evaluated && settings.mode != Mode::Convert {
+            match (model.repeat[slot], model.result) {
+                (Some(repeat), Some(left)) => {
+                    text = repeat.expression(left);
+                    repeat.apply(left, settings).map(|v| (v, Some(repeat)))
+                }
+                _ => engine::evaluate_with_repeat(&text, settings, previous),
             }
-            let Value::Real(value) = value else {
-                return Err("A real number is required".into());
-            };
-            units::convert(value, model.category, model.from, model.to).map(Value::Real)
+        } else {
+            engine::evaluate_with_repeat(&text, settings, previous)
+        };
+        let result = parsed.and_then(|(mut value, mut repeat)| {
+            if explicit && model.repeat_input && repeat.is_none() && settings.mode != Mode::Convert
+            {
+                if let Some(last) = model.repeat[slot] {
+                    text = last.expression(value);
+                    value = last.apply(value, settings)?;
+                    repeat = Some(last);
+                }
+            }
+            if settings.mode == Mode::Convert {
+                let Value::Real(v) = value else {
+                    return Err("A real number is required".into());
+                };
+                value = Value::Real(units::convert(v, model.category, model.from, model.to)?);
+            }
+            Ok((value, repeat))
         });
-        if settings.mode == Mode::Convert {
-            model.conversion_input = Some(text.clone());
-        }
+        if settings.mode == Mode::Convert {}
         match result {
-            Ok(result) => {
+            Ok((result, repeat)) => {
                 model.result = Some(result);
                 model.error = None;
+                model.status = None;
+                if settings.mode == Mode::Convert && !self.core.target_editing.get() {
+                    self.core.target.set_value(result.display(settings));
+                }
                 if explicit {
-                    model.answers[index(settings.mode)] = Some(result);
+                    let canonical = engine::materialize_answer(&text, previous);
+                    self.core.input.set_value(text);
+                    model.answers[slot] = Some(result);
+                    model.repeat[slot] = repeat;
+                    model.repeat_input = false;
                     model.evaluated = true;
-                    let history = History {
-                        input: text,
+                    let id = model
+                        .history
+                        .iter()
+                        .map(|e| e.id)
+                        .max()
+                        .unwrap_or(0)
+                        .saturating_add(1);
+                    let entry = History {
+                        id,
+                        input: canonical,
                         result,
                         settings,
                         units: (model.category, model.from, model.to),
                     };
-                    if model.history.last().is_none_or(|old| {
-                        old.input != history.input
-                            || old.settings != history.settings
-                            || old.units != history.units
-                            || old.result != history.result
+                    if model.history.last().is_none_or(|e| {
+                        e.input != entry.input
+                            || e.settings != entry.settings
+                            || e.units != entry.units
+                            || e.result != entry.result
                     }) {
-                        model.history.push(history);
-                        if model.history.len() > 50 {
+                        model.history.push(entry);
+                        if model.history.len() > history::LIMIT {
                             model.history.remove(0);
                         }
                         self.core.history_buttons.borrow_mut().clear();
                     }
                 }
             }
-            Err(error) => {
+            Err(e) => {
                 model.result = None;
                 model.evaluated = false;
-                model.error = explicit.then_some(error);
+                model.error = explicit.then_some(e);
             }
         }
+        drop(model);
+        if explicit {
+            self.refresh_keys();
+            self.persist_history();
+            self.changed();
+        }
+    }
+    fn reverse_conversion(&self) {
+        let settings = self.current_settings();
+        let mut model = self.core.model.borrow_mut();
+        let converted = engine::evaluate(&self.core.target.value(), settings, None).and_then(|v| {
+            let Value::Real(n) = v else {
+                return Err("A real number is required".into());
+            };
+            units::convert(n, model.category, model.to, model.from)
+                .map(|source| (Value::Real(source), v))
+        });
+        match converted {
+            Ok((source, target)) => {
+                self.core.input.set_value(source.literal());
+                model.result = Some(target);
+
+                model.error = None;
+            }
+            Err(e) => {
+                model.result = None;
+                model.error = Some(e);
+            }
+        }
+        model.evaluated = false;
+        model.repeat_input = false;
+    }
+    fn changed(&self) {
+        self.core
+            .revision
+            .set(self.core.revision.get().wrapping_add(1));
+    }
+    fn edit_operand(&self, action: Action, frames: &Frames, context: &mut EventContext<'_>) {
+        if self.core.model.borrow().evaluated {
+            if let Some(value) = self.core.model.borrow().result {
+                self.core.input.set_value(value.literal());
+            }
+        }
+        let text = self.core.input.value();
+        let selection = self.core.input.selection_range();
+        let range = if self.core.model.borrow().evaluated {
+            0..text.len()
+        } else {
+            editing::operand(&text, selection)
+        };
+        let value = if range.is_empty() {
+            "0"
+        } else {
+            &text[range.clone()]
+        };
+        let replacement = match action {
+            Action::ClearEntry => "0".into(),
+            Action::Negate => editing::negate(value),
+            Action::Reciprocal => format!("1/({value})"),
+            Action::Square => format!("({value})^2"),
+            Action::Not => format!("~({value})"),
+            Action::Function(name) => format!("{name}({value})"),
+            _ => return,
+        };
+        self.core.input.set_focused(true);
+        let start = range.start;
+        self.core.input.set_selection(range);
+        self.core.field.handle_event(
+            frames.input,
+            &ViewEvent::TextInput { text: replacement },
+            context,
+        );
+        if matches!(action, Action::ClearEntry) {
+            self.core.input.set_selection(start..start + 1);
+        }
+        let mut model = self.core.model.borrow_mut();
+        model.evaluated = false;
+        model.repeat_input = false;
+        model.entry_cleared = false;
+        model.result = None;
+        model.error = None;
+    }
+    fn show_menu(&self, position: Point, row: Option<usize>, context: &mut EventContext<'_>) {
+        let mut options = vec![
+            ("Undo", Action::Undo),
+            ("Redo", Action::Redo),
+            ("Copy Result", Action::Copy),
+            ("Copy Expression", Action::CopyExpression),
+            ("Clear All", Action::Clear),
+            ("Use This Mode at Startup", Action::SetDefault),
+        ];
+        if let Some(row) = row {
+            options = vec![
+                ("Copy Expression", Action::CopyHistory(row, false)),
+                ("Copy Result", Action::CopyHistory(row, true)),
+                ("Delete Calculation", Action::Delete(row)),
+            ];
+        } else {
+            options.extend([
+                ("Previous Answer", Action::Insert("Ans")),
+                ("Open Parenthesis", Action::Insert("(")),
+                ("Close Parenthesis", Action::Insert(")")),
+            ]);
+            if self.current_settings().mode != Mode::Programmer {
+                options.push(("Reciprocal", Action::Reciprocal));
+            }
+            if self.current_settings().mode == Mode::Scientific {
+                options.extend([
+                    ("Inverse sine", Action::Function("asin")),
+                    ("Inverse cosine", Action::Function("acos")),
+                    ("Inverse tangent", Action::Function("atan")),
+                    ("Exponential", Action::Function("exp")),
+                    ("Absolute value", Action::Function("abs")),
+                    ("Square", Action::Square),
+                    ("Power", Action::Insert("^")),
+                    ("Factorial", Action::Insert("!")),
+                    ("π", Action::Insert("pi")),
+                    ("e", Action::Insert("e")),
+                ]);
+            }
+        }
+        self.core
+            .menu_id
+            .set(self.core.menu_id.get().wrapping_add(1));
+        *self.core.menu.borrow_mut() = options.iter().map(|(_, a)| *a).collect();
+        context.show_context_menu(ContextMenuRequest {
+            request_id: self.core.menu_id.get(),
+            position,
+            items: options
+                .iter()
+                .enumerate()
+                .map(|(i, (label, a))| ContextMenuItem {
+                    command_id: i as u32,
+                    label: (*label).into(),
+                    enabled: match a {
+                        Action::Copy => self.core.model.borrow().result.is_some(),
+                        Action::Undo => {
+                            self.core.undo[index(self.current_settings().mode)].can_undo()
+                        }
+                        Action::Redo => {
+                            self.core.undo[index(self.current_settings().mode)].can_redo()
+                        }
+                        _ => true,
+                    },
+                    checked: false,
+                    destructive: matches!(a, Action::Delete(_) | Action::Clear),
+                    separator: false,
+                })
+                .collect(),
+        });
     }
     fn apply_action(&self, frames: &Frames, context: &mut EventContext<'_>) {
         let Some(action) = self.core.action.take() else {
             return;
         };
+        let original = self.core.input.value();
+        if self.core.target_editing.get() && self.current_settings().mode == Mode::Convert {
+            let event = match action {
+                Action::Insert(text) => Some(ViewEvent::TextInput { text: text.into() }),
+                Action::Back => Some(ViewEvent::Backspace),
+                Action::ClearEntry => {
+                    self.core
+                        .target
+                        .set_selection(0..self.core.target.value().len());
+                    Some(ViewEvent::TextInput { text: "0".into() })
+                }
+                Action::Negate => {
+                    let value = self.core.target.value();
+                    self.core.target.set_selection(0..value.len());
+                    Some(ViewEvent::TextInput {
+                        text: editing::negate(&value),
+                    })
+                }
+                _ => None,
+            };
+            if let Some(event) = event {
+                self.core.target.set_focused(true);
+                self.core
+                    .target_field
+                    .handle_event(frames.result, &event, context);
+                self.reverse_conversion();
+                self.record_input(original);
+                self.changed();
+                context.request_redraw_in(frames.bounds);
+                return;
+            }
+        }
+        self.core.target_editing.set(false);
+        self.core.target.set_focused(false);
         match action {
+            Action::Undo | Action::Redo => {
+                let slot = index(self.current_settings().mode);
+                if matches!(action, Action::Undo) {
+                    self.core.undo[slot].undo();
+                } else {
+                    self.core.undo[slot].redo();
+                }
+                let mut m = self.core.model.borrow_mut();
+                m.evaluated = false;
+                m.repeat_input = false;
+                m.preview = None;
+                m.result = None;
+                m.error = None;
+            }
+            Action::More => self.show_menu(
+                Point::new(
+                    frames.toolbar_button(2).origin.x,
+                    frames.toolbar.origin.y + frames.toolbar.size.height,
+                ),
+                None,
+                context,
+            ),
+            Action::CopyExpression | Action::CopyHistory(_, _) => {
+                let value = match action {
+                    Action::CopyHistory(row, result) => {
+                        self.core.model.borrow().history.get(row).map(|e| {
+                            if result {
+                                e.result.display(e.settings)
+                            } else {
+                                e.input.clone()
+                            }
+                        })
+                    }
+                    _ => Some(self.core.input.value()),
+                };
+                if let Some(value) = value {
+                    if let Err(e) = preferences::copy(&value) {
+                        self.core.model.borrow_mut().error = Some(e);
+                    }
+                }
+            }
+            Action::Delete(row) => {
+                let mut model = self.core.model.borrow_mut();
+                if row < model.history.len() {
+                    model.history.remove(row);
+                }
+                model.scroll = 0.0;
+                self.core.history_buttons.borrow_mut().clear();
+                drop(model);
+                self.persist_history();
+            }
+            Action::ClearEntry => {
+                if self.core.model.borrow().evaluated || self.core.model.borrow().entry_cleared {
+                    self.core.action.set(Some(Action::Clear));
+                    self.apply_action(frames, context);
+                    return;
+                }
+                self.edit_operand(action, frames, context);
+                self.core.model.borrow_mut().entry_cleared = true;
+            }
+            Action::Function(_) => self.edit_operand(action, frames, context),
             Action::Insert(text) => {
                 self.prepare_input(text);
                 self.core.model.borrow_mut().result = None;
@@ -466,6 +841,9 @@ impl CalculatorView {
                 let mut model = self.core.model.borrow_mut();
                 model.result = None;
                 model.evaluated = false;
+                model.repeat = [None; 4];
+                model.repeat_input = false;
+                model.entry_cleared = true;
                 model.error = None;
                 model.status = None;
                 self.core.input.set_focused(true);
@@ -482,23 +860,7 @@ impl CalculatorView {
             }
             Action::Equals => self.calculate(true),
             Action::Negate | Action::Reciprocal | Action::Square | Action::Not => {
-                let text = if self.core.model.borrow().evaluated {
-                    "Ans".to_owned()
-                } else {
-                    let text = self.core.input.value();
-                    if text.is_empty() { "0".into() } else { text }
-                };
-                self.core.input.set_value(match action {
-                    Action::Negate => format!("-({text})"),
-                    Action::Reciprocal => format!("1/({text})"),
-                    Action::Not => format!("~({text})"),
-                    _ => format!("({text})^2"),
-                });
-                let mut model = self.core.model.borrow_mut();
-                model.evaluated = false;
-                model.result = None;
-                model.error = None;
-                self.core.input.set_focused(true);
+                self.edit_operand(action, frames, context)
             }
             Action::Copy => {
                 let settings = self.current_settings();
@@ -515,15 +877,38 @@ impl CalculatorView {
                 }
             }
             Action::History => {
-                let mut model = self.core.model.borrow_mut();
-                model.history_visible = !model.history_visible;
-                model.scroll = 0.0;
+                if let Some(window) = self.core.history_window.take() {
+                    close_window(window);
+                } else {
+                    self.core.history_window.set(Some(request_new_window()));
+                }
             }
             Action::ClearHistory => {
+                *self.core.menu.borrow_mut() = vec![Action::ConfirmClearHistory];
+                self.core
+                    .menu_id
+                    .set(self.core.menu_id.get().wrapping_add(1));
+                context.show_context_menu(ContextMenuRequest {
+                    request_id: self.core.menu_id.get(),
+                    position: frames.keys.origin,
+                    items: vec![ContextMenuItem {
+                        command_id: 0,
+                        label: "Delete All Calculations?".into(),
+                        enabled: true,
+                        checked: false,
+                        destructive: true,
+                        separator: false,
+                    }],
+                });
+            }
+            Action::ConfirmClearHistory => {
                 let mut model = self.core.model.borrow_mut();
                 model.history.clear();
+                model.history_writable = true;
                 model.scroll = 0.0;
                 self.core.history_buttons.borrow_mut().clear();
+                drop(model);
+                self.persist_history();
             }
             Action::Mode(mode) => {
                 let mut model = self.core.model.borrow_mut();
@@ -535,7 +920,7 @@ impl CalculatorView {
                 model.evaluated = false;
                 model.error = None;
                 model.status = None;
-                model.conversion_input = None;
+
                 drop(model);
                 self.refresh_controls();
             }
@@ -580,7 +965,7 @@ impl CalculatorView {
                 model.category = category;
                 model.from = 0;
                 model.to = 1;
-                model.conversion_input = None;
+
                 drop(model);
                 self.refresh_controls();
             }
@@ -591,7 +976,7 @@ impl CalculatorView {
                 } else {
                     model.to = unit;
                 }
-                model.conversion_input = None;
+
                 drop(model);
                 self.refresh_controls();
             }
@@ -600,7 +985,11 @@ impl CalculatorView {
                 let from = model.from;
                 model.from = model.to;
                 model.to = from;
-                model.conversion_input = None;
+                if let Some(result) = model.result {
+                    self.core.input.set_value(result.literal());
+                }
+
+                model.evaluated = false;
                 drop(model);
                 self.refresh_controls();
             }
@@ -639,13 +1028,30 @@ impl CalculatorView {
                     model.to = entry.units.2;
                     model.evaluated = true;
                     model.error = None;
-                    model.history_visible = false;
-                    model.conversion_input = Some(self.core.input.value());
+                    model.repeat = [None; 4];
+                    model.repeat_input = false;
+
                     drop(model);
                     self.refresh_controls();
                 }
             }
         }
+        if matches!(
+            action,
+            Action::Insert(_)
+                | Action::Clear
+                | Action::ClearEntry
+                | Action::Function(_)
+                | Action::Negate
+                | Action::Square
+                | Action::Reciprocal
+                | Action::Not
+                | Action::Back
+        ) {
+            self.record_input(original);
+        }
+        self.refresh_keys();
+        self.changed();
         context.request_redraw_in(frames.bounds);
     }
 }
@@ -661,90 +1067,79 @@ struct Frames {
 }
 impl Frames {
     fn new(bounds: Rect, theme: &Theme, mode: Mode) -> Self {
-        let toolbar = Rect::new(
-            bounds.origin.x,
-            bounds.origin.y,
-            bounds.size.width,
-            theme.layout.top_bar_height + if bounds.size.width < 500.0 { 36.0 } else { 0.0 },
-        );
-        let input = Rect::new(
-            bounds.origin.x + 16.0,
-            toolbar.origin.y + toolbar.size.height + 12.0,
-            (bounds.size.width - 32.0).max(0.0),
-            32.0,
-        );
-        let result = Rect::new(
-            input.origin.x,
-            input.origin.y + 46.0,
-            input.size.width,
-            44.0,
-        );
+        let _ = theme;
+        let x = bounds.origin.x + 12.0;
+        let w = (bounds.size.width - 24.0).max(0.0);
+        let toolbar = Rect::new(bounds.origin.x, bounds.origin.y, bounds.size.width, 40.0);
+        let input = Rect::new(x, bounds.origin.y + 48.0, w, 32.0);
+        let result = Rect::new(x, bounds.origin.y + 84.0, w, 48.0);
         let context = Rect::new(
-            input.origin.x,
-            result.origin.y + 92.0,
-            input.size.width,
-            if mode == Mode::Convert {
-                72.0
-            } else if mode == Mode::Standard {
-                0.0
-            } else {
-                28.0
+            x,
+            bounds.origin.y + 142.0,
+            w,
+            match mode {
+                Mode::Convert => 68.0,
+                Mode::Standard => 0.0,
+                _ => 28.0,
             },
         );
-        let y = context.origin.y + context.size.height + 16.0;
-        let bottom = bounds.origin.y + bounds.size.height - 52.0;
+        let y = context.origin.y + context.size.height + 12.0;
+        let bottom = bounds.origin.y + bounds.size.height - 30.0;
         Self {
             bounds,
             toolbar,
             input,
             result,
-            copy: Rect::new(
-                result.origin.x + result.size.width - 108.0,
-                result.origin.y + 52.0,
-                108.0,
-                28.0,
-            ),
+            copy: Rect::new(x + w - 196.0, bounds.origin.y + 6.0, 52.0, 28.0),
             context,
-            keys: Rect::new(input.origin.x, y, input.size.width, (bottom - y).max(0.0)),
-            message: Rect::new(input.origin.x, bottom + 12.0, input.size.width, 32.0),
+            keys: Rect::new(x, y, w, (bottom - y).max(0.0)),
+            message: Rect::new(x, bottom + 6.0, w, 20.0),
         }
     }
     fn toolbar_button(&self, index: usize) -> Rect {
-        let narrow = self.toolbar.size.width < 500.0;
-        let y = self.toolbar.origin.y
-            + (self.toolbar.size.height - if narrow { 36.0 } else { 0.0 } - 28.0) / 2.0;
-        if narrow && index == 2 {
-            return Rect::new(self.toolbar.origin.x + 16.0, y + 36.0, 136.0, 28.0);
-        }
+        let x = self.toolbar.origin.x;
+        let w = self.toolbar.size.width;
+        let y = self.toolbar.origin.y + 6.0;
         match index {
-            0 => Rect::new(self.toolbar.origin.x + 16.0, y, 146.0, 28.0),
-            1 => Rect::new(
-                self.toolbar.origin.x + self.toolbar.size.width - 100.0,
-                y,
-                84.0,
-                28.0,
-            ),
-            _ => Rect::new(
-                self.toolbar.origin.x + self.toolbar.size.width - 244.0,
-                y,
-                136.0,
-                28.0,
-            ),
+            0 => Rect::new(x + 12.0, y, (w - 220.0).max(80.0), 28.0),
+            1 => Rect::new(x + w - 148.0, y, 76.0, 28.0),
+            _ => Rect::new(x + w - 68.0, y, 56.0, 28.0),
         }
     }
     fn key(&self, index: usize, count: usize, mode: Mode) -> Rect {
-        let columns = if matches!(mode, Mode::Scientific | Mode::Programmer) {
-            6
+        let mut area = self.keys;
+        let mut index = index;
+        if mode == Mode::Scientific {
+            let h = ((area.size.height - 7.0 * 6.0) / 7.0).max(0.0);
+            if index < 6 {
+                let w = ((area.size.width - 12.0) / 3.0).max(0.0);
+                return Rect::new(
+                    area.origin.x + (index % 3) as f32 * (w + 6.0),
+                    area.origin.y + (index / 3) as f32 * (h + 6.0),
+                    w,
+                    h,
+                );
+            }
+            index -= 6;
+            area.origin.y += 2.0 * (h + 6.0);
+            area.size.height = (area.size.height - 2.0 * (h + 6.0)).max(0.0);
+        }
+        let columns = if mode == Mode::Programmer { 6 } else { 4 };
+        let rows = if columns == 6 { count.div_ceil(6) } else { 5 };
+        let w = ((area.size.width - 6.0 * (columns - 1) as f32) / columns as f32).max(0.0);
+        let h = ((area.size.height - 6.0 * (rows - 1) as f32) / rows as f32).max(0.0);
+        let (slot, span) = if columns == 4 && index >= 16 {
+            (
+                index + usize::from(index > 16),
+                if index == 16 { 2.0 } else { 1.0 },
+            )
         } else {
-            4
+            (index, 1.0)
         };
-        let rows = count.div_ceil(columns);
-        let w = (self.keys.size.width - 8.0 * (columns - 1) as f32).max(0.0) / columns as f32;
-        let h = (self.keys.size.height - 8.0 * (rows - 1) as f32).max(0.0) / rows as f32;
         Rect::new(
-            self.keys.origin.x + (index % columns) as f32 * (w + 8.0),
-            self.keys.origin.y + (index / columns) as f32 * (h + 8.0),
-            w,
+            area.origin.x + (slot % columns) as f32 * (w + 6.0),
+            area.origin.y + (slot / columns) as f32 * (h + 6.0),
+            w * span + 6.0 * (span - 1.0),
             h,
         )
     }
@@ -791,101 +1186,129 @@ impl View for CalculatorView {
         c.constrain(c.maximum)
     }
     fn paint(&self, bounds: Rect, context: &mut PaintContext<'_>) {
-        let needs_conversion = {
-            let model = self.core.model.borrow();
-            model.settings.mode == Mode::Convert
-                && model.conversion_input.as_deref() != Some(&self.core.input.value())
+        let settings = self.current_settings();
+        let needs_preview = {
+            let m = self.core.model.borrow();
+            !self.history_only
+                && !m.evaluated
+                && !self.core.target_editing.get()
+                && m.preview.as_ref()
+                    != Some(&(self.core.input.value(), settings, m.category, m.from, m.to))
         };
-        if needs_conversion {
+        if needs_preview {
             self.calculate(false);
         }
-        let settings = self.current_settings();
         let model = self.core.model.borrow();
-        let frames = Frames::new(bounds, context.theme, settings.mode);
+        let mut frames = Frames::new(bounds, context.theme, settings.mode);
+        if self.history_only {
+            frames.keys = Rect::new(
+                bounds.origin.x + 12.0,
+                bounds.origin.y + 48.0,
+                (bounds.size.width - 24.0).max(0.0),
+                (bounds.size.height - 84.0).max(0.0),
+            );
+        }
         Rectangle::new()
             .color(RectangleColor::Custom(context.theme.colors.background))
             .paint(bounds, context);
-        Rectangle::new()
-            .color(RectangleColor::Custom(context.theme.colors.surface_subtle))
-            .paint(frames.toolbar, context);
-        self.core
-            .pickers
-            .borrow()
-            .mode
-            .paint(frames.toolbar_button(0), context);
-        self.core.history.paint(frames.toolbar_button(1), context);
-        self.core
-            .default_mode
-            .paint(frames.toolbar_button(2), context);
-        self.core.field.paint(frames.input, context);
-        let label = model
-            .result
-            .map(|value| value.display(settings))
-            .unwrap_or_else(|| {
-                if self.core.input.value().is_empty() {
-                    "0".into()
+        let _ = self.core.revision.get();
+        if !self.history_only {
+            self.core
+                .pickers
+                .borrow()
+                .mode
+                .paint(frames.toolbar_button(0), context);
+            self.core.history.paint(frames.toolbar_button(1), context);
+            self.core
+                .default_mode
+                .paint(frames.toolbar_button(2), context);
+            self.core.field.paint(frames.input, context);
+            let label = model
+                .result
+                .map(|value| value.display(settings))
+                .unwrap_or_else(|| {
+                    if self.core.input.value().is_empty() {
+                        "0".into()
+                    } else {
+                        "—".into()
+                    }
+                });
+            let approximate = model.result.is_some_and(Value::approximate);
+            let binary_lines =
+                settings.mode == Mode::Programmer && settings.base == 2 && label.len() > 34;
+            let shown = if binary_lines {
+                let digits = label.strip_prefix("0b").unwrap_or(&label);
+                let split = digits.len().saturating_sub(32);
+                format!("0b{}\n{}", &digits[..split], &digits[split..])
+            } else {
+                let label = if settings.mode == Mode::Programmer {
+                    label
                 } else {
-                    "—".into()
+                    grouped(&label)
+                };
+                format!("{}{label}", if approximate { "≈ " } else { "" })
+            };
+            let role = TextRole::TitleLarge;
+            if settings.mode == Mode::Convert {
+                self.core.target_field.paint(frames.result, context);
+            } else {
+                let text = Text::styled(shown, role).alignment(TextAlignment::End);
+                let measured = text.measure_unbounded(context.text_measurer);
+                let ratio = (frames.result.size.width / measured.width.max(1.0)).min(1.0);
+                let size = context.typography.style(role).size * ratio;
+                context.display_list.push(DrawCommand::PushClip {
+                    rect: frames.result,
+                });
+                let size = size.max(context.typography.style(TextRole::Caption).size);
+                let line_height = if binary_lines {
+                    frames.result.size.height / 2.0
+                } else {
+                    context.typography.style(role).line_height
+                };
+                text.font_size(size)
+                    .line_height(line_height)
+                    .paint(frames.result, context);
+                context.display_list.push(DrawCommand::PopClip);
+            }
+            self.core.copy.paint(frames.copy, context);
+            match settings.mode {
+                Mode::Scientific => self.core.angle.paint(frames.angle(), context),
+                Mode::Programmer => {
+                    let pickers = self.core.pickers.borrow();
+                    pickers.base.paint(
+                        Rect::new(frames.context.origin.x, frames.context.origin.y, 92.0, 28.0),
+                        context,
+                    );
+                    pickers.bits.paint(
+                        Rect::new(
+                            frames.context.origin.x + 104.0,
+                            frames.context.origin.y,
+                            108.0,
+                            28.0,
+                        ),
+                        context,
+                    );
+                    self.core.signed_control.paint(
+                        Rect::new(
+                            frames.context.origin.x + 224.0,
+                            frames.context.origin.y,
+                            (frames.context.size.width - 224.0).max(0.0),
+                            28.0,
+                        ),
+                        context,
+                    );
                 }
-            });
-        let approximate = model.result.is_some_and(Value::approximate);
-        let binary_lines =
-            settings.mode == Mode::Programmer && settings.base == 2 && label.len() > 34;
-        let shown = if binary_lines {
-            let digits = label.strip_prefix("0b").unwrap_or(&label);
-            let split = digits.len().saturating_sub(32);
-            format!("0b{}\n{}", &digits[..split], &digits[split..])
-        } else {
-            format!("{}{label}", if approximate { "≈ " } else { "" })
-        };
-        let role = if binary_lines || label.len() > 28 {
-            TextRole::Body
-        } else if label.len() > 16 {
-            TextRole::TitleSmall
-        } else {
-            TextRole::TitleLarge
-        };
-        Text::styled(shown, role)
-            .alignment(TextAlignment::End)
-            .paint(frames.result, context);
-        self.core.copy.paint(frames.copy, context);
-        match settings.mode {
-            Mode::Scientific => self.core.angle.paint(frames.angle(), context),
-            Mode::Programmer => {
-                let pickers = self.core.pickers.borrow();
-                pickers.base.paint(
-                    Rect::new(frames.context.origin.x, frames.context.origin.y, 92.0, 28.0),
-                    context,
-                );
-                pickers.bits.paint(
-                    Rect::new(
-                        frames.context.origin.x + 104.0,
-                        frames.context.origin.y,
-                        108.0,
-                        28.0,
-                    ),
-                    context,
-                );
-                self.core.signed_control.paint(
-                    Rect::new(
-                        frames.context.origin.x + 224.0,
-                        frames.context.origin.y,
-                        (frames.context.size.width - 224.0).max(0.0),
-                        28.0,
-                    ),
-                    context,
-                );
+                Mode::Convert => {
+                    let pickers = self.core.pickers.borrow();
+                    pickers.category.paint(frames.units(0), context);
+                    pickers.from.paint(frames.units(1), context);
+                    pickers.to.paint(frames.units(2), context);
+                    self.core.swap.paint(frames.units(3), context);
+                }
+                _ => {}
             }
-            Mode::Convert => {
-                let pickers = self.core.pickers.borrow();
-                pickers.category.paint(frames.units(0), context);
-                pickers.from.paint(frames.units(1), context);
-                pickers.to.paint(frames.units(2), context);
-                self.core.swap.paint(frames.units(3), context);
-            }
-            _ => {}
         }
-        if model.history_visible {
+        if self.history_only {
             self.core.clear_history.paint(
                 Rect::new(
                     frames.keys.origin.x + frames.keys.size.width - 120.0,
@@ -948,17 +1371,7 @@ impl View for CalculatorView {
             .error
             .clone()
             .or_else(|| model.status.clone())
-            .unwrap_or_else(|| {
-                if settings.mode == Mode::Programmer {
-                    format!(
-                        "{}-bit arithmetic · overflow wraps · startup: {}",
-                        settings.bits,
-                        model.start_mode.label()
-                    )
-                } else {
-                    format!("Startup: {} · Enter to calculate", model.start_mode.label())
-                }
-            });
+            .unwrap_or_default();
         Text::caption(message)
             .color(if model.error.is_some() {
                 context.theme.colors.destructive
@@ -974,9 +1387,89 @@ impl View for CalculatorView {
         context: &mut EventContext<'_>,
     ) -> EventResult {
         let mode = self.core.model.borrow().settings.mode;
-        let frames = Frames::new(bounds, context.theme(), mode);
+        let mut frames = Frames::new(bounds, context.theme(), mode);
+        if self.history_only {
+            frames.keys = Rect::new(
+                bounds.origin.x + 12.0,
+                bounds.origin.y + 48.0,
+                (bounds.size.width - 24.0).max(0.0),
+                (bounds.size.height - 84.0).max(0.0),
+            );
+        }
+        if let ViewEvent::ContextMenuResult {
+            request_id,
+            command_id,
+        } = event
+        {
+            if *request_id == self.core.menu_id.get() {
+                let action =
+                    command_id.and_then(|id| self.core.menu.borrow().get(id as usize).copied());
+                self.core.menu.borrow_mut().clear();
+                self.core.action.set(action);
+                self.apply_action(&frames, context);
+                return EventResult::Consumed;
+            }
+        }
+        if let ViewEvent::PointerPressed {
+            position,
+            button: appcore::viewkit::platform::PointerButton::Secondary,
+        } = event
+        {
+            let row = if self.history_only && frames.keys.contains(*position) {
+                let model = self.core.model.borrow();
+                let visual =
+                    ((position.y - frames.keys.origin.y - 40.0 + model.scroll) / 72.0).floor();
+                if visual >= 0.0 {
+                    model.history.len().checked_sub(visual as usize + 1)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            self.show_menu(*position, row, context);
+            return EventResult::Consumed;
+        }
+        if self.history_only {
+            return self.history_event(&frames, event, context);
+        }
+        if mode == Mode::Convert && !self.history_only {
+            if let ViewEvent::PointerPressed { position, .. } = event {
+                if frames.input.contains(*position) {
+                    self.core.target_editing.set(false);
+                    self.core.target.set_focused(false);
+                } else if frames.result.contains(*position) {
+                    self.core.target_editing.set(true);
+                    self.core.input.set_focused(false);
+                }
+            }
+            let source_before = self.core.input.value();
+            let before = self.core.target.value();
+            let result = self
+                .core
+                .target_field
+                .handle_event(frames.result, event, context);
+            if self.core.target.value() != before {
+                self.reverse_conversion();
+                self.record_input(source_before);
+                self.changed();
+                context.request_redraw_in(bounds);
+                return EventResult::Consumed;
+            }
+            if result == EventResult::Consumed {
+                return result;
+            }
+        }
         if let ViewEvent::KeyPressed { key, modifiers } = event {
             let action = match key {
+                Key::Character('z' | 'Z') if modifiers.shortcut() => Some(
+                    if modifiers.bits() & appcore::viewkit::platform::KeyModifiers::SHIFT != 0 {
+                        Action::Redo
+                    } else {
+                        Action::Undo
+                    },
+                ),
+                Key::Character('y' | 'Y') if modifiers.shortcut() => Some(Action::Redo),
                 Key::Enter => Some(Action::Equals),
                 Key::Character('1') if modifiers.shortcut() => Some(Action::Mode(Mode::Standard)),
                 Key::Character('2') if modifiers.shortcut() => Some(Action::Mode(Mode::Scientific)),
@@ -999,6 +1492,7 @@ impl View for CalculatorView {
                 return EventResult::Consumed;
             }
         }
+        let before = self.core.input.value();
         if let ViewEvent::TextInput { text } = event {
             if text == "=" {
                 self.core.action.set(Some(Action::Equals));
@@ -1007,8 +1501,11 @@ impl View for CalculatorView {
             }
             self.prepare_input(text);
         }
-        let before = self.core.input.value();
-        let mut result = self.core.field.handle_event(frames.input, event, context);
+        let mut result = if self.history_only {
+            EventResult::Ignored
+        } else {
+            self.core.field.handle_event(frames.input, event, context)
+        };
         {
             let pickers = self.core.pickers.borrow();
             result = result.merge(pickers.mode.handle_event(
@@ -1075,79 +1572,25 @@ impl View for CalculatorView {
                     .handle_event(frames.toolbar_button(2), event, context),
             );
         result = result.merge(self.core.copy.handle_event(frames.copy, event, context));
-        if self.core.model.borrow().history_visible {
-            result = result.merge(self.core.clear_history.handle_event(
-                Rect::new(
-                    frames.keys.origin.x + frames.keys.size.width - 120.0,
-                    frames.keys.origin.y,
-                    120.0,
-                    28.0,
-                ),
+        let keys = self.core.keys.borrow();
+        for (i, key) in keys.iter().enumerate() {
+            result = result.merge(key.button.handle_event(
+                frames.key(i, keys.len(), mode),
                 event,
                 context,
             ));
-            let body = Rect::new(
-                frames.keys.origin.x,
-                frames.keys.origin.y + 40.0,
-                frames.keys.size.width,
-                (frames.keys.size.height - 40.0).max(0.0),
-            );
-            let model = self.core.model.borrow();
-            for (visual, entry) in model
-                .history
-                .iter()
-                .rev()
-                .enumerate()
-                .skip((model.scroll / 72.0).floor() as usize)
-                .take((body.size.height / 72.0).ceil() as usize + 1)
-            {
-                let index = model.history.len() - 1 - visual;
-                let frame = Rect::new(
-                    body.origin.x,
-                    body.origin.y + visual as f32 * 72.0 - model.scroll,
-                    body.size.width,
-                    64.0,
-                );
-                let leave = ViewEvent::PointerLeft;
-                let row_event = if event.position().is_some_and(|p| !body.contains(p)) {
-                    &leave
-                } else {
-                    event
-                };
-                result = result.merge(
-                    self.history_button(index, entry)
-                        .handle_event(frame, row_event, context),
-                );
-            }
-            let maximum = (model.history.len() as f32 * 72.0 - body.size.height).max(0.0);
-            drop(model);
-            if let ViewEvent::Scroll {
-                position, delta_y, ..
-            } = event
-            {
-                if body.contains(*position) {
-                    let mut model = self.core.model.borrow_mut();
-                    model.scroll = (model.scroll - *delta_y * 36.0).clamp(0.0, maximum);
-                    context.request_redraw_in(body);
-                    result = EventResult::Consumed;
-                }
-            }
-        } else {
-            let keys = self.core.keys.borrow();
-            for (i, key) in keys.iter().enumerate() {
-                result = result.merge(key.button.handle_event(
-                    frames.key(i, keys.len(), mode),
-                    event,
-                    context,
-                ));
-            }
         }
+        drop(keys);
         if self.core.input.value() != before {
+            self.record_input(before);
             let mut model = self.core.model.borrow_mut();
             model.evaluated = false;
+            model.entry_cleared = false;
             model.result = None;
             model.error = None;
             model.status = None;
+            drop(model);
+            self.refresh_keys();
             context.request_redraw_in(bounds);
         }
         if self.core.action.get().is_some() {
@@ -1158,6 +1601,88 @@ impl View for CalculatorView {
     }
 }
 impl CalculatorView {
+    fn record_input(&self, before: String) {
+        let after = self.core.input.value();
+        if before == after {
+            return;
+        }
+        let undo = self.core.input.clone();
+        let redo = self.core.input.clone();
+        self.core.undo[index(self.current_settings().mode)].register(
+            "Edit Calculation",
+            move || undo.set_value(before.clone()),
+            move || redo.set_value(after.clone()),
+        );
+    }
+    fn history_event(
+        &self,
+        frames: &Frames,
+        event: &ViewEvent,
+        context: &mut EventContext<'_>,
+    ) -> EventResult {
+        let mut result = EventResult::Ignored;
+        result = result.merge(self.core.clear_history.handle_event(
+            Rect::new(
+                frames.keys.origin.x + frames.keys.size.width - 120.0,
+                frames.keys.origin.y,
+                120.0,
+                28.0,
+            ),
+            event,
+            context,
+        ));
+        let body = Rect::new(
+            frames.keys.origin.x,
+            frames.keys.origin.y + 40.0,
+            frames.keys.size.width,
+            (frames.keys.size.height - 40.0).max(0.0),
+        );
+        let model = self.core.model.borrow();
+        for (visual, entry) in model
+            .history
+            .iter()
+            .rev()
+            .enumerate()
+            .skip((model.scroll / 72.0).floor() as usize)
+            .take((body.size.height / 72.0).ceil() as usize + 1)
+        {
+            let index = model.history.len() - 1 - visual;
+            let frame = Rect::new(
+                body.origin.x,
+                body.origin.y + visual as f32 * 72.0 - model.scroll,
+                body.size.width,
+                64.0,
+            );
+            let leave = ViewEvent::PointerLeft;
+            let row_event = if event.position().is_some_and(|p| !body.contains(p)) {
+                &leave
+            } else {
+                event
+            };
+            result = result.merge(
+                self.history_button(index, entry)
+                    .handle_event(frame, row_event, context),
+            );
+        }
+        let maximum = (model.history.len() as f32 * 72.0 - body.size.height).max(0.0);
+        drop(model);
+        if let ViewEvent::Scroll {
+            position, delta_y, ..
+        } = event
+        {
+            if body.contains(*position) {
+                let mut model = self.core.model.borrow_mut();
+                model.scroll = (model.scroll - *delta_y * 36.0).clamp(0.0, maximum);
+                context.request_redraw_in(body);
+                result = EventResult::Consumed;
+            }
+        }
+        if self.core.action.get().is_some() {
+            self.apply_action(frames, context);
+            result = EventResult::Consumed;
+        }
+        result
+    }
     fn prepare_input(&self, text: &str) {
         let mut model = self.core.model.borrow_mut();
         if model.evaluated {
@@ -1179,9 +1704,11 @@ impl CalculatorView {
             self.core
                 .input
                 .set_value(if continuation { "Ans" } else { "" });
+            model.repeat_input = !continuation;
             model.evaluated = false;
             model.result = None;
         }
+        model.entry_cleared = false;
         model.error = None;
         model.status = None;
     }
@@ -1259,7 +1786,7 @@ mod tests {
             }
         }
         fn bounds() -> Rect {
-            Rect::new(0.0, 0.0, 600.0, 690.0)
+            Rect::new(0.0, 0.0, 360.0, 540.0)
         }
         fn event(&self, event: ViewEvent) {
             let theme = Theme::current();
@@ -1353,7 +1880,7 @@ mod tests {
         assert_eq!(f.result(), "3");
         f.key("7");
         f.enter();
-        assert_eq!(f.result(), "7");
+        assert_eq!(f.result(), "70");
     }
     #[test]
     fn keyboard_errors_can_be_corrected_without_losing_input() {
@@ -1384,7 +1911,7 @@ mod tests {
         assert_eq!(f.view.core.model.borrow().settings.mode, Mode::Scientific);
         assert_eq!(f.result(), "0.5");
         assert_eq!(f.view.core.degrees.get(), 0);
-        f.action(Action::ClearHistory);
+        f.action(Action::ConfirmClearHistory);
         assert!(f.view.core.model.borrow().history.is_empty());
         let frames = Frames::new(Fixture::bounds(), &Theme::current(), Mode::Scientific);
         let angle = frames.angle();
@@ -1440,7 +1967,7 @@ mod tests {
         assert_eq!(f.view.core.model.borrow().history.len(), 1);
         f.action(Action::Swap);
         f.paint();
-        assert_eq!(f.result(), "89.6");
+        assert_eq!(f.result(), "32");
     }
     #[test]
     fn chosen_start_mode_is_persisted_only_on_explicit_request() {
@@ -1478,6 +2005,147 @@ mod tests {
             }
         }
         assert!(SvgData::decode(include_bytes!("../appicon.svg")).is_ok());
+    }
+    #[test]
+    fn repeated_equals_percent_and_operand_edits_match_keypad_intent() {
+        let f = Fixture::new();
+        f.type_text("1*2");
+        f.enter();
+        f.enter();
+        assert_eq!(f.result(), "4");
+        f.enter();
+        assert_eq!(f.result(), "8");
+        f.action(Action::Clear);
+        f.type_text("100+15%");
+        f.enter();
+        f.type_text("150");
+        f.enter();
+        assert_eq!(f.result(), "172.5");
+        f.action(Action::Clear);
+        f.type_text("12+3");
+        f.key("±");
+        f.enter();
+        assert_eq!(f.result(), "9");
+        f.action(Action::Clear);
+        f.type_text("12+34");
+        f.key("C");
+        assert_eq!(f.view.core.input.value(), "12+0");
+        f.key("5");
+        f.enter();
+        assert_eq!(f.result(), "17");
+        f.key("C");
+        assert!(f.view.core.input.value().is_empty());
+        f.mode('2');
+        f.type_text("30");
+        f.key("sin");
+        f.enter();
+        assert_eq!(f.result(), "0.5");
+        f.action(Action::Undo);
+        assert_eq!(f.view.core.input.value(), "30");
+        f.action(Action::Redo);
+        assert_eq!(f.view.core.input.value(), "sin(30)");
+    }
+    #[test]
+    fn conversion_can_be_edited_in_reverse_and_swapped_without_changing_quantity() {
+        let f = Fixture::new();
+        f.mode('3');
+        f.type_text("1");
+        f.paint();
+        let frames = Frames::new(Fixture::bounds(), &Theme::current(), Mode::Convert);
+        f.click(frames.result);
+        f.view.core.target.set_selection(0..3);
+        f.type_text("250");
+        assert_eq!(f.view.core.input.value(), "(5/2)");
+        assert_eq!(f.result(), "250");
+        f.view.core.target.set_selection(0..3);
+        f.key("5");
+        assert_eq!(f.result(), "5");
+        assert_eq!(f.view.core.input.value(), "(1/20)");
+        f.view.core.target.set_selection(0..1);
+        f.type_text("250");
+        f.action(Action::Swap);
+        f.paint();
+        assert_eq!(f.result(), "2.5");
+        assert_eq!(f.view.core.input.value(), "250");
+    }
+    #[test]
+    fn history_survives_restart_keeps_exact_answers_and_stays_independent_of_keypad() {
+        let directory = std::env::temp_dir().join(format!(
+            "calculator-history-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&directory).unwrap();
+        let path = directory.join("mode");
+        let f = Fixture {
+            view: CalculatorView::with_preferences(Some(path.clone()), Mode::Standard, None),
+        };
+        f.type_text("1/3");
+        f.enter();
+        f.type_text("*");
+        f.type_text("3");
+        f.enter();
+        assert_eq!(f.result(), "1");
+        let restored = CalculatorView::with_preferences(Some(path.clone()), Mode::Standard, None);
+        assert_eq!(restored.core.model.borrow().history.len(), 2);
+        assert_eq!(
+            restored.core.model.borrow().history[1].result,
+            Some(Value::Real(Number::ONE)).unwrap()
+        );
+        let history = f.view.history_view();
+        let before = f.view.core.input.value();
+        let theme = Theme::current();
+        let mut measurer = TextMeasurer::new();
+        let mut ctx = EventContext::new(&theme, &theme.typography, &mut measurer);
+        history.handle_event(
+            Fixture::bounds(),
+            &ViewEvent::TextInput { text: "999".into() },
+            &mut ctx,
+        );
+        assert_eq!(f.view.core.input.value(), before);
+        f.type_text("7");
+        f.enter();
+        assert_eq!(f.result(), "21");
+        f.action(Action::Delete(0));
+        assert_eq!(history::load(&path).unwrap().len(), 2);
+        f.action(Action::ClearHistory);
+        assert_eq!(history::load(&path).unwrap().len(), 2);
+        f.action(Action::ConfirmClearHistory);
+        assert!(history::load(&path).unwrap().is_empty());
+        std::fs::write(path.with_file_name("history-v1"), b"damaged").unwrap();
+        let bad = Fixture {
+            view: CalculatorView::with_preferences(Some(path.clone()), Mode::Standard, None),
+        };
+        bad.type_text("2+2");
+        bad.enter();
+        assert_eq!(bad.result(), "4");
+        assert_eq!(
+            std::fs::read(path.with_file_name("history-v1")).unwrap(),
+            b"damaged"
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+    #[test]
+    fn compact_keys_do_not_overlap_and_decimal_grouping_preserves_fraction_and_exponent() {
+        assert_eq!(grouped("-1234567.125"), "-1,234,567.125");
+        assert_eq!(grouped("1.2e100"), "1.2e100");
+        for mode in Mode::ALL {
+            let frames = Frames::new(Fixture::bounds(), &Theme::current(), mode);
+            let count = key_specs(mode).len();
+            for i in 0..count {
+                let a = frames.key(i, count, mode);
+                assert!(a.size.height >= 32.0);
+                assert!(a.origin.y + a.size.height <= 540.0);
+                for j in i + 1..count {
+                    let b = frames.key(j, count, mode);
+                    let overlaps = a.origin.x < b.origin.x + b.size.width
+                        && b.origin.x < a.origin.x + a.size.width
+                        && a.origin.y < b.origin.y + b.size.height
+                        && b.origin.y < a.origin.y + a.size.height;
+                    assert!(!overlaps, "{mode:?}: {i}/{j}");
+                }
+            }
+        }
     }
     #[test]
     fn preview_copy_writes_the_shared_clipboard_slot() {

@@ -1,6 +1,6 @@
 # 名前付きFIFO
 
-最新の実装範囲は末尾の192です。183〜191は各段階の記録です。
+最新の実装範囲は末尾の193です。183〜192は各段階の記録です。
 
 ## 共有状態（183）
 
@@ -497,3 +497,56 @@ offline実行で生成された順序更新を保持し、その後--lockedで�
 まだ既存backend結果をReadyへ包むdefault経路を使い、実FSのFIFO応答をこの型へ変換する
 overrideは未実装です。libcのFIFO FD分類とread/write/poll等も引き続き必要です。
 今回KVMは起動せず、配置済み191イメージ・SDK・Rust std・runtime archiveは変更していません。
+
+## 通常版filesystem backendからFIFO ownerへの接続（193）
+
+RuntimeFilesystemの`open_at_continuation`を実装し、認証済みopen要求に
+OPEN_AT_RETAIN_FIFOを加えて、path traversalとinode保持を一つのFS操作として行います。
+先にstatしてFIFOを見分けたり、開き直したパスをworkerへ渡したりはしません。
+FS応答は`filesystem_open.rs`で通常open・memory admission待ち・FIFO保持に分岐し、
+型・長さ・request ID・添付権限を確認するまで受信参照を消費しません。
+
+FIFOなら保持metadataを既存workerへ明示的に委譲します。登録が成立済みならReady、
+待ち合わせ中ならOpen条件の通知を登録してFifoPendingを返します。POSIX dispatcherを
+相手のopen待ちで停止しません。通知登録に失敗した場合は新しいdata参照を閉じます。
+元のFS metadata参照はregister処理が全経路で回収し、通常openとadmission ticketも
+元の所有権のまま返します。メモリ確保待ちの添付処理は既存mutation_callと共有します。
+
+fstatとmetadata変更の解決先にFIFO ownerを追加しました。FS自身の所有者拒否を受けた
+明示的なdata Handleに対し、保持しているPTY/FIFO endpointへ問い合わせます。
+EBADFの場合だけ次のproviderへ進み、権限拒否やbacking failureはそのまま伝播します。
+調査で見つけたPTY側の「識別エラーをすべてEBADFにする」変換も、FIFOと共通の
+identity_errorへ揃え、native InvalidArgument/AccessDeniedだけを所有者・型の拒否として扱います。
+任意のPID/FDから参照を取得する操作やパス権限の追加はありません。
+
+ホスト試験は通常openとadmission待ちの所有権、FIFO応答の消費タイミング、認証済み方向と
+nonblocking方針の保持、不正応答の回収、metadata provider間のfallbackとエラー非隠蔽を含みます。
+既存protocol・FIFO・PTY関連と合わせ14ターゲット550件が成功し、
+`out/checks/mochios-fifo-backend-193-related-final.log`へ保存しています。全POSIX試験ではありません。
+
+libcのFIFO専用FD分類、read/writeの待機・SIGPIPE、poll/select、継承等は引き続き必要です。
+今回runtime archiveを作り直しておらず、既存アプリがこれらのFIFO機能を使えるという完了報告ではありません。
+
+KVMでは、実際のRuntimeFilesystem.continuation_openからFSの保持openとworkerへの委譲を
+実行し、pending readerと通知の返却、nonblocking writerによる待ち合わせ成立、native読み書き、
+EOF、共通provider経由のmetadata取得を確認しました。新しいbackend試験1群と既存13群のPASSを
+`out/checks/mochios-fifo-backend-193-native.log`へ保存しています。
+これはPOSIXサービス内のnative試験で、libcのFD公開・signal中断・プロセス間継承の試験ではありません。
+
+通常版・診断版のビルドは成功しています。最初の通常版ビルドでは、socket workerの
+directory初期化用RuntimeFilesystemにも追加fieldが必要だったため、FIFO endpointなしの
+初期化を明示しました。修正前後は`mochios-fifo-backend-193-normal-build.log`と
+`mochios-fifo-backend-193-normal-build-final.log`に保存しています。
+SDK・Rust std・runtime archiveの再生成は行っていません。
+
+診断cfgを除いた通常版へ戻した別のKVM起動で、Binder.app ready、実際のDock・上部バー、
+診断PASSやFIFO receive失敗が出ないことを確認しました。VMは停止済みです。
+`out/checks/mochios-fifo-backend-193-normal.log`・同名の`.png`へ保存し、
+サービス・診断ELF・使用runtimeのハッシュを`mochios-fifo-backend-193-artifacts.json`へ記録しました。
+filesystem・compositor・service-managerは試験前と同じバイナリです。
+
+並行して追加されたworkspace componentのmanifest/lock更新後、--lockedでの再実行は
+lockの更新が必要として実行前に止まりました。`mochios-fifo-backend-193-lock-final.log`が
+その記録です。offlineで再解決して生成されたlockを保持し、同じ14ターゲット550件が再び
+成功しました。`out/checks/mochios-fifo-backend-193-lock-offline.log`へ保存しています。
+並行作業のmanifestやcomponentソースはこのFIFO変更には含めていません。

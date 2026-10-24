@@ -95,3 +95,42 @@ SDK / Rust std / runtime は再生成せず、既存のものを消費してい�
 最終の整形後ビルドでも通常起動を再確認しました。記録は
 `out/checks/mochios-exec-authority-198-final-normal.log` と
 `out/checks/mochios-exec-authority-198-final-normal.png` です。検証 VM は停止済みです。
+
+## 保持済み FileHandle の実行モード確認（199）
+
+`Client::check_executable(file)` と `OP_CHECK_EXECUTABLE`（127）を追加しました。
+要求 body は空で、READ | TRANSFER を持つオブジェクトを一つだけ IPC に添付します。
+クライアントは WRITE / CONTROL / DUPLICATE 等を添付せず、受信側でも必要権限を確認します。
+任意の PID / FD 番号や、確認対象のパスを指定する入口は追加していません。
+
+POSIX service は登録済み session の effective uid / gid と補助グループを取得し、
+state mutex を解放してから、添付されたオブジェクトの現在の fstat を一度取得します。
+所有者であれば owner bit だけを、そうでなければ所属グループまたは other bit を判定します。
+regular file 以外は拒否します。uid 0 でも regular file に実行ビットが一つもなければ拒否します。
+peer 構造体の uid / gid を、この判定の根拠にはしません。
+
+既存の filesystem の retained inode 観測を使うため、パスの再検索、open 時点の mode の流用、
+共有ファイル offset の変更はありません。rename・同名パスの置換・unlink 後も、同じ open
+object の現在の mode を確認します。権限と型の拒否は EACCES、inode 観測のエラーはそのまま
+返します。カーネルの ABI や POSIX 知識は増やしていません。
+
+これはチェック時点の POSIX 権限確認です。image 置換許可や、後続の chmod を禁止する
+lease は発行しません。実行側では同じ FileHandle を保持して native image の認可・snapshot
+経路へ渡す必要があります。今回だけで fexecve、未登録 ELF の認可、set-id 実行が
+完成したとは扱いません。既存 execve のパスを変更するものでもありません。
+
+ホスト試験では filesystem 側の実 permission 判定と owner / group / other の全 512 mode を
+照合し、補助グループ・root・非 regular object・不正な request envelope・未登録 session・
+不足した Handle rights・backend error の保持を確認します。クライアントの試験では
+添付権限の縮小、返信 flags / body の拒否、transport failure、予期しない受信 Handle の
+破棄を確認します。native 試験は `services/posix/tests/native_executable_check.rs` です。
+
+199 のホスト全体試験は 675 ターゲット・3,284 件成功、失敗 0 件、ignored 8 件でした。
+KVM の実 ext4 / IPC 試験は 4 グループ成功です。新しい posix.service を通常構成にも配置し、
+Binder の READY と Dock / トップバーを目視確認しました。検証 VM は停止済みです。
+SDK・Rust std・runtime は再生成していません。
+
+記録は `out/checks/mochios-executable-check-199-host-all.log`、
+`out/checks/mochios-executable-check-199-native.log`、
+`out/checks/mochios-executable-check-199-normal.log`、
+`out/checks/mochios-executable-check-199-normal.png` です。

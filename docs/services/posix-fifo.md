@@ -1,6 +1,6 @@
 # 名前付きFIFO
 
-最新の実装範囲は末尾の187です。183〜186は各段階の記録です。
+最新の実装範囲は末尾の188です。183〜187は各段階の記録です。
 
 ## 共有状態（183）
 
@@ -285,3 +285,50 @@ validatorではframe長、未知flags、誤った型・identity、過大権限�
 
 データ用Providerへこの保持参照を渡す処理、inodeごとのチャネル登録、data Handle公開、
 blocking openの待機とキャンセル、libcのFD種別・poll/select・SIGPIPE等は引き続き未実装です。
+
+## 保持inodeからデータProviderを管理する処理（188）
+
+`fifo_manager.rs`に、検証済みのfilesystem応答を受け取り、inodeごとのChannelとnative
+Provider objectを結び付ける管理処理を追加しました。filesystem authorityごとにローカルな
+scopeを割り当て、別authorityの同じdevice/inode番号を混同しません。scopeとinode番号は
+ルーティング用であり、権限を与える値ではありません。metadata Handleはopenごとに保持し、
+READ/WRITE方向は認証済みのopen処理から受け取ります。外部要求の自己申告には使えません。
+
+PTYで使っていた所有付きmetadata参照を`filesystem_reference.rs`へ移し、両Providerで
+参照解放と権限縮小の処理を共有します。旧名の互換aliasは残していません。
+管理処理は最大128チャネル・合計1024 open descriptionに制限します。チャネルのキュー上限は
+64KiBです。登録用の確保をnative object作成前に完了し、失敗時は保持参照を解放します。
+object IDは失敗後も再利用せず、最終native OP_RELEASEだけが登録とinode pinを破棄します。
+blocking openの登録成功はopen完了を意味せず、FD公開前の待機は接続側の責務です。
+
+ホスト試験は同一inodeの共有、別inode・別authorityとの分離、native作成失敗、上限拒否、
+3箇所の確保失敗、metadata所有権と権限縮小、不正releaseの拒否を含みます。
+既存FIFO・PTY関連と合わせ13ターゲット614件が成功しました。
+`out/checks/mochios-fifo-manager-188-host-final.log`へ保存しています。
+native通知エラーの分類試験も2件成功し、`mochios-fifo-manager-188-signal.log`へ保存しました。
+全POSIX試験を再実行した結果ではありません。
+
+診断版だけに含める`tests/support/native_fifo_manager.rs`で、実filesystemから取得した
+保持参照を同一プロセス内のowner threadへ渡し、実native Handleで読み書きしました。
+同一inodeの複数readerが同じキューを消費すること、unlink後の同名置換が別キューになること、
+旧writerのcloseで旧readerだけがEOFになること、全参照のcloseでworkerが終了することを確認しました。
+既存inode保持試験3群と今回3群のPASSを
+`out/checks/mochios-fifo-manager-188-native-final.log`へ保存しています。
+これはクロスプロセスのdata Handle転送やlibc FIFO openの証明ではありません。
+
+最初の診断では、最終native closeからOP_RELEASEの配送までの間に、消滅済みobjectへの通知で
+workerが停止しました。`mochios-fifo-manager-188-native-before.log`が失敗記録です。
+既存socket側のnative通知分類を再利用し、所有IDと通知maskが既に検証済みの場合の
+InvalidArgumentだけを「通知先参照なし」と扱います。他のエラーは伝播させ、metadataの
+破棄は引き続きOP_RELEASEまで待ちます。カーネル変更はありません。
+
+診断cfgを含まない通常版へ戻してイメージを再生成し、別のKVM起動でBinder.app readyと
+実際のDock・上部バーを確認しました。VMは停止済みです。通常版のログと画面は
+`out/checks/mochios-fifo-manager-188-normal.log`・`mochios-fifo-manager-188-normal.png`、
+サービスと診断ELFのハッシュは`mochios-fifo-manager-188-artifacts.json`へ保存しています。
+filesystem・compositor・service-managerは試験前と同じバイナリです。SDK・Rust std・
+runtime archiveは再生成せず、全アプリの再リンクも行っていません。
+
+本番のopen経路・libcのFIFOデータFDへはまだ接続していません。認証済みopenからownerへの
+privateな受け渡し、blocking openの待機・キャンセル、PIPE_BUF書き込みの容量待機、
+FD種別とmetadata操作、poll/select、SIGPIPE、exec/fork継承は引き続き必要です。

@@ -1,6 +1,6 @@
 # 名前付きFIFO
 
-最新の実装範囲は末尾の191です。183〜190は各段階の記録です。
+最新の実装範囲は末尾の192です。183〜191は各段階の記録です。
 
 ## 共有状態（183）
 
@@ -461,3 +461,39 @@ startup channelのResult型推論とProvider responseのstatus型が合わず、
 `out/checks/mochios-fifo-worker-191-normal.log`・同名の`.png`へ保存し、
 サービス・診断ELF・使用runtimeのハッシュを`mochios-fifo-worker-191-artifacts.json`へ記録しました。
 filesystem・compositor・service-managerは試験前と同じバイナリです。
+
+## open待機中のHandleを返す契約（192）
+
+posix-protocolの`fifo`へ、open継続の要求flag、応答flag、data/通知権限の共通定義を追加しました。
+`OPEN_CONTINUATION`はOPEN_ATかつMUTATION_ADMISSIONと組み合わせた要求だけで受理します。
+`OpenCompletion::FifoPending`はdataと通知の2参照を所有するbackend結果です。
+応答はstatus=0・空payload・専用flag・[data, notification]の順とし、通常のopen成功とは
+区別します。nonblocking要求へのpending返却や過大な権限はservice側でも拒否・回収します。
+実行imageの検証で拒否された場合も、既存のfinish処理で両方を解放します。
+
+posix-clientの`open_at_with_wait`と`execute_file_mutation`はこの契約を明示的に要求します。
+pending応答では返された両参照を所有し、通知Handleで待機した後に同じdata Handleを返します。
+待機成功後にOPEN_ATを再実行しないため、待っている間のunlink・同名置換で別inodeへ
+すり替わりません。既に取得済みのdata参照は読み書き用であり、メモリ確保待ちの
+「パス要求を再実行してよい」というticketとは別物です。
+
+中断・Rust unwind・不正応答では、借用したdirectory参照を維持したまま、受信した
+通知とdataを一度だけ解放します。libcの既存wait callbackはC handlerを実行せずに
+中断を返すため、Error::Waitが返った後にだけsignal/cancellation処理へ戻れます。
+SA_RESTART等により新しいopen試行を始めるかどうかは、その後のlibc方針です。
+通常の待機成功を理由とするpathnameの自動再試行はありません。
+
+ホスト試験で、storage admission ticketからFIFO待機への移行、dataの保持、
+正常待機でのpathname非再実行、中断/unwind時の両参照回収、不正rights・重複Handle・
+借用Handleとのalias・余分な添付・不正flags/status、実行image拒否を確認しました。
+既存protocol・open所有権・admission・FIFO関連と合わせ12ターゲット534件が成功し、
+`out/checks/mochios-fifo-continuation-192-related.log`へ保存しています。
+posix-clientのno-default-featuresでのcheckも成功し、
+`mochios-fifo-continuation-192-no-std-final.log`と`mochios-fifo-continuation-192-no-std-locked.log`へ
+保存しています。最初の--locked実行はCargo.lockのunused patch順序更新が必要で失敗しました。
+offline実行で生成された順序更新を保持し、その後--lockedで成功しています。依存版の巻き戻しはありません。
+
+今回はprotocol・serviceの結果型・clientの継続処理までです。通常版RuntimeFilesystemは
+まだ既存backend結果をReadyへ包むdefault経路を使い、実FSのFIFO応答をこの型へ変換する
+overrideは未実装です。libcのFIFO FD分類とread/write/poll等も引き続き必要です。
+今回KVMは起動せず、配置済み191イメージ・SDK・Rust std・runtime archiveは変更していません。

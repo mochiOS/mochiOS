@@ -1,0 +1,23 @@
+format = 1
+
+[package]
+provenance = "built-in"
+id = "org.mochios.mail"
+name = "Mail"
+version = "0.1.0"
+revision = 1
+vendor = "mochiOS"
+kind = "application"
+architecture = "x86_64"
+abi = "mochios-1"
+
+[application]
+entry = "entry.elf"
+description = "Mail interface preview"
+icon = "appicon.png"
+resources = ["appicon.png"]
+
+[[binary]]
+path = "/system/applications/Mail.app/entry.elf"
+kind = "application"
+requires = ["ipc.client", "ipc.server", "window.create"]

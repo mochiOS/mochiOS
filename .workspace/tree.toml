@@ -14543,3 +14543,11 @@ path = "services"
 hash = "762ef5f5a141a0937b82b7d1e1466f6fab4ca908"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Create and retain FIFO inodes without exposing disk data paths"
+
+[[entries]]
+date = "2026-10-24T09:05:26.271142756+09:00"
+snapshot = "24c575c164d592a822277c85"
+path = "services"
+hash = "68bf37ee3a619cd174da1a404c3b7a1d6f375b5e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Route authenticated FIFO creation through POSIX and filesystem services"

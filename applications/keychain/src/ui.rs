@@ -137,6 +137,9 @@ struct Core {
     pending: Rc<Cell<Option<Action>>>,
     buttons: RefCell<BTreeMap<Action, ButtonInteractionState>>,
     worker: RefCell<Option<Receiver<Result<Snapshot, Error>>>>,
+    focused: Cell<bool>,
+    exposure_generation: Cell<u64>,
+    worker_generation: Cell<u64>,
     query: Field,
     password: Field,
     confirm: Field,
@@ -175,6 +178,7 @@ impl Core {
         }
         let (tx, rx) = mpsc::channel();
         *self.worker.borrow_mut() = Some(rx);
+        self.worker_generation.set(self.exposure_generation.get());
         let mut m = self.model.borrow_mut();
         m.error = None;
         m.revealed = None;
@@ -191,7 +195,14 @@ impl Core {
                 self.worker.borrow_mut().take();
                 let mut m = self.model.borrow_mut();
                 match reply {
-                    Ok(s) => {
+                    Ok(mut s) => {
+                        if !self.focused.get()
+                            || self.worker_generation.get() != self.exposure_generation.get()
+                        {
+                            // A completion queued before blur must not reveal a
+                            // secret, even if focus has returned in the meantime.
+                            s.revealed = None;
+                        }
                         m.status = Some(s.status);
                         m.items = s.items;
                         m.apps = s.apps;
@@ -424,6 +435,9 @@ impl KeychainView {
             pending: pending.clone(),
             buttons: RefCell::new(BTreeMap::new()),
             worker: RefCell::new(None),
+            focused: Cell::new(true),
+            exposure_generation: Cell::new(0),
+            worker_generation: Cell::new(0),
             query: Field::new("ラベル・サービス・アカウントを検索", false, pending.clone()),
             password: Field::new("保管庫のパスワード", true, pending.clone()),
             confirm: Field::new("もう一度入力", true, pending.clone()),
@@ -720,7 +734,16 @@ impl View for KeychainView {
         }
     }
     fn handle_event(&self, b: Rect, event: &ViewEvent, c: &mut EventContext<'_>) -> EventResult {
+        if let ViewEvent::FocusChanged { focused } = event {
+            self.core.focused.set(*focused);
+        }
         if matches!(event, ViewEvent::FocusChanged { focused: false }) {
+            self.core
+                .exposure_generation
+                .set(self.core.exposure_generation.get().wrapping_add(1));
+            for field in [&self.core.password, &self.core.confirm, &self.core.value] {
+                field.state.clear();
+            }
             let mut m = self.core.model.borrow_mut();
             m.revealed = None;
             m.hide_at = None;
@@ -1194,6 +1217,28 @@ mod tests {
         assert!(v.core.model.borrow().revealed.is_none());
         v.core.password.state.set_value("secret input");
         v.core.action(Action::Cancel);
+        assert!(v.core.password.state.value().is_empty());
+    }
+    #[test]
+    fn late_reveal_cannot_restore_secret_after_losing_focus() {
+        let v = fixture();
+        let (tx, rx) = mpsc::channel();
+        *v.core.worker.borrow_mut() = Some(rx);
+        v.core.password.state.set_value("private input");
+        event(&v, ViewEvent::FocusChanged { focused: false });
+        event(&v, ViewEvent::FocusChanged { focused: true });
+        tx.send(Ok(Snapshot {
+            status: Status {
+                initialized: true,
+                unlocked: true,
+            },
+            items: v.core.model.borrow().items.clone(),
+            apps: vec![],
+            revealed: Some(Secret::new(b"late secret".to_vec())),
+        }))
+        .unwrap();
+        v.core.poll();
+        assert!(v.core.model.borrow().revealed.is_none());
         assert!(v.core.password.state.value().is_empty());
     }
     #[test]

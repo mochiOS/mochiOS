@@ -14711,3 +14711,11 @@ path = "services"
 hash = "b86b9a4a64189132e36b1952d7aa7287e53d6cbe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(auth): verify credential destinations and erase login buffers"
+
+[[entries]]
+date = "2026-10-24T18:50:00.353046836+09:00"
+snapshot = "5fe3e2c1eba312a36c7b7603"
+path = "services"
+hash = "4072398249d1a4ed047b43f481de319998e2233b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Complete network requests after device startup failure"

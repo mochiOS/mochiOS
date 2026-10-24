@@ -108,11 +108,7 @@ impl Field {
         Self { state, view }
     }
     fn secret(&self) -> Secret {
-        let mut value = self.state.value();
-        let secret = Secret::new(value.as_bytes().to_vec());
-        use_wipe(&mut value);
-        self.state.clear();
-        secret
+        Secret::new(self.state.take_value().into_bytes())
     }
 }
 fn use_wipe(value: &mut String) {

@@ -1,6 +1,6 @@
 # 名前付きFIFO
 
-最新の実装範囲は末尾の189です。183〜188は各段階の記録です。
+最新の実装範囲は末尾の190です。183〜189は各段階の記録です。
 
 ## 共有状態（183）
 
@@ -365,3 +365,49 @@ RAII leaseを保持する構造です。native adapterは明示的に添付さ�
 libc側での待機・キャンセル・再試行、実data Handleを保持した状態でのnative最終releaseは
 まだ今回の試験範囲に含みません。カーネルABI、SDK、runtime archive、配置済みイメージは
 変更しておらず、KVMも起動していません。libc FIFO openが使えるようになったという変更ではありません。
+
+## Native通知Handleの発行と解放（190）
+
+`fifo_wait_ipc.rs`に通知用のIPC adapterを追加しました。要求はversion付きの16バイトで、
+待機条件とwrite長だけを持ちます。PID・FD・object IDは載せません。明示的に添付された
+READまたはWRITE Handleを、作成元の正確なendpoint threadでnative識別します。
+別endpointやstale ID、方向不足、余分な権限、余分な添付は登録前に拒否します。
+受信参照は検証後にだけRAII leaseへ移し、失敗時の所有権を二重に解放しない形です。
+
+通知はnative Provider objectとして作成し、WAIT・DUPLICATE・TRANSFERだけを返します。
+登録時にreadyなら返却前にREADABLEを設定します。作成・初回通知・replyの失敗では、
+未公開または一時的な通知Handleを閉じ、最終native OP_RELEASEでjobを回収します。
+公開後も生きた通知を、reply失敗の推測だけで先にjobから削除する処理はありません。
+client側も、native IPC失敗時のin/outバッファに残った借用sourceをcloseせず、
+成功したIPCで新しく受信した参照だけを検査・回収します。
+
+ホスト試験ではframing/version、方向と権限縮小、識別・adopt失敗時の所有権、
+借用Handleの維持、不正なreplyと重複した受信Handleの一度だけの回収を追加しました。
+FIFO・Provider通知・PTY metadata関連を合わせ11ターゲット50件が成功し、
+`out/checks/mochios-fifo-wait-ipc-190-related.log`へ保存しています。
+全POSIXホスト試験を再実行した結果ではありません。
+
+診断cfgにだけ含まれる既存FIFO workerを、このadapterで通知要求も処理する形にしました。
+KVMでは、別endpointに作った同じ番号のobjectの拒否、native通知の待機とREAD権限拒否、
+dupした通知のラッチ維持と未成立通知のキャンセル、512バイト分の容量が空くまでの待機、
+最後の通知参照がwriter参照を保持し、その解放後にだけreaderがEOFになることを確認しました。
+通知4群・既存inode保持3群・データ管理3群のPASSと、その後のBinder.app readyを
+`out/checks/mochios-fifo-wait-ipc-190-native.log`へ保存しています。
+同一プロセス内の別thread/endpointを使う実native IPC試験であり、別プロセスへの転送や
+fork/exec、libcのblocking FIFO openまで確認したものではありません。
+
+通常版と診断版のmochiOS向けビルドは成功しています。最初の診断ビルドでは試験コードの
+HandleWaitItemフィールド名が既存ABIと合わず、既存のinterests/observedへ修正しました。
+`mochios-fifo-wait-ipc-190-probe-build.log`と`mochios-fifo-wait-ipc-190-probe-build-final.log`が
+修正前後の記録です。新しいsyscallやカーネル変更は追加していません。
+
+診断cfgを除いた通常版へ戻してイメージを再生成し、別のKVM起動でBinder.app readyと
+画面上のDock・上部バーを確認しました。通常版に診断メッセージはなく、VMは停止済みです。
+ログと画面を`out/checks/mochios-fifo-wait-ipc-190-normal.log`・同名の`.png`、
+サービスと診断ELF・使用runtimeのハッシュを`mochios-fifo-wait-ipc-190-artifacts.json`へ
+保存しています。filesystem・compositor・service-managerは試験前と同じバイナリです。
+
+本番のPOSIX起動・open dispatcherにはまだこのFIFO workerを接続していません。
+今回のserve/queryはその接続で再利用するnative adapterで、診断workerで実際に呼び出しています。
+認証済みopenの登録、libc FDへの公開・待機・キャンセル、metadata/poll/select/SIGPIPEと
+継承の接続は引き続き必要です。SDK・Rust std・runtime archiveの再生成は行っていません。

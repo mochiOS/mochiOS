@@ -1,6 +1,6 @@
 # 名前付きFIFO
 
-最新の実装範囲は末尾の185です。183・184は各段階の記録です。
+最新の実装範囲は末尾の186です。183〜185は各段階の記録です。
 
 ## 共有状態（183）
 
@@ -177,3 +177,59 @@ Dock・上部バーを確認しています。`out/checks/mochios-mkfifo-185-nor
 証拠は新runtimeをリンクしたC試験で、通常画面は既存アプリとの起動回帰の確認です。
 配置済みサービス・runtime・C ELFのハッシュは
 `out/checks/mochios-mkfifo-185-artifacts.json`に記録しています。
+
+## Native Providerのデータ操作（186）
+
+`fifo_provider.rs`を追加し、ownerが解決済みのdescriptionとnative object IDのbindingに対して、
+既存のProvider要求を処理できるようにしました。カーネルのIPC_DELIVERY_NATIVE_OBJECT配信を
+要求し、追加attachment・異なるobject ID・偽装した通常endpoint配信は状態変更前に拒否します。
+bindingはowner内部のrouting情報であり、inodeやFD番号から権限を取得するAPIではありません。
+
+READ/WRITEは183のキューを操作し、不可分書き込み・容量不足・EOF・EPIPEを適用します。
+出力容量を検査してからデータを消費するため、小さすぎる応答bufferで読んだデータを失いません。
+位置指定操作はESPIPEとし、OP_MEMORY_OBJECTは明示的に0を返します。
+ディスク用pagerやbyte offsetをFIFOへ流用しません。
+
+OP_RELEASEは認証済み・attachmentなし・正しいbindingの場合だけ処理し、応答を返さずに
+descriptionを1回だけ閉じます。ネイティブのProvider参照寿命を再利用するので、dupやforkで
+同じdescriptionを参照するたびにFIFO側で読み手・書き手を増減する必要はありません。
+カーネルのProviderには複製間で共有されるI/O optionsも既にあるため、その状態も重複実装しません。
+
+descriptionにはwriterを観測したかを保持し、データの有無、EOF、hangup、書き手側の相手消失を
+分けて取得します。native signalsはEOF/EPIPEも操作完了として通知し、POSIX pollへの変換とは
+区別します。最初のnonblocking readerに相手がいない場合のEOFを、直ちにhangupとはしません。
+この区別の参照は[Linux v6.16のFIFO poll実装](https://github.com/torvalds/linux/blob/v6.16/fs/pipe.c)です。
+再接続後は、そのdescriptionの現在の相手とキュー状態に合わせてsignalsを更新できます。
+
+関連ホスト5ターゲット・42件が成功しました。FIFO状態・確保失敗・新Providerの5件、既存socket
+Providerとnative streamの参照処理を含みます。最初はSeek試験frameのbasisに既存ABIで無効な0を
+指定して1件が失敗し、HANDLE_SEEK_STARTへ修正しました。失敗と最終成功は
+`out/checks/mochios-fifo-provider-186-host-before.log`と
+`out/checks/mochios-fifo-provider-186-host-final.log`に分けて保存しています。
+全POSIXホスト試験を再実行したものではありません。
+
+`native_fifo_provider.rs`は独立したowner threadでnative参照を確保してからチャネルへ登録し、
+実際のHandleRead/HandleWriteとOP_RELEASEでこのadapterを動かします。KVMでは次の4群が成功しました。
+
+- native Handle経由の読み書き、512バイトの転送と空キューのEAGAIN。
+- dup間のI/O options共有、元のHandleだけを閉じてもwriterが生存すること。
+- 最後のwriter参照の解放がownerへ届き、readerがEOFを返すこと。
+- 最後のreaderの解放とowner threadの終了。途中ではREAD-only HandleのWRITEも拒否。
+
+ログは`out/checks/mochios-fifo-provider-186-native.log`です。この試験は同一プロセス内の別threadを
+Provider ownerとし、ネイティブ要求のIPCと参照寿命を確認します。別プロセス間のFIFO openやforkによる
+FIFO description共有を試したものではありません。診断でcompositorを置換したことによる試験後の
+CompositorNotFoundは通常起動の失敗として扱いません。
+
+このadapterはまだ実サービスのprovider loopとpathname openへ接続していません。次に必要なのは、
+filesystemが権限確認して保持したinodeのHandleを受け取る境界と、inodeごとのチャネル登録です。
+自己申告のdev/inode番号だけで既存チャネルへ接続してはいけません。データHandle公開前の参照確保、
+失敗時のrollback、blocking openの通知とキャンセルも接続が必要です。
+POSIX poll/select、metadata参照の返却、FDの種別・exec継承、SIGPIPE生成、容量に応じた書き込み待機も
+まだ未実装です。特にnative WRITABLEは空き領域の有無だけなので、不可分書き込みを待つときに、
+部分的な空きで無制限に再試行する実装にはしません。待機と通知の取りこぼしを防ぐ設計が必要です。
+
+今回の通常サービス4つは診断前の185バイナリへ戻し、ハッシュが一致することを確認しています。
+通常イメージも再生成して診断probeを取り除きました。サービスの本番経路へはまだ接続していないため、
+同じ通常構成の起動試験を繰り返さず、直近の通常画面の証跡は185を参照します。
+SDK・Rust std・runtime archive・カーネルは変更していません。

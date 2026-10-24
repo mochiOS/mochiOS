@@ -14695,3 +14695,11 @@ path = "services"
 hash = "4eea6395fb39cba0c6b188e78bda6daf01b2ad1c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Admit execute-only images and verify unregistered pathname execution"
+
+[[entries]]
+date = "2026-10-24T18:01:42.705989798+09:00"
+snapshot = "ebbbddbf72a2e1fc8f486065"
+path = "services"
+hash = "b5c9fddf87f882f4c727bdfd0aae832a19e758c7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify PIE relocation, auxiliary metadata and exec resource ownership"

@@ -14655,3 +14655,11 @@ path = "services"
 hash = "797150fd62318e96290c83f4892490996ee59684"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Check retained executable inode permissions with authenticated POSIX credentials"
+
+[[entries]]
+date = "2026-10-24T15:27:06.693996224+09:00"
+snapshot = "bdeaac5c739ded65eb818d57"
+path = "services"
+hash = "fa2fc67d01289b7d07250b670a138c25f6b9f931"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Authorize explicit executable objects without pathname or grant expansion"

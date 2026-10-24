@@ -61,4 +61,5 @@ KVM では pathname の 6 groups と既存 fexecve の 3 groups が成功し、
 ## 残る項目
 
 この変更で POSIX exec 全体や POSIX 互換環境全体を完了とはしません。
-動的 ELF loader、set-id の credential 遷移、実行 image に対する書き込みとの排他は別途必要です。
+static PIE の配置と相対 relocation は [ユーザー空間の PIE 準備](posix-pie-preparation.md) で追加しています。
+共有ライブラリを扱う動的 loader、set-id の credential 遷移、実行 image に対する書き込みとの排他は別途必要です。

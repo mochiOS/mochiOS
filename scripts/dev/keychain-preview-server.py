@@ -8,7 +8,7 @@ import tomllib
 root, socket, storage = map(pathlib.Path, sys.argv[1:])
 root = root.resolve()
 binaries = root / "out/preview/target/debug"
-command = [str(binaries / "keychain-service"), "--socket", str(socket), "--data-root", str(storage)]
+command = [str(binaries / "keychain-service"), "--socket", str(socket), "--data-root", str(storage), "--auto-session"]
 for directory in sorted((root / "applications").iterdir()):
     manifest_path = directory / "manifest.toml"
     cargo_path = directory / "Cargo.toml"

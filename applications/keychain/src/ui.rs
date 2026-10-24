@@ -32,6 +32,7 @@ enum Action {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Form {
     Main,
+    AwaitingLogin,
     Initialize,
     Unlock,
     New,
@@ -208,7 +209,13 @@ impl Core {
                         {
                             m.selected = m.items.first().map(|i| i.id);
                         }
-                        m.form = if !s.status.initialized {
+                        m.form = if s.status.login_managed && !s.status.unlocked {
+                            if s.status.needs_recovery {
+                                Form::Unlock
+                            } else {
+                                Form::AwaitingLogin
+                            }
+                        } else if !s.status.initialized {
                             Form::Initialize
                         } else if !s.status.unlocked {
                             Form::Unlock
@@ -239,8 +246,10 @@ impl Core {
                                     initialized: true,
                                     unlocked: false,
                                     session_epoch: 0,
+                                    login_managed: true,
+                                    needs_recovery: false,
                                 });
-                                m.form = Form::Unlock;
+                                m.form = Form::AwaitingLogin;
                             } else {
                                 m.status = None;
                             }
@@ -316,7 +325,13 @@ impl Core {
                 self.clear_fields();
                 self.form_scroll.reset();
                 let mut m = self.model.borrow_mut();
-                m.form = if m.status.is_some_and(|s| s.unlocked) {
+                m.form = if m.status.is_some_and(|s| s.login_managed && !s.unlocked) {
+                    if m.status.is_some_and(|s| s.needs_recovery) {
+                        Form::Unlock
+                    } else {
+                        Form::AwaitingLogin
+                    }
+                } else if m.status.is_some_and(|s| s.unlocked) {
                     Form::Main
                 } else if m.status.is_some_and(|s| s.initialized) {
                     Form::Unlock
@@ -333,6 +348,15 @@ impl Core {
             | Action::Grant(_)
             | Action::Revoke(_)
             | Action::ChangePassword => {
+                if a == Action::Reveal
+                    && self.model.borrow().status.is_some_and(|s| s.login_managed)
+                {
+                    let id = self.model.borrow().selected;
+                    if let Some(id) = id {
+                        self.start(Job::Reveal(id, Secret::new(vec![])));
+                    }
+                    return;
+                }
                 self.clear_fields();
                 self.form_scroll.reset();
                 let mut m = self.model.borrow_mut();
@@ -353,6 +377,7 @@ impl Core {
                 let form = m.form;
                 let id = m.selected;
                 let epoch = m.status.map_or(0, |s| s.session_epoch);
+                let login_managed = m.status.is_some_and(|s| s.login_managed);
                 let target = match form {
                     Form::Grant(n) => m.apps.get(n).cloned(),
                     Form::Revoke(n) => id
@@ -362,6 +387,13 @@ impl Core {
                     _ => None,
                 };
                 drop(m);
+                let approval_password = || {
+                    if login_managed {
+                        Secret::new(vec![])
+                    } else {
+                        self.password.secret()
+                    }
+                };
                 if matches!(form, Form::Initialize | Form::ChangePassword) {
                     let first = if form == Form::Initialize {
                         self.password.state.value()
@@ -389,11 +421,11 @@ impl Core {
                     ),
                     Form::Reveal => {
                         let Some(id) = id else { return };
-                        Job::Reveal(id, self.password.secret())
+                        Job::Reveal(id, approval_password())
                     }
                     Form::Delete => {
                         let Some(id) = id else { return };
-                        Job::Delete(id, self.password.secret())
+                        Job::Delete(id, approval_password())
                     }
                     Form::Grant(_) | Form::Revoke(_) => {
                         let (Some(id), Some(target)) = (id, target) else {
@@ -402,13 +434,14 @@ impl Core {
                         Job::Grant(
                             id,
                             target,
-                            self.password.secret(),
+                            approval_password(),
                             matches!(form, Form::Revoke(_)),
                         )
                     }
                     Form::ChangePassword => {
                         Job::ChangePassword(self.password.secret(), self.value.secret())
                     }
+                    Form::AwaitingLogin => Job::Refresh,
                     Form::Main => return,
                 };
                 self.clear_fields();
@@ -488,6 +521,17 @@ impl KeychainView {
                 (&self.core.value, "新しいパスワード（12文字以上）"),
                 (&self.core.confirm, "確認"),
             ],
+            Form::AwaitingLogin => vec![],
+            Form::Unlock => vec![(&self.core.password, "以前の保管庫のパスワード")],
+            _ if self
+                .core
+                .model
+                .borrow()
+                .status
+                .is_some_and(|s| s.login_managed) =>
+            {
+                vec![]
+            }
             _ => vec![(&self.core.password, "保管庫のパスワード")],
         };
         for (i, (f, label)) in specs.into_iter().enumerate() {
@@ -496,7 +540,7 @@ impl KeychainView {
         let bottom = fields
             .last()
             .map(|(_, _, r)| r.origin.y + 48.0)
-            .unwrap_or(y + 116.0);
+            .unwrap_or(y + intro + 16.0);
         (
             r(x, y, w, intro - 30.0),
             fields,
@@ -507,15 +551,20 @@ impl KeychainView {
     fn paint_form(&self, b: Rect, c: &mut PaintContext<'_>) {
         let m = self.core.model.borrow();
         let (title, description, submit) = match m.form {
+            Form::AwaitingLogin => (
+                "ログイン認証を確認できません",
+                "画面をロックしてOSのパスワードで認証し直してください。既存のデータは変更していません。",
+                "再読み込み",
+            ),
             Form::Initialize => (
                 "保管庫を作成",
                 "この端末だけに暗号化して保存します。パスワードを忘れると復元できません。ログインとは別のパスワードです。",
                 "作成",
             ),
             Form::Unlock => (
-                "保管庫を解錠",
-                "アプリに許可した秘密情報を利用できるようにします。",
-                "解錠",
+                "保管庫をログイン認証に連動",
+                "移行・復旧のため、以前の保管庫のパスワードを一度だけ入力してください。以後はOSへのログインで自動的に解錠します。",
+                "移行",
             ),
             Form::New => (
                 "項目を追加",
@@ -524,7 +573,7 @@ impl KeychainView {
             ),
             Form::Reveal => (
                 "秘密情報を表示",
-                "表示には保管庫のパスワードが必要です。10秒後に自動で隠れます。",
+                "10秒後、またはウィンドウがフォーカスを失うと自動で隠れます。",
                 "表示",
             ),
             Form::Delete => (
@@ -690,7 +739,9 @@ impl View for KeychainView {
                 ),
                 c,
             );
-            for (label, a, x, w) in toolbar_buttons(b, side) {
+            for (label, a, x, w) in
+                toolbar_buttons(b, side, status.is_some_and(|s| s.login_managed))
+            {
                 self.core
                     .button(label, a)
                     .enabled(self.core.worker.borrow().is_none())
@@ -793,7 +844,9 @@ impl View for KeychainView {
                 event,
                 c,
             ));
-            for (label, a, x, w) in toolbar_buttons(b, side) {
+            for (label, a, x, w) in
+                toolbar_buttons(b, side, status.is_some_and(|s| s.login_managed))
+            {
                 result = result.merge(
                     self.core
                         .button(label, a)
@@ -984,7 +1037,17 @@ impl View for CachedPicker {
     }
 }
 
-fn toolbar_buttons(b: Rect, side: Rect) -> Vec<(&'static str, Action, f32, f32)> {
+fn toolbar_buttons(
+    b: Rect,
+    side: Rect,
+    login_managed: bool,
+) -> Vec<(&'static str, Action, f32, f32)> {
+    if login_managed {
+        return vec![
+            ("追加", Action::New, side.size.width + 12.0, 64.0),
+            ("更新", Action::Refresh, b.size.width - 76.0, 64.0),
+        ];
+    }
     let mut buttons = vec![
         ("追加", Action::New, side.size.width + 12.0, 64.0),
         ("施錠", Action::Lock, b.size.width - 148.0, 64.0),
@@ -1129,6 +1192,8 @@ mod tests {
         tx.send(Ok(Snapshot {
             status: Status {
                 session_epoch: 1,
+                login_managed: false,
+                needs_recovery: false,
                 initialized: true,
                 unlocked: true,
             },
@@ -1231,6 +1296,8 @@ mod tests {
         tx.send(Ok(Snapshot {
             status: Status {
                 session_epoch: 1,
+                login_managed: false,
+                needs_recovery: false,
                 initialized: true,
                 unlocked: true,
             },
@@ -1253,14 +1320,41 @@ mod tests {
         let m = v.core.model.borrow();
         assert!(m.items.is_empty());
         assert!(!m.status.unwrap().unlocked);
-        assert!(m.form == Form::Unlock);
+        assert!(m.form == Form::AwaitingLogin);
+    }
+    #[test]
+    fn login_managed_approval_has_no_password_field_and_only_recovery_requests_one() {
+        let v = fixture();
+        {
+            let mut m = v.core.model.borrow_mut();
+            let mut s = m.status.unwrap();
+            s.login_managed = true;
+            m.status = Some(s);
+            m.form = Form::Grant(1);
+        }
+        assert!(v.form_frames(bounds()).1.is_empty());
+        let (head, _, submit, _) = v.form_frames(bounds());
+        assert!(submit.origin.y >= head.origin.y + head.size.height);
+        let nodes = paint(&v);
+        assert!(
+            !nodes
+                .iter()
+                .any(|n| n.label.as_deref() == Some("保管庫のパスワード"))
+        );
+        for (_, action, _, _) in toolbar_buttons(bounds(), KeychainView::sidebar(bounds()), true) {
+            assert!(!matches!(action, Action::Lock | Action::ChangePassword));
+        }
+        v.core.model.borrow_mut().form = Form::AwaitingLogin;
+        assert!(v.form_frames(bounds()).1.is_empty());
+        v.core.model.borrow_mut().form = Form::Unlock;
+        assert_eq!(v.form_frames(bounds()).1.len(), 1);
     }
     #[test]
     fn toolbar_controls_do_not_overlap_at_supported_widths() {
         for width in [480.0, 640.0, 880.0, 1200.0] {
             let b = r(0.0, 0.0, width, 620.0);
             let side = KeychainView::sidebar(b);
-            let buttons = toolbar_buttons(b, side);
+            let buttons = toolbar_buttons(b, side, false);
             for (i, (_, _, x, w)) in buttons.iter().enumerate() {
                 assert!(*x >= side.size.width && x + w <= width);
                 for (_, _, other, ow) in buttons.iter().skip(i + 1) {

@@ -98,7 +98,7 @@ if [[ $app == keychain && $mode == run ]]; then
     "$0" keychain-service --check "${cargo_patches[@]}"
     keychain_socket_dir=$(mktemp -d /tmp/mochios-keychain.XXXXXXXX)
     export MOCHIOS_PREVIEW_KEYCHAIN_SOCKET="$keychain_socket_dir/keychain.sock"
-    python3 "$script_dir/keychain-preview-server.py" "$root" "$MOCHIOS_PREVIEW_KEYCHAIN_SOCKET" "$MOCHIOS_PREVIEW_CONFIG_ROOT/keychain" &
+    python3 "$script_dir/keychain-preview-server.py" "$root" "$MOCHIOS_PREVIEW_KEYCHAIN_SOCKET" "$keychain_socket_dir/vault" &
     keychain_pid=$!
     cleanup_keychain() {
         kill "$keychain_pid" 2>/dev/null || true

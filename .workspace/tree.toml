@@ -14679,3 +14679,11 @@ path = "services"
 hash = "93783098cd1dea7de3dfa79daa52791b1682bcfa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify libc descriptor exec inheritance, failures and shared path startup"
+
+[[entries]]
+date = "2026-10-24T16:43:22.472164936+09:00"
+snapshot = "431fb07aedd167d5c299dfe8"
+path = "services"
+hash = "1f42f08ac9166f726c8b57f4d6e5fd9cc745f295"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Broker captured image authorization and verify unlinked-image fork"

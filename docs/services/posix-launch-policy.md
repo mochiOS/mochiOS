@@ -53,3 +53,45 @@ kernel checkによるCargo.lockのpatch記録の並べ替えも、巻き戻さ�
 `out/checks/mochios-launch-policy-181-focused.log`、
 `out/checks/mochios-launch-policy-181-kernel-check.log`、
 `out/checks/mochios-launch-policy-181-services-build.log`です。
+
+## image 置換許可と権限取り消し（198）
+
+プログラムの置換許可に保持した権限は、許可発行後に呼び出し側が取り消した権限を
+復元してはいけません。mnu の汎用 image 置換で、保存した Capability と native authority が
+現在の権限の部分集合であることを二度確認します。
+
+最初の確認は、identity と呼び出し thread が一致する一回限りの許可を消費するときです。
+権限が不足していた許可も消費し、後から権限を付与しても再利用できなくします。
+identity / thread の不一致では、別の呼び出し用の許可を消費しません。
+既存の信頼された broker による ProcessCreate の許可は変更していません。
+
+image の読み込みと VM の準備中には、同じプロセスの別 thread が権限を取り消せます。
+そのため、既存 thread を静止させた後、元の image / LaunchContext / Handle に変更を加える前に
+再確認します。この拒否経路では準備した VM と静止 guard を破棄し、元の image を維持して
+thread を再開します。カーネルに POSIX の exec、FD、サービス名、ディレクトリ配置は追加していません。
+
+ホスト試験 `exec_authority_revocation.rs` は、本体の許可消費と再検証処理を使って
+通常権限・native authority の組み合わせ 4,096 通り、一回限りの消費、別 identity / thread、
+取り消し後の権限再付与、許可消費後の取り消しを確認します。
+`native_exec_authority.rs` は mochiOS 専用の実行試験です。無効 Handle と有効な ELF の両方で
+取り消し済み許可を拒否し、同一 ELF を供給する Provider の最初の要求で権限を取り消すことで、
+許可消費後の取り消しも決定的に再現します。拒否後も元のプロセスと取得済み FileHandle が
+利用できることを確認します。ホストでこの native 試験を起動した場合は SKIP と表示します。
+
+この修正だけで fexecve、未登録のコンパイル済み ELF の起動、Vim / WebKit の実行が
+完成したとは扱いません。明示的な FileHandle による実行許可と、POSIX 側の実行権限判定は
+引き続き実装対象です。
+
+198 の検証結果はホスト 3,279 件成功・失敗 0 件（674 ターゲット、ignored 8 件）、
+KVM の取り消し試験 3 グループ成功です。通常構成でも Binder の READY と Dock / トップバーの
+表示を確認しました。最初の全体ホスト試験では sandbox が `process_vm_readv` を拒否しましたが、
+自己メモリ読み取りを許可したホスト実行で全件成功しています。試験を弱める代替処理は追加していません。
+SDK / Rust std / runtime は再生成せず、既存のものを消費しています。
+
+記録は `out/checks/mochios-exec-authority-198-host-final.log`、
+`out/checks/mochios-exec-authority-198-native.log`、
+`out/checks/mochios-exec-authority-198-normal.log`、
+`out/checks/mochios-exec-authority-198-normal.png` です。
+最終の整形後ビルドでも通常起動を再確認しました。記録は
+`out/checks/mochios-exec-authority-198-final-normal.log` と
+`out/checks/mochios-exec-authority-198-final-normal.png` です。検証 VM は停止済みです。

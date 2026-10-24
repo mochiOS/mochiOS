@@ -1,6 +1,6 @@
 # 名前付きFIFO
 
-最新の実装範囲は末尾の190です。183〜189は各段階の記録です。
+最新の実装範囲は末尾の191です。183〜190は各段階の記録です。
 
 ## 共有状態（183）
 
@@ -411,3 +411,53 @@ HandleWaitItemフィールド名が既存ABIと合わず、既存のinterests/ob
 今回のserve/queryはその接続で再利用するnative adapterで、診断workerで実際に呼び出しています。
 認証済みopenの登録、libc FDへの公開・待機・キャンセル、metadata/poll/select/SIGPIPEと
 継承の接続は引き続き必要です。SDK・Rust std・runtime archiveの再生成は行っていません。
+
+## 本番workerの起動と保持inodeの内部委譲（191）
+
+`fifo_native.rs`に、通常のposix.service起動で開始する専用owner threadを追加しました。
+別のOSサービスではありません。継承済みFS endpointをローカルに複製して保持し、
+このauthorityに対応するFilesystemScopeをworker内で一度だけ作成します。カーネルへ
+サービス名・パス・FIFOの概念を追加していません。
+
+`fifo_open_ipc.rs`の内部要求は、version、認証済みopenが許可した方向とnonblocking方針、
+元のFS応答、明示的に添付するmetadata Handleから成ります。native endpoint-owner identityが
+posix.service自身のプロセスと一致する要求だけを受理します。別プロセスがmetadataを持って
+いても、自己申告の方向から新しいdata権限を作れるAPIではありません。FSの元の呼び出しとの
+対応は送信側で検証し、workerでも応答の型・長さ・identity・権限を再検査します。
+内部registerは元のFS参照を成功・失敗の両方で消費します。登録結果のready=falseは
+blocking open未完了を表し、成功したPOSIX openとして公開してはいけません。
+
+workerはdata要求・通知・最終release・metadata取得を一つの順序で処理します。
+data Handleからのmetadata取得はPTYで使っていた検証とreply処理を共有し、inode pinの
+権限縮小だけを行います。FSとの再帰的なRPCやパスの引き直しはありません。
+既に完了したデータ転送の後でreadiness通知が失敗しても、転送結果をエラーへ置換して
+進行済みデータを隠しません。通知失敗は記録し、jobのラッチを維持します。
+
+workerの停止要求も同じプロセスからだけ受理し、data/通知の登録が残る間はEBUSYを返して
+権限を維持します。最後のnative releaseを処理した後にだけ、ownerと保持authorityを終了できます。
+
+ホスト試験では、非信頼要求によるREAD/WRITEの取得拒否、framingと添付の所有権、
+認証済み方向・nonblocking方針の維持、共通metadata取得を追加しました。
+既存FIFO・通知・PTY metadata関連と合わせ14ターゲット57件が成功し、
+`out/checks/mochios-fifo-worker-191-related.log`へ保存しています。全POSIX試験ではありません。
+
+通常のpathname open dispatcherとlibc FDへの接続はまだ行っていません。通常起動では
+workerを開始しますが、アプリへFIFO openを成功として返す経路は引き続き未実装です。
+
+診断cfgの追加試験は、この本番worker自身に実FS応答とmetadata HandleをIPCで渡します。
+KVMで、未成立reader登録→writer登録→open通知→native読み書き、data Handleからの
+metadata取得とunlink・同名置換後の元inode維持、使用中の停止拒否と最終release後の終了の
+3群が成功しました。既存試験と合わせ13群のPASSを
+`out/checks/mochios-fifo-worker-191-native.log`へ保存しています。
+これは同一サービス内のthread間IPCであり、libcのPOSIX open完了や他プロセスのfork/execの証明ではありません。
+
+通常版・診断版のmochiOS向けビルドは成功しています。最初の通常版ビルドでは
+startup channelのResult型推論とProvider responseのstatus型が合わず、型を明示して修正しました。
+`mochios-fifo-worker-191-normal-build.log`と`mochios-fifo-worker-191-normal-build-final.log`が
+修正前後の記録です。SDK・Rust std・runtime archiveは再生成していません。
+
+診断cfgを含まない通常版へ戻して別のKVM起動を行い、Binder.app ready、FIFO receive失敗や
+診断PASSメッセージが出ないこと、実画面のDock・上部バーを確認しました。VMは停止済みです。
+`out/checks/mochios-fifo-worker-191-normal.log`・同名の`.png`へ保存し、
+サービス・診断ELF・使用runtimeのハッシュを`mochios-fifo-worker-191-artifacts.json`へ記録しました。
+filesystem・compositor・service-managerは試験前と同じバイナリです。

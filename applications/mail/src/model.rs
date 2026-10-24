@@ -207,6 +207,42 @@ impl Model {
             previous_page: Page::List,
         }
     }
+    /// Disposable Linux UI data. These identities never authenticate to a service.
+    #[cfg(target_os = "linux")]
+    pub fn preview() -> Self {
+        use crate::backend::{Account, Config, Protocol, Security};
+        let mut m = Self::empty();
+        for (i, email) in ["alex@example.test", "alex@work.example.test"]
+            .into_iter()
+            .enumerate()
+        {
+            m.accounts.push(Account {
+                id: [(i + 1) as u8; 16],
+                config: Config {
+                    email: email.into(),
+                    username: email.into(),
+                    incoming_host: "imap.example.test".into(),
+                    incoming_port: 993,
+                    incoming_security: Security::Tls,
+                    protocol: Protocol::Imap,
+                    smtp_host: "smtp.example.test".into(),
+                    smtp_port: 587,
+                    smtp_security: Security::StartTls,
+                },
+            });
+        }
+        for (i,(account,sender,address,subject,body,time)) in [
+            (0,"Jamie Lee","jamie@example.test","Lunch on Saturday?","Hi Alex,\n\nWould you like to meet for lunch on Saturday? I found a small cafe near the station.\n\nLet me know what time works for you.\nJamie","10:42"),
+            (1,"Morgan Chen","morgan@work.example.test","Design review notes","Hi Alex,\n\nThanks for the review. I have updated the spacing and keyboard navigation.\n\nCould you take another look before our next meeting?\nMorgan","09:18"),
+            (0,"The Bookshop","books@example.test","Your order is ready","Your order is ready to collect.\n\nWe are open from 10 am to 6 pm. See you soon!","Yesterday"),
+            (1,"Taylor Reed","taylor@work.example.test","Plans for next week","Hello,\n\nHere is the plan for next week. We will start with the release checklist on Monday.\n\nHave a great weekend!","Yesterday"),
+            (0,"Sam Park","sam@example.test","Weekend photos","Hi Alex,\n\nIt was great to catch up last weekend. Shall we plan another walk soon?\n\nSam","Tuesday"),
+        ].into_iter().enumerate(){
+            m.threads.push(Thread{id:i+1,account,subject:subject.into(),snippet:body.split_whitespace().collect::<Vec<_>>().join(" "),time:time.into(),unread:i==1||i==2,flagged:i==1,folder:Folder::Inbox,messages:vec![Message{sender:sender.into(),address:address.into(),recipient:m.accounts[account].config.email.clone(),date:time.into(),body:body.into()}],attachment:None});
+        }
+        m.selected = Some(1);
+        m
+    }
     pub fn empty() -> Self {
         Self {
             threads: vec![],

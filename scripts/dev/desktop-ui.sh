@@ -24,6 +24,7 @@ done
 "$script_dir/preview-app.sh" ime --check "$@"
 "$script_dir/preview-app.sh" keychain-service --check "$@"
 [[ $mode != --check ]] || exit 0
+export MOCHIOS_PREVIEW_MAIL_DEMO="${MOCHIOS_PREVIEW_MAIL_DEMO:-1}"
 
 # All application and desktop state belongs to this disposable session.
 session_dir=$(mktemp -d "$root/out/preview/session.XXXXXXXX")

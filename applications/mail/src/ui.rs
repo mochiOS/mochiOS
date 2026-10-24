@@ -95,6 +95,7 @@ struct DraftRecord {
 }
 struct Core {
     model: RefCell<Model>,
+    preview: Cell<bool>,
     form: AccountForm,
     worker: RefCell<Option<mpsc::Receiver<Result<Reply>>>>,
     status: RefCell<String>,
@@ -179,6 +180,11 @@ fn fill(b: Rect, color: Color, c: &mut PaintContext<'_>) {
 }
 impl Core {
     fn start(&self, job: Job) {
+        // Sample accounts are UI fixtures, never service/Keychain identities.
+        if self.preview.get() && !matches!(&job, Job::Add(_)) {
+            *self.status.borrow_mut() = "Preview · Sample messages. No email is sent.".into();
+            return;
+        }
         if self.worker.borrow().is_some() {
             return;
         }
@@ -233,6 +239,12 @@ impl Core {
                         .into();
                     }
                     Reply::Added(a) => {
+                        if self.preview.replace(false) {
+                            *m = Model::empty();
+                            self.drafts.borrow_mut().clear();
+                            self.active_draft.set(None);
+                            self.accounts_loaded.set(true);
+                        }
                         let index = m.accounts.len();
                         receive_after_add = Some(Job::Sync(index, a.clone()));
                         m.accounts.push(a);
@@ -272,11 +284,13 @@ impl Core {
                             .collect();
                         m.selected = None;
                         m.mailbox = Mailbox::default();
-                        self.form.page.set(if m.accounts.is_empty() {
-                            AccountPage::Choose
-                        } else {
-                            AccountPage::List
-                        });
+                        self.form
+                            .page
+                            .set(if self.preview.get() || m.accounts.is_empty() {
+                                AccountPage::Choose
+                            } else {
+                                AccountPage::List
+                            });
                         self.sender.set(0);
                         *self.status.borrow_mut() =
                             "Account removed. Messages on the server are unchanged.".into();
@@ -413,11 +427,13 @@ impl Core {
                 self.account_scroll.reset();
                 self.form.clear_secret();
                 self.form.feedback.borrow_mut().clear();
-                self.form.page.set(if m.accounts.is_empty() {
-                    AccountPage::Choose
-                } else {
-                    AccountPage::List
-                });
+                self.form
+                    .page
+                    .set(if self.preview.get() || m.accounts.is_empty() {
+                        AccountPage::Choose
+                    } else {
+                        AccountPage::List
+                    });
                 self.form.open.set(true);
                 m.folders_open = false;
             }
@@ -629,26 +645,36 @@ impl Core {
 }
 impl MailView {
     pub fn new() -> Self {
+        #[cfg(test)]
+        let model = Model::sample();
+        #[cfg(not(test))]
+        let model = Model::empty();
+        #[cfg(all(target_os = "linux", not(test)))]
+        if std::env::var("MOCHIOS_PREVIEW_MAIL_DEMO").as_deref() == Ok("1") {
+            return Self::with_model(Model::preview(), true);
+        }
+        let view = Self::with_model(model, false);
+        #[cfg(not(test))]
+        view.core.start(Job::Load);
+        view
+    }
+    fn with_model(model: Model, preview: bool) -> Self {
         let query = TextFieldInteractionState::new();
         let search = TextField::with_interaction(query.clone())
             .placeholder("Search mail")
             .leading_symbol(SymbolName::Search);
         let view = Self {
             core: Rc::new(Core {
-                model: RefCell::new({
-                    #[cfg(test)]
-                    {
-                        Model::sample()
-                    }
-                    #[cfg(not(test))]
-                    {
-                        Model::empty()
-                    }
-                }),
+                model: RefCell::new(model),
+                preview: Cell::new(preview),
                 form: AccountForm::new(),
                 worker: RefCell::new(None),
-                status: RefCell::new(String::new()),
-                accounts_loaded: Cell::new(false),
+                status: RefCell::new(if preview {
+                    "Preview · Sample messages. No email is sent.".into()
+                } else {
+                    String::new()
+                }),
+                accounts_loaded: Cell::new(preview),
                 sender: Cell::new(0),
                 sender_menu: Cell::new(0x4d41494c10000000),
                 sender_menu_draft: Cell::new(None),
@@ -669,8 +695,6 @@ impl MailView {
                 draft: Draft::new(),
             }),
         };
-        #[cfg(not(test))]
-        view.core.start(Job::Load);
         view
     }
     fn account_bounds(b: Rect) -> Rect {
@@ -698,7 +722,8 @@ impl MailView {
             Action::CloseAccounts,
         )];
         if f.page.get() != AccountPage::List
-            && !(f.page.get() == AccountPage::Choose && m.accounts.is_empty())
+            && !(f.page.get() == AccountPage::Choose
+                && (self.core.preview.get() || m.accounts.is_empty()))
         {
             buttons.push((
                 rect(b.origin.x + 24.0, b.origin.y + 20.0, 72.0, 28.0),
@@ -1311,7 +1336,8 @@ impl MailView {
             .button("Send", Action::Send)
             .style(ButtonStyle::Accent)
             .enabled(
-                !self.core.model.borrow().accounts.is_empty()
+                !self.core.preview.get()
+                    && !self.core.model.borrow().accounts.is_empty()
                     && self.core.worker.borrow().is_none(),
             )
             .paint(frames.send, c);
@@ -1744,7 +1770,9 @@ impl View for MailView {
                 self.core
                     .button("Send", Action::Send)
                     .style(ButtonStyle::Accent)
-                    .enabled(!self.core.model.borrow().accounts.is_empty())
+                    .enabled(
+                        !self.core.preview.get() && !self.core.model.borrow().accounts.is_empty(),
+                    )
                     .handle_event(frames.send, event, c),
             );
             result = result.merge(
@@ -3014,5 +3042,53 @@ mod tests {
                     && r.size.height <= theme.layout.compact_icon_size * 2.0
             );
         }
+    }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_preview_opens_mail_without_keychain_or_account_login() {
+        let f = Fixture {
+            view: MailView::with_model(Model::preview(), true),
+            bounds: Cell::new(Rect::new(0.0, 0.0, 360.0, 640.0)),
+        };
+        assert!(!f.view.needs_account());
+        assert!(f.view.core.worker.borrow().is_none());
+        f.paint();
+        f.view.core.apply(Action::Refresh, false);
+        assert!(f.view.core.worker.borrow().is_none());
+        f.view.core.apply(Action::Open(2), false);
+        f.paint();
+        f.view.core.apply(Action::Reply, false);
+        assert_eq!(f.view.core.draft.to.value(), "morgan@work.example.test");
+        assert_eq!(f.view.core.sender.get(), 1);
+        f.paint();
+        f.view.core.apply(Action::Send, false);
+        assert!(f.view.core.worker.borrow().is_none());
+        f.view.core.start(Job::Load);
+        assert!(f.view.core.worker.borrow().is_none());
+        f.view.core.apply(Action::Accounts, false);
+        assert!(f.view.core.form.page.get() == AccountPage::Choose);
+        f.paint();
+    }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn preview_samples_are_disposable_and_keep_real_mail_addresses_out() {
+        let model = Model::preview();
+        assert!(!model.threads.is_empty());
+        assert!(
+            model
+                .accounts
+                .iter()
+                .all(|a| a.config.email.ends_with(".test"))
+        );
+        assert!(
+            model
+                .threads
+                .iter()
+                .flat_map(|t| t.messages.iter())
+                .all(|m| m.address.ends_with(".test"))
+        );
+        let mut changed = Model::preview();
+        changed.threads.clear();
+        assert!(!Model::preview().threads.is_empty());
     }
 }

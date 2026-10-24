@@ -4,6 +4,20 @@ Native AppCore / ViewKit mail client. The existing compact list → reader
 navigation, wide mailbox/list/reader layout, fonts, icons and omochi components
 are retained. Default window: 1080 × 720. No web view is used.
 
+## Preview without sign-in
+
+`mmake ui` and `mmake preview-mail` open Mail with disposable English sample
+messages by default. Inbox, reading, search, replies and drafts can be inspected
+without a mail account or Keychain login. The status bar identifies preview data.
+Sample accounts never connect to a server or access Keychain; Send is disabled.
+
+Use **Accounts → Gmail / Other Account** to connect a real account explicitly.
+A successful connection replaces the sample mailbox and starts real receiving.
+To launch directly in the real account flow, set
+`MOCHIOS_PREVIEW_MAIL_DEMO=0 mmake preview-mail` (also supported by `mmake ui`).
+This option and the sample mailbox are Linux-only; native Mail still requires
+normal account authentication.
+
 ## Connecting
 
 With no registered accounts, **Add Account…** opens a service chooser. Choose

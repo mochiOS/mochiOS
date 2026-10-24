@@ -73,6 +73,7 @@ case "$mode" in
 esac
 
 if [[ $mode == run ]]; then
+    export MOCHIOS_PREVIEW_MAIL_DEMO="${MOCHIOS_PREVIEW_MAIL_DEMO:-1}"
     preview_root="$root/out/preview/home"
     mkdir -p "$preview_root"/{Desktop,Documents,Downloads,Movies,Music,Pictures}
     export MOCHIOS_PREVIEW_ROOT="$preview_root"

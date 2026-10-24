@@ -1,6 +1,6 @@
 # 名前付きFIFO
 
-最新の実装範囲は末尾の184です。183は共有状態を追加した時点の記録です。
+最新の実装範囲は末尾の185です。183・184は各段階の記録です。
 
 ## 共有状態（183）
 
@@ -122,3 +122,58 @@ filesystem.serviceとposix.serviceのmochiOS向けビルドも成功しました
 `out/checks/mochios-fifo-namespace-184-native-build.log`に記録しています。
 実IPCの変更はまだないためVMを起動せず、通常イメージのサービスも変更していません。
 SDK・Rust stdの再生成も行っていません。
+
+## mkfifo / mkfifoatの作成経路（185）
+
+newlib runtimeに`mkfifo`・`mkfifoat`を公開し、posix-clientの`mkfifo_at`、
+POSIXのOP_MKFIFO_AT=123、filesystemのOP_CREATE_FIFO_AT=52へ接続しました。
+既存のpathname保持、FD lease、root/cwd、明示的なdirectory Handle転送を使用します。
+絶対パスはdirfdを使用せず、相対パスは保持したディレクトリを基準にします。
+mkfifoのためのカーネルABIやサービス名検索は追加していません。
+
+mkdirと共通だった作成引数の型をPreparedNodeCreationへ揃え、同じ解釈処理を使用します。
+modeは保存済みsessionのumaskで変更し、uid/gid/groupsもsessionから取得します。
+RPC内の自己申告identityやFD番号には依存しません。要求処理ではroot/cwdを保持し、
+POSIX stateのlockを外したままfilesystemへ1回の作成操作を依頼します。
+既存のimage切り替え時の再検証、拒否時の参照解放も適用します。
+
+filesystemでは明示的に委譲されたcontrol endpointからの配信だけを許可し、
+認証済みcredentialsとordered root/base添付を既存のdecoderで確認します。
+184のinode作成処理を呼び、成功時はHandleもpayloadも返しません。
+POSIXの新opcodeもassigned request認識に追加し、未知opcodeのENOSYSは維持します。
+
+ホストでは既存のsingle-path mutation試験群にFIFOを加え、保存済みcredentials・umask、
+root/cwdと添付directory、実行中のPOSIX lock未保持、拒否時の解放と状態変更、
+malformed要求の事前拒否を確認しました。client試験では非UTF-8名、3種類のbase、
+remote error、予期しない応答Handleの解放を検証します。runtimeの実pathname保持処理にも
+FIFOを加え、caller memoryの変化とRPCの成功・拒否・FD置換時の参照解放を確認しています。
+
+全体658ターゲット・3,209件のホスト試験が成功し、失敗0件でした。
+`out/checks/mochios-posix-host-audit-185.log`へ保存しています。
+最初の試験コマンドに存在しないターゲット名を指定した失敗は実装の試験結果に含めず、
+`out/checks/mochios-mkfifo-185-focused-command-error.log`として別に保存しています。
+
+runtime archive・filesystem.service・posix.serviceをネイティブビルドし、SDK・Rust stdを
+再生成せずCの`native_fifo_creation.c`をリンクしました。nmでもmkfifo/mkfifoatが実際の
+runtimeからELFへ入ったことを確認しています。KVM上の実IPC試験は次の6群が成功しました。
+
+- FIFOの作成、S_IFIFO、umask、inode identity、成功時のerrno維持。
+- rename後のdirectory FDを基準とする作成、非UTF-8名、絶対パスでのdirfd無視。
+- 既存symlink、未存在末尾区切り、無効ポインタ、NULL、過長パスの失敗と未作成。
+- setuid/setgid後の親権限拒否、作成者のuid、親setgidのgroup継承。
+- chroot後の絶対パスと`..`のroot内への制限。
+- 未対応のFIFOデータopenをディスクI/Oへ流さず拒否し、metadataとunlinkは動作。
+
+ログは`out/checks/mochios-mkfifo-185-native.log`です。診断ではcompositorをC試験へ置換するため、
+試験完了後のsecure-uiのCompositorNotFoundは通常起動の証明として扱いません。
+データ用Provider Handle、チャネルへの接続、blocking openの待ち合わせ、poll、SIGPIPE等は
+未実装です。FIFOを介したアプリ間データ転送や完全なPOSIX互換性はまだ確認していません。
+
+診断後はcompositorとservice-managerを元のバイナリへ正確に戻し、新しいfilesystem・POSIX
+サービスを配置した通常イメージを作成しました。別のKVM起動でBinder.app readyと実際の
+Dock・上部バーを確認しています。`out/checks/mochios-mkfifo-185-normal.log`と
+`out/checks/mochios-mkfifo-185-normal.png`に保存し、確認後のVMは停止済みです。
+すべてのアプリを新runtimeで再リンクしたわけではありません。今回の新libc機能を実行した
+証拠は新runtimeをリンクしたC試験で、通常画面は既存アプリとの起動回帰の確認です。
+配置済みサービス・runtime・C ELFのハッシュは
+`out/checks/mochios-mkfifo-185-artifacts.json`に記録しています。

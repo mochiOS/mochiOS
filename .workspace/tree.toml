@@ -14567,3 +14567,11 @@ path = "services"
 hash = "f161e9c48e44c2a8ebe26625650f06c5e8f7964f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retain authorized FIFO inodes during open and publish metadata-only Handles"
+
+[[entries]]
+date = "2026-10-24T12:14:16.209609454+09:00"
+snapshot = "cd97e71c7da69d7fd9136c1e"
+path = "user"
+hash = "3fa23be0c480cfdc53e0acff23a0ffde24f47eeb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record lockfile ordering from native POSIX validation"

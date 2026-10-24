@@ -134,3 +134,57 @@ SDK・Rust std・runtime は再生成していません。
 `out/checks/mochios-executable-check-199-native.log`、
 `out/checks/mochios-executable-check-199-normal.log`、
 `out/checks/mochios-executable-check-199-normal.png` です。
+
+## オブジェクトのバイト列に対する image 認可（200）
+
+`AUTHORIZE_EXEC_OBJECT_OPCODE` は版付き request、呼び出し側が計算した SHA-256、
+最大 255 バイトの不透明な identity key、明示的に添付した READ object 一つを受け取ります。
+PID / FD / 起動対象パス / 新しいアプリ識別情報 / 追加 Capability の指定欄はありません。
+requester はカーネルが保証した IPC sender から解決します。
+
+capability.service は user delivery、添付数、reserved、READ のみへの権限縮小と
+requester の process.spawn を確認します。受信 object への I/O は一切行いません。
+Provider が応答しなくても、サービスの直列ループを待たせないためです。
+最初の実装では broker で digest を計算していましたが、この停止要因を見つけたため、
+公開 entry point の接続前に呼び出し側の計算へ変更しました。
+成功・失敗のどちらでも受信した参照を閉じてから返信します。
+
+この digest は署名や第三者の承認ではありません。呼び出し側は自分の security domain で
+実行するバイト列を指定するだけです。native loader は実際に渡された READ object の
+全バイトと digest の一致を、image を確定する前に強制します。虚偽の digest は別の identity
+や新しい権限を取得する根拠にならず、バイト列不一致なら置換が拒否されます。
+署名済み package の認可と違い、package index や対象パスの再 open は行いません。
+
+既存の汎用 AuthorizeExec に `image-replace-inherit` モードを追加しました。
+入力として受理するのは kind、unprivileged class、image digest の三項目のみです。
+identity の上書きや空でない grants list、privileged class は拒否します。
+信頼された broker の CapabilitiesManage は従来どおり必要です。
+カーネルは requester の application identity と現在の通常 Capability 全体を、
+同じ process-table borrow 内で fallible に複製して一回限りの置換許可に保存します。
+ユーザー空間で既知の Capability 名だけを列挙する方法は使いません。
+scoped / dynamic な通常 grants も同じ集合から取得します。native authorities は引き継ぎません。
+
+これは呼び出し元の既存 security domain 内でコードを置き換える認可であり、別の署名済み
+package の identity や grant を取得する処理ではありません。後続の image 置換では従来どおり
+実バイト列の digest、実行クラス、thread、現在の権限の部分集合を検証します。
+認可後のファイル変更や権限取り消しは、その許可で新しい image を確定する理由にはなりません。
+カーネルに POSIX の uid / gid / FD / directory / service 名は追加していません。
+
+今回の native 試験は低レイヤの image 置換を直接呼びます。libc の fexecve entry point、
+exec の FD / signal / record-lock 引き継ぎへの接続、set-id 実行の意味論は未完了です。
+FileHandle を起動する POSIX wrapper は、199 の実行 mode 判定とこの image 認可の両方を使い、
+同じ object を保持したまま既存の exec startup / LaunchContext 処理へ接続する必要があります。
+
+最終版のホスト全体試験は 677 ターゲット・3,289 件成功、失敗 0 件、ignored 8 件です。
+KVM では未登録・unlink 済み ELF への置換、digest 不一致、認可後の権限取り消し、
+ambient read 権限を失った後の保持済み FileHandle からの置換、応答しない Provider の隔離の
+5 グループが成功しました。新しい image でも process/thread と application identity、
+現在の通常 grants が保持されることを確認しています。
+
+記録は `out/checks/mochios-object-exec-200-host-final.log` と
+`out/checks/mochios-object-exec-200-nonblocking-native.log` です。
+SDK・Rust std・runtime は再生成していません。kernel build で更新された Cargo.lock も
+巻き戻さず、対応する変更と一緒にコミットしています。
+最終の通常構成でも Binder の READY と Dock / トップバーを目視確認し、VM を停止しました。
+記録は `out/checks/mochios-object-exec-200-final-normal.log` と
+`out/checks/mochios-object-exec-200-final-normal.png` です。

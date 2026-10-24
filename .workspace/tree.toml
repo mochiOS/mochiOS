@@ -14735,3 +14735,11 @@ path = "services"
 hash = "25afb29c0d25d534df0065ca6ab2d4ae5cbbfa82"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use retained UDP binding identities for DHCP and DNS"
+
+[[entries]]
+date = "2026-10-24T19:32:22.125338203+09:00"
+snapshot = "192fe638a0e8fd5b45f6285d"
+path = "services"
+hash = "1c96dfa03d5a52ed06e8e38f84ffaed3d3aaf1e4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Constrain DNS UDP reception to the selected server endpoint"

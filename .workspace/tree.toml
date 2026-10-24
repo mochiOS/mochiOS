@@ -14703,3 +14703,11 @@ path = "services"
 hash = "b5c9fddf87f882f4c727bdfd0aae832a19e758c7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify PIE relocation, auxiliary metadata and exec resource ownership"
+
+[[entries]]
+date = "2026-10-24T18:10:15.025313069+09:00"
+snapshot = "76be88d336f920fc73b7b360"
+path = "services"
+hash = "b86b9a4a64189132e36b1952d7aa7287e53d6cbe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(auth): verify credential destinations and erase login buffers"

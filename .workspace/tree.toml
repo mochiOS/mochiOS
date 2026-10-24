@@ -14743,3 +14743,11 @@ path = "services"
 hash = "1c96dfa03d5a52ed06e8e38f84ffaed3d3aaf1e4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Constrain DNS UDP reception to the selected server endpoint"
+
+[[entries]]
+date = "2026-10-24T19:55:33.130688931+09:00"
+snapshot = "325cf2cf5aff986d54498665"
+path = "services"
+hash = "8721d09fd3c22fd7d0bd5d65cdab8d056bde8ada"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Issue and retain explicit network authority Handles through native IPC"

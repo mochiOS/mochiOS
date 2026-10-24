@@ -550,3 +550,60 @@ lockの更新が必要として実行前に止まりました。`mochios-fifo-ba
 その記録です。offlineで再解決して生成されたlockを保持し、同じ14ターゲット550件が再び
 成功しました。`out/checks/mochios-fifo-backend-193-lock-offline.log`へ保存しています。
 並行作業のmanifestやcomponentソースはこのFIFO変更には含めていません。
+
+## 194: libc の FIFO FD と待機・継承
+
+通常の `open` が受け取る S_IFIFO を専用の FD kind に分類し、`read` / `write` は
+native Provider Handle へ直接送ります。would-block の場合だけ、公開した
+`OP_FIFO_WAIT` を通して一回限りの通知 Handle を取得します。要求には明示的に
+添付した方向別データ Handle を使い、PID / FD / inode 番号による取得は行いません。
+クライアントは READ または WRITE と TRANSFER だけに縮小し、service 側もその
+権限集合、wire framing、応答通知の権限を検証します。
+
+通知は FD table へ登録せず、既存の private lease と callback resource scope で
+所有します。native 待機へ入る前に fork を許可できる状態にし、fork epoch の変更、
+非 restart signal、pthread cancellation、owner 停止時にも通知参照を解放します。
+途中まで進んだ大きな write は後続エラー時にも進捗を返し、論理的な EPIPE でだけ
+SIGPIPE を生成します。native owner 停止は EIO として区別します。
+
+O_NONBLOCK / O_APPEND は Provider の open-file description に保持し、同じ
+Handle オブジェクトを参照する dup / fork 後も atomic な masked update で共有します。
+FD kind を LaunchContext の既存 FD metadata に追加し、exec と CLOEXEC にも接続しました。
+FIFO の fstat / fchmod / fchown / futimens は保持済み filesystem metadata を使い、
+lseek は ESPIPE、mmap は ENODEV、fsync / ftruncate は EINVAL で拒否します。
+poll / select は native の readiness を使用し、読み取り側の HUP と書き込み側の ERR を
+区別します。カーネル ABI / カーネル内 POSIX policy の追加はありません。
+
+`native_fifo_runtime.c` を再ビルドした runtime archive、既存 SDK の crt0 / libc / libm /
+libgcc でリンクし、通常の filesystem.service と更新した posix.service に対して KVM で
+実行しました。次の 7 群が成功しています。
+
+- FIFO FD 分類、native data I/O、fstat、ESPIPE / ENODEV、PIPE_BUF、dup 間の status flags。
+- poll / select のデータ準備と、最後の writer close 後の EOF / HUP。
+- blocking open の reader / writer rendezvous と read 待機からの復帰。
+- 別スレッドが read 待機している状態での fork と pthread cancellation 後の再利用。
+- exec への FIFO kind / writer FD の継承と reader FD の CLOEXEC。
+- 64 KiB の容量上限と 512 byte write の all-or-none backpressure。
+- fork 後の status flags 共有、SIGPIPE handler、close / unlink。
+
+ログは `out/checks/mochios-fifo-runtime-194-native-final.log` です。この試験は compositor
+スロットを C 試験へ置換して実行しているため、終了後の CompositorNotFound は通常
+デスクトップ起動の結果とは扱いません。SDK / Rust std の再生成は行っていません。
+この段階でも全 POSIX 互換環境の完了、Vim / WebKit の動作確認を意味しません。
+
+production loop のホスト試験では partial write、EPIPE と native owner 停止の区別、
+割り込みと fork epoch 失効、不正な返却サイズ、通知参照の解放も確認しています。
+client / dispatcher の malformed framing、予約 reply flags、過剰権限、失敗応答での
+所有権処理と、Provider の masked status 更新も試験へ追加しました。
+全ホスト試験 3,263 件が成功し、失敗 0 件でした。
+`out/checks/mochios-fifo-runtime-194-host-complete.log` が最後まで成功した全体ログです。
+途中の古いテスト用 FD enum と lock 再解決による失敗ログも同じ prefix で保持しています。
+
+C 試験用 compositor / manager と manifest / verification record は元へ戻し、通常版
+posix.service を置いたイメージを再生成しました。別の KVM 起動で Binder ready と
+Dock・上部バーの表示を実際に確認し、VM は停止しています。
+`out/checks/mochios-fifo-runtime-194-normal.log` と `-normal.png` に保存しています。
+artifact hash と確認範囲は同 prefix の `-artifacts.json` / `-evidence.json` です。
+すべての既存アプリの再リンクは行っていないため、新しい libc FIFO 経路の実 OS 証明は
+今回再リンクした C ELF に限ります。並行作業の keychain / UI / service-manager source は
+今回の変更に混ぜず、生成された lock は巻き戻さず保持しています。

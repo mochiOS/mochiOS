@@ -62,3 +62,6 @@ service-managerの成功応答ログ、従来どおりのnetwork Failed(-6)、in
 socket workerへのUDP description登録、Provider control / record transport / readiness中継、
 libc AF_INETの接続と実統合試験は引き続き必要です。
 この変更だけでAF_INET socketが動くとは扱いません。POSIX全体のgoalは継続中です。
+
+factory転送とUDP descriptionのworker登録は[段階213](posix-inet-socket-provider.md)で追加しました。
+libc FD経路の配線は引き続き必要です。

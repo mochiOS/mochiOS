@@ -69,3 +69,6 @@ SDK / Rust std overlayは再生成していません。
 LaunchContextによるendpoint配布、実NICでの送受信試験です。
 TCP socket Handle、IPv6、IP fragmentation、ICMP error、multicast、socket options全般は
 この段階の実装範囲に含めていません。POSIX互換環境全体のgoalは継続中です。
+
+共有description policyとnativeアダプタは[段階211](posix-inet-datagram-description.md)で追加しました。
+libc FD経路への登録はまだで、両者の配線が次の作業です。

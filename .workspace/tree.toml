@@ -14775,3 +14775,11 @@ path = "services"
 hash = "4843e9ea3eb15a3ed923823de63c5e2932d823ca"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Hand off authenticated network endpoint during POSIX bootstrap"
+
+[[entries]]
+date = "2026-10-24T21:52:29.221795377+09:00"
+snapshot = "7f59a50799dc98896974eefa"
+path = "services"
+hash = "451fa527e6d852b62b988c0a638875e3cfcb6753"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Register explicitly delegated IPv4 UDP socket Providers"

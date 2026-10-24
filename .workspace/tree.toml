@@ -14599,3 +14599,11 @@ path = "services"
 hash = "702667f2e4afe35b3e796bd2c45ee2211f9506b4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Start FIFO owner and admit retained filesystem references over private IPC"
+
+[[entries]]
+date = "2026-10-24T12:56:29.456337039+09:00"
+snapshot = "49fbbfe8d8e5787ad569fe81"
+path = "services"
+hash = "6def90dece6fe604ec54ff0fd4c1e7421bc91108"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Distinguish pending FIFO registration from completed pathname open"

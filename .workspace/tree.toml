@@ -14727,3 +14727,11 @@ path = "services"
 hash = "3101da3a0bb95bb947f80940868f9664f7c6a5df"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement UNIX sequenced-packet connections and record termination"
+
+[[entries]]
+date = "2026-10-24T19:27:41.076331773+09:00"
+snapshot = "64f559df352e18ea0b297ac0"
+path = "services"
+hash = "25afb29c0d25d534df0065ca6ab2d4ae5cbbfa82"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use retained UDP binding identities for DHCP and DNS"

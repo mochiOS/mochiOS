@@ -56,7 +56,8 @@ READY 待ち上限を越え、その後に READY が到着しました。service
 
 ## 続ける必要がある項目
 
-既存のパス経由 execve にも package index に登録された実行名への依存が残っています。
+パス経由 execve の package index 依存は、[FileHandle に結び付いた pathname exec](posix-path-execution.md)
+で解消しています。
 fork の実行名による package index 依存は、[captured image の生成認可](posix-captured-image-creation.md)
 で解消しています。実行名をパスへ復元せず、取得済み image の origin と現在の security domain を検証します。
 また、set-id 実行や動的 ELF loader の完了を、この変更の実績としては扱いません。

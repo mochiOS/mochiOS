@@ -49,6 +49,7 @@ VM は停止済みです。この一回の起動成功で、前回の入力サ�
 
 ## 残る範囲
 
-パス経由 execve の未登録 image 対応、set-id、動的 ELF loader は別途必要です。
+パス経由 execve の未登録 image 対応は [pathname exec](posix-path-execution.md) で実装しています。
+set-id と動的 ELF loader は別途必要です。
 また、通常起動で input.service の初期化が READY 待ちを越える問題は、この認可の変更で
 解決したとは扱いません。POSIX 互換環境全体の目標は継続中です。

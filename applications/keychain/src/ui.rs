@@ -50,23 +50,23 @@ struct Snapshot {
 enum Job {
     Refresh,
     Lock,
-    Initialize(Secret),
-    Unlock(Secret),
+    Initialize(Secret, u64),
+    Unlock(Secret, u64),
     Put(String, String, String, Secret),
     Reveal(ItemId, Secret),
     Delete(ItemId, Secret),
     Grant(ItemId, Application, Secret, bool),
     ChangePassword(Secret, Secret),
 }
-fn execute(job: Job) -> Result<Snapshot, Error> {
+fn execute(job: Job, epoch: u64) -> Result<Snapshot, Error> {
     let k = Keychain::connect()?;
-    let manager = k.manager();
+    let manager = k.manager().at_epoch(epoch);
     let mut revealed = None;
     match job {
         Job::Refresh => {}
         Job::Lock => manager.lock()?,
-        Job::Initialize(p) => manager.initialize(p)?,
-        Job::Unlock(p) => manager.unlock(p)?,
+        Job::Initialize(p, epoch) => manager.initialize_at_epoch(p, epoch)?,
+        Job::Unlock(p, epoch) => manager.unlock_at_epoch(p, epoch)?,
         Job::Put(service, account, label, secret) => {
             k.put(&service, &account, &label, secret)?;
         }
@@ -179,9 +179,10 @@ impl Core {
         m.error = None;
         m.revealed = None;
         m.hide_at = None;
+        let epoch = m.status.map_or(0, |s| s.session_epoch);
         drop(m);
         std::thread::spawn(move || {
-            let _ = tx.send(execute(job));
+            let _ = tx.send(execute(job, epoch));
         });
     }
     fn poll(&self) {
@@ -229,6 +230,7 @@ impl Core {
                                 | Error::Unavailable
                                 | Error::Storage
                                 | Error::Corrupt
+                                | Error::Conflict
                         ) {
                             m.items.clear();
                             m.revealed = None;
@@ -236,6 +238,7 @@ impl Core {
                                 m.status = Some(Status {
                                     initialized: true,
                                     unlocked: false,
+                                    session_epoch: 0,
                                 });
                                 m.form = Form::Unlock;
                             } else {
@@ -349,6 +352,7 @@ impl Core {
                 let m = self.model.borrow();
                 let form = m.form;
                 let id = m.selected;
+                let epoch = m.status.map_or(0, |s| s.session_epoch);
                 let target = match form {
                     Form::Grant(n) => m.apps.get(n).cloned(),
                     Form::Revoke(n) => id
@@ -375,8 +379,8 @@ impl Core {
                     }
                 }
                 let job = match form {
-                    Form::Initialize => Job::Initialize(self.password.secret()),
-                    Form::Unlock => Job::Unlock(self.password.secret()),
+                    Form::Initialize => Job::Initialize(self.password.secret(), epoch),
+                    Form::Unlock => Job::Unlock(self.password.secret(), epoch),
                     Form::New => Job::Put(
                         self.service.state.value(),
                         self.account.state.value(),
@@ -1124,6 +1128,7 @@ mod tests {
         let (tx, rx) = mpsc::channel();
         tx.send(Ok(Snapshot {
             status: Status {
+                session_epoch: 1,
                 initialized: true,
                 unlocked: true,
             },
@@ -1225,6 +1230,7 @@ mod tests {
         event(&v, ViewEvent::FocusChanged { focused: true });
         tx.send(Ok(Snapshot {
             status: Status {
+                session_epoch: 1,
                 initialized: true,
                 unlocked: true,
             },

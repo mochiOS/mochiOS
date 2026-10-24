@@ -14647,3 +14647,11 @@ path = "services"
 hash = "44d42e0c08b6a9d18bd18604bda23c2f207d732e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise image authority revocation before consumption and commit"
+
+[[entries]]
+date = "2026-10-24T15:11:38.782697916+09:00"
+snapshot = "47484e40f1cd5729c08d7fe1"
+path = "services"
+hash = "797150fd62318e96290c83f4892490996ee59684"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Check retained executable inode permissions with authenticated POSIX credentials"

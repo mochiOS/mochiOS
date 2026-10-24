@@ -14759,3 +14759,11 @@ path = "services"
 hash = "39e62cd7ad826b10ef6cfba9a55910716beb8213"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Serve delegated UDP packet Handles with bounded queues"
+
+[[entries]]
+date = "2026-10-24T20:39:36.879392833+09:00"
+snapshot = "867e487e9c8b62a9cbbaa52c"
+path = "libraries/viewkit"
+hash = "1a9abe01e8d25997c002e8c75155187b3052ad39"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(button): share icon-label metrics alignment and state colors"

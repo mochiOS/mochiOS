@@ -14671,3 +14671,11 @@ path = "services"
 hash = "5c67ca68044f8b726758b29e9af559c93677e617"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep unresponsive providers outside the image authorization broker"
+
+[[entries]]
+date = "2026-10-24T16:24:32.633142451+09:00"
+snapshot = "03fecc27da7bd01c05189b98"
+path = "services"
+hash = "93783098cd1dea7de3dfa79daa52791b1682bcfa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify libc descriptor exec inheritance, failures and shared path startup"

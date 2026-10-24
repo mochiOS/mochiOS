@@ -56,6 +56,29 @@ SDKとRust std overlayは再生成していません。
 
 POSIX AF_INETのcreate / bind / connect / sendto / recvfrom、Handleを返すnetwork Provider、
 受信待ちEvent・close後の寿命管理との接続はまだ必要です。
-peer filter、IPv6、再利用option、broadcast / multicast policyも残っています。
+POSIXのpeer policyとの接続、IPv6、再利用option、broadcast / multicast policyも残っています。
 今回のpacket管理の追加をInternet domainソケット全体の完成とは扱いません。
 POSIX互換環境全体のgoalは継続中です。
+
+## UDP peer associationの追加
+
+UdpSocketIdに対するpeer設定・照会・解除を追加しました。
+peerがあるbindingでは、受信packetのsource IPとsource portの両方が一致する場合だけ
+queueへ入れます。不一致はqueue容量を消費せず、別bindingへの再配送も行いません。
+解除はpeerだけを外し、ローカルbindingとqueueを保持します。
+解放済みIDからpeerを書き換えて、同じportに再作成したbindingへ影響することもありません。
+
+このpacket tableのfilterは設定後の到着に適用します。
+すでに受理済みのrecordは設定変更時にも維持します。
+POSIX connectにおけるqueueの扱いなど上位のpolicyまで完成したという意味ではありません。
+
+DNS問い合わせは、新規bindingへDNS serverのIPとport 53をpeerとして設定してから
+送受信します。送信先も同じendpointの値を使います。
+transaction ID・questionのDNS response検証は既存通り続けています。
+
+ホストではIPだけ・portだけが異なるpacket、peerの変更・解除、stale IDを検証しました。
+NetworkStack本体にIPv4/UDP packetを渡す試験で、DNS処理がfilterを設定することと、
+指定外の送信元がqueueに入らないことも確認しています。
+関連5 targets・31件が成功しています。
+記録はout/checks/mochios-udp-peer-208-final.log、-build.log、-evidence.jsonです。
+この変更でもnative IPC・Handle ABIを追加せず、VMとSDK再生成は使っていません。

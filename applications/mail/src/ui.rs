@@ -372,6 +372,12 @@ impl Core {
             .accessibility_label(label)
             .on_click(move || pending.set(Some(action)))
     }
+    fn new_message_button(&self, compact: bool) -> Button {
+        self.button(if compact { "New" } else { "New Message" }, Action::New)
+            .accessibility_label("New Message")
+            .leading_symbol(SymbolName::Pencil)
+            .style(ButtonStyle::Standard)
+    }
     fn icon(&self, symbol: SymbolName, label: &str, action: Action) -> Button {
         self.button(label, action).content(Glyph(symbol))
     }
@@ -1158,24 +1164,15 @@ impl MailView {
                     c,
                 );
         }
-        self.core
-            .button("New Message", Action::New)
-            .style(ButtonStyle::Standard)
-            .content(
-                HStack::new()
-                    .gap(StackGap::Small)
-                    .child(Glyph(SymbolName::Pencil))
-                    .child(Text::label("New Message")),
-            )
-            .paint(
-                rect(
-                    b.origin.x + 12.0,
-                    b.origin.y + 52.0,
-                    b.size.width - 24.0,
-                    30.0,
-                ),
-                c,
-            );
+        self.core.new_message_button(false).paint(
+            rect(
+                b.origin.x + 12.0,
+                b.origin.y + 52.0,
+                b.size.width - 24.0,
+                30.0,
+            ),
+            c,
+        );
         self.core
             .scroll(Content::Folders)
             .paint(Layout::content(b, 96.0), c);
@@ -1570,16 +1567,7 @@ impl View for MailView {
             self.reader_toolbar(&l, reader, c);
         }
         if let Some(frame) = l.floating_compose() {
-            self.core
-                .button("New Message", Action::New)
-                .style(ButtonStyle::Standard)
-                .content(
-                    HStack::new()
-                        .gap(StackGap::Small)
-                        .child(Glyph(SymbolName::Pencil))
-                        .child(Text::label("New")),
-                )
-                .paint(frame, c);
+            self.core.new_message_button(true).paint(frame, c);
         }
         Text::caption(self.core.status.borrow().clone())
             .color(c.theme.colors.text_secondary)
@@ -1793,8 +1781,7 @@ impl View for MailView {
         if let Some(frame) = l.floating_compose() {
             if event.position().is_some_and(|p| frame.contains(p)) {
                 self.core
-                    .button("New Message", Action::New)
-                    .style(ButtonStyle::Standard)
+                    .new_message_button(true)
                     .handle_event(frame, event, c);
                 self.flush(&l, b, c);
                 return EventResult::Consumed;
@@ -1921,8 +1908,7 @@ impl View for MailView {
         if let Some(frame) = l.floating_compose() {
             result = result.merge(
                 self.core
-                    .button("New Message", Action::New)
-                    .style(ButtonStyle::Standard)
+                    .new_message_button(true)
                     .handle_event(frame, event, c),
             );
         }
@@ -2030,20 +2016,16 @@ impl MailView {
         });
     }
     fn folder_event(&self, b: Rect, event: &ViewEvent, c: &mut EventContext<'_>) -> EventResult {
-        let mut r = self
-            .core
-            .button("New Message", Action::New)
-            .style(ButtonStyle::Standard)
-            .handle_event(
-                rect(
-                    b.origin.x + 12.0,
-                    b.origin.y + 52.0,
-                    b.size.width - 24.0,
-                    30.0,
-                ),
-                event,
-                c,
-            );
+        let mut r = self.core.new_message_button(false).handle_event(
+            rect(
+                b.origin.x + 12.0,
+                b.origin.y + 52.0,
+                b.size.width - 24.0,
+                30.0,
+            ),
+            event,
+            c,
+        );
         if self.core.model.borrow().folders_open {
             r = r.merge(
                 self.core

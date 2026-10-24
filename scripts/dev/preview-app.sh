@@ -92,9 +92,9 @@ export MOCHIOS_BUILD_NUMBER="$(sed -n 's/^build = \([0-9]*\)/\1/p' "$root/versio
 export MNU_VERSION="${MNU_VERSION:-preview}"
 export MBOOT_VERSION="${MBOOT_VERSION:-preview}"
 
-if [[ $app == keychain && $mode == run ]]; then
+if [[ ( $app == keychain || $app == mail ) && $mode == run && -z ${MOCHIOS_PREVIEW_KEYCHAIN_SOCKET:-} ]]; then
     # Build both executables before pinning their inodes in the host service.
-    "$0" keychain --check "${cargo_patches[@]}"
+    "$0" "$app" --check "${cargo_patches[@]}"
     "$0" keychain-service --check "${cargo_patches[@]}"
     keychain_socket_dir=$(mktemp -d /tmp/mochios-keychain.XXXXXXXX)
     export MOCHIOS_PREVIEW_KEYCHAIN_SOCKET="$keychain_socket_dir/keychain.sock"
@@ -114,7 +114,7 @@ if [[ $app == keychain && $mode == run ]]; then
         sleep 0.1
     done
     [[ -S $MOCHIOS_PREVIEW_KEYCHAIN_SOCKET ]] || { echo "Keychain preview service did not start." >&2; exit 1; }
-    "$CARGO_TARGET_DIR/debug/keychain"
+    "$CARGO_TARGET_DIR/debug/$preview_binary"
     exit $?
 fi
 

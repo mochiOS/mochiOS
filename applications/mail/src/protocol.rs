@@ -36,6 +36,7 @@ fn quoted(value: &str) -> Result<Zeroizing<String>> {
 struct Response {
     lines: Vec<String>,
     literals: Vec<Vec<u8>>,
+    completion: String,
 }
 /// Literals are read by length before recognizing tagged responses: message text
 /// cannot masquerade as a server completion or inject another response.
@@ -45,6 +46,7 @@ fn imap<S: BufRead + Write>(s: &mut S, tag: &str, cmd: &str) -> Result<Response>
     let mut response = Response {
         lines: vec![],
         literals: vec![],
+        completion: String::new(),
     };
     let mut total = 0;
     loop {
@@ -62,6 +64,7 @@ fn imap<S: BufRead + Write>(s: &mut S, tag: &str, cmd: &str) -> Result<Response>
             {
                 return Err(Error::Rejected);
             }
+            response.completion = rest.to_owned();
             return Ok(response);
         }
         if !text.starts_with('*') && !text.starts_with(')') && !text.is_empty() {
@@ -98,29 +101,187 @@ pub fn imap_greeting<S: BufRead>(s: &mut S) -> Result<()> {
 pub fn imap_starttls<S: BufRead + Write>(s: &mut S) -> Result<()> {
     imap(s, "T0", "STARTTLS").map(|_| ())
 }
-pub fn imap_receive<S: BufRead + Write>(
-    s: &mut S,
-    user: &str,
-    password: &str,
-) -> Result<Vec<Incoming>> {
+fn imap_login<S: BufRead + Write>(s: &mut S, user: &str, password: &str) -> Result<()> {
     let login = Zeroizing::new(format!(
         "LOGIN {} {}",
         quoted(user)?.as_str(),
         quoted(password)?.as_str()
     ));
     imap(s, "A1", &login).map_err(|_| Error::Authentication)?;
+    Ok(())
+}
+fn uid_validity(response: &Response) -> Result<u32> {
+    let mut value = None;
+    for line in &response.lines {
+        let upper = line.to_ascii_uppercase();
+        if let Some(rest) = upper.strip_prefix("* OK [UIDVALIDITY ") {
+            let (number, _) = rest.split_once(']').ok_or(Error::Protocol)?;
+            let parsed = number
+                .parse::<u32>()
+                .ok()
+                .filter(|n| *n > 0)
+                .ok_or(Error::Protocol)?;
+            if value.replace(parsed).is_some() {
+                return Err(Error::Protocol);
+            }
+        }
+    }
+    value.ok_or(Error::Protocol)
+}
+/// A message identifier is scoped to INBOX and one account, never a sequence number.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ImapMessageId {
+    pub validity: u32,
+    pub uid: u32,
+}
+impl ImapMessageId {
+    pub fn from_key(key: &str) -> Option<Self> {
+        let mut parts = key.split(':');
+        if parts.next() != Some("imap") {
+            return None;
+        }
+        let validity = parts.next()?.parse::<u32>().ok().filter(|n| *n > 0)?;
+        let uid = parts.next()?.parse::<u32>().ok().filter(|n| *n > 0)?;
+        if parts.next().is_some() {
+            return None;
+        }
+        Some(Self { validity, uid })
+    }
+    pub fn key(self) -> String {
+        format!("imap:{}:{}", self.validity, self.uid)
+    }
+}
+fn fetch_seen(response: &Response, expected: u32) -> Result<bool> {
+    let mut seen = None;
+    if !response.literals.is_empty() {
+        return Err(Error::Protocol);
+    }
+    for line in &response.lines {
+        let upper = line.to_ascii_uppercase();
+        let Some((prefix, fields)) = upper.split_once(" FETCH (") else {
+            continue;
+        };
+        let mut prefix = prefix.split_whitespace();
+        if prefix.next() != Some("*")
+            || prefix
+                .next()
+                .and_then(|s| s.parse::<u32>().ok())
+                .filter(|n| *n > 0)
+                .is_none()
+            || prefix.next().is_some()
+        {
+            return Err(Error::Protocol);
+        }
+        // FETCH here requests only UID and FLAGS. Reject malformed/duplicate
+        // attributes instead of accepting UID-like text inside an extension.
+        let fields = fields.strip_suffix(')').ok_or(Error::Protocol)?;
+        let mut tokens = fields.split_whitespace();
+        let mut uid = None;
+        let mut flags = None;
+        while let Some(token) = tokens.next() {
+            match token {
+                "UID" => {
+                    if uid.is_some() {
+                        return Err(Error::Protocol);
+                    }
+                    uid = Some(
+                        tokens
+                            .next()
+                            .and_then(|n| n.parse::<u32>().ok())
+                            .filter(|n| *n > 0)
+                            .ok_or(Error::Protocol)?,
+                    );
+                }
+                "FLAGS" => {
+                    if flags.is_some() {
+                        return Err(Error::Protocol);
+                    }
+                    let first = tokens.next().ok_or(Error::Protocol)?;
+                    if !first.starts_with('(') {
+                        return Err(Error::Protocol);
+                    }
+                    let mut flag = first.strip_prefix('(').unwrap();
+                    let mut has_seen = false;
+                    loop {
+                        let end = flag.ends_with(')');
+                        let atom = if end { &flag[..flag.len() - 1] } else { flag };
+                        if atom.contains(['(', ')']) {
+                            return Err(Error::Protocol);
+                        }
+                        has_seen |= atom == "\\SEEN";
+                        if end {
+                            break;
+                        }
+                        flag = tokens.next().ok_or(Error::Protocol)?;
+                    }
+                    flags = Some(has_seen);
+                }
+                _ => return Err(Error::Protocol),
+            }
+        }
+        if uid == Some(expected) {
+            seen = Some(flags.ok_or(Error::Protocol)?);
+        }
+    }
+    seen.ok_or(Error::MessageGone)
+}
+/// Add/remove Seen without replacing flags. A final UID FETCH confirms the
+/// actual state; UID STORE may succeed without modifying an expunged message.
+pub fn imap_set_seen<S: BufRead + Write>(
+    s: &mut S,
+    user: &str,
+    password: &str,
+    message: ImapMessageId,
+    seen: bool,
+) -> Result<()> {
+    if message.validity == 0 || message.uid == 0 {
+        return Err(Error::Invalid);
+    }
+    imap_login(s, user, password)?;
+    let selected = imap(s, "R1", "SELECT INBOX")?;
+    if uid_validity(&selected)? != message.validity {
+        return Err(Error::MailboxChanged);
+    }
+    if selected
+        .completion
+        .to_ascii_uppercase()
+        .starts_with("OK [READ-ONLY]")
+    {
+        return Err(Error::ReadOnly);
+    }
+    // Fetch first as well: a missing or mismatched UID must cause no mutation.
+    let current = imap(s, "R2", &format!("UID FETCH {} (UID FLAGS)", message.uid))?;
+    if fetch_seen(&current, message.uid)? == seen {
+        return Ok(());
+    }
+    let result = imap(
+        s,
+        "R3",
+        &format!(
+            "UID STORE {} {}FLAGS.SILENT (\\Seen)",
+            message.uid,
+            if seen { "+" } else { "-" }
+        ),
+    );
+    result.map_err(|e| match e {
+        Error::Rejected => e,
+        _ => Error::ReadStatusUnknown,
+    })?;
+    let verified = imap(s, "R4", &format!("UID FETCH {} (UID FLAGS)", message.uid))
+        .map_err(|_| Error::ReadStatusUnknown)?;
+    if fetch_seen(&verified, message.uid).map_err(|_| Error::ReadStatusUnknown)? != seen {
+        return Err(Error::ReadStatusUnknown);
+    }
+    Ok(())
+}
+pub fn imap_receive<S: BufRead + Write>(
+    s: &mut S,
+    user: &str,
+    password: &str,
+) -> Result<Vec<Incoming>> {
+    imap_login(s, user, password)?;
     let selected = imap(s, "A2", "EXAMINE INBOX")?;
-    let validity = selected
-        .lines
-        .iter()
-        .find_map(|s| {
-            s.to_ascii_uppercase()
-                .split_once("[UIDVALIDITY ")
-                .and_then(|(_, x)| x.split(']').next())
-                .and_then(|x| x.parse::<u32>().ok())
-        })
-        .filter(|v| *v != 0)
-        .ok_or(Error::Protocol)?;
+    let validity = uid_validity(&selected)?;
     let search = imap(s, "A3", "UID SEARCH ALL")?;
     let mut uids = Vec::new();
     for text in search

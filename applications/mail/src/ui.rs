@@ -10,7 +10,7 @@ use appcore::viewkit::event::{
 use appcore::viewkit::platform::{CursorIcon, Key, PointerButton};
 use appcore::viewkit::view::{Constraints, MeasureContext, PaintContext};
 use std::cell::{Cell, RefCell};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::rc::Rc;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -98,6 +98,10 @@ struct Core {
     preview: Cell<bool>,
     form: AccountForm,
     worker: RefCell<Option<mpsc::Receiver<Result<Reply>>>>,
+    sending: Cell<bool>,
+    active_read: RefCell<Option<ReadChange>>,
+    read_queue: RefCell<VecDeque<ReadChange>>,
+    read_error: Cell<Option<Error>>,
     status: RefCell<String>,
     accounts_loaded: Cell<bool>,
     sender: Cell<usize>,
@@ -119,8 +123,20 @@ struct Core {
     next_draft: Cell<usize>,
     draft: Draft,
 }
+#[derive(Clone)]
+struct ReadChange {
+    account: Account,
+    message: crate::protocol::ImapMessageId,
+    unread: bool,
+}
+impl ReadChange {
+    fn same_message(&self, other: &Self) -> bool {
+        self.account.id == other.account.id && self.message == other.message
+    }
+}
 enum Job {
     Load,
+    Read(ReadChange),
     Add(backend::Credential),
     Remove(usize, Account),
     Sync(usize, Account),
@@ -128,6 +144,7 @@ enum Job {
 }
 enum Reply {
     Loaded(Vec<Account>),
+    ReadChanged(ReadChange),
     Added(Account),
     Removed(usize),
     Synced(usize, Vec<(String, crate::model::Thread)>),
@@ -136,6 +153,10 @@ enum Reply {
 fn execute(job: Job) -> Result<Reply> {
     match job {
         Job::Load => backend::accounts().map(Reply::Loaded),
+        Job::Read(change) => {
+            backend::set_seen(&change.account, change.message, !change.unread)?;
+            Ok(Reply::ReadChanged(change))
+        }
         Job::Add(c) => backend::add(c).map(Reply::Added),
         Job::Remove(i, a) => backend::remove(a.id).map(|_| Reply::Removed(i)),
         Job::Sync(i, a) => {
@@ -188,9 +209,22 @@ impl Core {
         if self.worker.borrow().is_some() {
             return;
         }
+        let starting_read = matches!(&job, Job::Read(_));
+        self.sending.set(matches!(&job, Job::Send(..)));
+        *self.active_read.borrow_mut() = match &job {
+            Job::Read(c) => Some(c.clone()),
+            _ => None,
+        };
         let (tx, rx) = mpsc::channel();
         *self.worker.borrow_mut() = Some(rx);
         *self.status.borrow_mut() = match &job {
+            Job::Read(_) => {
+                if self.read_error.get().is_some() {
+                    "Some read updates failed. Use Get Mail to refresh. Updating remaining messages…".into()
+                } else {
+                    "Updating read status…".into()
+                }
+            }
             Job::Sync(_, a) => format!("Receiving mail for {}…", a.config.email),
             Job::Send(_, a, _) => format!("Sending from {}…", a.config.email),
             _ => "Connecting…".into(),
@@ -203,7 +237,79 @@ impl Core {
             .is_err()
         {
             self.worker.borrow_mut().take();
+            self.active_read.borrow_mut().take();
+            self.sending.set(false);
+            if starting_read {
+                self.read_error.set(Some(Error::Network));
+            }
             *self.status.borrow_mut() = Error::Network.label().into();
+        }
+    }
+    fn read_pending(&self, account: [u8; 16], message: crate::protocol::ImapMessageId) -> bool {
+        self.active_read
+            .borrow()
+            .as_ref()
+            .is_some_and(|c| c.account.id == account && c.message == message)
+            || self
+                .read_queue
+                .borrow()
+                .iter()
+                .any(|c| c.account.id == account && c.message == message)
+    }
+    fn queue_read(&self, change: ReadChange) {
+        if self.preview.get() {
+            return;
+        }
+        if let Some(queued) = self
+            .read_queue
+            .borrow_mut()
+            .iter_mut()
+            .find(|c| c.same_message(&change))
+        {
+            queued.unread = change.unread;
+            return;
+        }
+        if self
+            .active_read
+            .borrow()
+            .as_ref()
+            .is_some_and(|c| c.same_message(&change) && c.unread == change.unread)
+        {
+            return;
+        }
+        if self.read_queue.borrow().len() >= 2000 {
+            *self.status.borrow_mut() =
+                "Too many pending read updates. Wait for them to finish.".into();
+            return;
+        }
+        if self.active_read.borrow().is_none() && self.read_queue.borrow().is_empty() {
+            self.read_error.set(None);
+        }
+        self.read_queue.borrow_mut().push_back(change);
+    }
+    fn take_next_read(&self) -> Option<ReadChange> {
+        loop {
+            let change = self.read_queue.borrow_mut().pop_front()?;
+            let m = self.model.borrow();
+            let current = m
+                .accounts
+                .iter()
+                .position(|a| a.id == change.account.id)
+                .and_then(|i| m.remote_ids.get(&(i, change.message.key())));
+            if current.is_some() {
+                return Some(change);
+            }
+        }
+    }
+    fn start_next_read(&self) {
+        if self.worker.borrow().is_some() {
+            return;
+        }
+        while let Some(change) = self.take_next_read() {
+            self.start(Job::Read(change));
+            if self.worker.borrow().is_some() {
+                return;
+            }
         }
     }
     fn poll(&self) {
@@ -217,9 +323,14 @@ impl Core {
             Err(_) => Err(Error::Network),
         };
         self.worker.borrow_mut().take();
+        self.sending.set(false);
+        let was_read = self.active_read.borrow_mut().take().is_some();
         let mut receive_after_add = None;
         match result {
             Err(e) => {
+                if was_read {
+                    self.read_error.set(Some(e));
+                }
                 *self.status.borrow_mut() = e.label().into();
                 if self.form.open.get() {
                     *self.form.feedback.borrow_mut() = e.label().into();
@@ -228,6 +339,17 @@ impl Core {
             Ok(reply) => {
                 let mut m = self.model.borrow_mut();
                 match reply {
+                    Reply::ReadChanged(change) => {
+                        if m.confirm_read(change.account.id, change.message, change.unread) {
+                            *self.status.borrow_mut() = self.read_error.get().map_or_else(
+                                || "Read status updated.".into(),
+                                |e| e.label().into(),
+                            );
+                        } else {
+                            self.read_error.set(Some(Error::MailboxChanged));
+                            *self.status.borrow_mut() = Error::MailboxChanged.label().into();
+                        }
+                    }
                     Reply::Loaded(accounts) => {
                         self.accounts_loaded.set(true);
                         m.accounts = accounts;
@@ -340,6 +462,7 @@ impl Core {
         if let Some(job) = receive_after_add {
             self.start(job);
         }
+        self.start_next_read();
     }
     fn save_draft(&self) {
         if let Some(id) = self.active_draft.get() {
@@ -557,8 +680,36 @@ impl Core {
             Action::CloseFolders => m.folders_open = false,
             Action::Box(mailbox) => m.switch(mailbox),
             Action::Open(id) => {
+                let remote = m.imap_identity(id);
+                let unread = m.thread(id).is_some_and(|t| t.unread);
                 m.open(id);
-                m.local_state.insert(id);
+                if let Some((account, message)) = remote {
+                    // Opening again after a queued mark-unread means read it.
+                    let desired = self
+                        .read_queue
+                        .borrow()
+                        .iter()
+                        .rev()
+                        .find(|c| c.account.id == account.id && c.message == message)
+                        .map(|c| c.unread)
+                        .or_else(|| {
+                            self.active_read
+                                .borrow()
+                                .as_ref()
+                                .filter(|c| c.account.id == account.id && c.message == message)
+                                .map(|c| c.unread)
+                        })
+                        .unwrap_or(unread);
+                    if desired {
+                        self.queue_read(ReadChange {
+                            account,
+                            message,
+                            unread: false,
+                        });
+                    }
+                } else {
+                    m.local_state.insert(id);
+                }
                 self.query.set_focused(false);
             }
             Action::Back => {
@@ -622,7 +773,24 @@ impl Core {
                     self.query.set_focused(false);
                 }
             }
-            Action::Archive | Action::Delete | Action::Flag | Action::Unread => {
+            Action::Unread => {
+                if let Some(id) = m.selected {
+                    if let Some((account, message)) = m.imap_identity(id) {
+                        if !self.read_pending(account.id, message) {
+                            let unread = !m.thread(id).unwrap().unread;
+                            self.queue_read(ReadChange {
+                                account,
+                                message,
+                                unread,
+                            });
+                        }
+                    } else if let Some(t) = m.threads.iter_mut().find(|t| t.id == id) {
+                        t.unread = !t.unread;
+                        m.local_state.insert(id);
+                    }
+                }
+            }
+            Action::Archive | Action::Delete | Action::Flag => {
                 if let Some(id) = m.selected {
                     m.local_state.insert(id);
                     if let Some(t) = m.threads.iter_mut().find(|t| t.id == id) {
@@ -630,7 +798,6 @@ impl Core {
                             Action::Archive => t.folder = Folder::Archive,
                             Action::Delete => t.folder = Folder::Trash,
                             Action::Flag => t.flagged = !t.flagged,
-                            Action::Unread => t.unread = !t.unread,
                             _ => {}
                         }
                         if matches!(action, Action::Archive | Action::Delete) {
@@ -647,6 +814,8 @@ impl Core {
             }
             Action::Details => {}
         }
+        drop(m);
+        self.start_next_read();
     }
 }
 impl MailView {
@@ -675,6 +844,10 @@ impl MailView {
                 preview: Cell::new(preview),
                 form: AccountForm::new(),
                 worker: RefCell::new(None),
+                sending: Cell::new(false),
+                active_read: RefCell::new(None),
+                read_queue: RefCell::new(VecDeque::new()),
+                read_error: Cell::new(None),
                 status: RefCell::new(if preview {
                     "Preview · Sample messages. No email is sent.".into()
                 } else {
@@ -1646,7 +1819,7 @@ impl View for MailView {
             return result;
         }
         let l = self.core.layout(b);
-        if l.composer && self.core.worker.borrow().is_some() {
+        if l.composer && self.core.sending.get() {
             return EventResult::Consumed;
         }
         if let ViewEvent::ContextMenuResult {
@@ -1746,7 +1919,7 @@ impl View for MailView {
             }
         }
         if l.composer {
-            if self.core.worker.borrow().is_some() {
+            if self.core.sending.get() {
                 return EventResult::Consumed;
             }
             let frames = ComposeFrames::new(b);
@@ -2007,7 +2180,9 @@ impl MailView {
                         "Mark as Unread"
                     }
                     .into(),
-                    enabled: true,
+                    enabled: m
+                        .imap_identity(t.id)
+                        .is_none_or(|(a, key)| !self.core.read_pending(a.id, key)),
                     checked: false,
                     destructive: false,
                     separator: false,
@@ -2927,6 +3102,7 @@ mod tests {
         f.view.core.apply(Action::New, true);
         let (_tx, rx) = mpsc::channel();
         *f.view.core.worker.borrow_mut() = Some(rx);
+        f.view.core.sending.set(true);
         let id = f.view.core.active_draft.get();
         for key in [Key::Escape, Key::Character('n')] {
             f.event(ViewEvent::KeyPressed {
@@ -3072,5 +3248,156 @@ mod tests {
         let mut changed = Model::preview();
         changed.threads.clear();
         assert!(!Model::preview().threads.is_empty());
+    }
+    fn remote_fixture() -> Fixture {
+        let f = Fixture::new(1080.0);
+        with_accounts(&f);
+        {
+            let mut m = f.view.core.model.borrow_mut();
+            m.threads.truncate(2);
+            for t in &mut m.threads {
+                t.unread = true;
+            }
+            m.remote_ids.insert((0, "imap:42:7".into()), 1);
+            m.remote_ids.insert((1, "imap:42:8".into()), 2);
+        }
+        f
+    }
+    fn hold_network(f: &Fixture) -> mpsc::Sender<Result<Reply>> {
+        let (tx, rx) = mpsc::channel();
+        *f.view.core.worker.borrow_mut() = Some(rx);
+        tx
+    }
+    #[test]
+    fn opening_remote_messages_queues_each_identity_and_waits_for_confirmation() {
+        let f = remote_fixture();
+        let _hold = hold_network(&f);
+        f.view.core.apply(Action::Open(1), true);
+        f.view.core.apply(Action::Open(2), true);
+        assert!(f.view.core.model.borrow().thread(1).unwrap().unread);
+        assert!(f.view.core.model.borrow().thread(2).unwrap().unread);
+        let first = f.view.core.take_next_read().unwrap();
+        let second = f.view.core.take_next_read().unwrap();
+        assert!(f.view.core.take_next_read().is_none());
+        assert_eq!(first.account.id, [1; 16]);
+        assert_eq!(first.message.uid, 7);
+        assert_eq!(second.account.id, [2; 16]);
+        assert_eq!(second.message.uid, 8);
+        *f.view.core.active_read.borrow_mut() = Some(first.clone());
+        completion(&f, Ok(Reply::ReadChanged(first)));
+        assert!(!f.view.core.model.borrow().thread(1).unwrap().unread);
+        assert!(f.view.core.model.borrow().thread(2).unwrap().unread);
+        assert_eq!(f.view.core.model.borrow().selected, Some(2));
+        *f.view.core.active_read.borrow_mut() = Some(second.clone());
+        completion(&f, Ok(Reply::ReadChanged(second)));
+        assert!(!f.view.core.model.borrow().thread(2).unwrap().unread);
+    }
+    #[test]
+    fn failed_read_update_keeps_confirmed_state_and_manual_retry_can_mark_unread() {
+        let f = remote_fixture();
+        let _hold = hold_network(&f);
+        f.view.core.apply(Action::Open(1), true);
+        f.paint();
+        let reader = f.view.core.layout(f.bounds.get()).reader.unwrap();
+        let menu = f
+            .click(Point::new(reader.origin.x + reader.size.width - 74.0, 22.0))
+            .unwrap();
+        assert!(
+            !menu
+                .items
+                .iter()
+                .find(|i| i.command_id == 3)
+                .unwrap()
+                .enabled
+        );
+        let change = f.view.core.take_next_read().unwrap();
+        *f.view.core.active_read.borrow_mut() = Some(change.clone());
+        completion(&f, Err(Error::ReadStatusUnknown));
+        assert!(f.view.core.model.borrow().thread(1).unwrap().unread);
+        assert!(f.view.core.active_read.borrow().is_none());
+        assert!(
+            f.view
+                .core
+                .status
+                .borrow()
+                .contains("could not be confirmed")
+        );
+        let _hold2 = hold_network(&f);
+        f.view.core.apply(Action::Unread, true);
+        let retry = f.view.core.take_next_read().unwrap();
+        assert!(!retry.unread);
+        *f.view.core.active_read.borrow_mut() = Some(retry.clone());
+        completion(&f, Ok(Reply::ReadChanged(retry)));
+        assert!(!f.view.core.model.borrow().thread(1).unwrap().unread);
+        let _hold3 = hold_network(&f);
+        f.view.core.apply(Action::Unread, true);
+        let unread = f.view.core.take_next_read().unwrap();
+        assert!(unread.unread);
+        *f.view.core.active_read.borrow_mut() = Some(unread.clone());
+        completion(&f, Ok(Reply::ReadChanged(unread)));
+        assert!(f.view.core.model.borrow().thread(1).unwrap().unread);
+    }
+    #[test]
+    fn stale_read_queue_is_discarded_and_late_ack_cannot_change_a_replaced_message() {
+        let f = remote_fixture();
+        let _hold = hold_network(&f);
+        f.view.core.apply(Action::Open(1), true);
+        {
+            let mut m = f.view.core.model.borrow_mut();
+            m.remote_ids.remove(&(0, "imap:42:7".into()));
+            m.remote_ids.insert((0, "imap:43:7".into()), 1);
+        }
+        assert!(f.view.core.take_next_read().is_none());
+        let account = f.view.core.model.borrow().accounts[0].clone();
+        completion(
+            &f,
+            Ok(Reply::ReadChanged(ReadChange {
+                account,
+                message: crate::protocol::ImapMessageId {
+                    validity: 42,
+                    uid: 7,
+                },
+                unread: false,
+            })),
+        );
+        assert!(f.view.core.model.borrow().thread(1).unwrap().unread);
+        assert!(!f.view.core.status.borrow().contains("updated"));
+    }
+    #[test]
+    fn reply_editor_stays_editable_during_a_read_update() {
+        let f = remote_fixture();
+        let _hold = hold_network(&f);
+        f.view.core.apply(Action::Open(1), true);
+        f.view.core.apply(Action::Reply, true);
+        f.paint();
+        let body = ComposeFrames::new(f.bounds.get()).body;
+        f.click(Point::new(body.origin.x + 20.0, body.origin.y + 16.0));
+        f.event(ViewEvent::TextInput {
+            text: "Still typing".into(),
+        });
+        assert_eq!(f.view.core.draft.body.value(), "Still typing");
+        f.event(ViewEvent::KeyPressed {
+            key: Key::Escape,
+            modifiers: KeyModifiers::default(),
+        });
+        assert_ne!(f.view.core.model.borrow().page, Page::Compose);
+    }
+    #[test]
+    fn queued_read_changes_coalesce_to_the_last_intent() {
+        let f = remote_fixture();
+        let account = f.view.core.model.borrow().accounts[0].clone();
+        let message = crate::protocol::ImapMessageId {
+            validity: 42,
+            uid: 7,
+        };
+        for unread in [false, true, false] {
+            f.view.core.queue_read(ReadChange {
+                account: account.clone(),
+                message,
+                unread,
+            });
+        }
+        assert_eq!(f.view.core.read_queue.borrow().len(), 1);
+        assert!(!f.view.core.take_next_read().unwrap().unread);
     }
 }

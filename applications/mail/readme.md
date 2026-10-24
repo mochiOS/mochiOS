@@ -101,17 +101,41 @@ nesting/part counts and the total live message body store (64 MiB) are bounded.
 HTML, scripts and remote images are never loaded. Server errors and credentials
 are not logged or interpolated into error labels.
 
+## IMAP read status
+
+Opening an unread IMAP message queues a `\Seen` update. **More → Mark as Read /
+Mark as Unread** updates the same server flag. The displayed state and unread
+count change after confirmation; the pending menu action is temporarily disabled.
+Reading messages in quick succession queues each identity instead of dropping
+updates. Reply text remains editable while these jobs run.
+
+Each operation authenticates over the existing verified TLS connection path,
+selects INBOX, checks UIDVALIDITY, fetches the requested UID's flags, and adds or
+removes only `\Seen` with `UID STORE +FLAGS.SILENT` / `-FLAGS.SILENT`. Other flags
+are not replaced. A final UID FETCH confirms the actual state. Already-matching
+flags require no STORE. Read-only mailboxes, changed UIDVALIDITY, missing UIDs,
+rejected operations and unconfirmed outcomes are reported explicitly. There is
+no automatic write retry after an uncertain outcome; use **Get Mail** to refresh.
+
+Requests and replies are associated with the stable Keychain account ID and
+UIDVALIDITY/UID, not the selected row or account-list position. Stale queued
+requests and late responses cannot update a replacement message. Refresh takes
+IMAP Seen from the server even when a local archive or flag action exists.
+POP3 and Linux sample mailboxes retain session-local read state. This follows
+the [IMAP UID and STORE semantics](https://www.rfc-editor.org/rfc/rfc9051.html).
+
 ## Current limits
 
-- Inbox receiving and SMTP sending are connected. Folder/flag/read changes are
-  **session-local** and not synchronized to the server. IMAP uses EXAMINE and
-  BODY.PEEK; POP3 requires UIDL and never issues DELE. POP account configuration
-  does not delete server mail when local Trash is used.
+- Inbox receiving, IMAP read status and SMTP sending are connected. Folder and
+  flag changes are still **session-local**. Inbox downloads use EXAMINE and
+  BODY.PEEK; only explicit read changes use SELECT / UID STORE. POP3 requires
+  UIDL and never issues DELE, including when local Trash is used.
 - UIDVALIDITY + UID and account identity isolate IMAP messages; UIDL identifies
-  POP messages. Refresh preserves local state for retained identities and resets
-  identities on UIDVALIDITY changes. Only the newest receive window is retained.
+  POP messages. Refresh preserves session-local folder/flag changes for retained
+  identities, takes IMAP read status from the server, and resets identities on
+  UIDVALIDITY changes. Only the newest receive window is retained.
 - Drafts, downloaded messages, local organization and the Sent display are
-  session-only. SMTP does not currently append a copy to the server's Sent folder.
+  session-only, except IMAP read state. SMTP does not currently append a copy to the server's Sent folder.
   Some providers, including Gmail, maintain their own sent copy.
 - MIME/RFC 2047/2231 and Japanese charsets are decoded using mailparse.
   Only text/plain bodies are rendered. HTML-only mail displays an explicit
@@ -136,7 +160,10 @@ sender-menu identity and bounded icon drawing, as well as IMAP
 literal framing/UID matching, POP UIDL/dot unstuffing, SMTP multiline responses,
 AUTH PLAIN/LOGIN and dot stuffing, uncertain delivery, command/header injection,
 response bounds, Japanese MIME round trips, attachment names, recursive MIME
-rejection, account identity and refresh state. Local TLS tests exercise real
+rejection, account identity and refresh state. Read synchronization tests cover
+UIDVALIDITY, read-only/missing messages, exact Seen mutation, confirmation,
+uncertain outcomes, queue coalescing, stale acknowledgments, account isolation
+and typing during updates. Local TLS tests exercise real
 sockets, large encrypted writes, hostname/root rejection and STARTTLS boundaries.
 No real account credentials or external test email are used. UI inspection and
 real-service end-to-end login/delivery remain manual verification.

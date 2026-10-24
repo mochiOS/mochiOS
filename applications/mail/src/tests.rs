@@ -259,3 +259,177 @@ fn date_headers_are_rfc_formatted() {
     use mailparse::MailHeaderMap;
     assert!(mailparse::dateparse(&mail.headers.get_first_value("Date").unwrap()).is_ok());
 }
+
+fn read_prefix(validity: u32, readonly: bool) -> String {
+    format!(
+        "A1 OK login\r\n* OK [UIDVALIDITY {validity}] valid\r\nR1 OK [{}] selected\r\n",
+        if readonly { "READ-ONLY" } else { "READ-WRITE" }
+    )
+}
+fn read_target() -> protocol::ImapMessageId {
+    protocol::ImapMessageId {
+        validity: 42,
+        uid: 7,
+    }
+}
+#[test]
+fn imap_seen_mutates_only_seen_by_uid_and_confirms_actual_state() {
+    for seen in [true, false] {
+        let before = if seen {
+            "\\Flagged $custom"
+        } else {
+            "\\Seen \\Flagged $custom"
+        };
+        let after = if seen {
+            "\\Seen \\Flagged $custom"
+        } else {
+            "\\Flagged $custom"
+        };
+        let mut s = Script::new(format!(
+            "{}* 3 FETCH (UID 7 FLAGS ({before}))\r\nR2 OK flags\r\nR3 OK stored\r\n* 3 FETCH (FLAGS ({after}) UID 7)\r\nR4 OK flags\r\n",
+            read_prefix(42, false)
+        ));
+        protocol::imap_set_seen(&mut s, "u", "p", read_target(), seen).unwrap();
+        let written = String::from_utf8(s.output).unwrap();
+        assert!(written.contains("SELECT INBOX\r\n"));
+        assert!(written.contains(&format!(
+            "UID STORE 7 {}FLAGS.SILENT (\\Seen)\r\n",
+            if seen { "+" } else { "-" }
+        )));
+        assert_eq!(written.matches("UID FETCH 7 (UID FLAGS)").count(), 2);
+        assert!(!written.contains("UID STORE 3"));
+        assert!(!written.contains(" FLAGS.SILENT"));
+        assert!(!written.contains("EXPUNGE"));
+    }
+}
+#[test]
+fn imap_seen_refuses_changed_uidvalidity_readonly_and_invalid_ids() {
+    for (validity, readonly, error) in [
+        (43, false, Error::MailboxChanged),
+        (42, true, Error::ReadOnly),
+    ] {
+        let mut s = Script::new(read_prefix(validity, readonly));
+        assert_eq!(
+            protocol::imap_set_seen(&mut s, "u", "p", read_target(), true),
+            Err(error)
+        );
+        assert!(!String::from_utf8(s.output).unwrap().contains("UID STORE"));
+    }
+    for message in [
+        protocol::ImapMessageId {
+            validity: 0,
+            uid: 7,
+        },
+        protocol::ImapMessageId {
+            validity: 42,
+            uid: 0,
+        },
+    ] {
+        let mut s = Script::new("");
+        assert_eq!(
+            protocol::imap_set_seen(&mut s, "u", "p", message, true),
+            Err(Error::Invalid)
+        );
+        assert!(s.output.is_empty());
+    }
+    for key in [
+        "imap:0:7",
+        "imap:42:0",
+        "imap:42:7:1",
+        "pop:42:7",
+        "imap:42:7\r\nNOOP",
+        "imap:42:4294967296",
+    ] {
+        assert!(protocol::ImapMessageId::from_key(key).is_none());
+    }
+}
+#[test]
+fn imap_seen_missing_uid_is_not_success_or_a_write_to_another_message() {
+    for response in [
+        "R2 OK no data\r\n",
+        "* 1 FETCH (UID 8 FLAGS ())\r\nR2 OK done\r\n",
+    ] {
+        let mut s = Script::new(format!("{}{response}", read_prefix(42, false)));
+        assert_eq!(
+            protocol::imap_set_seen(&mut s, "u", "p", read_target(), true),
+            Err(Error::MessageGone)
+        );
+        assert!(!String::from_utf8(s.output).unwrap().contains("UID STORE"));
+    }
+}
+#[test]
+fn imap_seen_checks_final_flags_and_reports_uncertain_outcome() {
+    for tail in [
+        "",
+        "R4 OK no message\r\n",
+        "* 3 FETCH (UID 7 FLAGS (\\Flagged))\r\nR4 OK flags\r\n",
+    ] {
+        let mut s = Script::new(format!(
+            "{}* 3 FETCH (UID 7 FLAGS ())\r\nR2 OK flags\r\nR3 OK stored\r\n{tail}",
+            read_prefix(42, false)
+        ));
+        assert_eq!(
+            protocol::imap_set_seen(&mut s, "u", "p", read_target(), true),
+            Err(Error::ReadStatusUnknown)
+        );
+    }
+    let mut s = Script::new(format!(
+        "{}* 3 FETCH (UID 7 FLAGS ())\r\nR2 OK flags\r\nR3 NO permission denied\r\n",
+        read_prefix(42, false)
+    ));
+    assert_eq!(
+        protocol::imap_set_seen(&mut s, "u", "p", read_target(), true),
+        Err(Error::Rejected)
+    );
+}
+#[test]
+fn imap_seen_already_matches_skips_store_and_rejects_malformed_uidvalidity() {
+    let mut s = Script::new(format!(
+        "{}* 3 FETCH (UID 7 FLAGS (\\Seen))\r\nR2 OK flags\r\n",
+        read_prefix(42, false)
+    ));
+    protocol::imap_set_seen(&mut s, "u", "p", read_target(), true).unwrap();
+    assert!(!String::from_utf8(s.output).unwrap().contains("UID STORE"));
+    for validity in [
+        "* OK [UIDVALIDITY 0] invalid\r\n",
+        "* OK unrelated [UIDVALIDITY 42] text\r\n",
+        "* OK [UIDVALIDITY 42] one\r\n* OK [UIDVALIDITY 43] two\r\n",
+    ] {
+        let mut s = Script::new(format!("A1 OK login\r\n{validity}R1 OK selected\r\n"));
+        assert_eq!(
+            protocol::imap_set_seen(&mut s, "u", "p", read_target(), true),
+            Err(Error::Protocol)
+        );
+        assert!(!String::from_utf8(s.output).unwrap().contains("UID STORE"));
+    }
+}
+#[test]
+fn read_refresh_uses_server_state_while_retaining_local_folder_and_flag() {
+    let mut m = Model::empty();
+    m.accounts = vec![backend::Account {
+        id: [1; 16],
+        config: config(),
+    }];
+    let decode = |key, unread| {
+        let mut raw = message(key, "body");
+        raw.unread = unread;
+        vec![mime::decode(raw, 0, 0).unwrap()]
+    };
+    m.merge(0, decode("imap:42:7", true)).unwrap();
+    let id = m.threads[0].id;
+    m.open(id);
+    assert!(m.thread(id).unwrap().unread);
+    m.local_state.insert(id);
+    m.threads[0].flagged = true;
+    m.threads[0].folder = Folder::Archive;
+    assert!(m.confirm_read([1; 16], read_target(), false));
+    assert!(!m.thread(id).unwrap().unread);
+    m.merge(0, decode("imap:42:7", true)).unwrap();
+    assert!(m.thread(id).unwrap().unread);
+    assert!(m.thread(id).unwrap().flagged);
+    assert_eq!(m.thread(id).unwrap().folder, Folder::Archive);
+    assert!(!m.confirm_read([2; 16], read_target(), false));
+    m.merge(0, decode("imap:43:7", true)).unwrap();
+    assert!(!m.confirm_read([1; 16], read_target(), false));
+    assert!(m.threads[0].unread);
+}

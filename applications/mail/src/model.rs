@@ -290,7 +290,15 @@ impl Model {
                 });
             if self.local_state.contains(&thread.id) {
                 if let Some(old) = self.thread(thread.id) {
-                    thread.unread = old.unread;
+                    // IMAP Seen is authoritative on the server even when
+                    // archive/folder/flag organization is still session-local.
+                    if self
+                        .accounts
+                        .get(account)
+                        .is_none_or(|a| a.config.protocol != crate::backend::Protocol::Imap)
+                    {
+                        thread.unread = old.unread;
+                    }
                     thread.flagged = old.flagged;
                     thread.folder = old.folder;
                 }
@@ -360,9 +368,51 @@ impl Model {
     pub fn thread(&self, id: usize) -> Option<&Thread> {
         self.threads.iter().find(|t| t.id == id)
     }
+    pub fn imap_identity(
+        &self,
+        id: usize,
+    ) -> Option<(crate::backend::Account, crate::protocol::ImapMessageId)> {
+        let thread = self.thread(id)?;
+        let account = self.accounts.get(thread.account)?;
+        if account.config.protocol != crate::backend::Protocol::Imap {
+            return None;
+        }
+        let key = self
+            .remote_ids
+            .iter()
+            .find(|((a, _), value)| *a == thread.account && **value == id)?
+            .0
+            .1
+            .as_str();
+        Some((
+            account.clone(),
+            crate::protocol::ImapMessageId::from_key(key)?,
+        ))
+    }
+    pub fn confirm_read(
+        &mut self,
+        account_id: [u8; 16],
+        message: crate::protocol::ImapMessageId,
+        unread: bool,
+    ) -> bool {
+        let Some(account) = self.accounts.iter().position(|a| a.id == account_id) else {
+            return false;
+        };
+        let Some(id) = self.remote_ids.get(&(account, message.key())).copied() else {
+            return false;
+        };
+        let Some(thread) = self.threads.iter_mut().find(|t| t.id == id) else {
+            return false;
+        };
+        thread.unread = unread;
+        true
+    }
     pub fn open(&mut self, id: usize) {
+        let remote = self.imap_identity(id).is_some();
         if let Some(t) = self.threads.iter_mut().find(|t| t.id == id) {
-            t.unread = false;
+            if !remote {
+                t.unread = false;
+            }
             self.selected = Some(id);
             self.page = Page::Reader;
         }

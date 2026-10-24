@@ -18,6 +18,10 @@ pub enum Error {
     Keychain,
     Duplicate,
     DeliveryUnknown,
+    MailboxChanged,
+    MessageGone,
+    ReadOnly,
+    ReadStatusUnknown,
 }
 impl Error {
     pub fn label(self) -> &'static str {
@@ -41,6 +45,18 @@ impl Error {
             }
             Self::Message => "This message could not be decoded.",
             Self::Keychain => "Keychain is unavailable or locked. Unlock it, then try again.",
+            Self::MailboxChanged => {
+                "This mailbox changed on the server. Use Get Mail before changing read status."
+            }
+            Self::MessageGone => {
+                "This message is no longer on the server. Use Get Mail to refresh the mailbox."
+            }
+            Self::ReadOnly => {
+                "The server opened this mailbox as read-only. Read status was not changed."
+            }
+            Self::ReadStatusUnknown => {
+                "Read status could not be confirmed. Use Get Mail to refresh before trying again."
+            }
             Self::Duplicate => "This email account has already been added.",
             Self::DeliveryUnknown => {
                 "Delivery could not be confirmed. Check whether the message arrived before sending it again."
@@ -255,4 +271,23 @@ pub fn send(account: &Account, to: &str, subject: &str, body: &str) -> Result<()
         &recipients,
         &raw,
     )
+}
+
+/// Credentials and transport are resolved only when this queued mutation runs.
+pub fn set_seen(account: &Account, message: protocol::ImapMessageId, seen: bool) -> Result<()> {
+    if account.config.protocol != Protocol::Imap {
+        return Err(Error::Invalid);
+    }
+    let c = read(&vault()?, account.id)?;
+    if c.config.protocol != Protocol::Imap
+        || c.config.email != account.config.email
+        || c.config.username != account.config.username
+        || c.config.incoming_host != account.config.incoming_host
+        || c.config.incoming_port != account.config.incoming_port
+        || c.config.incoming_security != account.config.incoming_security
+    {
+        return Err(Error::MailboxChanged);
+    }
+    let mut s = incoming(&c)?;
+    protocol::imap_set_seen(&mut s, &c.config.username, &c.password, message, seen)
 }

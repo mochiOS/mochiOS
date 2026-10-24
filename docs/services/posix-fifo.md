@@ -1,6 +1,6 @@
 # 名前付きFIFO
 
-最新の実装範囲は末尾の186です。183〜185は各段階の記録です。
+最新の実装範囲は末尾の187です。183〜186は各段階の記録です。
 
 ## 共有状態（183）
 
@@ -233,3 +233,55 @@ POSIX poll/select、metadata参照の返却、FDの種別・exec継承、SIGPIPE
 通常イメージも再生成して診断probeを取り除きました。サービスの本番経路へはまだ接続していないため、
 同じ通常構成の起動試験を繰り返さず、直近の通常画面の証跡は185を参照します。
 SDK・Rust std・runtime archive・カーネルは変更していません。
+
+## 同じopen操作でのFIFO inode保持（187）
+
+filesystemのOPEN_AT_RETAIN_FIFOを追加しました。通常のopen_atの同じ探索・権限確認の中で
+FIFOを検出すると、opt-in要求にだけOPEN_REPLY_FIFO付きNodeStatusとmetadata-only Handleを
+返せます。別のstatやopenの再試行でFIFO名を探索し直す方式ではありません。
+この返信が完了してからデータownerへ渡すことで、filesystemの直列化処理中にfactory側が同じ
+filesystemへ同期照会してデッドロックする構成を避けます。
+
+保持はO_TRUNCやdisk File生成より前です。FIFOのO_TRUNCはディスク内容・時刻を変更しません。
+O_RDWRは今回のFIFO実装で未対応として拒否し、O_DIRECTORYは従来どおりENOTDIRにします。
+通常ファイルはopt-in bitがあっても従来の通常openになります。opt-inなしのFIFOはENOTSUPを
+維持します。libcのFIFO data openがこの時点で動作するわけではありません。
+
+公開する権限は要求flagsや応答flagsだけから選びません。open_publicationで保持中のinode種別を
+確認し、FIFOにはCONTROL|DUPLICATE|TRANSFERだけを与えます。READ・WRITE・SEEK・MAPは付けません。
+通常経路とmemory-admission付き経路が同じ公開処理を使用します。native referenceの作成失敗時は
+保持entryを解放し、作成後の寿命は従来どおり最後のnative参照の解放に従います。
+
+posix側のfifo_inode::validate_replyは、保持したfilesystem endpointからの応答を対象に、
+要求ID・frame・型・device/inode整合性・metadata-only権限・Handle数を検査します。
+これは受信参照を借用して検査する関数で、呼び出し側が成功時の引き受けと失敗時のcloseを担当します。
+metadata参照だけではデータHandleのREAD/WRITEを許可しません。接続時には認証済みのopen処理が
+許可した方向を保持する必要があり、クライアントの自己申告modeを根拠にデータ権限を増やしてはいけません。
+
+追加したホスト試験は、同じopenでの保持とO_TRUNC無変更、unlink後の別名同名置換、要求権限を
+過大に渡してもmetadata-onlyになること、native作成失敗時の参照解放、通常openの維持を扱います。
+validatorではframe長、未知flags、誤った型・identity、過大権限、余分なHandle等も拒否します。
+既存のPOSIX protocol・filesystem・マウント・FIFO・Provider・確保失敗試験と合わせて、
+7ターゲット・685件が成功しました。全POSIXホスト試験を再実行したものではありません。
+`out/checks/mochios-fifo-inode-187-related.log`へ保存しています。
+
+実IPC試験は、FS control Handleを既に持つ診断版POSIXサービスにだけ組み込みます。
+コードはtests/support/native_fifo_inode.rsに置き、専用cfgがない通常ビルドでは含めません。
+サービス名検索、新しい本番向けテストRPC、アプリへのFS control endpoint追加はありません。
+最初の診断では試験用Headerにpayload長を指定し忘れてIPC送信前に失敗し、明示的に指定して
+修正しました。途中の失敗ログは`out/checks/mochios-fifo-inode-187-native-before.log`です。
+
+修正後のKVM試験は、metadata-onlyのnative権限、拒否されたcredentialsへのHandle未返却、
+保持参照のdup・元Handleのclose・unlink・同名置換後も元inodeを指すことの3群が成功しました。
+`out/checks/mochios-fifo-inode-187-native-final.log`に保存しています。診断処理の後も通常の
+サービス初期化へ戻り、Binder.app readyを確認しています。この診断版を配布イメージへ残さず、
+試験cfgを含まない通常POSIXバイナリへ戻しました。
+
+通常版で別のKVM起動を行い、診断メッセージが出ないこと、Binder.app ready、実際のDockと上部バーを
+確認しました。`out/checks/mochios-fifo-inode-187-normal.log`と
+`out/checks/mochios-fifo-inode-187-normal.png`に保存し、VMは停止済みです。
+配置した通常サービスと診断ELFのハッシュは`out/checks/mochios-fifo-inode-187-artifacts.json`へ
+記録しています。SDK・Rust std・runtime archiveは再生成しておらず、全アプリの再リンクも行っていません。
+
+データ用Providerへこの保持参照を渡す処理、inodeごとのチャネル登録、data Handle公開、
+blocking openの待機とキャンセル、libcのFD種別・poll/select・SIGPIPE等は引き続き未実装です。

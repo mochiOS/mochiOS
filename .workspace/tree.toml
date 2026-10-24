@@ -14551,3 +14551,11 @@ path = "services"
 hash = "68bf37ee3a619cd174da1a404c3b7a1d6f375b5e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Route authenticated FIFO creation through POSIX and filesystem services"
+
+[[entries]]
+date = "2026-10-24T09:16:11.869029258+09:00"
+snapshot = "ba1df064aabc92716aee13cb"
+path = "services"
+hash = "a04bf08d74412ec7ececba93e261827e6f15c685"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Adapt FIFO descriptions to authenticated native Provider operations"

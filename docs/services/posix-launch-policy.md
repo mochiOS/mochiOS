@@ -188,3 +188,8 @@ SDK・Rust std・runtime は再生成していません。kernel build で更新
 最終の通常構成でも Binder の READY と Dock / トップバーを目視確認し、VM を停止しました。
 記録は `out/checks/mochios-object-exec-200-final-normal.log` と
 `out/checks/mochios-object-exec-200-final-normal.png` です。
+
+## libc への接続（201）
+
+FileHandle からの `fexecve`、通常 execve との共通 startup、検証結果と残っている生成認可の
+制約は [FileHandle からの POSIX exec](posix-executable-handles.md) に記録しています。

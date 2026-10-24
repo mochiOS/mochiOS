@@ -14591,3 +14591,11 @@ path = "services"
 hash = "6d40dd2401c4b06789d8a8236e2ecda02b654593"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Issue FIFO wait Handles from explicitly delegated data authority"
+
+[[entries]]
+date = "2026-10-24T12:44:57.245531718+09:00"
+snapshot = "99ec11e2345769bf67e5db22"
+path = "services"
+hash = "702667f2e4afe35b3e796bd2c45ee2211f9506b4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Start FIFO owner and admit retained filesystem references over private IPC"

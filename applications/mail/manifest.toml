@@ -13,11 +13,11 @@ abi = "mochios-1"
 
 [application]
 entry = "entry.elf"
-description = "Mail interface preview"
+description = "IMAP, POP3 and Gmail mail client"
 icon = "appicon.png"
 resources = ["appicon.png"]
 
 [[binary]]
 path = "/system/applications/Mail.app/entry.elf"
 kind = "application"
-requires = ["ipc.client", "ipc.server", "window.create"]
+requires = ["ipc.client", "ipc.server", "window.create", "keychain.access", "process.inspect", "net.connect", "system.random.read", "system.time.read"]

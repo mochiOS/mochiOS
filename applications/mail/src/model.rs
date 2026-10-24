@@ -1,4 +1,4 @@
-//! In-memory sample mailbox. No account credentials, network or delivery are used.
+//! Session mailbox and locally organized message state.
 use std::collections::BTreeSet;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Folder {
@@ -25,24 +25,26 @@ impl Folder {
 }
 #[derive(Clone)]
 pub struct Message {
-    pub sender: &'static str,
-    pub address: &'static str,
-    pub date: &'static str,
-    pub body: &'static str,
+    pub sender: String,
+    pub address: String,
+    pub recipient: String,
+    pub date: String,
+    pub body: String,
 }
 #[derive(Clone)]
 pub struct Thread {
     pub id: usize,
     pub account: usize,
-    pub subject: &'static str,
-    pub snippet: &'static str,
-    pub time: &'static str,
+    pub subject: String,
+    pub snippet: String,
+    pub time: String,
     pub unread: bool,
     pub flagged: bool,
     pub folder: Folder,
     pub messages: Vec<Message>,
-    pub attachment: Option<&'static str>,
+    pub attachment: Option<String>,
 }
+#[cfg(test)]
 pub const ACCOUNTS: [&str; 2] = ["個人用", "仕事用"];
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Page {
@@ -63,6 +65,9 @@ impl Default for Folder {
 }
 pub struct Model {
     pub threads: Vec<Thread>,
+    pub accounts: Vec<crate::backend::Account>,
+    pub remote_ids: std::collections::BTreeMap<(usize, String), usize>,
+    pub local_state: std::collections::BTreeSet<usize>,
     pub mailbox: Mailbox,
     pub selected: Option<usize>,
     pub page: Page,
@@ -74,6 +79,7 @@ pub struct Model {
     pub previous_page: Page,
 }
 impl Model {
+    #[cfg(test)]
     pub fn sample() -> Self {
         let mut threads = vec![];
         let samples = [
@@ -163,29 +169,33 @@ impl Model {
         {
             let mut messages = vec![];
             if i == 1 {
-                messages.push(Message { sender:"高橋 悠",address:"yu@example.test",date:"10月23日 16:30",body:"次のリリースについて、確認用の資料を作成しています。\n準備ができたら、こちらの会話で共有します。" });
+                messages.push(Message { sender:"高橋 悠".into(),address:"yu@example.test".into(),recipient:"自分".into(),date:"10月23日 16:30".into(),body:"次のリリースについて、確認用の資料を作成しています。\n準備ができたら、こちらの会話で共有します。".into() });
             }
             messages.push(Message {
-                sender,
-                address,
-                date: time,
-                body,
+                sender: sender.into(),
+                address: address.into(),
+                recipient: "自分".into(),
+                date: time.into(),
+                body: body.into(),
             });
             threads.push(Thread {
                 id: i + 1,
                 account,
-                subject,
-                snippet,
-                time,
+                subject: subject.into(),
+                snippet: snippet.into(),
+                time: time.into(),
                 unread: i == 1 || i == 3,
                 flagged: i == 1 || i == 4,
                 folder: Folder::Inbox,
                 messages,
-                attachment,
+                attachment: attachment.map(str::to_owned),
             });
         }
         Self {
             threads,
+            accounts: Vec::new(),
+            remote_ids: Default::default(),
+            local_state: Default::default(),
             mailbox: Mailbox::default(),
             selected: Some(1),
             page: Page::List,
@@ -196,6 +206,92 @@ impl Model {
             list_width: 300.0,
             previous_page: Page::List,
         }
+    }
+    pub fn empty() -> Self {
+        Self {
+            threads: vec![],
+            accounts: vec![],
+            remote_ids: Default::default(),
+            local_state: Default::default(),
+            mailbox: Mailbox::default(),
+            selected: None,
+            page: Page::List,
+            expanded: BTreeSet::new(),
+            folders_open: false,
+            sidebar_hidden: false,
+            sidebar_width: 188.0,
+            list_width: 300.0,
+            previous_page: Page::List,
+        }
+    }
+    pub fn account_label(&self, index: usize) -> &str {
+        #[cfg(test)]
+        if self.accounts.is_empty() {
+            return ACCOUNTS.get(index).copied().unwrap_or("");
+        }
+        self.accounts
+            .get(index)
+            .map_or("", |a| a.config.email.as_str())
+    }
+    pub fn merge(
+        &mut self,
+        account: usize,
+        incoming: Vec<(String, Thread)>,
+    ) -> crate::backend::Result<usize> {
+        let mut decoded = vec![];
+        let mut next = self.threads.iter().map(|t| t.id).max().unwrap_or(0) + 1;
+        let mut keys = std::collections::BTreeMap::new();
+        for (key, mut thread) in incoming {
+            thread.account = account;
+            thread.id = self
+                .remote_ids
+                .get(&(account, key.clone()))
+                .copied()
+                .unwrap_or_else(|| {
+                    let id = next;
+                    next += 1;
+                    id
+                });
+            if self.local_state.contains(&thread.id) {
+                if let Some(old) = self.thread(thread.id) {
+                    thread.unread = old.unread;
+                    thread.flagged = old.flagged;
+                    thread.folder = old.folder;
+                }
+            }
+            keys.insert((account, key), thread.id);
+            decoded.push(thread);
+        }
+        // Bound the entire live mailbox as well as each network response.
+        let retained = self
+            .threads
+            .iter()
+            .filter(|t| t.account != account || !self.remote_ids.values().any(|id| *id == t.id));
+        let bytes = decoded
+            .iter()
+            .chain(retained.clone())
+            .map(|t| {
+                t.messages.iter().map(|m| m.body.len()).sum::<usize>()
+                    + t.subject.len()
+                    + t.snippet.len()
+            })
+            .sum::<usize>();
+        if bytes > 64 * 1024 * 1024 || decoded.len() + retained.count() > 2000 {
+            return Err(crate::backend::Error::Limit);
+        }
+        let count = decoded.len();
+        self.threads
+            .retain(|t| t.account != account || !self.remote_ids.values().any(|id| *id == t.id));
+        decoded.append(&mut self.threads);
+        self.threads = decoded;
+        self.remote_ids.retain(|(a, _), _| *a != account);
+        self.remote_ids.extend(keys);
+        self.local_state
+            .retain(|id| self.threads.iter().any(|t| t.id == *id));
+        if self.selected.is_some_and(|id| self.thread(id).is_none()) {
+            self.selected = None;
+        }
+        Ok(count)
     }
     pub fn visible(&self, query: &str) -> Vec<usize> {
         let query = query.trim().to_lowercase();
@@ -214,7 +310,10 @@ impl Model {
                         t.subject,
                         t.snippet,
                         t.messages.last().unwrap().sender,
-                        t.messages.iter().map(|m| m.body).collect::<String>()
+                        t.messages
+                            .iter()
+                            .map(|m| m.body.as_str())
+                            .collect::<String>()
                     )
                     .to_lowercase()
                     .contains(&query)

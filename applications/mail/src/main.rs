@@ -1,5 +1,12 @@
+mod account_ui;
+mod backend;
 mod layout;
+mod mime;
 mod model;
+#[cfg(target_os = "mochios")]
+mod native_socket;
+mod protocol;
+mod transport;
 mod ui;
 use appcore::prelude::*;
 struct MailApp {
@@ -21,6 +28,12 @@ impl App for MailApp {
         self.view.clone()
     }
 }
+#[cfg(target_os = "mochios")]
+getrandom::register_custom_getrandom!(mochios_tls_client::platform_getrandom);
+
 fn main() -> Result<(), ViewKitError> {
     run::<MailApp>()
 }
+
+#[cfg(test)]
+mod tests;

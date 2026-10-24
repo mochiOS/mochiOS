@@ -9,6 +9,14 @@ publish = false
 [dependencies]
 appcore = { package = "mochios-appcore", path = "../../tools/devkit/crates/appcore" }
 
+mochios-tls-client = { path = "../../user/crates/tls-client" }
+getrandom = { version = "0.2.17", features = ["custom"] }
+base64 = "0.22"
+mailparse = "0.16.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+zeroize = { version = "1", features = ["serde"] }
+
 [[bin]]
 name = "mail"
 path = "src/main.rs"
@@ -21,3 +29,12 @@ panic = "abort"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("mochios"))'] }
+
+
+[target.'cfg(target_os = "mochios")'.dependencies]
+mochi-user-platform = { path = "../../user/crates/platform", default-features = false, features = ["std"] }
+mochios-net-device-protocol = { path = "../../user/crates/net-device-protocol" }
+
+[dev-dependencies]
+rcgen = "0.14"
+rustls = { version = "0.23.40", default-features = false, features = ["custom-provider", "std"] }

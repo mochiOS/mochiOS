@@ -1,5 +1,7 @@
+use crate::account_ui::AccountForm;
+use crate::backend::{self, Account, Error, Result};
 use crate::layout::{Layout, Width};
-use crate::model::{ACCOUNTS, Folder, Mailbox, Model, Page};
+use crate::model::{Folder, Mailbox, Model, Page};
 use appcore::prelude::*;
 use appcore::viewkit::draw_command::DrawCommand;
 use appcore::viewkit::event::{
@@ -10,9 +12,21 @@ use appcore::viewkit::view::{Constraints, MeasureContext, PaintContext};
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::rc::Rc;
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Action {
+    Accounts,
+    CloseAccounts,
+    AddAccount,
+    RemoveAccount,
+    Preset(u8),
+    IncomingSecurity,
+    SmtpSecurity,
+    Refresh,
+    Send,
+    Sender,
     Folders,
     CloseFolders,
     Box(Mailbox),
@@ -69,12 +83,17 @@ impl Draft {
 }
 #[derive(Clone)]
 struct DraftRecord {
+    sender: usize,
     to: String,
     subject: String,
     body: String,
 }
 struct Core {
     model: RefCell<Model>,
+    form: AccountForm,
+    worker: RefCell<Option<mpsc::Receiver<Result<Reply>>>>,
+    status: RefCell<String>,
+    sender: Cell<usize>,
     pending: Rc<Cell<Option<Action>>>,
     buttons: RefCell<BTreeMap<Action, ButtonInteractionState>>,
     query: TextFieldInteractionState,
@@ -82,6 +101,7 @@ struct Core {
     list_scroll: RefCell<BTreeMap<Mailbox, ScrollState>>,
     body_scroll: RefCell<BTreeMap<usize, ScrollState>>,
     folders_scroll: ScrollState,
+    account_scroll: ScrollState,
     drag: Cell<Option<Split>>,
     menu_id: Cell<u64>,
     menu_target: Cell<Option<usize>>,
@@ -89,6 +109,38 @@ struct Core {
     active_draft: Cell<Option<usize>>,
     next_draft: Cell<usize>,
     draft: Draft,
+}
+enum Job {
+    Load,
+    Add(backend::Credential),
+    Remove(usize, Account),
+    Sync(usize, Account),
+    Send(usize, Account, DraftRecord),
+}
+enum Reply {
+    Loaded(Vec<Account>),
+    Added(Account),
+    Removed(usize),
+    Synced(usize, Vec<(String, crate::model::Thread)>),
+    Sent(usize, DraftRecord),
+}
+fn execute(job: Job) -> Result<Reply> {
+    match job {
+        Job::Load => backend::accounts().map(Reply::Loaded),
+        Job::Add(c) => backend::add(c).map(Reply::Added),
+        Job::Remove(i, a) => backend::remove(a.id).map(|_| Reply::Removed(i)),
+        Job::Sync(i, a) => {
+            let decoded = backend::receive(&a)?
+                .into_iter()
+                .map(|m| crate::mime::decode(m, i, 0))
+                .collect::<Result<Vec<_>>>()?;
+            Ok(Reply::Synced(i, decoded))
+        }
+        Job::Send(i, a, d) => {
+            backend::send(&a, &d.to, &d.subject, &d.body)?;
+            Ok(Reply::Sent(i, d))
+        }
+    }
 }
 #[derive(Clone)]
 pub struct MailView {
@@ -118,11 +170,141 @@ fn fill(b: Rect, color: Color, c: &mut PaintContext<'_>) {
         .paint(b, c);
 }
 impl Core {
+    fn start(&self, job: Job) {
+        if self.worker.borrow().is_some() {
+            return;
+        }
+        let (tx, rx) = mpsc::channel();
+        *self.worker.borrow_mut() = Some(rx);
+        *self.status.borrow_mut() = match &job {
+            Job::Sync(_, a) => format!("{} を受信中…", a.config.email),
+            Job::Send(_, a, _) => format!("{} から送信中…", a.config.email),
+            _ => "接続中…".into(),
+        };
+        if std::thread::Builder::new()
+            .name("Mail network".into())
+            .spawn(move || {
+                let _ = tx.send(execute(job));
+            })
+            .is_err()
+        {
+            self.worker.borrow_mut().take();
+            *self.status.borrow_mut() = Error::Network.label().into();
+        }
+    }
+    fn poll(&self) {
+        let result = self.worker.borrow().as_ref().map(|rx| rx.try_recv());
+        let Some(result) = result else {
+            return;
+        };
+        let result = match result {
+            Ok(result) => result,
+            Err(mpsc::TryRecvError::Empty) => return,
+            Err(_) => Err(Error::Network),
+        };
+        self.worker.borrow_mut().take();
+        match result {
+            Err(e) => *self.status.borrow_mut() = e.label().into(),
+            Ok(reply) => {
+                let mut m = self.model.borrow_mut();
+                match reply {
+                    Reply::Loaded(accounts) => {
+                        m.accounts = accounts;
+                        *self.status.borrow_mut() = if m.accounts.is_empty() {
+                            "「アカウント」からメールを追加してください。"
+                        } else {
+                            "「受信」で選択中のアカウントを更新します。"
+                        }
+                        .into();
+                    }
+                    Reply::Added(a) => {
+                        m.accounts.push(a);
+                        self.form.open.set(false);
+                        self.sender.set(m.accounts.len() - 1);
+                        *self.status.borrow_mut() =
+                            "アカウントを追加しました。「受信」で読み込みます。".into();
+                    }
+                    Reply::Removed(i) => {
+                        m.accounts.remove(i);
+                        self.drafts.borrow_mut().retain(|_, d| d.sender != i);
+                        for d in self.drafts.borrow_mut().values_mut() {
+                            if d.sender > i {
+                                d.sender -= 1;
+                            }
+                        }
+                        self.active_draft.set(None);
+                        self.draft.to.set_value("");
+                        self.draft.subject.set_value("");
+                        self.draft.body.set_value("");
+                        m.threads.retain(|t| t.account != i);
+                        for t in &mut m.threads {
+                            if t.account > i {
+                                t.account -= 1;
+                            }
+                        }
+                        m.remote_ids = m
+                            .remote_ids
+                            .iter()
+                            .filter(|((a, _), _)| *a != i)
+                            .map(|((a, k), id)| {
+                                ((if *a > i { *a - 1 } else { *a }, k.clone()), *id)
+                            })
+                            .collect();
+                        m.selected = None;
+                        m.mailbox = Mailbox::default();
+                        self.sender.set(0);
+                        *self.status.borrow_mut() =
+                            "アカウントを解除しました。サーバーのメールは保持しています。".into();
+                    }
+                    Reply::Synced(i, messages) => {
+                        *self.status.borrow_mut() = match m.merge(i, messages) {
+                            Ok(n) => format!("{n}件を受信 · 整理状態はこの起動中のみ"),
+                            Err(e) => e.label().into(),
+                        };
+                    }
+                    Reply::Sent(i, d) => {
+                        let id = m.threads.iter().map(|t| t.id).max().unwrap_or(0) + 1;
+                        let email = m.accounts[i].config.email.clone();
+                        m.threads.insert(
+                            0,
+                            crate::model::Thread {
+                                id,
+                                account: i,
+                                subject: d.subject,
+                                snippet: d.body.chars().take(160).collect(),
+                                time: "送信済み".into(),
+                                unread: false,
+                                flagged: false,
+                                folder: Folder::Sent,
+                                messages: vec![crate::model::Message {
+                                    sender: email.clone(),
+                                    address: email,
+                                    recipient: d.to,
+                                    date: "送信済み".into(),
+                                    body: d.body,
+                                }],
+                                attachment: None,
+                            },
+                        );
+                        if let Some(id) = self.active_draft.take() {
+                            self.drafts.borrow_mut().remove(&id);
+                        }
+                        self.draft.to.set_value("");
+                        self.draft.subject.set_value("");
+                        self.draft.body.set_value("");
+                        m.page = Page::List;
+                        *self.status.borrow_mut() = "送信サーバーがメールを受理しました。".into();
+                    }
+                }
+            }
+        }
+    }
     fn save_draft(&self) {
         if let Some(id) = self.active_draft.get() {
             self.drafts.borrow_mut().insert(
                 id,
                 DraftRecord {
+                    sender: self.sender.get(),
                     to: self.draft.to.value(),
                     subject: self.draft.subject.value(),
                     body: self.draft.body.value(),
@@ -131,7 +313,6 @@ impl Core {
         }
     }
     fn begin_draft(&self, to: String, subject: String, body: String) {
-        self.save_draft();
         let id = self.next_draft.get();
         self.next_draft.set(id + 1);
         self.active_draft.set(Some(id));
@@ -175,7 +356,18 @@ impl Core {
     }
     fn layout(&self, b: Rect) -> Layout {
         let m = self.model.borrow();
-        Layout::new(b, m.page, m.sidebar_hidden, m.sidebar_width, m.list_width)
+        let content = if !self.status.borrow().is_empty() && m.page != Page::Compose {
+            rect(b.origin.x, b.origin.y, b.size.width, b.size.height - 48.0)
+        } else {
+            b
+        };
+        Layout::new(
+            content,
+            m.page,
+            m.sidebar_hidden,
+            m.sidebar_width,
+            m.list_width,
+        )
     }
     fn ids(&self) -> Vec<usize> {
         self.model.borrow().visible(&self.query.value())
@@ -183,6 +375,81 @@ impl Core {
     fn apply(&self, action: Action, wide: bool) {
         let mut m = self.model.borrow_mut();
         match action {
+            Action::Accounts => {
+                if m.accounts.is_empty() && self.worker.borrow().is_none() {
+                    self.start(Job::Load);
+                }
+                self.account_scroll.reset();
+                self.form.open.set(true);
+                m.folders_open = false;
+            }
+            Action::CloseAccounts => {
+                self.form.clear_secret();
+                self.form.open.set(false);
+            }
+            Action::Preset(kind) => self.form.preset(kind),
+            Action::IncomingSecurity => self.form.incoming_security.set(
+                if self.form.incoming_security.get() == backend::Security::Tls {
+                    backend::Security::StartTls
+                } else {
+                    backend::Security::Tls
+                },
+            ),
+            Action::SmtpSecurity => self.form.smtp_security.set(
+                if self.form.smtp_security.get() == backend::Security::Tls {
+                    backend::Security::StartTls
+                } else {
+                    backend::Security::Tls
+                },
+            ),
+            Action::AddAccount => {
+                if self.worker.borrow().is_some() {
+                    return;
+                }
+                match self.form.credential() {
+                    Ok(c) => {
+                        self.form.clear_secret();
+                        self.start(Job::Add(c));
+                    }
+                    Err(e) => *self.status.borrow_mut() = e.label().into(),
+                }
+            }
+            Action::RemoveAccount => {
+                if let Some(a) = m.accounts.get(self.sender.get()).cloned() {
+                    self.start(Job::Remove(self.sender.get(), a));
+                }
+            }
+            Action::Refresh => {
+                if let Some((i, a)) = m
+                    .mailbox
+                    .account
+                    .or(Some(self.sender.get()))
+                    .and_then(|i| m.accounts.get(i).cloned().map(|a| (i, a)))
+                {
+                    self.start(Job::Sync(i, a));
+                }
+            }
+            Action::Sender => {
+                if !m.accounts.is_empty() {
+                    self.sender.set((self.sender.get() + 1) % m.accounts.len());
+                }
+            }
+            Action::Send => {
+                if let Some(a) = m.accounts.get(self.sender.get()).cloned() {
+                    let d = DraftRecord {
+                        sender: self.sender.get(),
+                        to: self.draft.to.value(),
+                        subject: self.draft.subject.value(),
+                        body: self.draft.body.value(),
+                    };
+                    if crate::mime::recipients(&d.to).is_err() {
+                        *self.status.borrow_mut() = Error::Invalid.label().into();
+                        return;
+                    }
+                    self.save_draft();
+                    self.start(Job::Send(self.sender.get(), a, d));
+                }
+            }
             Action::Folders => {
                 if wide {
                     m.sidebar_hidden = !m.sidebar_hidden;
@@ -194,12 +461,17 @@ impl Core {
             Action::Box(mailbox) => m.switch(mailbox),
             Action::Open(id) => {
                 m.open(id);
+                m.local_state.insert(id);
                 self.query.set_focused(false);
             }
             Action::Back => {
                 m.page = Page::List;
             }
             Action::New => {
+                self.save_draft();
+                if let Some(account) = m.mailbox.account {
+                    self.sender.set(account);
+                }
                 if m.page != Page::Compose {
                     m.previous_page = m.page;
                 }
@@ -211,6 +483,7 @@ impl Core {
             Action::ResumeDraft(id) => {
                 self.save_draft();
                 if let Some(d) = self.drafts.borrow().get(&id).cloned() {
+                    self.sender.set(d.sender);
                     self.draft.to.set_value(d.to);
                     self.draft.subject.set_value(d.subject);
                     self.draft.body.set_value(d.body);
@@ -224,7 +497,9 @@ impl Core {
                 m.page = m.previous_page;
             }
             Action::Reply | Action::Forward => {
+                self.save_draft();
                 if let Some(t) = m.selected.and_then(|id| m.thread(id)) {
+                    self.sender.set(t.account);
                     let to = if action == Action::Reply {
                         t.messages.last().unwrap().address.to_owned()
                     } else {
@@ -238,7 +513,7 @@ impl Core {
                     let body = if action == Action::Forward {
                         format!(
                             "\n\n---------- 転送メッセージ ----------\n{}\n\n{}",
-                            t.subject,
+                            &t.subject,
                             t.messages.last().unwrap().body
                         )
                     } else {
@@ -252,6 +527,7 @@ impl Core {
             }
             Action::Archive | Action::Delete | Action::Flag | Action::Unread => {
                 if let Some(id) = m.selected {
+                    m.local_state.insert(id);
                     if let Some(t) = m.threads.iter_mut().find(|t| t.id == id) {
                         match action {
                             Action::Archive => t.folder = Folder::Archive,
@@ -282,9 +558,22 @@ impl MailView {
         let search = TextField::with_interaction(query.clone())
             .placeholder("メールを検索")
             .leading_symbol(SymbolName::Search);
-        Self {
+        let view = Self {
             core: Rc::new(Core {
-                model: RefCell::new(Model::sample()),
+                model: RefCell::new({
+                    #[cfg(test)]
+                    {
+                        Model::sample()
+                    }
+                    #[cfg(not(test))]
+                    {
+                        Model::empty()
+                    }
+                }),
+                form: AccountForm::new(),
+                worker: RefCell::new(None),
+                status: RefCell::new(String::new()),
+                sender: Cell::new(0),
                 pending: Rc::new(Cell::new(None)),
                 buttons: RefCell::new(BTreeMap::new()),
                 query,
@@ -292,6 +581,7 @@ impl MailView {
                 list_scroll: RefCell::new(BTreeMap::new()),
                 body_scroll: RefCell::new(BTreeMap::new()),
                 folders_scroll: ScrollState::new(),
+                account_scroll: ScrollState::new(),
                 drag: Cell::new(None),
                 menu_id: Cell::new(0x4d41494c00000000),
                 menu_target: Cell::new(None),
@@ -300,7 +590,158 @@ impl MailView {
                 next_draft: Cell::new(1),
                 draft: Draft::new(),
             }),
+        };
+        #[cfg(not(test))]
+        view.core.start(Job::Load);
+        view
+    }
+    fn account_buttons(&self, b: Rect) -> Vec<(Rect, String, Action)> {
+        let x = b.origin.x;
+        let y = b.origin.y;
+        let w = b.size.width;
+        let incoming = if self.core.form.incoming_security.get() == backend::Security::Tls {
+            "受信: TLS"
+        } else {
+            "受信: STARTTLS"
+        };
+        let smtp = if self.core.form.smtp_security.get() == backend::Security::Tls {
+            "送信: TLS"
+        } else {
+            "送信: STARTTLS"
+        };
+        let account = self
+            .core
+            .model
+            .borrow()
+            .account_label(self.core.sender.get())
+            .to_owned();
+        vec![
+            (
+                rect(x + w - 80.0, y + 10.0, 64.0, 30.0),
+                "戻る".into(),
+                Action::CloseAccounts,
+            ),
+            (
+                rect(x + 16.0, y + 52.0, 80.0, 30.0),
+                "Gmail".into(),
+                Action::Preset(0),
+            ),
+            (
+                rect(x + 100.0, y + 52.0, 80.0, 30.0),
+                "IMAP".into(),
+                Action::Preset(1),
+            ),
+            (
+                rect(x + 184.0, y + 52.0, 80.0, 30.0),
+                "POP3".into(),
+                Action::Preset(2),
+            ),
+            (
+                rect(x + 16.0, y + 410.0, 150.0, 28.0),
+                incoming.into(),
+                Action::IncomingSecurity,
+            ),
+            (
+                rect(x + 174.0, y + 410.0, 150.0, 28.0),
+                smtp.into(),
+                Action::SmtpSecurity,
+            ),
+            (
+                rect(x + 16.0, y + 520.0, 150.0, 30.0),
+                "確認して追加".into(),
+                Action::AddAccount,
+            ),
+            (
+                rect(x + 16.0, y + 559.0, (w - 136.0).max(40.0), 30.0),
+                format!("登録済み：{account}"),
+                Action::Sender,
+            ),
+            (
+                rect(x + w - 112.0, y + 559.0, 96.0, 30.0),
+                "登録を解除".into(),
+                Action::RemoveAccount,
+            ),
+        ]
+    }
+    fn account_panel(&self, b: Rect, c: &mut PaintContext<'_>) {
+        Scroll::new(self.core.account_scroll.clone())
+            .content(AccountContents {
+                core: self.core.clone(),
+            })
+            .paint(b, c);
+    }
+    fn account_event(&self, b: Rect, e: &ViewEvent, c: &mut EventContext<'_>) -> EventResult {
+        Scroll::new(self.core.account_scroll.clone())
+            .content(AccountContents {
+                core: self.core.clone(),
+            })
+            .handle_event(b, e, c)
+    }
+    fn account_content(&self, b: Rect, c: &mut PaintContext<'_>) {
+        let b = rect(
+            b.origin.x + ((b.size.width - 600.0) / 2.0).max(0.0),
+            b.origin.y,
+            b.size.width.min(600.0),
+            b.size.height,
+        );
+        let mut scope = AccessibilityNode::new(AccessibilityRole::Dialog, b);
+        scope.focus_scope = true;
+        scope.label = Some("メールアカウント".into());
+        c.record_accessibility(scope);
+        self.core.form.paint(b, c);
+        for (frame, label, action) in self.account_buttons(b) {
+            self.core
+                .button(&label, action)
+                .enabled(self.core.worker.borrow().is_none())
+                .paint(frame, c);
         }
+        Text::caption(self.core.status.borrow().clone())
+            .color(c.theme.colors.text_secondary)
+            .paint(
+                rect(
+                    b.origin.x + 16.0,
+                    b.origin.y + 600.0,
+                    b.size.width - 32.0,
+                    60.0,
+                ),
+                c,
+            );
+    }
+    fn account_content_event(
+        &self,
+        b: Rect,
+        e: &ViewEvent,
+        c: &mut EventContext<'_>,
+    ) -> EventResult {
+        let b = rect(
+            b.origin.x + ((b.size.width - 600.0) / 2.0).max(0.0),
+            b.origin.y,
+            b.size.width.min(600.0),
+            b.size.height,
+        );
+        if self.core.worker.borrow().is_some() {
+            return EventResult::Consumed;
+        }
+        let mut result = self.core.form.event(b, e, c);
+        if matches!(
+            e,
+            ViewEvent::KeyPressed {
+                key: Key::Escape,
+                ..
+            }
+        ) {
+            self.core.apply(Action::CloseAccounts, false);
+            c.request_redraw_in(b);
+            return EventResult::Consumed;
+        }
+        for (frame, label, action) in self.account_buttons(b) {
+            result = result.merge(self.core.button(&label, action).handle_event(frame, e, c));
+        }
+        if let Some(a) = self.core.pending.take() {
+            self.core.apply(a, false);
+        }
+        c.request_redraw_in(b);
+        result
     }
     fn folder_panel(&self, b: Rect, c: &mut PaintContext<'_>) {
         fill(b, c.theme.colors.surface_subtle, c);
@@ -351,46 +792,37 @@ impl MailView {
     fn list_header(&self, l: &Layout, b: Rect, c: &mut PaintContext<'_>) {
         let m = self.core.model.borrow();
         let title = m.mailbox.folder.label();
-        let compact = l.width == Width::Compact;
-        self.core
-            .icon(SymbolName::List, "メールボックス", Action::Folders)
-            .paint(rect(b.origin.x + 8.0, b.origin.y + 7.0, 30.0, 30.0), c);
-        if compact {
-            Text::caption("サンプル")
-                .color(c.theme.colors.text_secondary)
+        for (i, (label, action)) in [("受信", Action::Refresh), ("アカウント", Action::Accounts)]
+            .into_iter()
+            .enumerate()
+        {
+            self.core
+                .button(label, action)
+                .enabled(self.core.worker.borrow().is_none())
                 .paint(
                     rect(
-                        b.origin.x + b.size.width - 88.0,
-                        b.origin.y + 12.0,
-                        76.0,
-                        20.0,
+                        b.origin.x + b.size.width - 180.0 + i as f32 * 74.0,
+                        b.origin.y + 7.0,
+                        72.0,
+                        30.0,
                     ),
                     c,
                 );
         }
+        let compact = l.width == Width::Compact;
+        self.core
+            .icon(SymbolName::List, "メールボックス", Action::Folders)
+            .paint(rect(b.origin.x + 8.0, b.origin.y + 7.0, 30.0, 30.0), c);
         if !compact {
             Text::label(title).paint(
                 rect(
                     b.origin.x + 46.0,
                     b.origin.y + 11.0,
-                    b.size.width - 94.0,
+                    (b.size.width - 232.0).max(0.0),
                     24.0,
                 ),
                 c,
             );
-            if l.sidebar.is_none() {
-                self.core
-                    .icon(SymbolName::Pencil, "新規メール", Action::New)
-                    .paint(
-                        rect(
-                            b.origin.x + b.size.width - 40.0,
-                            b.origin.y + 7.0,
-                            30.0,
-                            30.0,
-                        ),
-                        c,
-                    );
-            }
         } else {
             Text::styled(title, TextRole::TitleLarge).paint(
                 rect(
@@ -420,7 +852,7 @@ impl MailView {
             .paint(rect(b.origin.x + 12.0, y, b.size.width - 24.0, 30.0), c);
         if !compact {
             Text::caption(format!(
-                "{}件 · サンプル",
+                "{}件",
                 if m.mailbox.folder == Folder::Drafts {
                     self.core.drafts.borrow().len()
                 } else {
@@ -502,10 +934,29 @@ impl MailView {
             .button("閉じる", Action::SaveDraft)
             .paint(rect(x + 12.0, b.origin.y + 8.0, 100.0, 30.0), c);
         self.core
-            .button("送信", Action::SaveDraft)
+            .button("送信", Action::Send)
             .style(ButtonStyle::Accent)
-            .enabled(false)
+            .enabled(
+                !self.core.model.borrow().accounts.is_empty()
+                    && self.core.worker.borrow().is_none(),
+            )
             .paint(rect(x + w - 76.0, b.origin.y + 8.0, 64.0, 30.0), c);
+        self.core
+            .button(
+                &format!(
+                    "送信元：{}",
+                    self.core
+                        .model
+                        .borrow()
+                        .account_label(self.core.sender.get())
+                ),
+                Action::Sender,
+            )
+            .enabled(self.core.worker.borrow().is_none())
+            .paint(
+                rect(x + 116.0, b.origin.y + 8.0, (w - 208.0).max(0.0), 30.0),
+                c,
+            );
         let form = rect(x + 16.0, b.origin.y + 58.0, w - 32.0, b.size.height - 58.0);
         Text::caption("宛先")
             .color(c.theme.colors.text_secondary)
@@ -548,12 +999,32 @@ impl MailView {
             ),
             c,
         );
-        Text::caption("サンプル表示 · 送受信は未接続")
+        Text::caption(self.core.status.borrow().clone())
             .color(c.theme.colors.text_secondary)
             .paint(
-                rect(x + 16.0, b.origin.y + b.size.height - 26.0, w - 32.0, 20.0),
+                rect(x + 16.0, b.origin.y + b.size.height - 56.0, w - 32.0, 52.0),
                 c,
             );
+    }
+}
+struct AccountContents {
+    core: Rc<Core>,
+}
+impl View for AccountContents {
+    fn measure(&self, c: Constraints, _: &mut MeasureContext<'_>) -> Size {
+        Size::new(c.maximum.width, 680.0)
+    }
+    fn paint(&self, b: Rect, c: &mut PaintContext<'_>) {
+        MailView {
+            core: self.core.clone(),
+        }
+        .account_content(b, c);
+    }
+    fn handle_event(&self, b: Rect, e: &ViewEvent, c: &mut EventContext<'_>) -> EventResult {
+        MailView {
+            core: self.core.clone(),
+        }
+        .account_content_event(b, e, c)
     }
 }
 impl View for MailView {
@@ -561,6 +1032,15 @@ impl View for MailView {
         c.constrain(c.maximum)
     }
     fn paint(&self, b: Rect, c: &mut PaintContext<'_>) {
+        self.core.poll();
+        if self.core.worker.borrow().is_some() {
+            c.request_redraw_at(Instant::now() + Duration::from_millis(50));
+        }
+        fill(b, c.theme.colors.background, c);
+        if self.core.form.open.get() {
+            self.account_panel(b, c);
+            return;
+        }
         let l = self.core.layout(b);
         fill(b, c.theme.colors.background, c);
         if l.composer {
@@ -615,6 +1095,17 @@ impl View for MailView {
                 )
                 .paint(frame, c);
         }
+        Text::caption(self.core.status.borrow().clone())
+            .color(c.theme.colors.text_secondary)
+            .paint(
+                rect(
+                    b.origin.x + 12.0,
+                    b.origin.y + b.size.height - 44.0,
+                    b.size.width - 24.0,
+                    42.0,
+                ),
+                c,
+            );
         if self.core.model.borrow().folders_open {
             fill(b, c.theme.colors.text_primary.with_alpha(40), c);
             let panel = rect(
@@ -640,7 +1131,13 @@ impl View for MailView {
         }
     }
     fn handle_event(&self, b: Rect, event: &ViewEvent, c: &mut EventContext<'_>) -> EventResult {
+        if self.core.form.open.get() {
+            return self.account_event(b, event, c);
+        }
         let l = self.core.layout(b);
+        if l.composer && self.core.worker.borrow().is_some() {
+            return EventResult::Consumed;
+        }
         if let ViewEvent::ContextMenuResult {
             request_id,
             command_id,
@@ -710,7 +1207,69 @@ impl View for MailView {
             self.flush(&l, b, c);
             return EventResult::Consumed;
         }
+        if let Some(list) = l.list {
+            for (i, (label, action)) in
+                [("受信", Action::Refresh), ("アカウント", Action::Accounts)]
+                    .into_iter()
+                    .enumerate()
+            {
+                let frame = rect(
+                    list.origin.x + list.size.width - 180.0 + i as f32 * 74.0,
+                    list.origin.y + 7.0,
+                    72.0,
+                    30.0,
+                );
+                {
+                    let r = self
+                        .core
+                        .button(label, action)
+                        .enabled(self.core.worker.borrow().is_none())
+                        .handle_event(frame, event, c);
+                    if r.is_consumed() {
+                        self.flush(&l, b, c);
+                        return r;
+                    }
+                }
+            }
+        }
         if l.composer {
+            if self.core.worker.borrow().is_some() {
+                return EventResult::Consumed;
+            }
+            for (frame, label, action) in [
+                (
+                    rect(
+                        b.origin.x + b.size.width - 76.0,
+                        b.origin.y + 8.0,
+                        64.0,
+                        30.0,
+                    ),
+                    "送信",
+                    Action::Send,
+                ),
+                (
+                    rect(
+                        b.origin.x + 116.0,
+                        b.origin.y + 8.0,
+                        (b.size.width - 208.0).max(0.0),
+                        30.0,
+                    ),
+                    "送信元",
+                    Action::Sender,
+                ),
+            ] {
+                {
+                    let r = self
+                        .core
+                        .button(label, action)
+                        .enabled(!self.core.model.borrow().accounts.is_empty())
+                        .handle_event(frame, event, c);
+                    if r.is_consumed() {
+                        self.flush(&l, b, c);
+                        return r;
+                    }
+                }
+            }
             let form = rect(
                 b.origin.x + 16.0,
                 b.origin.y + 58.0,
@@ -782,22 +1341,6 @@ impl View for MailView {
                         c,
                     ),
             );
-            if l.width != Width::Compact && l.sidebar.is_none() {
-                result = result.merge(
-                    self.core
-                        .icon(SymbolName::Pencil, "新規メール", Action::New)
-                        .handle_event(
-                            rect(
-                                list.origin.x + list.size.width - 40.0,
-                                list.origin.y + 7.0,
-                                30.0,
-                                30.0,
-                            ),
-                            event,
-                            c,
-                        ),
-                );
-            }
             let query = self.core.query.value();
             result = result.merge(self.core.search.handle_event(
                 rect(
@@ -1088,11 +1631,23 @@ impl Contents {
         let mut stack = VStack::new()
             .alignment(StackAlignment::Stretch)
             .gap(StackGap::ExtraSmall);
-        for (account, title) in [
-            (None, "すべてのアカウント"),
-            (Some(0), ACCOUNTS[0]),
-            (Some(1), ACCOUNTS[1]),
-        ] {
+        let mut accounts = vec![(None, "すべてのアカウント".to_owned())];
+        #[cfg(test)]
+        if m.accounts.is_empty() {
+            accounts.extend(
+                crate::model::ACCOUNTS
+                    .iter()
+                    .enumerate()
+                    .map(|(i, s)| (Some(i), s.to_string())),
+            );
+        }
+        accounts.extend(
+            m.accounts
+                .iter()
+                .enumerate()
+                .map(|(i, a)| (Some(i), a.config.email.clone())),
+        );
+        for (account, title) in accounts {
             stack = stack.child(
                 Padding::only(12.0, 12.0, 4.0, 12.0)
                     .content(Text::caption(title).color(theme.colors.text_secondary)),
@@ -1175,9 +1730,12 @@ impl Contents {
                 );
             }
         }
-        stack.child(Padding::all(16.0).content(
-            Text::caption("サンプルメール\n送受信は未接続").color(theme.colors.text_secondary),
-        ))
+        stack.child(
+            Padding::all(16.0).content(
+                Text::caption("アカウントを追加し、受信ボタンでメールを読み込みます。")
+                    .color(theme.colors.text_secondary),
+            ),
+        )
     }
     fn reader(&self, width: f32, theme: &Theme) -> Padding<VStack> {
         let m = self.core.model.borrow();
@@ -1194,15 +1752,15 @@ impl Contents {
                     ),
             );
         };
-        stack = stack.child(Text::styled(t.subject, TextRole::TitleSmall));
+        stack = stack.child(Text::styled(&t.subject, TextRole::TitleSmall));
         for (n, message) in t.messages.iter().enumerate() {
             if n + 1 < t.messages.len() {
                 let expanded = m.expanded.contains(&(t.id, n));
                 stack = stack.child(self.core.button(
                     &format!(
                         "{} · {}  {}",
-                        message.sender,
-                        message.date,
+                        &message.sender,
+                        &message.date,
                         if expanded {
                             "閉じる"
                         } else {
@@ -1221,22 +1779,19 @@ impl Contents {
                         .alignment(StackAlignment::Center)
                         .gap(StackGap::Small)
                         .child(
-                            Text::body_emphasized(message.sender)
+                            Text::body_emphasized(&message.sender)
                                 .layout()
                                 .flex_grow(1.0),
                         )
-                        .child(Text::caption(message.date).color(theme.colors.text_secondary)),
+                        .child(Text::caption(&message.date).color(theme.colors.text_secondary)),
                 )
                 .child(
-                    Text::caption(format!(
-                        "{}\n宛先：自分 · {}",
-                        message.address, ACCOUNTS[t.account]
-                    ))
-                    .color(theme.colors.text_secondary),
+                    Text::caption(format!("{}\n宛先：{}", message.address, message.recipient))
+                        .color(theme.colors.text_secondary),
                 )
-                .child(Text::body(message.body));
+                .child(Text::body(&message.body));
         }
-        if let Some(name) = t.attachment {
+        if let Some(name) = &t.attachment {
             stack = stack
                 .child(Divider::new())
                 .child(
@@ -1245,7 +1800,10 @@ impl Contents {
                         .child(Glyph(SymbolName::File))
                         .child(Text::caption(name).layout().flex_grow(1.0)),
                 )
-                .child(Text::caption("添付ファイルのサンプル").color(theme.colors.text_secondary));
+                .child(
+                    Text::caption("添付ファイルの表示・保存は未対応です")
+                        .color(theme.colors.text_secondary),
+                );
         }
         stack = stack.child(Divider::new()).child(
             self.core
@@ -1267,16 +1825,16 @@ impl Contents {
         let t = m.thread(id).unwrap();
         let selected = m.selected == Some(id);
         self.core
-            .button(t.subject, Action::Open(id))
+            .button(&t.subject, Action::Open(id))
             .radius(CornerRadius::None)
             .omochi(false)
             .accessibility_role(AccessibilityRole::ListItem)
             .accessibility_selected(selected)
             .accessibility_label(format!(
                 "{}、{}、{}{}",
-                t.messages.last().unwrap().sender,
-                t.subject,
-                t.time,
+                &t.messages.last().unwrap().sender,
+                &t.subject,
+                &t.time,
                 if t.unread { "、未読" } else { "" }
             ))
             .style(ButtonStyle::Custom {
@@ -1466,19 +2024,19 @@ impl View for MailRow {
         let w = b.size.width - 40.0;
         let y = b.origin.y + 13.0;
         single(
-            t.messages.last().unwrap().sender,
+            &t.messages.last().unwrap().sender,
             TextRole::Body,
             rect(x, y, w - 64.0, 22.0),
             c,
             c.theme.colors.text_primary,
             t.unread,
         );
-        Text::caption(t.time)
+        Text::caption(&t.time)
             .alignment(TextAlignment::End)
             .color(c.theme.colors.text_secondary)
             .paint(rect(x + w - 60.0, y + 2.0, 60.0, 20.0), c);
         single(
-            t.subject,
+            &t.subject,
             TextRole::Label,
             rect(x, y + 25.0, w, 20.0),
             c,
@@ -1486,7 +2044,7 @@ impl View for MailRow {
             t.unread,
         );
         single(
-            t.snippet,
+            &t.snippet,
             TextRole::Caption,
             rect(x, y + 49.0, w - if t.flagged { 50.0 } else { 0.0 }, 20.0),
             c,
@@ -1796,5 +2354,105 @@ mod tests {
                 .width
                 >= 400.0
         );
+    }
+    fn with_accounts(f: &Fixture) {
+        let mut cfg = crate::tests::config();
+        let first = backend::Account {
+            id: [1; 16],
+            config: cfg.clone(),
+        };
+        cfg.email = "work@example.test".into();
+        f.view.core.model.borrow_mut().accounts = vec![
+            first,
+            backend::Account {
+                id: [2; 16],
+                config: cfg,
+            },
+        ];
+    }
+    fn completion(f: &Fixture, result: Result<Reply>) {
+        let (tx, rx) = mpsc::channel();
+        tx.send(result).ok();
+        *f.view.core.worker.borrow_mut() = Some(rx);
+        f.view.core.poll();
+    }
+    #[test]
+    fn account_page_is_native_scrollable_and_modal() {
+        let f = Fixture::new(360.0);
+        with_accounts(&f);
+        f.view.core.apply(Action::Accounts, false);
+        f.paint();
+        f.event(ViewEvent::KeyPressed {
+            key: Key::Character('n'),
+            modifiers: KeyModifiers::from_bits(KeyModifiers::CONTROL),
+        });
+        assert_ne!(f.view.core.model.borrow().page, Page::Compose);
+        f.view.core.form.preset(0);
+        assert_eq!(f.view.core.form.protocol.get(), backend::Protocol::Imap);
+        f.event(ViewEvent::KeyPressed {
+            key: Key::Escape,
+            modifiers: KeyModifiers::default(),
+        });
+        assert!(!f.view.core.form.open.get());
+    }
+    #[test]
+    fn draft_sender_and_reply_account_survive_switches() {
+        let f = Fixture::new(1080.0);
+        with_accounts(&f);
+        f.view.core.apply(Action::New, true);
+        f.view.core.draft.body.set_value("personal draft");
+        let first = f.view.core.active_draft.get().unwrap();
+        f.view.core.apply(Action::SaveDraft, true);
+        f.view.core.apply(Action::Open(2), true);
+        f.view.core.apply(Action::Reply, true);
+        assert_eq!(f.view.core.sender.get(), 1);
+        assert_eq!(f.view.core.drafts.borrow()[&first].sender, 0);
+        f.view.core.apply(Action::ResumeDraft(first), true);
+        assert_eq!(f.view.core.sender.get(), 0);
+        assert_eq!(f.view.core.draft.body.value(), "personal draft");
+    }
+    #[test]
+    fn uncertain_delivery_retains_draft_and_success_clears_only_sent_draft() {
+        let f = Fixture::new(1080.0);
+        with_accounts(&f);
+        f.view.core.apply(Action::New, true);
+        f.view.core.draft.to.set_value("you@example.test");
+        f.view.core.draft.body.set_value("body");
+        f.view.core.save_draft();
+        let id = f.view.core.active_draft.get().unwrap();
+        completion(&f, Err(Error::DeliveryUnknown));
+        assert_eq!(f.view.core.model.borrow().page, Page::Compose);
+        assert!(f.view.core.drafts.borrow().contains_key(&id));
+        assert_eq!(f.view.core.draft.body.value(), "body");
+        let draft = f.view.core.drafts.borrow()[&id].clone();
+        completion(&f, Ok(Reply::Sent(0, draft)));
+        assert!(!f.view.core.drafts.borrow().contains_key(&id));
+        assert!(f.view.core.draft.body.value().is_empty());
+        assert!(
+            f.view
+                .core
+                .model
+                .borrow()
+                .threads
+                .iter()
+                .any(|t| t.folder == Folder::Sent && t.messages[0].body == "body")
+        );
+    }
+    #[test]
+    fn inflight_send_cannot_be_replaced_by_keyboard_navigation() {
+        let f = Fixture::new(1080.0);
+        with_accounts(&f);
+        f.view.core.apply(Action::New, true);
+        let (_tx, rx) = mpsc::channel();
+        *f.view.core.worker.borrow_mut() = Some(rx);
+        let id = f.view.core.active_draft.get();
+        for key in [Key::Escape, Key::Character('n')] {
+            f.event(ViewEvent::KeyPressed {
+                key,
+                modifiers: KeyModifiers::from_bits(KeyModifiers::CONTROL),
+            });
+        }
+        assert_eq!(f.view.core.active_draft.get(), id);
+        assert_eq!(f.view.core.model.borrow().page, Page::Compose);
     }
 }

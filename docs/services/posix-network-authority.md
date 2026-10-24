@@ -61,7 +61,8 @@ SDKとRust std overlayは再生成していません。
 
 ## 残る実装
 
-このHandleを添付してUDP資源を作る処理、datagram Provider、受信Event、POSIX AF_INETの
-create / bind / connect / sendto / recvfromへの接続、endpointのbootstrap配布が必要です。
+このHandleを添付したUDP資源の作成、datagram Provider、受信signalは
+[段階210](posix-datagram-provider.md)で追加しました。POSIX AF_INETの
+create / bind / connect / sendto / recvfromへの接続、endpointのbootstrap配布は引き続き必要です。
 実NICでの通信やInternet socket全体の完成は、今回の試験からは主張しません。
 POSIX互換環境全体のgoalは継続中です。

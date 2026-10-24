@@ -25,7 +25,7 @@ if [[ $app == check || $app == test ]]; then
             cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
             "${cargo_patches[@]}" -p viewkit --lib
     fi
-    for name in files settings binder appstore edit terminal system-monitor viewer calendar calculator mail; do
+    for name in files settings binder appstore edit terminal system-monitor viewer calendar calculator mail keychain; do
         "$0" "$name" "--$app" "${cargo_patches[@]}"
     done
     exit 0
@@ -41,11 +41,13 @@ case "$app" in
     system-monitor) source_dir="$root/applications/system-monitor" ;;
     ime) source_dir="$root/tools/desktop-ime" ;;
     test-app) source_dir="$root/applications/test.app" ;;
+    keychain) source_dir="$root/applications/keychain" ;;
+    keychain-service) source_dir="$root/services/keychain" ;;
     mail) source_dir="$root/applications/mail" ;;
     calculator) source_dir="$root/applications/calculator" ;;
     calendar) source_dir="$root/applications/calendar" ;;
     viewer) source_dir="$root/applications/viewer" ;;
-    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|calendar|calculator|mail|check|test>" >&2; exit 2 ;;
+    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|calendar|calculator|mail|keychain|keychain-service|check|test>" >&2; exit 2 ;;
 esac
 
 # Source manifests/lockfiles remain untouched; host dependencies share one
@@ -53,6 +55,7 @@ esac
 python3 "$script_dir/prepare-preview.py" "$root"
 preview_dir="$root/out/preview/applications/${source_dir##*/}"
 [[ $app != ime ]] || preview_dir="$root/out/preview/tools/desktop-ime"
+[[ $app != keychain-service ]] || preview_dir="$root/out/preview/tools/keychain-service"
 manifest="$preview_dir/Cargo.toml"
 
 command -v cargo >/dev/null || { echo "cargo is required" >&2; exit 1; }
@@ -88,6 +91,32 @@ export MOCHIOS_VERSION="$(sed -n 's/^release = "\([^"]*\)"/\1/p' "$root/version.
 export MOCHIOS_BUILD_NUMBER="$(sed -n 's/^build = \([0-9]*\)/\1/p' "$root/version.toml" | head -n 1)"
 export MNU_VERSION="${MNU_VERSION:-preview}"
 export MBOOT_VERSION="${MBOOT_VERSION:-preview}"
+
+if [[ $app == keychain && $mode == run ]]; then
+    # Build both executables before pinning their inodes in the host service.
+    "$0" keychain --check "${cargo_patches[@]}"
+    "$0" keychain-service --check "${cargo_patches[@]}"
+    keychain_socket_dir=$(mktemp -d /tmp/mochios-keychain.XXXXXXXX)
+    export MOCHIOS_PREVIEW_KEYCHAIN_SOCKET="$keychain_socket_dir/keychain.sock"
+    python3 "$script_dir/keychain-preview-server.py" "$root" "$MOCHIOS_PREVIEW_KEYCHAIN_SOCKET" "$MOCHIOS_PREVIEW_CONFIG_ROOT/keychain" &
+    keychain_pid=$!
+    cleanup_keychain() {
+        kill "$keychain_pid" 2>/dev/null || true
+        wait "$keychain_pid" 2>/dev/null || true
+        rm -rf -- "$keychain_socket_dir"
+    }
+    trap cleanup_keychain EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    for ((attempt=0; attempt<100; attempt++)); do
+        [[ ! -S $MOCHIOS_PREVIEW_KEYCHAIN_SOCKET ]] || break
+        kill -0 "$keychain_pid" 2>/dev/null || { wait "$keychain_pid"; exit 1; }
+        sleep 0.1
+    done
+    [[ -S $MOCHIOS_PREVIEW_KEYCHAIN_SOCKET ]] || { echo "Keychain preview service did not start." >&2; exit 1; }
+    "$CARGO_TARGET_DIR/debug/keychain"
+    exit $?
+fi
 
 exec cargo "$cargo_command" --offline --manifest-path "$manifest" \
     "${cargo_patches[@]}" --bin "$preview_binary"

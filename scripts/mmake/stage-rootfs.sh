@@ -21,6 +21,7 @@ mkdir -p \
     "$stage_new/var/config" \
     "$stage_new/var/config/applications/org.mochios.edit/users" \
     "$stage_new/var/lib/accounts" \
+    "$stage_new/var/lib/keychain" \
     "$stage_new/var/lib/certificate" \
     "$stage_new/var/lib/diagnostics" \
     "$stage_new/var/lib/packages" \
@@ -33,7 +34,7 @@ mkdir -p \
     "$stage_new/system/libraries/fonts" \
     "$stage_new/system/packages" \
     "$stage_new/system/services"
-chmod 0700 "$stage_new/var/lib/diagnostics"
+chmod 0700 "$stage_new/var/lib/diagnostics" "$stage_new/var/lib/keychain"
 chmod 01777 "$stage_new/var/config/applications/org.mochios.edit/users"
 chmod 01777 "$stage_new/var/config/workspace"
 chmod 01777 "$stage_new/tmp"
@@ -108,6 +109,7 @@ stage_app "$root/applications/settings" Settings.app settings appicon.png
 stage_app "$root/applications/system-monitor" SystemMonitor.app system-monitor appicon.png
 stage_app "$root/applications/terra" Terra.app terra appicon.png
 stage_app "$root/applications/calculator" Calculator.app calculator appicon.svg
+stage_app "$root/applications/keychain" Keychain.app keychain
 stage_app "$root/applications/mail" Mail.app mail appicon.png
 stage_app "$root/applications/calendar" Calendar.app calendar appicon.svg
 stage_app "$root/applications/viewer" Viewer.app viewer appicon.png
@@ -121,6 +123,7 @@ install_manifest "$root/applications/settings/manifest.toml" settings
 install_manifest "$root/applications/system-monitor/manifest.toml" system-monitor
 install_manifest "$root/applications/terra/manifest.toml" terra
 install_manifest "$root/applications/calculator/manifest.toml" calculator
+install_manifest "$root/applications/keychain/manifest.toml" keychain
 install_manifest "$root/applications/mail/manifest.toml" mail
 install_manifest "$root/applications/calendar/manifest.toml" calendar
 install_manifest "$root/applications/viewer/manifest.toml" viewer
@@ -145,6 +148,7 @@ stage_service posix posix-service posix.service
 stage_service signature signature signature.service
 stage_service tty tty tty.service
 stage_service user user-service user.service user
+stage_service keychain keychain-service keychain.service
 stage_service service-manager service-manager service-manager.service
 stage_service mboot-agent mboot-agent mboot-agent.service
 stage_service secure-ui secure-ui secure-ui.service

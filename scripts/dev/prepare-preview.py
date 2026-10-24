@@ -8,7 +8,7 @@ import sys
 
 root = pathlib.Path(sys.argv[1]).resolve()
 preview = root / "out/preview"
-applications = ("binder", "file", "settings", "edit", "terminal", "appstore", "system-monitor", "viewer", "calendar", "calculator", "mail", "test.app")
+applications = ("binder", "file", "settings", "edit", "terminal", "appstore", "system-monitor", "viewer", "calendar", "calculator", "mail", "keychain", "test.app")
 
 
 def link(source, target):
@@ -58,12 +58,28 @@ write_if_changed(ime_destination / "Cargo.toml", ime_manifest)
 link(ime_source / "src", ime_destination / "src")
 members.append('"tools/desktop-ime"')
 
+# Native keychain core is shared by the Linux development daemon.
+keychain_source = root / "services/keychain"
+keychain_destination = preview / "tools/keychain-service"
+keychain_destination.mkdir(parents=True, exist_ok=True)
+keychain_manifest = (keychain_source / "Cargo.toml").read_text()
+keychain_manifest = re.sub(
+    r'(\bpath\s*=\s*")(\.\./[^"]+)(")',
+    lambda match: match[1] + (keychain_source / match[2]).resolve().as_posix() + match[3],
+    keychain_manifest,
+)
+write_if_changed(keychain_destination / "Cargo.toml", keychain_manifest)
+link(keychain_source / "src", keychain_destination / "src")
+members.append('"tools/keychain-service"')
+
 link(root / "resources", preview / "resources")
 write_if_changed(preview / "Cargo.toml",
     '[workspace]\nresolver = "2"\nmembers = [\n    ' + ",\n    ".join(members)
     + '\n]\n\n[profile.dev]\npanic = "abort"\ndebug = 0\nincremental = false\n'
     + '\n[profile.dev.package.viewkit]\nopt-level = 2\n'
     + '\n[profile.dev.package.binder]\nopt-level = 1\n'
+    + '\n[profile.dev.package.argon2]\nopt-level = 3\n'
+    + '\n[profile.dev.package.blake2]\nopt-level = 3\n'
 )
 if not (preview / "Cargo.lock").exists():
     shutil.copyfile(root / "applications/binder/Cargo.lock", preview / "Cargo.lock")

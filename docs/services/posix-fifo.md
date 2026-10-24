@@ -1,6 +1,6 @@
 # 名前付きFIFO
 
-最新の実装範囲は末尾の188です。183〜187は各段階の記録です。
+最新の実装範囲は末尾の189です。183〜188は各段階の記録です。
 
 ## 共有状態（183）
 
@@ -332,3 +332,36 @@ runtime archiveは再生成せず、全アプリの再リンクも行ってい�
 本番のopen経路・libcのFIFOデータFDへはまだ接続していません。認証済みopenからownerへの
 privateな受け渡し、blocking openの待機・キャンセル、PIPE_BUF書き込みの容量待機、
 FD種別とmetadata操作、poll/select、SIGPIPE、exec/fork継承は引き続き必要です。
+
+## open・読み取り・容量待機の状態処理（189）
+
+`fifo_wait.rs`にowner側の一回限りの待機登録を追加しました。`WaitCondition`はopenの
+待ち合わせ、読み取り、指定長の書き込みを区別します。キューに1バイトでも空きがあれば立つ
+通常のWRITABLE通知とは別に、PIPE_BUF以下の書き込みでは全量の容量が空くまで待ちます。
+それより大きい書き込みは部分進行できるので1バイトの空きで再試行できます。EOFと読み手消滅も
+再試行を促す完了条件です。ゼロ長writeの通知登録は不要なので拒否します。
+
+登録時に必ず状態を再確認し、失敗したI/Oから通知登録までの間の変化を取りこぼさない形です。
+ownerは各open/read/write/release後、同じ排他区間で該当チャネルの待機を更新する必要があります。
+一度readyになった通知は取り消しません。他のreader/writerにデータ・容量を先に使われても、
+呼び出し側が起床して再試行できます。これは容量の予約や書き込み順序の保証ではありません。
+通知callbackの失敗は伝播しつつ、他のready通知の処理を継続し、失敗した通知も再試行可能です。
+
+待機は最大1024件で、確保はnative通知object作成前に行います。data objectと通知objectの
+ID範囲を分け、失敗したnative作成のIDも再利用しません。各登録は取得済みdata Handleの
+RAII leaseを保持する構造です。native adapterは明示的に添付されたHandleの識別と方向権限を
+検査して、このleaseへ渡さなければなりません。数値のobject IDを権限として利用しません。
+最終通知OP_RELEASEでその登録だけを破棄し、leaseを解放します。データキューを直接削除したり、
+任意のdata objectをcloseしたりはしません。不正なdelivery、追加添付、別ID範囲の解放は拒否します。
+
+ホスト試験で、空のFIFOのopen完了とreadableの区別、openの待ち合わせ成立後の相手close、
+1バイトだけ空いた場合の512バイトwrite待機、512バイトの容量確保、読み手消滅、
+登録直前のデータ到着、競合readerによる消費後の通知維持、通知失敗時の他jobへの配送、
+不正release、作成・確保失敗時のlease解放、上限回収とID非再利用を確認しました。
+既存FIFO関連と合わせ6ターゲット32件が成功し、
+`out/checks/mochios-fifo-wait-189-host-final.log`へ保存しています。
+
+今回はownerの状態処理とホスト試験までです。本番workerへの通知Handle発行・配送の接続、
+libc側での待機・キャンセル・再試行、実data Handleを保持した状態でのnative最終releaseは
+まだ今回の試験範囲に含みません。カーネルABI、SDK、runtime archive、配置済みイメージは
+変更しておらず、KVMも起動していません。libc FIFO openが使えるようになったという変更ではありません。

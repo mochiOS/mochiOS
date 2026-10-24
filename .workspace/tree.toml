@@ -14575,3 +14575,11 @@ path = "user"
 hash = "3fa23be0c480cfdc53e0acff23a0ffde24f47eeb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record lockfile ordering from native POSIX validation"
+
+[[entries]]
+date = "2026-10-24T12:20:30.293456233+09:00"
+snapshot = "b4ca84b5c2dad014922629f9"
+path = "services"
+hash = "b9147946fc257fae93da84163ce406a68dfa50c1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Track FIFO rendezvous and capacity waits with retained source leases"

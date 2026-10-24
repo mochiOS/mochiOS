@@ -68,3 +68,6 @@ record transportへの接続、native readinessの中継、libcの送受信経�
 fork / exec / dup / SCM_RIGHTSでの実統合試験が必要です。
 TCP、IPv6、fragmentation、ICMP error、multicast、socket options全体も引き続き未完了です。
 POSIX全体のgoalは継続中です。
+
+信頼するnetwork endpointのPOSIX層への起動時配布は[段階212](posix-network-bootstrap.md)で追加しました。
+factory転送とsocket workerへの登録は引き続き必要です。

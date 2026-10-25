@@ -175,3 +175,11 @@ syscall / yieldを越えて維持されることを確認しました。TLS temp
 段階225で再開した全体build jobは、他の実行中targetも終了した後、exit status 2で
 停止しました。TargetParser/Unix/Host.incのsys/utsname.h不足は未解消です。
 重複したビルドを起動しておらず、現在この全体buildは実行中ではありません。
+
+## 段階228: 読み取り可能なプログラムヘッダー
+
+[ELFメタデータの配置](posix-elf-metadata.md)を修正しました。AT_PHDRは、実際のLOAD内の
+表、またはuser-image window内のread-only / non-executableなコピーを指します。
+LOAD内外の2形式を通常の資格情報と実効UID 501で実行し、元ファイルとの完全一致と
+書き込み拒否を確認しました。初回に検出したfork回帰も配置境界を守る修正で解消しました。
+TLS初期化、PT_TLS segment、sys/utsname.hは引き続き未実装です。

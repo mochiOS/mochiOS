@@ -14903,3 +14903,11 @@ path = "services"
 hash = "a48d80152b593c83b7ec9441637a7f4c3d7fb174"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise compiler TLS layouts allocation failures and native C++ lifecycles"
+
+[[entries]]
+date = "2026-10-25T18:27:09.100907312+09:00"
+snapshot = "8b5271fb4a6698d6170c458c"
+path = "services"
+hash = "bd48f45775d15a84b4aa7c96adeefc914a6d0ce2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add a native clang-to-LLD compile link and execution gate"

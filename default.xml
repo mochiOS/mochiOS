@@ -220,6 +220,41 @@
     />
     
     <project
+            path="applications/calculator"
+            name="mochiOS/Calculator.app"
+            revision="main"
+            remote="github"
+    />
+
+    <project
+            path="applications/calendar"
+            name="mochiOS/Calendar.app"
+            revision="main"
+            remote="github"
+    />
+
+    <project
+            path="applications/disk-utility"
+            name="mochiOS/DiskUtility.app"
+            revision="main"
+            remote="github"
+    />
+
+    <project
+            path="applications/keychain"
+            name="mochiOS/Keychain.app"
+            revision="main"
+            remote="github"
+    />
+
+    <project
+            path="applications/mail"
+            name="mochiOS/Mail.app"
+            revision="main"
+            remote="github"
+    />
+
+    <project
             path="tools/mmake"
             name="tas0dev/mmake"
             revision="master"

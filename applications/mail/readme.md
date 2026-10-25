@@ -1,8 +1,8 @@
 # Mail
 
-Native AppCore / ViewKit mail client. The existing compact list → reader
-navigation, wide mailbox/list/reader layout, fonts, icons and omochi components
-are retained. Default window: 1080 × 720. No web view is used.
+Native AppCore / ViewKit mail client. Compact list → reader navigation and the
+wide mailbox/list/reader layout use the existing theme, VK Symbols and omochi
+components. Default window: 1080 × 720. No web view is used.
 
 ## Preview without sign-in
 
@@ -51,8 +51,8 @@ login page or deprecated out-of-band authorization code flow.
 - [Google native application OAuth](https://developers.google.com/identity/protocols/oauth2/native-app)
 
 Select an account's mailbox and press **Get Mail**. With the combined mailbox
-selected, receive targets the current sending account; its address is shown in
-the message-list header.
+selected, receive targets the current sending account. Select an account-specific
+mailbox to receive for that account explicitly.
 Receive currently downloads that account's newest **100 Inbox messages**, up to
 8 MiB per message and 32 MiB per receive. There is no background polling or older
 mail pagination yet. Reading/searching/organizing uses the in-memory copy.
@@ -68,8 +68,17 @@ retries. A successful submission does not guarantee recipient delivery.
 ## Interface
 
 UI labels, status messages, errors and message fallbacks use English. Received
-message content keeps its original language. The original reading-pane layout,
-colors, fonts and icon assets are retained. VK Symbols in the toolbar, folder
+message content keeps its original language. The shared toolbar separates mailbox
+navigation, receiving and composition on the left from message actions on the
+right. Compact readers keep Back and message actions in the same toolbar.
+Mailboxes and messages begin below one common header; folder title, count and
+search no longer compete with toolbar commands for the message-list width.
+A stable footer reserves room for status text without shifting panes when a job
+starts or finishes. The message list uses 88px rows with shared paint/hit geometry;
+the reading pane separates subject, sender metadata and message body. Its empty
+state is centered in the available pane. Compose retains its native fields and
+uses the same toolbar surface. Existing colors, fonts and icon assets are retained.
+VK Symbols in the toolbar, folder
 list and disclosure controls use the shared compact icon token (16 logical px)
 instead of stretching to fill the control's allocation. Compose uses the same
 field frames for paint and input; setup shares its field geometry too. Native

@@ -18,6 +18,10 @@ pub struct Layout {
 fn rect(x: f32, y: f32, w: f32, h: f32) -> Rect {
     Rect::new(x, y, w.max(0.0), h.max(0.0))
 }
+pub const TOOLBAR_HEIGHT: f32 = 48.0;
+pub const MESSAGE_ROW_HEIGHT: f32 = 88.0;
+pub const STATUS_HEIGHT: f32 = 40.0;
+
 impl Layout {
     // Local layout proposals: 280px list + 400px reader + spacing; not global design tokens.
     pub fn new(
@@ -44,13 +48,14 @@ impl Layout {
                 composer: true,
             };
         }
+        let content = Self::content(b, TOOLBAR_HEIGHT);
         if width == Width::Compact {
             return Self {
                 width,
                 bounds: b,
                 sidebar: None,
-                list: (page != Page::Reader).then_some(b),
-                reader: (page == Page::Reader).then_some(b),
+                list: (page != Page::Reader).then_some(content),
+                reader: (page == Page::Reader).then_some(content),
                 composer: false,
             };
         }
@@ -69,13 +74,14 @@ impl Layout {
         Self {
             width,
             bounds: b,
-            sidebar: (sw > 0.0).then(|| rect(b.origin.x, b.origin.y, sw, b.size.height)),
-            list: Some(rect(list_x, b.origin.y, lw, b.size.height)),
+            sidebar: (sw > 0.0)
+                .then(|| rect(b.origin.x, content.origin.y, sw, content.size.height)),
+            list: Some(rect(list_x, content.origin.y, lw, content.size.height)),
             reader: Some(rect(
                 reader_x,
-                b.origin.y,
+                content.origin.y,
                 b.origin.x + b.size.width - reader_x,
-                b.size.height,
+                content.size.height,
             )),
             composer: false,
         }
@@ -88,14 +94,37 @@ impl Layout {
             b.size.height - top,
         )
     }
+    pub fn toolbar(&self) -> Rect {
+        rect(
+            self.bounds.origin.x,
+            self.bounds.origin.y,
+            self.bounds.size.width,
+            TOOLBAR_HEIGHT.min(self.bounds.size.height),
+        )
+    }
+    pub fn search(&self) -> Option<Rect> {
+        self.list.map(|b| {
+            rect(
+                b.origin.x + 16.0,
+                b.origin.y
+                    + if self.width == Width::Compact {
+                        78.0
+                    } else {
+                        62.0
+                    },
+                b.size.width - 32.0,
+                30.0,
+            )
+        })
+    }
     pub fn list_body(&self) -> Option<Rect> {
         self.list.map(|b| {
             Self::content(
                 b,
                 if self.width == Width::Compact {
-                    154.0
+                    120.0
                 } else {
-                    116.0
+                    104.0
                 },
             )
         })

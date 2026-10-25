@@ -14783,3 +14783,11 @@ path = "services"
 hash = "451fa527e6d852b62b988c0a638875e3cfcb6753"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Register explicitly delegated IPv4 UDP socket Providers"
+
+[[entries]]
+date = "2026-10-25T13:09:29.621669557+09:00"
+snapshot = "29c57ac547cf8e24f29f23cb"
+path = "services"
+hash = "ee5753589250d3f59208a79c9df7f39d73122e09"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Handle IPv4 UDP records through explicit socket and RAM authority"

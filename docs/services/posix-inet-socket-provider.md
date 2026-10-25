@@ -1,7 +1,8 @@
 # IPv4 UDP socket Provider（段階213）
 
 段階211のUDP descriptionをsocket workerへ登録し、段階212で渡した信頼するnetwork endpointへ
-接続しました。libcのsocket()からのfactory取得・FD登録はまだです。
+接続しました。libcのsocket()からのfactory取得・FD登録は段階214で接続しました。
+詳細は[UDPのlibc record転送](posix-inet-libc-records.md)を参照してください。
 
 ## 作成と権限
 

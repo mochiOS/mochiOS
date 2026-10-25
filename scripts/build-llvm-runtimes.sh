@@ -27,16 +27,21 @@ for version in 'LLVM_VERSION_MAJOR 18' 'LLVM_VERSION_MINOR 1' 'LLVM_VERSION_PATC
     }
 done
 
-patch_file="$root/scripts/llvm/patches/libcxx-18-newlib-regex-masks.patch"
-if patch --batch --dry-run --forward -p1 -d "$source_tree" < "$patch_file" >/dev/null 2>&1; then
-    patch --batch --forward -p1 -d "$source_tree" < "$patch_file"
-elif ! patch --batch --dry-run --reverse -p1 -d "$source_tree" < "$patch_file" >/dev/null 2>&1; then
-    echo "libc++ newlib patch does not match the supplied source" >&2
-    exit 1
-fi
+for patch_name in libcxx-18-newlib-regex-masks.patch libcxxabi-18-pthread-thread-atexit.patch; do
+    patch_file="$root/scripts/llvm/patches/$patch_name"
+    if patch --batch --dry-run --forward -p1 -d "$source_tree" < "$patch_file" >/dev/null 2>&1; then
+        patch --batch --forward -p1 -d "$source_tree" < "$patch_file"
+    elif ! patch --batch --dry-run --reverse -p1 -d "$source_tree" < "$patch_file" >/dev/null 2>&1; then
+        echo "LLVM runtime patch does not match the supplied source: $patch_name" >&2
+        exit 1
+    fi
+done
 
 flags="-D__mochios__=1 -D_GNU_SOURCE=1 -mno-red-zone -fno-pie"
 flags+=" -isystem\"$root/user/libc-port/include\" -isystem\"$sdk/sysroot/include\""
+# The runtime does not export __cxa_thread_atexit_impl. Static-library-only
+# configure probes cannot detect a missing definition; use libc++abi's real
+# pthread-key fallback instead of their cached false positive.
 cmake -S "$source_tree/runtimes" -B "$build_directory" -G 'Unix Makefiles' \
     -DCMAKE_SYSTEM_NAME=Generic -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
     -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
@@ -59,5 +64,6 @@ cmake -S "$source_tree/runtimes" -B "$build_directory" -G 'Unix Makefiles' \
     -DLIBUNWIND_IS_BAREMETAL=ON \
     -DLIBCXX_HAS_PTHREAD_LIB=OFF -DLIBCXX_HAS_RT_LIB=OFF -DLIBCXX_HAS_ATOMIC_LIB=OFF \
     -DLIBCXXABI_HAS_PTHREAD_LIB=OFF -DLIBCXXABI_HAS_DL_LIB=OFF \
+    -DLIBCXXABI_HAS_CXA_THREAD_ATEXIT_IMPL=OFF \
     -DLIBUNWIND_HAS_PTHREAD_LIB=OFF -DLIBUNWIND_HAS_DL_LIB=OFF
 cmake --build "$build_directory" --parallel "$jobs"

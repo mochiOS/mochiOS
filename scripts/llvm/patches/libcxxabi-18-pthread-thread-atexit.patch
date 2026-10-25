@@ -1,0 +1,11 @@
+--- a/libcxxabi/src/CMakeLists.txt
++++ b/libcxxabi/src/CMakeLists.txt
+@@ -36,7 +36,7 @@
+   )
+ endif()
+ 
+-if (LIBCXXABI_ENABLE_THREADS AND (UNIX OR FUCHSIA) AND NOT (APPLE OR CYGWIN)
++if (LIBCXXABI_ENABLE_THREADS AND (UNIX OR FUCHSIA OR LIBCXXABI_HAS_PTHREAD_API) AND NOT (APPLE OR CYGWIN)
+     AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "AIX"))
+   list(APPEND LIBCXXABI_SOURCES
+     cxa_thread_atexit.cpp

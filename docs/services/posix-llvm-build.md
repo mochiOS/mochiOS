@@ -183,3 +183,15 @@ syscall / yieldを越えて維持されることを確認しました。TLS temp
 LOAD内外の2形式を通常の資格情報と実効UID 501で実行し、元ファイルとの完全一致と
 書き込み拒否を確認しました。初回に検出したfork回帰も配置境界を守る修正で解消しました。
 TLS初期化、PT_TLS segment、sys/utsname.hは引き続き未実装です。
+
+## 段階229: 静的ELFのコンパイラTLS
+
+[ユーザー空間の静的TLS初期化](posix-static-tls.md)を実装しました。
+PT_TLSを持つ実際のC++実行ファイルで、初期thread、pthread間の独立性、8KiB alignment、
+デストラクタ、forkの継承を確認しました。段階226でTLS不足によりリンクできなかった
+実LLVMSupport試験も、KVM上のroot/euid 501で成功しました。
+カーネルへのTLS ABI追加はありません。SDKとRust std overlayは再生成していません。
+
+全体のclang/ld.lld buildは停止中です。次の既知の未解消箇所は
+TargetParser/Unix/Host.incが必要とするsys/utsname.hと実際のuname実装です。
+clangによるネイティブのコンパイル・リンク・生成物実行は引き続き未確認です。

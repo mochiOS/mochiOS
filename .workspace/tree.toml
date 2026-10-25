@@ -14791,3 +14791,11 @@ path = "services"
 hash = "ee5753589250d3f59208a79c9df7f39d73122e09"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Handle IPv4 UDP records through explicit socket and RAM authority"
+
+[[entries]]
+date = "2026-10-25T13:26:07.664905311+09:00"
+snapshot = "e16f3881a4aa3bf119368ef6"
+path = "services"
+hash = "c756525ff9c8801eb23b6271aef3c68e66f26880"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native LLVM C++ runtimes through fork and exec"

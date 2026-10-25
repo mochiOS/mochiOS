@@ -14847,3 +14847,11 @@ path = "services"
 hash = "00153fc0f4de218f86ae07a2c8b5c905be9ce4af"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Deliver selected child accounting with wait replies and verify C APIs"
+
+[[entries]]
+date = "2026-10-25T15:07:18.366760159+09:00"
+snapshot = "f157436875c367b36523cc28"
+path = "services"
+hash = "e90db757896bee36d0e75c32f8a66a44ee1a0693"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify RAM residency counts and retained PTE ownership transitions"

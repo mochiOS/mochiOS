@@ -195,3 +195,15 @@ PT_TLSを持つ実際のC++実行ファイルで、初期thread、pthread間の�
 全体のclang/ld.lld buildは停止中です。次の既知の未解消箇所は
 TargetParser/Unix/Host.incが必要とするsys/utsname.hと実際のuname実装です。
 clangによるネイティブのコンパイル・リンク・生成物実行は引き続き未確認です。
+
+## 段階230: unameとホスト名
+
+[システム情報とホスト名](posix-system-identity.md)をユーザー空間で実装しました。
+実際のrelease manifestから生成する情報を`posix.service`で公開し、
+newlibとRust libcの`uname` ABIを揃えました。hostnameの変更はサービスが保持する
+実効UIDで認可します。ホスト507テストとKVMのroot/euid 501で検証しました。
+
+LLVMのconfigureを新しいruntimeで完了し、停止していた全体buildを再開しました。
+`TargetParser/Host.cpp`のコンパイルと`LLVMTargetParser`の生成が成功したため、
+sys/utsname.h不足は解消しています。clang/lld全体のbuildと実行の完了はまだ未確認です。
+実行中jobのログは`out/checks/mochios-system-identity-230-llvm-build.log`。

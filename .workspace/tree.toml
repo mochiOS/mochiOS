@@ -14879,3 +14879,11 @@ path = "build"
 hash = "1b7580674badda71eb0830ce27bae16fb95096c4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "feat(apps): add Disk Utility build and preview targets"
+
+[[entries]]
+date = "2026-10-25T16:51:32.197164795+09:00"
+snapshot = "c513cd621b544f8c7ebc5f0d"
+path = "services"
+hash = "268e8395a0b078b56c23f0621a3bbe9c6501d344"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify current-thread local-base changes across syscall and yield"

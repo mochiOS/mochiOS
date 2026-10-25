@@ -120,6 +120,7 @@ impl CalendarView {
         Button::with_interaction_and_label(interaction, "")
             .style(ButtonStyle::Ghost)
             .radius(CornerRadius::Small)
+            .content_padding(false)
             .content(DayCell {
                 date,
                 outside: date.month != month,

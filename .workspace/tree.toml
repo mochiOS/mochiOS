@@ -14799,3 +14799,11 @@ path = "services"
 hash = "c756525ff9c8801eb23b6271aef3c68e66f26880"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native LLVM C++ runtimes through fork and exec"
+
+[[entries]]
+date = "2026-10-25T13:38:11.655601785+09:00"
+snapshot = "c1798818d023f0fb37feaafb"
+path = "user"
+hash = "a65b23396a503b03abe8d6f8677983f508495bca"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose existing BSD program exit status definitions"

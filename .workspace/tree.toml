@@ -14831,3 +14831,11 @@ path = "services"
 hash = "183b29d9cbd0359a1607f26904e3e90c0476448b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Check installed and overlaid POSIX wait headers in C and C++"
+
+[[entries]]
+date = "2026-10-25T14:41:25.987475913+09:00"
+snapshot = "e7abf9f8941bd228713a2ae3"
+path = "services"
+hash = "74f91192ab920896c7c28271a29152def549e43c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Observe selected child CPU usage in the wait publication transaction"

@@ -164,3 +164,14 @@ STT_TLS symbolに対するPT_TLS segmentの欠落です。user/runtime/linker.ld
 失敗を検出した後も同じmake jobが既に起動した別targetを処理している間は、
 そのjobが終了するまで重複ビルドを始めません。
 clang / ld.lldの完成、mochiOS上でのCコンパイルと実行はまだ未確認です。
+
+
+## 段階227: 現在threadのlocal-base設定
+
+[汎用のlocal-base設定](posix-thread-local-base.md)を追加し、KVMでCPU値と保存値が
+syscall / yieldを越えて維持されることを確認しました。TLS templateやPOSIXの管理は
+カーネルへ追加していません。compiler TLSの配置は次の段階に残ります。
+
+段階225で再開した全体build jobは、他の実行中targetも終了した後、exit status 2で
+停止しました。TargetParser/Unix/Host.incのsys/utsname.h不足は未解消です。
+重複したビルドを起動しておらず、現在この全体buildは実行中ではありません。

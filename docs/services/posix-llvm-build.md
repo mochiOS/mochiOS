@@ -207,3 +207,18 @@ LLVMのconfigureを新しいruntimeで完了し、停止していた全体build�
 `TargetParser/Host.cpp`のコンパイルと`LLVMTargetParser`の生成が成功したため、
 sys/utsname.h不足は解消しています。clang/lld全体のbuildと実行の完了はまだ未確認です。
 実行中jobのログは`out/checks/mochios-system-identity-230-llvm-build.log`。
+
+## 段階231: newlibの壁時計とネイティブコンパイラ試験の準備
+
+生成済みarchiveの参照を調べ、newlibの`_gettimeofday_r`が必要とする
+`gettimeofday`本体の欠落を確認した。[壁時計adapter](posix-wall-clock.md)を追加し、
+ホスト7テストとKVMのroot/euid 501で実際の`time()`呼び出しまで検証した。
+診断環境で必要なsystem.time.readはmanifestで明示し、試験後に元へ戻した。
+
+[ネイティブclangの統合試験](posix-native-clang-pipeline.md)も追加した。
+試験objectとELFのクロスビルド、およびfixtureのCソースとheadersの組み合わせは確認した。
+実clang/ld.lldからobject・ELFを生成して実行する試験の成功は、まだ確認していない。
+ツール不在やcompile/link/exec失敗をskipや成功へ置き換えない。
+
+既存の全体buildは再起動していない。KVM試験中は所有するプロセスを開始時刻まで
+照合して一時停止し、通常イメージの検証後に同じjobを再開した。

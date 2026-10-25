@@ -38,3 +38,7 @@ LLVM buildと並行した起動ではBinder readyがtimeoutした。
 確認した後にC API試験へ進んだ。失敗した起動記録は保持している。
 
 証跡は`out/checks/mochios-{clang-pipeline,wall-clock}-231-*`。
+
+元のmanifestとverificationの完全一致を確認し、診断ELFを外した通常イメージで
+input READY、Binder ready、Dockの表示を確認した。既存Network readiness失敗(-6)は
+未修正。検証用VMは停止し、一時停止した同じLLVMジョブをPID・開始時刻を照合して再開した。

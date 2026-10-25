@@ -1638,7 +1638,7 @@ impl MailView {
                 c,
             );
         }
-        self.sender_button().paint(frames.from, c);
+        self.sender_button(c.theme).paint(frames.from, c);
         self.core.draft.recipient_field().paint(frames.to, c);
         Text::caption(self.core.draft.recipient_hint())
             .color(if self.core.draft.recipient_invalid() {
@@ -1681,7 +1681,7 @@ impl MailView {
                 c,
             );
     }
-    fn sender_button(&self) -> Button {
+    fn sender_button(&self, theme: &Theme) -> Button {
         let label = self
             .core
             .model
@@ -1696,11 +1696,13 @@ impl MailView {
             )
             .accessibility_label(format!("From: {label}. Choose sending account"))
             .content(
-                HStack::new()
-                    .alignment(StackAlignment::Center)
-                    .gap(StackGap::Small)
-                    .child(Text::caption(label).layout().flex_grow(1.0))
-                    .child(Glyph(SymbolName::ChevronDown)),
+                Padding::symmetric(theme.spacing.small, 0.0).content(
+                    HStack::new()
+                        .alignment(StackAlignment::Center)
+                        .gap(StackGap::Small)
+                        .child(Text::caption(label).layout().flex_grow(1.0))
+                        .child(Glyph(SymbolName::ChevronDown)),
+                ),
             )
     }
     fn needs_account(&self) -> bool {
@@ -2108,7 +2110,11 @@ impl View for MailView {
                 .close_draft_button()
                 .handle_event(frames.close, event, c);
             result = result.merge(self.send_button().handle_event(frames.send, event, c));
-            result = result.merge(self.sender_button().handle_event(frames.from, event, c));
+            result = result.merge(self.sender_button(c.theme()).handle_event(
+                frames.from,
+                event,
+                c,
+            ));
             let recipient_focused = self.core.draft.to.is_focused();
             let before_to = self.core.draft.to.value();
             let before_subject = self.core.draft.subject.value();

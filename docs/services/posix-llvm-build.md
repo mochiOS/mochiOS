@@ -82,3 +82,38 @@ clang / ld.lldのリンクとmochiOS上での実行、Cのコンパイルはま�
 記録はout/checks/mochios-llvm-target-219-{configure,build}.log、
 mochios-llvm-path-219-build.logです。Path.cppの単独試験は全体ビルドのobjectを
 上書きせず、out/checks/mochios-llvm-path-219.oへ出力しました。
+
+## 段階220: 待機ヘッダーの修正
+
+全体ビルドはProgram.cppで停止しました。sys/wait.hのソース側とSDK側に同じ
+include_nextラッパーが重なると、共通のinclude guardで基礎の宣言が消えていました。
+wait / waitpid、status macro、waitidの宣言を自己完結させました。
+sys/syslimits.hも既存newlibのBSD headerをライセンスごと公開し、POSIXの
+引数サイズ最小値_POSIX_ARG_MAXを追加しました。実装値ARG_MAXは変更しません。
+
+SDKを直接変更せず、インストールされたheaderだけの場合とソースoverlayを
+重ねる場合の両方をC / C++でコンパイルしました。既存wait出力試験も含め5件成功です。
+後者のhost試験は自プロセスへのprocess_vm_readvの実行権限を必要とします。
+LLVMのProcess / Signals / Memory / Threading / DynamicLibraryは本番設定で
+コンパイルできました。Program.cppにはwait4とru_maxrssの不足が残ります。
+記録はout/checks/mochios-wait-headers-220-host-final.logと
+mochios-llvm-{process,program,signals,memory,threading,dynamiclibrary}-220-build.logです。
+
+## 段階221: 選択した子の待機とCPU使用量の同時観測
+
+posix.serviceにwait_child_usage_with_replyを追加しました。子を回収する直前に、
+その子自身と、その子が実際にwaitした子孫のCPU使用量を同じtransactionで公開します。
+プロセス全体のRUSAGE_CHILDRENを前後で引き算する実装は、別threadのwaitと
+競合するため使用しません。既存waitと同じ選択・認証・返信後の回収処理を共有します。
+
+native会計の失敗、不正な単位、overflow、返信失敗ではイベントを消費せず、
+親の累計も増やしません。WNOWAITは使用量を返しても回収せず、停止イベントも
+取得失敗時には再試行できます。WNOHANGでイベントがない場合は会計を読みません。
+既存waitのWNOWAITは従来どおり会計を要求しません。
+
+hostのprotocol 497件とchild_cpu 2件が成功しました。新経路の返信拒否と再試行、
+資格のない親からの取得拒否、子孫の集計、WNOWAIT、停止と空のWNOHANGを含みます。
+記録はout/checks/mochios-wait-usage-221-host-final.logです。
+これはサービス内部の処理までであり、新しいwire replyとwait4 C APIへの接続は
+まだ行っていません。最大常駐メモリの計測も未実装です。clang / ld.lldの
+全体ビルドはProgram.cppで失敗した状態で停止しており、再起動していません。

@@ -1557,6 +1557,7 @@ dependencies = [
  "mnu-abi",
  "mochi-user-syscall",
  "mochios-filesystem-protocol",
+ "mochios-net-device-protocol",
  "mochios-posix-protocol",
 ]
 

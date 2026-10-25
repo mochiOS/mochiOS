@@ -1,0 +1,24 @@
+--- a/libcxx/src/regex.cpp
++++ b/libcxx/src/regex.cpp
+@@ -308,13 +308,21 @@
+ const classnames ClassNames[] = {
+     {"alnum", ctype_base::alnum},
+     {"alpha", ctype_base::alpha},
++#if defined(_NEWLIB_VERSION)
++    {"blank", static_cast<unsigned char>(ctype_base::blank)},
++#else
+     {"blank", ctype_base::blank},
++#endif
+     {"cntrl", ctype_base::cntrl},
+     {"d", ctype_base::digit},
+     {"digit", ctype_base::digit},
+     {"graph", ctype_base::graph},
+     {"lower", ctype_base::lower},
++#if defined(_NEWLIB_VERSION)
++    {"print", static_cast<unsigned char>(ctype_base::print)},
++#else
+     {"print", ctype_base::print},
++#endif
+     {"punct", ctype_base::punct},
+     {"s", ctype_base::space},
+     {"space", ctype_base::space},

@@ -14807,3 +14807,11 @@ path = "user"
 hash = "a65b23396a503b03abe8d6f8677983f508495bca"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose existing BSD program exit status definitions"
+
+[[entries]]
+date = "2026-10-25T14:00:00.529554726+09:00"
+snapshot = "3085f02e1596309bd6b8cfc7"
+path = "services"
+hash = "0547b55bbbcd00db566e808186f12b79198e0d07"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify auxiliary metadata across credential changes and exec"

@@ -14863,3 +14863,11 @@ path = "services"
 hash = "da8532c8145fdf5dacd1f334402885f831a4acf1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify native process memory observation and execution ownership lifetimes"
+
+[[entries]]
+date = "2026-10-25T16:04:17.948782083+09:00"
+snapshot = "c5e98b8a8af465bb976ad26b"
+path = "services"
+hash = "62e96c3dd71b1b6a3c50a60d60ff84fc0e43e72c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Account for waited child peak RSS without consuming failed replies"

@@ -14823,3 +14823,11 @@ path = "services"
 hash = "edfb2f28991fa37a11c911070605b8772a04fe28"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify memory advice policy and native VM range boundary"
+
+[[entries]]
+date = "2026-10-25T14:38:04.800776672+09:00"
+snapshot = "9dcfb6845cd769f00c33f085"
+path = "services"
+hash = "183b29d9cbd0359a1607f26904e3e90c0476448b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Check installed and overlaid POSIX wait headers in C and C++"

@@ -14815,3 +14815,11 @@ path = "services"
 hash = "0547b55bbbcd00db566e808186f12b79198e0d07"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify auxiliary metadata across credential changes and exec"
+
+[[entries]]
+date = "2026-10-25T14:32:08.052017508+09:00"
+snapshot = "f2746fe813417a5c380abfe9"
+path = "services"
+hash = "edfb2f28991fa37a11c911070605b8772a04fe28"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify memory advice policy and native VM range boundary"

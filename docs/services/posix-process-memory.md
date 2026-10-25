@@ -10,7 +10,7 @@ native ProcessMemoryReadを追加しました。引数はProcess Handle（0は�
 mochi-user-syscall::execution::memory_usageはNone / Some(Handle)を受け、
 Some(0)をsyscall前に拒否します。異常な成功値やcurrent > peakも拒否します。
 POSIXのrusage、親子関係、KiBへの変換、子の最大値集計はABIへ含めていません。
-ru_maxrssへの接続はまだ未完了です。
+ru_maxrssへの接続は[段階225](posix-rusage-memory.md)で行います。以下は段階224の記録です。
 
 ProcessObjectが独立した観測状態を持ち、VMルートはそれをWeak参照で通知します。
 ルートの最大値をそのままprocessの最大値に流用しません。共有ルートに後から

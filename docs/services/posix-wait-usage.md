@@ -1,4 +1,7 @@
-# 待機と選択した子のCPU使用量（段階222）
+# 待機と選択した子の使用量
+
+現在のRSS対応は[段階225](posix-rusage-memory.md)を参照してください。
+以下は段階222の実装・検証記録です。
 
 wait4 / wait3と、従来不足していたwait / _waitのC entry pointを追加しました。
 wait4はusageがNULLなら既存waitpidを利用します。それ以外は新しい

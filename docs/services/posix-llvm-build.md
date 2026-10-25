@@ -128,3 +128,18 @@ clang本体のビルド・実行とCプログラムのコンパイル成功は�
 [Process Handleによる取得](posix-process-memory.md)を実装し、KVMで実際のページ増減と
 終了後のpeak保持を確認しました。rusageのfield / libc / POSIXサービスへの接続は
 まだ残っているため、Program.cppのru_maxrssエラーは未解消です。
+
+
+## 段階225: rusageへの最大常駐量の接続
+
+[最大常駐量のPOSIX会計](posix-rusage-memory.md)を追加しました。
+Program.cppを本番のdefines / includes / flagsで再コンパイルできました。
+記録はout/checks/mochios-llvm-program-225-build.log、objectは
+mochios-llvm-program-225.oです。clang / ld.lld全体のリンクとmochiOS上での
+コンパイル・実行成功を意味するものではありません。
+
+
+更新したrelease runtimeを指定し、SDK / Rust std overlayを作り直さずに
+LLVM targetを再構成し全体ビルドへ進む処理を再開しました。
+記録先はout/checks/mochios-llvm-target-225-{configure,build}.logです。
+完了状態はそれぞれの処理結果を確認する必要があります。

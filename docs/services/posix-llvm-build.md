@@ -222,3 +222,13 @@ sys/utsname.h不足は解消しています。clang/lld全体のbuildと実行�
 
 既存の全体buildは再起動していない。KVM試験中は所有するプロセスを開始時刻まで
 照合して一時停止し、通常イメージの検証後に同じjobを再開した。
+
+## 段階232: LLDの実出力経路
+
+[実FileOutputBufferの試験](posix-llvm-output.md)を追加し、KVM上のroot/euid 501で
+commit、実行権限、rename置換、旧FDの維持、offset付き共有mmapの書き込み、
+unmap後の内容とdiscardを確認した。mmapの失敗を代替bufferの成功で隠さない。
+追加のkernel/runtime機能やLLVMの回避patchは不要だった。
+
+全体buildは同じjobで続いている。clang/ld.lld本体によるコンパイル・リンク・
+生成物実行の成功は引き続き未確認。

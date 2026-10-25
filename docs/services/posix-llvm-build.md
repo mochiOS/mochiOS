@@ -47,7 +47,7 @@ LLVMのCrashRecoveryContextが要求するsysexits.hは、newlib内にあるBSD 
 ライセンスごとuser/libc-port/includeへ公開しました。HAVE_SYSEXITS_Hの再検出後、
 同headerを参照する実際のLLVM objectのコンパイル成功を確認しました。
 
-全体ビルドでは現在、llvm/lib/Support/Unix/Path.incに次の未対応が残っています。
+段階216の全体ビルドはllvm/lib/Support/Unix/Path.incの次の不足で停止しました。
 
 - getMainExecutableのmochiOS向け実装
 - statvfsのfield名と、ローカルmount判定の扱い
@@ -60,3 +60,25 @@ LLVMのCrashRecoveryContextが要求するsysexits.hは、newlib内にあるBSD 
 
 記録はout/checks/mochios-llvm-host-tools-216-{configure,build}.log、
 mochios-llvm-target-216-script-final.log、mochios-llvm-target-216-build-next.logです。
+
+## 段階219: Path.cppの移植
+
+configureスクリプトからllvm-18-mochios-path.patchを適用します。適用済みの場合は
+reverseのdry-runで確認し、異なるsourceへの不一致は明示的に失敗します。
+getMainExecutableは段階217のgetauxval(AT_EXECFN)とrealpathを使用します。
+argv[0]へのfallbackや、kernelへの実行パス照会は追加していません。
+
+mochiOSのstatvfsはlocal/remote metadataを現在提供しません。is_localは既存の
+statvfs / fstatvfsで対象を検証した後にoperation_not_supportedを返します。
+存在しないMNT_LOCAL bitや、全mountがlocalという仮定で成功に見せません。
+LLVM独自のlocality判定は未対応として残ります。
+
+mapped_file_regionは段階218で追加したPOSIX_MADV_DONTNEEDを検出し、
+既存のposix_madvise分岐を使用します。内容の破棄や配置最適化は行いません。
+新しいtarget構成処理は成功し、生成された本番のdefines / includes / flagsで
+LLVM本体のPath.cppをコンパイルできました。全体ビルドは再開しましたが、
+clang / ld.lldのリンクとmochiOS上での実行、Cのコンパイルはまだ未確認です。
+
+記録はout/checks/mochios-llvm-target-219-{configure,build}.log、
+mochios-llvm-path-219-build.logです。Path.cppの単独試験は全体ビルドのobjectを
+上書きせず、out/checks/mochios-llvm-path-219.oへ出力しました。

@@ -14855,3 +14855,11 @@ path = "services"
 hash = "e90db757896bee36d0e75c32f8a66a44ee1a0693"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify RAM residency counts and retained PTE ownership transitions"
+
+[[entries]]
+date = "2026-10-25T15:46:12.614031045+09:00"
+snapshot = "ac507d1cbe0b0f987b3ca2bf"
+path = "services"
+hash = "da8532c8145fdf5dacd1f334402885f831a4acf1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify native process memory observation and execution ownership lifetimes"

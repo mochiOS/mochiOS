@@ -143,3 +143,24 @@ mochios-llvm-program-225.oです。clang / ld.lld全体のリンクとmochiOS上
 LLVM targetを再構成し全体ビルドへ進む処理を再開しました。
 記録先はout/checks/mochios-llvm-target-225-{configure,build}.logです。
 完了状態はそれぞれの処理結果を確認する必要があります。
+
+
+## 段階226: 公開アカウント取得と次の不足
+
+LLVMSupport.aの実物を使うnative_llvm_support.cppを作り、ファイルbuffer、offset付き
+mmap、rename、ExecuteAndWait、redirect、wait4のstatisticsを検証する準備をしました。
+最初のリンクではPath.cppからgetpwuid_r / getpwnam_rへの未定義参照を検出したため、
+[公開アカウント取得](posix-public-accounts.md)を実装し、Cの実機試験を通しました。
+
+Support試験のリンクにはまだ成功していません。次のエラーはCrashRecoveryContext.cppの
+STT_TLS symbolに対するPT_TLS segmentの欠落です。user/runtime/linker.ldには.tdata /
+.tbssはあるもののPT_TLSの宣言がなく、runtimeのpthread_createもthread_local_baseを
+0にしています。初期threadのcompiler TLS template配置、pthreadごとの独立したTLSと
+終了時の解放を揃える必要があります。segmentだけ追加して動作確認済みとはしません。
+記録はout/checks/mochios-llvm-support-226-link-final.logです。
+
+全体ビルドではTargetParser/Host.cppからsys/utsname.hが見つからないエラーも検出しました。
+これは新しい未解消箇所です。mochios-llvm-target-225-build.logに記録しています。
+失敗を検出した後も同じmake jobが既に起動した別targetを処理している間は、
+そのjobが終了するまで重複ビルドを始めません。
+clang / ld.lldの完成、mochiOS上でのCコンパイルと実行はまだ未確認です。

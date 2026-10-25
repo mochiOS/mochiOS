@@ -1,0 +1,21 @@
+format = 1
+
+[package]
+provenance = "built-in"
+id = "org.mochios.disk-utility"
+name = "Disk Utility"
+version = "0.1.0"
+revision = 1
+vendor = "mochiOS"
+kind = "application"
+architecture = "x86_64"
+abi = "mochios-1"
+
+[application]
+entry = "entry.elf"
+description = "Inspect disks, partitions and volumes"
+
+[[binary]]
+path = "/system/applications/DiskUtility.app/entry.elf"
+kind = "application"
+requires = ["ipc.client", "ipc.server", "window.create"]

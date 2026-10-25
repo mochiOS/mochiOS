@@ -17,7 +17,7 @@ case "$mode" in
     *) echo "usage: $0 [run|--check] [cargo patch options...]" >&2; exit 2 ;;
 esac
 
-apps=(files settings edit terminal appstore system-monitor viewer calendar calculator mail keychain test-app)
+apps=(files settings edit terminal appstore system-monitor viewer calendar calculator mail keychain disk-utility test-app)
 for app in binder "${apps[@]}"; do
     "$script_dir/preview-app.sh" "$app" --check "$@"
 done

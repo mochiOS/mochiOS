@@ -112,7 +112,7 @@ stage_app "$root/applications/calculator" Calculator.app calculator appicon.svg
 stage_app "$root/applications/keychain" Keychain.app keychain appicon.png
 stage_app "$root/applications/mail" Mail.app mail appicon.png
 stage_app "$root/applications/calendar" Calendar.app calendar appicon.svg
-stage_app "$root/applications/disk-utility" DiskUtility.app disk-utility
+stage_app "$root/applications/disk-utility" DiskUtility.app disk-utility appicon.png
 stage_app "$root/applications/viewer" Viewer.app viewer appicon.png
 stage_app "$root/applications/installer" Installer.app installer appicon.svg
 install_manifest "$root/applications/binder/manifest.toml" binder

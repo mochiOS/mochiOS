@@ -14,6 +14,8 @@ abi = "mochios-1"
 [application]
 entry = "entry.elf"
 description = "Inspect disks, partitions and volumes"
+icon = "appicon.png"
+resources = ["appicon.png"]
 
 [[binary]]
 path = "/system/applications/DiskUtility.app/entry.elf"

@@ -26,8 +26,9 @@ not new global design tokens.
 The wide toolbar reserves Mount/Unmount, Partition and Erase controls; they are
 disabled and labelled as unconnected. Mount, unmount, erase, partition editing
 and rename are not implemented or exposed as working actions. The manifest requests only IPC and window creation; there is
-no raw storage capability. The dedicated application icon and partition/eject VK Symbols are pending;
-controls use existing VK Symbols and text labels. No placeholder disk-management icons were invented.
+no raw storage capability. The application icon is the existing `docs/resources/appicons/Disk Utility.app.png`,
+copied unchanged to `appicon.png`. Partition/eject VK Symbols are pending; controls
+use existing VK Symbols and text labels. No placeholder disk-management icons were invented.
 
 ## Connecting actual storage
 

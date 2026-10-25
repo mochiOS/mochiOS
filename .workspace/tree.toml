@@ -14871,3 +14871,11 @@ path = "services"
 hash = "62e96c3dd71b1b6a3c50a60d60ff84fc0e43e72c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Account for waited child peak RSS without consuming failed replies"
+
+[[entries]]
+date = "2026-10-25T16:40:32.360182215+09:00"
+snapshot = "c4bef6971b51dbd96f1ca066"
+path = "build"
+hash = "1b7580674badda71eb0830ce27bae16fb95096c4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "feat(apps): add Disk Utility build and preview targets"

@@ -14839,3 +14839,11 @@ path = "services"
 hash = "74f91192ab920896c7c28271a29152def549e43c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Observe selected child CPU usage in the wait publication transaction"
+
+[[entries]]
+date = "2026-10-25T14:52:06.031486683+09:00"
+snapshot = "ce9941eaf4291806233299fb"
+path = "services"
+hash = "00153fc0f4de218f86ae07a2c8b5c905be9ce4af"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Deliver selected child accounting with wait replies and verify C APIs"

@@ -59,7 +59,7 @@ struct Draft {
     to: TextFieldInteractionState,
     subject: TextFieldInteractionState,
     body: TextEditorInteractionState,
-    to_field: TextField,
+    recipient_checked: Cell<bool>,
     subject_field: TextField,
     editor: TextEditor,
 }
@@ -68,22 +68,36 @@ impl Draft {
         let to = TextFieldInteractionState::new();
         let subject = TextFieldInteractionState::new();
         let body = TextEditorInteractionState::new();
-        let to_field = TextField::with_interaction(to.clone())
-            .bordered(false)
-            .placeholder("Email address");
         let subject_field = TextField::with_interaction(subject.clone())
             .bordered(false)
-            .placeholder("Subject");
-        let editor = TextEditor::with_interaction(body.clone())
-            .bordered(false)
-            .placeholder("Write your message");
+            .placeholder("Add a subject");
+        let editor = TextEditor::with_interaction(body.clone()).bordered(false);
         Self {
             to,
             subject,
             body,
-            to_field,
+            recipient_checked: Cell::new(false),
             subject_field,
             editor,
+        }
+    }
+    fn recipient_invalid(&self) -> bool {
+        self.recipient_checked.get()
+            && !self.to.value().trim().is_empty()
+            && crate::mime::recipients(&self.to.value()).is_err()
+    }
+    fn recipient_field(&self) -> TextField {
+        TextField::with_interaction(self.to.clone())
+            .bordered(false)
+            .invalid(self.recipient_invalid())
+            .placeholder("name@example.com")
+    }
+    fn recipient_hint(&self) -> String {
+        match crate::mime::recipients(&self.to.value()) {
+            Ok(addresses) if addresses.len() == 1 => "1 recipient".into(),
+            Ok(addresses) => format!("{} recipients", addresses.len()),
+            Err(_) if self.recipient_invalid() => "Check email addresses.".into(),
+            Err(_) => "Separate addresses with commas.".into(),
         }
     }
 }
@@ -505,6 +519,10 @@ impl Core {
         let id = self.next_draft.get();
         self.next_draft.set(id + 1);
         self.active_draft.set(Some(id));
+        self.draft.recipient_checked.set(false);
+        if self.worker.borrow().is_none() && self.flag_error.get().is_none() {
+            self.status.borrow_mut().clear();
+        }
         self.draft.to.set_value(to);
         self.draft.subject.set_value(subject);
         self.draft.body.set_value(body);
@@ -695,6 +713,7 @@ impl Core {
                         body: self.draft.body.value(),
                     };
                     if crate::mime::recipients(&d.to).is_err() {
+                        self.draft.recipient_checked.set(true);
                         *self.status.borrow_mut() = Error::Invalid.label().into();
                         return;
                     }
@@ -773,6 +792,10 @@ impl Core {
                 self.save_draft();
                 if let Some(d) = self.drafts.borrow().get(&id).cloned() {
                     self.sender.set(d.sender);
+                    self.draft.recipient_checked.set(false);
+                    if self.worker.borrow().is_none() && self.flag_error.get().is_none() {
+                        self.status.borrow_mut().clear();
+                    }
                     self.draft.to.set_value(d.to);
                     self.draft.subject.set_value(d.subject);
                     self.draft.body.set_value(d.body);
@@ -784,6 +807,9 @@ impl Core {
             Action::SaveDraft => {
                 self.save_draft();
                 m.page = m.previous_page;
+                if self.worker.borrow().is_none() && self.flag_error.get().is_none() {
+                    *self.status.borrow_mut() = "Draft saved for this session.".into();
+                }
             }
             Action::Reply | Action::Forward => {
                 self.save_draft();
@@ -1540,39 +1566,50 @@ impl MailView {
         let bottom = l.list_body().unwrap().origin.y;
         line(rect(b.origin.x, bottom - 1.0, b.size.width, 1.0), c);
     }
-    fn composer(&self, b: Rect, c: &mut PaintContext<'_>) {
-        let frames = ComposeFrames::new(b);
-        fill(
-            rect(b.origin.x, b.origin.y, b.size.width, 44.0),
-            c.theme.colors.surface_subtle,
-            c,
-        );
+    fn close_draft_button(&self) -> Button {
         self.core
-            .button("Save Draft", Action::SaveDraft)
-            .paint(frames.close, c);
-        self.core
-            .button("Send", Action::Send)
+            .button("Save & Close", Action::SaveDraft)
+            .leading_symbol(SymbolName::ChevronLeft)
+            .accessibility_label("Save draft for this session and close")
+            .enabled(!self.core.sending.get())
+    }
+    fn send_button(&self) -> Button {
+        let sending = self.core.sending.get();
+        let button = self
+            .core
+            .button(if sending { "Sending…" } else { "Send" }, Action::Send)
             .style(ButtonStyle::Accent)
             .enabled(
                 !self.core.preview.get()
                     && !self.core.model.borrow().accounts.is_empty()
-                    && self.core.worker.borrow().is_none(),
-            )
-            .paint(frames.send, c);
-        if b.size.width >= 600.0 {
+                    && self.core.worker.borrow().is_none()
+                    && crate::mime::recipients(&self.core.draft.to.value()).is_ok(),
+            );
+        if sending {
+            button
+        } else {
+            button.leading_symbol(SymbolName::ArrowTopRight)
+        }
+    }
+    fn composer(&self, b: Rect, c: &mut PaintContext<'_>) {
+        let frames = ComposeFrames::new(b);
+        fill(frames.toolbar, c.theme.colors.surface_subtle, c);
+        self.close_draft_button().paint(frames.close, c);
+        self.send_button().paint(frames.send, c);
+        if b.size.width >= 440.0 {
             Text::label("New Message")
                 .alignment(TextAlignment::Center)
-                .paint(
-                    rect(
-                        b.origin.x + 128.0,
-                        b.origin.y + 12.0,
-                        b.size.width - 240.0,
-                        24.0,
-                    ),
-                    c,
-                );
+                .paint(frames.title, c);
         }
-        line(rect(b.origin.x, b.origin.y + 44.0, b.size.width, 1.0), c);
+        line(
+            rect(
+                b.origin.x,
+                b.origin.y + frames.toolbar.size.height - 1.0,
+                b.size.width,
+                1.0,
+            ),
+            c,
+        );
         for (label, frame) in [
             ("From", frames.from),
             ("To", frames.to),
@@ -1580,31 +1617,66 @@ impl MailView {
         ] {
             Text::caption(label)
                 .color(c.theme.colors.text_secondary)
-                .paint(rect(b.origin.x + 16.0, frame.origin.y + 6.0, 56.0, 24.0), c);
+                .paint(
+                    rect(
+                        frames.form.origin.x + 16.0,
+                        frame.origin.y + 5.0,
+                        56.0,
+                        22.0,
+                    ),
+                    c,
+                );
+        }
+        for y in [frames.to.origin.y - 1.0, frames.subject.origin.y + 35.0] {
             line(
                 rect(
-                    b.origin.x + 16.0,
-                    frame.origin.y + 38.0,
-                    b.size.width - 32.0,
+                    frames.form.origin.x + 16.0,
+                    y,
+                    frames.form.size.width - 32.0,
                     1.0,
                 ),
                 c,
             );
         }
-        self.sender_button()
-            .enabled(self.core.worker.borrow().is_none())
-            .paint(frames.from, c);
-        self.core.draft.to_field.paint(frames.to, c);
+        self.sender_button().paint(frames.from, c);
+        self.core.draft.recipient_field().paint(frames.to, c);
+        Text::caption(self.core.draft.recipient_hint())
+            .color(if self.core.draft.recipient_invalid() {
+                c.theme.colors.destructive
+            } else {
+                c.theme.colors.text_secondary
+            })
+            .paint(frames.recipient_hint, c);
         self.core.draft.subject_field.paint(frames.subject, c);
         self.core.draft.editor.paint(frames.body, c);
-        Text::caption(self.core.status.borrow().clone())
+        fill(frames.footer, c.theme.colors.surface_subtle, c);
+        line(
+            rect(
+                frames.footer.origin.x,
+                frames.footer.origin.y,
+                frames.footer.size.width,
+                1.0,
+            ),
+            c,
+        );
+        let status = self.core.status.borrow();
+        let feedback = if status.is_empty() {
+            if self.core.preview.get() {
+                "Preview · Sending is disabled."
+            } else {
+                "Drafts are kept for this session."
+            }
+        } else {
+            status.as_str()
+        };
+        Text::caption(feedback)
             .color(c.theme.colors.text_secondary)
             .paint(
                 rect(
-                    b.origin.x + 16.0,
-                    b.origin.y + b.size.height - 52.0,
-                    b.size.width - 32.0,
-                    48.0,
+                    frames.footer.origin.x + 12.0,
+                    frames.footer.origin.y + 4.0,
+                    frames.footer.size.width - 24.0,
+                    frames.footer.size.height - 8.0,
                 ),
                 c,
             );
@@ -1618,6 +1690,10 @@ impl MailView {
             .to_owned();
         self.core
             .button(&label, Action::Sender)
+            .enabled(
+                self.core.worker.borrow().is_none()
+                    && !self.core.model.borrow().accounts.is_empty(),
+            )
             .accessibility_label(format!("From: {label}. Choose sending account"))
             .content(
                 HStack::new()
@@ -1671,33 +1747,77 @@ impl MailView {
     }
 }
 struct ComposeFrames {
+    toolbar: Rect,
+    title: Rect,
+    form: Rect,
     close: Rect,
     send: Rect,
     from: Rect,
     to: Rect,
+    recipient_hint: Rect,
     subject: Rect,
     body: Rect,
+    footer: Rect,
 }
 impl ComposeFrames {
     fn new(b: Rect) -> Self {
-        let field = |y| rect(b.origin.x + 80.0, b.origin.y + y, b.size.width - 96.0, 32.0);
+        let form = rect(
+            b.origin.x + ((b.size.width - 760.0) / 2.0).max(0.0),
+            b.origin.y,
+            b.size.width.min(760.0),
+            b.size.height,
+        );
+        let row = if b.size.height < 440.0 { 34.0 } else { 40.0 };
+        let field = |y| {
+            rect(
+                form.origin.x + 80.0,
+                b.origin.y + y,
+                form.size.width - 96.0,
+                32.0,
+            )
+        };
+        let from = field(52.0);
+        let to = field(52.0 + row);
+        let subject = field(52.0 + row * 2.0 + 20.0);
+        let footer = rect(
+            b.origin.x,
+            b.origin.y + (b.size.height - STATUS_HEIGHT).max(0.0),
+            b.size.width,
+            STATUS_HEIGHT.min(b.size.height),
+        );
+        let body_y = subject.origin.y + 44.0;
         Self {
-            close: rect(b.origin.x + 12.0, b.origin.y + 8.0, 100.0, 30.0),
+            toolbar: rect(b.origin.x, b.origin.y, b.size.width, 48.0),
+            title: rect(
+                b.origin.x + 144.0,
+                b.origin.y + 12.0,
+                b.size.width - 256.0,
+                24.0,
+            ),
+            form,
+            close: rect(b.origin.x + 12.0, b.origin.y + 9.0, 120.0, 30.0),
             send: rect(
-                b.origin.x + b.size.width - 76.0,
-                b.origin.y + 8.0,
-                64.0,
+                b.origin.x + b.size.width - 100.0,
+                b.origin.y + 9.0,
+                88.0,
                 30.0,
             ),
-            from: field(54.0),
-            to: field(96.0),
-            subject: field(138.0),
-            body: rect(
-                b.origin.x + 16.0,
-                b.origin.y + 190.0,
-                b.size.width - 32.0,
-                b.size.height - 250.0,
+            from,
+            to,
+            subject,
+            recipient_hint: rect(
+                to.origin.x + 8.0,
+                to.origin.y + 32.0,
+                to.size.width - 8.0,
+                20.0,
             ),
+            body: rect(
+                form.origin.x + 16.0,
+                body_y,
+                form.size.width - 32.0,
+                footer.origin.y - body_y - 8.0,
+            ),
+            footer,
         }
     }
 }
@@ -1985,30 +2105,41 @@ impl View for MailView {
             }
             let frames = ComposeFrames::new(b);
             let mut result = self
-                .core
-                .button("Save Draft", Action::SaveDraft)
+                .close_draft_button()
                 .handle_event(frames.close, event, c);
+            result = result.merge(self.send_button().handle_event(frames.send, event, c));
+            result = result.merge(self.sender_button().handle_event(frames.from, event, c));
+            let recipient_focused = self.core.draft.to.is_focused();
+            let before_to = self.core.draft.to.value();
+            let before_subject = self.core.draft.subject.value();
+            let before_body = self.core.draft.body.revision();
             result = result.merge(
                 self.core
-                    .button("Send", Action::Send)
-                    .style(ButtonStyle::Accent)
-                    .enabled(
-                        !self.core.preview.get() && !self.core.model.borrow().accounts.is_empty(),
-                    )
-                    .handle_event(frames.send, event, c),
+                    .draft
+                    .recipient_field()
+                    .handle_event(frames.to, event, c),
             );
-            result = result.merge(
-                self.sender_button()
-                    .enabled(!self.core.model.borrow().accounts.is_empty())
-                    .handle_event(frames.from, event, c),
-            );
-            result = result.merge(self.core.draft.to_field.handle_event(frames.to, event, c));
+            if recipient_focused && !self.core.draft.to.is_focused() {
+                self.core.draft.recipient_checked.set(true);
+                c.request_redraw_in(b);
+            }
+            let recipients_changed = before_to != self.core.draft.to.value();
+            if recipients_changed {
+                c.request_redraw_in(b);
+            }
             result = result.merge(self.core.draft.subject_field.handle_event(
                 frames.subject,
                 event,
                 c,
             ));
             result = result.merge(self.core.draft.editor.handle_event(frames.body, event, c));
+            // Body snapshots are made only after edits, never for pointer/caret events.
+            if recipients_changed
+                || before_subject != self.core.draft.subject.value()
+                || before_body != self.core.draft.body.revision()
+            {
+                self.core.save_draft();
+            }
             self.flush(&l, b, c);
             return result;
         }
@@ -2080,7 +2211,10 @@ impl MailView {
                     .set(self.core.sender_menu.get().wrapping_add(1));
                 c.show_context_menu(ContextMenuRequest {
                     request_id: self.core.sender_menu.get(),
-                    position: Point::new(b.origin.x + 60.0, b.origin.y + 88.0),
+                    position: {
+                        let from = ComposeFrames::new(b).from;
+                        Point::new(from.origin.x, from.origin.y + from.size.height)
+                    },
                     items: m
                         .accounts
                         .iter()
@@ -2970,15 +3104,25 @@ mod tests {
         let f = Fixture::new(400.0);
         f.view.core.apply(Action::New, false);
         f.paint();
-        f.click(Point::new(140.0, 112.0));
+        let fields = ComposeFrames::new(f.bounds.get());
+        f.click(Point::new(
+            fields.to.origin.x + 16.0,
+            fields.to.origin.y + 16.0,
+        ));
         f.event(ViewEvent::TextInput {
             text: "friend@example.test".into(),
         });
-        f.click(Point::new(140.0, 154.0));
+        f.click(Point::new(
+            fields.subject.origin.x + 16.0,
+            fields.subject.origin.y + 16.0,
+        ));
         f.event(ViewEvent::TextInput {
             text: "こんにちは".into(),
         });
-        f.click(Point::new(140.0, 200.0));
+        f.click(Point::new(
+            fields.body.origin.x + 16.0,
+            fields.body.origin.y + 16.0,
+        ));
         f.event(ViewEvent::TextInput {
             text: "あとで続きを書きます。".into(),
         });
@@ -3124,6 +3268,128 @@ mod tests {
             modifiers: KeyModifiers::default(),
         });
         assert!(!f.view.core.form.open.get());
+    }
+    #[test]
+    fn compose_geometry_keeps_headers_editor_and_footer_separate() {
+        for width in [320.0, 360.0, 440.0, 760.0, 1080.0, 1600.0] {
+            for height in [320.0, 400.0, 440.0, 720.0] {
+                let b = rect(24.0, 12.0, width, height);
+                let f = ComposeFrames::new(b);
+                for r in [
+                    f.close,
+                    f.send,
+                    f.from,
+                    f.to,
+                    f.recipient_hint,
+                    f.subject,
+                    f.body,
+                    f.footer,
+                ] {
+                    assert!(
+                        r.origin.x >= b.origin.x && r.origin.x + r.size.width <= b.origin.x + width
+                    );
+                    assert!(
+                        r.origin.y >= b.origin.y
+                            && r.origin.y + r.size.height <= b.origin.y + height
+                    );
+                }
+                assert!(f.close.origin.x + f.close.size.width < f.send.origin.x);
+                assert_eq!(
+                    f.close.origin.y + f.close.size.height / 2.0,
+                    f.send.origin.y + f.send.size.height / 2.0
+                );
+                assert!(f.from.origin.y + f.from.size.height < f.to.origin.y);
+                assert!(
+                    f.recipient_hint.origin.y + f.recipient_hint.size.height <= f.subject.origin.y
+                );
+                assert!(f.subject.origin.y + f.subject.size.height < f.body.origin.y);
+                assert!(f.body.origin.y + f.body.size.height < f.footer.origin.y);
+                assert!(f.body.size.height >= 80.0);
+            }
+        }
+    }
+    #[test]
+    fn recipient_feedback_uses_the_sending_parser_and_does_not_start_invalid_jobs() {
+        let f = Fixture::new(360.0);
+        with_accounts(&f);
+        f.view.core.apply(Action::New, false);
+        let frames = ComposeFrames::new(f.bounds.get());
+        f.click(Point::new(
+            frames.to.origin.x + 16.0,
+            frames.to.origin.y + 16.0,
+        ));
+        f.event(ViewEvent::TextInput {
+            text: "first@example.test, second@example.test".into(),
+        });
+        assert_eq!(f.view.core.draft.recipient_hint(), "2 recipients");
+        assert!(!f.view.core.draft.recipient_invalid());
+        let id = f.view.core.active_draft.get().unwrap();
+        assert_eq!(
+            f.view.core.drafts.borrow()[&id].to,
+            "first@example.test, second@example.test"
+        );
+        f.view
+            .core
+            .draft
+            .to
+            .set_value("first@example.test, invalid");
+        f.click(Point::new(
+            frames.subject.origin.x + 16.0,
+            frames.subject.origin.y + 16.0,
+        ));
+        assert!(f.view.core.draft.recipient_invalid());
+        assert_eq!(f.view.core.draft.recipient_hint(), "Check email addresses.");
+        f.click(Point::new(
+            frames.send.origin.x + 24.0,
+            frames.send.origin.y + 16.0,
+        ));
+        assert!(f.view.core.worker.borrow().is_none());
+        f.view
+            .core
+            .draft
+            .to
+            .set_value("first@example.test, second@example.test");
+        assert!(!f.view.core.draft.recipient_invalid());
+        assert_eq!(f.view.core.draft.recipient_hint(), "2 recipients");
+    }
+    #[test]
+    fn save_and_close_preserves_the_current_draft_and_clears_stale_feedback_on_reopen() {
+        let f = Fixture::new(1080.0);
+        f.view.core.apply(Action::New, true);
+        let frames = ComposeFrames::new(f.bounds.get());
+        let id = f.view.core.active_draft.get().unwrap();
+        f.view.core.draft.to.set_value("friend@example.test");
+        f.view.core.draft.subject.set_value("A saved draft");
+        f.view.core.draft.body.set_value("Unsent text");
+        f.click(Point::new(
+            frames.close.origin.x + 24.0,
+            frames.close.origin.y + 16.0,
+        ));
+        assert_ne!(f.view.core.model.borrow().page, Page::Compose);
+        assert_eq!(f.view.core.drafts.borrow()[&id].body, "Unsent text");
+        assert_eq!(
+            &*f.view.core.status.borrow(),
+            "Draft saved for this session."
+        );
+        f.view.core.apply(Action::ResumeDraft(id), true);
+        assert_eq!(f.view.core.draft.subject.value(), "A saved draft");
+        assert!(f.view.core.status.borrow().is_empty());
+        f.paint();
+    }
+    #[test]
+    fn wide_composer_sender_menu_is_anchored_to_the_centered_from_field() {
+        let f = Fixture::new(1600.0);
+        with_accounts(&f);
+        f.view.core.apply(Action::New, true);
+        let from = ComposeFrames::new(f.bounds.get()).from;
+        let request = f
+            .click(Point::new(from.origin.x + 24.0, from.origin.y + 16.0))
+            .unwrap();
+        assert_eq!(
+            request.position,
+            Point::new(from.origin.x, from.origin.y + from.size.height)
+        );
+        assert_eq!(request.items.len(), 2);
     }
     #[test]
     fn draft_sender_and_reply_account_survive_switches() {

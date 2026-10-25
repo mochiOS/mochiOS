@@ -57,7 +57,18 @@ Receive currently downloads that account's newest **100 Inbox messages**, up to
 8 MiB per message and 32 MiB per receive. There is no background polling or older
 mail pagination yet. Reading/searching/organizing uses the in-memory copy.
 
-In the composer, click the **From** menu to choose an account; replies use the
+In the composer, **Save & Close** (or Escape) keeps the draft for this session
+and returns to the previous page. The From / To / Subject rows and body share a
+centered reading width in large windows, while shorter windows reduce row spacing
+to preserve the editor. The footer occupies its own space below the editor.
+To accepts comma-separated addresses through a native text field and shows the
+recipient count; invalid nonempty input is identified after leaving the field.
+Send stays disabled until the recipients pass the same parser used for delivery,
+and remains disabled in the preview. Empty subjects remain allowed. Draft edits
+are copied to the in-session draft record during editing; they are not persisted
+across application restarts.
+
+Click the **From** menu to choose an account; replies use the
 received account, and each session draft remembers its sender. The From row has
 its own selector, including in compact windows. **Send** submits to SMTP;
 recipient addresses are comma-separated. SMTP acceptance is reported only after

@@ -123,3 +123,8 @@ KVMの実IPC試験を通しました。Program.cppを本番設定で再コンパ
 wait4の宣言エラーは解消し、ru_maxrssの不足だけで失敗しています。
 記録はout/checks/mochios-llvm-program-222-build.logです。
 clang本体のビルド・実行とCプログラムのコンパイル成功はまだ確認していません。
+
+段階223 / 224で[RAM参照の計測](posix-memory-residency.md)と
+[Process Handleによる取得](posix-process-memory.md)を実装し、KVMで実際のページ増減と
+終了後のpeak保持を確認しました。rusageのfield / libc / POSIXサービスへの接続は
+まだ残っているため、Program.cppのru_maxrssエラーは未解消です。

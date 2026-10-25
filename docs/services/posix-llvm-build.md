@@ -117,3 +117,9 @@ hostのprotocol 497件とchild_cpu 2件が成功しました。新経路の返�
 これはサービス内部の処理までであり、新しいwire replyとwait4 C APIへの接続は
 まだ行っていません。最大常駐メモリの計測も未実装です。clang / ld.lldの
 全体ビルドはProgram.cppで失敗した状態で停止しており、再起動していません。
+
+段階222で[wait4のwire / client / libc接続](posix-wait-usage.md)を実装し、
+KVMの実IPC試験を通しました。Program.cppを本番設定で再コンパイルしたところ、
+wait4の宣言エラーは解消し、ru_maxrssの不足だけで失敗しています。
+記録はout/checks/mochios-llvm-program-222-build.logです。
+clang本体のビルド・実行とCプログラムのコンパイル成功はまだ確認していません。

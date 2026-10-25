@@ -14887,3 +14887,11 @@ path = "services"
 hash = "268e8395a0b078b56c23f0621a3bbe9c6501d344"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify current-thread local-base changes across syscall and yield"
+
+[[entries]]
+date = "2026-10-25T16:58:09.036176307+09:00"
+snapshot = "0022cefec287d1532987c299"
+path = "applications/mail"
+hash = "2626446ba1a71c2bafe14368a968d5913769a65c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(ui): adopt shared ViewKit button content padding"

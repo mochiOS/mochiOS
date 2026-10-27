@@ -89,3 +89,8 @@ CPUを読み取り観測した記録も保存したが、そのRIPに別のELF�
 compiler fixture、二つのprobe ELFを除去した。manifestとverificationは段階233前の
 保存bytesとの完全一致を確認した。通常managerのビルドも成功している。
 通常起動の再検証結果は別途記録する。
+
+通常構成のKVMではinput READY、Binder ready、デスクトップとDockの表示を確認した。
+記録は`out/checks/mochios-native-clang-236-normal.log`と`-normal.png`。
+既存のnetwork Failed(-6)、USB driver errno 22、画面上の起動ログの断片は残っている。
+この通常起動の確認を、まだ未確認のeuid 501によるcompiler試験の代わりにはしない。

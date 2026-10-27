@@ -4,7 +4,8 @@
 
 `posix-client::pie` に、割り当てを行わない ELF64 / x86-64 PIE の解析・配置・相対 relocation の
 処理を追加しました。libc の execve / fexecve は、ET_DYN の場合にこれを使います。
-今回の対象は interpreter / DT_NEEDED / TLS / symbol resolver を要しない static PIE です。
+今回の対象は interpreter / DT_NEEDED / symbol resolver を要しない static PIE です。
+静的TLSのテンプレートも検証し、元のprogram headersとload biasをruntimeへ渡します。
 動的リンク全体や glibc の loader が完成したという意味ではありません。
 
 元の FileHandle を positional read で所有バッファへ読み、R_X86_64_RELATIVE を user space で
@@ -32,16 +33,20 @@ native container 用の program headers は独立した read-only LOAD に配置
 そのため posix-client の stack encoder に、user loader が選んだ metadata を渡せる入口を追加しました。
 native container の値へ再 relocation されないようにし、既存の FD context / resource policy /
 stack-address relocation は保持します。AT_BASE は interpreter がないので 0 です。
+元のPHDRにある未補正の仮想アドレスには、ユーザー空間専用の
+`AT_IMAGE_LOAD_BIAS`（`0x6d000004`）を使います。固定アドレスELFでは0です。
+カーネルはこの補助情報の意味を解釈しません。
 
 ## 境界と所有権
 
 すべての file / virtual extent、alignment、entry の executable range、W+X、relocation target、
 重複・重なる fixup、table size、整数 overflow を検証します。
-input / output の上限は既存の native exec と同じ 64 MiB です。
+input / output の上限は既存の native exec と共通の
+`MAX_CAPTURED_IMAGE_BYTES`（256 MiB）です。
 source buffer、prepared buffer、RAM Handle は callback-resource owner に保持し、
 失敗や C callback が exec を放棄した場合も回収します。source の cursor は変更しません。
 
-PT_INTERP、DT_NEEDED、TLS、symbol-dependent relocation、IRELATIVE、REL/RELR は
+PT_INTERP、DT_NEEDED、symbol-dependent relocation（TLS用を含む）、IRELATIVE、REL/RELR は
 現在未対応なので ENOEXEC を返します。元の image を commit してから失敗する経路や、
 未知の relocation を黙って無視する経路はありません。
 元 program headers が PT_LOAD に含まれない場合も、この段階では未対応です。
@@ -76,6 +81,30 @@ native_pie_exec.c から pathname と unlink 済み FD の両方で実行し、
 
 ## 続ける範囲
 
-共有ライブラリの dependency graph、symbol scope / version、TLS、PLT / IFUNC、
+共有ライブラリの dependency graph、symbol scope / version、動的TLS、PLT / IFUNC、
 dlopen / dlclose の寿命管理、interpreter の初期化は引き続き必要です。
 POSIX 互換環境全体の goal は継続中です。
+
+## 静的PIEのTLS対応（phase242）
+
+共通のTLS parserで、重複セグメント、alignment、初期化データのファイル範囲を
+検証します。runtimeは元のPHDRとload biasから初期値をコピーし、スレッドごとに
+TLSを確保します。補助情報が存在しない固定アドレスELFはbias 0として扱いますが、
+読取りエラーを0へ置き換えることはしません。
+
+ホストではPIE、初期stack、TLS parser、実runtime allocator、補助情報、fexecveの
+6対象が成功しました。KVMではeuid 0 / 501の両方で、実コンパイラのTLS-bearing PIEを
+pathnameから各3回、unlink済みFDから各1回起動しました。元PHDR、bias、8 KiB alignment、
+実際にロードされたTLS初期値、relative pointers、BSS、FDの共有cursorを確認しました。
+未対応interpreterの失敗でHandleが増えず、親のwaitが正常終了することも確認しました。
+このnative子はFSを初期化しない独立したentryであり、完全なPIC libcのTLSアクセス試験ではありません。
+
+既存SDKで完全なPIEプログラムをリンクする試験は、非PIC runtime archiveの
+`R_X86_64_32S` relocationで失敗しています。SDK / Rust std overlayは再生成していません。
+共有ライブラリのロードや動的TLS、SDK全体のPIC対応は未完了です。
+証跡は`out/checks/mochios-pie-tls-242-{native.log,artifacts.json,sdk-link.log}`、
+ホスト試験は`mochios-pie-tls-241-host-template.log`です。
+
+診断ELFを取り除いた通常イメージでもinput READY、Binder ready、デスクトップとDockを
+確認し、KVMを停止しました。証跡は`mochios-pie-tls-242-normal.{log,png}`です。
+既存のnetwork readiness `Failed(-6)`とUSB driver creation errno 22は残っています。

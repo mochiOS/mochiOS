@@ -11,6 +11,9 @@
   alignment、初期化データを含むPT_LOADとのファイルoffsetの対応を検証する。
 - `AT_PHDR`、`AT_PHENT`、`AT_PHNUM`をfaultable copyで読み出す。
   TLSがないELFには空のTCBを用意する。不正なメタデータを空のTLSとして扱わない。
+- static PIEでは元PHDRの仮想アドレスにユーザー空間専用の`AT_IMAGE_LOAD_BIAS`を
+  加え、初期値のロード先を求める。`AT_BASE`はinterpreter用の意味を維持する。
+  キーが存在しない固定アドレスELFはbias 0、読取りエラーは失敗として扱う。
 - 配置はlldの`getTlsTpOffset`と合わせる。TLS開始アドレスがalignmentの倍数で
   ない場合も`p_vaddr`の剰余を保持する。FSの先頭wordには自身のアドレスを置く。
 - 新しい匿名mappingをRLIMIT_ASに従って確保し、`.tdata`をコピーする。
@@ -56,4 +59,6 @@ network readinessのtimeoutは診断起動・通常起動の両方で記録さ�
 直前の`mochios-elf-metadata-228-normal.log`にも同じ失敗があり、今回未修正。
 
 これは静的ELFのTLS対応であり、動的loaderのTLS module追加や`dlopen`対応の完了を
-意味しない。clang/ld.lld本体のネイティブ実行もまだ未検証。
+意味しない。clang/ld.lld本体と生成ELFのネイティブ実行は後続の
+[コンパイラ統合試験](posix-native-clang-pipeline.md)で確認済み。
+static PIEの追加検証とPIC SDKの制限は[PIE image準備](posix-pie-preparation.md)を参照。

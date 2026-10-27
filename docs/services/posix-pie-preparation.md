@@ -190,8 +190,9 @@ version、IFUNC、COPY relocation、interpreterも引き続き未対応です。
 期待通りでした。mappingは試験終了時に解放します。これはホストでのリンク処理の
 実行検証であり、mochiOSのProcessCreateや共有ライブラリexecの完成を意味しません。
 
-依存の取得をexecへ組み込む処理、複数objectの一括image生成・認可、constructor順序、
-ライブラリ寿命管理、dlopen / dlclose、TLS moduleとinterpreter起動は残っています。
+この段階では依存取得と一括image生成・認可が未接続でした。後続phase246 / 247で
+限定的なdirect-entry execへ接続しています。constructor順序、ライブラリ寿命管理、
+dlopen / dlclose、TLS moduleとinterpreter起動は残っています。
 関連6対象の証跡は`out/checks/mochios-link-scope-245-results.log`、
 mochiOS向けruntime buildは`mochios-link-scope-245-runtime.log`です。
 カーネル、配布SDK、通常起動イメージは変更していません。
@@ -219,8 +220,54 @@ SysV / GNU / 両hashの3構成でpreemption、GOT、PLT、共有変数の値が�
 不正なroot entry、metadataの余地不足、PHDR件数上限、短いbuffer、元bytesの保持、
 BSS、mappingの非重複、W+X禁止も確認しました。
 
-これはuser-spaceでの統合イメージ生成です。runtimeのexecで依存FileHandleを取得し、
-このイメージを一括認可・image replaceへ渡す処理はまだ未接続です。
+これはuser-spaceでの統合イメージ生成です。この段階ではexecの取得・認可へ
+未接続でしたが、次節のphase247でdirect-entry imageへ接続しています。
 constructor / finalizer、interpreter、複数objectのTLS、dlopen / dlcloseも残っています。
 証跡は`out/checks/mochios-link-bundle-246-{host-final,results,runtime}.log`です。
 カーネル、配布SDK、通常起動イメージの変更やKVMの起動は行っていません。
+
+## runtimeの依存取得・exec接続（phase247）
+
+`exec_image`から依存群のcaptureと統合ELF生成を呼び出すようにしました。
+`DT_NEEDED`にslashがあればそのpathを、なければユーザー空間の設定
+`DEFAULT_SHARED_LIBRARY_PATH`（`/lib:/usr/lib`）を検索します。mainの実行権限確認を維持し、
+DSOは`open_at`のread permission / Capability検証を通します。通常のDSOと同様にmodeの
+実行bitは要求しません。nonblockingで開いてから、同じ保持Handleの`fstat`で通常ファイルを
+確認します。必要なnative rightsはREAD / TRANSFERです。sourceのcursorは変更しません。
+
+検索を続けるのはopenそのもののENOENT / ENOTDIR / EACCESだけです。
+Handle取得後のmetadata / readエラーはその候補の失敗として伝播し、他候補で上書きしません。
+取得済みbytesは別々の所有bufferに固定し、名前で重複を抑えて依存を幅優先で取得します。
+node配列が拡張されてもcapture済みのbytesは移動しません。rootを含むcapture合計と最終出力に
+既存の`MAX_CAPTURED_IMAGE_BYTES`上限を適用します。metadata workspaceもnewlib mallocで
+fallibleに確保し、Rust allocatorを追加してmallocを再帰させることはしません。
+
+source、名前、作業buffer、一時Handleは既存のcallback resource ownerへ登録します。
+read完了後に依存FileHandleを閉じ、認可へ進む前に統合RAM objectのwrite / resize参照を
+破棄します。そのbytesのdigestを既存のimage-replace-inherit認可へ渡すため、パッケージの
+再検索やpath再openで権限を追加する経路はありません。mnuへのABI追加はありません。
+
+KVMではeuid 0 / 501の両方で、mode 0644の実DSOを使うpathname execを各3回、
+unlink済みFDからのexecを各1回実行し、shared function、root定義のpreemption、
+relative pointers、BSS、rootのTLS template / PHDR補助情報と共有FD cursorを確認しました。
+不足した依存のexecを各12回試し、errno ENOENTとHandle数の維持も確認しました。
+各親のwaitはstatus 0です。一般ユーザーを通すためのCapabilityやmodeの緩和はしていません。
+
+ホストでは検索、readable regular Handle、権限不足、metadata / read / RAM / 認可の失敗、
+transitive capture中のnode移動、未対応初期化処理の拒否と解放を確認しています。
+metadataがENOENT / ENOTDIRを返しても取得済みHandleを別候補で上書きしない検査は、
+KVM試験後の最終レビューで追加しました。関連結果は`mochios-dynamic-exec-247-results.log`、
+KVMは`mochios-dynamic-exec-247-native.log`と`-artifacts.json`、target runtime buildは
+`mochios-dynamic-exec-247-runtime-final.log`です（いずれも`out/checks/`）。
+
+診断ELFを取り除いた通常構成でinput READY、Binder ready、デスクトップとDockを確認し、
+VMを停止しています。証跡は`mochios-dynamic-exec-247-normal.{log,png}`です。
+既存のnetwork `Failed(-6)`、USB driver creation errno 22は残っています。
+配布SDKとRust std overlayは再生成していません。
+
+現在の接続はinterpreterを要求しないdirect-entry ELFに限ります。
+constructor / finalizer / arrayとRPATH / RUNPATHは、未対応の動作を省略しないよう
+ENOEXECを返します。LD_LIBRARY_PATH / LD_PRELOADの検索・注入は未実装で、現状は
+上記system searchだけを使います。interpreter、version scope、IFUNC、COPY relocation、
+依存TLS module、dlopen / dlclose、constructor順序とライブラリ寿命管理は引き続き必要です。
+これは汎用のglibc loaderや完全なPOSIX互換環境の完成ではありません。

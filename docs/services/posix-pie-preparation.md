@@ -266,8 +266,55 @@ VMを停止しています。証跡は`mochios-dynamic-exec-247-normal.{log,png}
 配布SDKとRust std overlayは再生成していません。
 
 現在の接続はinterpreterを要求しないdirect-entry ELFに限ります。
-constructor / finalizer / arrayとRPATH / RUNPATHは、未対応の動作を省略しないよう
-ENOEXECを返します。LD_LIBRARY_PATH / LD_PRELOADの検索・注入は未実装で、現状は
-上記system searchだけを使います。interpreter、version scope、IFUNC、COPY relocation、
+当段階ではconstructor / finalizer / arrayと検索指定を未対応としていました。
+次節のphase248でRPATH / RUNPATH / LD_LIBRARY_PATHを接続しています。
+interpreter、version scope、IFUNC、COPY relocation、
 依存TLS module、dlopen / dlclose、constructor順序とライブラリ寿命管理は引き続き必要です。
 これは汎用のglibc loaderや完全なPOSIX互換環境の完成ではありません。
+
+## ライブラリ検索metadataと環境変数（phase248）
+
+root / DSOの`DT_RPATH`、`DT_RUNPATH`、`DF_1_NODEFLIB`を解釈します。
+[ld.soの検索規則](https://www.man7.org/linux/man-pages/man8/ld.so.8.html)を基準に、
+requesterにRUNPATHがなければloaderの親をたどってRPATHを検索し、次に環境変数、
+requester自身のRUNPATH、最後に標準pathを試します。RUNPATHは直接依存だけに適用し、
+RPATHは親から継承します。RUNPATHが明示的に空でもRPATHより優先します。
+NODEFLIBのあるrequesterでは標準pathを省略します。依存名にslashがある場合は
+従来通りそのpathを直接開きます。ld.so.cacheは使用していません。
+
+`LD_LIBRARY_PATH`は`exec_inputs`が所有する環境のsnapshotから取得し、getenvで
+呼出し元の現在の環境を読み直しません。空の変数は検索指定なし、リスト内の空要素はcwd、
+環境リストのcolon / semicolonは区切りとして扱います。各候補の長さを検証し、
+切り詰めて別のファイルを開く経路はありません。open成功後のmetadataエラーでは、
+引き続き別候補へ進まず、そのHandleを閉じてエラーを返します。
+
+環境指定がある場合、認証されたPOSIX endpointの`session_info`からreal/effective UIDと
+GIDを取得します。いずれかに差があればLD_LIBRARY_PATH / LD_PRELOAD / LD_AUDITを
+loaderで使用しません。identity取得に失敗しても環境指定を許可するfallbackはしません。
+権限差がない場合の非空LD_PRELOAD / LD_AUDITは、まだ注入処理がないためENOEXECです。
+この処理はloaderの検索制御であり、secure環境変数をchild環境から削除する処理や
+setuid / file-Capability遷移全体の完成を意味しません。
+
+検索metadataは取得済みの不変buffer内の検証済みspanとして保持します。
+候補を試すたびに依存元ELFのrelocation全体を再解析しません。
+DT_RPATH / DT_RUNPATHの重複、不正な文字列offset / 終端を検出します。
+使われる検索リストや依存名の`$ORIGIN`等のtokenは現在ENOEXECです。fexecveのoriginを
+呼出し元のpathから推測したり、unlinked済みファイルをpathで開き直したりしません。
+正しいorigin処理には保持FileHandleに基づいた親directory情報の設計が残っています。
+
+ホスト11対象・76テストが成功しました。実リンカのRPATH / RUNPATHの優先順位、
+transitive継承の違い、NODEFLIB、cwd要素、環境textのsnapshot、UID / GID差、
+identity取得失敗、不正metadata、既存exec認可・context・byte ceilingを確認しています。
+KVMではbare SONAMEのDSOをRUNPATHで探すexecがroot / euid 501で成功しました。
+別のRUNPATHなしimageについて、通常identityではLD_LIBRARY_PATHから読込み、
+real UID 0 / effective UID 501では環境指定を無視してENOENTになることを確認しました。
+pathname / unlink済みFDのexec、preemption、共有cursor、失敗時Handle維持も成功です。
+
+証跡は`out/checks/mochios-library-search-248-{results,native,runtime}.log`と
+`-artifacts.json`です。constructor / finalizer、interpreter、動的TLS、version scope、
+IFUNC、COPY relocation、dlopen / dlclose、ライブラリ寿命管理は引き続き未完了です。
+
+診断ELFを外した通常構成でもinput READY、Binder ready、デスクトップとDockを確認し、
+VMを停止しました。通常起動の証跡は`mochios-library-search-248-normal.{log,png}`です。
+既存のnetwork `Failed(-6)`、USB driver creation errno 22は残っています。
+カーネル、配布SDK、Rust std overlayは変更していません。

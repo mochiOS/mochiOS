@@ -113,6 +113,7 @@ stage_app "$root/applications/keychain" Keychain.app keychain appicon.png
 stage_app "$root/applications/mail" Mail.app mail appicon.png
 stage_app "$root/applications/calendar" Calendar.app calendar appicon.svg
 stage_app "$root/applications/disk-utility" DiskUtility.app disk-utility appicon.png
+stage_app "$root/applications/fonts" Fonts.app fonts appicon.png
 stage_app "$root/applications/viewer" Viewer.app viewer appicon.png
 stage_app "$root/applications/installer" Installer.app installer appicon.svg
 install_manifest "$root/applications/binder/manifest.toml" binder
@@ -128,6 +129,7 @@ install_manifest "$root/applications/keychain/manifest.toml" keychain
 install_manifest "$root/applications/mail/manifest.toml" mail
 install_manifest "$root/applications/calendar/manifest.toml" calendar
 install_manifest "$root/applications/disk-utility/manifest.toml" disk-utility
+install_manifest "$root/applications/fonts/manifest.toml" fonts
 install_manifest "$root/applications/viewer/manifest.toml" viewer
 install_manifest "$root/applications/installer/manifest.toml" installer
 

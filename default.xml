@@ -241,6 +241,13 @@
     />
 
     <project
+            path="applications/fonts"
+            name="mochiOS/Fonts.app"
+            revision="main"
+            remote="github"
+    />
+
+    <project
             path="applications/keychain"
             name="mochiOS/Keychain.app"
             revision="main"

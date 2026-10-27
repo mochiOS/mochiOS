@@ -25,7 +25,7 @@ if [[ $app == check || $app == test ]]; then
             cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
             "${cargo_patches[@]}" -p viewkit --lib
     fi
-    for name in files settings binder appstore edit terminal system-monitor viewer calendar calculator mail keychain disk-utility; do
+    for name in files settings binder appstore edit terminal system-monitor viewer calendar calculator mail keychain disk-utility fonts; do
         "$0" "$name" "--$app" "${cargo_patches[@]}"
     done
     exit 0
@@ -43,12 +43,13 @@ case "$app" in
     test-app) source_dir="$root/applications/test.app" ;;
     keychain) source_dir="$root/applications/keychain" ;;
     keychain-service) source_dir="$root/services/keychain" ;;
+    fonts) source_dir="$root/applications/fonts" ;;
     disk-utility) source_dir="$root/applications/disk-utility" ;;
     mail) source_dir="$root/applications/mail" ;;
     calculator) source_dir="$root/applications/calculator" ;;
     calendar) source_dir="$root/applications/calendar" ;;
     viewer) source_dir="$root/applications/viewer" ;;
-    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|calendar|calculator|mail|keychain|disk-utility|keychain-service|check|test>" >&2; exit 2 ;;
+    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|calendar|calculator|mail|keychain|disk-utility|fonts|keychain-service|check|test>" >&2; exit 2 ;;
 esac
 
 # Source manifests/lockfiles remain untouched; host dependencies share one
@@ -74,6 +75,9 @@ case "$mode" in
 esac
 
 if [[ $mode == run ]]; then
+    preview_font_root="$root/libraries/fonts/out/fonts"
+    [[ -d $preview_font_root ]] || preview_font_root="$root/libraries/viewkit/resources/fonts"
+    export MOCHIOS_PREVIEW_FONTS_SYSTEM="${MOCHIOS_PREVIEW_FONTS_SYSTEM:-$preview_font_root}"
     export MOCHIOS_PREVIEW_MAIL_DEMO="${MOCHIOS_PREVIEW_MAIL_DEMO:-1}"
     preview_root="$root/out/preview/home"
     mkdir -p "$preview_root"/{Desktop,Documents,Downloads,Movies,Music,Pictures}

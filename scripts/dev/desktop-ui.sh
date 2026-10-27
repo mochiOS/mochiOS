@@ -17,13 +17,16 @@ case "$mode" in
     *) echo "usage: $0 [run|--check] [cargo patch options...]" >&2; exit 2 ;;
 esac
 
-apps=(files settings edit terminal appstore system-monitor viewer calendar calculator mail keychain disk-utility test-app)
+apps=(files settings edit terminal appstore system-monitor viewer calendar calculator mail keychain disk-utility fonts test-app)
 for app in binder "${apps[@]}"; do
     "$script_dir/preview-app.sh" "$app" --check "$@"
 done
 "$script_dir/preview-app.sh" ime --check "$@"
 "$script_dir/preview-app.sh" keychain-service --check "$@"
 [[ $mode != --check ]] || exit 0
+preview_font_root="$root/libraries/fonts/out/fonts"
+[[ -d $preview_font_root ]] || preview_font_root="$root/libraries/viewkit/resources/fonts"
+export MOCHIOS_PREVIEW_FONTS_SYSTEM="${MOCHIOS_PREVIEW_FONTS_SYSTEM:-$preview_font_root}"
 export MOCHIOS_PREVIEW_MAIL_DEMO="${MOCHIOS_PREVIEW_MAIL_DEMO:-1}"
 
 # All application and desktop state belongs to this disposable session.

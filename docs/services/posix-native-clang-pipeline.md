@@ -63,3 +63,29 @@ clangのネイティブmochiOS target driver対応が完了したという意味
 既存の`MOCHIOS_LLVM_SUPPORT_PROBE_226`も併用すると、そのchild dispatchを使用できる。
 実時刻を利用するライブラリのため、診断ランチャーは`system.time.read`を
 明示的に要求する。権限不足時に架空の時刻や別経路を使用しない。
+
+## 段階235・236: 後片付けとランチャーの待機範囲
+
+段階235では、出力比較と一時ディレクトリの削除まで含む最初の実行が成功した。
+記録は`out/checks/mochios-native-clang-235-native.log`。
+ただし親によるwait完了とeuid 501の成功ログは得られていない。
+CPUを読み取り観測した記録も保存したが、そのRIPに別のELFのsymbolを当てるだけでは
+実行中プロセスの同定にはならないため、成功・停止の根拠として使わない。
+
+ランチャーにはソケット試験用の90秒alarmがあり、LLVM経路だけ末尾のalarm解除を
+通らないことを発見した。段階236はコンパイラ試験用の有限900秒watchdogを使い、
+正常完了時に解除する。各子のeuidケースの開始とwait status 0も明示する。
+親の最終`llvm-runtime: PASS child exec and wait`まで確認してから全ケース成功とする。
+タイムアウトだけが原因だったという断定は、後続試験の結果が出るまで行わない。
+
+段階236の初回はinput.serviceのreadinessがtimeoutし、コンパイラ試験へ到達しなかった。
+辞書read自体は成功し、その後input READYも出たが、起動期限後だった。
+ホストでは別のRust buildとrust-analyzerが実行中であることを読み取り確認した。
+それらを停止せず、自分の検証VMだけ停止した。記録:
+`out/checks/mochios-native-clang-236-boot-timeout.log`。
+起動タイムアウトをPOSIXやコンパイラの成功としては扱わない。
+
+通常イメージのstagingとイメージ生成を完了し、診断用の追加system.time.read、
+compiler fixture、二つのprobe ELFを除去した。manifestとverificationは段階233前の
+保存bytesとの完全一致を確認した。通常managerのビルドも成功している。
+通常起動の再検証結果は別途記録する。

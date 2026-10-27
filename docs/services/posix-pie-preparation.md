@@ -46,7 +46,7 @@ input / output の上限は既存の native exec と共通の
 source buffer、prepared buffer、RAM Handle は callback-resource owner に保持し、
 失敗や C callback が exec を放棄した場合も回収します。source の cursor は変更しません。
 
-PT_INTERP、DT_NEEDED、symbol-dependent relocation（TLS用を含む）、IRELATIVE、REL は
+PT_INTERP、DT_NEEDED、他オブジェクトの探索が必要なrelocation、TLS relocation、IRELATIVE、REL は
 現在未対応なので ENOEXEC を返します。元の image を commit してから失敗する経路や、
 未知の relocation を黙って無視する経路はありません。
 元 program headers が PT_LOAD に含まれない場合も、この段階では未対応です。
@@ -131,4 +131,32 @@ mochiOS向けruntimeのrelease buildも成功しました。今回の変更で�
 カーネルの境界を変えていないため、KVMの再起動試験は行っていません。
 
 証跡は`out/checks/mochios-relr-243-{host-final,exec-results,pie-results,runtime}.log`です。
-interpreter、共有ライブラリ、symbol resolver、動的TLSは引き続き未実装です。
+interpreter、共有ライブラリ間のsymbol resolver、動的TLSは引き続き未実装です。
+
+## 単一ELF内の動的シンボル（phase244）
+
+`R_X86_64_64`、`R_X86_64_GLOB_DAT`、`R_X86_64_JUMP_SLOT`を解決します。
+`DT_JMPREL` / `DT_PLTRELSZ` / `DT_PLTREL`のRELA形式を読み、PLTは起動前にすべて
+即時解決します。元のシンボル値と配置biasを区別し、`SHN_ABS`と未定義weakへbiasを
+加えません。定義済みシンボルの範囲はLOAD内で検証します。64-bit relocationはS+A、
+GLOB_DAT / JUMP_SLOTはSだけを使います。
+計算式は[x86-64 psABI](https://raw.githubusercontent.com/wiki/hjl-tools/x86-psabi/x86-64-psABI-1.0.pdf)、
+weakの扱いは[gABIのsymbol table](https://uw714doc.xinuos.com/en/SDK_cprog/OF_SymTable.html)に基づきます。
+
+シンボル表の件数はSysV hashのnchainまたはGNU hashの末尾chainから求め、
+すべての読取りをfile-backed LOAD内に制限します。両hashがあれば件数の一致を確認します。
+symbol entry size、文字列表、NULLシンボル、参照index、名前の終端、必要なdynamic tagの
+欠落・重複を検証します。セクションヘッダーや隣接tableの位置から件数を推測しません。
+RELR / RELA / PLTをまたぐ書換え先の重複も拒否します。
+
+これは単一image内でのindexによる解決です。他のDSOを検索する名前scope、version scope、
+DT_NEEDEDのdependency graphは未実装です。未定義の強い参照、TLS、IFUNC、GNU_UNIQUE、
+version付き参照、audit / filter依存を黙ってローカル解決せず、Unsupportedとして返します。
+既存のHandle / Capabilityによるimage認可・execの所有権管理は維持しています。
+
+実GCC/binutilsが生成した依存なしET_DYNについて、SysV / GNU / 両hashの3構成を確認しました。
+通常のsection table付きとsection tableを取り除いた両方で、すべてのGOT / PLT / data pointerを
+リンカのsymbol / relocation出力と照合しています。合成試験では非ゼロのunused addend、
+SHN_ABS、未定義weak、誤ったtable / index / name / LOAD範囲、PLT重複も検証しました。
+関連6対象の結果は`out/checks/mochios-symbols-244-results.log`、target runtime buildは
+`mochios-symbols-244-runtime.log`です。ELF変換だけの変更なので今回もKVM試験は行っていません。

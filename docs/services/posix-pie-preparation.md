@@ -195,3 +195,32 @@ version、IFUNC、COPY relocation、interpreterも引き続き未対応です。
 関連6対象の証跡は`out/checks/mochios-link-scope-245-results.log`、
 mochiOS向けruntime buildは`mochios-link-scope-245-runtime.log`です。
 カーネル、配布SDK、通常起動イメージは変更していません。
+
+## 依存群を含む単一のnative container（phase246）
+
+`Scope::bundle_length` / `write_bundle`で、scope全体を一つの固定アドレスELFへ
+まとめます。各memberは同じscopeでrelocationを完了してからfileへ収め、LOADの
+file offsetだけを統合イメージ内の位置へ補正します。programの仮想アドレスは変えません。
+rootのentryを使い、依存objectのGNU_STACKは統合tableへ重複させません。
+グローバルなprogram header tableは全memberのmappingより下の独立したread-only LOADに
+置きます。各memberの元PHDR viewとroot用startup metadataの意味は維持します。
+
+出力全体はcaller-owned bufferで構築します。必要bytes、page alignment、整数overflow、
+PHDR件数（extended numberingは未対応）、rootの実行可能entry、global metadataを置く
+user address範囲を検証します。短いbufferは書き始める前に失敗します。途中のrelocation
+失敗では出力を破棄する契約であり、一部を実行用mappingへcommitしてはいけません。
+fileのpaddingはゼロにし、各memberのBSSは従来と同じく必要なrelocation先までだけ
+materializeします。残る領域はメモリ上のdemand-zeroです。
+
+ホストで統合ELFを一括mappingして、実共有ライブラリとrootの関数を実行しました。
+SysV / GNU / 両hashの3構成でpreemption、GOT、PLT、共有変数の値が一致しています。
+同じbytesをmnuの実`map_elf_image`へ渡す試験も成功しました。この試験で置き換えるのは
+物理page mapping関数だけで、実際のELF検証・metadata選択・配置処理を使用しています。
+不正なroot entry、metadataの余地不足、PHDR件数上限、短いbuffer、元bytesの保持、
+BSS、mappingの非重複、W+X禁止も確認しました。
+
+これはuser-spaceでの統合イメージ生成です。runtimeのexecで依存FileHandleを取得し、
+このイメージを一括認可・image replaceへ渡す処理はまだ未接続です。
+constructor / finalizer、interpreter、複数objectのTLS、dlopen / dlcloseも残っています。
+証跡は`out/checks/mochios-link-bundle-246-{host-final,results,runtime}.log`です。
+カーネル、配布SDK、通常起動イメージの変更やKVMの起動は行っていません。

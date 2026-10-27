@@ -232,3 +232,10 @@ unmap後の内容とdiscardを確認した。mmapの失敗を代替bufferの成�
 
 全体buildは同じjobで続いている。clang/ld.lld本体によるコンパイル・リンク・
 生成物実行の成功は引き続き未確認。
+
+## 段階234: 実clangとlldによるネイティブC実行
+
+clangとlldのターゲットbuildは完了した。KVMのeuid 0でCコンパイル、
+LLDリンク、生成ELFのTLS・引数・stdout・終了コード37を確認した。
+権限を下げた実行と後片付けを含む検証は未完了。詳細は
+`posix-native-clang-pipeline.md`と`posix-image-capture.md`を参照。

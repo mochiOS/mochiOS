@@ -1,10 +1,19 @@
-# ネイティブclangの実行試験（準備中）
+# ネイティブclangの実行試験
 
-`services/posix/tests/native_clang_pipeline.cpp`は、完成したmochiOS向けclangと
-ld.lldを使い、Cソースから実行可能なELFを作る統合試験である。
-現時点では試験本体のクロスコンパイルとリンク、および生成するCソースと
-入力headerの整合性をホストのクロスcompilerで確認した。
-ネイティブclang本体のbuild待ちであり、mochiOS上でのこの試験の成功は未確認。
+LLVM 18.1.8のclangとld.lldのターゲットbuildを完了した。段階234のKVMでは、
+実際のclangでCソースをコンパイルし、実際のld.lldでリンクしたELFをexecし、
+TLS初期値・更新、引数、stdout、終了コード37の検査まで成功した。
+記録: `out/checks/mochios-native-clang-234-native.log`の`native-clang: PASS`。
+
+この記録は最初の実行（euid 0）の結果であり、euid 501の成功はまだ確認していない。
+後片付けはnewlibのremoveが空ディレクトリを扱えず失敗した。
+ユーザー空間のCランタイムを修正し、次の段階235では後片付けも成功条件へ含める。
+ホストではファイル、空/非空ディレクトリ、symlink、unlink後のFD、
+権限/I/O失敗、reentrant errnoの試験が成功し、ターゲット用C objectも生成済み。
+
+LLVM ExecuteAndWaitのredirectは既存ファイルをtruncateしない。段階233の
+stdout比較失敗は、同じ出力ファイルへ先行するversion表示が残ったことが原因だった。
+試験は毎回captureを空にし、前のコマンドの出力・診断を混ぜない。
 
 ## 成功条件
 

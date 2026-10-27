@@ -160,3 +160,38 @@ version付き参照、audit / filter依存を黙ってローカル解決せず�
 SHN_ABS、未定義weak、誤ったtable / index / name / LOAD範囲、PLT重複も検証しました。
 関連6対象の結果は`out/checks/mochios-symbols-244-results.log`、target runtime buildは
 `mochios-symbols-244-runtime.log`です。ELF変換だけの変更なので今回もKVM試験は行っていません。
+
+## 明示的な依存scope（phase245）
+
+`Pie::parse_object`と`pie::link_scope::Scope`で、取得済みのELF群を借用して
+共有シンボルを解決します。rootを先頭に、`DT_NEEDED`の記載順で幅優先の検索順を
+構築します。共有依存と循環は重複させず、不足した依存、名前の重複、到達不能な余分の
+object、配置の重なり、alignmentやuser address範囲の違反を拒否します。
+各objectのnative container metadataのmappingも配置検査に含めます。
+名前とbytesの取得・対応付け、ファイルのHandleと所有権、実行認可は呼出し側の責務です。
+このAPIはファイルを開かず、権限を増やしません。
+
+シンボル検索にはSysV / GNU hashを使います。全tableの繰返し走査は行いません。
+SysVの破損chainによる循環には件数上限を設け、GNU chainも検証済み範囲に制限します。
+実行ファイル側の定義によるpreemption、最初に見つかった定義（weakを含む）、
+local / hidden / internal / protected、DT_SYMBOLIC / DF_SYMBOLICを区別します。
+非公開の同名シンボルは外部scopeへ出しません。未解決weakは0、強い参照は失敗です。
+
+`Scope::write`は指定objectの変換済みbytesを作ります。すべての依存を準備してから
+一緒にinstallする必要があります。通常の`Pie::parse` / `write`は依存付きimageを
+引き続き拒否するため、既存execで依存を黙って省略する経路はありません。
+依存objectのTLSは、集約TLS module layoutが未実装なのでUnsupportedを返します。
+version、IFUNC、COPY relocation、interpreterも引き続き未対応です。
+
+ホストでは実GCC/binutilsでrootと共有ライブラリを別々にリンクし、SysV / GNU / 両hashの
+3構成でGOT / PLT / pointerを照合しました。変換後のLOADをホストの匿名mappingへ
+配置し、最終permissionへ変更してから、syscallを含まないfixture関数を実行しています。
+ライブラリからrootの定義を参照する値、rootからのPLT呼出し、その後の共有変数の値も
+期待通りでした。mappingは試験終了時に解放します。これはホストでのリンク処理の
+実行検証であり、mochiOSのProcessCreateや共有ライブラリexecの完成を意味しません。
+
+依存の取得をexecへ組み込む処理、複数objectの一括image生成・認可、constructor順序、
+ライブラリ寿命管理、dlopen / dlclose、TLS moduleとinterpreter起動は残っています。
+関連6対象の証跡は`out/checks/mochios-link-scope-245-results.log`、
+mochiOS向けruntime buildは`mochios-link-scope-245-runtime.log`です。
+カーネル、配布SDK、通常起動イメージは変更していません。

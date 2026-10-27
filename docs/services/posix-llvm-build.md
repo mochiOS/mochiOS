@@ -239,3 +239,10 @@ clangとlldのターゲットbuildは完了した。KVMのeuid 0でCコンパイ
 LLDリンク、生成ELFのTLS・引数・stdout・終了コード37を確認した。
 権限を下げた実行と後片付けを含む検証は未完了。詳細は
 `posix-native-clang-pipeline.md`と`posix-image-capture.md`を参照。
+
+## 段階240: 両実効UIDでネイティブC実行を確認
+
+実clang/ld.lldでのコンパイル・リンク・生成ELF実行がeuid 0/501の両方で成功した。
+exec後と生成C内のgeteuid、TLS、正確なstdout、終了コード37、cleanup、親のwaitを確認した。
+専用fixtureでの静的リンク試験であり、default target driverや動的リンカの完成ではない。
+最新の条件と証拠は`posix-native-clang-pipeline.md`を参照する。

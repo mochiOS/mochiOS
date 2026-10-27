@@ -28,5 +28,7 @@ KVMの段階233では実際のclangでCをコンパイルし、実際のld.lld�
 ELFが終了コード37を返すことまで到達した。ただし試験側の出力ファイル再利用に
 より最終stdout比較が失敗したため、統合試験全体の成功とは数えない。
 
-段階234ではcaptureの再利用を修正した試験がeuid 0で成功し、生成ELFの
-stdoutと終了コード37を確認した。euid 501と後片付けの修正は引き続き検証中。
+段階240ではeuid 0と501の双方で、実clangのCコンパイル、ld.lldリンク、
+生成ELFのUID・TLS・stdout・終了コード37、後片付け、親waitまで成功した。
+記録は`out/checks/mochios-native-clang-240-native.log`。
+この有限上限の対応を、共有ライブラリや完全なPOSIX環境の完成とは扱わない。

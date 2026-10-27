@@ -40,3 +40,8 @@ VM終了後に同じjobを再開した。clang/ld.lld本体のbuild完了や、
 段階233のKVMでは、full pageとpartial EOFの双方が成功した。
 記録は`out/checks/mochios-native-clang-233-current.log`の`llvm-output: PASS aligned and partial EOF`。
 この記録でclang統合試験全体の成功を主張するものではない。
+
+段階240ではeuid 0/501の双方でfull pageとpartial EOFの試験が成功し、
+同じ実行で実clang/ld.lldによる生成ELFの実行と親waitまで確認した。
+記録は`out/checks/mochios-native-clang-240-native.log`と
+`posix-native-clang-pipeline.md`を参照する。

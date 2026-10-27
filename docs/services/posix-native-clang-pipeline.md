@@ -94,3 +94,41 @@ compiler fixture、二つのprobe ELFを除去した。manifestとverification�
 記録は`out/checks/mochios-native-clang-236-normal.log`と`-normal.png`。
 既存のnetwork Failed(-6)、USB driver errno 22、画面上の起動ログの断片は残っている。
 この通常起動の確認を、まだ未確認のeuid 501によるcompiler試験の代わりにはしない。
+
+## 段階236b・236c・238: 起動前提とexec後の資格情報
+
+段階236bと、自動checkを一時停止した236cでもinput READYの期限切れが再発した。
+記録は`out/checks/mochios-native-clang-236{b,c}-boot-timeout.log`。
+ホスト負荷だけを原因と断定しない。一時停止したrust-analyzerと子checkは、
+PIDと開始時刻を照合して再開済み。後に同じrust-analyzerが終了していたため、
+段階238では別のPIDへ推測でsignalを送っていない。
+
+`INPUT_READY_TIMEOUT_TICKS=15_000`はTimeNowの生tick数であり、現行500 Hzでは
+30秒に相当する。15秒という説明は誤りだった。今回は期限を変更していない。
+読み込み後にも辞書の構築があり、過去のnative-ime-loadでは約320万回のallocationが
+測定されている。入出力時間だけで初期化全体の時間を判断しない。
+
+配置済みinput.serviceを現在のrelease runtimeで再リンクした。最初に診断用の
+RUSTFLAGS内のarchive pathをreleaseへ直接変えたbuildは、既存の検証用linkerが
+debug pathを一つだけ受理してreleaseへ置換する規約に合わず失敗した。
+元のgraphとそのchecked linkerで再リンクは成功した。SDKとstd overlayは再生成せず、
+IME engineやreadiness policyも変更していない。新旧ELFとbuildログは段階237として保存。
+段階238はこのinput.serviceでinput READYとBinder readyを確認した。
+
+さらに試験ランチャーは期待するeuidをargvへ渡し、C++側がexec後のgeteuidを確認する。
+生成するCにもEXPECT_EUIDを渡し、実際の生成ELF内でgeteuidを検査する。
+seteuidの呼び出し成功だけをexec後の資格情報維持の証明にはしない。
+ターゲットC++のコンパイル・リンク、および正確なfixture headerによる生成Cの
+euid 0/501両方の事前コンパイルは成功した。ネイティブ全ケースは検証中である。
+
+段階238はeuid 0のexec、生成Cのgeteuid、コンパイル・リンク・実行、cleanup、
+親のwait status 0まで成功した。その後の子ではexec後のeuid 501を確認できたが、
+clang自身の起動がEACCESとなった。診断fixtureの最上位ディレクトリへ、ホストの
+mkdtemp由来の0700がcp -aで残っていた。これは正しいPOSIX search permission拒否であり、
+Capabilityやランタイムの権限検査を緩めて解決する問題ではない。
+
+段階239は診断fixtureだけのディレクトリを0755、通常ファイルを0644、
+clang/ld.lldを0755で配置し直す。ホストの元のprivate fixtureは0700を保つ。
+Systemの共有ツールとして配置する際のmodeと、ホストの一時作業領域のmodeを区別する。
+記録: `out/checks/mochios-native-clang-238-native.log`と
+`out/checks/mochios-native-clang-239-fixture-modes.json`。

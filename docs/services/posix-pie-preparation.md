@@ -46,7 +46,7 @@ input / output の上限は既存の native exec と共通の
 source buffer、prepared buffer、RAM Handle は callback-resource owner に保持し、
 失敗や C callback が exec を放棄した場合も回収します。source の cursor は変更しません。
 
-PT_INTERP、DT_NEEDED、symbol-dependent relocation（TLS用を含む）、IRELATIVE、REL/RELR は
+PT_INTERP、DT_NEEDED、symbol-dependent relocation（TLS用を含む）、IRELATIVE、REL は
 現在未対応なので ENOEXEC を返します。元の image を commit してから失敗する経路や、
 未知の relocation を黙って無視する経路はありません。
 元 program headers が PT_LOAD に含まれない場合も、この段階では未対応です。
@@ -108,3 +108,27 @@ pathnameから各3回、unlink済みFDから各1回起動しました。元PHDR�
 診断ELFを取り除いた通常イメージでもinput READY、Binder ready、デスクトップとDockを
 確認し、KVMを停止しました。証跡は`mochios-pie-tls-242-normal.{log,png}`です。
 既存のnetwork readiness `Failed(-6)`とUSB driver creation errno 22は残っています。
+
+## 圧縮相対relocation（phase243）
+
+`DT_RELR` / `DT_RELRSZ` / `DT_RELRENT`をユーザー空間で処理します。
+[gABIのRELR形式](https://github.com/xinuos/gabi/issues/2)に従い、direct entryと
+63-word bitmapを解釈し、空bitmapもcursorを進めます。RELRをRELAの前に処理します。
+implicit addendは元のLOADから読み、fileとBSSの境界にかかるwordは残りをゼロとして扱います。
+加算はELF64のmodulo演算です。
+
+必須tagの欠落・重複、entry size、tableのfile-backed範囲、bitmapの基準address欠落、
+overflow、LOAD外のtarget、RELR内およびRELAとの重複した書換えを拒否します。
+未整列でも偶数のdirect addressと、順不同で重ならないtargetを扱えます。
+一般的な昇順のtargetは一巡で重複検証し、LOADごとに出力offsetを一度求めて適用します。
+BSSは書換え先までだけmaterializeし、残る領域はdemand-zeroを維持します。
+
+ホストの`pie_image` 12件、`fexecve_runtime` 7件が成功しました。
+GCC/binutilsの圧縮あり・なしの実ELFについて、symbol tableから求めたdata/function pointerの
+期待値を照合し、exec準備の失敗時に元FDと一時Handleの所有権が保たれることも確認しました。
+8,065箇所のdense bitmapと、sparse / 上位bit / 空bitmap / 不正入力も検証しています。
+mochiOS向けruntimeのrelease buildも成功しました。今回の変更ではnative IPCや
+カーネルの境界を変えていないため、KVMの再起動試験は行っていません。
+
+証跡は`out/checks/mochios-relr-243-{host-final,exec-results,pie-results,runtime}.log`です。
+interpreter、共有ライブラリ、symbol resolver、動的TLSは引き続き未実装です。

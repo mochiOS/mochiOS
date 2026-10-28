@@ -354,3 +354,29 @@ pathnameとunlink済みFDからのexec、共有cursor、依存取得失敗時の
 既存のnetwork `Failed(-6)`、USB driver creation errno 22は残っています。
 カーネル、配布SDK、Rust std overlayは変更していません。この検証ではホストの
 rust-analyzerが動作しておらず、ホストプロセスの一時停止は行っていません。
+
+## 既存CRTの終了順序（phase250）
+
+共有ライブラリのlifecycleを接続する前に、既存のstaticなCRT経路で
+`.fini_array`を先頭から実行していた不備を修正しました。preinit / initは先頭から、
+finiは末尾から呼びます。信頼されたlinker所有の範囲を呼ぶ小さなrunnerへ分離し、
+カーネルのProcessExitにconstructorやdestructorの意味を追加していません。
+既存のatexit登録位置は維持し、アプリが登録した終了callbackがfiniより先に実行されます。
+
+ホスト13対象・84テストが成功しました。追加のホスト試験はproductionのrunnerを使い、
+実際のcallback順序と空・1要素の範囲を確認します。KVM試験は優先度付きconstructor /
+destructor、preinit、atexitを含むC ELFを現在のSDKと更新済みruntimeでリンクしました。
+親がfork / execした子の出力をpipeから最後まで読み、通常終了の`PABMYXba`と
+`_exit`の`PABM`を比較しています。rootとeffective UID 501の両方で成功しました。
+argv[0]は意図的に異なる値でも動作し、再execにはAT_EXECFNを利用します。
+証跡は`out/checks/mochios-image-lifecycle-250-{results,native,runtime}.log`です。
+
+この修正は既存のstaticなCRT経路が対象です。共有objectのDT_INIT / DT_FINIと配列、
+依存順序、ライブラリ寿命管理を受け入れる変更ではありません。現在のdirect-entry
+DSO scopeはrunner未接続の初期化要求を引き続きENOEXECとして拒否します。
+
+更新済みruntimeで通常service-managerもリンクし直し、診断用ELFを外した構成で
+input READY、Binder ready、デスクトップとDockを画面でも確認しました。検証VMは
+停止済みです。証跡は`mochios-image-lifecycle-250-normal.{log,png}`と`-artifacts.json`です。
+既存のnetwork `Failed(-6)`とUSB driver creation errno 22は残っています。
+カーネル、配布SDK、Rust std overlayは変更せず、ホストプロセスの一時停止も不要でした。

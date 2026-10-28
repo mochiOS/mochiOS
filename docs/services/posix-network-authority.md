@@ -257,3 +257,44 @@ checksumを確認しました。通常KVMでinput READY・Binder ready、desktop
 
 getaddrinfo / getnameinfo、SOAを使うnegative cache、IPv6 transport、外部DNS serverとのnative実通信は残っています。
 ホストNIC設定の変更は返答待ちのため行っていません。POSIX互換環境全体のgoalは継続中です。
+
+## 名前・サービス変換の共通処理（phase282）
+
+posix-client::netdbへ、getaddrinfo / getnameinfoのユーザー空間での共通処理を追加しました。
+Backendは名前サービスのdataとinterface設定を供給し、共通処理がaddress family、TCP/UDPとprotocol、
+AI_PASSIVE / CANONNAME / NUMERICHOST / NUMERICSERV / V4MAPPED / ALL / ADDRCONFIGを解釈します。
+数値hostとportだけの変換ではDNS・hosts/services検索・endpoint取得を行いません。
+AI_ADDRCONFIGを明示した場合は供給された非loopbackの設定を使い、推測したfamily maskは使いません。
+IPv6の数値scopeとinterface名、getaddrinfo用のinet_addr形式の数値IPv4も扱います。
+inet_ptonの厳密な構文は変更していません。
+
+候補数を先頭の1件へ絞らず、全addressと適合するtransportをcallerの出力先へ渡します。
+canonical nameは最初の候補だけへ付けます。family単位で結果を出した後の失敗や、
+出力先のallocation失敗を成功へ変換しません。callerは全体が成功した場合だけ結果を公開する契約です。
+この処理はallocation、FD table、global cache、共有credential stateを持ちません。
+
+逆引きはhost/service出力を個別に省略でき、NI_NUMERICHOST / NUMERICSERV / NAMEREQD / DGRAMを扱います。
+NI_NOFQDNはBackendがlocalと判定した名前だけへ適用します。
+名前なしの結果は必要に応じ数値へ戻し、通信失敗や権限拒否とは区別します。
+参照する仕様は[RFC 3493 §6](https://www.rfc-editor.org/rfc/rfc3493.html#section-6)です。
+
+hosts/servicesの借用record parserも追加しました。callerが権限に従って読み込んだdataから
+複数address、canonical name、alias、portとTCP/UDPを取り出し、parser自身はfilesystemへアクセスしません。
+DNS境界ではlabelのbytes、escaped dot/backslash、decimal escape、root、255-byte nameを保持し、
+IPv4/IPv6の逆引きquestionを生成します。phase281の不変snapshotを全A/AAAA候補またはPTR名へ変換し、
+名前なし・再試行・メモリ不足・system errorを区別します。
+
+5 targets / 39 host testsが成功しました。新規21件に、既存のaddress変換とresolver client/wireの18件を加えています。
+GNU libcとの独立比較では数値forward/reverseを72通り、legacy IPv4表記も照合しました。
+この比較で見つかった、mapped IPv6 literalをAF_INETとして扱う互換動作の不足を修正しています。
+複数千候補、部分失敗、configによるfamily選択、mapped fallback、scope、逆引きとbuffer境界、
+hosts/servicesの不正行、binary DNS labelと1024件のsnapshot変換も確認しました。
+mochiOS向けposix-clientのsyscall-endpoint構成もbuild成功です。
+証跡はout/checks/mochios-netdb-282-{host-final,client-final}.logと-host-results.txtです。
+今回の失敗・修正ログは-host-second.logへ保持しています。
+
+これはC公開関数の完成ではありません。netdb.h、getaddrinfo/freeaddrinfo/getnameinfo/gai_strerrorのC ABI、
+結果listの所有権・faultableな入出力、実際のDNS Handleを待機して使うBackend、
+hosts/services設定の読み込みと名前サービス方針への接続は引き続き必要です。
+pureな処理の追加のため今回KVMは起動していません。kernel・SDK・Rust std overlayは変更していません。
+POSIX互換環境全体のgoalは継続中です。

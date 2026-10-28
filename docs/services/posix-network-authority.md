@@ -146,3 +146,57 @@ AAAA/PTRのサービス経由の照会、複数messageにまたがるCNAME追跡
 SOAを使うnegative cache、非同期resolver job、getaddrinfo / getnameinfoへの接続は引き続き必要です。
 外部通信のnative試験はrunnerのNIC切替の返答待ちです。ホスト設定は変更していません。
 POSIX互換環境全体のgoalは継続中です。
+
+## 非同期DNSとTCP再試行（phase280）
+
+network.serviceへ問い合わせ単位のresolver jobを追加しました。各jobは期限、質問・ID、
+UDP bindingまたはTCP connection、送受信の進捗、別名と結果を所有します。
+開始・pump・結果の取得・取消を分け、一回のpumpで行うI/Oをjobごとに4段階へ制限します。
+全体は16 jobsで、取得されていない結果もquotaへ含め、job IDを再利用しません。
+完了・失敗・取消・network contextの変更時に専有する通信資源を解放します。
+他のUDP/TCP利用者と同じ既存のpacket table / transportを使い、kernelへDNSやPOSIXの意味論を加えていません。
+
+UDP応答のTC、または再送上限からTCPへ切り替え、2 bytesのlengthと本文を一つのqueryとして送ります。
+部分送信・分割されたlength/body・EAGAIN・EOFを区別し、応答全体の検証後に結果を返します。
+TCP上でも不一致のID/questionはframe単位で除外し、TCや不正なlengthを部分成功にしません。
+UDPの送信待ちは未送信の再送回数として数えません。source portとquery IDはnative RandomFill由来とし、
+乱数取得に失敗した場合は推測可能な代用値を使わず失敗します。
+応答のsource/destination address、port、ID、question/type/classを照合します。
+根拠は[RFC 7766](https://www.rfc-editor.org/rfc/rfc7766.html)と
+[RFC 5452](https://www.rfc-editor.org/rfc/rfc5452.html)です。
+
+複数messageにまたがるCNAMEも追跡します。以前の別名のTTLを次の照会中の経過時間だけ減らし、
+元のquestion、全alias、canonical nameと全候補を保持します。
+messageをまたぐ循環・合計16段を超える別名も拒否します。
+DNS server、local address、gateway/subnetのcontextが変わった場合、cacheを破棄し、
+進行中の照会を別networkへ黙って付け替えず失敗させます。
+
+既存ResolveIpv4 RPCは処理loopへjobを登録し、結果ができた時点で元のnative IPC呼び出しへ返信します。
+認証はIPCが保証したsenderに対するnet.connectの検査です。wireへ自己申告PIDを追加していません。
+返信待ちは全体16件・senderごと2件、期限は最大30秒です。
+旧HTTP/TLSの同期処理も同じresolverを駆動し、DNSの別実装と呼び出し元指定のquery乱数を削除しました。
+HTTP/TLS要求全体を非同期化したという意味ではありません。
+
+4 targets / 81 host testsと、通常network・診断probe・managerのmochiOS向けbuildが成功しました。
+dns_jobsでは並行する照会、quota、再送とbackpressure、分割I/O、取消、context喪失、別名TTLと循環を確認します。
+実NetworkStackを使う試験ではUDPのTCから実Ethernet/IP/TCPへ切り替え、1 byteだけ先に届くlengthと、
+MTUを超える82候補の応答を復元し、TCPとUDPの資源が解放されることを確認しました。
+
+native_dns_repliesはproductionの返信controllerを使い、実IPCで待機中の問い合わせを残したまま
+別の同期呼び出しへ先に返信し、その後元の呼び出しへ戻ることをKVMのeuid 0 / 501で確認しました。
+net.connectの破棄後の新規要求は両方のidentityで拒否されました。
+このnative試験のDNS dataは固定fixtureです。外部DNS serverとの実通信を検証したとは扱いません。
+診断用manager・manifest・verificationは元のhashへ復元し、仮のprobeも削除しました。
+証跡はout/checks/mochios-dns-jobs-280-{host-final,network-final,native-build,manager,native}.logと-counts.jsonです。
+
+通常managerと更新したproduction networkでimageを再生成し、checksumを確認しました。
+通常KVMでinput READY、Binder ready、desktop / DockとFilesの起動・閉じる操作を画面で確認しています。
+閉じる操作の最初のclickがwindowのアクティブ化になり、次のclickで閉じる既存挙動は残っています。
+NICなしのnetwork Failed(-6)も残るため、全service成功とは扱いません。
+両VMは自身のPIDを照合して停止し、host analyzerの一時停止記録も再開済みです。
+通常起動の証跡は-normal.log、-desktop.png、-files.png、-closed.png、-image-normal.logです。
+
+native Handleによるresolver jobの公開、posix-clientからのAAAA/PTR照会、getaddrinfo / getnameinfo、
+SOAを使うnegative cacheは引き続き必要です。IPv6 transportと外部通信のnative確認も残っています。
+SDKとRust std overlayは再生成していません。ホストのNIC設定も変更していません。
+POSIX互換環境全体のgoalは継続中です。

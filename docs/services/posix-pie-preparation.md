@@ -879,3 +879,64 @@ basename、別packageの署名だけ、通常のdata file、相対pathやpath al
 Catalogはまだnative_appの起動経路へ接続していません。次に、callerからのread scope添付、
 Catalogによる全入力の検証、準備済み出力へのpermit、scopeと整合する子登録を一つの起動経路へ
 接続します。今回の検証をもって、アプリのDSO初回起動や完全POSIX環境の完了とはしません。
+
+## アプリ初回起動への接続（phase263）
+
+Binderとworkspaceのlaunch requestへ、既存POSIX endpointとcaller自身が捕捉したread scopeを
+明示的に添付するようにしました。endpointはSEND / DUPLICATE / TRANSFER、scopeはTRANSFERに
+縮小します。capabilityは両方の添付を検証し、処理後は成功・失敗とも受信参照を閉じます。
+callerもIPCの成否にかかわらず捕捉したscopeを閉じます。request内のPID、UIDやHandle番号を
+読み取り権限・継承元の認証には使いません。
+
+read scopeのopenへREAD / NONBLOCKに加えEXECUTE検査を指定できるようにしました。
+root executableのmode検査にも捕捉時の資格情報を使い、brokerのUID 0で代用しません。
+返すHandleは従来と同じREAD / DUPLICATE / TRANSFERで、実行permitを付与する操作ではありません。
+
+権限確認・promptへ進む前に、scopeの所有元も確認します。`OP_SOURCE_INFO`は空requestとscopeの
+添付だけを受け、POSIX endpointが認証したobjectから捕捉時のprocess IDとsession情報を返します。
+brokerはその所有元をnative IPC senderのprocess IDと照合し、別processのscopeを早期に拒否します。
+grant判定にはscopeのUID / GIDを使い、途中の資格情報の再観測やbrokerの資格情報を代入しません。
+子登録直前には、既存の検査で現在の状態との整合も再確認します。requestにPID selectorはありません。
+
+アプリのCapability、identity、入力Catalogは同じ認証済みmanifest / install recordのsnapshotから
+決めます。prompt中のpackage更新によって別snapshotのcertificate allowanceへ取り違えません。
+rootをscope経由で一度捕捉し、Catalogで検証してからparseします。DSOも同じscopeのroot / cwd /
+credentialsで取得して共通preparerから検証します。rootは専用RAM objectへ捕捉済みbyte列を置き、
+新たなpath readや変更可能なsource objectをpreparerへ渡しません。
+
+ファイル表のない既存の静的組込みアプリには、brokerのインストール先から読んだbyte列を
+基準とする従来の認可方針を維持します。ただし、callerのscopeから捕捉した内容との一致も
+検証します。ファイル表のあるpackageにはこの規則を適用せず、file bindingを必須とします。
+動的rootにはこの規則を使わず、DSOにもインストール済みpathだけを根拠とした認可は行いません。
+
+共通preparerは、出力RAM objectと同一のbyte列をownerから借りられる形で返します。
+capabilityはその準備済み出力のdigestへpermitを発行してからnativeの停止状態で子を作成します。
+startupへscopeのidentity、準備したentry / PHDR、lifecycleとTLSを入れ、scopeと整合する子登録が
+成功してからresumeします。登録・resumeの失敗時は停止した子の破棄と登録の取消しを行います。
+新しいkernel APIやkernel側のpath / service policyは追加していません。
+
+ホスト27対象・676テストと、runtime / capability / POSIX / workspace / Binder / managerのtarget
+buildが成功しました。KVMでは実際のアプリ起動IPCを使い、9ケースを検証しました。effective UID 0 / 501の
+動的アプリで実newlibのconstructor、GD / LD / IE / TLSDESC、pthread、forkと、親PID、cwd、groups、
+umask、rlimitの継承を確認しました。静的アプリも成功し、許可されていない検索候補、承認済みpathの
+DSO改変、chroot内のroot改変、実行mode不足、stale / foreign scopeをそれぞれ拒否しました。
+失敗した起動がcallerへPOSIX childを残さないことも確認しました。
+
+最初の診断fixtureは二つのpackageが同じlibrary pathを登録し、indexの重複検査で拒否されました。
+fixtureだけを修正しました。次の試験は既存launch replyの正数errnoを負数と期待していたため、
+試験側を修正して全ケースを再実行しました。これらのログも`-first-native.log` / `-second-native.log`
+へ保存しています。
+所有元の早期検査を追加した後は、request opcode一覧とclientの返信flags検査への登録漏れを
+ホスト試験が検出しました。両方を登録してホスト全対象と実IPCの9ケースを再検証しました。
+
+診断用アプリ / packageを除いた通常構成へ戻し、input READY、Binder ready、デスクトップとDock、
+DockからのFiles起動とHomeの表示を画面でも確認しました。最初の通常起動では、診断用runtimeの
+trace-ioがDebugWriteで画面を上書きしていました。単独runtimeをtraceなしでbuildして新規binaryを
+再linkし、表示の復旧を確認しました。UIのsourceは変更していません。VMはすべて停止済みで、
+一時停止管理も解除済みです。今回は停止対象のrust-analyzer等はありませんでした。
+
+証跡は`out/checks/mochios-scoped-application-263-*.log`、`-artifacts.json`、`-normal.png`と
+`-files.png`です。SDK主要4fileのhashはphase262と同一です。SDK / Rust std overlayは再生成せず、
+通常packageのCapabilityも変更していません。既存のnetwork `Failed(-6)`とUSB driver creation
+errno 22は残っています。別packageの共有DSOの依存宣言、interpreter、versioned symbols、
+dlopen等の既記の残件と、完全なPOSIX環境のgoalは継続中です。

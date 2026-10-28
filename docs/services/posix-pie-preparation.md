@@ -1032,3 +1032,58 @@ Capability、UI sourceは変更していません。interpreter、COPY / IFUNC�
 `Failed(-6)`とUSB driver creation errno 22は残っています。検証VMは停止済みで、一時停止管理も
 解除しました。今回の停止対象processは0件です。証跡は
 `out/checks/mochios-symbol-versions-265-*.log`、`-artifacts.json`、`-normal.png`、`-files.png`です。
+
+## COPY relocation（phase266）
+
+共通userspaceローダーへ`R_X86_64_COPY`を追加しました。実行file側に確保されたdataを
+通常のsymbol参照の参照先とし、initializerの検索時だけrootを除外します。提供元は既存の
+breadth-first scopeと版情報で選びます。shared object側の参照も実行file側へ揃うため、
+初期値のコピー後に双方が同じdataを読み書きできます。カーネルのELF処理には追加しません。
+
+COPYの長さはsymbolのsizeです。定義済みdataの型、symbol値とr_offsetの一致、書込み可能な
+LOAD内の全範囲と、他のfixupとの重複を検査します。COPYを持てるのはscopeのrootだけです。
+COPY先へ結び付いた版付きimportだけ、VERNEEDを持ちながらstorageも定義する形式を許可します。
+その範囲内を指すaliasも同じ検査を通します。通常の定義へ取り違える形式は拒否します。
+
+提供元はcaptured LOADのfile bytes / zero-fillを読み、重なるfixupを共通の値encode処理で
+適用したviewからコピーします。ポインタを含むstructや自身を指すdataにも、準備後の参照先を
+使います。部分的に重なる8-byte fixupやTLS descriptorも必要なbyte範囲だけ反映します。
+追加のELF buffer、live processのmemory read、pathの再open、resolverの実行は行いません。
+DSO側のCOPYを拒否するため、この処理は再帰的なCOPYの評価を必要としません。
+
+size差は[glibcのx86-64 COPY処理](https://github.com/bminor/glibc/blob/master/sysdeps/x86_64/dl-machine.h)
+に合わせて小さい側までコピーし、残りは実行file側の元の内容を維持します。weakの未解決も
+元の内容を維持します。zero-sizeは書込みや重複判定の対象にせず、COPYのaddendは無視します。
+強い参照の未解決、function / TLS / absoluteやprotectedの提供元、範囲外は拒否します。
+bundleと単独member出力は同じ処理を使い、size / metadataの検査後に出力します。
+
+ホスト27対象・699テストが成功しました。実リンカのET_EXEC / PIE、SysV / GNU / 両hashと
+section headerの有無を検証しました。6個のCOPYには旧版 / 新版の同名data、再配置される
+ポインタを含むstruct、self pointer、8193-byteのBSS、7-byteのdataが含まれます。
+GNU loaderで同じC fixtureを実行し、共有する参照先と変更後の値も照合しました。サイズ差、
+部分pointer、zero-size、weak、範囲・型・権限・重複・import roleの拒否も検証しました。
+固定アドレスを使うホスト試験が並列に競合する問題は、全Mappings ownerが共通の排他を保持し、
+unmap後に解放する形へ修正しました。コンパイル等の独立した処理は並列のままです。
+
+cross GCCのPIE出力は今回のC sourceにGOT参照を使い、COPYを生成しませんでした。COPYを含む
+PIEの試験にはhost ccの実リンカ出力を使い、native ET_EXECはcross GCCで6個のCOPYを生成する
+ことをbuild scriptで確認しています。SDKの再生成やcompiler設定の変更は行いません。
+この調査で、exportのないGOT型PIEのempty GNU hashとSysVのsymbol数が異なる正当な出力を、
+現ローダーが拒否する残件も確認しました。fixtureは
+`out/checks/copy-relocations-266-host/root.elf`に残しています。GNU hashが空の場合の参照symbolの
+境界決定は別途修正が必要です。interpreter、IFUNC、dlopen / dlclose、動的TLS追加とその他の
+既記の残件も含め、完全なPOSIX環境のgoalは継続中です。
+
+単独runtime、capability、POSIX、workspace、Binder、managerのtarget buildが成功しました。
+KVMでは実アプリ起動IPCの5ケースが成功しました。effective UID 0 / 501で、版付きdata、
+再配置されたpointer、self reference、共有する参照先、BSSを確認し、pthreadとfork後のnewlib
+execでも再検証しました。ABI版の欠落はENOEXEC、DSOの改変はEACCESで拒否され、元のfileへ
+戻した後の起動も成功しました。失敗した起動はPOSIX childを残しません。
+SDK / Rust std overlayは再生成せず、SDK主要4fileのhashはphase265と同一です。kernel、
+通常packageのCapability、UI sourceも変更していません。
+
+診断用の2アプリ / 共有packageを除いて通常managerへ戻し、input READY、Binder ready、
+デスクトップ / Dock、FilesのHome表示とウィンドウ終了を実画面で確認しました。VMは停止済みで、
+一時停止管理も解除しました。今回の停止対象processは0件です。既存network `Failed(-6)`と
+USB driver creation errno 22は残っています。証跡は
+`out/checks/mochios-copy-relocations-266-*.log`、`-artifacts.json`、`-normal.png`、`-files.png`です。

@@ -414,3 +414,57 @@ runtimeのexec / startupへの計画受け渡し、once-only実行、atexit登�
 非空の初期化・終了要求を引き続きENOEXECにします。共有ライブラリのlifecycle全体が
 動作する状態には達していません。今回はホストで検証可能な解析・計画の変更であり、
 KVMは起動せず、通常イメージ、カーネル、配布SDK、Rust std overlayは変更していません。
+
+## execとCRTへのlifecycle接続（phase252）
+
+execのproducerで、再配置済みbundleからcallbackを読み、captured scopeの実行可能
+LOAD内であることを検証してから計画をserializeします。headerはmagic / version /
+object数 / 全長 / preinit数を持ち、依存順のobjectごとにinitとfiniの範囲を記録します。
+各配列のfile上の未再配置値を実行アドレスとして渡す経路はありません。
+不正なcallbackではexecへ進まず、元のimageとFDを維持します。
+
+`Process::lifecycle`のbinary payloadは初期stackへ8byte境界でコピーし、
+`AT_LIFECYCLE_IMAGE`を既存の汎用StackAddress relocationで参照します。
+kernelはpayloadも補助情報のkeyも解釈しません。現在のstartup stack容量を越える場合は
+E2BIGです。callerによるkeyの上書きや、producerのaddress spaceのpointer持込みを防ぎます。
+
+rootのdynamic symbolにstrongな`__mochios_lifecycle_v1`があり、その定義が自身の
+実行可能LOADに属する場合に、対応CRTとして扱います。このmarkerは実行認可やidentity
+ではなく、ユーザー空間のstartup contractです。対応しないrootへ共有objectの初期化要求を
+渡したり、未実行のまま起動成功にしたりはしません。通常の認可経路は維持しています。
+
+CRTはruntime / identity / thread / signal / stdioの初期化後に計画を読み、従来の
+linker-symbol配列との二重実行を避けます。既存のatexit runnerから終了計画へ接続し、
+登録失敗も起動失敗として扱います。payloadがない従来のstatic CRT経路は維持します。
+payloadが存在するのに不正・読取り失敗の場合はstatic経路へfallbackしません。
+
+共通のcodecとStateはallocationを使いません。header / extent / descriptorの連続性と
+全callbackの読取りを検証し、bounds外やoverflowを拒否します。objectの開始数とphaseを
+一つのatomic値で更新し、初期化途中で終了した場合も開始済みobjectだけを逆順に処理します。
+二重初期化、二重終了、終了callbackからの再入で同じ処理を繰り返しません。
+callback中にruntimeのlockを保持しません。stackと状態はforkのaddress spaceに残ります。
+この計画が表す起動時objectはprocess imageのmappingとしてProcessExitまで保持します。
+後からのdlopen / dlcloseの寿命管理を実装したわけではありません。
+
+ホスト15対象・95テストとtarget runtime / 通常service-managerのbuildが成功しました。
+実producer→startup stack→codecの接続、未対応CRTの拒否、壊れたcallbackでの元FD維持、
+partial init、再入、faultable read、CRT adapterを確認しています。実リンカ生成の
+DSO試験も、serializeした計画をproductionのcodec / Stateで実行します。
+証跡は`out/checks/mochios-dso-exec-252-{host-final,runtime}.log`と`-artifacts.json`です。
+
+KVMではroot＋3つの共有ライブラリをexecし、preinit、DT_INIT / DT_FINI、優先度付き
+配列、他objectへのcallback、RELR、依存順、once-only実行を確認しました。
+pathname execと、unlink済みFDからのexecがroot / effective UID 501の両方で成功し、
+元FDの共有cursorも維持しています。証跡は`mochios-dso-exec-252-native.log`です。
+
+実OSのconsumerはproductionのcodec / Stateをそのままincludeするfreestanding PIC entry
+です。host runtimeをリンクせず、mnuのMemoryCopy / ProcessExitだけを利用します。
+newlib CRT adapterはホストでproductionのsourceを検証し、targetにもbuildしましたが、
+PIC版newlib SDK全体をリンクした動的CRTを実OSで確認したわけではありません。
+SDKのPIC化、interpreter、依存TLS、dlopen / dlclose等は未完了です。
+
+診断ELFと3つのDSOを外し、更新したruntimeでリンクした通常構成に戻しました。
+input READY、Binder ready、デスクトップとDockを画面でも確認し、VMは停止済みです。
+通常起動の証跡は`mochios-dso-exec-252-normal.{log,png}`です。既存のnetwork `Failed(-6)`、
+USB driver creation errno 22と、画面に残るdebug logの一部は残っています。
+カーネル、配布SDK、Rust std overlayは変更していません。

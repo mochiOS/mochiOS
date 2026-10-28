@@ -468,3 +468,52 @@ input READY、Binder ready、デスクトップとDockを画面でも確認し�
 通常起動の証跡は`mochios-dso-exec-252-normal.{log,png}`です。既存のnetwork `Failed(-6)`、
 USB driver creation errno 22と、画面に残るdebug logの一部は残っています。
 カーネル、配布SDK、Rust std overlayは変更していません。
+
+## 固定配置の動的rootと実CRT（phase253）
+
+明示したlink scopeのrootとしてET_EXECを扱います。load biasは0で、entry、LOAD、
+symbolの配置を変えません。固定imageを依存ライブラリとして使うことや、biasを与えて
+再配置することは拒否します。ET_DYNの依存objectは従来のplacementで配置し、fixedな
+rootの末尾とmetadata領域を越えた位置を使います。重複やuser window外の範囲は拒否します。
+
+fixed rootの補助metadataは最後のLOADの後ろへ置きます。元PHDRがどのLOADにも含まれない
+場合は、そのbytesを補助領域へそのままコピーし、AT_PHDRが参照するread-onlyなviewを
+用意します。load bias＋file offsetから未mappingのprefixのアドレスを推測しません。
+combined containerの補助情報も、全memberより低い領域に余地がなければ、全memberの
+後ろの空き領域へ置きます。4 MiBから始まるrootを動かす必要はありません。
+
+execのprobeはET_EXECのPHDRもpositional readで確認します。PT_DYNAMIC / PT_INTERPが
+あればuserspaceの準備経路へ進みます。PT_INTERPそのものは引き続き未対応として拒否し、
+カーネルへinterpreterの名前やpolicyを追加していません。静的なET_EXECは元Handleを
+そのまま使い、RAM imageや依存探索を追加しません。従来native経路で扱えた56byte以上の
+PHDR strideもprefixだけを読んで判定します。offset / extent / EOFは検証します。
+
+ホスト15対象・99テスト、target runtimeとservice-managerのbuildが成功しました。
+fixed rootの配置維持、bias拒否、固定依存imageの拒否、元PHDRのmapped / private-copy
+両経路、copyのread-only保護、execの補助vector、静的imageの直接経路を確認しています。
+静的imageについては通常のPHDRと、strideを拡張してfile末尾へ移したPHDRも確認しました。
+証跡は`out/checks/mochios-fixed-dso-253-{host-final,runtime-final}.log`と
+`-artifacts.json`です。
+
+KVMでは既存SDKのcrt0.o / libc.a / libm.a / compiler runtimeと、更新済みnewlib runtimeを
+使ってリンクしたET_EXECを実行しました。試験用linker scriptにdynamic / GOT等のsectionを
+定義し、配布SDKのscriptやarchiveは変更していません。3つの共有ライブラリは0644で配置し、
+root / effective UID 501の両方で次を確認しました。
+
+- 実CRTからpreinit、依存先のconstructor、rootのconstructor、mainへ進む。
+- stdio / getenv / pipe / fork / exec / waitを使い、親が子の出力から全callback順を検査する。
+- atexitを共有objectのfiniより先に実行し、rootと依存objectを逆順で終了する。
+- `_exit`ではatexit / finiを呼ばない。
+- 最初の依存ライブラリのconstructor内で`exit`すると、開始済みのprefixだけを終了する。
+
+このnative試験はphase252のfreestanding consumerではなく、実newlib CRTの経路です。
+証跡は`mochios-fixed-dso-253-native.log`、生成ELFの構成は`-linker.log`に記録しました。
+PIC SDK全体やglibcを作成したわけではありません。依存TLS、interpreter、COPY / IFUNC、
+version scope、dlopen / dlclose、初回native launchへの同じ準備経路の共用は未完了です。
+
+診断ELFとDSOを外して通常構成へ戻し、更新済みruntimeで通常service-managerも
+リンクしました。input READY、Binder ready、デスクトップとDockを画面でも確認し、
+VMは停止済みです。証跡は`mochios-fixed-dso-253-normal.{log,png}`です。
+既存のnetwork `Failed(-6)`、USB driver creation errno 22は残っています。
+カーネル、配布SDK、Rust std overlayは変更せず、生成されたservicesのCargo.lock更新は
+今回の試験コミットに含めています。

@@ -106,3 +106,43 @@ SDKとRust std overlayは再生成せず、既存SDKを入力として単体runt
 getaddrinfo / getnameinfoと旧来のinet_addr / inet_ntoa、DNSの複数record・AAAA・PTRへの接続は残っています。
 外部TCPのnative試験も、runnerの仮想NIC切替の返答待ちのままです。ホスト設定は変更していません。
 POSIX互換環境全体のgoalは継続中です。
+
+## DNSの複数recordと別名（phase279）
+
+network-stackのDNS decoder/cacheをRRset単位へ変更しました。A / AAAA / PTRのquery生成と応答解析、
+IPv4 / IPv6の逆引き名生成を提供します。DNSのnameはbinary labelとrootを扱い、
+アプリケーション向けのhostname検査は別に適用します。末尾dot付きhostnameも正規化します。
+形式は[RFC 1035](https://www.rfc-editor.org/rfc/rfc1035.html)、
+nameとTTLの規則は[RFC 2181](https://www.rfc-editor.org/rfc/rfc2181)、
+AAAA / IP6.ARPAは[RFC 3596](https://www.rfc-editor.org/rfc/rfc3596)を参照しています。
+
+answer sectionから質問のname/class/typeへ対応する全recordを選び、重複を除きます。
+同じ応答内のCNAMEはrecordの並び順に依存せず追跡し、canonical nameを保持します。
+循環・深すぎる別名・異なるCNAME targetの併存・CNAMEと通常dataの併存は失敗とします。
+TTLは経由するCNAMEとRRset全体の最小値に揃え、high bit付きTTLを0として扱います。
+positive cacheはname/type単位で置換し、旧応答のmemberとのmergeや個別の延命を行いません。
+空の応答を成功したnegative cacheとして保存することもありません。
+
+全sectionのrecord境界と既知のRDATAを確認してから結果を返します。
+authority / additionalや無関係なownerのrecordからanswerやcacheを作りません。
+未知のRDATAは不透明なbytesとして境界のみ確認します。DNSSECの検証やAD flagによる信頼付与は行いません。
+圧縮nameはRDLENGTH、展開後255 bytes、pointerの向きと循環を確認します。
+wire decoderはTCP最大長65535 bytesを扱い、TC付きの応答は部分成功にせず専用errorへ分けます。
+
+既存network.serviceのIPv4 resolverをこのdecoder/cacheへ接続しました。
+戻り値は従来通り先頭のIPv4ですが、同じ応答内の別名を解決し、cacheには全候補とcanonical nameを保持します。
+transaction/questionが一致しない応答を無視し、TCは再試行可能な失敗として返します。
+権限の確認・IPC wire・kernel ABIは変更していません。
+
+dns_recordsの32件（既存decoder/retry試験9件を含む）、実NetworkStackのnetwork_routing_policy 23件、
+network_error_status 7件の合計62 host testsと、mochiOS向けnetwork.service buildが成功しました。
+実サービスのUDP bindingへIPv4 packetを投入する試験で、複数候補・別名TTL・cache hit、
+不一致応答の除外、truncated/malformed応答の拒否を確認しています。
+今回の変更は新しいIPCやC APIを追加しないためKVMは起動していません。imageへのstageも行っていません。
+SDKとRust std overlayは再生成せず、SDKの既存4ファイルのhashも一致しました。
+証跡はout/checks/mochios-dns-records-279-{host-final,network-final}.logと-counts.jsonです。
+
+AAAA/PTRのサービス経由の照会、複数messageにまたがるCNAME追跡、DNSのTCP fallback、
+SOAを使うnegative cache、非同期resolver job、getaddrinfo / getnameinfoへの接続は引き続き必要です。
+外部通信のnative試験はrunnerのNIC切替の返答待ちです。ホスト設定は変更していません。
+POSIX互換環境全体のgoalは継続中です。

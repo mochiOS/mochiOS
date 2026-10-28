@@ -73,7 +73,8 @@ close時はresource参照を直ちに無効にし、正常なFIN交換に必要�
 内部Socket IDは単調増加し、解放済み参照が新しい接続へ付け替わりません。
 これらのIDはIPCのHandleや認証情報には使いません。
 
-このbackendはnetwork.serviceのcrate内でcompileしていますが、権限付きTCP Providerと起動ループからの接続は未完了です。
+phase273ではこのbackendをnetwork.serviceのcrate内でcompileし、phase274で
+[権限付きTCP Providerと起動ループ](posix-inet-tcp-provider.md)へ接続しました。
 bind先のport権限、接続・受信権限の取得と縮小委譲はProvider境界で行います。
 kernelが保証したsenderと明示的なHandle添付を使い、ネットワークresourceの内部IDを外部権限として受け取りません。
 
@@ -86,7 +87,7 @@ listener/接続close、未accept接続のreset、容量不足時にacceptを失�
 POSIXのAF_INET/SOCK_STREAM、bind/listen/accept、非blocking接続、FDのdup/fork/exec、
 readiness、timeout、shutdownを実OSで使えるようにする作業は残っています。
 すべてのTCP機能やRFCへの適合を証明した段階でもありません。
-kernel ABI、IPC wire、SDK、OSイメージは変更せず、KVMも起動していません。
+phase271–273ではkernel ABI、IPC wire、SDK、OSイメージは変更せず、KVMも起動していません。
 
 phase271の証跡は`out/checks/mochios-tcp-passive-271-host-syn-data.log`、`-network-syn-data.log`、
 `-artifacts.json`です。phase272は`out/checks/mochios-tcp-dispatch-272-host-admission.log`、

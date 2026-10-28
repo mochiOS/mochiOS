@@ -115,7 +115,8 @@ stage_app "$root/applications/calendar" Calendar.app calendar appicon.svg
 stage_app "$root/applications/disk-utility" DiskUtility.app disk-utility appicon.png
 stage_app "$root/applications/fonts" Fonts.app fonts appicon.png
 stage_app "$root/applications/viewer" Viewer.app viewer appicon.png
-stage_app "$root/applications/installer" Installer.app installer appicon.svg
+stage_app "$root/applications/installer" Installer.app installer appicon.png
+cp -a "$root/applications/installer/legal" "$stage_new/system/applications/Installer.app/"
 install_manifest "$root/applications/binder/manifest.toml" binder
 install_manifest "$root/applications/appstore/manifest.toml" appstore
 install_manifest "$root/applications/edit/manifest.toml" edit

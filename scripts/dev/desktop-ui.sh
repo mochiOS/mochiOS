@@ -17,7 +17,7 @@ case "$mode" in
     *) echo "usage: $0 [run|--check] [cargo patch options...]" >&2; exit 2 ;;
 esac
 
-apps=(files settings edit terminal appstore system-monitor viewer calendar calculator mail keychain disk-utility fonts test-app)
+apps=(files settings edit terminal appstore system-monitor viewer calendar calculator mail keychain disk-utility fonts installer test-app)
 for app in binder "${apps[@]}"; do
     "$script_dir/preview-app.sh" "$app" --check "$@"
 done
@@ -99,6 +99,7 @@ for app in "${apps[@]}"; do
     for icon in appicon.png appicon.svg; do
         if [[ -f "$source_dir/$icon" ]]; then ln -s "$source_dir/$icon" "$bundle/$icon"; fi
     done
+    if [[ -d "$source_dir/legal" ]]; then ln -s "$source_dir/legal" "$bundle/legal"; fi
 done
 # Keep the existing real Binder test process available for multi-window checks.
 cp -a "$root/applications/binder/resources/apps/Test.app" "$MOCHIOS_PREVIEW_APPS/"

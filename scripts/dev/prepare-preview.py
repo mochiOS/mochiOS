@@ -8,7 +8,7 @@ import sys
 
 root = pathlib.Path(sys.argv[1]).resolve()
 preview = root / "out/preview"
-applications = ("binder", "file", "settings", "edit", "terminal", "appstore", "system-monitor", "viewer", "calendar", "calculator", "mail", "keychain", "disk-utility", "fonts", "test.app")
+applications = ("binder", "file", "settings", "edit", "terminal", "appstore", "system-monitor", "viewer", "calendar", "calculator", "mail", "keychain", "disk-utility", "fonts", "installer", "test.app")
 
 
 def link(source, target):
@@ -36,7 +36,7 @@ for name in applications:
         manifest,
     )
     write_if_changed(destination / "Cargo.toml", manifest)
-    for entry in ("src", "resources", "appicon.svg", "appicon.png", "manifest.toml"):
+    for entry in ("src", "resources", "legal", "appicon.svg", "appicon.png", "manifest.toml"):
         if (source / entry).exists():
             link(source / entry, destination / entry)
     members.append(f'"applications/{name}"')

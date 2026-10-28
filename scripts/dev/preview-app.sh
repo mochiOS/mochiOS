@@ -25,7 +25,7 @@ if [[ $app == check || $app == test ]]; then
             cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
             "${cargo_patches[@]}" -p viewkit --lib
     fi
-    for name in files settings binder appstore edit terminal system-monitor viewer calendar calculator mail keychain disk-utility fonts; do
+    for name in files settings binder appstore edit terminal system-monitor viewer calendar calculator mail keychain disk-utility fonts installer; do
         "$0" "$name" "--$app" "${cargo_patches[@]}"
     done
     exit 0
@@ -43,13 +43,14 @@ case "$app" in
     test-app) source_dir="$root/applications/test.app" ;;
     keychain) source_dir="$root/applications/keychain" ;;
     keychain-service) source_dir="$root/services/keychain" ;;
+    installer) source_dir="$root/applications/installer" ;;
     fonts) source_dir="$root/applications/fonts" ;;
     disk-utility) source_dir="$root/applications/disk-utility" ;;
     mail) source_dir="$root/applications/mail" ;;
     calculator) source_dir="$root/applications/calculator" ;;
     calendar) source_dir="$root/applications/calendar" ;;
     viewer) source_dir="$root/applications/viewer" ;;
-    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|calendar|calculator|mail|keychain|disk-utility|fonts|keychain-service|check|test>" >&2; exit 2 ;;
+    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|calendar|calculator|mail|keychain|disk-utility|fonts|installer|keychain-service|check|test>" >&2; exit 2 ;;
 esac
 
 # Source manifests/lockfiles remain untouched; host dependencies share one

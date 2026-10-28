@@ -1,8 +1,8 @@
-# 権限付きTCP Provider（phase274）
+# 権限付きTCP ProviderとPOSIX socket
 
 network.serviceの通常起動とNICなし起動の両方で、TCPループバックをnative Handleから操作できるようにしました。
 前段のresource backendを汎用Providerへ接続したもので、mnuのABIは追加・変更していません。
-POSIXの`AF_INET/SOCK_STREAM`、newlib、Rust stdのFD経路への接続は引き続き未完了です。
+phase274のnative Provider、phase275の共有状態を、phase276でPOSIXの`AF_INET/SOCK_STREAM`とnewlibのFD経路へ接続しました。
 また、このProviderのroutingはIPv4 loopback（127/8）までで、物理interfaceへの接続は残っています。
 
 ## 権限の取得と委譲
@@ -77,3 +77,52 @@ POSIX serviceのmochiOS向けbuildが成功しました。
 payloadはnativeのデータ経路を使い、共有するPOSIX状態とFDごとの状態を混同しない構成にします。
 この段階ではIPC wire、kernel ABI、SDK、OSイメージを変更せず、KVMも起動していません。
 証跡は`out/checks/mochios-tcp-description-275-host-final.log`、`-posix-final.log`、`-artifacts.json`です。
+
+
+## POSIXのFD経路への接続（phase276）
+
+`inet_stream_native.rs`が、委譲されたfactoryと信頼するnetwork endpointからnative TCP resourceを取得します。
+endpointも権限を限定してduplicateし、借用元のHandle番号が再利用されても別endpointへ接続しません。
+acceptしたbackendは独立したendpoint参照を持ち、listenerのcloseで利用不能になりません。
+不正な応答は拒否し、受信した異なる参照を一度ずつ回収します。
+
+`inet_stream_socket.rs`と既存socket workerが、共有descriptionとconnect通知を管理します。
+O_NONBLOCK、SO_ERROR、送受信timeout、shutdownはdescriptionに置き、FD番号とCLOEXECは従来どおりclient側に置きます。
+Providerの型を表す内部IDはstatのinodeへ流用せず、TCP用の仮想deviceとdescriptionの連番で表します。
+データはclientのHandleRead/WriteからProviderへ入り、networkのnative resourceへ渡します。
+FD番号を持つread/write RPCは追加していません。この経路はサービス間の転送を含み、性能測定は未実施です。
+
+libcのsocket()は呼び出し元自身が保持するnet.connect / net.listenの範囲でfactoryを取得し、明示的に添付します。
+POSIX workerの権限でクライアントを代理認証しません。
+非blocking connectの継続はEINPROGRESS、継続中の再試行はEALREADYとして扱います。
+blocking connectの通知は対象descriptionの参照を保持し、最後の通知参照を閉じると未成立の接続だけを中断します。
+期限切れと接続成立の競合はnative transportのCANCEL_CONNECTで判定し、成立済みの接続や先に確定した失敗を優先します。
+SO_ERRORの消費後も、開始済みconnect通知の結果は失いません。
+
+C側のIPv4アドレス型はuser/libc-port/include/netinet/in.h、byte order変換はnewlib runtimeに追加しました。
+利用したSDKとRust std overlayは再生成していません。
+
+`inet_stream_native.rs`のホスト試験は本番adapter・network Provider・TCP transportを通します。
+置き換えるのはnative Handle参照、権限検査とIPC配送だけです。
+`inet_stream_description.rs`では通知の参照寿命、タイムアウトと成立の競合、キャンセル、偽Provider要求、
+accept前の準備失敗、stat、readinessの排出も確認します。
+
+phase276の検証は11 targets / 137 host testsと、POSIX・network・診断managerのmochiOS向けbuildが成功しました。
+`native_inet_stream.c`を既存SDKと単体runtimeでリンクし、KVM上のeuid 0 / 501で次を確認しました。
+
+- Cのsocket/bind/listen/connect/accept4と双方向read/write、peek、MSG_WAITALL、半切断。
+- O_NONBLOCKの共有、descriptorごとのCLOEXEC、SO_TYPE/SO_ACCEPTCONN/SO_ERROR、fstatの型と所有者。
+- backlogが満杯の間のEINPROGRESS/EALREADY、accept後の再送とpoll起床。
+- blocking connectの期限切れとエラーの一度だけの消費、接続待ちに入った後のpthreadキャンセル。
+- dup後の参照寿命、forkでの共有、execを越えるHandle継承とCLOEXEC参照の破棄。
+
+同じKVM起動中に既存libc UDP、factory/worker、同一portの64回の最終close・再open試験も成功しました。
+証跡は`out/checks/mochios-tcp-socket-276-host-final.log`、`-targets-final.log`、`-final.log`です。
+診断用managerのbinary・manifest・verificationは試験前の内容へ戻し、仮の実行ファイルを削除しました。
+network.serviceとposix.serviceは試験済みの内容を通常イメージへ残しました。
+通常イメージでもinput/Binderの起動、FilesのHome表示と閉じる操作を画面で確認しました。
+試験したKVMは停止し、一時停止の記録もすべて再開済みです。
+
+残りは、このProviderの物理NICへの接続、IPv6、bufferのサイズ変更や追加socket option、
+広いTCP適合試験、Rust stdを直接使ったTCP試験、スループットと遅延の測定です。
+この接続だけでPOSIX全体や外部ネットワーク対応が完了したとは扱いません。

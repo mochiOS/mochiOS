@@ -1087,3 +1087,35 @@ SDK / Rust std overlayは再生成せず、SDK主要4fileのhashはphase265と�
 一時停止管理も解除しました。今回の停止対象processは0件です。既存network `Failed(-6)`と
 USB driver creation errno 22は残っています。証跡は
 `out/checks/mochios-copy-relocations-266-*.log`、`-artifacts.json`、`-normal.png`、`-files.png`です。
+
+## exportを持たないPIEのGNU hash（phase267）
+
+phase266で確認したempty GNU hashの残件を修正しました。GNU hashはlookup対象のsymbolを
+表し、未定義symbolを含むdynamic symbol table全体の件数を常に表すものではありません。
+[binutilsの生成処理](https://github.com/RTEMS/sourceware-mirror-binutils-gdb/blob/master/bfd/elflink.c)
+も、lookup対象がない場合を特別に扱います。実際のcross compiler出力には、importがあっても
+empty hashのsymoffsetが1となる形式がありました。
+
+SysVのnchainがあれば、引き続きそれを正確なsymbol数として使います。GNU hashが非emptyなら
+従来どおりhashed suffixの終端との整合を確認します。GNU hashがemptyの場合は、hashから
+未定義symbolの末尾を決めません。検査済みRELA / PLTが参照する最大indexとsymoffsetから
+取り込むprefixを決め、全体がcaptured LOADのfile bytesに収まることを確認します。
+既知のSysV件数を越えてprefixを拡大することは認めません。隣接tableやsection headerの位置を
+境界の推測に使わず、empty hashの後ろをchainとして読みません。
+
+このため、RELA / PLT / RELRの形式と全範囲をsymbol tableの解釈前に検査する順序へ変更しました。
+R_NONEはsymbolを参照せず、RELRにもsymbol indexはありません。その他のRELA / PLTのindexに
+必要なprefixをchecked arithmeticで取得します。lookupはGNU hash優先を維持し、取り込んだ
+prefixをSysV経由でexportするfallbackは追加しません。
+
+ホスト27対象・706テストが成功しました。GOT型PIEと同じC fixtureをGNU loaderでも実行し、
+GNU-only / SysV / 両hash、section headerなしで版付きdataと関数を解決し、準備後のcodeを
+実行しました。RELAだけ / PLTだけのprefix、symoffsetが1 / 全件数の形式、R_NONEの巨大index、
+範囲外の参照・pointer・件数、GNU lookupとSysV lookupの優先も検証しました。
+準備後のbundleは既存のnative ELF validationでも検査しました。
+
+単独newlib runtimeとcapabilityのtarget buildも成功しました。SDK / Rust std overlayは再生成せず、
+SDK主要4fileのhashはphase266と同一です。kernel、IPC / native境界、UIは変更していません。
+今回は純粋なmetadata解析の修正としてホストで検証し、KVM起動とOS imageの更新は行っていません。
+証跡は`out/checks/mochios-empty-gnu-hash-267-*.log`と`-artifacts.json`です。
+interpreter、IFUNC、dlopen / dlclose、動的TLS追加と既記の残件を含む完全POSIX環境のgoalは継続中です。

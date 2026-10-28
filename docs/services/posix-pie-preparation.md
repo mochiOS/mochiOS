@@ -589,3 +589,57 @@ CRTによる複数moduleの初期化と不正metadataの拒否を検証しまし
 Scopeの依存TLS拒否は維持しています。この段階で共有ライブラリのTLSが実OSで動作したと
 主張するものではありません。今回はKVMを起動せず、image、kernel、SDK、Rust std overlay
 も変更していません。first native launchへの準備経路の共用など、既記の残件も未完了です。
+
+## 初期scopeのTLS再配置とresolver（phase256）
+
+link scopeがSTT_TLSを扱い、R_X86_64_DTPMOD64 / DTPOFF64 / TPOFF64を解決します。
+TLS symbolの値はvirtual addressではなくmodule内offsetとして扱い、sizeを含む範囲が
+PT_TLSのmemory sizeに収まることを検査します。通常のaddress relocationとTLS symbol、
+TLS relocationと非TLS symbolの混同は拒否します。section headerは利用しません。
+
+module IDは元のobject index＋1です。TLSを持たないobjectも番号を消費するため、
+execのtemplate列とCRTの参照表で同じIDを維持します。symbol lookupには従来のBFS scopeを
+使い、rootによる定義の上書き、local / hidden / protected / symbolicの規則を維持します。
+symbol zeroのTLS relocationは呼出元objectのmoduleとして処理し、local-dynamic codeの
+module参照にも使います。TPOFFはphase254と共通の配置計算から求め、rootのlocal-exec
+offsetを変えません。modularなaddendはELF64の値として処理します。
+再配置番号と式は[LLVMの定義](https://github.com/llvm/llvm-project/blob/main/llvm/include/llvm/BinaryFormat/ELFRelocs/x86_64.def)
+および[x86-64の再配置処理](https://github.com/bminor/glibc/blob/master/sysdeps/x86_64/dl-machine.h)
+と照合しました。これらのソースをコピーした実装ではありません。
+
+CRTは各threadのprivate TLS mappingのTCBに参照表へのpointerを置き、その後にmodule数と
+各moduleのbase / sizeを記録します。TLSのないentryはzeroです。全templateと参照表を
+書き終えてからself pointerとThreadControlを公開し、途中のcopy失敗ではmappingを解放
+します。参照表の領域もmappingの容量計算に含め、同じthreadの退役時に一緒に解放します。
+
+`__tls_get_addr`はcompilerが渡すmodule / offsetを受け取り、現在のthreadの登録済みcontrolと
+参照表からaddressを返します。参照表・module・offsetはmappingの境界内で検査します。
+通常の参照でPOSIX service RPC、heap allocation、追加mappingは行いません。kernelには
+TCB、module ID、ELF TLSの概念や専用APIを追加していません。
+
+依存TLSを持つimageは、対応CRTのmarkerを確認してphase255の起動情報を渡す経路でのみ
+execします。単独imageでもTLS relocationがあれば明示scopeへ進め、以前の単独PIE処理で
+未解決のまま起動しません。未対応CRTでの依存TLS、未定義weak TLS、TLSDESCは明示的に
+拒否します。dlopen後に増えるmoduleの配置や世代管理は未対応です。
+
+ホスト17対象・114テストとtarget runtime / service-managerのbuildが成功しました。
+実リンカ生成のGD / LD / IE codeについて、sysv / gnu / both hash、section headerあり・なし、
+TLS定義の上書きと全再配置値をnm / readelfの結果と照合しました。symbolの型・範囲、
+local module、未定義weak、未対応CRTの拒否、参照表の破損、全copy失敗でのrollbackも
+確認しています。証跡は`out/checks/mochios-dso-tls-256-host-final.log`、`-runtime.log`、
+`-linker.log`、`-artifacts.json`です。
+
+KVMでは既存SDKのCRT / newlibと更新runtimeを使うET_EXECを実行しました。rootのlocal-exec、
+共有ライブラリのGD / LD / IE、TLSへのsymbol preemption、constructorからの参照、
+8192byte alignmentと.tbss、並行するpthreadの独立性、fork COW、fork後の新しいpthreadで
+初期値へ戻ることを確認しました。pathnameとunlink済みFDの両exec経路がroot / effective
+UID 501で成功し、元FDのcursorも維持しています。証跡は`-native.log`です。
+
+診断用imageとライブラリを外し、更新runtimeでリンクした通常service-managerへ戻しました。
+input READY、Binder ready、デスクトップとDockを画面でも確認し、VMは停止済みです。
+証跡は同phaseの`-normal.log` / `-normal.png`とartifact recordです。
+既存のnetwork `Failed(-6)`、USB driver creation errno 22と、画面に残るdebug logの一部は
+今回の対象外です。
+SDKやRust std overlayは再生成していません。interpreter、COPY / IFUNC、version scope、
+dlopen / dlclose、動的TLS追加、first native launchへの準備経路の共用などは未完了です。
+この初期TLS scopeの動作確認をもって、完全なPOSIX環境のgoalを完了とはしません。

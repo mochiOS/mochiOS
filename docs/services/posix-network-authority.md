@@ -67,6 +67,14 @@ create / bind / connect / sendto / recvfromへの接続、endpointのbootstrap�
 実NICでの通信やInternet socket全体の完成は、今回の試験からは主張しません。
 POSIX互換環境全体のgoalは継続中です。
 
+## 異常なnetwork statusの符号（phase279）
+
+phase277のfailure_status変更に誤りがあり、未表現の値のfallbackが+5になっていました。
+syscall::EIOはu64へ符号拡張した-5なので、i32へのcast後に再度negateしてはいけません。
+fallbackを-5へ戻し、回帰試験も同じ定数式に依存せず、wire上の-5を直接確認します。
+network_error_statusとnetwork_routing_policyの27 host testsが成功しました。
+証跡はout/checks/mochios-dns-records-279-status.logです。kernel・SDK・IPC ABIは変更していません。
+
 
 ## 数値アドレスの変換（phase278）
 

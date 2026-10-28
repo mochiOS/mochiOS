@@ -292,8 +292,8 @@ NODEFLIBのあるrequesterでは標準pathを省略します。依存名にslash
 GIDを取得します。いずれかに差があればLD_LIBRARY_PATH / LD_PRELOAD / LD_AUDITを
 loaderで使用しません。identity取得に失敗しても環境指定を許可するfallbackはしません。
 権限差がない場合の非空LD_PRELOAD / LD_AUDITは、まだ注入処理がないためENOEXECです。
-この処理はloaderの検索制御であり、secure環境変数をchild環境から削除する処理や
-setuid / file-Capability遷移全体の完成を意味しません。
+この段階ではloaderの検索制御だけでした。次節phase249で、対応済みの3変数を
+secureなexecのchild環境から除去します。setuid / file-Capability遷移全体は未対応です。
 
 検索metadataは取得済みの不変buffer内の検証済みspanとして保持します。
 候補を試すたびに依存元ELFのrelocation全体を再解析しません。
@@ -318,3 +318,39 @@ IFUNC、COPY relocation、dlopen / dlclose、ライブラリ寿命管理は引�
 VMを停止しました。通常起動の証跡は`mochios-library-search-248-normal.{log,png}`です。
 既存のnetwork `Failed(-6)`、USB driver creation errno 22は残っています。
 カーネル、配布SDK、Rust std overlayは変更していません。
+
+## exec entryのidentityとsecure環境（phase249）
+
+exec準備の最初にPOSIX endpointの`session_info`からidentityを一度取得し、
+同じsnapshotをDSO検索とstartup stack生成へ渡します。取得失敗ではexecを中止し、
+uid 0等の既定値へfallbackしません。
+`encode_initial_stack_for_process`はreal / effective UIDとGID、AT_SECUREを最初から
+literalな補助情報として出力します。C runtimeの初期化による後からの補正を待つ必要が
+ありません。これらにkernel用relocationを追加していません。
+
+`Identity::is_secure`を検索、stack生成、runtimeの補助情報更新で共用します。
+UIDまたはGIDのreal / effective値が異なるexecでは、LD_LIBRARY_PATH / LD_PRELOAD /
+LD_AUDITをchild環境から取り除きます。空値も除去し、同名prefixを持つ別の変数は残します。
+argvや他の環境変数の順序・値を変えません。filterもexec時に取得した所有textを使います。
+
+従来のbootstrap用encoderはidentityが未確定な起動経路の既定値を維持します。
+認証済みPOSIX sessionがある呼出し側は新しいProcess contextを渡す必要があります。
+今回確認するのはruntimeのexec経路です。service-manager等からの初回launch全経路、
+setuid / file-Capabilityのexec時遷移、interpreterそのものの対応が完了したわけではありません。
+補助vectorはuserspace向け情報であり、serviceが認証済みpeer identityやCapabilityの代わりに
+信頼してはいけません。カーネルへUID/GIDやPOSIXサービスの意味を追加していません。
+
+ホスト12対象・82テストが成功しました。literalなidentity、UID/GID差、u32最大値、
+同じkeyの重複防止、環境の保持・除去、identity取得失敗時のexec中止を確認しています。
+KVMではrootとeffective UID 501で共有ライブラリ付きexecを実行し、C runtimeを使わない
+entryで元のstackを直接検査しました。4つのIDとAT_SECUREが正しく一度ずつ存在し、
+通常identityでは空のloader環境3変数が残り、secureなidentityでは除去されていました。
+pathnameとunlink済みFDからのexec、共有cursor、依存取得失敗時のHandle維持も成功です。
+証跡は`out/checks/mochios-entry-identity-249-{results,native,runtime}.log`と
+`-artifacts.json`です。constructor / finalizer、interpreter、動的TLS等は引き続き未完了です。
+
+診断ELFを外した通常構成でinput READY、Binder ready、デスクトップとDockを画面でも
+確認し、検証VMを停止しました。証跡は`mochios-entry-identity-249-normal.{log,png}`です。
+既存のnetwork `Failed(-6)`、USB driver creation errno 22は残っています。
+カーネル、配布SDK、Rust std overlayは変更していません。この検証ではホストの
+rust-analyzerが動作しておらず、ホストプロセスの一時停止は行っていません。

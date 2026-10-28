@@ -51,6 +51,29 @@ euid 0 / 501の両方で成功し、foreign Providerの拒否と、native delive
 証跡は`out/checks/mochios-tcp-provider-274-host-final.log`、`-network.log`、`-manager-combined.log`、
 `-native-combined.log`、`-normal.log`、`-artifacts.json`です。
 
-POSIX側のsocket description、factoryの添付、非blocking connect、bind/listen/accept、SO_ERROR、shutdown、
+POSIX側のsocket descriptionのworker/FD接続、factoryの添付、非blocking connect、bind/listen/accept、SO_ERROR、shutdown、
 dup/fork/execとFD flagの処理、readinessの中継、物理NICでのTCP Providerを接続する作業が残っています。
 完全なPOSIX互換環境のgoalは継続中です。
+
+## 共有descriptionの状態処理（phase275）
+
+`services/posix/src/inet_stream.rs`へ、TCPの共有descriptionとして使う状態処理を追加しました。
+接続待ち・成立・失敗・待ち受け、nonblocking flagとtimeout、半切断、readiness、所有する下位参照のcloseを扱います。
+CLOEXECとFD番号は保持しません。acceptしたdescriptionのnonblocking flagは要求で決め、listenerのflagをコピーしません。
+
+SO_ERRORは共有pending errorを一度だけ消費し、開始済みのconnectの結果は別に保持します。
+この分離は[SO_ERRORの取得・クリア](https://man7.org/linux/man-pages/man7/socket.7.html)と、
+[非blocking接続の完了確認](https://man7.org/linux/man-pages/man2/connect.2.html)を踏まえたものです。
+下位の失敗通知を消費した後に不正な応答が返っても、その接続を成功へ昇格させません。
+peerやlocal addressが成立した接続として不正な場合も、失敗状態を保持します。
+
+`inet_stream_description.rs`の13件は、本番のTCPループバックtransportをadapter越しに使い、
+pending connect、SO_ERRORとIOによる消費、peek・空read、半切断、accept後の独立した寿命、
+不正応答の拒否、仮の参照の回収を確認します。既存TCP・UDPと合わせて10 targets / 126 testsと
+POSIX serviceのmochiOS向けbuildが成功しました。
+
+この状態処理はまだsocket workerから呼び出しておらず、新しいFD経路を提供した段階ではありません。
+次はNative backend、workerでのfactory受理・description管理、client/newlib側の接続を進めます。
+payloadはnativeのデータ経路を使い、共有するPOSIX状態とFDごとの状態を混同しない構成にします。
+この段階ではIPC wire、kernel ABI、SDK、OSイメージを変更せず、KVMも起動していません。
+証跡は`out/checks/mochios-tcp-description-275-host-final.log`、`-posix-final.log`、`-artifacts.json`です。

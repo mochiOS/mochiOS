@@ -679,3 +679,38 @@ KVMではphase256のC / newlib CRT試験をGNU2 dialectでも実行し、未定�
 画面に残るdebug logの一部は残っています。SDKとRust std overlayは再生成していません。
 dlopen後のTLS追加・世代管理、interpreter、COPY / IFUNC、version scope、first native launch
 への準備経路の共用などは未完了で、POSIX全体のgoalは継続中です。
+
+## native launchへの起動情報の共用（phase258）
+
+`launch_arguments::encode_native_launch_for_process`と、capability serviceの
+`native_app::metadata_for_process`が、execと同じ`Process`のentry / PHDR / identity / lifecycle /
+TLS情報を受け取り、共通の初期stack encoderへ渡します。従来のentry pointはdefaultのProcessで
+同じ処理を呼び、静的imageの既存のstartup形式とHandleGrant / Valueを維持します。
+引数の追加コピーは作らず、既存のexec snapshotとlauncherのString列を使います。
+
+secureなidentityでのLD_LIBRARY_PATH / LD_PRELOAD / LD_AUDITの除去をprocess_imageへ集約し、
+exec側の独自の除去処理を外しました。除去後の件数・text sizeから初期stackを構築するため、
+pointer列とpayloadの間に除去した環境変数を残しません。同じ名前の重複entryも除去します。
+他の変数の順序・重複・非UTF-8 bytesは維持し、不正なembedded NULは除去対象でも拒否します。
+新しい名前を追加するときも共通のIdentity policyを使います。
+
+`Process`はlocal loaderが確定した起動用dataであり、サービスの認証情報ではありません。
+remoteのアプリ起動requestに新しいfieldは追加していません。remote argvからHandle番号、
+identity、prepared payloadを選ぶことはできず、native_appは従来通りargv / environment以外の
+`__MNU_EXEC_`指定を拒否します。唯一の継承endpointはIPCで受け取ったlocal Handleです。
+imageの実行認可、POSIX child登録、resumeの順序も変更していません。
+
+ホスト20対象・131テスト、target runtimeとcapability serviceのbuildが成功しました。
+共通encoderでのsecure environment、除去対象を含む容量計算、nativeのprepared PHDR / entry /
+lifecycle / TLS、正しいHandleGrant、remote指定の拒否を確認しました。既存exec経路のsecure
+identity / environment検査も通っています。証跡は`out/checks/mochios-launch-startup-258-host.log`、
+`-runtime.log`、`-capability.log`、`-artifacts.json`です。今回はportableなencode処理の変更で、
+KVMは起動していません。image、kernel、SDK、Rust std overlayも変更していません。
+
+この段階ではnativeアプリの最初の起動にDSO capture / relocationを接続していません。
+調査したnative_appはcapability brokerが起動を仲介しますが、execのdependency openはcallerの
+POSIX environmentで行います。共有preparerのreaderをbroker自身のfs.read.allへ単純に置き換える
+ことはしません。対象launchのnamespace / credentialsとCapability ceiling、捕捉したroot Handle、
+prepared bytesに対する認可を明示してから接続します。kernelへサービス名やPOSIX専用の起動
+interfaceを追加せず、今回用意した同じProcess startupへ接続する方針です。その他の既記の
+残件も未完了で、完全なPOSIX環境のgoalは継続中です。

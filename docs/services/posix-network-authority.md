@@ -66,3 +66,35 @@ SDKとRust std overlayは再生成していません。
 create / bind / connect / sendto / recvfromへの接続、endpointのbootstrap配布は引き続き必要です。
 実NICでの通信やInternet socket全体の完成は、今回の試験からは主張しません。
 POSIX互換環境全体のgoalは継続中です。
+
+
+## 数値アドレスの変換（phase278）
+
+`posix-client::internet`とnewlib runtimeへinet_pton / inet_ntopを追加しました。
+IPv4のstrict dotted-decimal、IPv6の省略・大小文字・IPv4埋め込み表現を扱います。
+変換は値だけを扱う処理で、network endpoint、Capabilityの取得、POSIXサービスRPCは使いません。
+文字列の解釈はclient層で行い、kernelへaddress familyやInternet固有の意味論を追加していません。
+
+C入口はapplicationの文字列・binary addressを既存MemoryCopyでsnapshotします。
+source/destinationの生ポインタからRust参照を作らず、NULを越えて別のvirtual pageへ読みに行きません。
+不正な表現は0、未対応familyはEAFNOSUPPORT、短い出力はENOSPCを区別します。
+成功や表現不正の戻り値ではerrnoを変更しません。出力サイズを確認してからNUL込みの結果を書き込みます。
+
+arpa/inet.h、IPv6のin6_addr / sockaddr_in6、in6addr_any / in6addr_loopback、IN6_IS_ADDR_*を追加しました。
+C ABIはin6_addrが16 bytes・alignment 4、sockaddr_in6が28 bytesです。C++からも利用できることを確認しています。
+これらの型と文字列表現への対応は、IPv6 socketやIPv6 packet送受信の実装を意味しません。
+
+internet_address.rsでは、ホストCライブラリの別実装を使ってIPv4/IPv6の構文・表現を比較します。
+2048組のIPv4/IPv6 addressとzero runの位置・長さ、表現不正、family、buffer境界を確認しました。
+関連する5 targets / 33 host tests、単体runtime、診断manager、native Cのbuildが成功しています。
+native_internet_address.cはKVMのeuid 0 / 501でC ABI、NUL境界、保護page、NULL・overflow・kernel virtual addressの拒否、
+短い出力、定数symbol、並行変換とthread別errnoを確認しました。診断用のnetwork権限は追加していません。
+
+SDKとRust std overlayは再生成せず、既存SDKを入力として単体runtimeをbuildしました。
+試験後はmanager・manifest・verificationを元のhashへ戻し、仮の実行ファイルを削除しました。
+通常イメージの内容を復元し、checksumも検証しました。今回、復元後のGUI起動の再試験は行っていません。
+証跡はout/checks/mochios-internet-address-278-{host-final,runtime,c-build,cxx-header,native,image-normal}.logです。
+
+getaddrinfo / getnameinfoと旧来のinet_addr / inet_ntoa、DNSの複数record・AAAA・PTRへの接続は残っています。
+外部TCPのnative試験も、runnerの仮想NIC切替の返答待ちのままです。ホスト設定は変更していません。
+POSIX互換環境全体のgoalは継続中です。

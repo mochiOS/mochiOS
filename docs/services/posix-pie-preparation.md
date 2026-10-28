@@ -800,3 +800,49 @@ SDK、Rust std overlay、kernel、通常packageの権限は変更していませ
 native_appの最初の起動ではまだこのpreparerを使っていません。起動requestへのスコープ添付、
 準備済みbytesへの実行認可、捕捉した資格情報・namespaceとchild登録の整合を保つ接続が必要です。
 その他の既記の残件と完全なPOSIX環境のgoalも継続中です。
+
+## スコープと子登録の整合（phase261）
+
+`register_launched_child_in_scope`を追加しました。requestは空payloadで、読み取りスコープを
+TRANSFER、requesterをWAIT、停止中の子をWAIT / SIGNALへ縮小してIPC添付します。
+PIDや資格情報をrequest bytesから採用しません。serviceは自身のProvider objectを識別し、
+二つのProcessHandleをnative APIで観測してから、POSIX stateのlock下で登録を判定します。
+
+スコープの所有元とrequesterの一致、実際のbroker sessionのPOSIX初期化権限を確認します。
+requesterのnative image revisionを再観測し、捕捉時のrevision、real / effective / saved IDs、
+groups、umaskが現在と一致することを検査します。root / cwdは保持したnative objectとの
+同一性を既存Handle APIで確認し、path文字列や再利用されるselectorだけでは比較しません。
+観測・比較はnativeの局所操作であり、state lockを持ったfilesystem RPCは追加しません。
+
+変化していればEAGAINを返し、子のPOSIX登録やHandle所有の引受けは行いません。
+callerは停止中の子を破棄し、新しいスコープとimageを準備し直せます。観測失敗も伝播し、
+無関係なscopeや別ownerを借りて登録することはできません。読み取りスコープ自体の寿命は
+従来通りで、資格情報変更・exec・終了後に委譲済みの読み取り権限を暗黙に失効させません。
+子登録の条件だけを、準備と起動時の環境が整合する形に限定しています。
+
+成功時は既存のadopt処理でrequesterの親子関係・process group / session・signal・rlimit・
+directory参照を継承し、fresh imageとしてsaved IDsとsignal dispositionを処理します。
+失敗時の部分的なdirectory複製も回収し、成功時だけ子のProcessHandleをserviceが保持します。
+native Capabilityや実行認可は変更しません。kernelへの変更・専用interfaceの追加はありません。
+
+ホスト21対象・646テストとtarget service / managerのbuildが成功しました。新規6件では、
+正常な継承、資格情報・groups・umask・root / cwdの変化、資格情報が同じでもnative imageが
+変わった場合、foreign owner、観測・保持失敗、余計な返信Handleの回収を検証しました。
+KVMでは実際のProcessCreateで停止した子を使い、UID 501のrequesterからのスコープを
+UID 0のbrokerで扱いました。子の実newlib CコードでUID/GID、親PID、cwd、groups、umaskと
+RLIMIT_NOFILEを確認し、requesterからのwaitも成功しました。stale cwd / credentialsと別ownerは
+子を未登録のまま拒否し、callerがnativeの子を停止状態から破棄できることも確認しました。
+
+試験初回は試験用Rust FFIでgid_t配列を32bitと宣言していました。SDKとruntimeの16bit ABIに
+合わせて修正し、再実行で全ケースが成功しました。SDKそのものは変更していません。
+証跡は`out/checks/mochios-scoped-launch-261-{host,service,manager,native}.log`と
+`-artifacts.json`です。診断用の子プログラムとpackage recordを除き、通常構成へ戻しました。
+input READY、Binder ready、デスクトップとDockを画面でも確認し、VMは停止済みです。
+同phaseの`-normal.log` / `-normal.png`へ記録しました。既存のnetwork `Failed(-6)`とUSB driver
+creation errno 22は残っています。一時停止対象のrust-analyzer等は見つかりませんでした。
+SDK、Rust std overlay、kernel、通常packageの権限は変更していません。
+
+native_appの既存起動requestはまだこのスコープを添付していません。callerが選んだDSOを
+そのまま認可済みapplicationのCapabilityで実行しないよう、root / DSOを含む準備済みbytesと
+packageの実行認可の対応も確定してから接続します。状態の整合だけで実行認可を代用せず、
+両方を保つことが次の作業です。完全なPOSIX環境のgoalとその他の残件は継続中です。

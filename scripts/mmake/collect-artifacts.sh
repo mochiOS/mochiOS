@@ -22,6 +22,6 @@ install -m 0644 "$root/version.toml" "$artifacts/version.toml"
     # disk.img is a sparse development image whose authenticated rootfs hash is
     # embedded in initfs. Hashing its full logical size on every incremental
     # build defeats the block-level image updater.
-    find . -maxdepth 1 -type f ! -name SHA256SUMS ! -name disk.img -printf '%P\0' | sort -z | xargs -0 sha256sum > SHA256SUMS.new
+    find . -maxdepth 1 -type f ! -name SHA256SUMS ! -name SHA256SUMS.new ! -name disk.img -printf '%P\0' | sort -z | xargs -0 sha256sum > SHA256SUMS.new
     mv SHA256SUMS.new SHA256SUMS
 )

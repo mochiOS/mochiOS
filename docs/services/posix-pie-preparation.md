@@ -846,3 +846,36 @@ native_appの既存起動requestはまだこのスコープを添付していま
 そのまま認可済みapplicationのCapabilityで実行しないよう、root / DSOを含む準備済みbytesと
 packageの実行認可の対応も確定してから接続します。状態の整合だけで実行認可を代用せず、
 両方を保つことが次の作業です。完全なPOSIX環境のgoalとその他の残件は継続中です。
+
+## 捕捉済み入力とpackage認可（phase262）
+
+共通preparerのBackendに`validate_captured`を必須の方針として追加しました。rootは全byteの
+捕捉後・ELF parse前、DSOも捕捉後・parse前に呼びます。DSOにはDT_NEEDED名だけでなく、
+実際にopenが成功した検索候補のpathを渡します。Scoped readerもこの検証を委譲します。
+拒否はそのまま伝播し、出力imageを作らず、取得済みHandleとbufferをownerが回収します。
+既存newlib execは自身のsecurity domain内の置換なので入力を受け入れる方針を明示します。
+この入力検証自体は、実行permitや新しいCapabilityの付与を行いません。
+
+capability側には、verification.binで認証した同一manifest byte列をparseして返す
+`verified_manifest`と、そのsnapshotから作る入力Catalogを追加しました。先にparseした
+package indexのコピーへ、後で読んだ別manifestの認証結果を付ける形にはしません。
+既存install recordのmanifest digestと、`[[file]]`のsize / SHA-256を使い、ELF署名の
+暗号処理や鍵管理は追加しません。
+
+rootは`kind = "application"`、DSOは同manifest内の`kind = "library"`を明示したbinaryに
+限定します。両方とも`file` IDで対応するdigest recordへ結び付け、binaryの絶対pathと
+fileのインストール先を一致させます。`$/`は既存application bundleの配置規則で解決します。
+選ばれたpathはrecordを選ぶためにだけ使い、真正性は捕捉済みbyte列のsize / hashで確認します。
+basename、別packageの署名だけ、通常のdata file、相対pathやpath aliasへのfallbackはありません。
+共有する別packageのDSOを認可する依存宣言は、この段階ではまだ追加していません。
+
+ホスト22対象・658テスト、target capability.serviceと単独newlib runtimeのbuildを検証しました。
+新規9件は、入力の改変・切り詰め・追記、不正なfile bindingやdigest、manifest更新、
+検索候補の取り違え、拒否時の資源回収、捕捉後に元fileが変わっても同一byte列をparseすることを
+確認します。証跡は`out/checks/mochios-capture-policy-262-{host,capability,runtime}.log`と
+`-artifacts.json`です。この段階ではIPC / native境界を変更せず、KVM試験やimage書換えは
+行っていません。SDK主要4fileのhashはphase261と同一で、SDK / Rust std overlayは未変更です。
+
+Catalogはまだnative_appの起動経路へ接続していません。次に、callerからのread scope添付、
+Catalogによる全入力の検証、準備済み出力へのpermit、scopeと整合する子登録を一つの起動経路へ
+接続します。今回の検証をもって、アプリのDSO初回起動や完全POSIX環境の完了とはしません。

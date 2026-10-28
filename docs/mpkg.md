@@ -115,6 +115,44 @@ optional request の表現はありません。1 個でも Developer Certificate
 `allowed_capabilities` または Binary Policy を超える場合、起動時の Capability
 解決全体を拒否します。
 
+### Native共有ライブラリの依存宣言
+
+別packageのnative libraryを承認する場合、利用側の署名済みmanifestに次を記録します。
+
+```toml
+[[library_dependency]]
+package = "org.example.runtime"
+developer = "org.example.developer"
+subject_key_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+provenance = "verified-package"
+abi = "example-runtime-1"
+```
+
+5項目すべて必須です。`subject_key_id`はinstall recordの署名鍵IDと同じ32 bytesを64桁の
+hexで表し、`sha256:` prefixは付けません。`provenance`は`built-in`、`verified-package`、
+`development`のいずれかです。built-inの場合もdeveloper / key / provenanceを照合します。
+未知の項目、同じ項目の再指定、同一packageの依存宣言の重複、不完全な宣言は拒否します。
+
+この宣言は依存先packageが公開する`kind = "library"`のbinary群と、そのpackageが明示した
+library依存を承認します。通常のdata file、applicationやserviceのbinaryをlibraryとして
+承認するものではありません。各libraryには、そのpackage自身の`[[file]]`への`file` IDと
+一致するインストール先が必要です。利用側は依存先の`[[binary]]`や`[[file]]`を複写しません。
+一つの共有packageを複数アプリから参照でき、同じpathを複数packageが所有する登録を避けられます。
+
+依存先はinstall recordと同一のmanifest snapshotを認証してから使います。宣言したpackage ID、
+developer、鍵ID、provenance、ABIの一致と、利用側がarchitectureを指定した場合はその一致を
+確認します。providerのversion更新後もこれらが一致すれば、利用側のmanifestを変更せずに
+更新後の認証済みfile digestを使えます。ABIや鍵の変更には利用側の承認の更新が必要です。
+同一packageを一回の起動中に再読込せず、循環・共有依存も同じsnapshotを使います。
+別の経路から同じpackageに異なる制約が指定された場合も、その制約を省略せず照合します。
+
+実際のlibraryはcallerの読み取りscopeから取得し、捕捉済みbyte列を当該packageのsize / digestと
+比較します。別packageのCapabilityや実行identityを利用側へ加算しません。依存先を自動で
+download / installする機能はこの宣言には含めず、未installなら起動時に`ENOENT`を返します。
+認証・ABI・内容の不一致は`EACCES`、export pathの所有の重複は`EEXIST`で拒否します。
+認可graphはrootを含む256 package、8192 libraryを上限とし、超過は`E2BIG`を返します。
+これは認可するmetadataの上限で、実際にlinkするELF scopeの制約とは別です。
+
 ## 6. payload path と配置先
 
 `[[file]].path` には、明示的な絶対配置先または `$/` 形式を使用します。

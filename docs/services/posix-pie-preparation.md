@@ -940,3 +940,37 @@ trace-ioがDebugWriteで画面を上書きしていました。単独runtimeをt
 通常packageのCapabilityも変更していません。既存のnetwork `Failed(-6)`とUSB driver creation
 errno 22は残っています。別packageの共有DSOの依存宣言、interpreter、versioned symbols、
 dlopen等の既記の残件と、完全なPOSIX環境のgoalは継続中です。
+
+## 別packageの共有ライブラリ依存（phase264）
+
+署名済みmanifestに`[[library_dependency]]`を追加しました。package ID、developer、署名鍵ID、
+provenance、ABIを必須とし、未知の項目・重複・不完全な宣言は拒否します。利用側がarchitectureを
+指定した場合はそれも一致させます。schemaの詳細は`docs/mpkg.md`に記載しています。
+
+capabilityの入力Catalogは、宣言したpackageの認証済みmanifestを起動ごとに取得し、その
+`kind = "library"`のbinaryと明示的な推移依存を承認します。利用側へproviderのbinary / file表を
+複写しないため、同じexportを複数packageが所有するindex登録を避け、複数アプリで共有できます。
+providerのCapabilityや実行identityは加算しません。通常のdata、application、serviceのbinaryも
+libraryの承認対象にしません。各libraryのfile binding、配置先、捕捉したsize / SHA-256の検査は
+従来どおり必須です。
+
+同一packageは一回の起動で一度だけ認証し、共有依存・循環依存も同じsnapshotを使います。
+既読のpackageへのedgeも制約を再検査し、矛盾する鍵やABIの指定を省略しません。更新後の
+developer / 鍵 / provenance / ABIが一致すれば新しいfile digestを使えるため、互換性のある
+共有library更新のたびに各アプリのmanifestを更新する必要はありません。古い起動のsnapshotは
+変更しません。graphはrootを含む256 package / 8192 libraryに制限し、再帰呼出しを使いません。
+
+ホスト27対象・685テスト、capability / signature / package / 診断用managerのtarget buildが
+成功しました。新規9テストはschema、認証、互換更新、推移依存、循環、exportの重複、資源上限と
+拒否時のfallback不在を確認します。KVMでは実際のlaunch IPCを使う9ケースが成功しました。
+二つのアプリで同じ循環依存を共有し、effective UID 0 / 501で実newlibのTLS・pthread・forkと
+constructorを実行しました。鍵 / ABI / provenanceの不一致、未インストール、未宣言、DSO改変を
+拒否し、元のfileへ戻すと再び起動できることも確認しました。失敗した起動はPOSIX childを残しません。
+
+診断用package / アプリを除いて通常managerへ戻し、input READY、Binder ready、デスクトップとDock、
+DockからのFiles起動、Homeの表示、ウィンドウ終了を実画面でも確認しました。検証VMは停止済みで、
+一時停止対象のprocessは0件でした。一時停止管理も解除しました。SDK主要4fileのhashはphase263と同一で、
+SDK / Rust std overlayは再生成していません。kernel、通常packageのCapability、UI sourceも
+変更していません。証跡は`out/checks/mochios-shared-package-264-*.log`、`-artifacts.json`、
+`-normal.png`と`-files.png`です。依存先の自動install、interpreter、versioned symbols、dlopen等は
+今回の範囲に含めず、完全なPOSIX環境のgoalと既記の残件は継続中です。

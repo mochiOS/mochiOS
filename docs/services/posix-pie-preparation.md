@@ -714,3 +714,46 @@ POSIX environmentで行います。共有preparerのreaderをbroker自身のfs.r
 prepared bytesに対する認可を明示してから接続します。kernelへサービス名やPOSIX専用の起動
 interfaceを追加せず、今回用意した同じProcess startupへ接続する方針です。その他の既記の
 残件も未完了で、完全なPOSIX環境のgoalは継続中です。
+
+## 明示的に委譲する読み取りスコープ（phase259）
+
+native launchの依存先をbroker自身の権限で開かないため、POSIX client / serviceに
+読み取り専用のスコープを追加しました。作成requestにはsubject PIDやUIDを載せず、
+IPCで認証した呼び出し元自身のroot / cwd、real / effective UID / GID、補助group、umaskを
+捕捉します。既存のpathname snapshot処理でdirectory Handleを保持し、filesystem RPC中には
+POSIX stateのmutexを保持しません。作成完了前後のnative imageの検証も既存経路を使います。
+
+スコープは既存のnative Provider objectで表現します。返す権限はDUPLICATE / TRANSFERだけで、
+利用requestにはTRANSFERに縮小したHandleを一つ添付します。所有endpointのthreadだけが
+ProviderObjectIdentifyで確認でき、wire整数や他providerのobjectからスコープを選べません。
+receiverのroot / cwdや資格情報へ置換せず、保持したものだけで読み取りを行います。
+ファイルはatomicなopen後にREAD / DUPLICATE / TRANSFERへ縮小し、WRITE / CONTROL / SEEK /
+MAPを渡しません。縮小の失敗時も元のファイルHandleを閉じます。
+
+読み取りrequestはrootまたはcwdを基準とし、既存open-atのwire形式を使います。
+create / truncate / append / executeや任意directoryの注入は拒否し、FIFOのopenで制御threadを
+停止させないようNONBLOCKを必須にします。対象ファイルの内容・属性やnamespace自体を
+freezeする機能ではありません。確定したファイルHandleからimage bytesを捕捉する処理と、
+最終的な実行認可は別に必要です。
+
+作成元の資格情報・cwdの変更や終了は、すでに委譲したスコープを失効させません。
+通常の委譲Handleと同様に、最後の参照が失われた時点のnative OP_RELEASEでdirectory参照と
+管理entryを解放します。通常IPCで同じbytesを送っても解放できません。object IDを再利用せず、
+遅れた通知による別entryの解放を防ぎます。保持数は全体256、作成元processごと16に制限し、
+上限ではEAGAINを返します。close専用RPCやkernelのPOSIX専用機構は追加していません。
+
+ホスト21対象・638テストが成功しました。新規8件では資格情報とdirectory参照の固定、
+不正な権限・object・IDの拒否、作成・保持・権限縮小の失敗時の後始末、上限と解放を検証しました。
+KVMではUID 501の子からUID 0の親へスコープをIPC転送し、子のcwd変更・終了後も元のdirectoryを
+参照すること、親が通常openで読めるroot専用ファイルをスコープでは読めないことを確認しました。
+nativeでWRITE / CONTROLへの権限拡大、別providerによる偽装、通常IPCによるrelease偽装を拒否し、
+連続40回の作成・解放で最終参照の回収も確認しました。
+
+証跡は`out/checks/mochios-read-scope-259-{host,service,manager,native}.log`と
+`-artifacts.json`です。通常構成へ戻し、input READY、Binder ready、デスクトップとDockを
+画面でも確認しました。VMは停止済みです。同phaseの`-normal.log` / `-normal.png`へ記録しました。
+既存のnetwork `Failed(-6)`とUSB driver creation errno 22は残っています。
+許可されたrust-analyzer等の一時停止対象は見つからず、ホストで停止した処理はありません。
+SDK、Rust std overlay、kernel、通常のpackage権限は変更していません。
+この段階ではnative_appへ共有DSO preparerを接続していません。スコープを利用するreader、
+prepared bytesの実行認可とchild登録の接続、その他の既記の残件を含め、goalは継続中です。

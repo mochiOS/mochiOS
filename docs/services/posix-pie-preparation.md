@@ -643,3 +643,39 @@ input READY、Binder ready、デスクトップとDockを画面でも確認し�
 SDKやRust std overlayは再生成していません。interpreter、COPY / IFUNC、version scope、
 dlopen / dlclose、動的TLS追加、first native launchへの準備経路の共用などは未完了です。
 この初期TLS scopeの動作確認をもって、完全なPOSIX環境のgoalを完了とはしません。
+
+## 初期scopeのTLSDESC（phase257）
+
+R_X86_64_TLSDESCを16byteの再配置として扱います。parse時のLOAD範囲、重複、overflowと、
+書込み先のmaterializationを同じ幅で検査します。後半8byteだけがLOADを越える場合や、
+別のrelocationがdescriptorの後半に重なる場合も拒否します。従来の8byte relocationとの
+隣接は許可し、RELRなどの既存の検査は維持します。
+
+descriptorの先頭にはroot CRTのstrongなresolver、後半にはTP相対offsetを設定します。
+rootの実行可能LOADに対応するresolverがなければ準備を失敗させます。任意の依存先から
+同名のfunctionを探して代用しません。定義のあるTLSは既存のscope / 配置規則を使います。
+未定義weak TLSのTLSDESCは専用resolverでaddend−TPを返し、callerがTPを加えた結果を
+addend、通常はnullにします。これはclassic GDの未定義weak TLSへの対応とは別です。
+
+CRTのresolverはdescriptorをRAXで受け取り、RAX以外のregisterを変更せずに戻ります。
+通常の場合はdescriptorのoffsetを返すだけで、weakの場合だけ現在のTCBのself pointerを
+差し引きます。service RPC、allocation、runtime lockや追加mappingは行いません。
+[x86-64のTLSDESC ABI](https://github.com/bminor/glibc/blob/master/sysdeps/x86_64/dl-tlsdesc.S)
+を照合し、呼出規約を満たす短いassemblyとして独立させました。kernelへの変更はありません。
+
+ホスト18対象・116テストが成功しました。GNU / GNU2 dialect、sysv / gnu / both hash、
+section headerあり・なしで実リンカの結果と照合し、未対応CRT、不正な16byte範囲や重複を
+検証しました。productionのresolverを直接呼ぶABI試験では、RAX以外の汎用registerと
+XMM0〜15をliveにしたまま保持を検査し、通常offsetとweakのzero / 正負addendを確認しました。
+証跡は`out/checks/mochios-tlsdesc-257-host-final.log`、`-linker-final.log`、
+`-runtime.log`、`-linker.log`と`-artifacts.json`です。
+
+KVMではphase256のC / newlib CRT試験をGNU2 dialectでも実行し、未定義weak TLSのnullを
+確認する試験も追加しました。constructor、並行pthreadの独立性、fork COWと新しいthreadの
+初期値、pathname / unlink済みFDのexecがroot / effective UID 501で成功しました。
+診断用ファイルを外して通常構成へ戻し、input READY、Binder ready、デスクトップとDockも
+画面で確認しました。VMは停止済みです。証跡は同phaseの`-native.log`、`-normal.log`、
+`-normal.png`とartifact recordです。既存のnetwork `Failed(-6)`、USB driver creation errno 22、
+画面に残るdebug logの一部は残っています。SDKとRust std overlayは再生成していません。
+dlopen後のTLS追加・世代管理、interpreter、COPY / IFUNC、version scope、first native launch
+への準備経路の共用などは未完了で、POSIX全体のgoalは継続中です。

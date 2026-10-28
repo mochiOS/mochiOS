@@ -3,7 +3,8 @@
 network.serviceの通常起動とNICなし起動の両方で、TCPループバックをnative Handleから操作できるようにしました。
 前段のresource backendを汎用Providerへ接続したもので、mnuのABIは追加・変更していません。
 phase274のnative Provider、phase275の共有状態を、phase276でPOSIXの`AF_INET/SOCK_STREAM`とnewlibのFD経路へ接続しました。
-また、このProviderのroutingはIPv4 loopback（127/8）までで、物理interfaceへの接続は残っています。
+phase277で、既存のARP・IPv4・NIC送受信と同じTCP接続表へ接続しました。IPv6は未対応です。
+外部通信のnative検証については末尾のphase277の範囲を参照してください。
 
 ## 権限の取得と委譲
 
@@ -126,3 +127,44 @@ network.serviceとposix.serviceは試験済みの内容を通常イメージへ�
 残りは、このProviderの物理NICへの接続、IPv6、bufferのサイズ変更や追加socket option、
 広いTCP適合試験、Rust stdを直接使ったTCP試験、スループットと遅延の測定です。
 この接続だけでPOSIX全体や外部ネットワーク対応が完了したとは扱いません。
+
+
+## IPv4 interfaceとの接続（phase277）
+
+`stream::Transport`の接続表をNetworkStackのTCP接続表として共有します。
+Providerはfactoryとresourceの参照を管理し、物理interfaceありの場合はstackのtransportを借用します。
+NICなしの場合は独立した同じtransportを使い、loopbackを維持します。
+legacy HTTP/TLS経路とnative resourceが別々のportを予約してしまう構成を解消しました。
+TCBのowner labelも異なる領域へ分け、legacy APIからnative resourceを操作・破棄できないようにしています。
+これらの番号はユーザー空間内の識別子で、kernel ABIやFD番号ではありません。
+
+native TCPの送信待ちは既存のARP・IPv4 routingへ渡し、受信は既存のEthernet/IP/TCP検証から共通の接続表へ入ります。
+物理向けSYN、SYN+ACK、データ、ACK、FINに別の疑似接続経路を設けていません。
+送信の一時的なEAGAINは未公開パケットを保持し、接続成功や失敗へ置き換えません。
+MSSはinterfaceのMTUを超えない値を使い、外部向けに127/8やmulticast/broadcastを送出しません。
+
+interfaceを失ってもnative resourceの参照は有効なまま、確定した失敗とSO_ERRORの一度だけの消費を保ちます。
+legacyのclosed TCB回収からnative resourceが参照しているTCBを除外し、loopbackはinterface喪失から独立させています。
+factoryのQUERY_LIMITSには利用可能なrouteのbitを追加しました。これはinterfaceの可用性の情報で、権限ではありません。
+CONNECT/LISTENのscope、保護portへのbind制限、信頼するendpointでの添付Handle検証は維持します。
+
+同じnext hopに対する並行TCP接続はARP問い合わせを共有します。
+有効なARP requestから学習した場合や、別のpeerの解決も待っている場合でも、そのnext hopの待機パケットを排出します。
+
+`support/routed_tcp_cases.rs`は本番NetworkStackとresource transport、相手側の本番TCP state machineを使います。
+ホストfixtureが置き換えるのはdeviceの入出力と時刻・entropyだけです。
+実際のEthernet/IPv4/TCPのencode/decodeを通して、subnet外の接続、受理後のlistener終了、双方向データ、半切断、
+ARP待ち、複数next hop、MTU 600、送信backpressure、interface喪失、timeout後の参照保持、owner/port分離を確認します。
+既存TCP/UDPと合わせて11 targets / 149 testsとnetwork.serviceのmochiOS向けbuildが成功しました。
+
+`native_inet_stream_routed.c`と`support/routed_tcp_echo.py`は、仮想NICを有効にしたKVMで公開C APIから外部通信を確認するための試験です。
+ホスト相手はlocalhostだけで待ち受け、euid 0 / 501それぞれについて8192 bytesの内容、write半切断、echo、EOFを確認します。
+現在の専用runner設定はnetwork=noneのため、この外部native試験はまだ実行していません。
+SDKとRust std overlayは再生成せず、既存SDKと前段で検証した単体runtimeを消費しています。
+
+変更後のnetwork.serviceでも、NICなしKVMでeuid 0 / 501の公開C APIによるTCP・cancel・fork/execと、
+既存UDP・64回の同一port再open試験が成功しました。通常イメージへ戻した後のinput/Binder起動、FilesのHome表示と終了も確認しました。
+診断managerのbinary・manifest・verificationは元へ戻し、仮の実行ファイルは削除しました。
+KVMはPIDを照合して停止し、一時停止の記録はすべて再開済みです。
+ホストのrunner設定は変更しておらず、echoサーバーもまだ起動していません。
+証跡は`out/checks/mochios-tcp-routed-277-host.log`、`-network.log`、`-loopback.log`、`-normal.log`です。

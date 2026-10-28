@@ -380,3 +380,37 @@ input READY、Binder ready、デスクトップとDockを画面でも確認し�
 停止済みです。証跡は`mochios-image-lifecycle-250-normal.{log,png}`と`-artifacts.json`です。
 既存のnetwork `Failed(-6)`とUSB driver creation errno 22は残っています。
 カーネル、配布SDK、Rust std overlayは変更せず、ホストプロセスの一時停止も不要でした。
+
+## 共有objectのlifecycle計画（phase251）
+
+captured ELFのDT_INIT / DT_FINIとpreinit / init / fini配列を解析・検証します。
+同じtagの重複、アドレスと長さの片方だけの指定、8byte単位でない配列、overflow、
+読めるLOADに収まらない範囲を拒否します。DT_INIT / DT_FINIは自身の実行可能LOAD内に
+ある必要があります。配列はrelocationで初期化されるzero-fill領域も表現できます。
+この検証は通常の`Pie::parse_object`にも適用し、不正なmetadataをexecで見逃しません。
+
+`Scope::lifecycle`はシンボル検索のBFSとは別のDFS postorderを作ります。
+呼出し側の4×object数のusize workspaceを使い、再帰・allocation・global状態はありません。
+共有依存を一度だけ記録し、循環は決定的に処理します。rootのpreinitを先に、各objectは
+依存先を先に初期化します。DT_INITから順方向init配列へ進み、終了はobject順も配列順も
+逆にしてからDT_FINIへ進みます。依存objectのpreinit要求は受け入れません。
+順序の根拠は[System V ABIのInitialization and Termination Functions](https://gabi.xinuos.com/elf/08-dynamic.html#initialization-and-termination-functions)です。
+
+計画はコードを呼ばず、再配置後のアドレスと配列範囲を返します。配列のfile上の値を
+そのままfunction pointerとして使うことはできません。実行側は再配置後の値を読み、
+`Lifecycle::is_callable`でcaptured scope内の実行可能LOADにあることを確認する必要が
+あります。他objectの関数へ解決された配列要素も扱えます。
+
+ホスト13対象・88テストとmochiOS target runtimeのbuildが成功しました。
+追加試験ではroot＋3つの共有ライブラリを実リンカで作成し、diamond依存、DT_INIT /
+DT_FINI、優先度付き配列、root preinit、他objectへのsymbol relocation、packed RELRを
+含むbundleを生成します。ホスト上でそのbundleをmapし、fixtureのコードを実際に呼び、
+初期化と終了の全順序を確認しました。SysV / GNU / 両hashと、section表あり・なしを
+確認しています。これはmochiOSのProcessCreateやCRT接続の試験ではありません。
+証跡は`out/checks/mochios-dso-lifecycle-251-{host,runtime}.log`と`-artifacts.json`です。
+
+runtimeのexec / startupへの計画受け渡し、once-only実行、atexit登録、root CRTとの
+二重実行防止、mapping寿命管理は次の接続段階に残ります。未接続のdirect-entry execは
+非空の初期化・終了要求を引き続きENOEXECにします。共有ライブラリのlifecycle全体が
+動作する状態には達していません。今回はホストで検証可能な解析・計画の変更であり、
+KVMは起動せず、通常イメージ、カーネル、配布SDK、Rust std overlayは変更していません。

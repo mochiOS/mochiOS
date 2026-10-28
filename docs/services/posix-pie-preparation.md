@@ -757,3 +757,46 @@ nativeでWRITE / CONTROLへの権限拡大、別providerによる偽装、通常
 SDK、Rust std overlay、kernel、通常のpackage権限は変更していません。
 この段階ではnative_appへ共有DSO preparerを接続していません。スコープを利用するreader、
 prepared bytesの実行認可とchild登録の接続、その他の既記の残件を含め、goalは継続中です。
+
+## execと委譲readerの共通ローダー（phase260）
+
+newlib内に残っていたimage capture、依存先の探索・取得、scopeの組立て、配置・再配置、
+lifecycle / TLS情報の生成を`posix-client::image_preparation`へ移しました。execはこの共通処理を
+呼び、旧`exec_image/dependencies.rs`は削除しました。ELFや探索順の実装をbroker用に複製せず、
+nativeのread / write / random / MemoryObject作成とライブラリ取得をbackendから受け取ります。
+出力は読み取り専用の準備済みimageと起動情報であり、実行の認可・置換・ProcessCreateは行いません。
+
+メモリ確保とHandleの所有は、従来通り外側のPreparationへ先に公開します。newlibは同じ
+callback resource chainへownerを登録し、資源の確保・公開・解放ではcallback deliveryを
+deferします。I/O用の一時配列やELF viewは資源を所有せず、C handlerがexecを放棄した場合にも
+外側のownerが回収します。既存のmalloc / freeを使うため、共通化のために別のglobal allocatorや
+SDK変更を導入していません。allocatorとcallback管理のunsafe契約はbackendへ明記しました。
+準備はownerごとに一度だけ許可し、失敗後の部分状態を再利用しません。
+
+`image_preparation::scoped::Scoped`はphase259の委譲Handleから取得した資格情報を保持し、
+ライブラリのopenをそのスコープへ限定します。backendの通常openへのfallbackはありません。
+取得した資格情報をsecure searchに使い、起動情報の構築にもこの値を取得できます。
+brokerのsessionやgetenvから資格情報・探索条件を代用しません。
+ファイルの種類は開いたHandleで確認し、内容はcursorを変更しないpositional readで捕捉します。
+スコープはcallerからの借用であり、loaderが勝手に閉じません。
+
+ホスト21対象・640テストが成功しました。従来のexec / TLS / lifecycle試験は共通処理を通ります。
+追加試験では委譲されたsecure identityでのLD_*除外、読み取り拒否時にambient openへ逃げないこと、
+ownerの再利用拒否、全allocation位置での失敗注入と部分資源の回収を確認しました。
+KVMでもUID 501の委譲スコープをUID 0側で使い、実IPCでのDSO取得、secure search、固定root、
+lifecycle、TLS templateと空module slot、元ファイルのcursor維持を確認しました。
+
+さらに既存SDKの実CRT / newlibで、GD / LD / IE / TLSDESC、constructor、並行pthreadの独立性、
+fork COWとfork後の新thread、pathname / unlink済みFDからのexecがUID 0 / 501で成功しました。
+試験初回はIEライブラリにもPT_TLSがあるという試験側の誤った期待値で停止しました。
+readelfで同ライブラリがTLS参照のみであることを確認し、空slotを保持する検査へ修正して再実行しました。
+
+証跡は`out/checks/mochios-shared-loader-260-{host,runtime,manager,native}.log`、
+`-linker.log`と`-artifacts.json`です。診断用ファイルを外し、通常構成へ戻してinput READY、
+Binder ready、デスクトップとDockを画面でも確認しました。VMは停止済みです。
+同phaseの`-normal.log` / `-normal.png`へ記録しました。既存のnetwork `Failed(-6)`とUSB driver
+creation errno 22は残っています。rust-analyzer等の一時停止対象は今回も見つかりませんでした。
+SDK、Rust std overlay、kernel、通常packageの権限は変更していません。
+native_appの最初の起動ではまだこのpreparerを使っていません。起動requestへのスコープ添付、
+準備済みbytesへの実行認可、捕捉した資格情報・namespaceとchild登録の整合を保つ接続が必要です。
+その他の既記の残件と完全なPOSIX環境のgoalも継続中です。

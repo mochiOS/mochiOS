@@ -1,4 +1,4 @@
-# IPv4 TCP受動接続と受信経路（phase271–272）
+# IPv4 TCP受動接続と受信経路（phase271–273）
 
 POSIXのインターネットsocketはUDPまでで、network-stackのTCPも能動接続だけでした。
 `TcpConnectionTable`へlisten、SYN受理、接続成立のキュー、accept、listenerのcloseを追加しました。
@@ -55,8 +55,34 @@ sequenceのwrap、zero window、SYN内データ、容量回復、保持中の接
 チェックサム拒否、不正送信元、乱数取得失敗を確認します。UDP関連を合わせて6 targets / 70 testsが成功しました。
 network.serviceのmochiOS向けbuildも成功しました。
 
-権限付きTCP Provider、NICなし環境で使うservice内TCP loopback backendへの接続は未完了です。
-packet pumpはホスト試験用であり、mochiOS上のloopback socketの実装完了を意味しません。
+## TCPループバックのresource backend（phase273）
+
+`services/network/src/stream.rs`へ、NICに依存しないTCP resource backendを追加しました。
+bind、非同期connect、listen、accept、read/peek、部分write、read/write shutdown、
+readiness、接続エラーの取得、closeを提供し、前段で実装したTCP engineを使います。
+能動接続のbuffer確保にも失敗を返す`try_connect`を追加し、既存の物理interface側もそれを使います。
+
+resourceは64、TCP接続とlistenerは合計32、packet queueは64までで、1回に処理するpacketは32までです。
+残ったreplyは次回へ保持し、長い通信がserviceの他の処理を止めない構造にしています。
+受信bufferを読み出した後はwindow更新を通知し、read shutdown後も受信内容を破棄して空きを通知します。
+connect失敗・reset・timeoutはresourceのreleaseまで保持し、エラー取得後に同じ通知を再び立てません。
+
+close時はresource参照を直ちに無効にし、正常なFIN交換に必要なTCBだけを一定時間保持します。
+放置されたFIN-WAITも期限で回収します。未読データがあるclose、未accept接続を持つlistenerのcloseは
+相手へRSTを送り、accept済みの独立したresourceはlistenerのclose後も維持します。
+内部Socket IDは単調増加し、解放済み参照が新しい接続へ付け替わりません。
+これらのIDはIPCのHandleや認証情報には使いません。
+
+このbackendはnetwork.serviceのcrate内でcompileしていますが、権限付きTCP Providerと起動ループからの接続は未完了です。
+bind先のport権限、接続・受信権限の取得と縮小委譲はProvider境界で行います。
+kernelが保証したsenderと明示的なHandle添付を使い、ネットワークresourceの内部IDを外部権限として受け取りません。
+
+`services/posix/tests/tcp_loopback.rs`の20件は本番backendを読み込み、
+双方向通信、windowによる停止・再開、半切断、backlog更新、受信破棄、接続拒否とtimeout、
+listener/接続close、未accept接続のreset、容量不足時にacceptを失わないこと、
+解放済み参照とportの回収、packet処理量の上限、buffer確保失敗、owner不一致時の拒否を確認します。
+既存のTCP・UDP試験を合わせて7 targets / 90 testsと、network.serviceのmochiOS向けbuildが成功しました。
+
 POSIXのAF_INET/SOCK_STREAM、bind/listen/accept、非blocking接続、FDのdup/fork/exec、
 readiness、timeout、shutdownを実OSで使えるようにする作業は残っています。
 すべてのTCP機能やRFCへの適合を証明した段階でもありません。
@@ -64,4 +90,6 @@ kernel ABI、IPC wire、SDK、OSイメージは変更せず、KVMも起動して
 
 phase271の証跡は`out/checks/mochios-tcp-passive-271-host-syn-data.log`、`-network-syn-data.log`、
 `-artifacts.json`です。phase272は`out/checks/mochios-tcp-dispatch-272-host-admission.log`、
-`-network-admission.log`、`-artifacts.json`です。完全なPOSIX互換環境のgoalは継続中です。
+`-network-admission.log`、`-artifacts.json`です。phase273は
+`out/checks/mochios-tcp-loopback-273-host-final.log`、`-network-final.log`、`-artifacts.json`です。
+完全なPOSIX互換環境のgoalは継続中です。

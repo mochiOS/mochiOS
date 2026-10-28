@@ -200,3 +200,60 @@ native Handleによるresolver jobの公開、posix-clientからのAAAA/PTR照�
 SOAを使うnegative cacheは引き続き必要です。IPv6 transportと外部通信のnative確認も残っています。
 SDKとRust std overlayは再生成していません。ホストのNIC設定も変更していません。
 POSIX互換環境全体のgoalは継続中です。
+
+## DNS authorityとquery Handle（phase281）
+
+既存のnetwork endpointへ、DNS専用factoryと問い合わせ結果のProviderを追加しました。
+新しいserviceやkernel entry pointは追加していません。NDNSのversion 1 wireはnameのbytes、
+A / AAAA / PTRの種類、期限だけを受け取り、PID・FD・provider IDをクライアントから指定しません。
+factory取得時にはnative IPC senderのnet.connectを確認します。
+明示添付されたfactoryはcreating endpointのProviderObjectIdentifyで検証し、任意objectへのcontrol呼び出しで
+正当性を推測することはしません。deriveは種類のsubsetと期限の短縮だけを認めます。
+既存factoryの利用はCapDrop後も可能で、新規取得の権限とは別に扱います。
+
+query HandleはREAD / WAIT / CONTROL / DUPLICATE / TRANSFERを持ち、WRITEは与えません。
+READのmetadata queryからpending/ready、種類、結果statusと長さを取得できます。
+結果はquestion / canonical name / aliases / typed valuesを含む不変のsnapshotで、ReadAtで読みます。
+CONTROLによるcancelは、すでに確定した結果を上書きしません。
+最後のnative参照が閉じられたreleaseだけが進行中の問い合わせを解放し、factoryのcloseは発行済みjobを無効化しません。
+provider IDは既存native ABIの非負領域に収め、再利用しません。
+
+factoryは64、queryは16へ制限します。snapshotは最大2 MiB、aliasは16段で、wireの長さ・reserved bits・
+種類・name境界・value countを検査します。失敗用bufferをbackend開始前に確保しているため、
+結果の追加allocationに失敗しても、既存bufferでerror snapshotを返せます。
+発行・signal・backend・Handle付き返信の失敗では資源を解放し、可能なら添付なしのerror返信を返します。
+NICなしでもfactory endpointは利用でき、問い合わせは偽のaddressを作らずnetwork-unavailableの結果を返します。
+
+posix-client::resolverはfactoryの取得・検証・権限縮小、query開始、metadata照会、cancelとsnapshotの読み取りを提供します。
+借用したsourceをcloseせず、異常な返信の重複Handleを一度ずつ解放します。
+snapshotはcallerのbufferへ最大4096 bytesずつ読み、短い結果・過大な返却件数・question/type/statusの不一致を拒否します。
+取得済みHandleへの操作は既存native APIを使い、posix.serviceやサービス名検索を介しません。
+
+7 targets / 105 host testsと、network・診断managerのmochiOS向けbuildが成功しました。
+権限縮小、native origin、raw releaseの拒否、取得済み結果の不変性、cancelと完了の競合、quota、
+発行・signal・返信・backendの失敗時の解放、複数chunkのsnapshotとclient側の異常返信処理を確認しています。
+証跡はout/checks/mochios-dns-handles-281-{host-final,network-final,manager-final}.logと-counts.jsonです。
+
+最初のnative試験では、ReadAtの前にkernelが発行する汎用OP_MEMORY_OBJECTへの応答が欠けており、
+metadata照会後の読み取りが-95になりました。DNS snapshotはpager identityを提供しないため、
+その照会へ0を返す実装と回帰試験を追加しました。kernel側は変更していません。
+初回の失敗ログは-native-first.logへ保持しています。
+
+続くnative試験ではfixture側のIPC APIの扱いを2点修正しました。
+受信用endpointのHandleをblocking waitへ渡し、IPC callの返り値はsender情報を含むpacked値から
+下位32 bitsの返信長を取り出します。途中の失敗ログは-native-second.logと-native-third.logへ保持しています。
+修正後はeuid 0 / 501の両方でfactory取得・derive・種類と期限の制限・native originの検査・
+WRITE拒否・読み取り専用HandleのIPC委譲・最後の参照までの結果保持・CapDrop後の挙動とquota回復が成功しました。
+NICなしの明示的な失敗結果を使う試験であり、外部DNS通信の成功ではありません。
+成功ログはout/checks/mochios-dns-handles-281-native.logです。
+
+診断manager・manifest・verificationを元のhashへ戻し、production networkを組み込んだ通常imageの
+checksumを確認しました。通常KVMでinput READY・Binder ready、desktop / Dock、Filesの起動・
+フォルダ表示・終了を画面で確認しています。最初のclose clickでwindowがアクティブになり、
+次のclickで閉じる既存挙動と、NICなしのnetwork Failed(-6)は残っています。
+証跡は-normal.log、-desktop.png、-files.png、-close-first.png、-closed.png、-image-normal.logです。
+診断probeは追加していません。各KVMは自身のPIDを照合して停止し、analyzerの一時停止記録はすべて再開済みです。
+今回の各pause時点で対象processは0件でした。SDKとRust std overlayは再生成していません。
+
+getaddrinfo / getnameinfo、SOAを使うnegative cache、IPv6 transport、外部DNS serverとのnative実通信は残っています。
+ホストNIC設定の変更は返答待ちのため行っていません。POSIX互換環境全体のgoalは継続中です。

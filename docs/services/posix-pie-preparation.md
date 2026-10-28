@@ -550,3 +550,42 @@ TLS symbol解決 / 再配置、DTV / __tls_get_addrは未対応です。依存TL
 明示的に拒否し、部分対応のまま起動しません。新しいnative boundaryは追加しておらず、
 今回はKVMを起動していません。host processの一時停止も不要でした。image、kernel、
 配布SDK、Rust std overlayは変更していません。POSIX全体のgoalは未完了です。
+
+## TLS起動情報のproducer / stack / CRT接続（phase255）
+
+TLS template列を表すuserspace-onlyのcodecを`static_tls::image`に追加しました。
+headerはmagic / version / object数 / 全長 / reservedを持ち、各objectをsource address、
+file size、memory size、alignment、residueの5wordで表します。TLSのないobjectは全wordを
+zeroにしたdescriptorで表し、object indexを変えません。sourceはprepared childのLOAD内に
+置くtemplateのアドレスであり、producerのcapture bufferを指すpointerは渡しません。
+
+decoderはfaultable copyを使い、未知version、reserved、非正規な長さ、件数・容量超過、
+alignment / extent / 累積sizeの不正を拒否します。scratchへのdecodeとPlanの検証が
+成功するまでVMは確保しません。codec自身はallocationもkernel APIも使いません。
+
+`Process::tls`のbinary dataを初期stackへ8byte境界で配置し、`AT_TLS_IMAGE`を既存の
+StackAddress relocationで参照します。lifecycle payloadとの非重複と、両方を合わせた
+MAX_STACK_BYTESの上限を検査します。callerによるaux keyの上書きは禁止します。
+kernelへTLS専用のkey解釈や構造体は追加していません。
+
+exec producerは捕捉した各objectのPHDRからchild biasを適用したtemplate列を生成します。
+CRTがstrongな`__mochios_static_tls_v1`を自身の実行可能LOADに持つときだけ新しい情報を
+渡します。このmarkerは認可ではありません。依存TLSを扱えないCRTは拒否し、rootのみの
+TLSで従来のPHDR経路を使うimageには、解釈できない補助情報を追加しません。
+
+CRTはmain / pthreadのTLS確保時に起動情報をdecodeし、phase254の複数module allocatorを
+使います。metadataが存在する場合の不正・読取り失敗ではrootのPHDRへのfallbackをせず、
+失敗を返します。forkでは元の起動stackとimageのmappingを継承します。descriptorの列は
+初期scopeのものとして保持し、dlopenによる追加moduleの管理はまだ実装していません。
+
+ホスト16対象・110テストとmochiOS向けruntimeのbuildが成功しました。codecのround trip /
+corruption / truncation / read error、stackのalignment / relocation / 合計容量、production
+CRTによる複数moduleの初期化と不正metadataの拒否を検証しました。実リンカ生成のroot TLSを
+捕捉してexec producerを通し、startupに含まれるtemplateが正しいchild LOADと初期値を
+指すことも確認しています。証跡は`out/checks/mochios-tls-image-255-{host,runtime}.log`と
+`-artifacts.json`です。
+
+依存TLSを許可する前に必要なTLS symbol解決・再配置、DTV / __tls_get_addrは未対応です。
+Scopeの依存TLS拒否は維持しています。この段階で共有ライブラリのTLSが実OSで動作したと
+主張するものではありません。今回はKVMを起動せず、image、kernel、SDK、Rust std overlay
+も変更していません。first native launchへの準備経路の共用など、既記の残件も未完了です。

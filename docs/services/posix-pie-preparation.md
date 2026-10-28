@@ -517,3 +517,36 @@ VMは停止済みです。証跡は`mochios-fixed-dso-253-normal.{log,png}`で�
 既存のnetwork `Failed(-6)`、USB driver creation errno 22は残っています。
 カーネル、配布SDK、Rust std overlayは変更せず、生成されたservicesのCargo.lock更新は
 今回の試験コミットに含めています。
+
+## 複数moduleのstatic TLS配置と初期化（phase254）
+
+`posix-client::static_tls::modules::Plan`に、root-firstのTLS template列から各moduleを
+配置する共通処理を追加しました。heap allocationやkernel APIを使わず、TLSのないobjectも
+元のobject indexを維持します。rootの従来のTP相対offsetを保ち、依存moduleはその前に
+配置します。全moduleのalignmentとp_vaddr residueを満たし、領域を重複させません。
+単一templateのLayoutも同じ計算を使います。Variant IIの配置条件は
+[lldのgetTlsTpOffset](https://github.com/llvm/llvm-project/blob/main/lld/ELF/InputSection.cpp)
+と整合する形です。
+
+初期化はcallerが所有するzero-filledなprivate mappingへ行います。各moduleの初期値だけを
+boundedなchunkでコピーし、.tbssとpaddingはzeroのまま維持します。全moduleのコピーが
+成功した後にTCBのself pointerを書き込みます。templateの不正なalignment / extent、
+累積sizeのoverflow、短いmappingやmapping終端のoverflowはcopy前に拒否します。
+
+newlib runtimeの既存の単一TLS経路もこの共通処理へ接続しました。VMの確保とAS-limitの
+判定は従来のnative mechanismを使い、copy失敗ではMappingを解放します。ThreadControlの
+TP / mapping情報は成功後にのみ公開します。このallocatorへ複数templateを渡す経路も
+hostからproduction sourceを直接使って検証しました。
+
+ホスト15対象・104テストとmochiOS向けruntimeのbuildが成功しました。異なるalignment /
+residue、root offsetの維持、非重複、TLSのないobject、zero-only module、各threadの独立性、
+すべてのread / write / TCB書込み失敗でのrollbackを確認しています。実リンカで生成した
+3つのTLS templateもproduction parserで読み、nmで得たsymbol offsetが初期値とzero領域を
+指すことを検査しました。証跡は`out/checks/mochios-tls-modules-254-{host,runtime}.log`と
+`-artifacts.json`です。
+
+これはTLSの配置・初期化の共通化までです。起動情報へのmodule列のserialize、link scopeの
+TLS symbol解決 / 再配置、DTV / __tls_get_addrは未対応です。依存TLSを持つobjectは従来通り
+明示的に拒否し、部分対応のまま起動しません。新しいnative boundaryは追加しておらず、
+今回はKVMを起動していません。host processの一時停止も不要でした。image、kernel、
+配布SDK、Rust std overlayは変更していません。POSIX全体のgoalは未完了です。

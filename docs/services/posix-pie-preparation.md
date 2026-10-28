@@ -974,3 +974,61 @@ SDK / Rust std overlayは再生成していません。kernel、通常packageの
 変更していません。証跡は`out/checks/mochios-shared-package-264-*.log`、`-artifacts.json`、
 `-normal.png`と`-files.png`です。依存先の自動install、interpreter、versioned symbols、dlopen等は
 今回の範囲に含めず、完全なPOSIX環境のgoalと既記の残件は継続中です。
+
+## GNUシンボル版管理（phase265）
+
+共通userspaceローダーで、`DT_VERSYM`、`DT_VERDEF / DT_VERDEFNUM`、
+`DT_VERNEED / DT_VERNEEDNUM`を扱うようにしました。section headerへ依存せず、捕捉済みの
+LOAD範囲から読みます。tagの重複、欠けた組、revision、件数、文字列、hash、15-bitの版IDを
+検査します。record / auxiliaryの連結は件数と前向きoffsetで終端を確認し、越境・重複ID・
+未定義ID・定義と要求の取り違えを拒否します。固定bitsetでID重複を確認し、heap allocationや
+再帰呼出しを追加しません。COPYを必要とするsymbolは引き続き未対応として拒否します。
+
+明示的な版の参照は、各object自身の版IDを名前 / hashへ変換して照合します。object間で
+版IDの数値が一致することを要求しません。非defaultの`@`定義も正確な版の参照で選択でき、
+異なる版の同名symbolへ代用しません。版0のsymbolはlocalに保ちます。通常のvisibility、
+protected / symbolicの扱い、breadth-first scopeは維持します。関数 / data / TLSとも同じ
+定義選択を通してから、各種relocationへ変換します。
+
+未指定の旧参照についてはGNUのrelocation lookupに合わせ、版2の互換定義と、それ以降の
+非hidden候補の一意性を扱います。版指定のないobjectやGLOBAL定義によるinterpositionも
+扱います。GNUの規則を踏襲する範囲は、[GNU linkerのVERSION仕様](https://sourceware.org/binutils/docs/ld/VERSION.html)、
+[glibcのsymbol lookup](https://github.com/bminor/glibc/blob/master/elf/dl-lookup.c)、
+[version requirement検査](https://github.com/bminor/glibc/blob/master/elf/dl-version.c)で確認しました。
+dlsym / dlvsym用の新旧選択APIを追加したわけではありません。
+
+Scopeの作成時に、参照するsymbolがなくても全VERNEED nodeの提供を確認します。providerは
+取得済みgraph内のDT_NEEDED名またはSONAMEで照合し、同じSONAMEがあればbreadth-first順の
+最初のobjectを使います。提供元の選択にもsymbolと同じ探索順を適用します。
+新たなpath readや権限付与は行いません。
+versioned providerに必要なnodeがなければ出力を作る前に拒否します。weakのABI nodeは欠落を
+許容しますが、強いsymbol参照まで弱めません。未versioned providerの扱いもGNUに合わせます。
+単体の準備経路は外部の版要件を無視せず、scopeを必要とする入力として拒否します。
+
+ホスト27対象・692テストが成功しました。実リンカで旧版 / 新版の同名関数・data・初期TLSを
+作り、SysV / GNU / 両hash、section headerの有無、root interposition、未指定の旧参照を
+検証します。LinuxホストのGNU loaderも別processで同じfixtureを実行し、結果を照合しました。
+破損metadata、参照のない必須nodeの欠落、weak nodeと強いsymbolの独立、異なる版を持つ
+同じSONAMEのobjectが入力順と異なる順序で現れる場合の提供元選択も確認しました。
+
+単独runtime、capability、POSIX、workspace、Binder、managerのtarget buildが成功しました。
+KVMの実アプリ起動IPCでは6ケースが成功し、effective UID 0 / 501で版付き関数 / data / TLS、
+pthreadごとのTLS分離、fork後のnewlib execを実行しました。root interpositionと旧参照も成功し、
+必要なABI版を持たない認可済みDSOはENOEXECで拒否され、失敗後の正常起動も成功しました。
+native fixtureのbuild scriptとsourceは`services/posix/tests/`以下に置いています。
+
+最初のホスト試験では、旧来の「版情報は未対応」というエラー期待値を更新しました。
+試験用Cのpthread宣言には既存SDKが要求するfeature macroを指定しました。native fixtureの
+初回buildで生じたCOPY relocationはPICで避け、今回の版付きGLOB_DAT / PLT / TLSの検証対象を
+明確にしました。参照を非version化する追加試験の期待値もGNU loaderで再照合しました。
+同じSONAMEの提供元を探索順に合わせた後、ホスト全対象とnativeの6ケースを再検証しました。
+
+SDK / Rust std overlayは再生成せず、主要4fileのhashはphase264と同一です。kernel、通常packageの
+Capability、UI sourceは変更していません。interpreter、COPY / IFUNC、dlopen / dlcloseと動的TLS追加、
+その他の既記の残件と完全なPOSIX環境のgoalは継続中です。
+
+診断用の4アプリ / 共有packageを除いて通常managerへ戻し、input READY、Binder ready、
+デスクトップ / Dock、FilesのHome表示とウィンドウ終了を実画面で確認しました。既存のnetwork
+`Failed(-6)`とUSB driver creation errno 22は残っています。検証VMは停止済みで、一時停止管理も
+解除しました。今回の停止対象processは0件です。証跡は
+`out/checks/mochios-symbol-versions-265-*.log`、`-artifacts.json`、`-normal.png`、`-files.png`です。

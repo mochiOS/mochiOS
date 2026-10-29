@@ -14943,3 +14943,11 @@ path = "applications/installer"
 hash = "3313849e0139c74cc424924247a799190712f9f2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Run Installer operations through scoped AppCore tasks"
+
+[[entries]]
+date = "2026-10-29T19:46:47.438136238+09:00"
+snapshot = "077dd5a688eb34add5af03e0"
+path = "services"
+hash = "80c9c68baf4548885dab1d270109a1ea628c94a6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(capability): authenticate prompt brokers against boot images"

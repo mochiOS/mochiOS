@@ -14911,3 +14911,11 @@ path = "services"
 hash = "bd48f45775d15a84b4aa7c96adeefc914a6d0ce2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add a native clang-to-LLD compile link and execution gate"
+
+[[entries]]
+date = "2026-10-29T16:31:14.913817560+09:00"
+snapshot = "42001234dc961fcbe1429526"
+path = "mboot"
+hash = "0e80dee43d03c1f077be1f09b9b790ca5f08acc9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore(deps): record current workspace dependency lock"

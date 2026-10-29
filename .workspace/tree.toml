@@ -14927,3 +14927,11 @@ path = "services"
 hash = "0fa445c3516d3248f2b7149b79bfb4cd957e3688"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native runtime DSO mapping lifecycle"
+
+[[entries]]
+date = "2026-10-29T18:11:04.487407100+09:00"
+snapshot = "d6d91ffc8e5df63cd6dd701b"
+path = "services"
+hash = "6cffda50e2a9dfeded1a2d43ee388f0393eb3789"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify image measurements across native exec commit"

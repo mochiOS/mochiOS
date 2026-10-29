@@ -1328,3 +1328,53 @@ SDK主要6 fileは同じhashであり、SDKとRust std overlayは再生成して
 IFUNCがinit / fini arrayの要素やCOPY元のdataを更新する場合の処理は引き続き未完成です。
 readonlyなlate fixup先、より大きなstartup metadata、RELROの最終保護も次の段階に残ります。
 interpreter、dlopen / dlclose、動的TLS追加、その他の既記の残件を含む完全POSIX環境のgoalは継続中です。
+
+## IFUNC解決後のlifecycle arrayをprivateに固定（phase291）
+
+遅延relocationとpreinit / init / fini arrayが重なる場合、共有exec準備はrootの
+`__mochios_lifecycle_v2` contractを確認し、同じAT_LIFECYCLE_IMAGEへv2 recipeを渡します。
+旧v1のみのCRTでは従来どおりENOEXECです。通常のscopeにはv1を使い続けます。
+markerは権限ではなくconsumerの機能宣言であり、実行認可やHandleの検証は変更しません。
+kernelのsyscall / ABI / policyには追加がありません。
+
+recipeはobjectごとの実行順、直接関数またはarray slotの子address、元のLOADごとの範囲と
+ELF permissionを含みます。producerはarrayの未解決pointerを読みません。
+CRTはTLS / signal設定後、全resolverの実行前にmetadata全体をfaultable MemoryCopyで
+privateな固定長storageへ捕捉します。headerは一度だけ読み、metadataがない状態も固定します。
+resolverが元のauxiliary vectorやmetadataを書き換えても後から採用しません。
+
+resolverの完了後、保存したrecipeが示すarray slotだけをfaultableに読み、最終pointerを
+保存済みの実行可能LOADと照合します。全てのpreinit / init / fini callbackの検査・保存が
+終わるまで一つも実行せず、既存v1形式へ正規化して既存Stateで初期化・終了を管理します。
+constructorが元のfini arrayを変更しても、終了時はprivate snapshotを使います。
+コピー失敗や不正pointerはstartup errorになり、処理途中の計画は再実行しません。
+準備だけ済んだ段階でのexitでは、開始していないobjectをfinalizeしません。
+private storageの書き込みはatomic phaseの勝者だけが行い、READY以後は不変です。
+追加heap / Handleは取得せず、forkはsnapshotと進捗をCOWで継承します。
+
+8 targets / 105 host testsが成功しています。実CRTの試験では、absence、v1、v2成功、
+最後のarray読み取りの失敗、不正な最終pointerを別processで実行しています。
+resolverによるmetadataとaux vectorの変更、constructorによるfini slotの変更、
+全callback検査前の実行禁止、失敗後・完了後の再実行禁止も検査しました。
+純codec試験では切り詰め、不正layout / permission / 範囲 / kind、短い出力、
+読み取りerror伝播、headerの途中変更、遅延preinitも検査しています。
+exec統合試験でv2のinit / fini recipeがnative startupへ届くことを確認し、
+v1 markerだけの古い有効pointerによる拒否回帰試験も残しています。
+
+inline metadataの合計4096-byte上限、readonlyなlate target、IFUNC依存のCOPY、
+RELROの最終保護は引き続き未対応です。interpreter、dlopen / dlclose、動的TLS追加と
+その他の既記の残件を含む完全POSIX環境のgoalは継続中です。
+
+standalone runtime、capability service、診断managerのmochiOS向けbuildも成功しました。
+KVMでは本物のIFUNCとinit / fini arrayのIRELATIVEを含むDSOを使い、UID 0と501で
+初期TLS、resolver完了前のconstructor禁止、IFUNC constructorとfinalizer、pthread、
+forkでの再実行なし、execでの再初期化、子終了statusまで確認しました。
+constructorが元のfini slotを0へ変えても、exec後と親の終了の計4回、保存したfinalizerが
+呼ばれています。private storageの8-byte alignmentを明示した最終版でも同じ試験が成功しました。
+
+診断manager / manifest / verificationを元のhashとmodeへ戻し、probeとDSOを除去しました。
+通常imageには更新したcapability serviceだけを反映し、KVMでデスクトップとFilesの起動・終了を
+実際に画面で確認しました。全て記録した自分のVMだけを停止し、analyzerの再開記録も保存しています。
+一時停止対象は各回0件でした。既存のNICなしによるNetwork Failed(-6)とUSB driver errno22は
+今回の対応には含めていません。SDK主要6 fileは同じhashで、SDKやRust std overlay、kernelは
+変更していません。証跡は`out/checks/mochios-late-lifecycle-291-*`です。

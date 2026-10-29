@@ -1594,3 +1594,57 @@ probeと111 librariesを除去し、診断manifestは元のhash / modeへ戻し�
 
 実行可能ページへの遅延write、ELF interpreter、dlopen / dlclose、動的TLS追加、
 weak GD / IE TLS、その他既記の残件を含む完全POSIX環境のgoalは継続中です。
+
+
+## ユーザー空間でのELF interpreter引き渡し（phase296）
+
+`PT_INTERP`を持つ本体は、直接entry用のrelocation parserへ渡さず、専用の
+`posix-client::elf_launch`でinterpreterと一緒に配置します。本体とinterpreterの
+LOAD bytes、動的tag、symbol、relocationは捕捉したまま保持し、動的リンクは
+選ばれたinterpreterへ任せます。依存DSOを親が先に探索・再配置することはありません。
+既存のnative ET_EXEC containerのentryだけをinterpreterのentryへ向けます。
+カーネル、native ABI、POSIX wire protocolにinterpreterの概念を追加していません。
+
+`AT_ENTRY`は元本体のentry、`AT_BASE`はinterpreterのload bias、
+`AT_PHDR / AT_PHENT / AT_PHNUM`は元本体のPHDR viewです。
+これは[x86-64 psABI](https://refspecs.linuxfoundation.org/elf/x86_64-abi-0.99.pdf)と
+[LinuxのELF起動処理](https://github.com/torvalds/linux/blob/master/fs/binfmt_elf.c)の役割分担に従います。
+本体のPHDRがreadable LOAD内にある場合はそのviewを使い、SDKのようにLOAD外の場合は
+元PHDR tableそのものを独立したread-only metadataへコピーします。countや各entryの
+値を合成し直しません。後者の本体biasは既存のuserspace補助情報
+`AT_IMAGE_LOAD_BIAS`で得られます。これはLinux loaderへの無条件の互換性を意味しません。
+
+interpreterはELFが宣言した正確なpath bytesを既存のscoped readerで一度だけ開きます。
+`LD_LIBRARY_PATH`で置換しません。READ / TRANSFER、regular file、捕捉サイズ上限を
+検査します。実行認可側では`Source::Interpreter`として捕捉した全bytesを、既存の
+認証済みpackage graphのlibrary bindingとsize / SHA-256で照合します。pathの一致だけで
+認証せず、interpreterのpackageから追加Capabilityやapplication identityを継承しません。
+同一domainのexecも既存の権限上限を維持します。
+
+両ELFのfile / virtual extent、entry、alignment、W+X、page単位のLOAD衝突、
+再帰したPT_INTERP、不正・重複・未終端のpath、PHDR countと出力サイズを検査します。
+一時source / output allocationとHandleは従来のcallback-aware ownerに保持し、
+失敗やframe放棄で回収します。借用した本体Handleは閉じず、失敗後の再準備も拒否します。
+
+これは起動の引き渡し基盤です。production用のmochiOS interpreter / ld.so本体、
+実行後のDSO追加ロードとdlopen / dlclose、動的TLS追加等の残件は引き続き必要です。
+試験用interpreterは補助情報を検査して既存CRTへ入る小さなassemblyであり、
+動的リンカの代用品として配布しません。未移植のLinux glibcやclangがそのまま
+動く段階とは扱いません。SDKとRust std overlayは再生成していません。
+
+関連ホスト試験は12対象179件が成功しました（重複する回帰実行を含め14対象・延べ218件）。
+合成ELFに加えGNU toolchainが生成した動的本体とinterpreterで全LOAD bytesの一致を
+確認し、不正header / path / mapping、短い出力、部分read / write、権限・認証拒否、
+source差替え、各allocation失敗、Handle回収と再試行禁止も検査しました。
+
+KVMでは選択したinterpreterのcodeがCRTより先に実行されたことを確認しました。
+UID 0 / 501でcapability ProcessCreateと通常execの双方が成功し、AT_BASE / AT_ENTRY、
+元PHDR table全体、constructor、TLS、pthread、fork、再exec後のFD継承、wait statusを
+確認しました。計4回の親起動と4回の再execを実行しています。
+診断appとinterpreterを除去し、manifestを元のhash / modeへ復元しました。
+現在のstandalone runtimeで通常managerとcapabilityを更新し、通常imageのchecksum、
+input READY、Binder、デスクトップとFiles開閉を確認しました。初回Files activateでは
+TransportFailureを1件記録し、再操作で正常表示・終了しました。原因を断定しておらず、
+全起動操作が無条件に正常とは扱いません。NICなしのFailed(-6)とUSB driver errno 22も
+引き続き記録されています。記録した試験VMは停止済みで、analyzerの再開処理も完了しました。
+証跡は`out/checks/mochios-interpreter-296-*`です。完全POSIX環境のgoalは継続中です。

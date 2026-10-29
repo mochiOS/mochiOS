@@ -1430,3 +1430,62 @@ SDKとRust std overlayは再生成していません。今回の変更はkernel�
 
 readonlyなlate write先、RELROの最終保護、より大きなstartup metadata、interpreter、
 dlopen / dlclose、動的TLS追加、weak GD / IE TLS、その他既記の残件を含む完全POSIX環境のgoalは継続中です。
+
+
+## 大きなstartup metadataを汎用VM mappingで渡す（phase293）
+
+lifecycle / TLS / IFUNC-COPYの起動情報は、小さい場合は従来のentry stackに置き、
+合計が収まらない場合だけ一つのRAM objectへ移します。userspace側で合計16MiBを上限とし、
+各payloadを8-byte、mapping全体をpage単位に揃えます。argv / env / execfn等のentry stackは
+引き続き4096 byteです。引数過大をmetadata mappingで隠したり切り捨てたりはしません。
+個別payloadも4096 byteを超える場合はrootの`__mochios_startup_metadata_v1`宣言を必要とします。
+これはCRTの機能宣言であって実行権限ではなく、旧CRTの拒否経路も残しています。
+
+producerはstack / output容量を先に検査し、既存の汎用VM objectへ情報を書き込み、
+READ|MAPだけのfresh Handleへ縮小してwriterを閉じます。子にはshared・read-only・NXの
+InitialMappingを渡し、source Handleそのものは継承しません。mappingがbacking objectを保持するため、
+親のHandleを閉じた後も有効です。既存の起動mappingと一つのnative envelopeにまとめ、
+重複範囲を置き換えません。native execではcallback-aware resource owner、capability側では
+停止中の子作成・POSIX登録・resumeが済むまでownerを保持し、失敗時にも参照を回収します。
+manifest・scope・入力digestの認証経路は維持しています。
+
+カーネルの変更はProcessCreateが既存の汎用InitialMapping検査・準備を再利用することと、
+request上限へnative envelope全体を含める修正だけです。ELF・stack・初期TLSの配置後、
+Process公開前にmappingを準備するため、既存領域との衝突も拒否します。
+context updateは引き続きimage replacement専用です。新しいsyscall、aux key、サービス名、
+POSIXのpayload形式や容量policyをkernelへ追加していません。
+
+CRTは大きな情報の作業領域を既存のAS-limit適用済みanonymous RW・NX mappingから確保します。
+resolverのRegion / FixupとTLSのOption<Template>はfreshなprivate領域へ正しい初期値を
+書いてからtyped viewを作り、アプリケーションpointerを直接Rustの参照にしません。
+headerによるallocation preflightの後、capture / decodeが長さ・件数・範囲を再検査します。
+IFUNC計画は完全に捕捉してから実行し、通常終了・fault・unwind時にscratchを解放します。
+resolverがC frameを放棄した場合も再入でownerを上書きせず、imageの終了時にVMが回収されます。
+lifecycleはresolver前にprivate snapshotと正規化先の全storageを用意し、resolver以後に確保しません。
+最終callbackをすべて検査・保存してからconstructorへ進み、finiまで保持し、forkではCOWで継承します。
+TLS scratchはtemplateの取り込み後に解放します。
+
+18 targets / 173 host testsが成功しました。既存のfixture record生成1件は専用manifestを
+必要とするため通常どおりignoreです。大きな三種類のpayload、最小権限、padding、mapping合成、
+引数過大のallocation前拒否、作成・書込・権限縮小の全失敗、AS制限、faultable copy、
+header変更時の再検査、resolver後の再実行禁止、fini snapshotを確認しています。
+既存ProcessCreate source監査の改行依存も修正しました。
+
+standalone runtime・capability service・診断manager・kernelのmochiOS向けbuildが成功しました。
+KVMでは111 dependency / 112 objects、640 init / fini entries、200追加IFUNC fixupを含む
+実ELFを使い、三種類すべてのmetadataが4096 byteを超えることを確認しました。
+UID 0 / 501双方で本物のcapability application launchからProcessCreateを通し、さらにexec、
+初期TLS、pthread、fork、IFUNC-COPY、init / fini、子終了statusまで成功しています。
+子からmetadataのRW / RXへのmprotectを試みてもEACCESになることを確認しました。
+
+診断manager・manifest・verificationは元のhash / modeへ戻し、probeと111 librariesを除去しました。
+更新したkernel / capabilityを含む通常imageでデスクトップとFilesの起動・終了を画面確認しました。
+通常logには再度のFiles activateに対するTransportFailureが1件残っていますが、初回の起動と
+window closeは成功しています。既存のNICなしによるNetwork Failed(-6)、USB driver errno22も
+今回の修正対象には含めていません。記録した自分のVMだけを停止し、analyzerの再開処理も済ませました。
+一時停止対象は両回0件です。SDK主要6 fileのhashは変わらず、SDKとRust std overlayは再生成していません。
+別作業のstorage関連commitを維持しています。証跡は`out/checks/mochios-startup-metadata-293-*`です。
+KVM確認後のproduction差分は整形とコメントだけで、host試験は整形後にも成功しています。
+
+readonlyなlate write先、RELROの最終保護、interpreter、dlopen / dlclose、動的TLS追加、
+weak GD / IE TLS、その他既記の残件を含む完全POSIX環境のgoalは継続中です。

@@ -376,6 +376,14 @@ frontendへの同期callのまま停止させません。応答はkernelが保�
 必要なimage measurementの取得は汎用のProcess/Handle機構として扱い、カーネルにmshや
 capability.serviceの名前・ディレクトリ・UI policyを持たせません。
 
+この基盤として`ProcessImageRead`と`ProcessImageInfo`を追加しました（phase299）。
+呼出元自身、または取得済みWAIT Process Handleの、commit済みELF digestとimage revisionを
+同じprocess-table lockの下で読みます。既存のProcessStatusやThreadSecurityContextのlayoutは
+変更しません。未計測とSHA-256計測を区別し、終了・消滅した実行を古いdigestで認証しません。
+これは実行中メモリや後からmapしたcodeの検証でも、署名者の信頼判定でもありません。
+取得だけでは実行体を固定できないため、確認channelの登録・消費時には同じinstanceと世代の
+再検証が必要です。既存brokerのpackage IDだけの判定を、このAPI追加だけで修正済みとは扱いません。
+
 通常のstdin、pipe、PTYへの書込み、clipboard paste、合成InputEvent、起動引数の自動許可指定を
 新しいユーザー承認の根拠にしません。確認入力は通常のcommand/stdio経路と分け、信頼された
 入力元からの新しい操作だけを、その確認transactionと表示世代に結び付けます。

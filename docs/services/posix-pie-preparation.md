@@ -1741,3 +1741,46 @@ version選択、別threadのTLS、IFUNCとNULL成功を照合しています。s
 優先する次の接続は、通常のclangによるlink・署名から`./main`までの共通実行認可です。
 [ローカル開発と共通実行認可](../elf-signature-memo.md#ローカル開発と共通実行認可の実装目標2026-10-29)へ
 現在の不備と共有する責務を記録しました。完全POSIX環境のgoalは保持します。
+
+## 共通認可に渡す実行イメージ情報（phase299）
+
+通常のclang→ld.lld→msign→`./main`と、msh / GUIからの共通確認経路を優先します。
+現在のbroker判定は継承package IDだけでも成立するため、別codeへexecした後の確認役を
+区別する基盤が必要でした。既存native kernelはcommit済みELFのSHA-256と更新世代を
+保持していますが、取得済みProcess Handleから両方を読み出す操作がありませんでした。
+
+`ProcessImageRead`は、caller自身または所有するWAIT Process Handleを受け取り、
+process ID・image revision・digest kind・digestを56byteのrecordで返します。
+PIDやpathから新しい参照を取得する機能は持ちません。digestとrevisionを既存のimage commitと
+同じprocess-table lockの下で読み、retained objectと生存中のProcessが同じobjectかも照合します。
+未計測はNONEとzero bytesで表し、実際のSHA-256値がzeroの場合と区別します。
+終了・reclaim後のProcess Handleはlifecycle照会に使えますが、image照会はNotFoundです。
+
+既存ProcessStatus（32byte）とThreadSecurityContext（320byte）は変更していません。
+既存GUIバイナリの出力bufferへ新layoutを書き込む変更や、POSIX syscallは追加しません。
+新APIに署名者・サービス・path・msh / GUI・認可ポリシーの知識はありません。
+user側wrapperは明示的なSome(0)、未知のdigest kind、reserved、長さ・status・不正なrecordを
+拒否し、権限不足や古いHandleからcaller自身へfallbackしません。
+
+これはcodeのlive memory測定でも、署名検証や確認入力の証明でもありません。
+image revisionは観測後に変化し得ます。共有認可controllerには、検証済みsourceとprepared imageの
+結び付け、frontend instance / generationの再検証、非同期transaction、信頼した新規入力、
+mshとsecure-uiの共通response処理が引き続き必要です。
+
+関連ホスト6対象40件、native kernel、standalone runtime、診断probe、capabilityとmanagerのbuildが
+成功しました。KVMではeuid 0 / 501の双方で、callerとWAIT Handleの一致、WAITなし・別object種別・
+不正出力先の拒否、fork後のdigest継承とrevision 0、誤ったdigestによるexec拒否後の値の維持、
+unlinkしたELFへのnative replacementとrevision 1、別processからの同じrecordの観測、
+ambient process.inspectを落とした後の取得済みWAIT参照、終了後のNotFoundを確認しました。
+
+初回はfixtureがIPC endpoint番号とprocess-local Handleを混同し、次は転送不可の観測参照を
+残したままforkして既存の継承検査に拒否されました。fixtureでselectorと参照寿命を修正し、
+どちらの保護も緩めずに通しています。既存commit-lock試験のVM統計stub不足は独立コミットで
+補いました。テストはすべて`services/posix/tests/`に置いています。
+証跡は`out/checks/mochios-process-image-299-*`です。SDKとRust std overlayは再生成していません。
+
+診断用probeを元のhash / modeへ戻し、通常managerと現在のcapabilityを残したイメージで
+checksum6件、input READY、Binder起動、デスクトップとFilesの表示・閉じる操作を確認しました。
+Files起動時の既知のactivate TransportFailureが今回も1件あり、再操作で表示されました。
+その問題を修正したとは扱いません。NICなしNetwork Failed(-6)とUSB driver creation errno 22も
+残っています。全検証VMは停止し、analyzerの再開処理も完了しています。

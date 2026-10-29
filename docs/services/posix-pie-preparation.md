@@ -1378,3 +1378,55 @@ constructorが元のfini slotを0へ変えても、exec後と親の終了の計4
 一時停止対象は各回0件でした。既存のNICなしによるNetwork Failed(-6)とUSB driver errno22は
 今回の対応には含めていません。SDK主要6 fileは同じhashで、SDKやRust std overlay、kernelは
 変更していません。証跡は`out/checks/mochios-late-lifecycle-291-*`です。
+
+## IFUNCの最終dataをCOPYへ引き継ぐ（phase292）
+
+共有scopeにresolverとCOPYがある場合、全ての実体のあるCOPYを子processへ遅延します。
+直接IFUNC relocationと重なるbyteだけの補修にはしていません。resolverがproviderの他のdataを
+変更する場合も含め、通常のCOPYと同じくproviderの最終memoryから取り込むためです。
+DT_NEEDEDのlifecycle postorderで依存objectのresolverを済ませ、rootのCOPY、rootの
+symbolic IFUNC / IRELATIVEの順に実行します。rootのresolverもCOPY先のcanonical dataを使えます。
+未定義weakのCOPY元や0-byte COPYに実行recordを追加せず、resolverのないscopeの経路は変えません。
+
+同じAT_INDIRECT_IMAGEのuserspace codecにv2を追加しました。header / region / recordの
+byte幅は従来どおりで、record末尾のtagでresolverとCOPYを区別します。
+COPYはdestination、source、byte lengthを保存し、sourceには元LOADのread bitを要求します。
+実行可能LOAD、読み取り専用LOAD、読み書きLOADを区別し、全範囲と全writeの重複を
+実行前に検証します。短いbuffer、未知のversion / tag、不正permission、overflow、
+範囲外source / destination、自己overlapを成功扱いしません。
+
+producerはrootの`__mochios_indirect_v2` contractを必要とし、旧v1のみのCRTへCOPY計画を渡しません。
+contractは機能宣言であって権限ではありません。ファイル認証・実行認可・Handle委譲と
+kernelの汎用ABIは変更しません。旧resolver-only APIへCOPY計画を渡す場合も、最初の副作用前に拒否します。
+
+CRTはresolverと同じprivate snapshotからCOPYを実行します。固定長256-byte scratchで既存の
+faultable MemoryCopyによるread / writeを行い、heapや追加Handleを取得しません。
+部分的な関数pointerやサイズの異なるsymbolもbyte単位で取り込み、resolverを再実行しません。
+COPY途中のread / write失敗や非局所退出では後続resolverへ進まず、一度始めた計画は再実行しません。
+lifecycleとの重なり検査も8-byte固定ではなくCOPYの実際のwrite幅を使います。
+
+8 targets / 121 host testsが成功しました。独立したv2 wire fixtureでは複数chunkの順序と
+途中のfault、readonly source、unalignedな部分pointer、全writeの重複、元metadataの変更、
+reentry、unwind、完了・失敗後の再実行禁止を確認しています。
+実際にGNU linkerが作った固定ELFのCOPY元にIFUNCを置き、rootのIRELATIVE resolverが
+コピー済みpointerを呼ぶ試験が成功しました。同じassemblyとDSOを別processのGNU loaderでも
+実行しています。exec試験ではv2 contractなしの拒否と、provider resolver→COPY→root resolverの
+完全な計画がnative startupへ渡ることを確認しました。
+実CRTの試験では成功・source fault・destination faultを別processで実行し、既存v1試験も残しています。
+
+standalone runtime、capability service、診断managerをビルドし、KVMでUID 0 / 501の双方を確認しました。
+実際のR_X86_64_COPYとroot / DSOのIRELATIVEをreadelfで確認したfixtureを使い、
+root resolverがCOPY済みの関数pointerを呼び、mainとpthreadからも呼べています。
+DSO内の通常referenceとrootが同じcanonical COPY先を指すこと、TLS、fork、exec、
+子終了status、IFUNC init / finiのprivate snapshotも成功しました。
+
+診断manager / manifest / verificationは元のhashとmodeに戻し、probeとDSOを除去しました。
+更新したcapability serviceを含む通常imageでデスクトップとFilesの起動・終了を画面確認しました。
+各imageは停止中に生成してchecksumとhashを保存し、記録した自分のVMだけを停止しています。
+analyzerの一時停止対象は各回0件で、再開記録を保存しました。SDK主要6 fileは同じhashで、
+SDKとRust std overlayは再生成していません。今回の変更はkernelには入りません。
+途中で入った別作業のstorage関連変更はそのまま保存し、今回のsource commitには含めません。
+証跡は`out/checks/mochios-indirect-copy-292-*`です。
+
+readonlyなlate write先、RELROの最終保護、より大きなstartup metadata、interpreter、
+dlopen / dlclose、動的TLS追加、weak GD / IE TLS、その他既記の残件を含む完全POSIX環境のgoalは継続中です。

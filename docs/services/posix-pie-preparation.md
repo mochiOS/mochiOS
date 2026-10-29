@@ -1812,3 +1812,37 @@ feedback codecのno-default-features checkとnative capability / standalone runt
 保護channel、検証済みsource / prepared imageの共通認可、clang linker driverとmsignの接続は
 未完了です。完全POSIX環境のgoalも継続中です。
 証跡は`out/checks/mochios-consent-300-*`です。SDKとRust std overlayは再生成していません。
+
+## 実行中brokerをbootの信頼ルートへ結び付ける（phase301）
+
+[確認役の実行イメージ認証](../elf-signature-memo.md#確認役の実行イメージ認証phase301)を既存broker判定へ
+接続しました。`consent_peer`は認証済みIPC endpointから取得済みWAIT参照を保持し、image digest /
+revision、security context、endpoint ownerを一貫した観測として照合します。
+`TrustedImages`は不変なSystem世代から取得したbuilt-in identity・manifest・codeを信頼ルートにし、
+継承package IDだけの判定を置き換えます。mnuの新しいAPIやservice/pathの知識は追加していません。
+
+動的なtrusted rootには、既存の共通preparer / Catalogとnative application作成経路を使います。
+`VerifiedManifest`の認証済みdigestをCatalogへ持ち越し、元codeだけでなく同じmanifestへも結び付けます。
+出力は作成済みProcess Handleから測定し、resume前にそのObjectとrevisionへ登録します。
+sourceとoutputのhashが違っても扱えますが、別Object、別世代、別manifestやcallerの自己申告では
+登録できません。参照はRAIIで保持し、128件の上限と終了済みinstanceの回収があります。
+
+ホスト8対象81件が成功しました。全5role、Data側fileの変更でboot rootを差し替えられないこと、
+古いindex copyではなく認証したmanifestを使うこと、曖昧・欠落・改変root、signed file binding、
+image / endpoint / contextの変更と失敗時の参照解放、変換結果の別Objectへの流用拒否、
+manifestの一致、参照の上限・回収を検証しました。既存テストの改行依存のassertは独立して修正しました。
+
+KVMでは2種類の経路を確認しました。raw ELFはeuid 0 / 501でbuiltin identityと正しいコードの
+broker認証が通り、同じidentityを保ったまま別digestへexecすると拒否されました。
+PIE fixtureは実際のapplication launch / scoped capture / 共通preparer / native作成 / POSIX child登録を
+通り、変換後イメージを作成されたProcess Objectへ結び付けて認証できました。
+権限を追加する試験ではなく、不正な短いdecision requestに対する認証済み側と拒否側の結果を
+判別しています。既存controllerの保護入力・非同期transport・最終grantのinstance結合と、
+clang→ld.lld→msignの通常経路は引き続き未完了です。完全POSIX goalは保持しています。
+証跡は`out/checks/mochios-broker-image-301-*`です。SDKとRust std overlayは再生成していません。
+
+診断用msh・manager manifestを復元し、通常のcapability / managerとSystem配置へ修正したmsh manifestを
+残してimageを再生成しました。checksum6件、input READY、Binder起動、デスクトップとFilesの
+表示・閉じる操作を確認しました。既知のFiles activate TransportFailureは1件あり、再操作で表示
+されました。NICなしNetwork Failed(-6)とUSB driver creation errno 22も未修正です。
+試験VMはすべて停止し、記録したホスト解析処理の再開処理も完了しました。

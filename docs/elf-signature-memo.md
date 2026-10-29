@@ -451,3 +451,43 @@ execとの競合を防げません。
 状態機械と共通feedback codecは実装・検証済みです。既存のCAPABILITY_DECISION経路、
 mshのstdin確認、secure-ui popupのtransportをこのcontrollerへ置換する接続はまだ残っています。
 既存brokerのpackage IDだけの信頼判定や、実際の保護入力channelを修正済みとは扱いません。
+
+### 確認役の実行イメージ認証（phase301）
+
+従来のCAPABILITY_DECISIONとapplication launchのbroker判定に、`TrustedImages`を接続しました。
+package ID・developer・provenanceだけでは通さず、カーネルが記録した実行イメージを照合します。
+IPC senderからWAIT Process Handleを取得し、image情報→security context→image情報とendpoint
+identityを照合します。途中のexec、retireされたendpoint、owner不一致、未計測、範囲外のidentity、
+reserved fieldや取得失敗は拒否し、PID検索・caller自身・cached contextへfallbackしません。
+保持したProcess参照は全失敗経路を含めRAIIで閉じます。
+
+信頼ルートはcapability.serviceの起動時に、不変なSystem世代の明示的なbootstrap readerから
+取得します。msh / workspace / secure-ui / input / compositorのbuilt-in identity、検証済みmanifest、
+宣言済みfile bindingがあればそのsize / digest、実際の元ELF bytesを確認します。
+その後の認証でruntime pathを開いて信頼の正本を差し替えることはありません。
+mshのmanifestも実際のSystem配置である`/system/bin/msh`へ揃えました。
+これらのrole名・package名・pathはユーザー空間のポリシーであり、mnuには追加していません。
+
+変換が不要な元イメージは、bootで捕捉したdigestと比較できます。PIE等で変換が必要な場合は
+元ELFと変換後ELFを同一視しません。既存の共通preparerが全入力を検証し、native processを
+作成してからresumeする前に、元manifest digest・元code digest・実際の出力digestを照合し、
+そのProcess ObjectのWAIT参照とimage revisionへ認証記録を結び付けます。
+単に「署名済みの変換結果」とcallerが申告する入口や、出力hashのglobalなallowlistはありません。
+別processやexec後の世代はこの記録を使えません。記録は最大128件で、終了・変更済みの参照は
+新規登録時に除去します。通常のアプリをこれらのroleへ登録することもありません。
+
+KVMではbuiltin msh identityの正しいコードがbroker判定を通ることと、そのidentityを保って
+別digestへexecした後は拒否されることをeuid 0 / 501で確認しました。別の試験では、実際のPIEを
+共通preparerで変換して起動し、作成されたProcess参照への結合によってbrokerとして認証できました。
+確認roleの判定だけを試験し、不正な短いdecision requestを使うためCapabilityのgrantは行っていません。
+
+この認証は観測時点の実行イメージの確認であり、実行中メモリの完全性保証やprocessの固定では
+ありません。legacy入力経路、同期promptの待機、Terminalからのmsh起動時のdomain設定は、
+新しい共通controllerへの移行が必要です。実際の保護入力channelと最終grant時のatomicな
+instance / generation結合も未完了で、偽の`y`対策全体が完成したとは扱いません。
+
+通常構成へ戻したKVMでもinput READY、Binder起動、デスクトップ表示、Filesの表示と閉じる操作を
+確認しました。Files起動時の既知のactivate TransportFailureが1件あり、再操作で表示されました。
+NICなしでのNetwork Failed(-6)とUSB driver creation errno 22も残っており、今回修正した問題には
+含めません。診断用mshとmanager manifestは復元済みです。全試験VMを停止し、ホスト解析処理の
+再開も完了しました。

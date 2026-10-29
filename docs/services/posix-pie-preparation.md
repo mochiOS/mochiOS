@@ -1270,3 +1270,61 @@ Unsupportedとなることを確認しました。未解決の関数ポインタ
 SDK主要6 fileのhashと通常stagingのmanager / manifest / verificationは従来と同一です。
 SDKやRust std overlayの再生成、kernel変更、KVM起動、rust-analyzerの停止は行っていません。
 証跡は`out/checks/mochios-ifunc-plan-289-*`です。完全POSIX環境のgoalは継続中です。
+
+## 子processのCRTでIFUNC / IRELATIVEを実行（phase290）
+
+phase289の計画を共有exec準備とCRTへ接続しました。`Prepared::indirect`の所有者は引き続き
+callback-awareなPreparationです。libcのexecとcapability serviceのアプリ起動が同じbytesを
+`Process::indirect`へ渡し、userspace-ownedのAT_INDIRECT_IMAGEとして初期stackへ保存します。
+kernelが扱うのは従来のopaque stack bytesとStackAddress relocationだけです。
+syscall、IPCの形式、サービス発見やmnuのpolicyは追加・変更していません。
+
+resolverの結果が必要なscopeでは、rootに実行可能な`__mochios_indirect_v1` markerがあることを
+確認してから遅延計画を生成します。markerはstartup contractであり、権限やidentityの根拠にはしません。
+入力bytesの認証・Handleの取得・実行認可は既存の別の境界を維持します。
+未対応CRT、作成途中の失敗、未解決のCOPYやlifecycle arrayを成功扱いして起動しません。
+依存objectがないrootでも、自身のIFUNC / IRELATIVEを必要とすればscopeの準備へ進めます。
+
+CRTはPOSIX状態の初期化、初期threadのTLS設定とsignal配送設定を済ませ、
+`__sinit`とconstructorより前に遅延計画を消費します。既存MemoryCopyでmetadata全体を
+privateなstack scratchへ取り込み、検査後にこの新imageのresolverを呼びます。
+書き込みにもMemoryCopyを使うため、metadataのWritable宣言と現在のVM permissionが異なる場合も
+mappingの検査を迂回しません。書き込み失敗はstartup errorとなり、resolverの再実行は禁止します。
+このadapterはheapや追加Handleを取得せず、非局所jumpで放棄されても資源を残しません。
+forkでは完了済みstateとrelocation結果を継承し、exec後の新imageでは初期stateから実行します。
+
+初期metadataは現状、他のpayload・argv / envと合わせてnative startupの4096-byte上限を共有します。
+8-byte alignment、三つのpayloadの分離、auxiliary keyの重複禁止、合計上限をencoderで検査します。
+上限超過ではE2BIGとし、切り詰めません。より大きなobject群のmetadataについては、既存の
+generic InitialMapping / VM objectを使った別mappingへの移行が残ります。
+
+6 targets / 73 host testsが成功しました。新規の実CRT試験は成功と失敗を別processで行い、
+最後の不正recordで全resolverが未実行となること、resolverによる元metadataの変更、0の結果、
+実際にmprotectした読み取り専用targetへの書き込み失敗、失敗後と完了後の再実行禁止を確認しました。
+exec統合試験では、新markerなしの拒否と、markerありの場合だけ子addressの計画がstackまで届くことを
+確認しています。これらのMemoryCopy host試験は既存の自己process_vm_readvを使うためsandbox外で実行しました。
+最終レビューで、遅延更新されるinit arrayの元bytesが既に有効なcode addressであると、古い値を
+flattenし得ることを確認しました。遅延targetとpreinit / init / fini arrayの重なりを明示的に拒否し、
+0と有効な古いaddressの双方を使う回帰試験を加えています。通常のRELATIVE arrayは引き続き受け付けます。
+大きすぎるresolver計画もscratchの確保前にE2BIGとする検査と試験を追加しました。
+standalone newlib runtime、capability service、診断managerのmochiOS向けbuildも成功しました。
+
+KVMでは最終fixtureに実際のR_X86_64_64 / JUMP_SLOT / IRELATIVEを含む共有libraryを使いました。
+resolverが初期TLSと通常relocation済みのroot dataを読み、constructorが既に解決済みの関数を呼びます。
+UID 0と501の双方でmainまで到達し、pthreadごとのTLS、fork後のresolver再実行なし、execでの再初期化、
+constructor / finalizerの順序と子終了statusまで成功しました。
+使用したbare-metal GCC frontendはifunc attributeを拒否したため、試験libraryではGNU assemblerの
+STT_GNU_IFUNC aliasを使っています。実際のELFに必要なrelocationがあることをreadelfで確認し、
+attributeの省略で普通の関数になったものをIFUNC試験とは扱っていません。
+
+最初のnative試験、通常GUI確認、IRELATIVEを加えた最終native試験、最終componentでの通常GUI確認とも、記録した自分のPIDだけを
+停止しました。rust-analyzerの一時停止対象は各回0件で、全ての再開記録を保存しました。
+診断manager / probe / libraryは原本のhashとmodeへ戻し、通常イメージには更新したcapability serviceを
+反映しています。その通常componentでデスクトップ、Filesの起動と終了を画面で確認しています。
+最後に同じ通常component群からimageを再生成し、checksumを確認しました。
+SDK主要6 fileは同じhashであり、SDKとRust std overlayは再生成していません。
+証跡は`out/checks/mochios-indirect-startup-290-*`です。
+
+IFUNCがinit / fini arrayの要素やCOPY元のdataを更新する場合の処理は引き続き未完成です。
+readonlyなlate fixup先、より大きなstartup metadata、RELROの最終保護も次の段階に残ります。
+interpreter、dlopen / dlclose、動的TLS追加、その他の既記の残件を含む完全POSIX環境のgoalは継続中です。

@@ -1213,3 +1213,60 @@ SDKとRust std overlayは再生成せず、通常OS imageやkernelも変更し�
 証跡は`out/checks/mochios-indirect-image-288-*`です。
 IFUNC / IRELATIVEのELF・exec・CRTへの接続と実機境界の検証、interpreter、dlopen / dlclose、動的TLS追加、
 その他の既記の残件を含む完全POSIX環境のgoalは継続中です。
+
+## ELFから遅延resolver計画を作る処理（phase289）
+
+`Pie::parse_object`でSTT_GNU_IFUNCとR_X86_64_IRELATIVEを読み取り、
+`Scope::deferred`でphase288のcodecへ変換できるようにしました。
+既存のbinding / visibility / version検索が選んだ定義を共有し、その定義がIFUNCの場合だけ
+resolver呼び出しを記録します。rootの通常関数による差し替えでは普通のaddressを使い、
+rootの別IFUNCへの差し替えではそのresolverを使います。未解決weakは0、strongはエラーです。
+SIZE relocationはst_sizeを使い、resolverの実行を追加しません。
+
+IRELATIVEはB+Aをresolver addressとして記録し、呼び出した後の加算は0です。
+symbolic R_X86_64_64ではresolverの結果へaddendを加え、GLOB_DAT / JUMP_SLOTはaddendを無視します。
+SHN_ABSのIFUNCはresolver addressへbiasを二重に加えません。
+これらの計算は[glibcのx86-64処理](https://github.com/bminor/glibc/blob/master/sysdeps/x86_64/dl-machine.h)を
+参照しています。resolverは選ばれたobjectの実行可能LOADに、targetの8 bytes全体は
+元のobjectの書き込み可能LOADに含まれることを要求します。
+addressの検査をaddendのmodulo計算と混同しません。
+
+計画の順序には既存lifecycleの依存関係順を使います。objectごとにsymbolic IFUNCの書き込みを
+IRELATIVEより前へ置き、各群ではRELA / PLTと元のtable内の順序を維持します。
+IRELATIVEを後へ送る処理は[glibcのrelocation走査](https://github.com/bminor/glibc/blob/master/elf/do-rel.h)でも
+行われています。本実装は全objectの通常relocationをbundle作成時に完了させ、計画の呼び出しは
+そのbundleを受け取ったimageで行う構造です。producerはコードを呼びません。
+
+`Scope::deferred_counts`でcaller所有のscratch容量を計算し、region・fixup・依存順序の容量を
+検査してから計画を作ります。`Deferred::encode`で別のstartup metadataを生成し、
+`Deferred::write_bundle`で通常relocationまで済んだbundleを作ります。
+両方を保持して受信imageで消費する必要があり、実行権限やHandleをこのAPIが付与することはありません。
+既存の`Scope::write` / `write_bundle`とstandaloneの書き込みは、resolverの結果が必要なら
+Unsupportedを返します。exec準備とCRTはまだ新APIへ接続していません。
+したがって、通常のOS環境でIFUNC付きプログラムの起動が完成したとは扱いません。
+
+新規9 testsを含む7 targets / 113 host testsとstandalone newlib runtimeのmochiOS向けbuildが成功しました。
+GNU assembler / linkerで作った3 objectのscopeをホストの匿名mappingへ配置し、最終permissionに
+変更してからphase288のconsumerでresolverを実行し、rootの関数の結果まで検査しました。
+resolver自身が通常relocation済みdataを読み、IRELATIVEのresolverが先に解決したIFUNCを呼ぶため、
+単なるrecord件数の比較ではなく実行順と書き込み結果を確認しています。
+準備直後のresolver呼び出し数が0であることと、一度完了した計画の再実行禁止も確認しました。
+
+SysV / GNU / 両hash、版付きsymbolと通常関数・IFUNCによる差し替え、section headerあり・なしの
+18通りを実行し、9通りについて別processのGNU loaderでも結果が一致しました。
+0を返すresolver、post-call addend、GOT / PLTの無視するaddend、SHN_ABS、
+未解決weak / strong、IFUNCのsize、短いscratch、実行不可resolver・読み取り専用target・
+範囲外write・不正なIRELATIVE symbol index、順序を入れ替えたRELAも検査しています。
+SHN_ABSや変更したaddendなどのmetadata試験をGNU比較の対象と偽ってはいません。
+
+GNU linkerが生成したCOPYについても、provider dataが未実行のIFUNC書き込みを必要とする場合は
+Unsupportedとなることを確認しました。未解決の関数ポインタをCOPYして正常扱いする処理はありません。
+このケースの子image内COPY、resolver後のinit / fini array取得、CRT contractとstartup metadataの受け渡し、
+実OS境界での検証は次の接続作業に残ります。
+
+今回の途中でホストのsystem filesystemが満杯になりsandbox生成自体が失敗しました。
+前回の失敗したSIZE試験が残した8個の一時objectだけを確認して削除し、sandboxの再起動を確認しました。
+今回のcompiler / test用TMPDIRは空きのある`out/checks/tmp`へ移しています。
+SDK主要6 fileのhashと通常stagingのmanager / manifest / verificationは従来と同一です。
+SDKやRust std overlayの再生成、kernel変更、KVM起動、rust-analyzerの停止は行っていません。
+証跡は`out/checks/mochios-ifunc-plan-289-*`です。完全POSIX環境のgoalは継続中です。

@@ -376,3 +376,66 @@ SDKの6 filesのhashは変わっておらず、kernelとRust std overlayも変�
 
 C resolverの公開関数、実DNS Handle Backend、hosts/services等の名前サービス設定への接続は残っています。
 POSIX互換環境全体のgoalは継続中です。
+
+## C名前解決APIのnative接続（phase285）
+
+newlib-runtimeにgetaddrinfo / freeaddrinfo / getnameinfo / gai_strerrorの公開入口と、
+netdb.hを追加しました。posix-client::netdbの共通処理に、実際のDNS job・interface観測・
+callerのファイル読み込みを接続しています。kernelにPOSIXや名前サービスの処理は追加していません。
+
+呼び出しごとにBackendをio_resourcesへ登録してから、POSIXの現在のrootを基準として
+/etc/hostsと/etc/servicesを開き、取得したHandleでoffset付きreadを行います。
+process-local FDは消費せず、POSIX credentialsと元のCapabilityの範囲を維持します。
+hostsの一致名はその登録全体を優先し、IPv4だけの登録をAF_UNSPECで検索しても
+IPv6 DNSの権限を要求しません。named serviceは実ファイルのTCP/UDP別portとaliasを使い、
+既知のportだけを成功させるtableをruntimeへ埋め込んでいません。
+
+DNSは委譲されたnetwork endpointからcallerのnet.connectに従ってfactoryを取得し、
+明示添付したfactoryからjobを作ります。A/AAAA/PTRの全結果をsnapshotから読み取ります。
+一つの呼び出しで共有する有限deadline、job quotaの安全な再試行、completionとのdeadline競合、
+中断・取消・snapshot失敗時のjob/Handle/buffer回収を扱います。
+Handleの取得・ownerへの登録・結果listの公開・破棄はnative deliveryのguard内で行い、
+ファイルread、DNS snapshotと待機はcallbackを有効にした状態で実行します。
+vector I/Oの既存buffer実装を別moduleへ移し、同じ実装をresolverとそのhost試験でも使っています。
+
+Cヘッダ、runtimeのaddrinfoとRust libcを48-byteの同じ配置に揃えました。
+旧generic newlibのai_canonname/ai_addrの順序、NI_*のbitと一部EAI_*の正の値は使いません。
+アプリケーション境界でLinuxと同じAI/NI flagsと負のEAI codeを使い、EAI_SYSTEMのerrnoだけを
+既存のnewlib変換で公開します。Rust libcのgenerated元ファイルは書き換えず、build.rsで
+mochiOSだけgeneric宣言を除外しています。他targetの宣言は維持します。
+
+4 targets / 64 host testsが成功しました。新規12件は実際のC transaction・Backend・bufferと
+productionのDNS/interface wireを使います。local databaseのalias・複数family・buffer拡張、
+DNSの複数RRとcanonical名、PTR、権限拒否、file readの中断、quota/deadline、family fallback、
+wait/snapshot失敗、全allocation失敗位置での回収を確認しています。
+既存のC storage 12件、policy/data 21件とcallback resource 19件も成功しています。
+自己memoryコピーを行うhost試験はsandbox外で実行しました。
+C/C++の公開ヘッダの配置・定数検査、standalone runtimeと診断managerのtarget buildも成功です。
+
+KVMでC公開関数を実行するELFをexecし、euid 0 / 501で80回ずつの数値変換・scope・list解放、
+invalid pointerのEFAULTと実DNS jobのNIC不在によるEAI_SYSTEM / ENXIOを確認しました。
+euid 0のC試験から子processをchrootした後でeuid 0 / 501へ切り替え、
+caller-root内のhosts/servicesの複数候補・alias・逆引きと、0600のservicesを501で読む際の
+EAI_SYSTEM / EACCESも確認しています。Rust libcを使う別の子processでは両euidで
+net.connectを落とし、名前のDNS取得がEACCESになる一方、数値変換と逆変換は成功しました。
+診断managerにだけlibc依存を有効にするposix-native-probes featureを追加しています。
+証跡はout/checks/mochios-netdb-public-285-native-final.logです。
+最初の診断起動は試験ELFへの実行bitの設定漏れでexecに失敗しました。停止・再開処理後に修正し、
+再生成したイメージで上記の全試験を完走しています。
+
+SDKはユーザー管理のままで、build-newlib.shとRust std overlayの生成処理は実行していません。
+既存SDKの6 filesのhashを維持し、C試験はsource headerとstandalone runtime archiveを使います。
+配布SDKへこのAPIを公開する際は、ユーザー側のSDK生成で更新したheader/runtimeを取り込む必要があります。
+
+診断manager・manifest・verificationを保存前と同じhashへ復元し、scratchのC ELFを削除してから
+通常imageを再生成しました。checksum、input READYとBinder ready、desktop / Dock、
+Filesの起動・フォルダ表示・終了を画面で確認しています。証跡は-normal.log、-image-normal.log、
+-desktop.png、-files-open.png、-files-closed.pngです。NICなしによるnetwork Failed(-6)等の既存状態は変わりません。
+今回の3回のKVMは自分が起動したPIDと照合して停止し、analyzerの一時停止も各試験後に解除済みです。
+pause時点の対象processは各0件でした。
+
+名前サービス全体の完了を意味しません。検索domain・NSS設定・local domainの詳細な判定、
+SOA negative cache、IPv6 transportと外部DNSのnative実通信は引き続き必要です。
+NI_NOFQDNのlocal判定はloopbackまたは現在の自interface addressに限定し、
+判定不能なremote名のsuffixは削りません。外部ネットワーク設定は変更していません。
+POSIX互換環境全体のgoalは継続中です。

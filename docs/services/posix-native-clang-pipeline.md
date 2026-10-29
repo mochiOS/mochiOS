@@ -99,3 +99,13 @@ INPUT_READY_TIMEOUT_TICKS=15,000は現行500 Hzで30秒であり、測定済み�
 このgateは専用fixtureでの静的C実行であり、clangのmochiOS default target driverや
 ld wrapper、一般的なSDK配置、共有ライブラリのruntime linkerの完成を意味しない。
 完全なPOSIX環境のgoalは継続する。
+
+
+## 次の実用gate
+
+優先する利用経路は、通常の`clang main.c -o main`でlink後の署名まで済ませ、
+`./main`の実行時に必要なCapabilityだけを共通gateで確認するものです。
+CLIは信頼済みmshのtext確認、GUIはsecure-uiのpopupとし、判断・保存・一回認可の消費は
+capability.serviceへ集約します。詳細と未完了箇所は
+[ローカル開発と共通実行認可](../elf-signature-memo.md#ローカル開発と共通実行認可の実装目標2026-10-29)を参照します。
+この記述は専用fixtureの成功を、通常driver・自動署名・対話認可の完成へ読み替えるものではありません。

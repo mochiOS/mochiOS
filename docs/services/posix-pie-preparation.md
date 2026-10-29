@@ -1737,3 +1737,7 @@ TLSを現在threadのaddressとして扱います。Cのdlsym/dlvsym ABIとmodul
 version選択、別threadのTLS、IFUNCとNULL成功を照合しています。standalone runtimeのnative buildも
 成功しました。今回は純粋なユーザー空間検索処理でnative境界を変えていないため、KVMは起動していません。
 証跡は`out/checks/mochios-symbol-lookup-298-*`です。
+
+優先する次の接続は、通常のclangによるlink・署名から`./main`までの共通実行認可です。
+[ローカル開発と共通実行認可](../elf-signature-memo.md#ローカル開発と共通実行認可の実装目標2026-10-29)へ
+現在の不備と共有する責務を記録しました。完全POSIX環境のgoalは保持します。

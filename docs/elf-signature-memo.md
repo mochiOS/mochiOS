@@ -300,3 +300,108 @@ MPKGのmanifestがELF全体のハッシュを保持する場合、ELFの署名�
 [4] ELF gABI「Program Loading」「Note Sections」：Program HeaderとNOTE情報の仕様です。
 
 [5] RFC 8032「Edwards-Curve Digital Signature Algorithm (EdDSA)」：Ed25519の署名・検証と各方式の区別です。
+
+
+## ローカル開発と共通実行認可の実装目標（2026-10-29）
+
+利用者が求める動作は次の一続きの操作です。POSIX互換環境全体のgoalは保持しつつ、
+この実用経路を優先して接続します。以下はこれから接続する仕様であり、完成報告ではありません。
+
+```sh
+clang main.c -o main
+./main
+```
+
+コンパイル時は`clang → mochiOS linker driver → ld.lld → msign`、
+実行時は`execve / posix_spawn / GUI launch → capability.service → 実行認可`へ集約します。
+確認が必要な場合は信頼済みmsh内の確認、またはsecure-uiの標準GUI popupを使います。
+署名検証、Capabilityの分類、要求の妥当性、許可の保存と消費をfrontendへ重複実装しません。
+
+### ビルドと署名
+
+- SDKの生成は利用者側が担当します。OS側からSDKを再生成しません。
+  linker driverはそのSDKを入力として使い、ELFの配置・relocationは必ずld.lldに任せます。
+- `-c`や`-r`の中間生成物を実行用として自動署名しません。最終的な実行ELFとDSOを
+  検査し、既存の`msign elf`を呼びます。driverに暗号処理や秘密鍵管理を複製しません。
+- 新しい出力を同じfilesystem上の一時ファイルへlink・署名・検証してから公開します。
+  linkや署名の失敗を成功扱いせず、既存の実行可能出力を途中の生成物で置換しません。
+- 単体の`main`でも要求権限が実行体と分離しないよう、Capability宣言を含むmanifest情報を
+  ELFの署名対象bytesへ含めます。後から差し替えられる未署名sidecarを権限の正本にしません。
+  既存のmanifest.tomlの宣言を共用し、ELF内の表現は共通parserで検証します。
+- ローカル自動署名は既存の明示的なAdHocモードを利用できます。これは自己整合性の確認で、
+  built-inとしての信頼やCapability許可にはなりません。鍵付き署名を選んだ処理の失敗から
+  AdHocへ黙ってfallbackしません。確定済みv1形式は[msignの仕様](../tools/devkit/docs/elf-signature-v1.md)に従います。
+
+### 共通の実行ゲート
+
+1. 実行対象をFileHandleから捕捉し、署名・manifest・要求Capabilityを同じbytesから検証します。
+2. capability.serviceが、署名者の信頼、要求権限のclass、呼出元・POSIX sessionの正当性、
+   保存済み許可、今回の操作の範囲を判断します。署名があるだけでは権限を付与しません。
+3. 追加の確認が必要な権限について、serviceが確認待ちtransactionを作ります。
+4. 登録済みの信頼できるfrontendへ確認内容を渡します。mshはtext、GUIはpopupとして表示します。
+5. 応答をtransactionに照合し、許可された同じimageだけへ一回限りの実行認可を発行します。
+6. 実際のロード対象が認可時のdigestと一致することを、既存native execのcommit境界で再確認します。
+
+署名の検証対象は変換前の元ELFです。PIEの再配置等で生成したnative containerへ元の署名が
+そのまま有効だとは扱いません。検証済みsourceと依存DSOから共通preparerが導出した出力を、
+serviceが最終image digestへ結び付けて認可します。未認証callerの「この変換後bytesは署名済み」
+という自己申告を受け入れません。captured RAM objectは型・権限・サイズを検査し、serializedな
+brokerが任意Providerへの無制限I/Oで停止しない実行形態にします。
+FD番号とCLOEXEC等の表は従来どおりposix-client/runtimeが保持し、capability.serviceへ移しません。
+
+新しい`main`へmshの広い権限やtrusted-brokerの扱いを自動継承しません。
+通常のstdio等は明示的なHandle委譲で継承し、追加の名前付きCapabilityは宣言と認可に従います。
+user-grantable以外の権限は確認画面の`y`で昇格できません。
+起動時と実行中の追加要求は同じ認可controllerを使いますが、許可の有効範囲を区別します。
+「この実行だけ」は一回のlaunch認可、「このプロセスだけ」はprocess scopeです。
+単一操作にしか有効でない許可をprocess全体の権限へ拡大しません。frontendには、その要求で
+実際に提供できる選択肢だけを提示します。
+
+### 確認transactionとfrontendの責務
+
+serviceが保持する正本には、request ID・ランダムchallenge、実行体digest、宣言権限の集合、
+対象resource、認証済みrequester/session、実行世代、期限、許容する選択肢、frontendの
+登録済みendpointと表示世代を含めます。wire上の自己申告PIDや`trusted=true`を認証に使いません。
+
+mshとGUIは、共通requestを表示して共通responseを返すだけです。frontend自身はgrantを
+実行せず、応答のためにcapability.serviceへ二重の認可要求を送り返す必要もありません。
+serviceは確認待ち中も別要求・取消し・process終了を処理できる形にし、serializedなserverを
+frontendへの同期callのまま停止させません。応答はkernelが保証したIPC sender/Handleから
+認証し、別transactionへの流用、再送、古い表示世代、期限切れ、終了済みrequesterを拒否します。
+
+### mshの信頼と入力
+
+`/system/bin/msh`という名前やpath、継承されたpackage IDだけで確認役を信用しません。
+検証済みbuilt-inの実行イメージと、そのinstance・世代に結び付いた確認channelを使います。
+必要なimage measurementの取得は汎用のProcess/Handle機構として扱い、カーネルにmshや
+capability.serviceの名前・ディレクトリ・UI policyを持たせません。
+
+通常のstdin、pipe、PTYへの書込み、clipboard paste、合成InputEvent、起動引数の自動許可指定を
+新しいユーザー承認の根拠にしません。確認入力は通常のcommand/stdio経路と分け、信頼された
+入力元からの新しい操作だけを、その確認transactionと表示世代に結び付けます。
+確認開始前にqueueへ入っていた`y`や押下中keyのrepeatを承認に使いません。
+foreground/backgroundや別terminal/sessionの取り違えも拒否します。
+
+確認表示中はアプリ出力でtrusted promptを上書き・偽装させません。実行体名や理由などの
+外部文字列はtextとして扱い、terminal制御文字をescapeします。GUIにも同じ検証済み内容を
+渡し、アプリ自身が作った見かけ上の許可popupを本物の応答元として扱いません。
+安全な対話経路がない場合は未許可要求を明示的に失敗させ、既存の許可や明示委譲Handleだけで
+実行可能な操作は継続できるようにします。
+
+### 現在の実装との隔たり
+
+- ネイティブclang/ld.lldのcompile・link・実行は専用fixtureで検証済みですが、通常の
+  `clang main.c -o main`へのdefault driver・自動署名接続は未完了です。
+- `msign elf`にはELF署名・検証があります。現在のcapability.serviceのobject execは、
+  callerの既存domain内のimage replacementを認可し、そこでELF署名を検証していません。
+- packageアプリのlaunch、実行中のgrant、workspace/secure-uiの各種確認が分かれています。
+  mshには確認入力のIPC senderを検証せずInputEventとして処理する箇所があります。
+  また、built-in package identityだけのbroker判定では、image置換後の確認役の信頼を証明できません。
+- これらを共通gateと保護された確認channelへ移行する必要があります。署名や権限確認を
+  省略した開発専用fallbackを最終経路として残しません。
+
+実装の優先順は、共通transaction/subjectと保護された確認経路、captured ELFの署名・manifest検証、
+exec/spawn/GUIの共通gateへの接続、SDK driverからのmsign呼出し契約の接続です。
+受入試験には、通常のビルドから実行までに加え、改変ELF・未宣言権限・偽sender・stdinからの`y`・
+paste/repeat・応答再送・実行体差替え・別session・取消しを含めます。成功した画面や狭いunit testだけで
+この経路全体の完成とは扱いません。

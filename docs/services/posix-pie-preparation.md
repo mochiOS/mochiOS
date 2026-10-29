@@ -1160,3 +1160,56 @@ exec準備の自己memoryコピーはsandboxでEPERMとなったため、同じ�
 証跡はout/checks/mochios-elf-size-287-host-results.txt、host-native-copy.logとruntime-final.logです。
 ELFの計算と書き換えの変更なのでKVMは起動せず、通常imageやSDK、Rust std overlayは再生成していません。
 interpreter、IFUNC、dlopen / dlclose、動的TLS追加、weak TLSの残件と、完全POSIX環境のgoalは継続中です。
+
+## 子imageで実行するresolverの共通処理（phase288）
+
+`posix-client::indirect_image`へ、遅延resolverの計画をencode / captureし、一度だけ実行する
+allocation-freeの共通処理を追加しました。これはIFUNC / IRELATIVEを子image内で処理するための
+下層です。ELF parserやexec / CRTへの接続はまだ行っていません。既存のUnsupportedは維持しており、
+この段階でIFUNC対応のアプリケーションが起動できるという意味ではありません。
+
+計画はMIREL001 / version 1で、header 40 bytes、region 24 bytes、fixup 32 bytesです。
+regionには既に認可された子imageの実行可能または書き込み可能なLOADの範囲、fixupには
+子imageの書き込み先・resolver address・実行後のaddendを記録します。IRELATIVEの呼び出し先は
+配置済みのB+A、実行後のaddendは0、symbolic absolute referenceでは実行後にaddendを加える
+構造です。アドレスはproducerのポインタではなく子imageの仮想アドレスです。
+このデータは権限を付与するものではなく、kernelへ解釈させるABIでもありません。
+
+consumerはheaderのversion / reserved / exact length、件数と計算のoverflow、callerの容量を確認し、
+全recordをcaller所有のscratchへコピーしてから検査します。regionはuser address内の非空・昇順・
+非重複の範囲に限り、W+Xを表すaccessは受け付けません。resolverは実行可能region内、書き込み先の
+8 bytes全体は一つの書き込み可能region内であることを要求します。unalignedな8-byte targetは許可します。
+重複・部分的に重なるtargetはsortで検出し、呼び出し順は必ず元へ戻します。
+検査後は元のmetadataやregion scratchを参照しないため、resolverによるmetadataの変更で
+後続のresolverや書き込み先を差し替えることはできません。
+
+実行stateはimageごとに独立し、初回だけresolverを順に呼び、その結果へaddendをmodulo加算して
+8 bytesを書きます。0の結果も切り捨てません。完了後の再実行は何も行わず、処理中の再入・並行実行は
+Reentrantで返します。呼び出しや書き込みが失敗した場合、既に発生した副作用は巻き戻さず、
+以後Failedとして二重実行を禁止します。Rust unwindも同じ失敗状態にします。
+C longjmp等がframeを放棄した場合は処理中のままとなり、後続の実行要求はReentrantとなります。
+stateを別のimageや後のdlopen transactionへ使い回してはいけません。
+
+実際のmemory read / writeとresolver呼び出しはadapterから渡すため、この共通処理自体に
+生ポインタのdereference、別processのコード実行、Handle取得やCapabilityの追加はありません。
+接続時にはread / writeへ既存のfaultable self-memory copyを使い、認可済みobject群の通常relocationと
+TLS設定を完了してから、constructorとapplication threadの開始前に実行する必要があります。
+rootのruntime contractを確認してから計画を渡し、対応しないCRTへ未解決のGOTを渡してはいけません。
+
+接続前に残る依存も確認しています。現在のlifecycle producerはprepare済みbundleからinit / fini arrayの
+関数addressをflattenします。IFUNCがそのarray要素を更新する場合は、子imageでresolver完了後に
+要素を取得・検査する形式が必要です。またCOPYはproviderのrelocation後のbytesをprepare時に読むため、
+遅延fixupを含むdataのコピーも実行順を決める必要があります。これらを黙って0で埋めたり、
+prepareしているprocess内でresolverを呼ぶ迂回は追加していません。
+
+新規20 testsと既存40 testsの計60 testsが成功しました。独立したwire fixtureを使い、全長未満の
+truncation、件数・長さのoverflow、予約値、user addressの両端、write幅、unaligned target、
+regionの順序とpermission、targetの重複、入力metadataの変更、実行順とaddend、失敗後の再実行禁止、
+再入、競合するhost threadとpanicを検証しています。既存CRT試験のself-memory copyはsandboxで
+EPERMになるため、その試験だけsandbox外で実行しました。
+standalone newlib runtimeのmochiOS向けbuildも成功しています。
+SDKとRust std overlayは再生成せず、通常OS imageやkernelも変更していません。
+今回は純粋なuserspace共通処理のみの追加なのでKVMを起動せず、rust-analyzerも停止していません。
+証跡は`out/checks/mochios-indirect-image-288-*`です。
+IFUNC / IRELATIVEのELF・exec・CRTへの接続と実機境界の検証、interpreter、dlopen / dlclose、動的TLS追加、
+その他の既記の残件を含む完全POSIX環境のgoalは継続中です。

@@ -14919,3 +14919,11 @@ path = "mboot"
 hash = "0e80dee43d03c1f077be1f09b9b790ca5f08acc9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore(deps): record current workspace dependency lock"
+
+[[entries]]
+date = "2026-10-29T17:04:14.440782156+09:00"
+snapshot = "ac2b7fbbc72904605831cb14"
+path = "services"
+hash = "0fa445c3516d3248f2b7149b79bfb4cd957e3688"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native runtime DSO mapping lifecycle"

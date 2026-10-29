@@ -26,10 +26,11 @@ The request selects a disk from the owner's latest inventory generation. Before
 allocation, the service freshly enumerates and compares complete observed disk
 GUID, backend device ID, hardware capacity, sector size, and full partition
 GUIDs/ranges. It rejects partial inventory, unknown mount ancestry, untracked
-filesystem mounts, read-only or unknown-access disks, missing hardware identity,
-mounted disks, conflicting reservations and table exhaustion. Partition-map
-capacity estimates and blank disks without an authoritative identity are not
-accepted as hardware evidence.
+filesystem mounts, read-only or unknown-access disks, mounted disks, conflicting
+reservations and table exhaustion. Partition-map capacity estimates are not
+accepted as hardware evidence. A blank
+disk may have no GPT GUID; that absence never substitutes for a driver-pinned
+hardware identity when requesting writes.
 
 The native reply contains exactly one provider Handle with READ, CONTROL and
 TRANSFER rights. It has neither WRITE nor DUPLICATE rights. The provider-owned
@@ -80,14 +81,13 @@ and it cannot be used as proof for a later independent raw syscall. No Installer
 manifest permission, write operation, formatter, unmount, partition edit or
 installation success path is enabled by this work.
 
-The current backend provides observations rather than a pinned per-device open
-with a device lifetime/epoch. Matching GUIDs and layout are not a substitute for
-that ownership: identical clones or a replaced device can reproduce metadata.
-Before exposing destructive operations, the storage backend must bind the actual
-opened device and permitted ranges to the reservation, enforce mounted-disk
-exclusion at that operation boundary, revalidate and perform the operation under
-the same exclusion, and strictly propagate flush/read-back failures. Cancellation
-and uncertain I/O must not release authority as if nothing was written.
+The read-only reservation still provides observations rather than a write permit.
+The separate [bounded storage region](storage-regions.md) path now pins the actual
+opened device and range, checks its disk sequence, excludes mounted targets and
+propagates flush errors. It requires a different privileged capability and native
+WRITE authority; existing reservation Handles cannot be upgraded implicitly.
+Installer remains disabled, with neither writable storage grants nor installation
+source launch wiring supplied to the application.
 
 The new acquire request is native application IPC, not a Linux syscall ABI or a
 kernel parser extension. Existing filesystem protocols and disk syscalls retain

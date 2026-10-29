@@ -8,10 +8,19 @@ introduced. The interface is generic and can also serve disk-management apps.
 
 `filesystem.service` admits the fixed `MFS1RSRV` request only after querying
 `capability::check_thread` for the kernel-authenticated IPC sender's
-`device.storage` capability. There is no PID, package name, capability string,
+`device.storage.scoped` capability (the legacy broad capability is also
+accepted for trusted existing callers). There is no PID, package name, capability string,
 user ID or claimed approval flag in its payload. The kernel still enforces the
 existing IPC capabilities and native Handle mechanism. Merely knowing a service
 address, disk ID or inventory generation does not grant a reservation.
+
+`device.storage.scoped` is a privileged, non-user-grantable permission. It
+authorizes requests to the storage owner, not raw block syscalls. It does not
+imply `device.storage`, including when combined with filesystem read/write
+permissions. Trusted launch policy must approve it; an application cannot grant
+it to itself by naming it in a manifest. The reservation Handle's own rights and
+provider checks still restrict every operation. No application manifest is
+granted either storage permission by this change.
 
 The request selects a disk from the owner's latest inventory generation. Before
 allocation, the service freshly enumerates and compares complete observed disk

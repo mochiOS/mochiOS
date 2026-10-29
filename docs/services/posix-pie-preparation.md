@@ -1119,3 +1119,44 @@ SDK主要4fileのhashはphase266と同一です。kernel、IPC / native境界、
 今回は純粋なmetadata解析の修正としてホストで検証し、KVM起動とOS imageの更新は行っていません。
 証跡は`out/checks/mochios-empty-gnu-hash-267-*.log`と`-artifacts.json`です。
 interpreter、IFUNC、dlopen / dlclose、動的TLS追加と既記の残件を含む完全POSIX環境のgoalは継続中です。
+
+## シンボルサイズのrelocation（phase287）
+
+R_X86_64_SIZE32 / SIZE64をユーザー空間のELF準備へ追加しました。
+値は選ばれた定義のst_sizeとaddendの和です。symbolのaddressや配置bias、TLSのmodule番号・
+thread pointerからの距離は使いません。scopeの既存binding / visibility / version検索を共有し、
+rootによるpreemption、絶対symbolとTLS symbolにも同じ定義選択を適用します。
+未解決weakのsizeは0として扱い、未解決strongは引き続き拒否します。
+計算対象の参照は[glibcのx86-64 relocation処理](https://github.com/bminor/glibc/blob/master/sysdeps/x86_64/dl-machine.h)です。
+
+SIZE64は64-bitのmodulo加算です。SIZE32は計算した結果がu32へzero-extend可能かを検査し、
+上限超過と負方向のunderflowをOverflowで返して切り詰めません。
+書き換え幅を4 / 8 bytesで区別し、LOAD範囲、重複fixupの検査、BSSのmaterializeとCOPYの参照にも
+既存の幅付き処理を使います。隣接する4-byte dataを8-byte writeで壊す処理はありません。
+単一imageのwriteと、取得済みobject群を使うScopeの両方へ接続しています。
+file取得・認可・Handleや起動情報の形式、kernelは変更していません。
+
+実GNU assembler/linkerのSIZE32 / SIZE64を含む共有objectで、SysV / GNU / 両hashと
+section headerあり・なし、rootによる定義差し替えを確認しました。
+32-bit fieldの隣のcanary、正負addend、絶対symbolのsizeとvalueの違い、TLS symbolのsize、
+未解決weak、u32の両端とその外側、4-byteだけ残るBSS末尾を検査しています。
+準備後のbundleをhostの匿名mappingへ置き、最終permissionへ変更してfixture関数も実行しました。
+GNU loaderを使う別processでも、定義済みsymbolのsize選択とrootによる差し替えが一致しました。
+
+GNU比較には定義されたweak symbolを使っています。今回のhost GNU loaderは未解決weakの
+SIZE relocationを含むfixtureでSIGSEGVとなりました。その結果を成功比較として扱っていません。
+未解決weakについてはmochiOSのprepare結果がsize 0になることを別のfixtureで検査しています。
+最初のfixture生成ではbare-metal compilerへ-sharedを渡してしまいET_EXECが生成されたため、
+既存のcross compiler用試験と同じ-Wl,-sharedへ修正して再実行しました。
+
+この作業に先立ちweak TLSの残件も調べました。GNU loaderの実出力では、未定義weak TLSの
+GD / IE / TLSDESCはそれぞれ異なるaddressを返しました。GD / IEまで一律にNULLへ変更する
+根拠にはならず、そのrelocationのUnsupportedと既存TLSDESCの扱いは変えていません。
+調査用のbytesと実行結果はout/checks/weak-tls-287-researchへ保持しています。
+
+5 targets / 84 host testsとstandalone newlib runtimeのmochiOS向けbuildで検証しました。
+新規5件に既存のPIE・TLS・版付きscope・COPY・exec準備の79件を加えています。
+exec準備の自己memoryコピーはsandboxでEPERMとなったため、同じ試験をsandbox外で実行して通過しています。
+証跡はout/checks/mochios-elf-size-287-host-results.txt、host-native-copy.logとruntime-final.logです。
+ELFの計算と書き換えの変更なのでKVMは起動せず、通常imageやSDK、Rust std overlayは再生成していません。
+interpreter、IFUNC、dlopen / dlclose、動的TLS追加、weak TLSの残件と、完全POSIX環境のgoalは継続中です。

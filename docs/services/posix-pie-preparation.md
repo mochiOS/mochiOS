@@ -1489,3 +1489,54 @@ KVM確認後のproduction差分は整形とコメントだけで、host試験は
 
 readonlyなlate write先、RELROの最終保護、interpreter、dlopen / dlclose、動的TLS追加、
 weak GD / IE TLS、その他既記の残件を含む完全POSIX環境のgoalは継続中です。
+
+
+## 再配置後にRELROを読み取り専用にする（phase294）
+
+共有preparerは全objectのPT_GNU_RELROを検査します。宣言された範囲がreadable LOADに
+収まることと、page単位の保護範囲がそのLOADのmappingから出ないことを確認します。
+開始・終了ともpage境界へ切り下げる挙動は
+[glibcのRELRO保護処理](https://sourceware.org/pipermail/binutils/2022-May/120781.html)に合わせています。
+page未満で保護対象がなくなる範囲も扱います。全objectの範囲をsortし、overlap・overflow・
+不正addressを拒否します。PT_DYNAMICのない固定ELFでもRELROがあればpreparationを通します。
+
+保護を消費するCRTには`__mochios_relro_v1`の宣言を必要とします。宣言がなければENOEXECとし、
+保護を無視して実行しません。これは起動契約であってCapabilityではありません。
+既存のAT_INDIRECT_IMAGEにuserspaceのMRELRO01 envelopeを載せ、保護範囲と従来のMIREL001計画を
+一緒に渡します。IFUNCがない場合は内側の計画を省略でき、RELROだけでも適用します。
+startup metadataの合計16MiB上限、READ|MAPへの権限縮小、入力のpackage / scope認証を維持します。
+kernel・native syscall ABI・protocol・SDKには追加や変更がありません。
+
+CRTは全envelopeをfaultable copyでprivate mappingへ捕捉し、全保護範囲を検査してから、
+内側の全resolver / COPYを従来の順序で実行します。その後、既存の汎用MemoryProtectで
+read-onlyにし、成功した場合だけlifecycleの解決・constructorへ進みます。
+resolverが元のmetadataを書き換えても保存した計画を使い続けます。
+private mappingのownerはcallback前に記録し、通常終了やerrorで解放します。
+C frameの放棄時も再入で上書きせず、imageの終了時にVMが回収されます。
+途中の保護失敗、resolver失敗、reentry、unwind後はterminalな状態とし、
+既に行ったresolver / COPY / protectionを再実行しません。
+RELROは通常のread-onlyへの遷移であり、明示的なmprotectによる再変更まで禁止する新権限ではありません。
+
+14 targets / 146 host testsが成功しました。独立wire fixtureで全truncation、version / count / length、
+rangeのalignment・重複・overflow、短い出力、header変更、in-place wrapの失敗時不変を検査しました。
+実CRTと本物のhost VMを使う試験では、resolverによる元metadataの破壊後も保護されること、
+IFUNCなし、大きなIFUNC計画、AS制限、read fault、二番目の保護の失敗、再実行禁止を確認しています。
+実GNU ELFを作るexec試験では、CRT宣言なしの拒否、IFUNCなしの二つのRELRO範囲、
+IFUNCを含む三objectの範囲と内側の計画が起動情報へ届くことも確認しました。
+
+standalone runtime、capability service、診断managerをビルドしました。最初のKVM試験では
+capability経由の起動は成功しましたが、managerの直接execでは保護がありませんでした。
+並列buildによりmanagerが更新前のruntimeをリンクしていたことをsymbol検査で確認しました。
+検証用graphでruntime完成後のrelinkを必須にし、manager / capability双方の新CRT宣言を確認して再試験しています。
+失敗した回のserial・image hash・PID・analyzer再開記録も残しています。
+
+最終KVMでは本物のGNU_RELROとIFUNCを持つDSOを使い、UID 0 / 501でcapability launchと
+通常のexecの双方が成功しました。計8回のconstructor実行時に、fini slotへのPOSIX readが
+EFAULTとなり、pipeのbyteは消費されないことを確認しました。大きなmetadata、TLS、
+pthread、fork、exec、COPY、init / finiと子終了statusも成功しています。
+診断manager・manifest・verificationを元に戻し、probeと111 librariesを除去しました。
+更新したcapabilityを含む通常imageでの画面確認と停止・再開記録は同じ証跡へ保存しています。
+証跡は`out/checks/mochios-relro-294-*`です。
+
+readonlyなlate write先、interpreter、dlopen / dlclose、動的TLS追加、weak GD / IE TLS、
+その他既記の残件を含む完全POSIX環境のgoalは継続中です。SDKとRust std overlayは再生成していません。

@@ -298,3 +298,37 @@ mochiOS向けposix-clientのsyscall-endpoint構成もbuild成功です。
 hosts/services設定の読み込みと名前サービス方針への接続は引き続き必要です。
 pureな処理の追加のため今回KVMは起動していません。kernel・SDK・Rust std overlayは変更していません。
 POSIX互換環境全体のgoalは継続中です。
+
+## C resolverの結果と入出力の所有権（phase283）
+
+newlib-runtimeのnetdb_memory / netdb_abiへ、具体的なBackendを受け取るC resolver transactionを追加しました。
+Backend・入力snapshot・作成中の結果listを既存io_resourcesへまとめて登録し、
+失敗したprefixとBackend資源を解放してからEAI_SYSTEMのerrnoを公開します。
+errnoのnamespaceは既存のnewlib変換を使い、POSIX wire statusをCへ直接返しません。
+
+addrinfoはLinux互換の48-byte配置です。各nodeは自身のsockaddrとcanonical名を同じallocationに持ち、
+IPv4/IPv6のfamily・port・flowinfo・scopeとpaddingを初期化します。
+listの任意の有効なsublistを個別に解放でき、canonical名はBackendのbufferを参照し続けません。
+allocationの追加・listへの連結・公開とcleanup所有権の解除にはnative deliveryのguardを使います。
+公開前のlistはprivateなstorageとして扱い、C入力のpointerをRust参照へ変換しません。
+
+hintsと文字列、sockaddrはMemoryCopyでsnapshotし、getnameinfoの出力もprivate bufferからコピーします。
+hintsのC paddingは未初期化でも許容し、使用しないfieldにはPOSIXのzero/null契約を適用します。
+host/serviceの出力を個別に省略でき、両方の容量を検査してから最初の書き込みを行います。
+lookup中にresultのmappingがread-onlyになった場合もEAI_SYSTEM / EFAULTを返してlistを回収します。
+freeに相当する内部処理の入力は、返却済みの有効なlist/sublistであることが前提です。
+
+4 targets / 52 host testsが成功しました。新規12件では実際のio_resourcesとcallback_resources、
+process_vm_readvによる自己プロセスのmemory検証を使い、2048 nodes、allocationの各失敗位置、
+late Backend failure、出力先のread-only化、部分listの解放、unaligned/invalid pointer、
+処理frameの放棄による一度だけの解放と、cleanup後のerrnoを確認しました。
+既存のpolicy/data 21件とcallback resource 19件も成功です。
+sandbox内の自己memory検証はEPERMになったため、同じhost試験をsandbox外で実行しました。
+証跡はout/checks/mochios-netdb-memory-283-{host-native-copy,runtime}.logと-host-results.txtです。
+standalone runtime archiveはbuildしましたが、SDKの6 filesのhashは変化していません。
+kernel・Rust std overlay・通常imageは変更せず、今回KVMは起動していません。
+
+この段階では公開Cシンボルとnetdb.h、実DNS HandleのBackendはまだ接続していません。
+AI_ADDRCONFIGとinterface名の解決に必要なnetwork設定情報の照会も、既存endpointには不足しています。
+その情報経路、名前サービス設定、実Handleの待機・取消を揃えてからCの公開入口へ接続します。
+全体のPOSIX goalは継続中です。

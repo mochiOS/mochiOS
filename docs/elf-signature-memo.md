@@ -413,3 +413,41 @@ exec/spawn/GUIの共通gateへの接続、SDK driverからのmsign呼出し契�
 受入試験には、通常のビルドから実行までに加え、改変ELF・未宣言権限・偽sender・stdinからの`y`・
 paste/repeat・応答再送・実行体差替え・別session・取消しを含めます。成功した画面や狭いunit testだけで
 この経路全体の完成とは扱いません。
+
+### 共通確認transactionの状態管理（phase300）
+
+`capability-protocol::consent`に、text / GUI共通のversion付きfeedback形式を追加しました。
+transaction ID、32byte challenge、表示世代、提示した選択肢、独立した入力証拠のserialを使い、
+返答から実行体・Capability・resource・PIDを書き換える形式にはしません。
+challengeはserviceの乱数生成器から渡す必要があります。番号や自己申告senderは認証になりません。
+
+`capability.service`が所有する`consent::Controller`は、確認待ちを最大32件保持します。
+同じrendererへの確認は重ねず、待ち状態を返します。同期IPCでfrontendの応答を待つ処理、
+暗号、署名検証、画面描画、Capabilityのgrantは、この状態機械へ入れていません。
+確認待ちの実行体・元ELF / prepared ELF / 要求権限とresourceのdigest、session、policy世代、
+renderer登録世代、input routeを固定します。応答にこれらの差し替え欄はありません。
+
+表示完了の返答後、別processにある登録済み入力authorityからserialと押下状態のsnapshotを受けて
+入力をarmします。新しいphysical pressだけを記録し、古いserial、repeat、synthetic inputは
+承認証拠になりません。表示前から押されていたキーは、一度releaseされる必要があります。
+frontendが自分で送った「入力証拠」や、提示されていない許可範囲を拒否します。
+通常のstdinやInputEvent packetをこの証拠として受け入れるtransportは実装していません。
+
+受理時には、service adapterが取得した現在のrequester / presenter / input instance、session、
+focus、policy世代を照合します。取得失敗はcached identityへfallbackせず欠落として扱います。
+実行体変更・終了・session切替等は、応答を待たずownerのobserveで取り消すこともできます。
+期限はmonotonic clockで判定し、巻戻り・overflow・ID再利用を拒否します。
+許可判断は外部I/Oへ戻る前に一回だけ消費され、grantや永続化が失敗しても再利用できません。
+一回限りの許可をprocess全体のgrantへ拡大せず、「すべて許可」という暗黙の範囲も追加しません。
+
+package / policy refreshは成功時だけauthorization世代を進めます。世代の枯渇はrefresh全体を
+失敗させ、古い世代で新しいpolicyを公開しません。この世代も確認transactionへ固定します。
+
+この戻り値は、ある時点での確認結果であり、kernelの許可Handleではありません。
+最終的なgrant / exec authorizationは同じ対象bytesとexecution instanceへatomicに結び付ける
+必要があります。ユーザー空間でrevisionを読んだ後、世代と無関係なCapTransferを呼ぶだけでは
+execとの競合を防げません。
+
+状態機械と共通feedback codecは実装・検証済みです。既存のCAPABILITY_DECISION経路、
+mshのstdin確認、secure-ui popupのtransportをこのcontrollerへ置換する接続はまだ残っています。
+既存brokerのpackage IDだけの信頼判定や、実際の保護入力channelを修正済みとは扱いません。

@@ -1784,3 +1784,31 @@ checksum6件、input READY、Binder起動、デスクトップとFilesの表示�
 Files起動時の既知のactivate TransportFailureが今回も1件あり、再操作で表示されました。
 その問題を修正したとは扱いません。NICなしNetwork Failed(-6)とUSB driver creation errno 22も
 残っています。全検証VMは停止し、analyzerの再開処理も完了しています。
+
+## text / GUI共通の確認状態機械（phase300）
+
+[共通確認transactionの状態管理](../elf-signature-memo.md#共通確認transactionの状態管理phase300)を
+`capability.service`内へ追加しました。version付きの80byte feedback codecはno_stdで共有します。
+待機中はcontrollerが状態を保持し、nonce・表示世代・期限・固定subject・scopeと、別の入力元が
+報告した新しいphysical gestureを検証します。rendererと入力authorityを同じprocessにはできません。
+stdin / pipe / clipboardに相当するsynthetic event、repeat、古いserial、押しっぱなし、
+未提示の選択肢、replay、他instance、focus / session / policyの変更は許可判断になりません。
+
+controllerは描画やIPC待ちを実行せず、最も近い期限と取消し結果をownerへ返せます。
+入力元・requesterの終了やgeneration変更もownerのobserveで取消せます。
+最終的なkernel grantはここでは行いません。native commit側とのinstance / digest結合が必要で、
+単なる読み取り後の無条件CapTransferへ置き換えてはいけません。
+policyの更新世代をstateへ追加し、indexとpolicyの読取りが両方成功した場合にのみ更新します。
+世代がoverflowする場合も古いpolicyを維持して失敗します。
+
+関連ホスト5対象61件が成功しました。Ticket counterとinput serialのu64上限、nonceの各byteの
+改変、最大32件の並行状態、別要求へのgesture流用、期限ちょうどの失効、取消し後のslot再利用、
+キーrelease後にUI応答が遅れる場合、変更・欠落した21種類の現在情報も確認しています。
+feedback codecのno-default-features checkとnative capability / standalone runtime buildも成功しました。
+テストはすべて`services/posix/tests/`にあります。今回はwire codecとユーザー空間状態の変更で、
+新しいIPC経路やnative境界の接続はまだ行っていないため、KVMを起動しません。
+
+旧msh確認・GUI popupとserializedなservice loopからの移行、入力authorityが発行する実際の
+保護channel、検証済みsource / prepared imageの共通認可、clang linker driverとmsignの接続は
+未完了です。完全POSIX環境のgoalも継続中です。
+証跡は`out/checks/mochios-consent-300-*`です。SDKとRust std overlayは再生成していません。

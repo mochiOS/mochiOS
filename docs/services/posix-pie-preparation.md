@@ -1648,3 +1648,64 @@ TransportFailureを1件記録し、再操作で正常表示・終了しました
 全起動操作が無条件に正常とは扱いません。NICなしのFailed(-6)とUSB driver errno 22も
 引き続き記録されています。記録した試験VMは停止済みで、analyzerの再開処理も完了しました。
 証跡は`out/checks/mochios-interpreter-296-*`です。完全POSIX環境のgoalは継続中です。
+
+
+## 実行中プロセスへのLOAD配置（phase297）
+
+`posix-client::elf_mapping`を追加しました。interpreterや将来のdlopenが、同じプロセス内へ
+再配置済みのELFをinstallするための共通処理です。既存の`pie::link_scope`が作る各DSOの
+prepared ELFをそのまま扱えます。pathの選択・認証、symbol scope、relocation、RELRO、
+constructor / finalizerとライブラリ利用者の寿命は上位のユーザー空間loaderが担当します。
+未処理のPT_INTERPは拒否し、本体の起動引き渡しと混同しません。DSOには実行entryを要求せず、
+LOADの範囲・alignment・W+X・page重複は起動用と同じparserで検査します。
+
+まず全LOADとその間の穴を含む正確なspanを、inaccessibleなanonymous reservationとして
+atomicに取得します。EXACTだけを指定し、既存mappingとの衝突では何も置換しません。
+所有を記録した範囲の内部だけをRW・NXのfresh anonymous pagesへ置換し、captured bytesを
+コピーします。BSSはanonymous zero-fillを使い、file bytesとしてmaterializeしません。
+全LOADの配置が済んでから各LOADを元のRX / R / RW等へsealします。穴はinaccessibleのままです。
+未処理のresolverやconstructorをこの処理が勝手に呼び出すことはありません。
+
+reserve、populate、copy、sealの失敗はterminalです。partialなnative編集の可能性を含め、
+予約した全spanを解放します。解放自体が失敗した場合は元errorとcleanup errorを返し、
+rangeの所有を残して明示的なcleanupを再試行できます。releaseの途中失敗後もreadyとは
+扱いません。Dropはbest effortであり、loaderがerrorを報告する場合は明示的releaseを使います。
+
+seal後のcommitは、callbackを再開する前に独立した`Mapping` ownerを呼出側へ登録します。
+このownerは入力bufferやparserを借用しません。transactionとprepared bytesを解放した後も
+mappingだけを保持でき、自己参照pointerやinput bufferの意図的なleakは不要です。
+C callbackでRust frameを放棄できるruntimeは、従来と同じ外部resource ownerとnative-delivery
+critical guardを用意する必要があります。登録closure内でapplication codeを実行しません。
+
+native adapterは既存のMemoryMapBounded / MemoryCopy / MemoryProtect / MemoryUnmapを使います。
+呼出側が現在のRLIMIT_AS ceilingとcallback critical policyを渡します。コピーは既存の
+MemoryCopy上限で分割し、raw pointerをRust sliceへ変換しません。POSIX serviceへの高頻度RPC、
+新しいカーネルAPI、サービス名・pathを知るカーネル処理は追加していません。
+SDKとRust std overlayも再生成していません。
+
+関連ホスト試験は12対象130件が成功しました。GNU toolchainの実DSOを既存symbol scopeで
+再配置し、実host VMでseal後に関数を呼び、DSO間のimport / interpositionとweak symbolを
+確認しました。prepared bytesを解放した後も実行でき、Drop後は全spanが消えています。
+別のmappingが既にある場合の保護、全populate / copy / seal段階の部分失敗、cleanup失敗、
+ready stateの失効、callback再開前のowner登録、短い入力と不正なLOADも検証しました。
+関連回帰でVM編集fixtureが未使用observerの依存まで取り込んでいた問題を見つけ、
+その分離を独立した小さなテスト修正としてコミットしました。observer自身の試験も成功しています。
+
+KVMではeuid 0 / 501の両方で、2つのDSOをnative adapterから配置しました。
+128 KiB BSSのzero-fill、seal後の関数呼出し、RXへのMemoryCopy拒否、有限ceilingでの拒否、
+既存領域との衝突で元mappingが保たれること、fork後のprivate data分離、明示的release、
+同一addressへのfreshな再配置と再度のBSS初期化、prepared buffer解放後の実行を確認しました。
+同じnative adapterを通じたDrop後のaccess拒否も成功しています。
+
+これはruntime内のmapping基盤です。production interpreter / ld.so、dlopen / dlsym / dlclose
+API、module graphと参照・実行中利用者の管理、runtimeでのTLS module追加、その他の既記残件は
+引き続き必要です。完全POSIX環境のgoalは継続中です。
+証跡は`out/checks/mochios-elf-mapping-297-*`です。
+
+診断用DSOを除去し、manager manifestを元のhash / modeへ戻しました。現在のruntimeを
+使う通常managerとcapabilityを残したimageでchecksum6件、input READY、Binder起動、
+デスクトップとFilesの開閉を確認しました。マウス移動後の最初の操作はhoverとなり、
+次のclickでFilesが表示されました。今回の通常起動ログに前回のactivate TransportFailureは
+記録されていませんが、その原因を修正したとは扱いません。既存のNICなしNetwork Failed(-6)、
+USB driver creation errno 22は残っています。記録した両VMは停止済みで、analyzer再開処理も
+完了しました。SDK6ファイルとカーネルのsourceは変更していません。

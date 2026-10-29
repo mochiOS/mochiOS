@@ -439,3 +439,46 @@ SOA negative cache、IPv6 transportと外部DNSのnative実通信は引き続き
 NI_NOFQDNのlocal判定はloopbackまたは現在の自interface addressに限定し、
 判定不能なremote名のsuffixは削りません。外部ネットワーク設定は変更していません。
 POSIX互換環境全体のgoalは継続中です。
+
+## SOAによるnegative DNS cache（phase286）
+
+DNS応答のNXDOMAINとNODATAを区別して保持し、成功応答と同じcacheの上限内で保存する処理を追加しました。
+上限はnetwork stackごとに合計32 entriesで、ネットワーク設定の変更・喪失時は両方を破棄します。
+cacheは既存のDNS factory認可の後で使われます。Capability取得経路、Handle転送やkernel ABI、
+resolver IPC version 1の形式は変更していません。
+
+SOAはauthority sectionのIN classから取り、CNAMEを辿った終端名を含む最も近いzoneだけを使います。
+名前の比較は文字列のsuffixではなくDNS label単位です。primary/mailbox名、serial、refresh、retry、
+expireとminimumを解析し、圧縮名・RDLEN・重複SOAの整合性も検査します。
+negativeの期限はSOAのTTLとMINIMUMの小さい方です。0またはTTLの上位bitが立った値は保存せず、
+参照時には経過時間を引きます。SOAのない不存在応答、referral、SERVFAIL、REFUSED等は保存しません。
+参照仕様は[RFC 2308 §3–5](https://www.rfc-editor.org/rfc/rfc2308.html#section-3)と
+[SOAのRDATA形式](https://www.rfc-editor.org/rfc/rfc1035.html#section-3.3.13)です。
+
+NXDOMAINは終端の同名についてA/AAAA/PTRの種別を跨いで使い、NODATAは同じ問い合わせ種別だけへ使います。
+別の子名まで不存在と推測する最適化は加えていません。CNAMEを含む応答ではalias経路と終端名を分けて保存し、
+alias側はCNAMEの残りTTLも上限にします。CNAMEが先に失効しても終端SOAの寿命は保ち、
+CNAMEの後続問い合わせが既存の終端cacheに到達した場合も、SOAの期限を延長しません。
+新しい成功・不存在の応答で矛盾するentryを、応答が示す名前・種別の範囲で置き換えます。
+
+resolverはnegativeを通常の成功結果にせず、NXDOMAIN/NODATAの両方を既存wireのstatus -2へ変換します。
+Provider側も、Backendからの空の成功結果をstatus -2へ揃えます。cache hitは内部statisticsへ数え、
+既存wire契約どおりerror snapshotのcached flagはfalseのままです。
+EDNS OPTの拡張RCODEがあるエラーをNODATAへ誤認しない検査も追加しました。
+OPTのsection・owner・重複とoption長を検査し、未知の正常なoptionは無視します。
+この扱いは[RFC 6891 §6.1](https://www.rfc-editor.org/rfc/rfc6891.html#section-6.1)を参照しています。
+EDNS交渉やDNSSEC検証を実装したという意味ではありません。
+
+5 targets / 95 host testsが成功しました。新規21件では独立したpacket bytesをproductionのdecoder/cacheと
+resolver jobへ渡し、圧縮SOA・期限・種別・zone境界、CNAMEの同一/複数message、矛盾するcacheの置換、
+UDP/TCP両経路、設定変更、偽のtransaction/question、malformed SOA/OPT、error propagationを確認します。
+既存74件も成功し、Providerのerror snapshot試験にはNXDOMAIN/NODATAのstatus検査を追加しました。
+従来のRCODE fixtureが「NXDOMAINなのに終端A recordを含む」不整合なpacketだったため、
+そのfixtureをanswerなしの正しいerror応答へ直しています。不整合packetの拒否は新規試験で確認しています。
+network.serviceのmochiOS向けbuildも成功しました。証跡はout/checks/mochios-dns-negative-286-の
+host-results.txt、host-final.logとnetwork-final.logです。
+
+今回はDNS data処理とstatus生成の変更で、新しいnative境界はありません。KVMを起動せず、
+通常imageの差し替えも行っていません。SDKとRust std overlayの生成は行っていません。
+IPv6 transport、外部DNSとのnative実通信、検索domain/NSS設定などの作業は残っています。
+POSIX互換環境全体のgoalは継続中です。

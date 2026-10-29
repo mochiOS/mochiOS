@@ -1709,3 +1709,31 @@ API、module graphと参照・実行中利用者の管理、runtimeでのTLS mod
 記録されていませんが、その原因を修正したとは扱いません。既存のNICなしNetwork Failed(-6)、
 USB driver creation errno 22は残っています。記録した両VMは停止済みで、analyzer再開処理も
 完了しました。SDK6ファイルとカーネルのsourceは変更していません。
+
+
+## 名前によるexport検索（phase298）
+
+`pie::link_scope::lookup`に、明示的なvisible order、handleの依存family、指定originより後の
+検索を追加しました。familyはDT_NEEDEDを幅優先で辿り、無関係なobjectは検索しません。
+不足・曖昧なprovider、不正・重複したindex、配置不能なbias、不正な名前はerrorにします。
+既存のScopeはその確立済みorderを`exports()`で渡せます。namespaceやglobal/localの登録、
+callerの同定、mappingの保持は上位loaderの責務で、ここではpathを開いたりgrantしたりしません。
+
+dlsym相当の既定版と、dlvsym相当の明示版を、再配置用の旧互換検索と区別します。
+既定版は公開されているdefault interfaceを選び、古いhidden versionをindex 2だからという
+理由で選びません。明示版はversion名とhashを照合し、ELFのhidden/local visibilityを
+迂回しません。これは[GNUのsymbol検索](https://raw.githubusercontent.com/bminor/glibc/master/elf/dl-lookup.c)の
+再配置とdlsymの区別を基準にしています。
+
+結果は通常address、providerのTLS offset、IFUNC resolverに型を分けます。
+TLSは上位runtimeが現在threadのmoduleへ変換し、IFUNCは配置・初期化後にcallerが解決します。
+検索自体はcallbackを実行しません。通常addressやresolverの返値0は成功で、見つからないNoneや
+callback errorと区別します。[GNUのdlsym処理](https://raw.githubusercontent.com/bminor/glibc/master/elf/dl-sym.c)も
+TLSを現在threadのaddressとして扱います。Cのdlsym/dlvsym ABIとmodule registryへの接続は残っています。
+
+関連ホスト試験は5対象78件が成功しました。SysV/GNU/both hash、section tableあり・なし、
+既定・旧・明示version、family/next、無関係scopeの除外、TLS、IFUNC、NULL成功、protected/hidden、
+不足provider、重複index等を検査しました。同じ実DSOをGNU dlopen/dlsym/dlvsymでも実行し、
+version選択、別threadのTLS、IFUNCとNULL成功を照合しています。standalone runtimeのnative buildも
+成功しました。今回は純粋なユーザー空間検索処理でnative境界を変えていないため、KVMは起動していません。
+証跡は`out/checks/mochios-symbol-lookup-298-*`です。

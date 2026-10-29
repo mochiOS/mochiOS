@@ -14935,3 +14935,11 @@ path = "services"
 hash = "6cffda50e2a9dfeded1a2d43ee388f0393eb3789"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify image measurements across native exec commit"
+
+[[entries]]
+date = "2026-10-29T18:47:10.439878952+09:00"
+snapshot = "28124af1ad85c03f67ea439a"
+path = "applications/installer"
+hash = "3313849e0139c74cc424924247a799190712f9f2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Run Installer operations through scoped AppCore tasks"

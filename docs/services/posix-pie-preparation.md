@@ -1540,3 +1540,57 @@ pthread、fork、exec、COPY、init / finiと子終了statusも成功してい�
 
 readonlyなlate write先、interpreter、dlopen / dlclose、動的TLS追加、weak GD / IE TLS、
 その他既記の残件を含む完全POSIX環境のgoalは継続中です。SDKとRust std overlayは再生成していません。
+
+
+## 読み取り専用データの遅延再配置（phase295）
+
+IFUNC / IRELATIVEの8-byte書込先、および遅延COPYの実際の書込先がPF_RだけのLOADに
+ある場合も扱います。元ELFとprepared containerのLOAD flagsはread-onlyのまま保持します。
+scopeは対象LOADのpage extentを求め、CRTが全再配置計画を捕捉・検査した後だけ
+既存のMemoryProtectで一時的にRW・NXへ変えます。resolverとCOPYの完了後、
+RELROと合わせた全保護範囲をRへ戻してからconstructorへ進みます。
+実行可能LOADの遅延write先は引き続き拒否し、W+Xは作りません。
+実行コードを含むtext relocationは別配置のloaderを必要とする残件です。
+
+MRELRO01 envelopeのuserspace version 2に、最終read-only範囲とは別の一時write範囲を
+追加しました。全write範囲は最終保護範囲に完全に含まれる必要があります。
+両listを整列・検査し、最終範囲は重複と隣接を合併します。source ELFのread / execute bitと
+inner resolver計画を保ち、COPY元のread検査、全write幅の重複検査、依存順も維持します。
+rootには`__mochios_relro_v2`を要求し、v1宣言だけでは一時writeを許可しません。
+従来のRELRO-only envelopeとCRT宣言も使えます。
+カーネル、native ABI、POSIX service protocol、SDKには変更がありません。
+
+CRTはenvelopeとinner planのprivate captureをすべて済ませてから権限を変えます。
+一時writeの最初・二番目の変更、再配置、最終保護の途中で失敗した場合は、
+試みた範囲も含めて全一時write範囲をRに戻す処理を行います。
+元errorを返し、状態はterminalになり、constructorや再試行へ進みません。
+復元自体のnative errorを無視して実行を続けるのではなく、startup失敗でprocessを終了します。
+Cによるframe放棄は従来どおり再入を拒否し、private scratchはimage teardownで回収されます。
+この仕組みは既存mapping権限を超えるauthorityを作りません。
+
+14 targets / 168 host testsが成功しました。実GNU linkerが作ったPF_RのIFUNC slotを
+本物のhost VMへRでinstallし、実resolverを実行した後、Rへ戻してPOSIX readのEFAULTを
+確認しています。同じDSOをGNU loaderでも動かしています。COPYの実行試験もread-onlyの
+固定rootで行い、providerのresolver→COPY→root resolverの順序を確認しました。
+通常COPYのread-only宛先はimage準備中に処理できる一方、RX宛先の拒否は残しています。
+実CRTの別process試験では、元metadataの変更、大きな計画、不正な最後のfixupを
+write許可前に拒否すること、各段階の失敗とRへのrollback、再実行禁止を検査しました。
+wire試験ではv2の全truncation、version / count / length、欠落した復元範囲、alignment、
+overflow、短い出力、旧consumerの拒否、page範囲の合併も検査しています。
+exec試験ではv1宣言による拒否と、元LOADがRのままv2計画が起動情報へ渡ることを確認しました。
+
+standalone runtime、capability service、診断managerを順序付きでビルドしました。
+KVMではreadelfでPF_R LOAD上のslotと実IFUNC relocationを確認したDSOを使いました。
+UID 0 / 501のcapability application launchと通常execの双方で、計8回、
+constructor開始時にpointerが正しく解決され、そこへのPOSIX readがEFAULTになることを
+確認しました。TLS、pthreadからの同pointer利用、fork、exec、COPY、init / fini、
+子終了statusと大きなmetadataも成功しています。
+
+probeと111 librariesを除去し、診断manifestは元のhash / modeへ戻しました。
+通常版managerも現在のstandalone runtimeでビルドし、更新したcapabilityとともに
+通常imageへ反映しています。SDKやRust std overlayは再生成していません。
+通常デスクトップとFilesの開閉を画面確認し、記録したVMだけを停止してanalyzer再開処理も
+済ませました。証跡は`out/checks/mochios-readonly-relocation-295-*`です。
+
+実行可能ページへの遅延write、ELF interpreter、dlopen / dlclose、動的TLS追加、
+weak GD / IE TLS、その他既記の残件を含む完全POSIX環境のgoalは継続中です。

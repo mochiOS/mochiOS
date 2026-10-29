@@ -332,3 +332,47 @@ kernel・Rust std overlay・通常imageは変更せず、今回KVMは起動し�
 AI_ADDRCONFIGとinterface名の解決に必要なnetwork設定情報の照会も、既存endpointには不足しています。
 その情報経路、名前サービス設定、実Handleの待機・取消を揃えてからCの公開入口へ接続します。
 全体のPOSIX goalは継続中です。
+
+## Interface設定の観測（phase284）
+
+network endpointへNIFS version 1のread-only snapshotを追加しました。
+interfaceのindex・名前・flags・MTUと、addressの種類・prefix・scope・usable状態を一つの返信へserializeします。
+これはnativeなnetwork dataで、POSIXのFDや自己申告PID、pointerをwireへ載せません。
+serviceはIPCが保証するendpoint経由のdeliveryと添付Handleなしを要求します。
+委譲済みendpointのSENDがこの観測の権限です。legacyなPID宛て呼び出しやnative Provider要求を通して
+同じ観測へ入ることはできません。socket/DNS factoryのnet.connect検査は維持しています。
+
+現在のserviceが扱うIPv4 loopbackをlo/index 1、実deviceをeth0/index 2として表します。
+deviceなしではloopbackだけを返し、DHCP設定前やlease喪失後にはphysical addressを作りません。
+MTUは実deviceのinfoと、現在のlocal datagramの転送上限から取ります。
+IPv6 addressのwireとclient解析にも対応しますが、実IPv6 transportを追加したという意味ではありません。
+
+posix-client::interfacesは委譲されたendpointを呼び、返信全体のversion・長さ・reserved field、
+index/nameの重複、address/prefix/scopeを検査します。bufferは4096 bytesを送信前に確保する契約です。
+返信の上限超過はpartialな一覧へ切り詰めず失敗し、大きな返信が受理されない場合は小さなerror headerを試みます。
+要求していない添付Handleは重複を避けてcloseします。snapshotからinterface名のindexを引き、
+AI_ADDRCONFIG用にはloopback、unspecified addressとusableでないaddressを除外してfamilyを求めます。
+このPOSIXの判断はclient側に置き、kernelへinterfaceやPOSIXのentry pointを加えていません。
+
+5 targets / 63 host testsが成功しました。新規11件はproductionのwire・client・serviceを使い、
+実状態のencode、lease喪失、mask/prefix、IPv6 scope、endpoint deliveryによる認可、
+添付Handleの拒否・回収、version/境界/重複と返信失敗を確認します。
+既存policy/data・routing・network errorの52件も成功しています。
+networkと診断managerのmochiOS向けbuildも成功しました。
+証跡はout/checks/mochios-interfaces-284-{host-final-verified,network-verified,manager-verified}.logと-host-results.txtです。
+
+最終版のKVM試験はeuid 0 / 501で成功しました。通常managerのmanifestからnet.connectを追加せず、
+64回ずつの観測、lo/MTUとfamilyの解釈、SENDだけの複製endpointでの観測、SENDなしの拒否、
+同じendpointからのDNS factory取得の拒否を確認しています。
+証跡はout/checks/mochios-interfaces-284-native.logです。NICなしの環境であり、外部通信の成功とは扱いません。
+
+診断managerを元のhashへ戻し、manifest/verificationのhashも一致することを確認しました。
+更新したproduction networkで通常imageを生成し、checksum、input READY、Binder readyと、
+desktop / Dock、Filesの起動・フォルダ表示・終了を画面で確認しています。
+closeの最初のclickでアクティブになり、次で閉じる既存挙動と、NICなしのnetwork Failed(-6)は残っています。
+証跡は-normal.log、-desktop.png、-files.png、-close-first.png、-closed.png、-image-normal.logです。
+3回のKVMは自分のPIDを照合して停止し、各analyzerの記録も再開済みです。pause時点の対象は各0件でした。
+SDKの6 filesのhashは変わっておらず、kernelとRust std overlayも変更していません。
+
+C resolverの公開関数、実DNS Handle Backend、hosts/services等の名前サービス設定への接続は残っています。
+POSIX互換環境全体のgoalは継続中です。

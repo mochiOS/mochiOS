@@ -15039,3 +15039,11 @@ path = "applications/viewer"
 hash = "049faaee8df5ad5174272fc3c34b612f3172c0d5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Compose Viewer chrome with standard ViewKit controls"
+
+[[entries]]
+date = "2026-10-31T20:48:16.244042102+09:00"
+snapshot = "d6deed0f8f9926ecbf36e0ae"
+path = "applications/mail"
+hash = "5bdeee464ce476a58dd2c2ed5d65038039a148cf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reveal mail pane junction corners over shared chrome"

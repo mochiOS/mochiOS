@@ -226,3 +226,70 @@ Vimや通常clangの一連の開発操作、完全なPOSIX互換性の完成を�
 診断を除いた通常版でもdesktop・Dock・Terminal・mshと文字入力・echo・プロンプト復帰を
 確認しました。通常版2実行体のstage / image hashと6件のchecksumを照合し、全検証VMを停止して
 解析処理の復帰も完了しました。変更とlock更新は署名付きコミットへ保存しています。
+
+## 通常TerminalのPTY入力とmshのjob制御（311）
+
+通常Terminalはopenptyのmasterを保持し、slaveだけを既存の検証済みapplication launcherで
+mshのstdioへ明示的に委譲します。mshはlogin_ttyでcontrolling terminalを取得します。
+この処理のためにカーネルへ端末・shell・サービス名の知識は追加していません。
+
+binary InputEventをstdinへ書く経路を通常Terminalから外し、UTF-8、制御文字、端末キー列を
+送ります。入力は64 KiBを上限とするキューで順序を保ち、部分書き込みとEAGAINでは
+未送信の末尾を残します。各tickの書き込み・出力読み取りにも上限があります。
+実際の表示領域の行列数を起動時と変更時にPTYへ渡します。
+
+mshは子の実行中にstdinを読みません。既存のcommand builder・PATH検索・環境継承を使い、
+子のprocess groupとforeground terminalをfork/execの間で設定します。
+waitpidで終了・停止・再開を追跡し、停止したjobをjobs / fg / bgで扱います。
+末尾の&も解釈します。shellに戻る際にはforeground group、blocking status、canonicalな
+端末属性を復元し、fgでは停止したjob自身の端末属性を復元してからSIGCONTを送ります。
+端末切断時の書き込み失敗もio::Resultで処理し、保持中のjobの後始末へ戻します。
+
+実際のSDKのCヘッダーとの照合とKVM試験で、共通Rust libcに三つの不整合を発見しました。
+termiosはc_lineなし・速度フィールド二つを含む56 bytesでしたが、汎用newlibの52 bytesの
+構造体を公開していました。SDKと同じ構造体、端末定数、openpty / window-size宣言へ揃えます。
+WIFCONTINUEDが常にtrueだったため、終了・停止との区別ができる実際のwait status解釈へ
+直しました。さらにsignal番号がLinux ABIのままで、SIGTSTPを無視する操作が実際には
+newlibのSIGCHLDを無視していました。これがKVMで発見した子の自動reapとECHILDの原因です。
+SIGCHLD=20、SIGSTOP=17、SIGTSTP=18、SIGCONT=19等を実際のnewlib ABIへ修正しました。
+SDK自体の再生成・書き換えは行っていません。
+
+ホストではSDKのCヘッダーとの構造体・定数・wait解釈の照合、入力の変換とキュー、
+job状態と背景構文、実PTY上の入力・pipeline・停止/fg・SIGINTを検証します。
+ホストのshell helperは意図的にSIGCHLDを無視してから起動し、shellの初期化が
+起動元の自動reap設定を引き継がないことも確認します。
+
+通常rendererはscrollback表示でTERM=dumbです。完全なVT端末、全POSIX shell文法、Vimの
+実用動作を完成扱いにはしません。旧stdio / endpointの明示モードは移行中の利用側向けに
+残っています。通常PTY経路の失敗を、その旧経路へ暗黙にフォールバックしません。
+新しいCapabilityの付与には引き続き保護された提示・入力経路が必要です。
+stdinや任意のkey packet、古いscalarな承認返信を新規grantの根拠にはしません。
+CLIとGUIの保護された同意frontend、および通常のclangからld.lld・msign・署名済み
+standalone ELFの実行へつなぐ作業は未完了です。
+
+311のホスト10対象27件と通常Terminal・msh・入力サービスのnative buildは成功しました。
+KVMでは通常のDockから開いたTerminalで、子への行入力・正常終了・promptへの復帰、
+raw modeでの上矢印のESC[A受信、raw / nonblockingを残す子からの端末復元、
+SIGTSTP停止とfgでのjob端末属性復元、Ctrl+Cによるforeground子の終了を確認しました。
+背景readのSIGTTIN停止、bgで再開後の再停止、fg後の入力と終了、jobsが空になること、
+shellの通常exitをTerminalがwaitしてProcess completedを表示することも確認しています。
+上矢印の最初の実機試験は未達でした。input.serviceのscan code 0x48 extendedの対応漏れを
+一行追加し、入力サービスをビルド・配置した後、同じ物理キーでPASSを確認しました。
+
+pipelineは全面合格ではありません。入力待ちするcopy | copyではデータ転送、Ctrl+DのEOF、
+両段の終了とprompt復帰が成功しました。一方、直ちに終了するechoを前段にすると、
+次のchildの生成でEAGAINが発生しました。前段終了との競合が疑われますが、原因箇所を
+特定したものではありません。失敗を隠す再試行や別の実装へのfallbackは追加していません。
+この問題、catの引数なしstdin対応、option付き.appのPTY側dispatch、完全なVT表示、
+保護された承認frontendと署名driverは引き続き未完了です。
+
+既存SDK / runtimeの固定済みlink入力を消費し、SDKやRust overlayを再生成していません。
+SDKの観測hashはphase310から変化していますが、この作業で書き換え・巻き戻しはしていません。
+検証したVMは全て停止し、ホスト解析の再開処理も完了しています。一時native fixtureは
+通常配布stageから除去しました。診断用に差し替えたPOSIXサービスも元の実行体へ戻しています。
+記録はout/checks/mochios-pty-shell-311-artifacts.json、同接頭辞のhost.log、
+keys-vm.logとkeys-*.pngです。通常イメージへの最終反映は同normal-image.logに記録します。
+
+最終の通常イメージでもTerminal・msh・入力サービスのバイト列がnative buildとstageに
+一致し、元のPOSIXサービスが維持されていることをimage内から読み戻して確認しました。
+一時fixtureはimage内にも存在せず、配布物6件のSHA-256チェックも成功しています。

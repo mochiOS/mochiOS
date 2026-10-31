@@ -839,3 +839,11 @@ TerminalのアダプタがO_RDWRのstdioを片方向へ縮小していた点を�
 PTYの委譲、制御session、UTF-8入出力、EOF後の再入力、foreground SIGINTとwaitを確認しました。
 詳細と未接続の通常入力経路は[起動ポリシーの記録](services/posix-launch-policy.md#検証済みlauncherへの双方向ptyの委譲310)にあります。
 新規の対話承認や権限追加を有効化したものではありません。
+
+## 通常TerminalのPTY経路とSDK ABIの修正（phase311）
+
+通常Terminalから検証済みlauncherへPTY slaveを渡し、mshのforeground job、停止・再開、
+端末属性復元を接続しました。共通Rust libcのtermios / wait status / signal番号も実際の
+newlib ABIへ揃えています。[実機で通った範囲と残るpipelineの競合](services/posix-launch-policy.md#通常terminalのpty入力とmshのjob制御311)を参照してください。
+通常clangからld.lld・既存msign・署名済みstandalone実行へつなぐdriverと、保護された
+CLI / GUI承認frontendは引き続き未完了です。署名やmshのパスだけで新規権限は付与しません。

@@ -634,3 +634,46 @@ USB driver作成errno 22は今回の修正対象ではありません。
 guest clangから既存msignへの接続、単体ELFの署名・manifestを含む共通実行認可、
 保護された入力・focus / sessionとmsh / GUI popupの非同期接続、最終grantとのatomicな結合は
 引き続き必要です。mnuのABIやサービス固有の知識は追加していません。
+
+## 入力authorityから共通controllerへの専用通知（phase306）
+
+input.serviceへ、公開InputEventとは別のconsent入力経路を追加しました。
+version付きの登録・arm・cancel・status要求と入力通知に、要求のchallenge・表示世代・
+入力経路の世代・単調増加serialを結合します。自己申告のPIDや信頼flagはありません。
+入力側はkernelのcapabilities.manage判定を経たIPC senderをownerとし、
+別の管理processでも既存ownerの経路を横取りできません。
+
+受け付けたdriver packetからキーとボタンの押下状態を追跡します。
+合成入力には別のprefix decoderを使い、合成のreleaseで物理キーを解放しません。
+観測済みの押しっぱなしはRepeatとし、複数buttonを一つのreportで交換した際にも
+途中の「すべて解放」を作りません。確認表示後のarmは現在のserialと押下状態を返します。
+input.serviceからbrokerへの通知送信が失敗した経路は破棄し、その後の入力で自動再開しません。
+消費側は最終判断前にもstatusで経路の生存と未処理通知を確認する必要があります。
+
+service-managerはinputの起動完了後にcapability.serviceへ接続を依頼します。
+brokerはbootstrapの信頼ルートに対してinputのpackage identityと測定済みcodeを照合し、
+実際のProcess Handleを保持します。返信のnative senderと前後の実行instanceを照合し、
+通知受信時にも同じnative object・image revision・digestであることを再確認します。
+異なるsender、古い経路・要求・表示、重複または飛んだserialを承認証拠として受け付けません。
+mnuへの専用API追加やinput.serviceへのprocess.inspect権限追加はありません。
+
+ホスト7対象59件と回帰7対象47件が合格しました。
+KVMでは実際のmanager・input・brokerを使い、偽senderの入力通知と、もう一つの
+capabilities.manage processからの登録・armを拒否しました。
+正規driver入口から送った合成yではcontrollerが承認せず、その後QEMUのkeyboard deviceから
+送った物理yのpress / releaseと生きた経路の最終snapshotでのみcontrollerの試験が通りました。
+試験中のpresenterとsessionの観測は診断fixtureです。Capabilityの付与・永続化・起動は行わず、
+実際の確認UIやsession / focusの検証まで完了したとは扱いません。
+証跡はout/checks/mochios-consent-input-306-*です。
+
+診断collectorを除いた通常版でもdesktop、DockからのTerminal起動、文字入力、
+echo / pwd、ENOENT後の継続操作を確認しました。閉じる初回操作は反映されませんでしたが、
+その後もTerminalのコマンド実行は応答し、再操作では閉じられました。
+初回不達の原因は特定しておらず、修正済みとは扱いません。
+通常版3実行体のstage hash、image hashと6件のchecksumを照合しました。
+SDK 6ファイルとkernel commitは未変更で、全検証VMを停止し、解析処理の復帰も完了しています。
+
+この経路は既存の通常入力を置き換えず、通常版では新規承認が必要な操作をまだ許可しません。
+実際の表示完了・session / focus・入力の専有route、device初期状態・reset / hotplugと
+複数deviceの整合性、mshとGUIのfrontend、実行体に結合した最終grantへの接続が残っています。
+通常clangから既存msignへの接続と、単体ELFの署名・manifestを含む共通実行認可も未完了です。

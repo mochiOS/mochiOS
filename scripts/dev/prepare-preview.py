@@ -77,6 +77,12 @@ write_if_changed(preview / "Cargo.toml",
     '[workspace]\nresolver = "2"\nmembers = [\n    ' + ",\n    ".join(members)
     + '\n]\n\n[profile.dev]\npanic = "abort"\ndebug = 0\nincremental = false\n'
     + '\n[profile.dev.package.viewkit]\nopt-level = 2\n'
+    # Document thumbnails run off the UI thread, but unoptimized image codecs
+    # can still exceed the worker deadline for ordinary desktop-size images.
+    + '\n[profile.dev.package.image]\nopt-level = 2\n'
+    + '\n[profile.dev.package.png]\nopt-level = 2\n'
+    + '\n[profile.dev.package.fdeflate]\nopt-level = 2\n'
+    + '\n[profile.dev.package.zune-jpeg]\nopt-level = 2\n'
     + '\n[profile.dev.package.binder]\nopt-level = 1\n'
     + '\n[profile.dev.package.argon2]\nopt-level = 3\n'
     + '\n[profile.dev.package.blake2]\nopt-level = 3\n'

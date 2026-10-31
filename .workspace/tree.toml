@@ -15055,3 +15055,11 @@ path = "services"
 hash = "9037042109b140129250f8ca93b8f540279509fb"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify linker driver failures signing and real SDK inputs"
+
+[[entries]]
+date = "2026-10-31T22:34:45.968728214+09:00"
+snapshot = "ab0a7509d0ab9024fa0852d8"
+path = "tools/devkit"
+hash = "03697f188781f29ff1528f8baec70c35b92775b7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record native linker and signer integration evidence"

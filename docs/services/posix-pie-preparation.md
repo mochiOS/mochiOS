@@ -1872,3 +1872,15 @@ Terminal自体は開きますがmsh起動がPermission denied (13)になり、�
 
 保護された確認routeと新しいphysical gestureの証拠、focus / session検証、text / GUIの非同期接続、
 atomicなgrant / exec結合、通常のclang→ld.lld→msign経路と完全POSIX環境は未完了です。
+
+
+## Terminalからmshと通常ELFを実行する（phase303）
+
+Terminalの起動先を`/system/bin/msh`へ揃え、execの`AT_RANDOM`準備に必要な
+`system.random.read`をTerminalとmshのmanifestへ明示しました。通常版KVMでmshの
+prompt、`echo`、`pwd`、`cd`、検証用C ELFの`./main shell-303`とstdout/stderrを確認しました。
+検証用Cソースは`services/posix/tests/native_shell_stdio.c`、診断と修正の詳細は
+[通常execの復旧記録](../elf-signature-memo.md#terminalからの通常execを復旧phase303)を参照してください。
+
+この試験はホストで作ったELFの通常POSIX execです。guest clangの既定driver・自動署名、
+trusted mshとしての共通launch、保護された承認入力とGUI popupは引き続き接続が必要です。

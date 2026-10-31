@@ -528,3 +528,35 @@ NICなしのNetwork Failed(-6)、USB driver作成errno 22も未修正です。
 この変更だけで承認経路全体は完成しません。保護された確認中の入力route・新しい操作の証拠、
 focus / sessionの結合、msh / GUIと共通controllerの非同期接続、最終grantのatomicな結合は
 引き続き必要です。既存mshの通常stdin確認を安全な承認へ変更済みとは扱いません。
+
+## Terminalからの通常execを復旧（phase303）
+
+Terminalのmsh起動先を、インストール先と同じ`/system/bin/msh`へ修正しました。
+さらに、Terminalとmshのmanifestへ`system.random.read`を明示しました。
+現在のnewlib runtimeはexecの起動情報を作る際に`RandomFill`で`AT_RANDOM`を用意するため、
+`process.spawn`だけでは不足します。両者のbuilt-in verification recordも通常の
+`msign package built-in-record`で再生成して検証しました。
+
+実際のTerminalで診断すると、子processの生成・対象ファイルの取得・ELF準備は成功し、
+その後の起動情報作成で`EACCES`になっていました。リソース制限ページを取得する前の
+乱数取得で拒否されており、宣言を加えた通常版ではmshのpromptまで到達しました。
+
+通常版KVMで次を入力し、画面上の出力を確認しました。
+
+```sh
+echo shell-route-303
+pwd
+cd /system/tests/shell-launch-303
+./main shell-303
+```
+
+検証用Cプログラムは、`uid=1000`、上記cwd、`argv=shell-303`を標準出力へ返し、
+標準エラーへの出力も同じTerminalに表示しました。
+ソースは`services/posix/tests/native_shell_stdio.c`です。このELFはホストで作ったもので、
+通常のmochiOS上のclangや自動署名の検証ではありません。
+証跡は`out/checks/mochios-shell-launch-303-*`に保存しています。
+
+現在のPOSIX execは呼出元のsecurity domainを継承します。そのため、この起動成功だけで
+Terminalから起動したmshがtrusted prompt brokerになったとは扱いません。
+検証済みmshのidentityとstdioを共通launcherで渡す処理、保護された確認channel、
+署名・manifestを含む実行認可、通常のclangから既存msignへの接続が引き続き必要です。

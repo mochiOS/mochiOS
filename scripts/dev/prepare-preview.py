@@ -75,7 +75,7 @@ members.append('"tools/keychain-service"')
 link(root / "resources", preview / "resources")
 write_if_changed(preview / "Cargo.toml",
     '[workspace]\nresolver = "2"\nmembers = [\n    ' + ",\n    ".join(members)
-    + '\n]\n\n[profile.dev]\npanic = "abort"\ndebug = 0\nincremental = false\n'
+    + '\n]\n\n[profile.dev]\npanic = "abort"\ndebug = 0\nincremental = true\n'
     + '\n[profile.dev.package.viewkit]\nopt-level = 2\n'
     # Document thumbnails run off the UI thread, but unoptimized image codecs
     # can still exceed the worker deadline for ordinary desktop-size images.

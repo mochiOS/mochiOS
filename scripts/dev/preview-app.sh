@@ -21,7 +21,7 @@ done
 if [[ $app == check || $app == test ]]; then
     if [[ $app == test ]]; then
         python3 "$script_dir/prepare-preview.py" "$root"
-        env CARGO_TARGET_DIR="$root/out/preview/target" CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL=0 \
+        env CARGO_TARGET_DIR="$root/out/preview/target" CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-1}" \
             cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
             "${cargo_patches[@]}" -p viewkit --lib
     fi
@@ -90,10 +90,10 @@ preview_binary=$app
 [[ $app != test-app ]] || preview_binary=test_app
 [[ $app != ime ]] || preview_binary=mochios-preview-ime
 export CARGO_TARGET_DIR="$root/out/preview/target"
-# Host UI builds do not need multi-gigabyte DWARF/incremental caches. Callers
-# can opt back into either when debugging the renderer.
+# Keep debug symbols small, but retain incremental compilation for UI iteration.
+# Callers can override either setting for debugging or clean-build measurements.
 export CARGO_PROFILE_DEV_DEBUG="${CARGO_PROFILE_DEV_DEBUG:-0}"
-export CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-0}"
+export CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-1}"
 export MOCHIOS_VERSION="$(sed -n 's/^release = "\([^"]*\)"/\1/p' "$root/version.toml" | head -n 1)"
 export MOCHIOS_BUILD_NUMBER="$(sed -n 's/^build = \([0-9]*\)/\1/p' "$root/version.toml" | head -n 1)"
 export MNU_VERSION="${MNU_VERSION:-preview}"

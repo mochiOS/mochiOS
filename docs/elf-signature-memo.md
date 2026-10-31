@@ -677,3 +677,51 @@ SDK 6ファイルとkernel commitは未変更で、全検証VMを停止し、解
 実際の表示完了・session / focus・入力の専有route、device初期状態・reset / hotplugと
 複数deviceの整合性、mshとGUIのfrontend、実行体に結合した最終grantへの接続が残っています。
 通常clangから既存msignへの接続と、単体ELFの署名・manifestを含む共通実行認可も未完了です。
+
+## compositorによる表示確認と実セッションの失効（phase307）
+
+表示済みというfrontendの自己申告を、承認の根拠にしないための共通経路を追加しました。
+brokerは、起動時の信頼ルートと照合したrendererのProcess参照をWAITだけへ縮小し、
+IPCに添付してcompositorへ登録します。要求にはchallenge・表示ID・session epochを結合します。
+IPC endpointと実行imageの整合した捕捉はplatformへ共通化し、既存のbrokerも利用します。
+カーネルへサービス名やconsent専用APIは追加していません。
+
+ViewKitのAppは、brokerが発行した要求をウィンドウの最初の描画前に結び付けられます。
+その値だけでは表示を証明できません。compositorは実際のsurface所有者、同一native Process、
+image revision / digest、surface role、画面内の可視性、他surfaceによる遮蔽、keyboard focusを照合します。
+登録後の新しいcontentを含む全画面presentが成功した場合だけPresentedを返します。
+commitへの応答、古いbuffer、失敗したpresent、部分presentだけでは成立しません。
+focusが外れた場合は、同じsurfaceへ戻っても古い登録を復活させません。
+表面の消滅、所有者・image・content世代の不整合でも失効します。
+
+session epochはservice-managerの実際のログイン・lock・logout遷移から公開します。
+brokerは送信者の測定済みcode、built-in identity、保持済みProcessと照合します。
+失敗した送信のepochも再利用せず、世代の巻き戻しや同世代の再有効化を拒否します。
+session更新では、保留中のcontrollerと入力観測を先に失効させ、compositorの登録も破棄します。
+環境変数からsessionの認証情報を採用しません。
+
+ホストの関連7対象47件と回帰7対象47件が合格しました。
+native試験では実際のViewKit renderer・broker・compositor・managerを使用しました。
+新しいframeの表示と実Processの照合、他processによるbindとsession上書きの拒否を確認しました。
+QEMUのmouse deviceからCloseを押してsurfaceを削除すると失効し、実session epochを
+無効化・再有効化した後も元の登録はENOENTでした。Capabilityの付与・永続化は試験していません。
+診断UIは表示経路の試験であり、製品のpermission popupを完成させたものではありません。
+証跡はout/checks/mochios-presentation-307-*です。
+
+初回のVMはloginで停止しました。新しくbuildしたsecure-uiに対し、古いstage manifestが
+既存のprocess.inspect要求を欠いていたためです。source manifestと既存msignのbuilt-in recordを
+stageへ反映して再試験しました。認証を省略するfallbackは追加していません。
+
+診断collectorを除いた通常版でもdesktop・Dock・Terminalの実表示、文字入力、echo / pwd、
+ENOENT後の継続操作を確認しました。閉じる初回操作の不達は今回も再現し、再操作では閉じました。
+初回activateのTransportFailure、Network Failed(-6)、USB driver errno 22とともに未解決です。
+通常版4実行体のstage hashとimage checksumを照合し、SDK 6ファイルとkernel commitの
+未変更を確認しました。全試験VMを停止し、解析処理の再開処理も完了しました。
+
+この段階はグローバルなsessionの生存確認です。requesterがそのsessionに所属するという
+認証、mshと実際のTerminal rendererの結合、既存Terminal内の表示領域の検証は未完了です。
+Window形式では遮蔽判定が保守的で、自身のdecoration等も遮蔽として扱う場合があります。
+入力deviceの初期状態・reset / hotplug・複数deviceの整合性、実frontendとの非同期調停、
+captured codeへatomicに結合する最終grantも残っています。
+通常版では、これらが完了するまで新しい対話承認によるgrantを有効にしません。
+通常clangからld.lld・既存msignへの接続と、単体ELFの署名・manifest検証も引き続き必要です。

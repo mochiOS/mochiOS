@@ -14967,3 +14967,11 @@ path = "services"
 hash = "142f09f70dcf32792e84c7b6e1b15be3c85f77b0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): exercise shell executable stdio inheritance"
+
+[[entries]]
+date = "2026-10-31T14:35:11.571342973+09:00"
+snapshot = "1fb94b8a58642e5ef2ee7c6e"
+path = "services"
+hash = "f3e3894c64a91f817e85e4a283ad92ea0d3ae1e5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): verify native FD export authority and ownership"

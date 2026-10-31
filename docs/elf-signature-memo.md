@@ -585,3 +585,52 @@ POSIXの-13と誤比較して失敗したため、mnuのtag付きAccessDeniedと
 これはstdioを明示的なIPC Handleとして共通launcherへ渡すための部品です。
 launcherへの接続、trusted mshのidentity、確認用入力channelとGUI popupは引き続き必要です。
 カーネルのABIや権限チェック、利用者管理のSDK生成処理には変更を加えていません。
+
+## 検証済みmshと明示的なstdioを共通launcherへ接続（phase305）
+
+Terminalのmsh起動を、親のsecurity domainを継承するPOSIX spawnから、
+capability.serviceの検証済みapplication launcherへ移しました。
+既存GUI起動と新しいstdio付き起動は、manifest認証・capability policy・入力ELFのcapture・
+native Process作成・POSIX child登録・resumeを共用します。
+単体コマンドの既存binary packageも扱い、選択binaryのapplication種別とcode検証は維持します。
+
+共通のversion付きwire protocolはfull argvとenvpを分離し、空の引数を保持します。
+自プロセスから取得したread scopeとstdio 3本だけをIPC Handleとして添付します。
+Handle番号やPIDを文字列で渡すことはせず、FD metadataから権限を追加しません。
+明示したstdio mappingはdup2相当として子側CLOEXECを解除します。
+24 bytesのFD export構造体はPOSIX protocol crateへ共有し、C ABIは変更していません。
+
+brokerは認証済みPOSIX endpointを自分の保持参照から複製して子へ渡します。
+service-managerはこの委譲に必要なSEND / DUPLICATE / TRANSFERをbrokerへ渡し、
+他の既存runtime readerはSENDだけのままです。
+クライアントの返信照合にはkernelが保証するthread endpoint senderを使い、
+一般アプリへprocess.inspectを追加しません。Terminal自身の乱数権限も不要になりました。
+
+測定済みmshを有効にする前に、旧CAPABILITY_DECISIONによる即時grantと永続化を廃止しました。
+通常stdinのyや、transactionと新しい物理入力に結合されていないscalar decisionでは許可しません。
+旧decision opcodeはUnsupported（wire 95）を返します。
+新しい非同期consent controllerに接続するまで、新規承認が必要な起動は許可されません。
+
+ホストでは関連7対象25件と回帰6対象74件が合格しました。
+KVMでは、実際に起動したmshのbuilt-in identityと測定済みimageによるTextPrompt認証、
+旧形式の正のdecisionの拒否、mshから別ELFへexecした後のrole拒否を確認しました。
+package IDがorg.mochios.mshのままでも、別の実行コードをmshとして信頼しません。
+TerminalからC fixtureを実行し、uid 1000・cwd・argv・stdout・stderrも確認しました。
+このC実行体はホストで作ったもので、guest clangによるコンパイルの検証ではありません。
+証跡はout/checks/mochios-verified-launch-305-*です。
+
+最初の実機試験ではクライアントがProcessInspect専用の照会を使い、次の試験では
+loaderが単体コマンドのpackage形式を拒否しました。いずれも原因を修正して再試験しました。
+これらの失敗を成功として扱っていません。
+
+診断traceとrole-queryを除外した通常構成でも、デスクトップ・Terminal・msh prompt、
+同じC実行体の実行、存在しないコマンドのENOENT後にechoを続けられることを確認しました。
+検証用ELFは最終stageから除去し、通常イメージを再生成して6件のchecksumを確認しました。
+利用者管理のSDK 6ファイルのhashは変更されていません。全検証VMは停止し、
+解析処理の再開処理も完了しています。初回activate TransportFailure、NICなしのNetwork失敗、
+USB driver作成errno 22は今回の修正対象ではありません。
+
+これは通常clangからの自動署名や、安全な対話承認までの完成を意味しません。
+guest clangから既存msignへの接続、単体ELFの署名・manifestを含む共通実行認可、
+保護された入力・focus / sessionとmsh / GUI popupの非同期接続、最終grantとのatomicな結合は
+引き続き必要です。mnuのABIやサービス固有の知識は追加していません。

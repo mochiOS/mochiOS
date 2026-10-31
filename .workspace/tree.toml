@@ -14951,3 +14951,11 @@ path = "services"
 hash = "80c9c68baf4548885dab1d270109a1ea628c94a6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(capability): authenticate prompt brokers against boot images"
+
+[[entries]]
+date = "2026-10-31T13:33:22.213204627+09:00"
+snapshot = "46ac98218808c6d7403591c8"
+path = "services"
+hash = "3f0600103c09b4e30e0cbf0d99d4c24f444238a2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(input): require delegated endpoint authority for raw ingress"

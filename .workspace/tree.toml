@@ -14959,3 +14959,11 @@ path = "services"
 hash = "3f0600103c09b4e30e0cbf0d99d4c24f444238a2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(input): require delegated endpoint authority for raw ingress"
+
+[[entries]]
+date = "2026-10-31T14:16:03.415253851+09:00"
+snapshot = "a6ad4213e0d0685aebea98fe"
+path = "services"
+hash = "142f09f70dcf32792e84c7b6e1b15be3c85f77b0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(posix): exercise shell executable stdio inheritance"

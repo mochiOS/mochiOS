@@ -831,3 +831,11 @@ Ctrl+C以外を消費します。子も同じ入力を継承するため、通�
 入力をshell内で保存して後から再投入する対処ではなく、既存のPTY・termios・foreground
 process groupへTerminalとmshを接続する必要があります。これは未修正です。
 保護されたmsh / GUI frontend、同意と最終grantの結合、通常clangの自動署名も未完了です。
+
+## PTYを共通の検証済みstdio起動へ接続する前提（phase310）
+
+TerminalのアダプタがO_RDWRのstdioを片方向へ縮小していた点を修正しました。
+明示されたFDと実際のsource Handleの権限上限を維持し、実Terminal・broker・測定済みmshで
+PTYの委譲、制御session、UTF-8入出力、EOF後の再入力、foreground SIGINTとwaitを確認しました。
+詳細と未接続の通常入力経路は[起動ポリシーの記録](services/posix-launch-policy.md#検証済みlauncherへの双方向ptyの委譲310)にあります。
+新規の対話承認や権限追加を有効化したものではありません。

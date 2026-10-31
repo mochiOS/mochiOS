@@ -193,3 +193,36 @@ SDK・Rust std・runtime は再生成していません。kernel build で更新
 
 FileHandle からの `fexecve`、通常 execve との共通 startup、検証結果と残っている生成認可の
 制約は [FileHandle からの POSIX exec](posix-executable-handles.md) に記録しています。
+
+## 検証済みlauncherへの双方向PTYの委譲（310）
+
+Terminalのstdioアダプタは、明示されたローカルFDのアクセスモードを確認し、O_RDWRの
+descriptorを読み専用／書き専用へ変更せずに共通のapplication launcherへ渡します。
+stdinにはREAD、stdout / stderrにはWRITEが必要です。元のモードがこれを満たさなければ
+拒否し、pipe等の片方向descriptorに逆方向の権限は足しません。
+既存のmochi_fd_exportが参照を保持し、実際のsource Handleの権限上限を強制します。
+任意PID / FDの取得や、添付されていない参照の委譲は行いません。
+
+通常のPTY slaveは3本ともO_RDWRです。stdinを読み専用にすると、login_ttyがそのFDを
+stdout / stderrへdup2した際にも読み専用になり、出力できません。この修正ではその
+アクセスモードを保ち、既存のCONTROL・TRANSFER等の検査と、brokerによるCLOEXEC解除を維持します。
+要求形式、mnuのAPI、capability.serviceの権限判定は変更していません。
+
+ホスト5対象17件が合格しました。KVMでは実Terminalのアダプタ・capability.service・
+測定済みmshを通してPTY slaveを3本のstdioへ委譲しました。親のslave FDを閉じた後も、
+子のlogin_tty、session leaderとforeground group、全stdioのO_RDWRと端末判定、
+UTF-8のcanonical行入力、stdoutとstderr、Ctrl+DによるEOF後の再入力、foregroundへの
+SIGINT、子の正常終了とwaitを確認しました。新規の対話承認による権限追加・永続化は行っていません。
+診断はservices/posix/tests/support/以下に置き、通常buildでは含めません。
+
+この段階では通常Terminalの入力はまだpipe上のbinary InputEventです。
+通常経路へのPTY接続、UTF-8 / 端末キー列の生成とbackpressure、mshが子の実行中にstdinを
+消費しない処理、foreground jobの停止・再開と端末属性の復元、window sizeの伝達が残っています。
+Vimや通常clangの一連の開発操作、完全なPOSIX互換性の完成を示す試験ではありません。
+保護された承認入力も通常PTYの文字列とは分離し、stdinのyで新規grantを許可しません。
+
+検証には既存のSDKリンク入力の固定コピーと既存native runtimeを使用し、SDKとRust overlayを
+再生成していません。証跡はout/checks/mochios-pty-launch-310-*です。
+診断を除いた通常版でもdesktop・Dock・Terminal・mshと文字入力・echo・プロンプト復帰を
+確認しました。通常版2実行体のstage / image hashと6件のchecksumを照合し、全検証VMを停止して
+解析処理の復帰も完了しました。変更とlock更新は署名付きコミットへ保存しています。

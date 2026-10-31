@@ -560,3 +560,28 @@ cd /system/tests/shell-launch-303
 Terminalから起動したmshがtrusted prompt brokerになったとは扱いません。
 検証済みmshのidentityとstdioを共通launcherで渡す処理、保護された確認channel、
 署名・manifestを含む実行認可、通常のclangから既存msignへの接続が引き続き必要です。
+
+
+## ローカルFDから明示委譲用Handleを取り出す（phase304）
+
+`mochi/handle.h`の`mochi_fd_export(fd, requested_rights, result)`を追加しました。
+自プロセスのFDを取得中だけ固定し、独立して所有するnative Handleと共通の
+inherited-FD metadataを返します。sourceの権限とFDのaccess modeを超える要求は拒否し、
+metadataのaccess modeも縮小します。descriptor-localなCLOEXECはmetadataへ保持します。
+元のFDを閉じても取得した参照は維持され、取得した参照はHandleCloseで破棄します。
+
+出力は24 bytesのC ABIです。reservedは0、metadataは既存のPOSIX user-space codecを使います。
+書込み先をRust referenceとして借用せず、既存のMemoryCopyでcopyoutします。
+sourceのFD leaseと新しい参照のownerをcallback scopeへ保持し、copyout失敗時は新しい参照を
+回収します。任意のPIDやforeign FD、pathnameからの取得は提供しません。
+
+ホストでは新しいexportと既存importの7 testsが合格しました。
+通常版KVMでは`services/posix/tests/native_fd_handle_export.c`をTerminalから実行し、
+権限追加の拒否、書込み不可メモリへのEFAULT、native rightsの一致、write拒否、
+元FDを閉じた後のstream読み取りを確認しました。最初の試験はraw native errorを
+POSIXの-13と誤比較して失敗したため、mnuのtag付きAccessDeniedとの比較へ修正して再試験しました。
+診断結果と画像は`out/checks/mochios-fd-export-304-*`に保存しています。
+
+これはstdioを明示的なIPC Handleとして共通launcherへ渡すための部品です。
+launcherへの接続、trusted mshのidentity、確認用入力channelとGUI popupは引き続き必要です。
+カーネルのABIや権限チェック、利用者管理のSDK生成処理には変更を加えていません。

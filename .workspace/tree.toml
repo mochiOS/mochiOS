@@ -14983,3 +14983,11 @@ path = "services"
 hash = "92f8a824c660c9aa4704180e228f659aa67566fe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(capability): retire unbound legacy prompt decisions"
+
+[[entries]]
+date = "2026-10-31T15:19:03.259043841+09:00"
+snapshot = "ef99e45a08433ae0b7a4a736"
+path = "binaries/msh"
+hash = "a2500d34922ea338cf850d46cac316b31b9fd4f8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(msh): verify measured shell launch and retired approval path"

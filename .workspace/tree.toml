@@ -14991,3 +14991,11 @@ path = "binaries/msh"
 hash = "a2500d34922ea338cf850d46cac316b31b9fd4f8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(msh): verify measured shell launch and retired approval path"
+
+[[entries]]
+date = "2026-10-31T15:29:05.650227838+09:00"
+snapshot = "83905a7617de4273fb5bbcdf"
+path = "applications/binder"
+hash = "123054fbbfe9bf1493b66d461050f6bc27d07810"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Unify application icons with stronger continuous corners"

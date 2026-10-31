@@ -491,3 +491,40 @@ instance / generation結合も未完了で、偽の`y`対策全体が完成し�
 NICなしでのNetwork Failed(-6)とUSB driver creation errno 22も残っており、今回修正した問題には
 含めません。診断用mshとmanager manifestは復元済みです。全試験VMを停止し、ホスト解析処理の
 再開も完了しました。
+
+### raw入力の送信権限と合成入力の区別（phase302）
+
+`input.service`が通常のglobal宛IPCをrawキーボード・マウス入力として受け付ける経路を廃止しました。
+既存のカーネルによる`IPC_DELIVERY_ENDPOINT_HANDLE`を照合し、実際に送信Handleを所持していた
+場合だけraw packetを解釈します。packet自身のflagやIDは所持の証明になりません。
+長さ、予約欄、未知flag、添付Handleも検証し、不要な受信参照は失敗時を含め閉じます。
+
+送信Handleは`capabilities.manage`を持つ起動管理側にだけ、version付きの要求で返します。
+service-managerは保持したinput ProcessのIDとIPC endpointのownerを照合し、返答senderと
+ownerの再読取り、権利の完全一致を確認します。名前検索だけでは正本を選びません。
+そこからdriver discoveryのIPC添付としてdrivers.serviceへ渡し、検証済みlaunch capabilityに
+`device.input` / `input.keyboard` / `input.pointer`があるdriverだけへ起動Handleとして委譲します。
+最終driverの権利はSENDのみで、RECEIVE、TRANSFER、DUPLICATEを渡しません。
+PS/2・USB driverはこの起動Handleを使い、globalなinput.service検索へのfallbackを持ちません。
+
+PS/2 driverのシリアル入力には合成入力の印を付け、通常のkey eventにもその区別を残します。
+物理portからの入力とは別に扱うための情報であり、公開InputEventのflagだけで承認を証明する
+設計ではありません。既存のgeneric Handle / IPC / LaunchContextを使い、mnuへのAPI追加や
+サービス名・ポリシーの追加は行っていません。旧global raw入力との互換性は維持しません。
+
+関連ホスト6対象43件とnative component / driver buildが成功しました。KVMでは、実際の
+委譲SEND Handleでraw入力が通り、global宛の通常IPCとobject添付可能IPCはいずれも
+偽キーボード・マウス入力として拒否されることをeuid 0 / 501で確認しました。
+権限なしのraw Handle取得も拒否され、管理側でも未知versionを拒否しました。
+
+診断用実行体・manifest・recordを復元した通常構成でもinput READY、Binder、デスクトップ表示を
+確認しました。QEMUのキーボードデバイスからPS/2 driverを通して、Filesの検索欄へ
+`input-route-302`を入力でき、マウス操作とウィンドウを閉じる操作も確認しました。
+一方、Terminalのmsh起動はPermission denied (13)になりました。Terminalでのコマンド実行の
+成功とは扱わず、起動・認可接続の未完了として残します。初回activate TransportFailure、
+NICなしのNetwork Failed(-6)、USB driver作成errno 22も未修正です。
+全検証VMを停止し、ホスト解析処理の再開処理も完了しました。
+
+この変更だけで承認経路全体は完成しません。保護された確認中の入力route・新しい操作の証拠、
+focus / sessionの結合、msh / GUIと共通controllerの非同期接続、最終grantのatomicな結合は
+引き続き必要です。既存mshの通常stdin確認を安全な承認へ変更済みとは扱いません。

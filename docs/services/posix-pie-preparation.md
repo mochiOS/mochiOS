@@ -1846,3 +1846,29 @@ clang→ld.lld→msignの通常経路は引き続き未完了です。完全POSI
 表示・閉じる操作を確認しました。既知のFiles activate TransportFailureは1件あり、再操作で表示
 されました。NICなしNetwork Failed(-6)とUSB driver creation errno 22も未修正です。
 試験VMはすべて停止し、記録したホスト解析処理の再開処理も完了しました。
+
+## 入力driverへの送信Handleの明示委譲（phase302）
+
+[raw入力の送信権限と合成入力の区別](../elf-signature-memo.md#raw入力の送信権限と合成入力の区別phase302)を
+実装しました。input.serviceが発行する送信Handleを、保持したProcess ownerを検証した
+service-managerからdriver discoveryへIPCで添付し、driverの検証済みlaunch capabilityに応じて
+generic LaunchContextへ渡します。driverの最終権利はSENDのみです。
+raw受信はカーネルが付けたendpoint-Handle delivery proofを必要とし、global宛のパケットを
+driver入力として扱いません。PS/2とUSBを移行し、シリアル由来の合成キーを区別しました。
+
+関連ホスト6対象43件、input / drivers / managerのnative build、PS/2 / USBのno_std buildが成功しました。
+テストはすべて`services/posix/tests/`に置いています。KVMでは実際のHandle委譲経路の成功と、
+そのHandleを持たないeuid 0 / 501からのraw入力・Handle取得の拒否を確認しました。
+通常IPCをobject転送可能な呼出しへ変えても、宛先Handleを所持していなければ拒否されます。
+既知versionの厳密な要求形式も検証しました。SDK / Rust std overlayは再生成していません。
+証跡は`out/checks/mochios-input-authority-302-*`です。
+
+診断用の実行体・manifest・recordを元の状態へ戻した通常構成で、input READY、Binder、
+デスクトップ表示とFilesの開閉を確認しました。QEMUのキーボードデバイスから、PS/2 driverの
+委譲Handleを通して検索欄へ`input-route-302`を入力できました。
+Terminal自体は開きますがmsh起動がPermission denied (13)になり、コマンド実行は未確認です。
+初回activate TransportFailure、NICなしNetwork Failed(-6)、USB driver作成errno 22も残っています。
+検証VMは停止済みで、ホスト解析処理の再開処理も完了しています。
+
+保護された確認routeと新しいphysical gestureの証拠、focus / session検証、text / GUIの非同期接続、
+atomicなgrant / exec結合、通常のclang→ld.lld→msign経路と完全POSIX環境は未完了です。

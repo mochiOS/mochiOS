@@ -847,3 +847,12 @@ PTYの委譲、制御session、UTF-8入出力、EOF後の再入力、foreground 
 newlib ABIへ揃えています。[実機で通った範囲と残るpipelineの競合](services/posix-launch-policy.md#通常terminalのpty入力とmshのjob制御311)を参照してください。
 通常clangからld.lld・既存msign・署名済みstandalone実行へつなぐdriverと、保護された
 CLI / GUI承認frontendは引き続き未完了です。署名やmshのパスだけで新規権限は付与しません。
+
+
+## 子起動の通知待ちを修正（phase312）
+
+forkの初期化ACKとspawnのexec-statusが、native通知で中断されたblocking readを
+資源不足EAGAINとして返していた点を共通runtimeで修正しました。
+[比較試験と残件](services/posix-launch-policy.md#forkexecの内部応答待ちと通知312)の通り、
+通常Terminalで修正前の失敗、修正後のfork / spawnと短命な前段を持つpipelineを確認しました。
+これは通常clangの自動署名や新規Capabilityの対話承認を有効化する変更ではありません。

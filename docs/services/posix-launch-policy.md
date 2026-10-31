@@ -293,3 +293,50 @@ keys-vm.logとkeys-*.pngです。通常イメージへの最終反映は同norma
 最終の通常イメージでもTerminal・msh・入力サービスのバイト列がnative buildとstageに
 一致し、元のPOSIXサービスが維持されていることをimage内から読み戻して確認しました。
 一時fixtureはimage内にも存在せず、配布物6件のSHA-256チェックも成功しています。
+
+## fork/execの内部応答待ちと通知（312）
+
+311で残っていた短命な前段を持つpipelineのEAGAINを、独立runtimeの診断buildで調査しました。
+通常Terminalから繰り返すと、ProcessCreate・登録・resumeの後にあるchild-ready待機が
+errno 11を返し、fork全体が失敗していました。mnuのblocking stream readは、データ待ち中に
+native upcallが配送可能になるとNotReadyでユーザー空間へ戻ります。この通知をCの
+資源不足EAGAINに変換したままforkの失敗にしていたのが原因です。
+
+newlib-runtimeのprivateなblocking startup streamに読み取り処理を置き、forkの明示的な
+初期化ACKとposix_spawnのexec-statusの両方で利用します。typed native NotReadyの場合に
+ユーザー空間のsignal配送を処理し、同じstreamへのblocking readに戻ります。
+新しいchildを作り直す再試行や、固定回数・sleepによる回避は行いません。
+通常のFD read、クライアントがnonblockingにしたdescriptor、カーネルの意味論は変更しません。
+
+部分ACK / exec-error packetの読み取り位置は保持します。初期化ACKが完結する前のEOFは
+失敗、exec-status streamの空のEOFは既存どおり成功です。通知処理自体の失敗、nativeの
+メモリ不足・権限・selectorのエラー、legacyのEAGAINはそのまま伝播し、読み直しません。
+不正な読み取り長はEIOです。元のoperation ownerがstreamとchildを持ち続けるため、
+待機中にsignal callbackが呼ばれても、途中の参照や登録を無条件に手放しません。
+
+ホスト5対象27件が成功しました。通知を部分応答の前後へ挿入する実コード試験、execの
+成功・子のerrno・切れた応答、本来のエラーを隠さないこと、子所有権の移譲とcallbackからの
+abandonmentを確認しています。単独プロセスでsignal下のfork / spawnを各12回行う
+試験プログラムもホストで通りました。SDKとRust overlayの再生成は行わず、独立runtimeと
+既存の固定済みSDK link入力で実機用バイナリを構成しています。
+
+同じ通常Terminal上の比較試験では、修正前runtimeの12回のforkのうち2回がerrno 11で
+失敗しました。修正後は通知下のforkとspawnが各12回とも成功し、正常なwaitとprompt復帰を
+確認しました。通常mshのecho | copyも3回とも実データとEOFを渡し、jobsは空へ戻りました。
+連続入力では端末echoと先行コマンドのstdoutが表示上で交差しますが、b312 / c312は
+それぞれ出力されました。完全なVT表示やshellの再描画を検証したものではありません。
+
+修正後fixtureを裸の名前で呼んだ初回だけENOENTを観測しました。絶対パスでのfork / spawnは
+成功していますが、この探索失敗の原因は未特定です。今回の通知修正からPATH探索全般の
+完成は主張しません。記録はout/checks/mochios-pipeline-spawn-312-*のhost.log、
+trace-vm.log、before-result.png、after-explicit-result.png、after-spawn-result.png、
+pipeline-a.png、pipeline-bc-result.pngです。
+
+後続の裸コマンド名での--exitは成功し、初回ENOENTを繰り返し再現したものではありません。
+shellの通常exitをTerminalがwaitし、Process completedを表示することも確認しました。
+検証VMは停止し、解析処理の復帰処理も完了しています。通常イメージから試験用実行体3件を
+除去し、Terminal・修正済みmsh・POSIXサービス・入力サービスをimageから読み戻してstageの
+記録hashとの一致を確認しました。配布物6件のchecksumも成功しました。
+修正と回帰試験は別々の署名付きコミットに保存し、既存のuser/Cargo.lock更新も保存しました。
+通常clangの自動署名・共通実行認可、保護されたCLI / GUI承認frontendと完全なPOSIX互換性は
+引き続き未完了です。

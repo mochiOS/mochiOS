@@ -169,6 +169,20 @@ ELF署名と実行時のハッシュ照合は、ロード対象の認証・整�
 
 リンカラッパーを採用する場合は、本来のリンカの正常終了と生成物の種類を確認した後、共通の署名処理を呼び出します。部分リンクの生成物や署名対象外のファイルまで、無条件に実行ファイルとして署名しません。
 
+通常の開発操作の目標は、`clang main.c -o main`で`ld.lld`によるリンクと既存の`msign`による
+署名を終え、`./main`で実行できることです。リンカdriverに暗号処理や鍵管理を重複実装しません。
+リンク・署名の失敗は呼び出し元へ伝え、署名だけを理由にCapabilityを付与しません。
+
+実行時のCapability要求・同意・取消・失効・最終付与は、CLIとGUIで共通の
+`capability.service`の経路に集約します。信頼したmshからの要求は、そのmshに結び付いた
+端末へ表示し、GUIからの要求は共通のポップアップへ表示します。表示方法を選ぶための
+環境変数やパス名だけを、信頼や承認の証拠にはしません。msh自身も実際の実行imageで検証します。
+
+通常stdinの`y`、パイプ、貼り付け、合成入力、表示前から押されていたキーでは承認しません。
+同意を表示した要求と対象image、session、表示先、focus、新しいユーザー操作を結び付け、
+どれかが変化した場合は以前の同意を使いません。mshとGUIは表示を担当し、独自の権限判定は持ちません。
+この段落は目標仕様であり、後段の段階別記録が実装・検証の到達範囲を示します。
+
 ただし、すべてのコンパイラが同じ`ld`を呼ぶことを前提にはしません。各ターゲット設定でラッパーを使用させるか、別のリンク経路にはビルドシステムから共通処理を接続します。
 
 自動署名は開発体験のための仕組みであり、セキュリティ境界ではありません。ラッパーを通さず生成されたELFも、OS側では同じ検証・認可規則を適用します。
@@ -781,3 +795,39 @@ owner / requesterの消滅・image変更とsession公開失敗を確認しまし
 mshと表示担当Terminalの組み合わせの保持、保護された既存ウィンドウ内の表示領域と入力の結合、
 非同期frontend、device状態の整合性、captured imageに結合した最終grantは引き続き必要です。
 通常clangの自動署名と単体ELF検証を含む開発経路、および完全なPOSIX互換環境のgoalは未完了です。
+
+## 通常コマンドの探索と起動環境を共通化（phase309）
+
+POSIXの標準探索順を`/system/bin:/bin:/usr/bin`とし、execvp / spawnpの既定値と
+confstrの値を同じ定義から供給します。service-managerのユーザーsessionと、
+capability.serviceのGUI起動処理もこの値を使います。GUI要求に明示されたPATHは空文字列でも
+保持し、argv / envpを明示する起動経路へ勝手に環境を補充しません。
+
+mshは裸のコマンド名を`/bin`へ書き換えず、通常・pipeline・backgroundの外部コマンドを
+同じCommand生成処理からPOSIXの検索経路へ渡します。独自fork / execve経路にあった
+環境変数の消失も除きます。この変更は完全なbackground job controlの実装ではありません。
+
+ホスト5対象32件が合格しました。実際のTerminalから起動したmshでは、native confstrと
+継承PATHの一致、裸のコマンド、子のPATH上書き、探索途中のENOTDIR、PATH未設定の既定値、
+slash付きパス、stdout取得、終了待ちが通りました。Capabilityの付与・永続化はしていません。
+最初のnative試験は、GUI起動処理がPATHを渡さない問題を検出して失敗しました。
+その共通起動処理を修正してから再試験しています。
+
+診断コードを外した通常版でもdesktop・Dock・Terminalの起動と文字入力を確認し、
+裸の`ls /home`がroot / testuserを表示しました。外部`/system/bin/echo`の単独実行も通りました。
+pipelineの初回試験はEAGAINで失敗し、原因は未特定です。再試行では両コマンドが起動しましたが、
+既存catが引数なしのstdin読みに対応せずusageを表示しました。pipeline全体の成功とは扱いません。
+未検出コマンドのENOENT後も、次のechoとプロンプト復帰を確認しました。
+
+SDKの並行更新を検出したため、既存のSDKリンク入力を読み取りコピーしてhashを固定し、
+単独buildしたnative runtimeと一緒に検証へ使用しました。SDKやRust overlayの再生成は
+実行していません。元のSDKを巻き戻してもいません。カーネルの変更はありません。
+通常版3実行体のstage / image hashと6件のchecksumを照合しました。
+検証VMはすべて停止し、解析処理の復帰も完了しました。既存のlock更新を含め、
+変更は機能ごとに署名付きコミットへ保存しています。証跡はout/checks/mochios-command-search-309-*です。
+
+Terminalはまだbinary InputEventをmshのstdinへ送り、mshも子の実行中にstdinを読んで
+Ctrl+C以外を消費します。子も同じ入力を継承するため、通常のPOSIX端末入力にはなっていません。
+入力をshell内で保存して後から再投入する対処ではなく、既存のPTY・termios・foreground
+process groupへTerminalとmshを接続する必要があります。これは未修正です。
+保護されたmsh / GUI frontend、同意と最終grantの結合、通常clangの自動署名も未完了です。

@@ -14975,3 +14975,11 @@ path = "services"
 hash = "f3e3894c64a91f817e85e4a283ad92ea0d3ae1e5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify native FD export authority and ownership"
+
+[[entries]]
+date = "2026-10-31T14:40:24.103258950+09:00"
+snapshot = "bddd6f5abe083dced9e4edb0"
+path = "services"
+hash = "92f8a824c660c9aa4704180e228f659aa67566fe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(capability): retire unbound legacy prompt decisions"

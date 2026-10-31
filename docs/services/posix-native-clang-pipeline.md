@@ -132,3 +132,54 @@ default設定、ELF内manifest、共通実行認可と保護された同意front
 mioはmochiOS向けselector / wakerを選べず、socket2はlibcの一部宣言を要求します。
 これは成功扱いにはせず、同signer-probe.logへ記録しています。ローカルELF署名を同じmsignの
 実装からビルドできる構成と、これらネットワーク依存の移植は引き続き必要です。
+
+## ネイティブ署名までの統合（314）
+
+通常Terminalのmshから`/system/bin/native-signer314`を実行し、診断用に明示配置した
+実clang、ld driver、ld.lld、既存msignを使う次の経路を確認しました。
+
+1. clangがCソースをコンパイルし、driverが既存SDK入力とLLDでリンクする。
+2. driverがmsignのAdHoc署名と検証を行い、最終ELFを公開する。
+3. 生成ELFのstdoutが`guest-build314\n`、終了コードが37となる。
+4. ELFの改変をmsign verifyが拒否する。
+5. ネイティブ乱数で秘密鍵・公開鍵を生成し、同じdriverから鍵付き署名・検証を行う。
+6. 一時ディレクトリを解放し、通常のmshプロンプトへ戻る。
+
+fixtureは`services/posix/tests/native_signer_flow.rs`、成功画面は
+`out/checks/mochios-signer-native-314-flow-second-final.png`です。
+ソースはheaderを必要としない小さいCで、ツールとSDKのパスを明示しています。
+通常の`clang main.c -o main`へのdefault設定や、一般アプリのCapabilityへ縮小した環境での
+動作を証明する試験ではありません。改変拒否はCLI検証であり、exec時の署名gateは未接続です。
+
+最初の実機試験ではdriverのcurrent_exeが未対応、msignの権限保持がEINVALとなりました。
+runtimeはAT_EXECFNをユーザー空間でcanonicalizeし、コンストラクタ前に所有バッファへ保存します。
+getexecname経由でRust stdへ渡し、相対パス・非UTF-8のsymlink名・偽のargv[0]・環境変数・
+後からのchdirを含む実機試験を通しました。名前情報は認証やCapability判断に使いません。
+POSIX環境のないbootstrapではパス解決せず、サービス起動の循環を作りません。
+
+chmod / fchmodのC境界は、stat由来のfile type bitsを除いてmodeを送信します。
+wire protocolの検証やアクセス判定は緩めていません。ldとmsignは同じprivate directoryと
+保持中のFDによる公開処理を使い、mode 000でも再openせずsync・renameできます。
+lutimes / utimesも既存のatomicなパス時刻更新へ接続し、symlinkだけの時刻変更を確認しました。
+
+msignの`developer-ca`はdefault有効のまま、オンライン証明書取得だけをfeatureで分離しました。
+native版はこれを無効にし、ELF署名・鍵生成・ローカル証明書・MPKG等の同じ実装を使用します。
+getrandom 0.2はposix-clientから既存の汎用乱数primitiveを使います。ネットワークを含む
+通常構成に必要なmio / socket2の移植は未完了です。
+
+ホストではmsign通常構成42件、オフライン構成36件、entropy adapter 6件、時刻入力6件、
+実行名snapshot 3件、公開処理6件、driver 11件と実LLD・msign連携2件が成功しています。
+追加したPOSIX回帰試験はservices/posix/tests以下に配置し、既存msignの試験も実行しました。
+既存SDK入力は固定snapshotで読み、
+SDKおよびRust overlayは再生成していません。Rust stdの既存source linkを通してforkの修正を
+ビルドしています。カーネル変更と新規Capability付与はありません。
+
+試験VMを停止し、同一PID・開始時刻の記録に基づく解析処理の復帰も完了しました。
+所有する診断用11ファイルだけを削除して通常イメージを再生成し、6成果物のchecksumを確認しました。
+イメージから読み戻したTerminal / msh / posix.service / input.serviceは、試験前の4ハッシュと
+一致しています。試験用ディレクトリとprobeがイメージ内にないことも確認しました。
+記録は`out/checks/mochios-signer-native-314-{cleanup,readback}.json`です。
+
+試験中にTerminal外の描画が一部崩れる現象も観測しました。署名機能の成功とは別の未解決事項です。
+通常clang設定・製品配置・ELF内manifest・共通実行認可・保護されたCLI / GUI同意を引き続き
+接続する必要があり、完全なPOSIX環境のgoalも継続します。

@@ -864,3 +864,17 @@ tools/devkit内のld driverが、既存SDK入力、実ld.lld、既存msignの署
 成功しています。[実装範囲とnative msignのビルド失敗](services/posix-native-clang-pipeline.md#リンカードライバ313)を
 参照してください。SDKの再生成、実行時の信頼付与、通常clangのdefault設定や保護された
 CLI / GUI同意の接続を行った変更ではありません。
+
+## mochiOS内でのコンパイル・署名・実行（phase314）
+
+通常Terminalから、実clang → ld driver → ld.lld → 既存msign → 生成ELF実行を確認しました。
+stdout・終了コード37、AdHoc検証、改変のCLI検証拒否、ネイティブ鍵生成と鍵付き署名、
+一時領域解放まで成功しました。[実機試験と修正](services/posix-native-clang-pipeline.md#ネイティブ署名までの統合314)を参照してください。
+
+msignのローカル処理を同じ実装からnative buildできる構成にし、実行名取得、statからの
+mode再利用、保持FDでのファイル公開も修正しました。実行名は起動時メタデータであり、
+実行体の認証や権限判断へは使いません。AdHoc署名による新規の信頼・Capability付与もありません。
+
+この試験は明示配置したツールとSDKを使います。通常clangのdefault設定、製品配置、
+ELF内manifest、exec時の署名検証と共通実行認可、msh / GUIの保護された同意frontendは
+未完了です。msignのオンライン取得を含むネットワーク依存のnative移植も残っています。

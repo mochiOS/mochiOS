@@ -93,6 +93,7 @@ stage_app() {
     mkdir -p "$destination"
     install -m 0755 "$bin/$binary" "$destination/entry.elf"
     install -m 0644 "$source/manifest.toml" "$destination/manifest.toml"
+    python3 "$root/scripts/dev/stage-application-resources.py" "$source" "$destination"
     [[ -z $icon ]] || install -m 0644 "$source/$icon" "$destination/$icon"
 }
 

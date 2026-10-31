@@ -96,10 +96,8 @@ for app in "${apps[@]}"; do
     preview_binary=$app
     [[ $app != test-app ]] || preview_binary=test_app
     ln "$root/out/preview/target/debug/$preview_binary" "$bundle/entry.elf"
-    for icon in appicon.png appicon.svg; do
-        if [[ -f "$source_dir/$icon" ]]; then ln -s "$source_dir/$icon" "$bundle/$icon"; fi
-    done
-    if [[ -d "$source_dir/legal" ]]; then ln -s "$source_dir/legal" "$bundle/legal"; fi
+    python3 "$script_dir/stage-application-resources.py" "$source_dir" "$bundle"
+    if [[ -d "$source_dir/legal" && ! -e "$bundle/legal" ]]; then ln -s "$source_dir/legal" "$bundle/legal"; fi
 done
 # Keep the existing real Binder test process available for multi-window checks.
 cp -a "$root/applications/binder/resources/apps/Test.app" "$MOCHIOS_PREVIEW_APPS/"

@@ -15015,3 +15015,11 @@ path = "binaries/msh"
 hash = "e84e1ae5cd3de23565e674c5618ade3548e0270d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add native desktop membership probe to diagnostic msh builds"
+
+[[entries]]
+date = "2026-10-31T18:01:35.369062859+09:00"
+snapshot = "774b0857cb336b2cf83720a4"
+path = "services"
+hash = "f6a056f811da51956285d0cfbf99d89f97db650a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "launch: share the POSIX default PATH for user sessions and applications"

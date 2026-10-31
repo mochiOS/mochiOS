@@ -15047,3 +15047,11 @@ path = "applications/mail"
 hash = "5bdeee464ce476a58dd2c2ed5d65038039a148cf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reveal mail pane junction corners over shared chrome"
+
+[[entries]]
+date = "2026-10-31T21:11:22.698302721+09:00"
+snapshot = "e2faf90bdabf5827dabcb587"
+path = "services"
+hash = "9037042109b140129250f8ca93b8f540279509fb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify linker driver failures signing and real SDK inputs"

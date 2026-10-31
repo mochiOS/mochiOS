@@ -15007,3 +15007,11 @@ path = "services"
 hash = "88cd6619c5bdbf09eb97bc6bb87d89cead61bd75"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Publish measured session epochs and verify protected presentation channels"
+
+[[entries]]
+date = "2026-10-31T17:09:43.262077730+09:00"
+snapshot = "04cd0b023fc76f584f30b422"
+path = "binaries/msh"
+hash = "e84e1ae5cd3de23565e674c5618ade3548e0270d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add native desktop membership probe to diagnostic msh builds"

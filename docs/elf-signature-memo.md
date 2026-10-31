@@ -725,3 +725,55 @@ Window形式では遮蔽判定が保守的で、自身のdecoration等も遮蔽�
 captured codeへatomicに結合する最終grantも残っています。
 通常版では、これらが完了するまで新しい対話承認によるgrantを有効にしません。
 通常clangからld.lld・既存msignへの接続と、単体ELFの署名・manifest検証も引き続き必要です。
+
+## 実プロセスのdesktop所属を明示Handleで認証（phase308）
+
+POSIXのparent / SIDは、孤児回収やsetsidで変わるためdesktop所属の認証には使用しません。
+posix.serviceへ、明示的なnative objectで保持・委譲するprocess domainを追加しました。
+作成・所属照会は空payloadとHandle添付、起動前の登録は既存形式のPOSIX credentialsと
+domain / Process Handle添付で行います。クライアントが選んだPIDやHandle番号をpayloadに載せません。
+native Process objectの型・WAIT権限・生存・保持済みobjectとの同一性を照合します。
+protocolはno_stdのposix-protocol、transportはposix-clientに置き、mnuは変更していません。
+
+domain所有者だけが新しいrootを登録できます。service-managerはsessionごとにdomainを作り、
+workspace / Binder / LinuxのPOSIX stateと所属を登録した後でnative processをresumeします。
+これにより、最初のforkやdouble-forkが事後の所属捕捉に先行する隙間を作りません。
+forkとbroker経由の新規起動は、実際のPOSIX requesterの所属をサービス内で継承します。
+execや親のreparent / reapでは所属を変更しません。
+
+全祖先processの記録を残す実装ではなく、domain所有の共有markerとprocess側のweak参照を使います。
+登録数は全体256・所有者ごと16へ制限し、nativeの最終参照解放だけでdomainを破棄します。
+破棄されたmarkerは後続forkへ継承しません。object IDは失敗した公開分も再利用せず、
+read-only path scopeとは別の正のID範囲を使います。
+
+managerは測定済みsession ownerとして、epochと一緒にdomainをTRANSFERだけへ縮小してbrokerへ渡します。
+brokerはdomain objectの有効性を実POSIX endpointで照合してから公開を確定します。
+所属照会では、保持したsession ownerとrequesterの実行instanceを再認証し、
+requesterの実Process参照とdomainだけをPOSIXへ渡します。MOCHI_SESSION_IDなどの環境変数は
+認証情報にしません。session無効化や公開失敗では、古いdomainで継続しません。
+
+ホストでは、親の終了・reparent・waitによる回収・exec後の所属継承、公開失敗時の原子性、
+所有者の制限・quota・native release、Handleの型と権限縮小、借用元を閉じない失敗処理、
+owner / requesterの消滅・image変更とsession公開失敗を確認しました。
+実IPC試験では実session rootの所属、manager自身の非所属、異種objectと自己申告sessionの拒否、
+実際のTerminalから起動した測定済みmshのdesktop所属認証が通りました。
+この試験でCapabilityの付与・永続化は行っていません。
+証跡はout/checks/mochios-process-domain-308-*です。
+
+診断コードを除いた通常版でもdesktop、Dock、Terminalと文字入力を確認しました。
+`/system/bin/ls /home`は実行され、root / testuserを表示しました。
+裸のlsはmshが/bin/lsを選んでENOENTとなる不整合が残っています。
+また外部コマンドの完了前に複数行を連続注入した試験では、後続入力が混ざりました。
+プロンプト復帰後の単独echoは成功しました。入力の競合原因を特定したとは扱いません。
+通常のコマンド経路全般やclangの利用体験の完成を、この確認から主張しません。
+
+関連・回帰のホスト10対象555件が合格しています。SDK 6ファイルとkernel commitは未変更です。
+今回の変更は機能ごとに署名付きコミットへ保存し、残ったlock更新も保存しました。
+編集中の別のUIソースは含めていません。
+初回activateのTransportFailureと閉じる初回操作の不達は残り、再操作では閉じられました。
+通常版4実行体とイメージのhashを照合し、全試験VMを停止して解析処理の復帰も完了しました。
+
+所属は「この確認要求がそのdesktopから来た」ことの一条件です。
+mshと表示担当Terminalの組み合わせの保持、保護された既存ウィンドウ内の表示領域と入力の結合、
+非同期frontend、device状態の整合性、captured imageに結合した最終grantは引き続き必要です。
+通常clangの自動署名と単体ELF検証を含む開発経路、および完全なPOSIX互換環境のgoalは未完了です。

@@ -856,3 +856,11 @@ forkの初期化ACKとspawnのexec-statusが、native通知で中断されたblo
 [比較試験と残件](services/posix-launch-policy.md#forkexecの内部応答待ちと通知312)の通り、
 通常Terminalで修正前の失敗、修正後のfork / spawnと短命な前段を持つpipelineを確認しました。
 これは通常clangの自動署名や新規Capabilityの対話承認を有効化する変更ではありません。
+
+## SDK入力と既存msignを使うld driver（phase313）
+
+tools/devkit内のld driverが、既存SDK入力、実ld.lld、既存msignの署名・検証を順に使い、
+成功したELFだけを公開するようになりました。ホスト13件とmochiOS向けdriverのビルドが
+成功しています。[実装範囲とnative msignのビルド失敗](services/posix-native-clang-pipeline.md#リンカードライバ313)を
+参照してください。SDKの再生成、実行時の信頼付与、通常clangのdefault設定や保護された
+CLI / GUI同意の接続を行った変更ではありません。

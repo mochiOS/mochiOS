@@ -109,3 +109,26 @@ CLIは信頼済みmshのtext確認、GUIはsecure-uiのpopupとし、判断・�
 capability.serviceへ集約します。詳細と未完了箇所は
 [ローカル開発と共通実行認可](../elf-signature-memo.md#ローカル開発と共通実行認可の実装目標2026-10-29)を参照します。
 この記述は専用fixtureの成功を、通常driver・自動署名・対話認可の完成へ読み替えるものではありません。
+
+## リンカードライバ（313）
+
+tools/devkitの既存リポジトリ内にmochios-linker-driverを追加しました。
+SDKを読み取り入力として、crt0 / script / runtime / libc / libm / compiler runtimeを
+解決し、実ld.lld、既存msignの署名と検証、最終出力のrenameを順に行います。
+SDKとRust overlayの生成処理は変更・実行していません。
+
+ホスト11件の失敗注入・引数・出力所有権の試験と、実ツールを使う2件が成功しました。
+後者はコード改変の署名拒否と、driver CLIが既存SDKのCRT・runtime・libcを含むCの
+リンクを行い、署名検証できることを確認します。link失敗でも直前の出力を維持します。
+実SDKとの最初の試験は補助オブジェクトの重複定義で失敗し、その存在だけで自動追加する
+処理を除去してから成功しています。未知の補助ファイルを必要と推測してlinkしません。
+
+mochiOS向けdriverはビルド済みですが、ゲスト内のdriver / msignの実行、clangの
+default設定、ELF内manifest、共通実行認可と保護された同意frontendへの接続は未完了です。
+通常イメージへ未検証のツールを配置したものでもありません。
+初期版の対応範囲・引数・残件は[driverの仕様](../../tools/devkit/docs/linker-driver.md)にあります。
+証跡はout/checks/mochios-linker-driver-313-{build,host,real-host,native-build}.logです。
+既存msign全体もnative buildを試みましたが、ネットワーク依存のmio / socket2で失敗しました。
+mioはmochiOS向けselector / wakerを選べず、socket2はlibcの一部宣言を要求します。
+これは成功扱いにはせず、同signer-probe.logへ記録しています。ローカルELF署名を同じmsignの
+実装からビルドできる構成と、これらネットワーク依存の移植は引き続き必要です。

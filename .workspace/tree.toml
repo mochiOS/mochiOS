@@ -15031,3 +15031,11 @@ path = "services"
 hash = "d5e0e490261c1f9a4e9319532228aec2efbd1778"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(posix): verify PTY stdio through the measured application launcher"
+
+[[entries]]
+date = "2026-10-31T20:02:39.270779545+09:00"
+snapshot = "37f7e917835b379f08f6181b"
+path = "applications/viewer"
+hash = "049faaee8df5ad5174272fc3c34b612f3172c0d5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Compose Viewer chrome with standard ViewKit controls"

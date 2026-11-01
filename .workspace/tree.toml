@@ -15175,3 +15175,11 @@ path = "services"
 hash = "55333551e6a790163aeb5dd475640f83aa2d8939"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify embedded manifest integrity and native signed compiler output"
+
+[[entries]]
+date = "2026-11-01T20:16:06.851683745+09:00"
+snapshot = "b49d2f008df11f4f408dadad"
+path = "services"
+hash = "f5b4807e0b3a18a030251c99a4d11b14e6caad06"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify delegated IPC with ambient grants removed and native rights attenuation"

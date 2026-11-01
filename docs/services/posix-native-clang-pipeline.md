@@ -184,7 +184,7 @@ SDKおよびRust overlayは再生成していません。Rust stdの既存source
 通常clang設定・製品配置・ELF内manifest・共通実行認可・保護されたCLI / GUI同意を引き続き
 接続する必要があり、完全なPOSIX環境のgoalも継続します。
 
-## clang標準設定（315、実機確認前）
+## clang標準設定（315）
 
 LLVM 18.1.8のclangへmochiOS専用ToolChainとTargetInfoを追加しました。
 従来のx86_64-unknown-mochiosは汎用GCC系のToolChainを選んでいたため、clang自身が
@@ -229,7 +229,7 @@ harnessはLLVMのRTTI設定に合わせて-fno-rttiでビルドします。ld.ll
 LLDはargv[0]でdriver flavorを選ぶため、実体のrust-lld等へ名前を書き換えません。
 記録はout/checks/mochios-clang-default-315-host-{tests,workflow}.logです。
 
-### 未確認の実機経路
+### 実機経路
 
 native_clang_driver.rsは、配置したSDKのbin/clangへ追加target・SDK引数なしで
 `clang main.c -o main`を渡し、stdio / stdintとOSのdefine、署名検証、`./main`の出力と
@@ -238,7 +238,16 @@ fixture、トレースなしruntime / ld / msign、mochiOS版clang本体のnativ
 診断SDKを明示配置した最初のKVM試験では、`clang -dumpmachine`がstatus 0でもstdoutが空となり、
 最初の検査で停止しました。通常PTYへ直接出力した場合は期待するtarget文字列が出ました。
 下記の終了処理修正を含むclangでは、pipeで受け取るtargetのstdoutが期待値と一致しました。
-続くコンパイル・リンク・署名・実行を同じfixtureで確認しています。
+続けて、追加target / SDK引数なしの`clang main.c -o main`が成功し、共通ld経由の自動署名を
+msign verifyがAdHocとして検証しました。`./main`のstdoutは`clang-driver315\n`、終了値は37です。
+実行ツールの場所は診断SDKを指定しており、製品PATHへのインストールを証明するものではありません。
+画面は`out/checks/mochios-exit317-clang-positive.png`です。
+後半のコンパイル・リンク失敗時の旧ELF維持、改変拒否、fixture内cleanupの最終PASSは
+得られませんでした。約900秒でmshへ復帰し、fixtureのalarmによる打切りと一致しますが、
+mshは`$?`を展開しないため終了値は回収できていません。全ケース成功とは扱いません。
+同じVMの繰り返し起動でもclangの読込みに分単位の時間がかかっています。
+通常readには共有buffer経路がある一方、位置指定のimage captureは4KiBごとの往復であり、
+この経路の性能確認と改善後に残るnativeケースを再実行する必要があります。
 
 通常環境への製品配置、ELF内manifest、実行時の署名検証と共通認可、保護されたCLI / GUI同意、
 完全なPOSIX環境は引き続き未完了です。
@@ -271,4 +280,9 @@ SDKとRust overlayは再生成せず、SDKの入力も書き換えていませ�
 検証用clangは修正した2つのnewlib objectをbootstrapのlibcより先にリンクしています。
 生成アプリは引き続き供給された現在のSDKを使います。一般アプリへこの終了処理修正を
 反映するには、SDK管理側で修正済みnewlibを取り込む必要があります。
-clangの再検証結果、診断用配置の撤去と通常イメージへの復元はまだ確認中です。
+clangの正常系成功は上記のとおりで、後半の失敗経路は未確認です。
+検証VMは記録したPIDを照合して停止し、解析処理の復帰も完了しました。
+所有する診断用395ファイルだけを撤去し、通常イメージを再生成して6成果物のchecksumを確認しました。
+イメージから読み戻したTerminal / msh / posix.service / input.serviceの4ハッシュは試験前と一致し、
+診断SDKと2つのprobeがイメージ内にないことも確認しました。
+記録は`out/checks/mochios-newlib-exit-317-{artifacts,cleanup,readback}.json`です。

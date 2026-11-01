@@ -878,3 +878,20 @@ mode再利用、保持FDでのファイル公開も修正しました。実行�
 この試験は明示配置したツールとSDKを使います。通常clangのdefault設定、製品配置、
 ELF内manifest、exec時の署名検証と共通実行認可、msh / GUIの保護された同意frontendは
 未完了です。msignのオンライン取得を含むネットワーク依存のnative移植も残っています。
+
+## ELF署名codecのユーザー空間ライブラリへの共通化（phase316）
+
+既存msignのELF署名・解析・検証をuser/crates/elf-signatureへ移し、msignが同じ公開APIを
+使う構成にしました。no_std + allocでビルドでき、ファイル・鍵へのアクセスと公開処理は
+引き続きmsignが担当します。v1形式と暗号上の検証内容は変えていません。
+署名エラーの変換だけを、stdのError実装に依存しない形へ適応しています。
+
+既存codecの8試験はservices/posix/tests/elf_signature.rsへ移しました。
+msign側の通常34件 / オフライン28件と合わせ、従来の42件 / 36件の検証範囲を維持しています。
+共通codecのmochiOS向けno_stdビルド、共通APIを使うmsignのnative build、現在のSDKを
+入力とする実LLD・ld・msignの連携2件も成功しました。
+
+共通APIのverifyが返すdigestはv1の正規化digestです。実行認可では元ELF全体の捕捉bytesと
+変換後imageを別途計測し、実際のcommitへ結び付けます。署名の検証成功だけでtrustや
+Capabilityを与える処理は追加していません。実行ゲートと保護された同意frontendへの
+接続は引き続き未完了です。

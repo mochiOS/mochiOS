@@ -93,6 +93,11 @@ install_manifest "$root/user/apps/rust-std-demo/manifest.toml" rust-std-demo
 install_manifest "$root/applications/test.app/manifest.toml" viewkit-test
 install_manifest "$root/binaries/msh/manifest.toml" msh
 install_manifest "$root/binaries/coreutils/manifest.toml" coreutils
+if grep -qx 'USER_INSTALL_DEVELOPER_TOOLS=y' "$config"; then
+    developer_package=$stage_new/system/packages/development-tools
+    "$msign" package built-in-record "$developer_package/manifest.toml" --output "$developer_package/verification.bin"
+    chmod 0644 "$developer_package/verification.bin"
+fi
 
 stage_app() {
     local source=$1 bundle=$2 binary=$3 icon=${4:-}

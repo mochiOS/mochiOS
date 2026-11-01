@@ -47,3 +47,39 @@ out/checks/mochios-development-tools-321-artifacts.jsonです。
 再生成し、既存実行体・SDK・toolの398ファイルと4つのsymlinkをimageから読み戻して照合しました。
 提供SDKの入力hashは変わらず、probeの不在と配布成果物6件のchecksumも確認しました。
 記録は同接頭辞のreadback.jsonとnormal-image.logです。製品の393ファイルと4リンクは保持しています。
+
+## 実行ファイルを結び付けたpackage情報（330）
+
+開発ツールを配置するとき、system/packages/development-tools/manifest.tomlも生成します。
+package IDはorg.mochios.development-tools、kindはbinaryです。4つのbinary entryは
+system/developer/bin内の実際のパスを選び、それぞれのfile entryへ結び付けます。
+fileにはコピー後の全bytesのSHA-256、size、0755のmodeを記録します。
+ELF headerとloadable segmentの検査もコピー後に行い、入力の事前検査だけには依存しません。
+
+供給されたSDKのmanifest.tomlは元のままコピーし、OSのpackage情報とは別に保持します。
+SDKの生成・再生成やファイル書換えは行いません。package情報だけで信頼やgrantは作らず、
+stage-rootfsが既存のmsign package built-in-recordを実行して検証recordを生成します。
+それをimmutableなSystem generationから既存のverified_manifestとCatalogが認証します。
+
+要求権限は、既存のnative compiler試験で使ったfs.read.all、fs.write.tmp、fs.write.user、
+ipc.client、ipc.server、process.spawn、system.random.readを明示します。
+これはmshのidentityやtrusted prompt roleを与えるものではありません。
+各toolを更に小さいgrant setで動かす試験は別途必要です。
+
+既存のpackage・SDK・command aliasの上書きを拒否します。途中の公開で失敗したときは、
+今回公開したSDK、packageとaliasだけを回収し、他のpackageは保持します。
+umask 077でもpackage directoryは0755、manifestは0644です。
+
+配置8件、既存の認証・schema・署名・brokerの53件、実際の4ツールを使う1件と、
+配置済み38 manifestのschema検査1件、計63件の
+host試験が成功しました。実tool試験は既存msignで生成したrecordを本番のresolverとCatalogで
+認証し、元codeの受理と改変・切詰め・追記の拒否、manifest差し替えの拒否を確認します。
+コピー後の非LOAD trailerを含む計測、公開失敗時の回収と既存package保持も検査しています。
+記録はout/checks/mochios-installed-tools-330-のstage-host.log、host.log、real-host.logです。
+
+今回は配置処理と認証metadataの変更です。kernel / IPC / libc / runtimeの境界は変えておらず、
+KVMは起動していません。この新packageのidentity・grantで4ツールを実行した証拠や、
+通常exec全体への共通署名認可の接続が済んだ証拠とは扱いません。完全POSIX環境のgoalも継続します。
+通常イメージにはmanifestとverificationの2ファイルだけを追加し、検証対象403ファイルと
+4つのcommand linkを読み戻して照合しました。既存の実行ファイル、SDKとkernelは不変です。
+6成果物のchecksumも確認し、記録は同接頭辞のnormal-image.logとreadback.jsonにあります。

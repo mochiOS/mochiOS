@@ -138,3 +138,6 @@ SDKとRust std overlayは再生成していません。
 通常execへの署名検証の強制、ELF manifest / packageの認証、保護された同意frontendと
 最終grantの結合は引き続き必要です。msign verifyの改変拒否を、通常execの認証方針が
 完成した証拠にはしません。完全POSIX環境のgoalも継続します。
+
+権限を絞った実行体がPOSIX endpointを利用するための
+[委譲EndpointだけによるIPC](posix-delegated-ipc.md)は、328で実装・KVM検証しています。

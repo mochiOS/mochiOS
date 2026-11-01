@@ -15151,3 +15151,11 @@ path = "tools/devkit"
 hash = "ddabc4f618ab7b1ac034eb43cddcf1124d2722e3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Document bounded verification and captured ELF integrity evidence"
+
+[[entries]]
+date = "2026-11-01T17:38:11.587504483+09:00"
+snapshot = "2dcbdbd4a381a76e9a16298f"
+path = "user"
+hash = "e9776fe74085197754e1ddd41de5665798e72490"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Define explicit signed RAM image authorization requests"

@@ -15167,3 +15167,11 @@ path = "services"
 hash = "e8eb3c041d4c7aab1dca29a6936a6333f0e06dd5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify static exec snapshots and native descriptor inheritance"
+
+[[entries]]
+date = "2026-11-01T19:09:42.996386495+09:00"
+snapshot = "7b3bff36c493b9c5ad839894"
+path = "services"
+hash = "55333551e6a790163aeb5dd475640f83aa2d8939"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify embedded manifest integrity and native signed compiler output"

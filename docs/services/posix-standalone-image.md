@@ -1,0 +1,75 @@
+# 単体ELFの実行主体と権限（329）
+
+署名検証付きRAM認可のversion 2は、呼出元の通常Capabilityやapplication identityを
+引き継がず、検証した元ELFから単体アプリの実行主体を作ります。同じopcodeの旧version 1は
+UnsupportedVersionで拒否します。他のCapability protocolのversionやELF署名v1形式は変更しません。
+
+元ELF全体のSHA-256をlocal.elf.<digest>というpackage IDにし、developerはorg.mochios.local、
+provenanceはdevelopmentに固定します。subject keyは署名検証で得たkey ID、AdHocはゼロです。
+manifest内のpackage ID、vendor、built-in等の申告から信頼を作りません。
+同じ鍵で署名されていても、元ELFのbytesが異なる実行体は異なる主体になります。
+
+## 宣言と認可
+
+宣言がなければ要求権限は空です。埋め込み宣言があれば既存の共通TOML schemaで解釈し、
+binaryがちょうど1個であることを要求します。呼出元のパスを使って複数候補から選びません。
+application以外のkind、未解決のcapability_profile、Linux applicationの宣言は受理しません。
+未知のCapabilityはEINVAL、Privileged / SystemOnlyはEACCESです。
+UserGrantableでも既存の分類・delegable・user_grantableの全条件を満たす必要があります。
+
+selectは検証済みsourceのdigest、実行主体、要求権限を一つのSelectionとして保持します。
+要求権限がある場合、共通の非同期同意controllerへ結ぶ前に許可を発行しません。
+現時点の同期呼出しは明示的にUnsupportedを返します。既存の呼出元のgrantを同意として扱いません。
+要求が空の場合は既存のimage-replace認可へ、別のidentityと空のgrant listを渡します。
+installed appのspawnと同じidentity / digest / class serializerを使い、重複する発行処理を共通化しました。
+
+カーネルの既存の権限縮小と一回限りの認可を使います。native authorityを追加せず、
+commit時の実際のimage digest照合、失敗時の消費と旧image保持、取り消し後の再付与禁止も維持します。
+カーネルへPOSIX、サービス名、manifest形式を追加していません。
+
+## 検証と残件
+
+関連8 targets / 61 host testsが成功しています。全てのcanonical Capabilityの分類、
+要求の保持と未承認時の非発行、偽のbuilt-in申告、曖昧・不正・異なるkindの宣言、
+暗号鍵と元bytesへの結合、RAM取得の上限と型・権限検査、既存packageの認証とbroker role、
+取り消しとcommitの境界、返信形式を検査しています。no_stdのnative target checkも成功しました。
+記録はout/checks/mochios-standalone-image-329-のhost-final.logとnostd.logです。
+
+通常exec / spawn / GUI起動の全てをこの方針へ移した段階ではありません。
+従来のAUTHORIZE_EXEC_OBJECTはまだ同じdomainでの置換を扱います。署名付きの新経路が
+失敗した後にその経路へfallbackする処理は追加していません。
+元sourceと動的なprepared outputの認証、installed codeの認証と起動方針、
+同意controllerと最終grantの結合、通常のHandle継承の限定、完全POSIX環境のgoalは継続します。
+
+現在のimage-replaceは保持中のgrantへの縮小を認める機構です。呼出元が保持していない
+新しいgrantの付与は、この同期経路では実現しません。共通同意で許可されたgrantを
+親へ経由させず対象imageのcommitだけへ結び付ける、汎用の原子的認可機構が必要です。
+
+最初のnative試験は、POSIX応答のopcodeを要求と同じ値と誤って期待して停止しました。
+仕様と実装はOP_STATUSを返していたため、試験の期待値だけを修正しています。
+最初の結果はresult-first.pngとartifacts.jsonへ残し、成功扱いにはしていません。
+同じ更新サービスで、既存の署名・改変・鍵・添付権限・extent・Providerの拒否と、
+実際のimage replacement、検証後の変更とpermit再利用拒否の全native回帰は成功しました。
+画面は同接頭辞のregression.pngです。
+
+修正版のnative_standalone_imageは全項目が成功し、msh promptへ復帰しました。
+AdHoc、built-inを偽装する空要求の宣言、Ed25519の3実行体で全canonical Capabilityが
+0となることを実際のnative queryで検査しています。実行体自身が観察したidentityは
+親が元ELF全体のSHA-256と照合し、公開鍵に対応するsubjectとdevelopmentも確認しました。
+同じ実行体からLaunchContextのPOSIX Endpoint Handleで実サービスへsession情報を要求し、
+親が実際のOP_STATUS、request ID、statusとcredentialsを検査しています。
+未承認の要求、保護・未知のCapability、曖昧な宣言とversion 1はpermitを発行せず、
+実際のimage replacementも拒否しました。実行直前の変更と、元へ戻した後のpermit再利用も拒否し、
+失敗時の旧identityと親contextの保持を確認しました。画面は同接頭辞のresult.pngです。
+
+このpayloadはnative ABIとPOSIX wireから作る試験用ELFです。通常clangで生成したアプリの
+exec経路全体を新方針へ接続した証拠とは扱いません。既存のclangのcompile / link / 自動署名は
+別の[通常PATHの開発ツール](posix-native-development-tools.md)で検証しています。
+所有VMはPIDと開始時刻を照合して停止し、解析処理の復帰も完了しました。
+カーネルは変更せず、SDKとRust std overlayも再生成していません。
+試験用の2実行体を撤去して通常イメージを再生成し、401ファイルと4つのcommand symlinkを
+読み戻して照合しました。probeの不在と6成果物のchecksumも確認しています。
+
+権限を除いた実行体で確認したPOSIX操作はsession情報の取得です。現在process.spawn等を
+要求するfork / execまで無権限で利用できる保証ではありません。POSIX環境の基本操作に
+必要な権限を、明示的なHandle委譲と共通実行認可へ揃える作業も残っています。

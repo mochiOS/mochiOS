@@ -1,5 +1,8 @@
 # 単体ELFの署名検証と実行認可
 
+署名付きRAMの現在の契約は、[version 2の単体ELF権限分離](posix-standalone-image.md)です。
+以下の322〜324は各段階の検証記録で、323の権限継承はversion 2では使用しません。
+
 ## 共通検証の資源上限と捕捉内容の計測（322）
 
 `user/crates/elf-signature`の`verify_with_limits`は、ELF全体の長さ、section / program

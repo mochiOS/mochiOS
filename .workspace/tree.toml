@@ -15183,3 +15183,11 @@ path = "services"
 hash = "f5b4807e0b3a18a030251c99a4d11b14e6caad06"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify delegated IPC with ambient grants removed and native rights attenuation"
+
+[[entries]]
+date = "2026-11-01T20:49:22.776949863+09:00"
+snapshot = "565b2a198f8c6e3e0e7c9a02"
+path = "applications/terminal"
+hash = "e73c87cb58a175b2a47965342822e7479ec56b60"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Replace terminal toolbars with a compact closable tab strip and action menu"

@@ -79,3 +79,62 @@ protocolのno_std / allocなしcheckも成功しました。検証VMは記録し
 更新済みcapability.serviceと検証record、既存アプリ・SDK・toolの計400ファイルと4つの
 command symlinkをimageから読み戻しました。probeの不在、配布物6件のchecksumと供給SDKの
 入力hash不変も確認しています。記録は同接頭辞のnormal-image.logとreadback.jsonです。
+
+## 静的ELFも共通preparerの捕捉を通す（324）
+
+libc execの静的ELFだけが共通preparerを迂回し、元FileHandleの再読込でdigestを計算する
+経路を廃止しました。execveとfexecveはともに、callback-abandonmentの資源管理へ登録済みの
+Preparationへ元ELFを一度捕捉し、そのsnapshotで形式を分類してRoot検証hookを呼びます。
+分類のために元ファイルを先読みする経路も使いません。
+
+静的ELFはheaderや非LOAD部分を変更せず、同じsnapshotを私有RAMへ書き出します。
+writer / resize参照は認可前に閉じ、既存のREAD | TRANSFER参照だけを残します。
+動的な出力と同じPrepared APIで元sourceと実行用bytesを借用でき、元sourceも所有側の
+Preparationが保持します。空の入力はENOEXECです。
+
+exec_handleはPrepared.bytesから直接SHA-256を計算します。元FileHandleやRAM出力の再読込は
+不要になり、認可とnative replacementが同じ内容を使います。捕捉は最大256KiBのoffset読込、
+私有RAMへの公開も最大256KiBの部分write対応とし、元ファイルの共有cursorは変更しません。
+失敗やcallbackによる中断では、登録済みownerがbufferと一時Handleを回収します。
+
+これは通常execの捕捉境界を揃えた変更です。この段階のRuntimeのRoot検証hookはまだ同一
+security domainの入力を受理する方針で、323の署名検証付き認可への自動接続や、package /
+standaloneの認証方針を完成させたものではありません。署名検証が必要なsourceを捕捉後に
+差し替えられない前提を用意し、次の接続でこの同じsourceを検証対象にします。
+
+ホスト44件で静的・PIE・共有library・interpreter・TLS・IFUNC・COPY・RELROと、元FDの
+権限 / startup metadata / fault-safe pointer検査を確認しました。静的sourceの検証hookで
+元ファイルをゼロに書き換えても、元snapshotをそのまま公開すること、検証拒否時は出力objectを
+作らないこと、単一ownerの再利用拒否と各失敗時の回収も検査しています。
+
+native_fexecveも通常Terminal / mshから実行しました。不正なFD・mode・pointer・形式の拒否後に
+元imageとdescriptorが維持されること、unlink済みELF、入れ子のfork / wait、argv / env、
+CLOEXEC、共有offset、signalのmask / pending / disposition、record lock、pathname execが
+成功しました。325の更新カーネルでも同じ全試験とprompt復帰を確認しています。
+
+最初のC probeは私のビルド指定に__mochios__がなく、SDKのgeneric signal-set macroとruntimeの
+signal bit規約が異なったため失敗しました。SDKやsignal serviceの障害としては扱いません。
+対象ABIを欠くビルドをcompile errorにし、pendingがexec前に成立していることも試験してから、
+正しい対象指定で再ビルドして成功しています。最初の失敗記録もartifacts.jsonへ残しています。
+
+clangの回帰試験は、私有RAM作成の既定上限16MiBに達してENOMEMとなりました。
+execだけの迂回経路を戻さず、[汎用RAM容量の設定](posix-native-memory-capacity.md)を修正しています。
+証跡はout/checks/mochios-exec-capture-324-のhost.log、runtime-build.log、native-build.log、
+artifacts.jsonと、mochios-memory-object-capacity-325-fexecve.pngです。
+
+容量修正後、SDKやtargetの追加指定なしに通常PATHのclangで全gateが成功しました。
+target取得14,162ms、compile / link / 自動署名 / msign verify 101,028ms、全試験206,316msです。
+生成した./mainの正確なstdoutと終了値37、compile / link失敗後の旧ELFのbyte一致、
+msignによる改変拒否、cleanupと通常msh prompt復帰を確認しています。
+画面はout/checks/mochios-memory-object-capacity-325-clang-complete.pngです。
+この時間は同KVM構成での観測で、Linuxとの性能比は測定していません。
+
+VM停止と解析処理の復帰後、今回の4つのprobeだけを撤去し、更新済みの通常mshとkernelを
+保持して通常イメージを再生成しました。既存実行体・SDK・toolの401ファイルと4つの
+command symlinkをimageから読み戻して照合しました。probeの不在、配布物6件のchecksumと
+供給SDKの入力hash不変も確認しています。記録は324のnormal-image.logとreadback.jsonです。
+SDKとRust std overlayは再生成していません。
+
+通常execへの署名検証の強制、ELF manifest / packageの認証、保護された同意frontendと
+最終grantの結合は引き続き必要です。msign verifyの改変拒否を、通常execの認証方針が
+完成した証拠にはしません。完全POSIX環境のgoalも継続します。

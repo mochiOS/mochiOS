@@ -43,8 +43,14 @@ def snapshot(root: Path) -> dict[str, dict[str, object]]:
             raise SystemExit(f"unsupported whitespace in filesystem path: {relative}")
         metadata = path.lstat()
         if stat.S_ISLNK(metadata.st_mode):
-            raise SystemExit(f"symbolic links are not supported in filesystem image: {relative}")
-        if stat.S_ISDIR(metadata.st_mode):
+            target = os.readlink(path)
+            word(target)
+            result[relative] = {
+                "type": "symlink",
+                "mode": stat.S_IMODE(metadata.st_mode),
+                "target": target,
+            }
+        elif stat.S_ISDIR(metadata.st_mode):
             result[relative] = {"type": "dir", "mode": stat.S_IMODE(metadata.st_mode)}
         elif stat.S_ISREG(metadata.st_mode):
             digest = hashlib.sha256()
@@ -73,7 +79,7 @@ def save(path: Path, value: dict[str, dict[str, object]]) -> None:
 
 
 def inode_mode(entry: dict[str, object]) -> str:
-    kind = stat.S_IFDIR if entry["type"] == "dir" else stat.S_IFREG
+    kind = {"dir": stat.S_IFDIR, "file": stat.S_IFREG, "symlink": stat.S_IFLNK}[entry["type"]]
     return f"0{kind | int(entry['mode']):o}"
 
 
@@ -126,25 +132,49 @@ def record_dirty_ranges(image: Path, trace_path: Path) -> None:
     os.replace(temporary, dirty_path)
 
 
+def word(value: str) -> str:
+    if "\n" in value or "\r" in value or "\0" in value:
+        raise SystemExit("filesystem image command argument contains a line break or NUL")
+    # libss uses doubled quotes; backslashes are literal, unlike a shell.
+    return '"' + value.replace('"', '""') + '"'
+
+
 def quote(path: str) -> str:
-    return '"/' + path.replace('"', '\\"') + '"'
+    return word("/" + path)
+
+
+def check_debugfs(process: subprocess.CompletedProcess[str]) -> None:
+    # debugfs may report a failed command while exiting successfully. Never
+    # acknowledge that partial update by advancing the snapshot state.
+    diagnostics = [
+        line for line in process.stderr.splitlines()
+        if line and not re.match(r"^debugfs [0-9]", line)
+    ]
+    if process.returncode != 0 or diagnostics:
+        sys.stderr.write(process.stderr)
+        raise SystemExit(process.returncode or 1)
 
 
 def sync(root: Path, image: Path, state_path: Path) -> None:
     old = json.loads(state_path.read_text())
     new = snapshot(root)
     commands: list[str] = []
-    removed = sorted(set(old) - set(new), key=lambda item: (item.count("/"), item), reverse=True)
-    for path in removed:
+    removed = {path for path in old if path not in new or old[path]["type"] != new[path]["type"]}
+    ordered_removals = sorted(removed, key=lambda item: (item.count("/"), item), reverse=True)
+    for path in ordered_removals:
         commands.append(("rmdir " if old[path]["type"] == "dir" else "rm ") + quote(path))
     for path, entry in sorted(new.items(), key=lambda item: (item[0].count("/"), item[0])):
-        previous = old.get(path)
+        previous = None if path in removed else old.get(path)
         if entry["type"] == "dir" and previous is None:
             commands.append("mkdir " + quote(path))
         elif entry["type"] == "file" and previous != entry:
             if previous is not None:
                 commands.append("rm " + quote(path))
-            commands.append(f'write "{root / path}" {quote(path)}')
+            commands.append(f"write {word(str(root / path))} {quote(path)}")
+        elif entry["type"] == "symlink" and previous != entry:
+            if previous is not None:
+                commands.append("rm " + quote(path))
+            commands.append(f"symlink {quote(path)} {word(str(entry['target']))}")
         if previous != entry:
             commands.append(f"set_inode_field {quote(path)} mode {inode_mode(entry)}")
             commands.append(f'set_inode_field {quote(path)} uid {entry.get("uid", 0)}')
@@ -166,14 +196,18 @@ def sync(root: Path, image: Path, state_path: Path) -> None:
             if traced
             else debugfs
         )
+        # An interrupted or partially failed update cannot be replayed from
+        # the old metadata. A missing cache makes the next build regenerate
+        # the image from the complete stage instead.
+        state_path.unlink()
         process = subprocess.run(
             command,
             input="\n".join(commands) + "\n",
             text=True,
             stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
-        if process.returncode != 0:
-            raise SystemExit(process.returncode)
+        check_debugfs(process)
         if traced:
             record_dirty_ranges(image, trace_path)
             trace_path.unlink(missing_ok=True)
@@ -193,9 +227,9 @@ def apply_initial_ownership(root: Path, image: Path) -> None:
             input="\n".join(commands) + "\n",
             text=True,
             stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
-        if process.returncode != 0:
-            raise SystemExit(process.returncode)
+        check_debugfs(process)
 
 
 def main() -> None:
@@ -203,8 +237,10 @@ def main() -> None:
         raise SystemExit("usage: sync-ext2.py <record|sync> <stage> <image> <state>")
     mode, root, image, state_path = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4])
     if mode == "record":
+        state_path.unlink(missing_ok=True)
+        initial = snapshot(root)
         apply_initial_ownership(root, image)
-        save(state_path, snapshot(root))
+        save(state_path, initial)
     else:
         sync(root, image, state_path)
 

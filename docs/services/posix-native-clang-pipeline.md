@@ -234,9 +234,41 @@ LLDはargv[0]でdriver flavorを選ぶため、実体のrust-lld等へ名前を�
 native_clang_driver.rsは、配置したSDKのbin/clangへ追加target・SDK引数なしで
 `clang main.c -o main`を渡し、stdio / stdintとOSのdefine、署名検証、`./main`の出力と
 終了コード37、コンパイル・リンク失敗後の旧ELF保持を検査します。
-fixtureとトレースなしruntime / ld / msignのnative buildは成功していますが、
-mochiOS版clang本体は再ビルド中で、このfixtureの実行結果はまだありません。
-試験用ツールのイメージ配置もまだ行っていません。
+fixture、トレースなしruntime / ld / msign、mochiOS版clang本体のnative buildは成功しました。
+診断SDKを明示配置した最初のKVM試験では、`clang -dumpmachine`がstatus 0でもstdoutが空となり、
+最初の検査で停止しました。通常PTYへ直接出力した場合は期待するtarget文字列が出ました。
+下記の終了処理修正を含むclangでは、pipeで受け取るtargetのstdoutが期待値と一致しました。
+続くコンパイル・リンク・署名・実行を同じfixtureで確認しています。
 
 通常環境への製品配置、ELF内manifest、実行時の署名検証と共通認可、保護されたCLI / GUI同意、
 完全なPOSIX環境は引き続き未完了です。
+
+## newlibの終了処理登録数（317）
+
+newlibの`_ATEXIT_DYNAMIC_ALLOC`が有効でも、通常のnewlib allocatorを使う構成では
+`MALLOC_PROVIDED`が未定義のため、終了処理の33件目を拒否していました。
+これはアプリ内の状態であり、カーネルへ終了callbackの意味論は追加しません。
+mochiOSではnewlib自身のmalloc / freeを使って登録blockを増減できるようにし、
+bit 31の登録・参照で発生していたsigned shiftもunsignedへ修正しました。
+他targetのallocator選択条件は維持しています。
+
+`services/posix/tests/newlib_exit_handlers.sh NEWLIB_SOURCE SDK`は実際のnewlibの
+`__atexit.c` / `__call_atexit.c`をSDK headerでコンパイルし、host allocatorとprivateなsymbol名で
+次の4ケースを実行します。別のregistry実装を試験へ持ち込んでいません。
+
+- 128件を逆順で一度ずつ実行し、動的blockを解放する。
+- 複数blockのDSO別callbackを選んで実行し、残りも一度ずつ実行する。
+- 33件目のallocation失敗で既存登録を失わず、その後に再登録できる。
+- 終了処理から追加したcallbackと、引数なしcallbackの実行順序を保つ。
+
+修正前は33件目の登録とbit 31のUBSan検査で失敗し、修正後はASan / UBSan / LSan付きの
+host 4ケースが成功しました。同じprivate registryとC fixtureをnative runtimeでリンクし、
+通常TerminalのmshからmochiOS上でも4ケースのPASSを確認しました。
+証跡は`out/checks/mochios-newlib-exit-317-host.log`と
+`out/checks/mochios-exit317-resume.png`です。
+
+SDKとRust overlayは再生成せず、SDKの入力も書き換えていません。
+検証用clangは修正した2つのnewlib objectをbootstrapのlibcより先にリンクしています。
+生成アプリは引き続き供給された現在のSDKを使います。一般アプリへこの終了処理修正を
+反映するには、SDK管理側で修正済みnewlibを取り込む必要があります。
+clangの再検証結果、診断用配置の撤去と通常イメージへの復元はまだ確認中です。

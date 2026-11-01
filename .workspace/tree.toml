@@ -15087,3 +15087,11 @@ path = "applications/system-monitor"
 hash = "32bcb800129fde623d7d0fca3e6245e7942a5421"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Standardize System Monitor with native ViewKit controls"
+
+[[entries]]
+date = "2026-11-01T14:59:05.823486519+09:00"
+snapshot = "499cebf3267604ef3bcd41c8"
+path = "build"
+hash = "e1c14636861d21c5e9981f55a987ffc2153a8a26"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add categorized mmake target help"

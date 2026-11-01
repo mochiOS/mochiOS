@@ -15103,3 +15103,11 @@ path = "services"
 hash = "bd164942ed599c5cb44ece50efbfbd2a5e335d12"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Serve shared positioned reads and verify cursor and input ownership"
+
+[[entries]]
+date = "2026-11-01T16:07:41.516208993+09:00"
+snapshot = "4beb5130a9153abbddf3b100"
+path = "services"
+hash = "3961796f9d08cb812e381165f66bbda078c8d669"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify shared snapshot bounds serialization and failure cleanup"

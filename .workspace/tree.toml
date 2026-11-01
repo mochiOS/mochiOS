@@ -15111,3 +15111,11 @@ path = "services"
 hash = "3961796f9d08cb812e381165f66bbda078c8d669"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify shared snapshot bounds serialization and failure cleanup"
+
+[[entries]]
+date = "2026-11-01T16:13:19.741790681+09:00"
+snapshot = "e7431ccba54a22246fcc2a02"
+path = "core"
+hash = "30fd2cdd186c8a3e7054502a2a410a9c14ee16c8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reuse shared object transfers for serialized owned snapshots"

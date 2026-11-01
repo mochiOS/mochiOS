@@ -15079,3 +15079,11 @@ path = "services"
 hash = "2392cdba612e3d63b26f789bcead1879c5e71aa2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retain ELF signature regression tests against the shared codec"
+
+[[entries]]
+date = "2026-11-01T14:52:07.640457172+09:00"
+snapshot = "9b95bad9629ea74ff43cf2f9"
+path = "applications/system-monitor"
+hash = "32bcb800129fde623d7d0fca3e6245e7942a5421"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Standardize System Monitor with native ViewKit controls"

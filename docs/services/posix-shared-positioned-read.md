@@ -34,6 +34,44 @@ offset・EOF・unlink後のinode、共有helperの不正返却位置・通信失
 記録は`out/checks/mochios-positioned-shared-318-host-final.log`と
 `out/checks/mochios-positioned-shared-318-kernel-check.log`です。
 
-実IPC、dirty mappingとの実機整合、clangの読込み時間と後半の失敗経路は未確認です。
+通常のDockから開いたTerminalとmshで、native_shared_positioned.cの4グループが成功しました。
+524,599byteの位置指定readは420,000,000nsでした。256KiBをまたぐデータ、短いEOFの未書込みtail、
+dupの共有cursor維持、msync前のdirty MAP_SHARED byteの反映、unlinkと同名再作成後の元inode、
+write-only FDでのEBADF、資源の解放とprompt復帰を確認しました。比較用の旧経路を同条件で
+測定していないため、この数値から高速化倍率は主張しません。画面は
+out/checks/mochios-positioned318-read-complete.png、所有するstageの記録は
+out/checks/mochios-positioned-shared-318-stage.jsonです。
+
+clang試験ではdefault targetのPASSまで確認しましたが、配置したfixtureが旧成果物だったため
+時間計測は採用しません。計測版もbuild済みでしたが、配置が古いhashのpathを選んでいました。
+後続は静的ELFの別の4KiB経路を発見した時点で中断し、全ケース成功とは扱いません。
+VMを記録PIDで停止し、解析プロセスの復帰処理を終えています。所有する診断用395ファイルを
+除去し、検証済みのkernel / filesystem / mshを保持した通常イメージを再生成しました。
+Terminal / msh / filesystem / POSIX / inputの5実行体をimageから読み戻してstageと照合し、
+診断rootとprobeの不在、配布物6件のchecksumも確認しました。記録は
+out/checks/mochios-positioned-shared-318-{cleanup,readback}.jsonです。
+
+## 静的ELFの取得経路（319）
+
+静的ELFは共通preparerを通らず、exec前のSHA-256計算とnativeのread_allがそれぞれ
+4KiB単位でsourceを読んでいました。newlib-runtimeのdigestは既存VectorBufferを
+callback ownerへ登録し、最大256KiBで要求します。全byteのhash、画像byte上限、短いread、
+不正な返却長とerrnoを維持し、大きいstack scratchや未登録のheap ownerを追加しません。
+実際の固定ELFへ非LOADのsuffixを加えた回帰試験は、修正前に4096byte要求で失敗し、
+修正後に全byteのbroker照合と20回未満のsource readで成功しました。
+
+kernelはProviderReadTransferへ既存のwire検査をまとめ、user copyとowned snapshotで
+共用します。read_allはbacking identityと明示featureを要求し、extent queryからEOF probeまで
+同じI/O guardを保持します。sourceの位置・長さ、dirty cache overlay、短いEOFと成長の拒否を
+維持し、途中の転送エラーでsnapshot全体を失敗にします。明示的なdeclineだけがinlineを
+選び、その後はsharedを再試行しません。transferのHandleはguard解放後に回収します。
+ユーザーへのcopyでは従来どおり、guardを解放してからuser memoryへ書きます。
+新しいsyscallやPOSIX専用の意味論は追加しません。
+
+digestの関連4対象55件、snapshotの関連4対象13件とkernel native checkが成功しました。
+記録はout/checks/mochios-positioned-shared-319-{digest-host,snapshot-host,kernel-check}.logです。
+この追加修正のnative buildと実IPC検証は続行中です。fixtureはCargoのcompiler-artifactから
+選択し、計測文字列とruntime更新後のlink時刻を確認してから配置します。
+
 SDKとRust overlayは再生成しません。完全なPOSIX環境、製品のコンパイラ配置、実行時の
 署名検証・共通Capability同意のgoalも引き続き未完了です。

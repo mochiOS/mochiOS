@@ -15191,3 +15191,11 @@ path = "applications/terminal"
 hash = "e73c87cb58a175b2a47965342822e7479ec56b60"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Replace terminal toolbars with a compact closable tab strip and action menu"
+
+[[entries]]
+date = "2026-11-01T21:08:21.481662311+09:00"
+snapshot = "58e8be71f119343023cd4e1b"
+path = "applications/terminal"
+hash = "f246bbee328ff03cf8295f75a16eae08d3fe7e56"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove split actions and use unframed tabs with measured title ellipsis"

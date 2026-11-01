@@ -15159,3 +15159,11 @@ path = "user"
 hash = "e9776fe74085197754e1ddd41de5665798e72490"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Define explicit signed RAM image authorization requests"
+
+[[entries]]
+date = "2026-11-01T18:44:03.838574541+09:00"
+snapshot = "806be45ac5caf473c69f6d7a"
+path = "services"
+hash = "e8eb3c041d4c7aab1dca29a6936a6333f0e06dd5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify static exec snapshots and native descriptor inheritance"

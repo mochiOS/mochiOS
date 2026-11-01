@@ -22,13 +22,15 @@ for input in "$source_tree/llvm/CMakeLists.txt" "$runtime" "$lld" \
     "$sdk/sysroot/lib/libc.a" "$sdk/sysroot/lib/libm.a"; do
     [[ -s "$input" ]] || { echo "required input is missing: $input" >&2; exit 1; }
 done
-patch_file="$root/scripts/llvm/patches/llvm-18-mochios-path.patch"
-if patch --batch --dry-run --forward -p1 -d "$source_tree" < "$patch_file" >/dev/null 2>&1; then
-    patch --batch --forward -p1 -d "$source_tree" < "$patch_file"
-elif ! patch --batch --dry-run --reverse -p1 -d "$source_tree" < "$patch_file" >/dev/null 2>&1; then
-    echo "LLVM mochiOS path patch does not match the supplied source" >&2
-    exit 1
-fi
+for patch_name in llvm-18-mochios-path.patch clang-18-mochios-toolchain.patch; do
+    patch_file="$root/scripts/llvm/patches/$patch_name"
+    if patch --batch --dry-run --forward -p1 -d "$source_tree" < "$patch_file" >/dev/null 2>&1; then
+        patch --batch --forward -p1 -d "$source_tree" < "$patch_file"
+    elif ! patch --batch --dry-run --reverse -p1 -d "$source_tree" < "$patch_file" >/dev/null 2>&1; then
+        echo "LLVM patch does not match the supplied source: $patch_name" >&2
+        exit 1
+    fi
+done
 mkdir -p "$output/cmake/Platform" "$output/bin"
 "$cc" --target=x86_64-unknown-none-elf -c "$root/user/runtime/crt0.S" -o "$output/crt0.o"
 

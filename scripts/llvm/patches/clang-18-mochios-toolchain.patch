@@ -1,0 +1,324 @@
+--- a/clang/lib/Driver/Driver.cpp
++++ b/clang/lib/Driver/Driver.cpp
+@@ -33,6 +33,7 @@
+ #include "ToolChains/MSP430.h"
+ #include "ToolChains/MSVC.h"
+ #include "ToolChains/MinGW.h"
++#include "ToolChains/MochiOS.h"
+ #include "ToolChains/MipsLinux.h"
+ #include "ToolChains/NaCl.h"
+ #include "ToolChains/NetBSD.h"
+@@ -6215,6 +6216,10 @@
+ 
+   auto &TC = ToolChains[Target.str()];
+   if (!TC) {
++    if (Target.getOSName() == "mochios") {
++      TC = std::make_unique<toolchains::MochiOS>(*this, Target, Args);
++      return *TC;
++    }
+     switch (Target.getOS()) {
+     case llvm::Triple::AIX:
+       TC = std::make_unique<toolchains::AIX>(*this, Target, Args);
+--- a/clang/lib/Driver/CMakeLists.txt
++++ b/clang/lib/Driver/CMakeLists.txt
+@@ -67,6 +67,7 @@
+   ToolChains/Linux.cpp
+   ToolChains/MipsLinux.cpp
+   ToolChains/MinGW.cpp
++  ToolChains/MochiOS.cpp
+   ToolChains/MSP430.cpp
+   ToolChains/MSVC.cpp
+   ToolChains/NaCl.cpp
+--- a/clang/lib/Basic/Targets.cpp
++++ b/clang/lib/Basic/Targets.cpp
+@@ -111,6 +111,10 @@
+ 
+ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
+                                            const TargetOptions &Opts) {
++  if (Triple.getOSName() == "mochios" &&
++      (Triple.getArch() != llvm::Triple::x86_64 || Triple.isX32() ||
++       !Triple.isOSBinFormatELF()))
++    return nullptr;
+   llvm::Triple::OSType os = Triple.getOS();
+ 
+   switch (Triple.getArch()) {
+@@ -591,6 +595,9 @@
+     }
+ 
+   case llvm::Triple::x86_64:
++    if (Triple.getOSName() == "mochios") {
++      return std::make_unique<MochiOSTargetInfo<X86_64TargetInfo>>(Triple, Opts);
++    }
+     if (Triple.isOSDarwin() || Triple.isOSBinFormatMachO())
+       return std::make_unique<DarwinX86_64TargetInfo>(Triple, Opts);
+ 
+--- a/clang/lib/Basic/Targets/OSTargets.h
++++ b/clang/lib/Basic/Targets/OSTargets.h
+@@ -37,6 +37,22 @@
+ void getDarwinDefines(MacroBuilder &Builder, const LangOptions &Opts,
+                       const llvm::Triple &Triple, StringRef &PlatformName,
+                       VersionTuple &PlatformMinVersion);
++
++template <typename Target>
++class LLVM_LIBRARY_VISIBILITY MochiOSTargetInfo : public OSTargetInfo<Target> {
++protected:
++  void getOSDefines(const LangOptions &Opts, const llvm::Triple &Triple,
++                    MacroBuilder &Builder) const override {
++    Builder.defineMacro("__mochios__");
++    Builder.defineMacro("__ELF__");
++    DefineStd(Builder, "unix", Opts);
++    if (Opts.POSIXThreads)
++      Builder.defineMacro("_REENTRANT");
++  }
++
++public:
++  using OSTargetInfo<Target>::OSTargetInfo;
++};
+ 
+ template <typename Target>
+ class LLVM_LIBRARY_VISIBILITY DarwinTargetInfo : public OSTargetInfo<Target> {
+--- a/clang/include/clang/Driver/Compilation.h
++++ b/clang/include/clang/Driver/Compilation.h
+@@ -265,6 +265,9 @@
+     return Name;
+   }
+ 
++  /// Leave output cleanup to a tool that publishes its output transactionally.
++  void forgetResultFile(const JobAction *JA) { ResultFiles.erase(JA); }
++
+   /// addFailureResultFile - Add a file to remove if we crash, and returns its
+   /// argument.
+   const char *addFailureResultFile(const char *Name, const JobAction *JA) {
+--- /dev/null
++++ b/clang/lib/Driver/ToolChains/MochiOS.h
+@@ -0,0 +1,67 @@
++//===--- MochiOS.h - mochiOS ToolChain -----------------------*- C++ -*-===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++
++#ifndef LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_MOCHIOS_H
++#define LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_MOCHIOS_H
++
++#include "clang/Driver/Tool.h"
++#include "clang/Driver/ToolChain.h"
++
++namespace clang::driver {
++namespace toolchains {
++
++class LLVM_LIBRARY_VISIBILITY MochiOS final : public ToolChain {
++public:
++  MochiOS(const Driver &D, const llvm::Triple &Triple,
++          const llvm::opt::ArgList &Args);
++
++  bool useIntegratedAs() const override { return true; }
++  bool HasNativeLLVMSupport() const override { return true; }
++  bool isPICDefault() const override { return false; }
++  bool isPIEDefault(const llvm::opt::ArgList &) const override { return false; }
++  bool isPICDefaultForced() const override { return false; }
++  bool SupportsProfiling() const override { return false; }
++  const char *getDefaultLinker() const override { return "ld"; }
++  CXXStdlibType GetDefaultCXXStdlibType() const override { return CST_Libcxx; }
++
++  std::string computeSDKRoot() const;
++  std::string computeSysRoot() const override;
++  void
++  AddClangSystemIncludeArgs(const llvm::opt::ArgList &Args,
++                            llvm::opt::ArgStringList &CC1Args) const override;
++  void AddClangCXXStdlibIncludeArgs(
++      const llvm::opt::ArgList &Args,
++      llvm::opt::ArgStringList &CC1Args) const override;
++  void AddCXXStdlibLibArgs(const llvm::opt::ArgList &Args,
++                           llvm::opt::ArgStringList &CmdArgs) const override;
++  void addClangTargetOptions(const llvm::opt::ArgList &Args,
++                             llvm::opt::ArgStringList &CC1Args,
++                             Action::OffloadKind) const override;
++
++protected:
++  Tool *buildLinker() const override;
++};
++
++} // namespace toolchains
++namespace tools::mochios {
++
++class LLVM_LIBRARY_VISIBILITY Linker final : public Tool {
++public:
++  explicit Linker(const ToolChain &TC) : Tool("mochios::Linker", "ld", TC) {}
++  bool isLinkJob() const override { return true; }
++  bool hasIntegratedCPP() const override { return false; }
++  void ConstructJob(Compilation &C, const JobAction &JA,
++                    const InputInfo &Output, const InputInfoList &Inputs,
++                    const llvm::opt::ArgList &Args,
++                    const char *LinkingOutput) const override;
++};
++
++} // namespace tools::mochios
++} // namespace clang::driver
++
++#endif
+--- /dev/null
++++ b/clang/lib/Driver/ToolChains/MochiOS.cpp
+@@ -0,0 +1,160 @@
++//===--- MochiOS.cpp - mochiOS ToolChain ---------------------------------===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++
++#include "MochiOS.h"
++#include "CommonArgs.h"
++#include "clang/Driver/Compilation.h"
++#include "clang/Driver/Driver.h"
++#include "clang/Driver/DriverDiagnostic.h"
++#include "clang/Driver/InputInfo.h"
++#include "clang/Driver/Options.h"
++#include "llvm/Option/ArgList.h"
++#include "llvm/Support/Path.h"
++#include "llvm/Support/Process.h"
++
++using namespace clang;
++using namespace clang::driver;
++using namespace clang::driver::toolchains;
++using namespace llvm::opt;
++
++MochiOS::MochiOS(const Driver &D, const llvm::Triple &Triple,
++                 const ArgList &Args)
++    : ToolChain(D, Triple, Args) {
++  if (Triple.getArch() != llvm::Triple::x86_64 || Triple.isX32() ||
++      !Triple.isOSBinFormatELF())
++    D.Diag(diag::err_drv_clang_unsupported) << Triple.str();
++  getProgramPaths().push_back(D.getInstalledDir());
++  if (D.getInstalledDir() != D.Dir)
++    getProgramPaths().push_back(D.Dir);
++}
++
++// Match the ld driver's SDK precedence. Explicit sysroot can independently
++// select headers/libraries, while MOCHIOS_SDK still selects the CRT/runtime.
++std::string MochiOS::computeSDKRoot() const {
++  if (auto SDK = llvm::sys::Process::GetEnv("MOCHIOS_SDK"))
++    return SDK->empty() ? "." : *SDK;
++  const Driver &D = getDriver();
++  StringRef SysRoot(D.SysRoot);
++  while (SysRoot.size() > 1 && llvm::sys::path::is_separator(SysRoot.back()))
++    SysRoot = SysRoot.drop_back();
++  if (llvm::sys::path::filename(SysRoot) == "sysroot") {
++    StringRef Parent = llvm::sys::path::parent_path(SysRoot);
++    return Parent.empty() ? "." : std::string(Parent);
++  }
++  return std::string(llvm::sys::path::parent_path(D.Dir));
++}
++
++std::string MochiOS::computeSysRoot() const {
++  if (!getDriver().SysRoot.empty())
++    return getDriver().SysRoot;
++  SmallString<128> Path(computeSDKRoot());
++  llvm::sys::path::append(Path, "sysroot");
++  return std::string(Path);
++}
++
++Tool *MochiOS::buildLinker() const { return new tools::mochios::Linker(*this); }
++
++void MochiOS::AddClangSystemIncludeArgs(const ArgList &Args,
++                                        ArgStringList &CC1Args) const {
++  if (Args.hasArg(options::OPT_nostdinc))
++    return;
++  if (!Args.hasArg(options::OPT_nobuiltininc)) {
++    SmallString<128> Path(getDriver().ResourceDir);
++    llvm::sys::path::append(Path, "include");
++    addSystemInclude(Args, CC1Args, Path);
++  }
++  if (!Args.hasArg(options::OPT_nostdlibinc)) {
++    SmallString<128> Path(computeSysRoot());
++    llvm::sys::path::append(Path, "include");
++    addSystemInclude(Args, CC1Args, Path);
++  }
++}
++
++void MochiOS::AddClangCXXStdlibIncludeArgs(const ArgList &Args,
++                                           ArgStringList &CC1Args) const {
++  if (Args.hasArg(options::OPT_nostdinc, options::OPT_nostdlibinc,
++                  options::OPT_nostdincxx))
++    return;
++  if (GetCXXStdlibType(Args) != CST_Libcxx) {
++    getDriver().Diag(diag::err_drv_unsupported_option_argument)
++        << "-stdlib=" << "libstdc++";
++    return;
++  }
++  SmallString<128> Path(computeSysRoot());
++  llvm::sys::path::append(Path, "include", "c++", "v1");
++  addSystemInclude(Args, CC1Args, Path);
++}
++
++void MochiOS::AddCXXStdlibLibArgs(const ArgList &Args,
++                                  ArgStringList &CmdArgs) const {
++  if (GetCXXStdlibType(Args) != CST_Libcxx) {
++    getDriver().Diag(diag::err_drv_unsupported_option_argument)
++        << "-stdlib=" << "libstdc++";
++    return;
++  }
++  CmdArgs.append(
++      {"--start-group", "-lc++", "-lc++abi", "-lunwind", "--end-group"});
++}
++
++void MochiOS::addClangTargetOptions(const ArgList &Args, ArgStringList &CC1Args,
++                                    Action::OffloadKind) const {
++  CC1Args.push_back("-nostdsysteminc");
++  if (!Args.hasFlag(options::OPT_mred_zone, options::OPT_mno_red_zone, false))
++    CC1Args.push_back("-disable-red-zone");
++}
++
++void tools::mochios::Linker::ConstructJob(Compilation &C, const JobAction &JA,
++                                          const InputInfo &Output,
++                                          const InputInfoList &Inputs,
++                                          const ArgList &Args,
++                                          const char *LinkingOutput) const {
++  const auto &TC = static_cast<const toolchains::MochiOS &>(getToolChain());
++  const Driver &D = TC.getDriver();
++  // The ld driver publishes only a fully linked, signed and verified file. It
++  // owns failure cleanup; clang must not delete a previous output on failure.
++  C.forgetResultFile(&JA);
++  // Alternate backends belong behind the common driver, which always uses LLD
++  // and owns signing. --ld-path may explicitly locate that driver.
++  if (const Arg *A = Args.getLastArg(options::OPT_fuse_ld_EQ)) {
++    const StringRef Backend(A->getValue());
++    if (!Backend.empty() && Backend != "lld")
++      D.Diag(diag::err_drv_unsupported_opt_for_target)
++          << A->getAsString(Args) << TC.getTripleString();
++  }
++  ArgStringList CmdArgs;
++  CmdArgs.push_back(Args.MakeArgString("--mochios-sdk=" + TC.computeSDKRoot()));
++  CmdArgs.push_back(Args.MakeArgString("--sysroot=" + TC.computeSysRoot()));
++  Args.addAllArgs(
++      CmdArgs, {options::OPT_L, options::OPT_T_Group, options::OPT_u,
++                options::OPT_e, options::OPT_z, options::OPT_s, options::OPT_t,
++                options::OPT_r, options::OPT_static, options::OPT_shared,
++                options::OPT_pie, options::OPT_no_pie, options::OPT_nostdlib,
++                options::OPT_nostartfiles, options::OPT_nodefaultlibs});
++  if (Args.hasArg(options::OPT_static_pie))
++    CmdArgs.push_back("-pie");
++  if (const Arg *A = Args.getLastArg(options::OPT_rtlib_EQ)) {
++    const StringRef Value(A->getValue());
++    if (Value != "libgcc" && Value != "compiler-rt")
++      D.Diag(diag::err_drv_unsupported_option_argument) << "--rtlib=" << Value;
++    else
++      CmdArgs.push_back(Args.MakeArgString("--compiler-runtime=" + Value));
++  }
++  Args.claimAllArgs(options::OPT_pthread, options::OPT_pthreads);
++  tools::AddLinkerInputs(TC, Inputs, Args, CmdArgs, JA);
++  if (!Args.hasArg(options::OPT_r) && TC.ShouldLinkCXXStdlib(Args))
++    TC.AddCXXStdlibLibArgs(Args, CmdArgs);
++  CmdArgs.push_back("-o");
++  CmdArgs.push_back(Output.getFilename());
++  // Never inherit a build-host CLANG_DEFAULT_LINKER setting such as ld.lld.
++  const std::string Linker = Args.hasArg(options::OPT_ld_path_EQ)
++                                 ? TC.GetLinkerPath()
++                                 : TC.GetProgramPath("ld");
++  C.addCommand(std::make_unique<Command>(JA, *this, ResponseFileSupport::None(),
++                                         Args.MakeArgString(Linker), CmdArgs,
++                                         Inputs, Output));
++}

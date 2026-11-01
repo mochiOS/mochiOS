@@ -183,3 +183,60 @@ SDKおよびRust overlayは再生成していません。Rust stdの既存source
 試験中にTerminal外の描画が一部崩れる現象も観測しました。署名機能の成功とは別の未解決事項です。
 通常clang設定・製品配置・ELF内manifest・共通実行認可・保護されたCLI / GUI同意を引き続き
 接続する必要があり、完全なPOSIX環境のgoalも継続します。
+
+## clang標準設定（315、実機確認前）
+
+LLVM 18.1.8のclangへmochiOS専用ToolChainとTargetInfoを追加しました。
+従来のx86_64-unknown-mochiosは汎用GCC系のToolChainを選んでいたため、clang自身が
+ホストGCCのリンク設定を選ぶ可能性がありました。新しい設定はmochiOS名のtargetだけに
+適用し、ELF / LP64、__mochios__ / __unix__、SDKとclang自身のヘッダーを使います。
+Linuxを名乗らず、カーネルにコンパイラやSDKの配置を知らせません。
+
+SDK選択はldと合わせ、MOCHIOS_SDK、明示sysrootの親、clangのbinの親を使います。
+明示--sysrootはヘッダーと標準ライブラリのrootを独立に選択できます。
+CRT・ライブラリ・compiler runtime・署名の追加は共通ldへ任せ、clangへ複製しません。
+--rtlibはldのcompiler runtime選択へ渡します。C++はSDKのlibc++ / libc++abi / libunwindを
+選ぶ設定がありますが、この段階でC++アプリのコンパイル・実行を検証したものではありません。
+
+-cはコンパイルだけを行い、-nostdinc / -nostdlibinc / -nostdlib / -nostartfiles /
+-nodefaultlibs / -rを区別します。-fuse-ld=lldでも共通ldを経由し、署名を迂回しません。
+別のbackendは拒否し、--ld-pathは共通ldそのものの場所を指定します。
+Clangがリンク失敗後に古い最終出力まで削除しないよう、transactionalな公開を行うtoolへ
+後始末を任せるCompilation APIを追加しました。他のToolChainの後始末は変えていません。
+
+パッチはscripts/llvm/patches/clang-18-mochios-toolchain.patchです。
+configure-llvm-target.shが既存のPathパッチと合わせて適用し、不一致はエラーにします。
+SDKとRust overlayの生成処理は変更・実行していません。
+
+### ホストで確認した範囲
+
+services/posix/tests/clang_driver.cppは実際のclangDriver / clangBasicを使う小さいharnessです。
+ソース入力では-###でコマンド選択を調べ、別frontendへの置換は行いません。
+object入力では共通ld、実LLD、msignまで実行します。ターゲットのdefine / LP64、空白を含む
+SDKパス、include抑制、C++設定、引数転送、ABIとbackendの拒否、署名済みELFの生成、
+未定義symbolによるリンク失敗後の旧出力維持を含む8件が通りました。
+これはホストで動くDriverライブラリの試験で、mochiOS上のコンパイル成功とは区別します。
+
+同じ試験は次のスクリプトで実行できます。LLVM_SOURCEにはパッチ適用済みの18.1.8 source、
+LLVM_HOST_BUILDにはホスト用に構成したLLVMの既存ビルドディレクトリを渡します。
+
+```sh
+services/posix/tests/clang_driver.sh LLVM_SOURCE LLVM_HOST_BUILD \
+  MOCHIOS_LD HOST_LD_LLD HOST_MSIGN SDK
+```
+
+harnessはLLVMのRTTI設定に合わせて-fno-rttiでビルドします。ld.lldのsymlink名は保持します。
+LLDはargv[0]でdriver flavorを選ぶため、実体のrust-lld等へ名前を書き換えません。
+記録はout/checks/mochios-clang-default-315-host-{tests,workflow}.logです。
+
+### 未確認の実機経路
+
+native_clang_driver.rsは、配置したSDKのbin/clangへ追加target・SDK引数なしで
+`clang main.c -o main`を渡し、stdio / stdintとOSのdefine、署名検証、`./main`の出力と
+終了コード37、コンパイル・リンク失敗後の旧ELF保持を検査します。
+fixtureとトレースなしruntime / ld / msignのnative buildは成功していますが、
+mochiOS版clang本体は再ビルド中で、このfixtureの実行結果はまだありません。
+試験用ツールのイメージ配置もまだ行っていません。
+
+通常環境への製品配置、ELF内manifest、実行時の署名検証と共通認可、保護されたCLI / GUI同意、
+完全なPOSIX環境は引き続き未完了です。

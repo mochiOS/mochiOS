@@ -70,8 +70,26 @@ kernelはProviderReadTransferへ既存のwire検査をまとめ、user copyとow
 
 digestの関連4対象55件、snapshotの関連4対象13件とkernel native checkが成功しました。
 記録はout/checks/mochios-positioned-shared-319-{digest-host,snapshot-host,kernel-check}.logです。
-この追加修正のnative buildと実IPC検証は続行中です。fixtureはCargoのcompiler-artifactから
-選択し、計測文字列とruntime更新後のlink時刻を確認してから配置します。
+この追加修正のnative buildとKVM実IPC検証も成功しました。fixtureはCargoの
+compiler-artifactから選択し、計測文字列とruntime更新後のlink時刻を確認して配置しました。
+通常DockのTerminal / mshから共有readの4グループを再確認し、524,599byteのreadは
+24,000,000nsでした。異なる試験時の負荷・cache状態を揃えていないため、318との差から
+改善倍率は主張しません。
+
+同じ通常mshでnative_clang_driverの全gateが成功しました。clangのtarget取得は6,336ms、
+通常引数のcompile / link / 自動署名 / msign verifyは62,980ms、試験全体は132,352msです。
+./mainの正確なstdoutと終了値37、compile失敗・link失敗後の旧ELFのbyte一致、
+改変したELFに対するmsign verifyの失敗、cleanupとprompt復帰を確認しました。
+従来のalarm 900秒は変更していません。改変拒否はmsignの検証機能によるもので、
+共通実行認可へ署名検証が接続済みという意味ではありません。画面は
+out/checks/mochios-positioned319-{read-result,clang-complete}.png、結果と選択したfixtureは
+out/checks/mochios-positioned-shared-319-artifacts.jsonです。
+
+記録したVMを停止し、解析プロセスの復帰処理を終えています。SDK入力を変更せず、所有する
+診断用395ファイルを撤去し、検証済みkernel / filesystem / mshを通常イメージへ保持しました。
+imageから読み戻したTerminal / msh / filesystem / POSIX / inputの5実行体はstageと一致し、
+診断rootとprobeの不在、配布成果物6件のchecksumも確認しました。記録は同接頭辞の
+readback.jsonとnormal-image.logです。
 
 SDKとRust overlayは再生成しません。完全なPOSIX環境、製品のコンパイラ配置、実行時の
 署名検証・共通Capability同意のgoalも引き続き未完了です。

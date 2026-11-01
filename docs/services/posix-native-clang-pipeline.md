@@ -286,3 +286,30 @@ clangの正常系成功は上記のとおりで、後半の失敗経路は未確
 イメージから読み戻したTerminal / msh / posix.service / input.serviceの4ハッシュは試験前と一致し、
 診断SDKと2つのprobeがイメージ内にないことも確認しました。
 記録は`out/checks/mochios-newlib-exit-317-{artifacts,cleanup,readback}.json`です。
+
+## 共有転送接続後の全経路（319）
+
+静的ELFでは、exec前のdigest計算とkernelのowned snapshotがそれぞれ4KiBずつ
+sourceを読んでいました。一般オブジェクトの共有転送を両方へ接続し、認証するbyte範囲、
+backingのI/O直列化、dirty cache overlay、errnoと資源解放を維持しました。
+詳細はposix-shared-positioned-read.mdです。
+
+通常Dockから開いたTerminal / mshで、正しい計測版native_clang_driverの全gateが成功しました。
+clangへtarget・SDKの追加引数を渡さず、stdio / stdintを使うCをcompileし、共通ldから
+実ld.lldと既存msignを呼び、AdHoc署名を検証しました。./mainのstdoutは
+clang-driver315\n、終了値は37です。compile失敗とlink失敗の両方で旧ELFがbyte単位で
+保持され、改変したELFはmsign verifyが拒否しました。cleanupとmshのprompt復帰も確認しています。
+900秒のalarmを変えず、target取得6,336ms、compile / link / sign / verify 62,980ms、
+全試験132,352msでした。時間はこのKVM構成での結果で、Linuxとの性能比は測定していません。
+画面はout/checks/mochios-positioned319-clang-complete.png、入力・選択したfixture・結果は
+out/checks/mochios-positioned-shared-319-artifacts.jsonです。
+
+318では旧fixtureのpathを選んでいたため、時間測定を採用せず試験を中断しました。
+319の配置はCargoのcompiler-artifactから実行体を選び、計測文字列とruntime更新後の
+link時刻も確認します。SDK / Rust overlayは再生成せず、生成アプリは供給された現在の
+SDKを使いました。clang自身のbootstrapは引き続き固定済みlibc等と修正済みexit objectを
+使うため、SDK管理側へnewlibの修正を取り込む必要がある点は維持します。
+
+今回も診断SDKを配置した試験です。通常PATHへのcompilerの製品配置、ELF内manifest、
+実行時の共通署名検証・認可、保護されたCLI / GUIのCapability同意、完全POSIX環境は
+未完了です。msign verifyでの改変拒否と、実行時ポリシーでの改変拒否を混同しません。

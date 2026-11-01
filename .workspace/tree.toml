@@ -15135,3 +15135,11 @@ path = "services"
 hash = "1746042e99dfdebf36fdf29ebd386df7ab1a5f2d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify symbolic links and failed updates in filesystem images"
+
+[[entries]]
+date = "2026-11-01T17:00:44.430787252+09:00"
+snapshot = "524b4e705c10d6d160b1d0c8"
+path = "tools/devkit"
+hash = "7f633fd0666dff0e6429235bfc8d65a5c2cff7be"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Document verified linker use from the installed native toolchain"

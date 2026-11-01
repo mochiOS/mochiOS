@@ -15095,3 +15095,11 @@ path = "build"
 hash = "e1c14636861d21c5e9981f55a987ffc2153a8a26"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add categorized mmake target help"
+
+[[entries]]
+date = "2026-11-01T15:37:18.693155094+09:00"
+snapshot = "70fb304a9ccd87c1970d41db"
+path = "services"
+hash = "bd164942ed599c5cb44ece50efbfbd2a5e335d12"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Serve shared positioned reads and verify cursor and input ownership"

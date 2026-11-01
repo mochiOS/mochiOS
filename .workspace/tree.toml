@@ -15071,3 +15071,11 @@ path = "services"
 hash = "c6c825bbf717ebf46e48f2276fa8665b82799ea6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise mochiOS clang defaults through the shared signing driver"
+
+[[entries]]
+date = "2026-11-01T14:25:31.584117102+09:00"
+snapshot = "cbbb4b86d35359ebad96989d"
+path = "services"
+hash = "2392cdba612e3d63b26f789bcead1879c5e71aa2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retain ELF signature regression tests against the shared codec"

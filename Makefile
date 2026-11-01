@@ -24,3 +24,5 @@ include build/mmake/preview.mk
 all: image
 
 build: image
+
+include build/help.make

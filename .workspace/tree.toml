@@ -15119,3 +15119,11 @@ path = "core"
 hash = "30fd2cdd186c8a3e7054502a2a410a9c14ee16c8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reuse shared object transfers for serialized owned snapshots"
+
+[[entries]]
+date = "2026-11-01T16:25:20.158113270+09:00"
+snapshot = "15dee794d76963467ea02554"
+path = "applications/fonts"
+hash = "87885a1bde3dd244e3ffa395befc3785fd522f13"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use standard ViewKit split panes and toolbar for Fonts"

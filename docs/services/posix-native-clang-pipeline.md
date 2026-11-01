@@ -313,3 +313,15 @@ SDKを使いました。clang自身のbootstrapは引き続き固定済みlibc�
 今回も診断SDKを配置した試験です。通常PATHへのcompilerの製品配置、ELF内manifest、
 実行時の共通署名検証・認可、保護されたCLI / GUIのCapability同意、完全POSIX環境は
 未完了です。msign verifyでの改変拒否と、実行時ポリシーでの改変拒否を混同しません。
+
+## 通常PATHへの配置（321）
+
+提供SDKとbuild済みのnative clang / ld.lld / ld / msignを/system/developerへ配置し、
+/system/binからの相対symlinkで使います。rootfs-stageはUSER_INSTALL_DEVELOPER_TOOLS=yで
+同じ配置処理を使い、欠落入力を検出します。SDKとRust overlayは再生成していません。
+native_clang_driverを通常PATHへ切り替え、診断SDKパスもSDK / targetの追加引数もない状態で
+全gateが成功しました。./mainのstdout・exit37、失敗時の旧ELF維持、msignによる改変拒否と
+cleanup / prompt復帰まで確認しています。target取得14,424ms、compile / link / sign / verify
+105,946ms、全試験211,024msでした。詳細と配置入力はposix-native-development-tools.mdです。
+
+これは実行時の共通署名認可やCapabilityの保護された同意、完全POSIX互換性の完了ではありません。

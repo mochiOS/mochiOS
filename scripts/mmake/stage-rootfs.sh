@@ -71,6 +71,13 @@ grep -qx 'KERNEL_PERFORMANCE_INSTRUMENTATION=y' "$config" && coreutils+=(mperf) 
 grep -qx 'USER_BUILD_SELFTESTS=y' "$config" && coreutils+=(selftest-capability selftest-process selftest-ext2-write selftest-system-layout) || true
 for program in "${coreutils[@]}"; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done
 
+if grep -qx 'USER_INSTALL_DEVELOPER_TOOLS=y' "$config"; then
+    python3 "$root/scripts/mmake/stage-development-tools.py" "$stage_new" \
+        --sdk "$root/out/newlib-port/sdk" \
+        --llvm "$root/out/llvm-port/build-target" \
+        --rust-tools "$bin"
+fi
+
 install_manifest() {
     local source=$1 name=$2 package_root=$stage_new/system/packages/$2
     if grep -Fq '"window.create"' "$source" && ! grep -Fq '"ipc.server"' "$source"; then

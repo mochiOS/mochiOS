@@ -15223,3 +15223,11 @@ path = "applications/edit"
 hash = "716902fe3430dce8c10d550ab5d7392a4bf7f301"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore(build): refresh Edit lockfile for the current SDK"
+
+[[entries]]
+date = "2026-11-02T21:39:52.108202154+09:00"
+snapshot = "442bffb47a60fc88b2d7d3fc"
+path = "services"
+hash = "23312fcf115376cdaaa523cf052847a9d90044a7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Test authority revision revocation and final image commit exclusion"

@@ -15199,3 +15199,11 @@ path = "applications/terminal"
 hash = "f246bbee328ff03cf8295f75a16eae08d3fe7e56"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove split actions and use unframed tabs with measured title ellipsis"
+
+[[entries]]
+date = "2026-11-02T18:10:46.876166286+09:00"
+snapshot = "03dee71334b9ae028cbf475f"
+path = "build"
+hash = "47c85fbaf013437477a4264b9a0696a4a2001878"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Rebuild host signer when the shared manifest schema changes"

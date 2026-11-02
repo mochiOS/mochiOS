@@ -147,3 +147,64 @@ installed-auth.log、native-final-build.logです。SDKとRust std overlayは再
 msh prompt復帰、FilesのHome表示が成功しています。所有VMを停止して解析処理を復帰し、
 475ファイルと4つのcommand linkをイメージから読み戻して照合しました。
 kernelとSDKは不変です。native.log、result.png、files.png、readback.jsonに記録しています。
+
+## 通常execも保持済みコードから実行主体を選ぶ（334）
+
+通常libc execのAUTHORIZE_EXEC_OBJECTを、署名付きRAM認可と同じsource検証へ接続します。
+以前の「呼出元と同じidentity・通常Capabilityを継承して置換する」発行処理は削除しました。
+要求内のdigestは一致検査にだけ使用し、それ自体を認証情報として扱いません。
+Providerを読み始める前にnative RAMであることと長さを確認し、取得したbounded snapshotの
+全bytesを測定します。受信した参照の回収と、失敗時に旧imageを保持する処理は維持します。
+
+同じbytesがインストール済みコードに一致する場合は、indexを候補検索にだけ使い、
+実際に認証した一つのmanifestからidentity、要求権限、sizeとdigestを取得します。
+認証失敗、非application、曖昧な複数宣言は拒否し、単体ELFへ格下げして再認可しません。
+インストール済みコードでなければ、既存の共通ELF署名検証と単体ELFの選択を使います。
+AdHocの要求なし実行体は元ELF全体のhashに対応するdevelopment identityと空のgrantを持ち、
+mshのidentityや通常Capabilityを取得しません。保護された確認が必要な要求は未承認のまま
+発行せず、通常execの失敗を旧継承経路へ戻す処理もありません。
+
+署名付きRAM protocolは同じopcodeのversion 3とし、以前の版を拒否します。
+通常exec transportとELF署名v1の形式は変更しません。SDKとRust std overlayは再生成しません。
+静的ELFをProviderのまま渡す旧runtimeは利用できず、共有preparerで私有RAMへ捕捉する
+現行runtimeが必要です。既存clang内に旧exec処理が残り、最初の起動は成功しても
+内部のposix_spawnがEINVALとなったため、現在のstandalone runtimeでclang / ld.lldを
+再リンクします。既存CMakeのlink commandとobject / libraryを使い、SDKは読み取りのままです。
+開発ツールのcode bindingは既存stage-development-tools.pyの生成処理とmsignで更新し、
+package identityと要求権限は変更しません。
+
+最初のKVM試験はprobeの起動時にPermission deniedとなりました。通常execが添付するREADだけの
+RAM参照に対し、MemoryObjectLengthがMAPを要求していたためです。長さの観測はREADまたはMAPで
+可能とし、一回のHandle table参照から保持したobjectと権限を検査します。Providerや
+Provider-backed VMは依然として所有者への問い合わせなしで拒否し、mapping権限を追加しません。
+kernelへ署名・manifest・サービス名・POSIXの知識を追加する変更ではありません。
+
+動的なprepared outputのsource・依存先との認証結合、CLI / GUI同意と対象imageへの
+原子的なgrant付与、未宣言の診断コマンドと完全POSIXのgoalは引き続き残ります。
+元bytesと異なる出力を、呼出元のdigest申告や元のパスの再読込だけで認可しません。
+
+関連9 targetsのhost試験は計80件成功、失敗0件、ignored 2件です。
+RAMの権限試験はproductionの長さ取得とHandle参照取得を実行し、全2048通りの権限、
+READだけ・MAPだけ、権限なし、別種のobject、Provider-backed VM、無効参照とcaller不在を
+検査します。既存のRAM生成失敗試験に残っていた旧設定名も、現行のper-object上限へ
+合わせました。失敗注入・割当回収・権限検査は維持しています。
+
+KVMでは通常DockのTerminal / mshから、通常PATHのclangによるcompile、共通ld driver、
+実LLD、自動AdHoc署名、msign verifyと通常の./mainがすべて成功しました。
+生成したCプログラム自身がnative queryで全canonical Capabilityの0を確認し、
+元の署名済みELF全体のSHA-256に対応するpackage IDとdevelopment provenanceを検査します。
+stdoutと終了値37、compile / link失敗での旧ELF保持、msignの改変拒否に加え、
+改変したELFを通常execもPermission deniedで拒否すること、cleanupとmsh prompt復帰を
+確認しました。これは新しい権限を承認・付与する試験ではありません。
+
+証跡はout/checks/mochios-exec-source-334-のhost-verified.log、memory-regression.log、
+kernel-final-build.log、runtime-build.log、result.pngとartifacts.jsonです。
+所有VMはPIDと開始時刻を照合して停止し、解析処理の復帰記録も確認しています。
+最初の二つの失敗画面・ログは保存し、成功結果へ置き換えていません。
+
+成功後、再リンクした2ツールを通常のLLVMビルド出力にも反映し、probeとそのpackageの
+計3ファイルだけを撤去しました。更新したkernel / capability.service / 開発ツールと対応する
+認証情報を保持して通常イメージを再生成し、475ファイルと4つのcommand linkを読み戻して
+照合しています。probeの不在と6成果物のchecksumも成功しました。
+normal-image.logとreadback.jsonに記録しています。SDKのruntimeを含む入力は不変で、
+生成Cからのfork / execや、承認による新規Capability付与までを検証したものではありません。

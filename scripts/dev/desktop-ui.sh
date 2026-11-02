@@ -18,11 +18,7 @@ case "$mode" in
 esac
 
 apps=(files settings edit terminal appstore system-monitor viewer calendar calculator mail keychain disk-utility fonts installer test-app)
-for app in binder "${apps[@]}"; do
-    "$script_dir/preview-app.sh" "$app" --check "$@"
-done
-"$script_dir/preview-app.sh" ime --check "$@"
-"$script_dir/preview-app.sh" keychain-service --check "$@"
+"$script_dir/preview-app.sh" workspace --check "$@"
 [[ $mode != --check ]] || exit 0
 preview_font_root="$root/libraries/fonts/out/fonts"
 [[ -d $preview_font_root ]] || preview_font_root="$root/libraries/viewkit/resources/fonts"

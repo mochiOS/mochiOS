@@ -18,13 +18,14 @@ while (($#)); do
     shift
 done
 
-if [[ $app == check || $app == test ]]; then
-    if [[ $app == test ]]; then
-        python3 "$script_dir/prepare-preview.py" "$root"
-        env CARGO_TARGET_DIR="$root/out/preview/target" CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-1}" \
-            cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
-            "${cargo_patches[@]}" -p viewkit --lib
-    fi
+if [[ $app == check ]]; then
+    exec "$0" workspace --check "${cargo_patches[@]}"
+fi
+if [[ $app == test ]]; then
+    python3 "$script_dir/prepare-preview.py" "$root"
+    env CARGO_TARGET_DIR="$root/out/preview/target" CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-1}" \
+        cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
+        "${cargo_patches[@]}" -p viewkit --lib
     for name in files settings binder appstore edit terminal system-monitor viewer calendar calculator mail keychain disk-utility fonts installer; do
         "$0" "$name" "--$app" "${cargo_patches[@]}"
     done
@@ -32,6 +33,7 @@ if [[ $app == check || $app == test ]]; then
 fi
 
 case "$app" in
+    workspace) source_dir="$root" ;;
     files) source_dir="$root/applications/file" ;;
     settings) source_dir="$root/applications/settings" ;;
     binder) source_dir="$root/applications/binder" ;;
@@ -60,6 +62,7 @@ preview_dir="$root/out/preview/applications/${source_dir##*/}"
 [[ $app != ime ]] || preview_dir="$root/out/preview/tools/desktop-ime"
 [[ $app != keychain-service ]] || preview_dir="$root/out/preview/tools/keychain-service"
 manifest="$preview_dir/Cargo.toml"
+[[ $app != workspace ]] || manifest="$root/out/preview/Cargo.toml"
 
 command -v cargo >/dev/null || { echo "cargo is required" >&2; exit 1; }
 case "$mode" in
@@ -125,5 +128,9 @@ if [[ ( $app == keychain || $app == mail ) && $mode == run && -z ${MOCHIOS_PREVI
     exit $?
 fi
 
+if [[ $app == workspace ]]; then
+    [[ $mode == --check ]] || { echo "workspace preview only supports --check" >&2; exit 2; }
+    exec cargo build --offline --manifest-path "$manifest" "${cargo_patches[@]}" --workspace --bins
+fi
 exec cargo "$cargo_command" --offline --manifest-path "$manifest" \
     "${cargo_patches[@]}" --bin "$preview_binary"

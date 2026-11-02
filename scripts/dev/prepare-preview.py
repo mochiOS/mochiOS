@@ -21,6 +21,12 @@ def write_if_changed(path, text):
         path.write_text(text)
 
 
+def copy_if_changed(source, target):
+    source, target = pathlib.Path(source), pathlib.Path(target)
+    if not target.exists() or source.read_bytes() != target.read_bytes():
+        shutil.copy2(source, target)
+    return str(target)
+
 members = []
 for name in applications:
     source = root / "applications" / name
@@ -41,7 +47,7 @@ for name in applications:
             link(source / entry, destination / entry)
     members.append(f'"applications/{name}"')
     if name == "binder":
-        shutil.copytree(source / "crates/binder_protocol", destination / "crates/binder_protocol", dirs_exist_ok=True)
+        shutil.copytree(source / "crates/binder_protocol", destination / "crates/binder_protocol", dirs_exist_ok=True, copy_function=copy_if_changed)
         members.append('"applications/binder/crates/binder_protocol"')
 
 # The host input adapter shares input.service's library, not a separate IME implementation.

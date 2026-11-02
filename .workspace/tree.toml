@@ -15215,3 +15215,11 @@ path = "libraries/viewkit"
 hash = "276b61c1f375b53f70c8725868403cf0b45d532a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(gpu): separate host scene limits and bulk-copy vertices"
+
+[[entries]]
+date = "2026-11-02T20:06:27.979647898+09:00"
+snapshot = "881b427dfb08078e6882ed71"
+path = "applications/edit"
+hash = "716902fe3430dce8c10d550ab5d7392a4bf7f301"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore(build): refresh Edit lockfile for the current SDK"

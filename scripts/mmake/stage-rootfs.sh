@@ -80,17 +80,23 @@ fi
 
 install_manifest() {
     local source=$1 name=$2 package_root=$stage_new/system/packages/$2
+    local binding_args=(--rootfs "$stage_new" --map-path /bin=/system/bin)
     if grep -Fq '"window.create"' "$source" && ! grep -Fq '"ipc.server"' "$source"; then
         echo "fatal: $source requires window.create but cannot receive window events without ipc.server" >&2
         exit 1
     fi
     mkdir -p "$package_root"
-    install -m 0644 "$source" "$package_root/manifest.toml"
+    if [[ $name == coreutils ]]; then
+        grep -qx 'KERNEL_PERFORMANCE_INSTRUMENTATION=y' "$config" || binding_args+=(--exclude-binary /bin/mperf)
+        if ! grep -qx 'USER_BUILD_SELFTESTS=y' "$config"; then
+            binding_args+=(--exclude-binary /bin/selftest-ext2-write --exclude-binary /bin/selftest-system-layout)
+        fi
+    fi
+    "$msign" package bind-built-in "$source" "${binding_args[@]}" --output "$package_root/manifest.toml"
     "$msign" package built-in-record "$package_root/manifest.toml" --output "$package_root/verification.bin"
     chmod 0644 "$package_root/verification.bin"
 }
 install_manifest "$root/user/apps/rust-std-demo/manifest.toml" rust-std-demo
-install_manifest "$root/applications/test.app/manifest.toml" viewkit-test
 install_manifest "$root/binaries/msh/manifest.toml" msh
 install_manifest "$root/binaries/coreutils/manifest.toml" coreutils
 if grep -qx 'USER_INSTALL_DEVELOPER_TOOLS=y' "$config"; then
@@ -130,6 +136,7 @@ stage_app "$root/applications/fonts" Fonts.app fonts appicon.png
 stage_app "$root/applications/viewer" Viewer.app viewer appicon.png
 stage_app "$root/applications/installer" Installer.app installer appicon.png
 cp -a "$root/applications/installer/legal" "$stage_new/system/applications/Installer.app/"
+install_manifest "$root/applications/test.app/manifest.toml" viewkit-test
 install_manifest "$root/applications/binder/manifest.toml" binder
 install_manifest "$root/applications/appstore/manifest.toml" appstore
 install_manifest "$root/applications/edit/manifest.toml" edit

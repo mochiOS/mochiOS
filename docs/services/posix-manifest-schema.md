@@ -76,3 +76,42 @@ CLI / GUI同意と最終grantを接続した変更ではありません。その
 証跡はout/checks/mochios-code-bindings-331-のprompt-final-host.log、installed-host.log、
 native-build.log、native.logとresult.pngです。所有VMを停止して解析処理を復帰し、
 通常イメージの403ファイルと4リンクを読み戻して照合しました。SDKとkernelは変更していません。
+
+## 配置済みのコードと宣言の結合（332）
+
+host msignへpackage bind-built-inを追加しました。コピー済みの各binaryを保持したFileから
+末尾までSHA-256で測定し、sizeと実際のUnix modeをfile entryへ記録してbinaryと結び付けます。
+既存の結合がある場合は同じbytes・size・modeを要求し、不一致を新しいhashで上書きしません。
+通常のbuilt-in-recordも共通schemaで検査し、正確なmanifest bytesへ認証recordを結び付けます。
+
+rootfs生成ではコードを配置してからこの処理を実行します。/binから/system/binへの対応は
+ビルド側の明示的なprefix mappingで指定し、カーネルへ配置知識を追加しません。
+無効なmperfとfilesystem selftestsだけを.configに従い明示除外し、それ以外の欠落は失敗です。
+アプリケーションの追加設定、promptと要求権限はTOMLの値として保持します。
+一般の署名・実行権限・同意を生成する操作ではなく、所有するstaging treeの整形です。
+
+実CLIの7試験は全bytesの測定、既存結合の改変拒否、prefixの境界・最長一致、
+root外へのsymlink、codeと出力のalias、失敗時の旧出力保持と、実際のrootfs関数を使う
+4通りのfeature設定を確認します。msignの既存34試験と関連の既存30試験も成功しました。
+初回の証明書4試験はsandboxがlocalhost bindを拒否したため失敗し、同じ試験を
+localhostを利用できる環境で再実行して34件すべて成功しています。
+
+実際のrootfs生成スクリプトで43 package / 65 binaryの一時treeを作り、本番resolverと
+Catalogで全宣言の受理、codeの変更・切詰め・追記、manifest変更の拒否を確認しました。
+通常イメージの既存38 package / 60 binaryについても同じ試験が成功しています。
+通常イメージにはこの38 packageの76 metadataファイルだけを反映し、実行体は保持しました。
+追加アプリを含む一時treeは認証記録を保存して削除しています。
+
+hello、selftest-capability、selftest-processには既存のbinary宣言がありません。
+この3コマンドの扱いと、通常exec / spawn / GUI起動の共通認可への接続は残件です。
+既存のstatic manifest向けfallbackも残っており、その撤去は今回の完了範囲に含みません。
+完全POSIX環境のgoalは継続します。
+
+証跡はout/checks/mochios-code-bindings-332-のbind-final-host.log、msign-tests-localhost.log、
+full-stage.log、full-stage-auth.log、installed-auth.log、regression.logにあります。
+
+反映後のKVMでもinput READY、Binder、Dock、Terminal、外部echoの出力とmsh prompt復帰を
+確認しました。所有VMを停止して解析処理を復帰し、475ファイルと4つのcommand linkを
+生成イメージから読み戻して照合しています。SDK入力・既存実行体・kernelは不変で、
+6成果物のchecksumも成功しました。native.log、result.png、readback.jsonに記録しています。
+通常のmmake msign-toolも成功し、新しいhostコマンドを利用できます。

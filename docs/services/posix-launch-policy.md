@@ -340,3 +340,45 @@ shellの通常exitをTerminalがwaitし、Process completedを表示すること
 修正と回帰試験は別々の署名付きコミットに保存し、既存のuser/Cargo.lock更新も保存しました。
 通常clangの自動署名・共通実行認可、保護されたCLI / GUI承認frontendと完全なPOSIX互換性は
 引き続き未完了です。
+
+## 実行許可の権限世代と最終commitの排他（335）
+
+PendingExecSecurityを発行先processの権限世代へ結び付けます。世代はnative側で設定し、
+要求側の値を採用しません。通常Capabilityとnative authorityの可変取得・設定で世代を
+更新し、保管中の許可を破棄します。消費済みの許可も、image置換と継承image作成の
+後段で現在の世代と照合します。撤回後に同じ集合へ戻しても古い許可は復活しません。
+世代の加算は飽和し、上限では新しい発行をLimitExceededで拒否します。
+
+最終確認後の外部processからの更新も直列化するため、ProcessObject内に割当不要の
+authority gateを置きます。CapDrop・CapTransfer・CapRestrictはprocess tableを借りる前に
+更新guardを取得し、image置換は兄弟threadの静止後、旧imageへ触る前にcommit guardを
+取得します。準備中の撤回は許可し、最終確認から確定までは外部更新を凍結します。
+競合は待ち続けずResourceUnavailable、消えたprocessはNotReadyとして返します。
+失敗時のguard解放、旧VM・権限の保持と、通常の部分集合検査は維持します。
+未使用のglobalな権限設定関数は削除し、kernelへPOSIX・承認画面・サービス名を追加しません。
+
+これは既存権限の縮小としての実行認可を強化する変更です。CLI / GUIの保護された承認と、
+承認済みの新規grantを親へ経由させず対象imageへ適用する接続は引き続き残ります。
+
+関連12 targetsのhost試験17件とkernelのrelease buildが成功しました。実際のauthority gateを
+使い、複数更新と最終commitの排他、競合時のnative error、失敗した取得で既存guardを
+解除しないこと、rollback、割当なしの取得と100回のthread間競合を確認しています。
+権限世代の試験は撤回・同一集合への復元、消費済み許可、世代の飽和も扱います。
+
+同じ測定済みELFと明示した権限を用いたKVM比較では、修正前kernelは保管中・消費後の
+両方で撤回後に古い許可を再利用できました。修正後は通常の許可による実行が成功し、
+消費前の撤回とimage I/O中の撤回は、元の権限集合へ戻しても拒否されました。
+拒否後のprocess identity保持、再消費の拒否とmsh prompt復帰も確認しています。
+記録はout/checks/mochios-exec-authority-generation-335-のhost-verified.log、
+gate-status.log、before-result.png、result.pngとartifacts.jsonです。
+
+同じ修正後kernelと通常PATHでclang回帰試験も成功しました。標準target、compile / link /
+自動署名、生成C自身による元ELF identityと全canonical Capabilityの0、正確なstdoutと終了値37、
+compile / link失敗後の旧ELF保持、msignと通常execによる改変拒否、cleanupとprompt復帰を
+確認しています。compile / link / sign / verifyは130,620ms、全試験253,416msでした。
+負荷条件を揃えた性能比較ではありません。画面は同接頭辞のclang-result.pngです。
+
+検証VMはPIDと開始時刻を照合して停止し、記録した解析処理の復帰も終えました。
+診断用4ファイルだけを撤去し、修正済みkernelを保持して通常イメージを再生成しました。
+475ファイルと4つのcommand linkの読み戻し、probeの不在、配布成果物6件のchecksumが
+成功しています。SDK入力は不変です。normal-image.logとreadback.jsonへ記録しています。

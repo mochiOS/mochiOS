@@ -115,3 +115,35 @@ full-stage.log、full-stage-auth.log、installed-auth.log、regression.logにあ
 生成イメージから読み戻して照合しています。SDK入力・既存実行体・kernelは不変で、
 6成果物のchecksumも成功しました。native.log、result.png、readback.jsonに記録しています。
 通常のmmake msign-toolも成功し、新しいhostコマンドを利用できます。
+
+## インストール済みコードの旧fallbackを撤去（333）
+
+Catalog::for_staticと、bootstrap rootにfile bindingがない場合の例外を削除しました。
+アプリ起動は認証済みmanifestのroot / library結合と、保持したFileHandleから取得したbytesを
+照合します。宣言に結合情報がない場合もエラーとなり、別のパス読込で信頼を補いません。
+
+起動用イメージの準備と初期サービス起動も、verified_manifestの同じsnapshotから
+実行主体・要求権限・コード結合を取得します。キャッシュされたindexの宣言は認証情報として
+使用せず、初期サービスでは選択したpackage IDも認証結果と一致させます。
+取得した元bytesのsize / SHA-256を確認してからnative認可を発行します。
+イメージ準備の認証・policy・code失敗はnative割当より先に返し、失敗時の参照回収は維持します。
+
+関連77件のhost試験が成功しました。初期サービスの認証は本番resolver / Catalogと実際の
+Install Recordを使い、古いindexの無視、一回のmanifest / record読取、正確な取得bytesの
+認可、改変・結合なし・package差し替え・読取失敗での非発行を確認します。
+native割当・作成の順序と参照回収は既存の境界試験でも確認しています。
+通常イメージの38 package / 60 binaryについても、実コードの受理と変更・切詰め・追記、
+manifest変更の拒否が本番resolver / Catalogで成功しました。
+
+この変更は通常POSIX execのAUTHORIZE_EXEC_OBJECTを置き換えるものではありません。
+単体ELF / installed sourceの選択、通常exec / spawnへの共通認可接続、保護されたCLI / GUI
+同意と最終grantの結合、未宣言の3診断コマンドと完全POSIX環境のgoalは引き続き残ります。
+
+証跡はout/checks/mochios-bound-images-333-のhost-final.log、bootstrap-auth.log、
+installed-auth.log、native-final-build.logです。SDKとRust std overlayは再生成していません。
+
+更新したcapability.serviceと、そのコードを測定したmanifest / verificationを通常イメージへ
+反映しました。KVMで初期サービス、input READY、BinderとDock、Terminalの外部echoと
+msh prompt復帰、FilesのHome表示が成功しています。所有VMを停止して解析処理を復帰し、
+475ファイルと4つのcommand linkをイメージから読み戻して照合しました。
+kernelとSDKは不変です。native.log、result.png、files.png、readback.jsonに記録しています。

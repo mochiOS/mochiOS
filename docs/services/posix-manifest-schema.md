@@ -51,3 +51,28 @@ verification record、通常msignを保持してイメージを再生成しま�
 command symlinkを読み戻して照合し、probeの不在と6成果物のchecksumを確認しました。
 SDKの入力hashは不変で、SDKとRust std overlayは再生成していません。
 記録はnormal-image.logとreadback.jsonです。
+
+## Capability確認設定も同じ認証済みschemaで読む（331）
+
+capability.serviceの[prompt]には別の行parserが残っており、通常manifestの末尾カンマ付き
+配列を空の確認設定として扱っていました。interactive_capabilitiesを共通PackageManifestへ
+追加し、requiresと同じ文字列・配列・件数・重複の検査を使います。
+
+起動時と更新時の両方で、既存resolverが認証したmanifestの同じsnapshotから設定を読みます。
+org.mochios.capabilityのbuilt-inなSystem identityを要求し、古いindex内の解析結果を
+現在の設定として使用しません。入力・認証・schema・Capability分類の失敗を空設定へ
+置き換えず、起動を失敗させるか更新前のindexとpolicyを一緒に保持します。
+認証済みmanifestが設定を宣言しない場合と、明示した空配列は引き続き空設定です。
+
+本番policy / resolverを使う7件と、初期化・更新の5件を含む関連58件のhost試験、
+配置済み38 manifestのschema検査が成功しました。通常の3対象権限、複数行・escape・comment、
+欠落・改変・異なるpackage / provenance、不正な型と重複、I/O失敗と更新時の原子性を確認します。
+
+更新したサービスでKVMを起動し、input READY、BinderとDock、通常Terminalのmsh prompt、
+外部echoの出力とprompt復帰を画面で確認しました。未承認の確認対象を許可する変更や、
+CLI / GUI同意と最終grantを接続した変更ではありません。その接続と完全POSIXのgoalは継続します。
+既存のnetwork Failed(-6)とUSB errno 22も残っています。
+
+証跡はout/checks/mochios-code-bindings-331-のprompt-final-host.log、installed-host.log、
+native-build.log、native.logとresult.pngです。所有VMを停止して解析処理を復帰し、
+通常イメージの403ファイルと4リンクを読み戻して照合しました。SDKとkernelは変更していません。

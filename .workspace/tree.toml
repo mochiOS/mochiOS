@@ -15207,3 +15207,11 @@ path = "build"
 hash = "47c85fbaf013437477a4264b9a0696a4a2001878"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Rebuild host signer when the shared manifest schema changes"
+
+[[entries]]
+date = "2026-11-02T18:49:07.732912306+09:00"
+snapshot = "6850d265a313f2e7e0edf2dc"
+path = "libraries/viewkit"
+hash = "276b61c1f375b53f70c8725868403cf0b45d532a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(gpu): separate host scene limits and bulk-copy vertices"

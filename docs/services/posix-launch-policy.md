@@ -382,3 +382,24 @@ compile / link失敗後の旧ELF保持、msignと通常execによる改変拒否
 診断用4ファイルだけを撤去し、修正済みkernelを保持して通常イメージを再生成しました。
 475ファイルと4つのcommand linkの読み戻し、probeの不在、配布成果物6件のchecksumが
 成功しています。SDK入力は不変です。normal-image.logとreadback.jsonへ記録しています。
+
+## 管理権限の撤回と付与の直列化（336）
+
+CapTransferの管理権限による付与は、要求形式を選ぶための事前確認とは別に、
+実際に付与するprocess-table lock内でsourceの現在のCapabilitiesManageを再確認します。
+異なるprocessへの付与は既存のwith_process_pair_mutを使い、sourceの権限確認、
+destinationの実行key確認とfallibleな挿入を一つのlockで処理します。
+自分自身への付与も同じ可変borrow内で再確認します。335のauthority guardも維持します。
+
+実際のtransfer本体とprocess pair取得を使うhost試験で、事前確認後・可変borrow直前に
+管理権限を撤回すると、修正前は成功を返して付与していました。修正後は拒否し、
+destinationへ権限を残しません。self grantと両方のprocess table順序を確認し、
+通常の管理付与、挿入失敗時の所有権保持、通常transferと実行許可失効の回帰も通しました。
+関連4 targets、5件が成功しています。記録はout/checks/mochios-capability-grant-revalidation-336-
+のbefore.logとhost.logです。この変更は承認応答を実行許可へ接続する実装ではありません。
+
+kernelのrelease buildと通常イメージの再生成も成功しました。保持した実行体・開発ツール・
+SDKは変更せず、475ファイルと4リンクの読み戻し、診断ファイルの不在と成果物6件のchecksumを
+確認しています。SDKとRust overlayは再生成していません。ABIやIPCの形式は変更しておらず、
+この変更でKVMは起動していません。hostの撤回注入をnative試験としては数えません。
+同接頭辞のkernel-build.log、normal-image.log、readback.jsonとartifacts.jsonへ記録しました。

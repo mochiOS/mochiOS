@@ -17,7 +17,7 @@ case "$mode" in
     *) echo "usage: $0 [run|--check] [cargo patch options...]" >&2; exit 2 ;;
 esac
 
-apps=(files settings edit terminal appstore system-monitor viewer calendar calculator mail keychain disk-utility fonts installer test-app)
+apps=(files settings edit terminal terra appstore system-monitor viewer calendar calculator mail keychain disk-utility fonts installer test-app)
 "$script_dir/preview-app.sh" workspace --check "$@"
 [[ $mode != --check ]] || exit 0
 preview_font_root="$root/libraries/fonts/out/fonts"

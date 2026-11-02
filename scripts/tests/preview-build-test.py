@@ -45,7 +45,7 @@ class PreviewBuildTests(unittest.TestCase):
     def test_preparation_does_not_touch_identical_protocol_sources(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            apps = ("binder", "file", "settings", "edit", "terminal", "appstore", "system-monitor",
+            apps = ("binder", "file", "settings", "edit", "terminal", "terra", "appstore", "system-monitor",
                     "viewer", "calendar", "calculator", "mail", "keychain", "disk-utility", "fonts",
                     "installer", "test.app")
             for name in apps:

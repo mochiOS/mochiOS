@@ -8,7 +8,7 @@ import sys
 
 root = pathlib.Path(sys.argv[1]).resolve()
 preview = root / "out/preview"
-applications = ("binder", "file", "settings", "edit", "terminal", "appstore", "system-monitor", "viewer", "calendar", "calculator", "mail", "keychain", "disk-utility", "fonts", "installer", "test.app")
+applications = ("binder", "file", "settings", "edit", "terminal", "terra", "appstore", "system-monitor", "viewer", "calendar", "calculator", "mail", "keychain", "disk-utility", "fonts", "installer", "test.app")
 
 
 def link(source, target):

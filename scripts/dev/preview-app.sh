@@ -26,7 +26,7 @@ if [[ $app == test ]]; then
     env CARGO_TARGET_DIR="$root/out/preview/target" CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-1}" \
         cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
         "${cargo_patches[@]}" -p viewkit --lib
-    for name in files settings binder appstore edit terminal system-monitor viewer calendar calculator mail keychain disk-utility fonts installer; do
+    for name in files settings binder appstore edit terminal terra system-monitor viewer calendar calculator mail keychain disk-utility fonts installer; do
         "$0" "$name" "--$app" "${cargo_patches[@]}"
     done
     exit 0
@@ -40,6 +40,7 @@ case "$app" in
     appstore) source_dir="$root/applications/appstore" ;;
     edit) source_dir="$root/applications/edit" ;;
     terminal) source_dir="$root/applications/terminal" ;;
+    terra) source_dir="$root/applications/terra" ;;
     system-monitor) source_dir="$root/applications/system-monitor" ;;
     ime) source_dir="$root/tools/desktop-ime" ;;
     test-app) source_dir="$root/applications/test.app" ;;
@@ -52,7 +53,7 @@ case "$app" in
     calculator) source_dir="$root/applications/calculator" ;;
     calendar) source_dir="$root/applications/calendar" ;;
     viewer) source_dir="$root/applications/viewer" ;;
-    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|system-monitor|viewer|calendar|calculator|mail|keychain|disk-utility|fonts|installer|keychain-service|check|test>" >&2; exit 2 ;;
+    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|terra|system-monitor|viewer|calendar|calculator|mail|keychain|disk-utility|fonts|installer|keychain-service|check|test>" >&2; exit 2 ;;
 esac
 
 # Source manifests/lockfiles remain untouched; host dependencies share one

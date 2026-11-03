@@ -403,3 +403,29 @@ SDKは変更せず、475ファイルと4リンクの読み戻し、診断ファ�
 確認しています。SDKとRust overlayは再生成していません。ABIやIPCの形式は変更しておらず、
 この変更でKVMは起動していません。hostの撤回注入をnative試験としては数えません。
 同接頭辞のkernel-build.log、normal-image.log、readback.jsonとartifacts.jsonへ記録しました。
+
+## 対象imageへの明示的な権限install許可（337）
+
+既存のAuthorizeExecへimage-installを追加します。呼出元の現在のCapabilitiesManageを
+対象への許可発行と同じprocess-table borrowで確認し、対象imageの非0のrevisionを必須にします。
+新しい許可を発行・消費しても実行中のCapabilityは変わりません。指定した元imageが一致し、
+exact digestの検証とVMの準備が成功した場合だけ、既存のimage commitが新しいordinary grantsと
+identityを一緒に設定します。Unprivileged限定で、native authorityは渡せません。
+
+対象のimage revisionと335の権限世代は、消費時と兄弟thread静止後の最終確認でも検証します。
+通常のimage-replaceは引き続き部分集合だけを許可します。image-installをSpawnやcaptured image
+作成へ流用することも拒否します。呼出元と対象が同じ場合も、別processの場合も現在の発行権限を
+同じlockで確認します。カーネルは署名・ユーザー同意・POSIX・サービス名を解釈しません。
+
+追加metadataは__MNU_EXEC_IMAGE_REVISIONの10進数です。省略・0・overflow・別kindへの付加・
+重複を拒否します。認可identityの重複と未知fieldも拒否し、上限を超えたfieldを黙って捨てません。
+
+関連15 targetsのhost試験43件が成功し、fixture生成専用の1件はignoredです。実際のnative
+parser・許可発行・消費・遅延検証を使い、現imageの権限を増やさない発行と消費、世代不一致、
+撤回後の古い許可、発行途中の管理権限撤回、native authorityとprivileged classの拒否、
+別用途での再利用拒否、通常fork / execの回帰を確認しました。kernel候補のrelease buildも成功しました。
+
+この許可種別を共通承認controllerから発行する経路はまだ接続していません。nativeでの新種別の
+実行試験も未実施です。KVMを起動せず、配置済みkernelと通常イメージは336のまま保持します。
+SDKとRust overlayは再生成しません。記録はout/checks/mochios-image-install-337-のhost-accepted.log、
+kernel-accepted-build.logとartifacts.jsonです。完全POSIX環境のgoalも継続します。

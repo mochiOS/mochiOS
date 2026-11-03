@@ -76,6 +76,13 @@ if grep -qx 'USER_INSTALL_DEVELOPER_TOOLS=y' "$config"; then
         --sdk "$root/out/newlib-port/sdk" \
         --llvm "$root/out/llvm-port/build-target" \
         --rust-tools "$bin"
+    vim_stage=$root/out/vim-port/release/stage/system
+    test -s "$root/out/vim-port/release/.ready"
+    printf '%s  %s\n' "$(cat "$root/out/vim-port/release/.ready")" "$vim_stage/bin/vim" | sha256sum -c -
+    install -m 0755 "$vim_stage/bin/vim" "$stage_new/system/bin/vim"
+    mkdir -p "$stage_new/system/share/licenses"
+    cp -a "$vim_stage/share/vim" "$vim_stage/share/terminfo" "$stage_new/system/share/"
+    cp -a "$vim_stage/share/licenses/vim" "$stage_new/system/share/licenses/"
 fi
 
 install_manifest() {
@@ -100,6 +107,7 @@ install_manifest "$root/user/apps/rust-std-demo/manifest.toml" rust-std-demo
 install_manifest "$root/binaries/msh/manifest.toml" msh
 install_manifest "$root/binaries/coreutils/manifest.toml" coreutils
 if grep -qx 'USER_INSTALL_DEVELOPER_TOOLS=y' "$config"; then
+    install_manifest "$root/scripts/vim/manifest.toml" vim
     developer_package=$stage_new/system/packages/development-tools
     "$msign" package built-in-record "$developer_package/manifest.toml" --output "$developer_package/verification.bin"
     chmod 0644 "$developer_package/verification.bin"

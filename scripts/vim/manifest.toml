@@ -1,0 +1,13 @@
+[package]
+id = "org.mochios.vim"
+name = "Vim"
+version = "9.2.0000"
+provenance = "built-in"
+
+[[binary]]
+path = "/system/bin/vim"
+kind = "application"
+requires = [
+    "fs.read.all", "fs.write.tmp", "fs.write.user", "ipc.client",
+    "ipc.server", "process.spawn", "system.random.read",
+]

@@ -17,6 +17,7 @@ include build/mmake/apps.mk
 include build/mmake/binaries.mk
 include build/mmake/extensions.mk
 include build/mmake/signing.mk
+include build/mmake/vim.mk
 include build/mmake/image.mk
 include build/mmake/tests.mk
 include build/mmake/preview.mk

@@ -15359,3 +15359,11 @@ path = "services"
 hash = "0633d5abae045ed5cd1496ba1a8b91476def9407"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: retain execute permission on library RELRO pages"
+
+[[entries]]
+date = "2026-11-03T17:55:40.713302842+09:00"
+snapshot = "066d4092254e2d0e2ef9f176"
+path = "services"
+hash = "308a51cf01d879dc8b3b5a101eb16ae65d2e6870"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: verify native page permissions of runtime library exports"

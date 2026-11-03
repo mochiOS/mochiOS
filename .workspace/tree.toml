@@ -15319,3 +15319,11 @@ path = "services"
 hash = "9dad1e567ff8c94cfa208d4af225e75e6c3ec14b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: reproduce Vim input stalls through the actual Terminal PTY path"
+
+[[entries]]
+date = "2026-11-03T15:39:50.315282489+09:00"
+snapshot = "2d82add41811f56184bf9199"
+path = "binaries/msh"
+hash = "26be7fdc420e5762da1cfff7bda5c108b9b0bb1a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "security: declare wall-clock read for the trusted native shell"

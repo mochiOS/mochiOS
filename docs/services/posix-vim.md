@@ -21,7 +21,7 @@ python3 scripts/vim/build.py \
 
 出力はout/vim-port/releaseです。build.jsonへソース、runtime、CRTと配布ELFのhash、
 実際のLLDのversionを記録します。.readyは署名検証まで成功したELFのSHA-256です。
-失敗時は.readyを公開せず、手前の配布物を成功扱いしません。
+失敗したビルドから新しい.readyを公開せず、手前の配布物を今回の成功扱いにしません。
 出力の所有markerと排他lockを検査してから専用workを再生成します。
 
 ホストのx86_64-elf-gccをCコンパイルに使い、Autoconfのリンク試験を含めてすべての
@@ -97,6 +97,11 @@ locale実装は変更しません。ユーザーは通常のVim optionでencodin
 通常のTerminalでも`vim -Nu NONE /system/share/vim/vim92/tutor/tutor1.ja`による日本語文書の
 描画を確認しました。`-Nu NONE`を使わない場合、この*.jaを上流のzip pluginがアーカイブと
 解釈します。外部unzipはこの移植に含めていません。
+
+診断用の3ファイルを除いた通常イメージで2,597ファイルと4つのコマンドリンクを読み戻し、
+内容の一致を確認しました。SDK入力とカーネルは保持しています。359の通常イメージの
+KVM起動でinput READY、Binder ready、Dockとmenubarを確認しました。runnerにNICがないため
+既存のNetwork readiness失敗(-6)は残ります。検証用VMは停止し、一時停止記録を復帰しました。
 
 別途、時計権限の不足によりgettimeofdayが失敗し、戻り値を検査しないVimの経過時間計算から
 異常に長いselect待ちが発生していました。時計権限を明示したあと、直接起動と実PTYの双方で

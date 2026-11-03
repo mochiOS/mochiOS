@@ -1,5 +1,13 @@
 # Bootとサービス起動
 
+ブートモジュールv5では、プラットフォームが作った初期スタックを`MIMG`形式でELFと共に渡します。
+`pack-boot-module.pl`がCランタイム向けのELF補助情報を用意し、カーネルは既存の
+stack / ELF relocationだけを適用します。補助情報のキー、サービス名、パスをカーネルで決めません。
+初期スタックは省略可能で、その場合は空のnative entry pageを使います。Cランタイムを使う
+通常の生成物では省略しません。初期プロセスへのHandle更新や追加mappingは受け付けません。
+v4以前のモジュールは再生成が必要です。初期スタックがあってもbootstrapは直ちに開始し、
+通常の`ProcessCreate`で作る停止中の子プロセスとは区別します。
+
 `core.service`は`logger.service`、`capability.service`を起動します。Capability policy適用後、
 `capability.service`が`signature.service`、`package.service`、`service-manager.service`を起動します。
 

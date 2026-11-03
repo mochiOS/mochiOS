@@ -75,11 +75,20 @@ if (defined($platform_data) && $platform_data ne '-') {
     close($platform) or die "close platform data: $!\n";
 }
 my $platform_length = length($platform_bytes);
+# The platform's runtime convention belongs to the image builder. Reuse MIMG
+# stack relocations so the kernel copies bytes without knowing auxiliary keys.
+# argc=0, argv/env terminators, ELF metadata, AT_NULL, then alignment padding.
+my $startup_stack = pack('Q<*', 0, 0, 0, 3, 0, 4, 0, 5, 0, 6, 0, 9, 0, 0, 0, 0);
+my $startup_relocations = join('', map { pack('V v v', @$_, 0) }
+    ([32, 2], [48, 3], [64, 4], [80, 6], [96, 5]));
+my $startup_bytes = pack('a4 v v V V V V V V', 'MIMG', 1, 32, 0, 0,
+    length($startup_stack), 5, 0, 0) . $startup_relocations . $startup_stack;
+my $startup_length = length($startup_bytes);
 my ($output, $temporary) = tempfile('boot-module-XXXXXX', DIR => dirname($image), UNLINK => 1);
 binmode($output);
-my $header = pack('a8 V V Q< Q< Q< Q< Q< V V', "MNUBMOD\0", 4, 64,
-    $resource_bytes, $resource_bytes + $configuration_length + $module_length + $platform_length, $image_bytes,
-    $configuration_length, $module_length, $platform_length, 0);
+my $header = pack('a8 V V Q< Q< Q< Q< Q< V V', "MNUBMOD\0", 5, 64,
+    $resource_bytes, $resource_bytes + $configuration_length + $module_length + $platform_length + $startup_length, $image_bytes,
+    $configuration_length, $module_length, $platform_length, $startup_length);
 print {$output} $header or die "write boot descriptor: $!\n";
 sub copy_exact {
     my ($source, $destination, $remaining) = @_;
@@ -94,6 +103,7 @@ copy_exact($input, $output, $resource_bytes - 64);
 print {$output} $configuration_bytes or die "write kernel configuration: $!\n";
 print {$output} $module_bytes or die "write selected native modules: $!\n";
 print {$output} $platform_bytes or die "write selected platform data: $!\n";
+print {$output} $startup_bytes or die "write selected startup image: $!\n";
 copy_exact($elf, $output, $image_bytes);
 close($input) or die "close $image: $!\n";
 close($elf) or die "close $executable: $!\n";

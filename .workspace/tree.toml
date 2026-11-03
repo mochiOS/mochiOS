@@ -15303,3 +15303,11 @@ path = "services"
 hash = "045e4c8917dde6cf8149ac719c7a22e1a0210005"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Cover terminal control-text deduplication and multiline commits"
+
+[[entries]]
+date = "2026-11-03T14:17:09.182732900+09:00"
+snapshot = "623621665d66cfe72ffde75b"
+path = "services"
+hash = "98173431c32135550f6d5554fd352a67fa55b5f8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise verbose source links through the real Vim port compiler"

@@ -15263,3 +15263,11 @@ path = "services"
 hash = "8b10f5ced484680b694849670ecfcba25910691a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Bound execution consent retention and wait on owned native handles"
+
+[[entries]]
+date = "2026-11-03T12:20:38.651942493+09:00"
+snapshot = "bbd57fe7c00b7ea07379897f"
+path = "build"
+hash = "48192e6a0b26ff911534b10e64dde5369884a777"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Export generic app SDK and remove Terra-specific OS build targets"

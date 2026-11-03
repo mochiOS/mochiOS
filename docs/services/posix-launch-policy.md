@@ -407,7 +407,7 @@ SDKは変更せず、475ファイルと4リンクの読み戻し、診断ファ�
 ## 対象imageへの明示的な権限install許可（337）
 
 既存のAuthorizeExecへimage-installを追加します。呼出元の現在のCapabilitiesManageを
-対象への許可発行と同じprocess-table borrowで確認し、対象imageの非0のrevisionを必須にします。
+対象への許可発行と同じprocess-table borrowで確認し、対象imageの明示的なrevisionを必須にします。
 新しい許可を発行・消費しても実行中のCapabilityは変わりません。指定した元imageが一致し、
 exact digestの検証とVMの準備が成功した場合だけ、既存のimage commitが新しいordinary grantsと
 identityを一緒に設定します。Unprivileged限定で、native authorityは渡せません。
@@ -417,7 +417,7 @@ identityを一緒に設定します。Unprivileged限定で、native authority�
 作成へ流用することも拒否します。呼出元と対象が同じ場合も、別processの場合も現在の発行権限を
 同じlockで確認します。カーネルは署名・ユーザー同意・POSIX・サービス名を解釈しません。
 
-追加metadataは__MNU_EXEC_IMAGE_REVISIONの10進数です。省略・0・overflow・別kindへの付加・
+追加metadataは__MNU_EXEC_IMAGE_REVISIONの10進数です。省略・overflow・別kindへの付加・
 重複を拒否します。認可identityの重複と未知fieldも拒否し、上限を超えたfieldを黙って捨てません。
 
 関連15 targetsのhost試験43件が成功し、fixture生成専用の1件はignoredです。実際のnative
@@ -429,3 +429,15 @@ parser・許可発行・消費・遅延検証を使い、現imageの権限を増
 実行試験も未実施です。KVMを起動せず、配置済みkernelと通常イメージは336のまま保持します。
 SDKとRust overlayは再生成しません。記録はout/checks/mochios-image-install-337-のhost-accepted.log、
 kernel-accepted-build.logとartifacts.jsonです。完全POSIX環境のgoalも継続します。
+
+### 初期世代の照合の修正
+
+ProcessObjectは初期revisionを0とし、初回のELF作成とcaptured address spaceからの作成は
+image digestを設定してもrevisionを増やしません。したがって0は有効な初期実行世代です。
+337で加えた非0制限は誤りで、0も明示した期待世代として受け入れるよう修正しました。
+未計測かどうかはimage_digestの有無で別に判断し、発行時・消費時・最終確認で未計測を拒否します。
+省略と明示的な0はOptionで区別します。既存processの世代を便宜的に増やす変更はしません。
+発行・消費の実コードを使うhost試験で、issuer自身と別targetの両方について測定済みの0を
+受理し、未計測を拒否することを確認しました。kernel候補のrelease buildも成功しています。
+記録はout/checks/mochios-image-install-initial-337a-host.logと同kernel-build.logです。
+通常イメージへは配置せず、共通承認の統合後にnative試験を行います。

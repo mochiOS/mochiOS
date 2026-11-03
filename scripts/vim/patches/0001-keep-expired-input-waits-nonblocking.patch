@@ -1,0 +1,14 @@
+--- a/src/ui.c
++++ b/src/ui.c
+@@ -316,6 +316,11 @@
+ 	    elapsed_time = ELAPSED_FUNC(start_tv);
+ # endif
+ 	    wait_time -= elapsed_time;
++	    // This branch computes a bounded wait (including a zero poll).
++	    // Clock reads or scheduling can consume its whole budget before
++	    // the first wait.  A negative value would mean "wait forever".
++	    if (wait_time < 0)
++		wait_time = 0;
+ 
+ 	    // If the waiting time is now zero or less, we timed out.  However,
+ 	    // loop at least once to check for characters and events.  Matters

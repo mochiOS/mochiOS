@@ -93,6 +93,12 @@ def build(args):
             with tarfile.open(archive) as source:
                 source.extractall(work, filter="data")
 
+        patches = sorted((HERE / "patches").glob("*.patch"))
+        for patch in patches:
+            subprocess.run([
+                tool("patch"), "--batch", "--forward", "-p1", "-i", str(patch),
+            ], cwd=work / pins["vim"]["directory"], check=True)
+
         env = os.environ.copy()
         # Host settings must not select host headers, plugins or libraries.
         for name in (
@@ -178,6 +184,7 @@ def build(args):
             stage.rename(out / "stage")
         result = {
             "sources": pins, "runtime_sha256": digest(runtime),
+            "patches": {patch.name: digest(patch) for patch in patches},
             "crt_sha256": digest(sdk / "lib/crt0.o"),
             "vim_sha256": digest(out / "stage/system/bin/vim"),
             "compiler_runtime": compiler_runtime,

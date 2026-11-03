@@ -15247,3 +15247,11 @@ path = "services"
 hash = "44d2145b2dedacd3ab9a4a6fc393e1cf0beef2e4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Verify revision-bound image installation and issuer revocation"
+
+[[entries]]
+date = "2026-11-03T11:13:47.913707219+09:00"
+snapshot = "4018a76be4684590d66ddc6d"
+path = "applications/terra"
+hash = "10609e649da89ad112b3cb14f618fbcfb799f2b9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Document browser features storage guarantees and engine integration limits"

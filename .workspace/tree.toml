@@ -15343,3 +15343,11 @@ path = "services"
 hash = "bd26441fc7289779e7078e9fab078c4e3cd2d775"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: require UTF-8 as the native Vim default encoding"
+
+[[entries]]
+date = "2026-11-03T17:45:59.715822171+09:00"
+snapshot = "cf61e8d3f8ae434f95631a03"
+path = "services"
+hash = "a6e6abb2c4e83f3f713db2849dd5c940bfd60154"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: exercise resident shared-library lifecycle and native consent IPC"

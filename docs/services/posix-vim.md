@@ -84,13 +84,25 @@ Terminalの実transport、VT parser、入力queueと検証付きmsh起動を再�
 vim_waits.pyはVimソースの実inchar_loopを取り出してホストでコンパイルし、時計と待機の
 callbackを制御します。未修正版では期限切れpollのassertionが失敗し、修正版では0ms、
 期限切れ、残り時間、意図した無期限待機の7ケースが成功しました。357の実PTY試験でも
-ASCIIの入力が即座に表示されるようになりました。日本語は既定エンコーディングがLatin-1に
-なっている問題が残り、UTF-8での表示完了判定は引き続き検証中です。
+ASCIIの入力が即座に表示されるようになりました。
+
+SDKのnewlibでは_MB_CAPABLEが無効で、localeがCのためVimの既定値がLatin-1でした。
+patches/0002はmochiOS向けVimの内部エンコーディングをUTF-8で初期化します。SDKやCの
+locale実装は変更しません。ユーザーは通常のVim optionでencodingを変更できます。
+
+358のKVM試験では診断hookを外した通常版Vimで、UTF-8の既定値、localtimeとreltime、
+既存のバッチ編集、実PTYでの日本語入力表示、保存全バイト、再読込、Vim終了、msh復帰、
+試験directoryの削除がすべて成功しました。今回の実PTYの入力表示は274msでした。
+これはVT parserでの検出までの値で、GUI描画を含む性能測定ではありません。
+通常のTerminalでも`vim -Nu NONE /system/share/vim/vim92/tutor/tutor1.ja`による日本語文書の
+描画を確認しました。`-Nu NONE`を使わない場合、この*.jaを上流のzip pluginがアーカイブと
+解釈します。外部unzipはこの移植に含めていません。
 
 別途、時計権限の不足によりgettimeofdayが失敗し、戻り値を検査しないVimの経過時間計算から
 異常に長いselect待ちが発生していました。時計権限を明示したあと、直接起動と実PTYの双方で
 gettimeofdayの成功と正規範囲の時刻を確認しました。直接操作の保存・終了も通りました。
-権限宣言を欠いた試験の強制中断時にはVimの_free_rでfaultも出ており、この経路も未解決です。
+改修前の試験を強制中断した際にはVimの_free_rでfaultも出ました。今回確認したのは
+通常の保存・終了で、強制hangupの経路は別途検証が必要です。
 
 services/posix/tests/vim/io_trace.cは実VimにLLDの--wrapで付ける診断専用hookです。
 通常ビルドには入りません。read/select/writeの引数・結果と時計取得の結果だけを記録し、

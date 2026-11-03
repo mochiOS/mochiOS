@@ -15271,3 +15271,11 @@ path = "build"
 hash = "48192e6a0b26ff911534b10e64dde5369884a777"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Export generic app SDK and remove Terra-specific OS build targets"
+
+[[entries]]
+date = "2026-11-03T12:35:23.939578170+09:00"
+snapshot = "61c033523fbc36e46069be15"
+path = "applications/terra"
+hash = "06b52bbf986bc332b5b35abda0199a97c3ce1c72"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add pinned WPE source and isolated WebKit build pipeline"

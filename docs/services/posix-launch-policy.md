@@ -441,3 +441,34 @@ image digestを設定してもrevisionを増やしません。したがって0�
 受理し、未計測を拒否することを確認しました。kernel候補のrelease buildも成功しています。
 記録はout/checks/mochios-image-install-initial-337a-host.logと同kernel-build.logです。
 通常イメージへは配置せず、共通承認の統合後にnative試験を行います。
+
+## 認証済みsourceを保持する共通の承認継続処理（338）
+
+signed_imageの共通source gateから、認証済みのinstalled / standalone Selectionを所有する形で
+取り出せるようにしました。従来の即時認可も同じ選別を使い、署名失敗や曖昧な宣言を
+別の認可経路へ格下げする処理は加えません。
+
+execution_approval::Pendingは元ELFの私有bytes、認証した宣言、対象のProcess参照、opaque exec key、
+sessionとpolicy generationを所有します。sourceのhashを照合し、権限集合とkeyのcanonicalな
+commitmentを共通consent Bindingへ結び付けます。要求の提示用に借用できるidentityと権限は
+この保持済みSelectionからだけ取得し、frontendが送った名前や権限へ置き換えません。
+
+completeは共通controllerが生成したApprovalとPendingを一回だけ消費し、Binding全体、現在の
+実行instance、保持したProcessとのsame_object、sessionとpolicy generationを再確認します。
+成立した場合だけ、337のimage-install形式をexact identity / digest / grants / image revisionで
+発行します。親や現在のimageへのCapTransferは行いません。pathも開き直しません。
+初期revision 0も保持します。失敗や保留要求の破棄で所有したbytesとProcess参照を回収し、
+同じApprovalでnative操作を再試行しません。現段階ではAllowOnceだけを扱い、永続・process単位の
+許可を一回許可へ読み替えることは拒否します。
+
+hostでは実際の署名検証、Selection、consent controllerと継続処理を使い、native発行とProcess参照の
+操作だけを観測可能なadapterへ置き換えて検証しました。要求の改変、別key、対象imageの変更、
+別native object、session / policy変更、native errorの保持、破棄時の参照回収と初期世代を扱います。
+関連7 targetsのhost試験83件が成功し、fixture生成用の1件はignoredです。
+native capability.service候補のbuildも成功しました。SDKと配置済みkernelは変更していません。
+
+通常の要求dispatcherからPendingを登録し、総保持量を制限して期限切れ・取消しへ返信する処理と、
+CLI / GUIの保護された提示・判断経路への接続はまだ残ります。通常の未承認要求は引き続き失敗し、
+このcomponentの試験をnativeの承認・実行成功としては数えません。候補を通常イメージへ配置せず、
+KVMも起動していません。完全POSIX環境のgoalも継続します。
+記録はout/checks/mochios-execution-approval-338-のhost-final.log、native-final-build.logとartifacts.jsonです。

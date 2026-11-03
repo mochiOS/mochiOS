@@ -472,3 +472,44 @@ CLI / GUIの保護された提示・判断経路への接続はまだ残りま�
 このcomponentの試験をnativeの承認・実行成功としては数えません。候補を通常イメージへ配置せず、
 KVMも起動していません。完全POSIX環境のgoalも継続します。
 記録はout/checks/mochios-execution-approval-338-のhost-final.log、native-final-build.logとartifacts.jsonです。
+
+## 承認待ち要求の所有権・保持量・受信待機（339）
+
+execution_requests::Registryが、最大32件、元ELF合計256MiBまでの保留要求を所有します。
+総process heapの上限ではなく、捕捉・保持するELF bytesの予算です。通常の2つのRAM認可経路も、
+メタデータと添付権限の検査、保持量の予約、RAM捕捉の順に処理します。旧transportも予約時の
+長さを固定し、捕捉前後の変更を拒否します。予算不足時にRAMを読んだりpermitを発行しません。
+
+予約guardの破棄は自動で枠と予算を戻します。consentへの登録は、予約した要求元と長さの一致を
+確認してからPendingの所有権を移します。compositor登録用のCorrelationを先に得た場合も、
+begin_atがcounterを再検査し、古い値でcontrollerへ登録できません。Approvalにも元のTicket・
+challenge・displayを保持し、同じsource、権限集合、exec keyで後から作った要求への流用を拒否します。
+
+期限切れ、要求元の終了、session / policy変更と受信待機の失敗では、元のsenderへ失敗を一度だけ返信し、
+bytesとProcess参照を破棄してから保持量を解放します。別のcomponentが所有するcontrollerの
+要求をまとめて期限切れにしません。完了処理も保留所有者からPendingを外部へ取り出さず、
+失敗したnative認可を再試行しません。
+
+サービスの受信loopは、同じIPC queueの受信Handle、保留したProcess HandleのTERMINATED、
+最も早い期限を既存のHandleWaitManyで待ちます。期限は各受信前にも検査するため、メッセージが
+連続して届いても期限切れ処理を延期し続けません。NotReady以外の受信・待機エラーをyieldで
+隠さず、保留呼出しへエラーを返してサービスを終了します。カーネルABIは追加していません。
+
+関連7 targetsのhost試験99件が成功し、fixture生成専用1件はignoredです。実際のRegistry、
+署名検証とcontrollerを使い、予算不足での読み取り拒否、準備後のRAM resize、古い承認の流用、
+期限・要求元終了・native errorでの一度だけの返信と所有物の回収を確認しました。
+mochiOS向けcapability.serviceのbuildも成功しています。
+
+KVMでは受信Handleで待つサービスを使い、Binder / Dock / Terminalの起動と通常PATHの
+clang → ld.lld → msign → ./mainを確認しました。生成物の終了コード37、正確なsource identityと
+通常Capabilityが0であること、コンパイル・リンク失敗時の旧ELF保持、msignと通常execでの改変拒否、
+試験後のmshへの復帰が成功しています。保留要求のpolicy更新取消しはhostで検証した範囲です。
+診断ファイル3件を撤去して最終buildのbrokerを配置し、通常イメージを再生成しました。
+580ファイルと4リンクの読み戻し、probeの不在と配布成果物6件のchecksumが成功しています。
+SDKと配置済みkernelは不変です。
+
+未承認要求の本番登録とCLI / GUIの保護された提示・判断経路への接続は引き続き未完了です。
+Registryの登録・完了試験を、実OSでのユーザー承認成功として数えません。通常の未承認要求は
+引き続き失敗します。完全POSIX環境のgoalも継続します。
+記録はout/checks/mochios-execution-requests-339-のhost-final.log、regression.log、
+native-final-build.log、result.png、normal-image.log、readback.jsonとartifacts.jsonです。

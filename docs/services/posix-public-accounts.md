@@ -51,3 +51,27 @@ mochios-passwd-226-normal.log / normal.pngに保存し、VMを停止して同じ
 
 カーネルは段階224のままです。配布SDKとRust std overlayは再生成していません。
 NICのないrunnerのnetwork Failed(-6)とUSB driver errno 22は従来どおり残ります。
+
+## 通常版passwd APIとC ABIの修正（340）
+
+Vim 9.2のリンクで必要になったgetpwuid / getpwnamを、既存の公開account照会へ接続しました。
+情報源は引き続きuser.serviceのUserDatabaseです。非reentrant版はprocess-localな所有bufferを
+共有し、次の照会で上書きされ得ます。RPCはSTATEをlockする前に完了し、結果だけを既存の
+RuntimeStateへ保存します。別の継承mutexを増やさず、既存のfork時の状態保護を使います。
+入力が直前に返したpw_nameを参照している場合も、上書き前にcaptureします。
+
+newlibのx86_64-elfヘッダーではuid_t / gid_tはどちらもunsigned shortです。
+従来はRust側をu32としていたため、全体sizeとpw_uidのoffsetが一致していてもpw_gidの場所が
+ずれていました。公開型をu16、pw_gidをoffset 18へ修正し、wireのu32からの変換が範囲を超える
+場合はEOVERFLOWとします。桁を落として別のUID/GIDとして公開しません。
+
+関連4 targetsのhost試験19件が成功しました。実際のaccount RPC codecとruntime実装を使い、
+UID/GID配置、独立したcaller buffer、範囲外IDでの出力保持、process-local cacheの再利用、
+不在record、errno、サービス失敗と不正pointerを確認しています。
+hostのMemoryCopy adapterは自processのprocess_vm_readvを使うため、sandboxのEPERM後に
+同じ試験を許可された環境で再実行しました。fault検査の代替や省略はしていません。
+
+mochiOS向けの独立runtime archiveのbuildと、強化したnative_passwd.cのC ABI compileも
+成功しました。native実行はVimの統合試験と合わせて続けます。SDKとRust std overlayは
+読み取り入力のまま再生成していません。Vimはグループ照会の不足が残り、まだリンク・起動の
+成功としては扱いません。記録はout/checks/mochios-passwd-340-host.logとnative-build.logです。

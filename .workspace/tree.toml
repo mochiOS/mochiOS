@@ -15327,3 +15327,11 @@ path = "binaries/msh"
 hash = "26be7fdc420e5762da1cfff7bda5c108b9b0bb1a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "security: declare wall-clock read for the trusted native shell"
+
+[[entries]]
+date = "2026-11-03T16:08:34.030804599+09:00"
+snapshot = "3d9b74ef4dd71b9439e108c1"
+path = "services"
+hash = "3d3b3d864918fa3bca2c085b9a056ca3ec1deee5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: cover expired polls in the actual Vim input loop"

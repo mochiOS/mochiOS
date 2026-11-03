@@ -15311,3 +15311,11 @@ path = "services"
 hash = "98173431c32135550f6d5554fd352a67fa55b5f8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise verbose source links through the real Vim port compiler"
+
+[[entries]]
+date = "2026-11-03T15:28:30.218408766+09:00"
+snapshot = "e305965895759398441c44a7"
+path = "services"
+hash = "9dad1e567ff8c94cfa208d4af225e75e6c3ec14b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: reproduce Vim input stalls through the actual Terminal PTY path"

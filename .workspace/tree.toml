@@ -15255,3 +15255,11 @@ path = "applications/terra"
 hash = "10609e649da89ad112b3cb14f618fbcfb799f2b9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Document browser features storage guarantees and engine integration limits"
+
+[[entries]]
+date = "2026-11-03T12:01:29.544495196+09:00"
+snapshot = "23300247a9b5b76d0fe018d9"
+path = "services"
+hash = "8b10f5ced484680b694849670ecfcba25910691a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Bound execution consent retention and wait on owned native handles"

@@ -9,5 +9,5 @@ path = "/system/bin/vim"
 kind = "application"
 requires = [
     "fs.read.all", "fs.write.tmp", "fs.write.user", "ipc.client",
-    "ipc.server", "process.spawn", "system.random.read",
+    "ipc.server", "process.spawn", "system.random.read", "system.time.read",
 ]

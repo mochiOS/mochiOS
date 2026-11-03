@@ -38,7 +38,9 @@ compiler_runtimeがlibgccかcompiler-rtかをSDK manifestから選択し、Rust 
 通常のmmakeではUSER_INSTALL_DEVELOPER_TOOLS=yのときVimをビルド・収録します。
 通常グラフの既存runtime / Rust toolchain準備後、Vim用の独立runtimeをビルドします。
 rootfs-stageは.readyのhashを照合し、共通のbuilt-in manifest処理でVimを登録します。
-Vimの要求権限は通常mshの範囲内で、署名検査やCapability検査を省略しません。
+Vimの要求権限はmanifestで明示し、署名検査とCapability検査を通します。
+gettimeofdayを使うためsystem.time.readも必要です。execの権限上限を維持するため、
+信頼されたmshにも時計の読み取りを明示しています。
 
 ## 検証範囲
 
@@ -69,10 +71,21 @@ Terminalが古く、さらに検証用フォント設定も可変幅フォント
 別途、実SDKとLLDでCをリンクし、static ELF・NX stack・C flags保持・未対応profileの拒否を
 確認しました。通常mmakeグラフのdry-runも成功しています。
 
-対話操作の確認は未完了です。実際のTerminalで入力表示が遅れるため、描画を含まない
-実PTY・msh・Vimの経路を追加で検査しています。バッチ試験の成功を対話操作の成功とは
-扱いません。調査用イメージには試験専用の実行ファイルが含まれ、通常配布イメージとは
-区別しています。
+対話操作の確認は未完了です。Terminalの実transport、VT parser、入力queueと検証付き
+msh起動を再利用した実PTY試験でも、挿入モード後の表示更新停止が再現しています。
+readが入力31byteを受け取り、空のselectが0を返すところまでは診断で確認しました。
+バッチ試験の成功を対話操作の成功とは扱いません。
+
+別途、時計権限の不足によりgettimeofdayが失敗し、戻り値を検査しないVimの経過時間計算から
+異常に長いselect待ちが発生していました。時計権限を明示したあと、直接起動と実PTYの双方で
+gettimeofdayの成功と正規範囲の時刻を確認しました。直接操作の保存・終了も通りましたが、
+実PTY試験の表示更新停止は残っているため、writeの戻り値と保存データを検査しています。
+権限宣言を欠いた試験の強制中断時にはVimの_free_rでfaultも出ており、この経路も未解決です。
+
+services/posix/tests/vim/io_trace.cは実VimにLLDの--wrapで付ける診断専用hookです。
+通常ビルドには入りません。read/select/writeの引数・結果と時計取得の結果だけを記録し、
+入力内容は記録しません。DEBUG_WRITEにはコンパイル時に現在のmnu ABIの値を渡します。
+調査用イメージには試験専用の実行ファイルが含まれ、通常配布イメージとは区別しています。
 
 この段階はホストでクロスビルドしたVimの実行です。mochiOS内でVimを自己ビルドしたことや、
 完全なPOSIX互換を示すものではありません。WebKitの検証は行いません。

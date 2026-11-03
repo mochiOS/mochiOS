@@ -15351,3 +15351,11 @@ path = "services"
 hash = "a6e6abb2c4e83f3f713db2849dd5c940bfd60154"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: exercise resident shared-library lifecycle and native consent IPC"
+
+[[entries]]
+date = "2026-11-03T17:51:29.178417390+09:00"
+snapshot = "0db23ca970fb280f6f94c0cc"
+path = "services"
+hash = "0633d5abae045ed5cd1496ba1a8b91476def9407"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: retain execute permission on library RELRO pages"

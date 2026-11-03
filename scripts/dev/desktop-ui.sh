@@ -17,7 +17,7 @@ case "$mode" in
     *) echo "usage: $0 [run|--check] [cargo patch options...]" >&2; exit 2 ;;
 esac
 
-apps=(files settings edit terminal terra appstore system-monitor viewer calendar calculator mail keychain disk-utility fonts installer test-app)
+app_catalog=$(python3 "$script_dir/preview_catalog.py" "$root" --pairs)
 "$script_dir/preview-app.sh" workspace --check "$@"
 [[ $mode != --check ]] || exit 0
 preview_font_root="$root/libraries/fonts/out/fonts"
@@ -79,22 +79,20 @@ mkdir -p "$preview_home"/{Desktop,Documents,Downloads,Movies,Music,Pictures} "$M
 printf 'mochiOS Kinako\n\nA temporary desktop for native UI development.\n' > "$preview_home/Documents/Welcome.txt"
 mkdir -p "$preview_home/Documents/Projects" "$preview_home/Downloads/Examples"
 
-for app in "${apps[@]}"; do
-    source_name=$app
-    [[ $app != files ]] || source_name=file
-    [[ $app != test-app ]] || source_name=test.app
+while IFS=$'\t' read -r source_name preview_binary; do
+    [[ -n $source_name ]] || continue
+    app=$preview_binary
+    [[ $app != test_app ]] || app=test-app
     source_dir="$root/applications/$source_name"
     bundle="$MOCHIOS_PREVIEW_APPS/$app.app"
     mkdir -p "$bundle"
     cp "$source_dir/manifest.toml" "$bundle/manifest.toml"
     # Hardlinks keep debug binaries cheap while confining catalogue entries to
     # the session. This directory lives on the build output's filesystem.
-    preview_binary=$app
-    [[ $app != test-app ]] || preview_binary=test_app
     ln "$root/out/preview/target/debug/$preview_binary" "$bundle/entry.elf"
     python3 "$script_dir/stage-application-resources.py" "$source_dir" "$bundle"
     if [[ -d "$source_dir/legal" && ! -e "$bundle/legal" ]]; then ln -s "$source_dir/legal" "$bundle/legal"; fi
-done
+done <<< "$app_catalog"
 # Keep the existing real Binder test process available for multi-window checks.
 cp -a "$root/applications/binder/resources/apps/Test.app" "$MOCHIOS_PREVIEW_APPS/"
 

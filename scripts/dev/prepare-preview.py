@@ -5,10 +5,12 @@ import pathlib
 import re
 import shutil
 import sys
+import tomllib
 
 root = pathlib.Path(sys.argv[1]).resolve()
 preview = root / "out/preview"
-applications = ("binder", "file", "settings", "edit", "terminal", "terra", "appstore", "system-monitor", "viewer", "calendar", "calculator", "mail", "keychain", "disk-utility", "fonts", "installer", "test.app")
+from preview_catalog import applications as discover_applications
+applications = tuple(name for name, _ in discover_applications(root))
 
 
 def link(source, target):
@@ -45,6 +47,14 @@ for name in applications:
     for entry in ("src", "resources", "legal", "appicon.svg", "appicon.png", "manifest.toml"):
         if (source / entry).exists():
             link(source / entry, destination / entry)
+    app_manifest=tomllib.loads((source / "manifest.toml").read_text())
+    for resource in app_manifest.get("application", {}).get("resources", []):
+        relative=pathlib.PurePosixPath(resource)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"Unsafe application resource: {resource}")
+        if (source / resource).exists():
+            (destination / resource).parent.mkdir(parents=True, exist_ok=True)
+            link(source / resource, destination / resource)
     members.append(f'"applications/{name}"')
     if name == "binder":
         shutil.copytree(source / "crates/binder_protocol", destination / "crates/binder_protocol", dirs_exist_ok=True, copy_function=copy_if_changed)

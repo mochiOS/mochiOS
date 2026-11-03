@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Preview builds use one Cargo feature graph and preserve unchanged inputs."""
 import os
+import importlib.util
 from pathlib import Path
 import shutil
 import subprocess
@@ -16,13 +17,14 @@ class PreviewBuildTests(unittest.TestCase):
             root = Path(folder)
             scripts = root / "scripts/dev"
             scripts.mkdir(parents=True)
-            for name in ("desktop-ui.sh", "preview-app.sh"):
+            for name in ("desktop-ui.sh", "preview-app.sh", "preview_catalog.py"):
                 shutil.copy2(ROOT / "scripts/dev" / name, scripts / name)
             (scripts / "prepare-preview.py").write_text(
                 "import pathlib,sys\n"
                 "p=pathlib.Path(sys.argv[1])/'out/preview';p.mkdir(parents=True,exist_ok=True)\n"
                 "(p/'Cargo.toml').write_text('[workspace]\\n')\n"
             )
+            (root / "applications").mkdir()
             (root / "version.toml").write_text('release = "26.0.0"\nbuild = 1\n')
             binary = root / "bin"
             binary.mkdir()
@@ -42,6 +44,19 @@ class PreviewBuildTests(unittest.TestCase):
             self.assertIn("--workspace --bins", calls)
             self.assertIn("1 0\n", calls)
 
+    def test_catalog_uses_declared_binary_instead_of_directory_name(self):
+        spec = importlib.util.spec_from_file_location("preview_catalog", ROOT / "scripts/dev/preview_catalog.py")
+        catalog = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(catalog)
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            app = root / "applications/arbitrary-browser"
+            (app / "src").mkdir(parents=True)
+            (app / "Cargo.toml").write_text('[package]\nname="web-browser"\nversion="0.1.0"\n')
+            (app / "manifest.toml").write_text('[package]\nkind="application"\n')
+            (app / "src/main.rs").write_text('fn main() {}\n')
+            self.assertEqual(catalog.applications(root), [("arbitrary-browser", "web-browser")])
+
     def test_preparation_does_not_touch_identical_protocol_sources(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -52,6 +67,12 @@ class PreviewBuildTests(unittest.TestCase):
                 app = root / "applications" / name
                 app.mkdir(parents=True)
                 (app / "Cargo.toml").write_text(f'[workspace]\n[package]\nname="{name}"\nversion="0.1.0"\n')
+                (app / "manifest.toml").write_text('[package]\nkind="application"\n')
+                (app / "src").mkdir()
+                (app / "src/main.rs").write_text('fn main() {}\n')
+            store = root / "applications/appstore"
+            (store / "manifest.toml").write_text('[package]\nkind="application"\n[application]\nresources=["initial-apps.json"]\n')
+            (store / "initial-apps.json").write_text('{"format":1,"applications":[]}')
             protocol = root / "applications/binder/crates/binder_protocol/src"
             protocol.mkdir(parents=True)
             source = protocol / "lib.rs"
@@ -66,6 +87,7 @@ class PreviewBuildTests(unittest.TestCase):
             command = ["python3", str(ROOT / "scripts/dev/prepare-preview.py"), str(root)]
             subprocess.run(command, check=True)
             target = root / "out/preview/applications/binder/crates/binder_protocol/src/lib.rs"
+            self.assertEqual((root / "out/preview/applications/appstore/initial-apps.json").read_text(), (store / "initial-apps.json").read_text())
             before = target.stat().st_mtime_ns
             os.utime(source, ns=(source.stat().st_atime_ns, source.stat().st_mtime_ns + 10_000_000_000))
             subprocess.run(command, check=True)

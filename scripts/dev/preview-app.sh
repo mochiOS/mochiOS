@@ -26,9 +26,11 @@ if [[ $app == test ]]; then
     env CARGO_TARGET_DIR="$root/out/preview/target" CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-1}" \
         cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
         "${cargo_patches[@]}" -p viewkit --lib
-    for name in files settings binder appstore edit terminal terra system-monitor viewer calendar calculator mail keychain disk-utility fonts installer; do
+    app_catalog=$(python3 "$script_dir/preview_catalog.py" "$root" --directories)
+    while IFS= read -r name; do
+        [[ -n $name ]] || continue
         "$0" "$name" "--$app" "${cargo_patches[@]}"
-    done
+    done <<< "$app_catalog"
     exit 0
 fi
 
@@ -40,7 +42,6 @@ case "$app" in
     appstore) source_dir="$root/applications/appstore" ;;
     edit) source_dir="$root/applications/edit" ;;
     terminal) source_dir="$root/applications/terminal" ;;
-    terra) source_dir="$root/applications/terra" ;;
     system-monitor) source_dir="$root/applications/system-monitor" ;;
     ime) source_dir="$root/tools/desktop-ime" ;;
     test-app) source_dir="$root/applications/test.app" ;;
@@ -53,7 +54,23 @@ case "$app" in
     calculator) source_dir="$root/applications/calculator" ;;
     calendar) source_dir="$root/applications/calendar" ;;
     viewer) source_dir="$root/applications/viewer" ;;
-    *) echo "usage: $0 <files|settings|binder|appstore|edit|terminal|terra|system-monitor|viewer|calendar|calculator|mail|keychain|disk-utility|fonts|installer|keychain-service|check|test>" >&2; exit 2 ;;
+    *)
+        [[ $app =~ ^[a-zA-Z0-9._-]+$ && -f "$root/applications/$app/Cargo.toml" && -f "$root/applications/$app/manifest.toml" ]] || {
+            echo "usage: $0 <application-directory|check|test> [run|--check|--test]" >&2; exit 2;
+        }
+        source_dir="$root/applications/$app"
+        declared_binary=$(python3 - "$root" "$app" "$script_dir" <<'PYBIN'
+import pathlib, sys
+sys.path.insert(0, sys.argv[3])
+from preview_catalog import applications
+matches = [binary for directory, binary in applications(pathlib.Path(sys.argv[1])) if directory == sys.argv[2]]
+if len(matches) != 1:
+    raise SystemExit('Application has no preview binary')
+print(matches[0])
+PYBIN
+        ) ;;
+
+
 esac
 
 # Source manifests/lockfiles remain untouched; host dependencies share one
@@ -90,7 +107,7 @@ if [[ $mode == run ]]; then
     export MOCHIOS_PREVIEW_CONFIG_ROOT="${MOCHIOS_PREVIEW_CONFIG_ROOT:-$root/out/preview/config}"
     mkdir -p "$MOCHIOS_PREVIEW_CONFIG_ROOT"
 fi
-preview_binary=$app
+preview_binary=${declared_binary:-$app}
 [[ $app != test-app ]] || preview_binary=test_app
 [[ $app != ime ]] || preview_binary=mochios-preview-ime
 export CARGO_TARGET_DIR="$root/out/preview/target"

@@ -15335,3 +15335,11 @@ path = "services"
 hash = "3d3b3d864918fa3bca2c085b9a056ca3ec1deee5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test: cover expired polls in the actual Vim input loop"
+
+[[entries]]
+date = "2026-11-03T16:28:19.852075748+09:00"
+snapshot = "12b40be192908fb24c907d3b"
+path = "services"
+hash = "bd26441fc7289779e7078e9fab078c4e3cd2d775"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test: require UTF-8 as the native Vim default encoding"

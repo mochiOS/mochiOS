@@ -1,5 +1,9 @@
 # ユーザー空間の PIE image 準備
 
+実行中のプロセスへ共有ライブラリを配置する処理は
+[共有ライブラリの寿命管理](posix-runtime-libraries.md)、CLI / GUIへ渡す共通許可表示は
+[実行許可表示](posix-execution-consent.md)に記録しています。
+
 ## 実装した範囲
 
 `posix-client::pie` に、割り当てを行わない ELF64 / x86-64 PIE の解析・配置・相対 relocation の

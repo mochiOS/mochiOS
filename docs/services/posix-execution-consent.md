@@ -8,8 +8,8 @@ package IDとCapabilityは表示用のASCII識別子に限定し、改行、端�
 
 `execution_approval::Pending::write_prompt`は保持中の認証済みSelectionだけから内容を作ります。
 元ファイルを開き直さず、呼出側が送ったアプリ名や追加権限も採用しません。
-要求一覧をsort / deduplicateした結果を渡します。現在のlaunch継続が提供する肯定の選択肢は
-Allow Onceだけです。永続許可やprocess許可を暗黙に表示しません。
+要求一覧をsort / deduplicateした結果を渡します。launch継続の肯定の選択肢は
+Allow OnceとAlways Allowです。process単位の許可は提供しません。
 
 `Registry::write_prompt`は、その要求へ結び付いた表示Instanceだけに内容を返します。
 `MCNF`要求にはcorrelationしかなく、serverがIPC senderから測定済みInstanceを取得します。
@@ -19,6 +19,23 @@ ticketを知っているだけで他の表示側の内容を取得すること�
 CLI用の`write_text`とsecure-uiの`execution_prompt::Presentation`は同じ内容と選択肢を使います。
 GUIは標準ViewKitのDialog / Text / Stack / Buttonで構成し、保護表示へ渡すbindingも保持します。
 Buttonから出るのはcorrelationと選択候補です。入力証拠や実行許可を生成する処理はありません。
+文字表示は`[n] Don't Allow / [y] Allow Once / [a] Always Allow`です。
+`choice_for_shortcut`はbrokerが提示した選択肢だけを復号します。通常のstdin、paste、改行だけを
+物理入力の証拠として扱う関数ではありません。
+
+Alwaysはユーザーのeffective UID、認証済みpackage / developer / signing key / provenance、
+元ファイル全体のSHA-256、要求Capability集合をすべて結び付けて保存します。UIDは保持中の
+native Processと照合したPOSIX credentialsから読み、呼出側が指定するUIDは採用しません。
+保存済みの許可があっても、実行ごとのimmutable source検証とmanifest policy選択は省略しません。
+別ユーザー、変更されたファイル・署名主体・要求権限には引き継がず、新しい確認が必要です。
+一致時も子のimage-installだけを認可し、要求元や他の実行へ権限を追加しません。
+
+保存先はbroker専用の`/var/lib/security/execution-consent.db`（root所有、0600）です。
+既存の永続policy用fsync / rename / 復旧処理を共有し、最大4,096件・426,032 bytesに制限します。
+version、予約領域、件数、厳密な長さ、並び順・重複、全体checksumを検査します。
+checksumは破損検出用であり、改変を防ぐ権限境界はファイルへの書込権限です。
+物理入力を伴う承認を消費してから永続化し、保存に失敗すれば実行許可も返しません。
+Allow Onceは保存しません。取消し・一覧編集用UIはまだありません。
 
 本番のsigned RAM / object image要求は、一回の認証済みsnapshotから同じ表示経路へ進みます。
 予約したsource容量と要求元のProcess参照をbrokerが保持し、元のIPC返信を決定まで保留します。
@@ -40,7 +57,7 @@ ViewKitもwindow protocol eventのIPC senderを接続先compositorと照合し�
 
 GUIは標準ViewKit Dialogを独立した保護windowとして表示します。初回frameの実表示とarmの確認が
 終わるまで肯定操作を受け付けません。拒否・Escape・window終了は取消しとして処理します。
-採用する肯定はAllow Onceだけで、対象imageの実行に必要な権限へ縮小した一回の認可を作ります。
+Allow Once / Alwaysのどちらも、対象imageの実行に必要な権限へ縮小した一回の認可を作ります。
 要求元プロセスの権限は変更しません。表示側再起動中、入力未同期、別の要求が表示中の状態は
 再試行可能なNotReadyです。明示的な拒否や無効な証拠を自動的に再試行して許可する処理はありません。
 
@@ -80,7 +97,31 @@ Allow Once → Deny → Escape取消し → Allow Once againの4操作が連続�
 `mochios-consent-376-normal-desktop.png`、`mochios-consent-376-normal-boot.log`です。
 NICなしrunnerの既存network readiness失敗(-6)は残っています。
 
+Always追加後のhost回帰試験は11対象124件（認可63件を含む）が成功しています。
+別ユーザー・変更されたfile / signing identity / Capability集合への許可再利用を拒否し、
+保存失敗、破損、切詰め、重複、最大件数超過でも既存の許可を広げないことを検査しました。
+記録は`out/checks/mochios-consent-377-regression.log`と`mochios-consent-377-host-final.log`です。
+377のKVMでは通常Terminalから署名済みfixtureを実行し、Alwaysを一度選んだ後の2回の
+実行が追加入力なしで成功しました。子のnet.connect、capabilities.manage / fs.write.all不在、
+親のnet.connect不在も検査しています。`mochios-consent-377-result.png`と、root所有0600の
+保存ファイルを読み戻した`mochios-consent-377-store.json`が記録です。
+378では同じKVM / Data overlayを保ったreset後、通常Dock / Terminal / mshから
+`--expect-remembered`で2回実行し、確認画面への追加入力なしで成功しました。
+新しいbrokerでも同じ範囲の子だけの許可を使い、親の権限は増えません。
+記録は`mochios-consent-378-reset.json`と`mochios-consent-378-reboot-result.png`です。
+試験用4ファイルを除去し、最終release buildで通常イメージを再生成しました。
+2,654ファイルと4つのcommand symlinkを読み戻し、6成果物のchecksum、SDK / kernelの不変、
+System / Data seedに試験用の許可がないことを確認しています。379の通常起動でも
+Binder / Dock / menubarを確認し、所有VMを停止しました。記録は
+`mochios-consent-377-readback.json`と`mochios-consent-379-normal-desktop.png`です。
+
 CLI用の表示形式は共通ですが、mshの保護されたtext rendererへの接続は未完了です。
 測定済みmshからの要求はText側へ振り分け、表示側がなければNotReadyで終了します。
 任意のstdinのyへフォールバックしません。通常のstdinやrendererが送る肯定だけで新しい権限を
-付与する経路もありません。永続許可、process許可、text側の実入力経路は引き続き未完了です。
+付与する経路もありません。process許可とtext側の実入力経路は引き続き未完了です。
+
+text側はTerminalの通常PTY表示と分離した保護入力モードへ接続する方針です。
+所有するProcess / PTY参照と実際のforeground・tabを照合し、`y` / `a`を選んでからの
+新しいEnterで確定、`n` / Escapeで拒否します。paste、pipe、入力済みbufferは確定に使わず、
+focusやtabの変更・終了時は取消します。表示・物理入力の検証とAlways保存は上記の共通brokerを使い、
+Terminalやmshへ別の許可databaseを実装しません。この段落は接続予定であり、実装済みの経路ではありません。

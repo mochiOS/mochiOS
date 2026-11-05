@@ -46,3 +46,8 @@ NICなしrunnerの既存network readiness失敗(-6)は残ります。所有VMは
 入力を配置前に拒否します。起動時scopeでの既存対応を削除したものではありません。
 公開C ABIのdlopen / dlsym / dlclose、process内の共有namespace・参照数、初期scopeとの合流、
 動的TLSとresolverの接続は未完了です。production ld.soの完成を示す段階ではありません。
+
+今回の共通実行許可への接続後も、実Clang / LLDで作ったDSOを使うResidentの8件を再実行し、
+constructor / finalizer、関数呼出し、RELRO、失敗時の実VM解放が成功しています。
+記録は`out/checks/mochios-consent-368-resident.log`です。新しいnativeのdlopen試験を実施した
+という意味ではなく、公開C ABIへの接続は上記のとおり残っています。

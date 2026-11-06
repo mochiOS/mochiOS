@@ -15375,3 +15375,11 @@ path = "services"
 hash = "1a8eb8b7b14631f8e044ee2e7163096c8efc8e00"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect execution consent to the protected reusable GUI presenter"
+
+[[entries]]
+date = "2026-11-06T18:00:06.731257216+09:00"
+snapshot = "73beaaabe3aa9c9ad7a1c21a"
+path = "applications/terminal"
+hash = "8808127764f55c82968c7e30845d013fbbc89dae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep long permission requests readable in standard ViewKit scrolling content"

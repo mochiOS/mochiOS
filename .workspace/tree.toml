@@ -15391,3 +15391,11 @@ path = "services"
 hash = "516b28092d503b88f9c063e3569996b2d799a1c4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Refresh retained image authorization test adapter"
+
+[[entries]]
+date = "2026-11-06T18:58:40.244951105+09:00"
+snapshot = "26e7d1a0fec0f6d487bd7ec8"
+path = "services"
+hash = "75549d37efa1a0cfa76ca5c5a086aba0807077fa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise authenticated owned graphs with real shared libraries"

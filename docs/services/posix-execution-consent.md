@@ -115,13 +115,54 @@ System / Data seedに試験用の許可がないことを確認しています�
 Binder / Dock / menubarを確認し、所有VMを停止しました。記録は
 `mochios-consent-377-readback.json`と`mochios-consent-379-normal-desktop.png`です。
 
-CLI用の表示形式は共通ですが、mshの保護されたtext rendererへの接続は未完了です。
-測定済みmshからの要求はText側へ振り分け、表示側がなければNotReadyで終了します。
-任意のstdinのyへフォールバックしません。通常のstdinやrendererが送る肯定だけで新しい権限を
-付与する経路もありません。process許可とtext側の実入力経路は引き続き未完了です。
+Terminal内のmshには、通常のVT / PTYと分離した保護表示を接続しました。表示側は測定済みのTerminalです。
+元ファイル、権限選択、実表示・入力の検証、Alwaysの保存はGUIと同じbrokerが所有します。
+新しいサービス、kernel専用interface、別の許可databaseは追加しません。
 
-text側はTerminalの通常PTY表示と分離した保護入力モードへ接続する方針です。
-所有するProcess / PTY参照と実際のforeground・tabを照合し、`y` / `a`を選んでからの
-新しいEnterで確定、`n` / Escapeで拒否します。paste、pipe、入力済みbufferは確定に使わず、
-focusやtabの変更・終了時は取消します。表示・物理入力の検証とAlways保存は上記の共通brokerを使い、
-Terminalやmshへ別の許可databaseを実装しません。この段落は接続予定であり、実装済みの経路ではありません。
+TerminalはPTY masterをCONTROL / TRANSFERへ縮小して添付します。既存FD exportの読み取りmetadata契約で
+取得した参照は、Terminal内ですぐ縮小して閉じます。brokerはmasterと新しいnative Process参照をPOSIXへ
+明示的に添付し、同じobject、controlling terminal、session、foreground process groupを照合します。
+PID / FD / terminal IDの自己申告で関係を作れません。TTYに属するbackground処理もGUIへ迂回させません。
+
+`MCNP` / `MCNX`は16 bytesのpoll / releaseです。pollを待機要求として保留せず、idle時は8 bytesのstatus、
+該当時は共通promptを返します。masterと表示Instanceが一致する質問だけを取得でき、登録数は最大16です。
+最終判断でもforeground関係を再確認します。表示側がない状態はNotReadyです。
+
+ViewKitは既存windowでも、質問を含むframeの保護bindingをcommit前に登録します。compositorは認証済みの
+Window登録に結び付く間だけ、対象surfaceをshell panelより上・secure overlayより下へ配置します。
+CPU / GPUの合成、backdrop、入力判定、保護表示の重なり検査が同じ順序を使います。取消し、focus / owner /
+sessionの失効で昇格を解除し、通常のsurface作成では取得できません。昇格だけでは入力をarmしません。
+内容generationが新しいframeの実表示も引き続き必要です。失敗理由はReleaseでもloggerへ記録します。
+
+`y` / `a`を選択した後、新しいEnterで確定し、`n` / Escapeで拒否します。brokerは独立したInput Authorityの
+physical shortcut → 全キー解放 → Enterを検査します。選択と確定の種類も一致が必要です。TextInput、IME、
+paste、stdin、PTY buffer、repeat、修飾キーのchordを肯定の証拠にしません。判断キーの解放まで通常入力を
+遮断し、同じ押下から出る文字をPTYへ流しません。ViewKitはcodepointがない文字キーのreleaseも復元します。
+表示は標準ContentArea / Stack / Text / Scrollで構成し、長い一覧をscrollしても選択案内を下部へ残します。
+focus喪失、tab変更、表示領域外の操作、window終了は取消しです。stdinだけの端末やSSH向けの測定済み表示
+アダプタは未実装で、任意のstdinのyへフォールバックしません。
+
+関連host試験は698件成功しました。compositorの51件成功・1件ignoreを含みます。記録は
+`mochios-text-consent-380-{host-final,input-regression}.log`、`mochios-text-consent-381-controller-host.log`、
+`mochios-text-consent-384-{lifecycle-host,compositor-harness-host}.log`、`mochios-text-consent-385-key-release-host.log`です。
+harnessなし実行体の誤指定は停止し、正しいtest targetの結果だけを数えています。
+
+381のKVMではguest clangに`-fintegrated-cc1`を指定し、LLDによるリンクとmsignの自動署名まで成功しました。
+通常指定のclangは途中で中断しており、この試行の完走は主張しません。同じguest生成ELFを384で実行し、
+質問 → y / Enter → 子のnet.connectだけの取得、再度の質問、nによる拒否を確認しました。
+`mochios-text-consent-381-integrated5.png`と`mochios-text-consent-384-{question,once,question-again,deny}.png`が記録です。
+通常echoのpipelineは質問前の別経路で拒否されたため、入力保護の成功例には数えません。
+385のnative試験では、stdinへ先にy / aを投入しても入力待ちを続け、物理nで拒否できることを確認しました。
+`mochios-text-consent-385-{prefed-waits,result-final}.png`が記録です。nの文字もPTYへ流れません。
+この試行のAlways段階は時間切れになったため、成功として数えていません。
+新しい試行ではaを選んで新しいEnterで確定し、その後の二回が追加入力なしで成功しました。子の終了値37、
+net.connectだけの取得、親の権限不変も検査しています。`mochios-text-consent-385-complete.png`が記録です。
+root所有0600の保存ファイルを読み戻し、同じData overlayを保った再起動後にも、新しいbrokerで二回の
+無入力実行が成功しました。`mochios-text-consent-385-{store,reset}.json`と`mochios-text-consent-385-reboot-pass.png`に記録しています。
+
+試験用6ファイルを除去し、通常イメージの2,654ファイルと4つのcommand symlinkを読み戻して照合しました。
+6成果物のchecksum、SDKの6入力とkernelの不変を確認し、System / Data seedの許可記録・一時保存・旧版が
+すべて存在しないことも検査しました。`mochios-text-consent-380-{artifacts,readback}.json`と
+`mochios-text-consent-386-{normal-image,readback}.log`が記録です。
+386の通常起動でもBinder / Dock / 上部バーを確認しました。
+`mochios-text-consent-386-normal-desktop.png`に記録し、所有VMを停止して検証用の一時停止処理も解除済みです。

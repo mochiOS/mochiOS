@@ -37,9 +37,9 @@ Desktop notification
 Driver discovery complete
 network Ready
 Session authority publication
-Permission presenter prewarm
-IME dictionary warmup (background)
-resident
+Permission presenter preparation (asynchronous)
+resident / Execution presenter preparation (asynchronous)
+Permission preparation attempt finished / IME dictionary warmup (background)
 ```
 
 初回インストールではloginを省略し、Binderの初回描画後にInstallerを開きます。
@@ -62,8 +62,18 @@ KVM・CPU host・2 vCPU・1 GiB RAM・VirGL有効で10秒以内を目標とし�
 準備中もマウスとキー入力の受付を続けます。この起動順はユーザー空間で決め、カーネルにはサービス名や
 起動パスを追加しません。
 
-許可画面の事前準備は認証済みセッションの公開後に行います。セッションの公開に失敗した場合は
+許可画面の事前準備は認証済みセッションの公開後に行います。権限確認用と実行許可用の
+presenterはそれぞれ別のワーカースレッドで起動し、そのスレッド専用のIPC受信先でReadyを待ちます。
+サービス管理ループは完了した結果だけを受け取り、事前準備の間も通常の要求を受信します。
+Readyにはtokenと保持中のProcessHandleによる送信元確認を適用します。失敗時や結果の受け取り先を
+破棄した場合も、作成したプロセスの参照を終了・POSIX登録の後始末まで保持します。
+再起動の確認は1秒間隔とし、後始末が残っていれば新しい起動を延期します。
+
+辞書の自動読み込みは、初回の権限確認用presenterの準備試行が終わってから開始します。
+これは準備失敗でも開始しますが、Readyとみなしたり許可を与えたりするものではありません。
+明示的な日本語入力の要求はこの順序を待ちません。セッションの公開に失敗した場合は
 許可画面の準備と辞書の自動読み込みを開始せず、公開エラーを記録します。
+実際の許可要求への応答は従来通りモーダルで待ちます。
 
 起動中のReady通知、Driver探索完了、通常のIPC要求は同じ受信キューへ届きます。
 別の起動待ちが先に受け取った要求は保存し、探索完了待ちでは保存済みの要求も確認します。
@@ -85,10 +95,18 @@ Filesの起動、ランチャーのクリックによるEditの起動、英字�
 入力内容と検索結果が画面へ反映されることを確認しました。記録は
 `out/checks/startup-interaction-20261107/final-warm-text/`です。
 
-許可画面の事前準備によるサービス管理ループの同期待ちと、アプリが前面にある場合の
-ランチャー検索欄のキーボードフォーカスは残る改善点です。初回描画の通知だけで
-全操作の準備が完了したとは扱いません。
-関連するホスト試験は71件の実行が成功しました。既存の`ipc_empty_native`にはソース形式と
+事前準備の非同期化後のKVM検証では、初回描画8.09秒、通常要求の受信開始8.10秒でした。
+権限確認用presenterのReadyは9.42秒、実行許可用は11.06秒で、受信開始が両方の準備完了より
+先になりました。辞書の読み込み開始は9.42秒、完了は19.87秒です。DockからのFiles起動、
+ランチャーのクリックからのEdit起動、英字入力、日本語変換候補の表示を再確認しました。
+記録は`out/checks/presenter-async-20261107/final-ordered-input/`です。
+この回の英字入力試験は辞書の準備完了後なので、辞書準備中の入力確認とは扱いません。
+アプリが前面にある場合のランチャー検索欄のキーボードフォーカスは残る改善点です。
+初回描画の通知だけで全操作の準備が完了したとは扱いません。
+
+前回の関連ホスト試験は71件、今回の非同期準備・起動順・所有権・Ready検証は54件の実行が
+成功しました。既存の`ipc_empty_native`にはソース形式と
 返却タプルに追従していないfixtureがあり、2件は未通過です。全体の試験成功とは扱いません。
 検証結果と未解決点の一覧は`out/checks/startup-interaction-20261107/evidence.json`に記録しています。
+非同期化の結果は`out/checks/presenter-async-20261107/evidence.json`に記録しています。
 

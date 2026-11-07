@@ -15511,3 +15511,11 @@ path = "libraries/viewkit"
 hash = "4dab960bfca40f8bfe9e38f0b6d0ed407f34efaf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add optional web session, page and view API foundation"
+
+[[entries]]
+date = "2026-11-07T21:53:25.693542790+09:00"
+snapshot = "4f0f933f4b4934a4b6798e6d"
+path = "tools/devkit"
+hash = "656ddaaaea143695db7583db060e8b6853f5bbf6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Lock the shared.5 runtime graph for the replayed loader sources"

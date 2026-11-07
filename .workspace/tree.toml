@@ -15495,3 +15495,11 @@ path = "drivers"
 hash = "06d53e6e36c9fa69b9c830dcc0ba7721809b566d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record dependency locks from verified launcher build"
+
+[[entries]]
+date = "2026-11-07T21:02:34.596680557+09:00"
+snapshot = "8d140d7ce1f8f4cf340aa59f"
+path = "drivers"
+hash = "53f0f73214783b918a9703a56bb5a1fafdba0eed"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record dependency locks from App Store setup cleanup build"

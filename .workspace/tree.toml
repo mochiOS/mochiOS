@@ -15455,3 +15455,11 @@ path = "drivers"
 hash = "f6ea840350de4746cfc7b789fab3f6f165324c9e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record driver dependencies for the final desktop startup image"
+
+[[entries]]
+date = "2026-11-07T18:29:16.740147185+09:00"
+snapshot = "877083483b04b04e9da45e9c"
+path = "services"
+hash = "e0d23095b99894c3fb515d5e0cacdeb6cb874893"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Authorize dynamic exec by replaying authenticated package inputs"

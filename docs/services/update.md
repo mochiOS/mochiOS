@@ -6,7 +6,9 @@ OSイメージ、アプリケーション、Driver、MPKG自体の更新は担�
 ## 起動と権限
 
 実行ファイルは`/system/services/update.service`、Package IDは`org.mochios.update`です。
-`service-manager.service`が`network.service`のReady確認後に起動します。起動失敗または同期失敗は
+`service-manager.service`が`network.service`の起動に成功した後、Ready確認より前に起動します。
+起動順は[サービス起動処理](../../services/service-manager/src/orchestration.rs)と[Boot仕様](../boot.md)を参照してください。
+起動失敗または同期失敗は
 bootを停止しません。付与するCapabilityはファイル読み書き、HTTP client、IPC client/server、
 署名DB更新通知、UTC参照に限定し、Process Spawn、raw network、device、DMA権限は持ちません。
 

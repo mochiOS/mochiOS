@@ -15447,3 +15447,11 @@ path = "drivers"
 hash = "b3cbe133f098203e806501de9ab7f4d5e2f2bc73"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record the final native driver dependency resolutions"
+
+[[entries]]
+date = "2026-11-07T17:27:46.341158235+09:00"
+snapshot = "974eef9b2578fa438495035e"
+path = "drivers"
+hash = "f6ea840350de4746cfc7b789fab3f6f165324c9e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record driver dependencies for the final desktop startup image"

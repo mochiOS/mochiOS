@@ -15463,3 +15463,11 @@ path = "services"
 hash = "e0d23095b99894c3fb515d5e0cacdeb6cb874893"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Authorize dynamic exec by replaying authenticated package inputs"
+
+[[entries]]
+date = "2026-11-07T18:58:30.289161606+09:00"
+snapshot = "1755b5255e92bd70b48251f0"
+path = "services"
+hash = "0549c447f1c3f24d2688f41c606c5d8ec8079f73"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Report driver discovery outcomes on serial"

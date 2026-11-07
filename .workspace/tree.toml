@@ -15527,3 +15527,11 @@ path = "user"
 hash = "f63dae1ade2b4f53c7e533001e5dee3f520c8e9e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose fail-closed secure_getenv from the authenticated runtime"
+
+[[entries]]
+date = "2026-11-07T22:09:21.471032111+09:00"
+snapshot = "b8175fe793488298fb0c5179"
+path = "tools/devkit"
+hash = "3fc70b9fbc760ba63442c78fdcfd75dfe5cbd43f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Require the authenticated secure environment API in shared.5"

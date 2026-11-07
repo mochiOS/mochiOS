@@ -15407,3 +15407,11 @@ path = "user"
 hash = "6afc74203f78f791e5d8774148a01dceb94d07ee"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: record dependency locks from validated mmake build"
+
+[[entries]]
+date = "2026-11-07T11:06:39.338861616+09:00"
+snapshot = "8a19956e296063bf7e60c0c2"
+path = "drivers"
+hash = "7e3ae053180e2c269e7099dd1b7088e06d04e715"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: record Cargo lockfile ordering from native builds"

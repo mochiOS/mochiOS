@@ -15471,3 +15471,11 @@ path = "services"
 hash = "0549c447f1c3f24d2688f41c606c5d8ec8079f73"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Report driver discovery outcomes on serial"
+
+[[entries]]
+date = "2026-11-07T19:22:59.494830432+09:00"
+snapshot = "d946ef0df8ae4a1b9db9473c"
+path = "applications/terra"
+hash = "eb2214afd3ae393ec6f2e7372b234611743052e1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove Terra-owned WebKit builds and engine payload bundling"

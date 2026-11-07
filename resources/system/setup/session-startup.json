@@ -1,9 +1,4 @@
 {
   "format": 1,
-  "rules": [
-    {
-      "handler": "org.mochios.appstore",
-      "requirements": "/system/applications/AppStore.app/initial-apps.json"
-    }
-  ]
+  "rules": []
 }

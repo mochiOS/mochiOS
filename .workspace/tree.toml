@@ -15423,3 +15423,11 @@ path = "build"
 hash = "14dca57d4b7261ac1ed454b9e8f8c99a04474575"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Track shared BootUI and boot logo inputs for display services"
+
+[[entries]]
+date = "2026-11-07T16:58:35.914497849+09:00"
+snapshot = "7098195fe322834f8185ffd1"
+path = "drivers"
+hash = "e3e5e03ec1df5dcb8d1ce26c0c6124f035c69e87"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record dependency resolutions from the verified native driver build"

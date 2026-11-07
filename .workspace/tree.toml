@@ -15519,3 +15519,11 @@ path = "tools/devkit"
 hash = "656ddaaaea143695db7583db060e8b6853f5bbf6"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Lock the shared.5 runtime graph for the replayed loader sources"
+
+[[entries]]
+date = "2026-11-07T22:08:24.384230525+09:00"
+snapshot = "c37ed8f1c1bd5857e22c36cd"
+path = "user"
+hash = "f63dae1ade2b4f53c7e533001e5dee3f520c8e9e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose fail-closed secure_getenv from the authenticated runtime"

@@ -15479,3 +15479,11 @@ path = "applications/terra"
 hash = "eb2214afd3ae393ec6f2e7372b234611743052e1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove Terra-owned WebKit builds and engine payload bundling"
+
+[[entries]]
+date = "2026-11-07T20:32:18.044413432+09:00"
+snapshot = "8e07704afb259866d5aa3796"
+path = "drivers"
+hash = "71ab975f76a50c74111a98a875b488501501e7d1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record dependency locks from verified desktop startup build"

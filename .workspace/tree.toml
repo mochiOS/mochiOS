@@ -15415,3 +15415,11 @@ path = "drivers"
 hash = "7e3ae053180e2c269e7099dd1b7088e06d04e715"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: record Cargo lockfile ordering from native builds"
+
+[[entries]]
+date = "2026-11-07T12:14:39.393038247+09:00"
+snapshot = "999c339685d6c6fb5f5a9a1d"
+path = "build"
+hash = "14dca57d4b7261ac1ed454b9e8f8c99a04474575"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Track shared BootUI and boot logo inputs for display services"

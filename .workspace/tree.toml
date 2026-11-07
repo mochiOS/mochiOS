@@ -15399,3 +15399,11 @@ path = "services"
 hash = "75549d37efa1a0cfa76ca5c5a086aba0807077fa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise authenticated owned graphs with real shared libraries"
+
+[[entries]]
+date = "2026-11-07T09:30:16.134735036+09:00"
+snapshot = "9ce50e4d548c381c5f60ad48"
+path = "user"
+hash = "6afc74203f78f791e5d8774148a01dceb94d07ee"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: record dependency locks from validated mmake build"

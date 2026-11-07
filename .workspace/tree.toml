@@ -15439,3 +15439,11 @@ path = "services"
 hash = "95bcf7c2d2e64b9d1f59f89ff33f3290b977d462"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep network startup failures visible in release builds"
+
+[[entries]]
+date = "2026-11-07T17:20:30.423205047+09:00"
+snapshot = "819f9e5f4271f91717b38116"
+path = "drivers"
+hash = "b3cbe133f098203e806501de9ab7f4d5e2f2bc73"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record the final native driver dependency resolutions"

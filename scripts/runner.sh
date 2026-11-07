@@ -235,11 +235,6 @@ case "${QEMU_GL_DISPLAY}" in
     *) die "QEMU_GL_DISPLAY must be 'auto', 'egl-headless', 'gtk', or 'sdl': ${QEMU_GL_DISPLAY}" ;;
 esac
 
-if [[ "${DEBUG_QEMU_GUI:-y}" == "y" && "${NOGUI:-0}" != "1" && "${QEMU_GPU_BACKEND}" == "virgl" && "${QEMU_GL_DISPLAY}" == "auto" ]]; then
-    echo "[fallback] virgl GUI disabled: automatic GL contexts are unreliable on this QEMU host; set QEMU_GL_DISPLAY=gtk or sdl to opt in"
-    QEMU_GPU_BACKEND="2d"
-fi
-
 need_cmd qemu-system-x86_64
 need_cmd dd
 need_cmd debugfs
@@ -436,7 +431,7 @@ if [[ "${DEBUG_QEMU_GUI:-y}" != "y" || "${NOGUI:-0}" == "1" ]]; then
     fi
 elif [[ "${QEMU_VIRTIO_GPU_ENABLED}" == "y" && "${QEMU_GPU_BACKEND}" == "virgl" ]]; then
     if [[ "${QEMU_GL_DISPLAY}" == "auto" ]]; then
-        QEMU_GL_DISPLAY="sdl"
+        QEMU_GL_DISPLAY="gtk"
     fi
     case "${QEMU_GL_DISPLAY}" in
         gtk) QEMU_ARGS+=(-display gtk,gl=on,window-close=off -monitor none) ;;

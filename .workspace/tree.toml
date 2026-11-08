@@ -15567,3 +15567,11 @@ path = "services"
 hash = "bb75bb6d60b263e031bb004a065f5858900271ee"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record dependency resolution for unified host and KVM tests"
+
+[[entries]]
+date = "2026-11-08T12:25:14.859988709+09:00"
+snapshot = "03bb84be11d103484d47df45"
+path = "binaries/coreutils"
+hash = "f2c361474c1d1d172f78e84091ae9e7cb6a9b558"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Check installed System commands in the native process test"

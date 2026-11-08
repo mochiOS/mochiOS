@@ -15607,3 +15607,11 @@ path = "tools/devkit"
 hash = "a008947ca6f6b27f582146f9510bc4e49ec39be3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Pin the retained signal-wait fix in the development SDK"
+
+[[entries]]
+date = "2026-11-08T16:13:00.546885178+09:00"
+snapshot = "fc99caccdf117a21be39f0ee"
+path = "core"
+hash = "2e9cde869fda7c1ad930ab71dd882342e1302ee1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Move security advisories to the mochiOS root repository"

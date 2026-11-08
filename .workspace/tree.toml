@@ -15807,3 +15807,11 @@ path = "applications/appstore"
 hash = "bff64e4b16b86866eb10db5483045fd54f4e98b2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Pin library dependencies to Git revisions"
+
+[[entries]]
+date = "2026-11-08T21:17:20.191063391+09:00"
+snapshot = "5d8b4f6e10f54e7357aed956"
+path = "libraries/viewkit"
+hash = "21c7a55254b4f624e9bc2796972d2fe0369ebdd9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Merge remote-tracking branch 'github/main' into mws/develop"

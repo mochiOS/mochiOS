@@ -15535,3 +15535,11 @@ path = "tools/devkit"
 hash = "3fc70b9fbc760ba63442c78fdcfd75dfe5cbd43f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Require the authenticated secure environment API in shared.5"
+
+[[entries]]
+date = "2026-11-08T09:51:01.552067098+09:00"
+snapshot = "843f14ec35d11af90f804806"
+path = "services"
+hash = "0a818bfb5869f5df1308ab3be649f164bb5738f3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Restrict system spawn authorization to measured launchers"

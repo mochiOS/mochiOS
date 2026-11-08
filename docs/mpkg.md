@@ -277,8 +277,9 @@ write-backを再試行します。fileの追加・更新だけでなく、削除
 5. Developer 公開鍵で `manifest.sig` を検証
 6. manifest と全 payload の size、SHA-256 を照合
 
-`package.service` は読み込んだ同一の MPKG byte 列を chunk protocol で
-`signature.service` へ渡します。署名検証後に path を開き直しません。
+`package.service` は呼出元が添付した読み取り専用FileHandleから、root所有・0700の
+`/var/lib/package-transactions`配下へMPKGを固定します。署名検証と展開はこの専用コピーを
+使用し、呼出元のパスを開き直しません。承認後にもMPKG全体のSHA-256を再照合します。
 
 ## 8. インストールと有効化
 
@@ -286,6 +287,20 @@ write-backを再試行します。fileの追加・更新だけでなく、削除
 検証します。`/system/packages` は image に含まれる built-in package 専用で、Store
 などから追加した package の管理情報は Data root の `/var/lib/packages` に置きます。
 同じ Package ID の built-in package は追加・更新・削除できません。
+
+AppStoreと`mpk install`／`mpk update`／`mpk remove`は、共通の
+`mochios-package-client`から次の手順を使います。
+
+1. 認証済みbrokerからpackage.serviceのSEND専用endpointを取得し、入力ファイルを明示的に添付します。
+2. package.serviceがMPKGを固定・検証し、操作・Package ID・version・publisher・MPKGのhash・既存recordのhashを持つnative transaction objectを返します。
+3. capability.serviceがそのobjectから内容を取得し、共通の管理者認証へ渡します。GUIはsecure-uiのウィンドウ、mshはTerminalの保護された入力欄を使います。AppStoreは選択したreleaseのID・version・SHA-256との一致も要求します。
+4. 変更直前にpackage.serviceが同じobjectの承認をbrokerで一度だけ消費します。送信元Process/image・UID・ログインセッション・policy generation・期限を再検査します。
+5. 既存recordとMPKGのhashを再照合してから、以下の配置・更新・削除を行います。
+
+承認は別のpackageや別processへ使い回せません。旧式・versionedのパスだけを渡す変更RPCは
+拒否し、UID 0や`package.install`等のCapabilityだけでは変更を許可しません。
+取消・失敗後の自動再試行は行いません。transactionには件数・容量・期限の上限があり、
+最終参照解放・送信元終了・期限切れで専用コピーを回収します。読み取り専用の一覧取得は認証不要です。
 
 新規インストールは次の順です。
 

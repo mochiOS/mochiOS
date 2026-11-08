@@ -15623,3 +15623,11 @@ path = "services"
 hash = "2f3cf3dae2a9a11aa1acc95c06fcadf0829a96bf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove unused network and USB authority from the capability broker"
+
+[[entries]]
+date = "2026-11-08T16:25:41.693864947+09:00"
+snapshot = "d916edd9afa1e3fc6ed9ae25"
+path = "services"
+hash = "1714699398d44edb0737b7f904a8a54537dfa965"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Enforce authenticated session membership on every Workspace request"

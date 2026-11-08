@@ -67,7 +67,7 @@ install -m 0644 "$root/build/ime/ja.mime.sha256" "$stage_new/system/libraries/im
 
 install -m 0755 "$root/out/newlib-port/hello/hello.elf" "$stage_new/system/bin/hello"
 for program in rust-std-demo test_app msh; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done
-coreutils=(echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc os-test test_gui test_desktop)
+coreutils=(sudo echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc os-test test_gui test_desktop)
 grep -qx 'KERNEL_PERFORMANCE_INSTRUMENTATION=y' "$config" && coreutils+=(mperf) || true
 grep -qx 'USER_BUILD_SELFTESTS=y' "$config" && coreutils+=(selftest-capability selftest-process selftest-ext2-write selftest-system-layout) || true
 for program in "${coreutils[@]}"; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done

@@ -15591,3 +15591,11 @@ path = "user"
 hash = "fcaafca58ed5f1d94a59b73f4658fdf192c2a710"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record dependency resolution from the final KVM quality run"
+
+[[entries]]
+date = "2026-11-08T13:27:27.880612950+09:00"
+snapshot = "4d93b8eb23f94445bd34f7c6"
+path = "tools/devkit"
+hash = "88c2210161fa88469f8054f2b2d17693efc60e25"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Verify observed resident memory in the shared.6 development SDK"

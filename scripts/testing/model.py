@@ -92,7 +92,7 @@ class GuestSession:
             elapsed, detail = frame.get("elapsed_ms"), frame.get("detail")
             if frame.get("id") != self.active or frame.get("status") not in ("pass", "fail"):
                 raise ValueError("invalid guest case result")
-            if type(elapsed) is not int or elapsed < 0 or not isinstance(detail, str) or len(detail) > 8192:
+            if type(elapsed) is not int or not 0 <= elapsed <= (1 << 64) - 1 or not isinstance(detail, str) or len(detail) > 8192:
                 raise ValueError("invalid guest result fields")
             self.results.append(Result(self.active, frame["status"], elapsed / 1000, detail))
             self.active = None
@@ -110,3 +110,33 @@ class GuestSession:
         if not self.finished:
             raise ValueError("guest disconnected without a complete final result")
         return self.results
+
+
+class SerialReport:
+    """Transport framing is separate from ordinary, potentially noisy logs."""
+
+    RECORD = b"MOCHIOS_TEST_JSON "
+    FINISH = b"MOCHIOS_TEST_FINISH "
+
+    def __init__(self, session):
+        self.session = session
+        self.finished = False
+
+    def accept_line(self, raw):
+        if not raw.startswith((self.RECORD, self.FINISH)):
+            return None
+        if self.finished:
+            raise ValueError("test data after serial completion")
+        if raw.startswith(self.RECORD):
+            frame = decode_frame(raw[len(self.RECORD):])
+            self.session.accept(frame)
+            return frame
+        if not raw.endswith(b"\n") or len(raw) > 256:
+            raise ValueError("incomplete or oversized serial completion")
+        fields = raw[len(self.FINISH):].split()
+        results = self.session.complete()
+        expected = b"0" if all(r.status == "pass" for r in results) else b"1"
+        if fields != [self.session.run_id.encode(), expected]:
+            raise ValueError("serial completion contradicts the run ID or results")
+        self.finished = True
+        return None

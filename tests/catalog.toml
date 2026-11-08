@@ -3,7 +3,7 @@ version = 1
 [[host]]
 id = "runner"
 timeout = 30
-command = ["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_testing.py"]
+command = ["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"]
 
 [[host]]
 id = "protocols-and-test-library"

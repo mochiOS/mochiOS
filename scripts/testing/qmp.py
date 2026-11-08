@@ -79,4 +79,7 @@ class Frame:
         return min(self.pixel(.25, .13)) > 230 and max(self.pixel(.15, .5)) < 225
 
     def terminal(self):
-        return max(self.pixel(.3, .25)) < 80 and max(self.pixel(.4, .4)) < 80
+        canvas = [self.pixel(x, y) for x, y in ((.3, .25), (.4, .4), (.7, .75))]
+        # Terminal follows the selected appearance. Check a full canvas rather
+        # than treating its default light appearance as a launch failure.
+        return all(max(pixel) < 80 for pixel in canvas) or all(min(pixel) > 230 for pixel in canvas)

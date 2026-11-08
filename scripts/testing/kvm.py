@@ -1,14 +1,11 @@
 import json
 import os
 from pathlib import Path
-import selectors
-import select
 import shutil
-import socket
 import subprocess
 import time
 
-from .model import GuestSession, Result, decode_frame
+from .model import GuestSession, Result, SerialReport
 from .qmp import Qmp
 from .evidence import digest
 
@@ -73,8 +70,12 @@ class VM:
                              "resident": "resident requests enabled", "input": "IME initialization finished"}.items():
             if marker in serial and name not in self.details["stages"]:
                 self.details["stages"][name] = round(time.monotonic() - self.started, 3)
+        # A failed isolated case may quote its panic in a result detail.
+        # Preserve that case result instead of mislabelling it a VM panic.
+        diagnostics = "\n".join(line for line in serial.splitlines()
+                                if not line.startswith(SerialReport.RECORD.decode()))
         for marker in ("PAGE FAULT", "kernel panic", "panicked at", "Faulting user context:"):
-            if marker.lower() in serial.lower():
+            if marker.lower() in diagnostics.lower():
                 raise RuntimeError(f"fatal guest error: {marker}")
 
     def serial(self):
@@ -151,49 +152,44 @@ def run(root, directory, image, cases, run_id, timeout):
     vm = None
     start = time.monotonic()
     try:
-        with socket.socket() as listener:
-            listener.bind(("127.0.0.1", 0))
-            listener.listen(1)
-            listener.setblocking(False)
-            port = listener.getsockname()[1]
-            vm = VM(root, directory, image, timeout)
-            vm.boot()
-            results.append(Result("kvm.boot", "pass", time.monotonic()-start))
-            vm.terminal()
-            results.append(Result("desktop.terminal", "pass", time.monotonic()-start))
-            vm.qmp.text(f"os-test {run_id} {port}")
-            vm.qmp.tap("ret")
-            vm.wait(lambda: bool(select.select([listener], [], [], 0)[0]), "guest test connection", 40)
-            connection, _ = listener.accept()
-            with connection, selectors.DefaultSelector() as selector, (directory / "guest.jsonl").open("wb") as log:
-                connection.setblocking(False)
-                selector.register(connection, selectors.EVENT_READ)
-                pending = b""
-                phase_deadline = time.monotonic() + 10
-                while True:
-                    vm.check()
-                    if time.monotonic() > phase_deadline:
-                        raise TimeoutError("guest result timeout: " + (session.active or "protocol completion"))
-                    if not selector.select(.1):
-                        continue
-                    data = connection.recv(65536)
-                    if not data:
-                        if pending:
-                            raise ValueError("truncated guest result frame")
-                        session.complete()
-                        break
-                    log.write(data)
-                    log.flush()
-                    pending += data
-                    while b"\n" in pending:
-                        raw, pending = pending.split(b"\n", 1)
-                        session.accept(decode_frame(raw + b"\n"))
+        vm = VM(root, directory, image, timeout)
+        vm.boot()
+        results.append(Result("kvm.boot", "pass", time.monotonic()-start))
+        vm.terminal()
+        results.append(Result("desktop.terminal", "pass", time.monotonic()-start))
+        vm.qmp.text(f"os-test {run_id}")
+        vm.qmp.tap("ret")
+        transport = SerialReport(session)
+        with (directory / "serial.log").open("rb") as source, (directory / "guest.jsonl").open("wb") as log:
+            pending = b""
+            received = 0
+            phase_deadline = time.monotonic() + 40
+            while not transport.finished:
+                vm.check()
+                if time.monotonic() > phase_deadline:
+                    raise TimeoutError("guest result timeout: " + (session.active or "protocol completion"))
+                data = source.read(65536)
+                if not data:
+                    time.sleep(.1)
+                    continue
+                received += len(data)
+                if received > 16 * 1024 * 1024:
+                    raise ValueError("guest serial log exceeded the 16 MiB limit")
+                pending += data
+                while b"\n" in pending:
+                    raw, pending = pending.split(b"\n", 1)
+                    raw += b"\n"
+                    if raw.startswith(transport.RECORD):
+                        log.write(raw[len(transport.RECORD):])
+                        log.flush()
+                    frame = transport.accept_line(raw)
+                    if frame is not None:
                         phase_deadline = time.monotonic() + (next(c["timeout"] for c in cases if c["id"] == session.active) + 5 if session.active else 10)
-                    if len(pending) > 65536:
-                        raise ValueError("guest result exceeds the frame limit")
-            results.extend(session.results)
-            vm.qmp.capture(directory / "completed.png")
-            results.append(Result("kvm.report-complete", "pass", time.monotonic()-start))
+                if len(pending) > 65568:
+                    raise ValueError("guest result exceeds the frame limit")
+        vm.qmp.capture(directory / "completed.png")
+        results.extend(session.results)
+        results.append(Result("kvm.report-complete", "pass", time.monotonic()-start))
     except (OSError, ValueError, RuntimeError, TimeoutError, subprocess.SubprocessError) as error:
         results.extend(session.results)
         results.append(Result("kvm.infrastructure", "error", time.monotonic()-start, str(error)))

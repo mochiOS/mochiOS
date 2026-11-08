@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from scripts.testing.evidence import save
-from scripts.testing.model import GuestSession, Result, catalog, decode_frame
+from scripts.testing.model import GuestSession, Result, SerialReport, catalog, decode_frame
 from scripts.testing.process import command
 from scripts.testing.qmp import Frame
 
@@ -45,6 +45,7 @@ class ProtocolTests(unittest.TestCase):
         with self.assertRaises(ValueError): session.accept(self.event("start", id="second"))
         session.accept(self.event("start", id="first"))
         with self.assertRaises(ValueError): session.accept(self.event("result", id="first", status="skip", elapsed_ms=0, detail=""))
+        with self.assertRaises(ValueError): session.accept(self.event("result", id="first", status="pass", elapsed_ms=10**400, detail=""))
         with self.assertRaises(ValueError): session.accept(self.event("start", id="first"))
 
     def test_rejects_forged_summary_and_trailing_results(self):
@@ -59,6 +60,26 @@ class ProtocolTests(unittest.TestCase):
     def test_rejects_duplicate_json_truncation_and_size_overflow(self):
         for raw in [b'{"a":1,"a":2}\n',b'{}',b'x'*65537+b'\n',b'[]\n']:
             with self.assertRaises(ValueError): decode_frame(raw)
+
+    def test_serial_completion_requires_the_exact_run_and_result(self):
+        session = self.session()
+        transport = SerialReport(session)
+        self.assertIsNone(transport.accept_line(b"service: ready\n"))
+        def send(event):
+            return transport.accept_line(transport.RECORD + json.dumps(event).encode() + b"\n")
+        send(self.event("begin", cases=["first", "second"]))
+        for name, status in [("first", "pass"), ("second", "fail")]:
+            send(self.event("start", id=name))
+            send(self.event("result", id=name, status=status, elapsed_ms=1, detail=""))
+        with self.assertRaises(ValueError): transport.accept_line(b"MOCHIOS_TEST_FINISH run 1\n")
+        send(self.event("end", passed=1, failed=1))
+        self.assertFalse(transport.finished)
+        for invalid in [b"run 0\n", b"other 1\n", b"run 1", b"run 1 extra\n"]:
+            with self.assertRaises(ValueError): transport.accept_line(transport.FINISH + invalid)
+        transport.accept_line(transport.FINISH + b"run 1\n")
+        self.assertTrue(transport.finished)
+        with self.assertRaises(ValueError): send(self.event("start", id="first"))
+        with self.assertRaises(ValueError): transport.accept_line(transport.FINISH + b"run 1\n")
 
 
 class ExecutionTests(unittest.TestCase):
@@ -90,6 +111,9 @@ class ExecutionTests(unittest.TestCase):
             self.assertEqual(json.loads((path/"result.json").read_text())["status"],"fail")
             save(path,report,[Result("required","error",detail="missing")])
             self.assertIn('errors="1"',(path/"junit.xml").read_text())
+            save(path,report,[Result("binary-stderr","fail",detail="oops\0\x1b")])
+            from xml.etree import ElementTree
+            self.assertEqual(ElementTree.parse(path/"junit.xml").find("testcase/failure").text,"oops\ufffd\ufffd")
 
     def test_catalog_requires_both_plans_and_valid_timeouts(self):
         root=Path(__file__).resolve().parents[1]
@@ -132,7 +156,7 @@ class ExecutionTests(unittest.TestCase):
 
     def test_kvm_preflight_failure_keeps_all_required_cases_failed(self):
         from scripts.testing.kvm import run
-        with tempfile.TemporaryDirectory() as temporary, patch("scripts.testing.kvm.socket.socket"), patch("scripts.testing.kvm.VM",side_effect=OSError("KVM unavailable")) as create_vm:
+        with tempfile.TemporaryDirectory() as temporary, patch("scripts.testing.kvm.VM",side_effect=OSError("KVM unavailable")) as create_vm:
             path=Path(temporary)
             results=run(path,path,path/"disk",[{"id":"required","timeout":1}],"run",1)
             self.assertEqual({r.id:r.status for r in results},{"kvm.infrastructure":"error","required":"error"})
@@ -143,10 +167,27 @@ class ExecutionTests(unittest.TestCase):
         from scripts.testing.kvm import run
         from unittest.mock import Mock
         vm=Mock();vm.boot.side_effect=KeyboardInterrupt()
-        with tempfile.TemporaryDirectory() as temporary, patch("scripts.testing.kvm.socket.socket"), patch("scripts.testing.kvm.VM",return_value=vm):
+        with tempfile.TemporaryDirectory() as temporary, patch("scripts.testing.kvm.VM",return_value=vm):
             path=Path(temporary)
             with self.assertRaises(KeyboardInterrupt):run(path,path,path/"disk",[{"id":"required","timeout":1}],"run",1)
             vm.close.assert_called_once()
+
+    def test_case_failure_detail_is_not_a_kernel_panic(self):
+        import time
+        from unittest.mock import Mock
+        from scripts.testing.kvm import VM
+        vm = VM.__new__(VM)
+        vm.process = Mock()
+        vm.process.poll.return_value = None
+        vm.started = time.monotonic()
+        vm.deadline = vm.started + 10
+        vm.details = {"stages": {}}
+        vm.serial = Mock(return_value='MOCHIOS_TEST_JSON {"detail":"panicked at assertion"}\n')
+        vm.check()
+        vm.serial.return_value = 'kernel panic: assertion\n'
+        with self.assertRaises(RuntimeError):
+            vm.check()
+
 
 
 if __name__ == "__main__":

@@ -58,6 +58,12 @@ def environment_state(root):
 
 
 def save(directory, report, results):
+    def xml_text(value):
+        # Captured child stderr may contain binary/control bytes. Preserve the
+        # original detail in JSON while keeping the JUnit document valid XML.
+        return "".join(c if c in "\t\n\r" or 0x20 <= ord(c) <= 0xD7FF
+                       or 0xE000 <= ord(c) <= 0xFFFD or 0x10000 <= ord(c) <= 0x10FFFF
+                       else "\ufffd" for c in value)
     report["results"] = [r.record() for r in results]
     report["status"] = "pass" if results and all(r.status == "pass" for r in results) else "fail"
     (directory / "result.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
@@ -67,9 +73,9 @@ def save(directory, report, results):
     for result in results:
         case = ET.SubElement(suite, "testcase", name=result.id, time=f"{result.seconds:.3f}")
         if result.status != "pass":
-            ET.SubElement(case, "failure" if result.status == "fail" else "error").text = result.detail
+            ET.SubElement(case, "failure" if result.status == "fail" else "error").text = xml_text(result.detail)
         if result.log:
-            ET.SubElement(case, "system-out").text = result.log
+            ET.SubElement(case, "system-out").text = xml_text(result.log)
     ET.ElementTree(suite).write(directory / "junit.xml", encoding="utf-8", xml_declaration=True)
     temporary = directory.parent / (".latest-" + directory.name)
     temporary.symlink_to(directory.name, target_is_directory=True)

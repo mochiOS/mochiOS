@@ -15615,3 +15615,11 @@ path = "core"
 hash = "2e9cde869fda7c1ad930ab71dd882342e1302ee1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Move security advisories to the mochiOS root repository"
+
+[[entries]]
+date = "2026-11-08T16:20:56.315363411+09:00"
+snapshot = "91efc255122a7d9a86030221"
+path = "services"
+hash = "2f3cf3dae2a9a11aa1acc95c06fcadf0829a96bf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove unused network and USB authority from the capability broker"

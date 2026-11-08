@@ -15759,3 +15759,11 @@ path = "services"
 hash = "f97a8aa644a71f0d3148de7e713cf931768ca64b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix MOC-SA-2026-1108-0012"
+
+[[entries]]
+date = "2026-11-08T18:26:18.806706377+09:00"
+snapshot = "59c0ae24d26cc131541c96bb"
+path = "applications/settings"
+hash = "adcadd0be9f373552c6edfe3e38bbeef269a5a1d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1108-0014"

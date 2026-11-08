@@ -116,6 +116,10 @@ if [[ "${CHANNEL}" == "developer-preview" ]]; then
         > "${ROOT_DIR}/.config"
 else
     echo "[signing] require production keys"
+    if [[ -f "${ROOT_DIR}/.config" ]] &&
+        grep -Eq '^DEVELOPMENT_(SYSTEM_SIGNATURES|UEFI_SIGNING)=y$' "${ROOT_DIR}/.config"; then
+        die "production channel refuses development signing settings in .config"
+    fi
 fi
 
 echo "[signing] minimum build: ${MOCHIOS_MINIMUM_BUILD}"

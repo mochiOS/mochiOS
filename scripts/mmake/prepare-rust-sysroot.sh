@@ -54,6 +54,16 @@ mkdir -p "$temporary/lib/rustlib/src/rust/vendor" "$temporary/lib/rustlib/src/ru
 ln -s "$vendor" "$temporary/lib/rustlib/src/rust/vendor/rustc-literal-escaper"
 ln -s "$vendor" "$temporary/lib/rustlib/src/rust/library/vendor/rustc-literal-escaper"
 
+# Cargo fingerprints the compiler wrappers. Keep an identical layout in place
+# so a runtime/Lock change does not look like replacement of the Rust compiler.
+# Source links stay live; new entries or a changed base compiler require refresh.
+if [[ -d "$overlay" && -f "$overlay/bin/rustc" && -f "$overlay/bin/rustdoc" ]] &&
+    [[ ! "$base/bin/rustc" -nt "$overlay/bin/rustc" && ! "$base/bin/rustdoc" -nt "$overlay/bin/rustdoc" ]] &&
+    diff -qr --no-dereference --exclude=.ready "$overlay" "$temporary" >/dev/null; then
+    rm -rf "$temporary"
+    exit 0
+fi
+
 touch "$temporary/.ready"
 rm -rf "$overlay"
 mv "$temporary" "$overlay"

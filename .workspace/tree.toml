@@ -15655,3 +15655,11 @@ path = "mboot"
 hash = "b8d9ddc635b96810a59d94f13e3b735620ec8726"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix MOC-SA-2026-1108-0010"
+
+[[entries]]
+date = "2026-11-08T17:21:31.468507341+09:00"
+snapshot = "e636675dd3eede3f5fcdcecb"
+path = "services"
+hash = "55fe5ee64a97659202b0c6ccf8f2fbdd3ac20b6a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1108-0009"

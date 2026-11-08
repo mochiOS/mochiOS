@@ -15559,3 +15559,11 @@ path = "user"
 hash = "79ad6b02d22618894541e5ad5646af7cb91e77cf"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record dependency resolution used by the native quality suite"
+
+[[entries]]
+date = "2026-11-08T12:18:02.034898877+09:00"
+snapshot = "62c372a246d7b2576ec4c98d"
+path = "services"
+hash = "bb75bb6d60b263e031bb004a065f5858900271ee"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record dependency resolution for unified host and KVM tests"

@@ -15543,3 +15543,11 @@ path = "services"
 hash = "0a818bfb5869f5df1308ab3be649f164bb5738f3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Restrict system spawn authorization to measured launchers"
+
+[[entries]]
+date = "2026-11-08T10:04:02.403523887+09:00"
+snapshot = "9e17646ff3072fdabc214840"
+path = "drivers"
+hash = "714899596f467bc90c3812e0230b37c4163988e8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record driver dependency resolution used for security verification"

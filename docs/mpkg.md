@@ -279,7 +279,9 @@ write-backを再試行します。fileの追加・更新だけでなく、削除
 
 `package.service` は呼出元が添付した読み取り専用FileHandleから、root所有・0700の
 `/var/lib/package-transactions`配下へMPKGを固定します。署名検証と展開はこの専用コピーを
-使用し、呼出元のパスを開き直しません。承認後にもMPKG全体のSHA-256を再照合します。
+使用し、呼出元のパスを開き直しません。保存先と親directoryのroot所有・mode・symlinkを
+検査し、承認後にもMPKG全体のSHA-256を再照合します。既存packageの管理directoryと
+manifest／verification recordにもroot所有・他ユーザーによる書込不可の検査を行います。
 
 ## 8. インストールと有効化
 

@@ -15791,3 +15791,11 @@ path = "applications/appstore"
 hash = "dded34cda200372b440ad1dccb1a664374705577"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix MOC-SA-2026-1108-0014"
+
+[[entries]]
+date = "2026-11-08T20:28:27.359113617+09:00"
+snapshot = "7897fadce1da1818ee17fb56"
+path = "services"
+hash = "b45301322caf835ab123a4bcab2090432db9b4b4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1108-0014"

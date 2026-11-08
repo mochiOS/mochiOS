@@ -117,8 +117,8 @@ if [[ "${CHANNEL}" == "developer-preview" ]]; then
 else
     echo "[signing] require production keys"
     if [[ -f "${ROOT_DIR}/.config" ]] &&
-        grep -Eq '^DEVELOPMENT_(SYSTEM_SIGNATURES|UEFI_SIGNING)=y$' "${ROOT_DIR}/.config"; then
-        die "production channel refuses development signing settings in .config"
+        grep -Eq '^DEVELOPMENT_[A-Z0-9_]+=y$' "${ROOT_DIR}/.config"; then
+        die "production channel refuses development settings in .config"
     fi
 fi
 

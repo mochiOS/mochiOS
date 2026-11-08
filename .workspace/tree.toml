@@ -15751,3 +15751,11 @@ path = "drivers"
 hash = "e9e06c5f1e7a9b5381ce797bb3e32300214e0a73"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix MOC-SA-2026-0817-0006"
+
+[[entries]]
+date = "2026-11-08T18:09:08.296790466+09:00"
+snapshot = "a944e3f1844e1f11d28bc23b"
+path = "services"
+hash = "f97a8aa644a71f0d3148de7e713cf931768ca64b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1108-0012"

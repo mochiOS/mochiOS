@@ -161,7 +161,12 @@ jobs:
 
           sysroot_manifest="$(rustc "+${RUSTUP_TOOLCHAIN}" --print sysroot)/lib/rustlib/src/rust/library/sysroot/Cargo.toml"
           echo "[fetch] ${sysroot_manifest}"
-          cargo "+${RUSTUP_TOOLCHAIN}" fetch --locked --manifest-path "${sysroot_manifest}"
+          # Cargo discovers config from cwd, even with an external manifest.
+          # Keep workspace patches out of the toolchain's locked dependencies.
+          (
+            cd "$(dirname "${sysroot_manifest}")"
+            cargo "+${RUSTUP_TOOLCHAIN}" fetch --locked --manifest-path "${sysroot_manifest}"
+          )
 
           for manifest in \
             libraries/viewkit/Cargo.toml \

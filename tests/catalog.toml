@@ -1,0 +1,49 @@
+version = 1
+
+[[host]]
+id = "runner"
+timeout = 30
+command = ["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_testing.py"]
+
+[[host]]
+id = "protocols-and-test-library"
+timeout = 180
+command = ["cargo", "test", "--offline", "--manifest-path", "user/Cargo.toml", "-p", "mochios-test-support", "-p", "mochios-capability-protocol", "-p", "mochios-elf-signature", "--lib"]
+
+[[host]]
+id = "boot-selection"
+timeout = 180
+command = ["cargo", "test", "--offline", "--manifest-path", "boot/Cargo.toml", "-p", "mochios-boot-selection", "--lib"]
+
+[[host]]
+id = "security-and-ipc"
+timeout = 180
+command = ["cargo", "test", "--offline", "--manifest-path", "services/Cargo.toml", "-p", "posix-service", "--test", "trusted_broker_images", "--test", "signed_image_authorization", "--test", "consent_transactions", "--test", "exec_authority_revocation", "--test", "handle_authority_native", "--test", "ipc_receive_snapshot"]
+
+[[guest]]
+id = "native.identity"
+timeout = 30
+[[guest]]
+id = "native.handle-rights"
+timeout = 30
+[[guest]]
+id = "native.ipc-transfer"
+timeout = 30
+[[guest]]
+id = "posix.files"
+timeout = 30
+[[guest]]
+id = "posix.fd-sharing"
+timeout = 30
+[[guest]]
+id = "posix.process"
+timeout = 60
+[[guest]]
+id = "posix.threads"
+timeout = 30
+[[guest]]
+id = "security.launch-authorization"
+timeout = 30
+[[guest]]
+id = "security.signed-image"
+timeout = 30

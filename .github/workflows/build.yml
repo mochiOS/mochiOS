@@ -253,6 +253,18 @@ jobs:
           mmake --version
           x86_64-elf-gcc --version
 
+      - name: Run host tests
+        run: mmake -v host-test
+
+      - name: Upload host test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mochios-host-tests
+          path: out/tests/host/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Build mochiOS
         id: build
         run: |

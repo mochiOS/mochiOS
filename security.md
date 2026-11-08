@@ -128,7 +128,8 @@ CVE IDではありません。脆弱性に対して後からCVE IDやGHSA IDが�
 - 修正情報
 - 希望があり、適切な場合は報告者のクレジット
 
-公開はこのリポジトリのsecurity/ディレクトリにMOC-SA-YYYY-MMDD.mdとして行います。
+Advisory DBはmochiOSルートリポジトリの[security/](security/)で管理し、
+`MOC-SA-YYYY-MMDD-NNNN.md`として公開します。
 
 ## 報酬
 

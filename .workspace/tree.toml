@@ -15551,3 +15551,11 @@ path = "drivers"
 hash = "714899596f467bc90c3812e0230b37c4163988e8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record driver dependency resolution used for security verification"
+
+[[entries]]
+date = "2026-11-08T11:28:06.420089449+09:00"
+snapshot = "3f3ca93695a97212b64ecbfb"
+path = "user"
+hash = "79ad6b02d22618894541e5ad5646af7cb91e77cf"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record dependency resolution used by the native quality suite"

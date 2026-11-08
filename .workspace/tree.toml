@@ -15575,3 +15575,11 @@ path = "binaries/coreutils"
 hash = "f2c361474c1d1d172f78e84091ae9e7cb6a9b558"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Check installed System commands in the native process test"
+
+[[entries]]
+date = "2026-11-08T12:47:30.325500237+09:00"
+snapshot = "184b1014137e6a062441092c"
+path = "user"
+hash = "4dd29355143164280722a23bb3d6632d19c30b2c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record dependencies from the verified quality test runs"

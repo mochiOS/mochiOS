@@ -15647,3 +15647,11 @@ path = "applications/test.app"
 hash = "3d0ced2295d9aebfc3bbc41bd57fb7611e4f40f8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Declare notification authority for the existing notification action"
+
+[[entries]]
+date = "2026-11-08T17:20:02.118902824+09:00"
+snapshot = "a5393d5c554d64a0ea243c09"
+path = "mboot"
+hash = "b8d9ddc635b96810a59d94f13e3b735620ec8726"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1108-0010"

@@ -39,6 +39,7 @@ chmod 01777 "$stage_new/var/config/applications/org.mochios.edit/users"
 chmod 01777 "$stage_new/var/config/workspace"
 chmod 01777 "$stage_new/tmp"
 for category in account appearance diagnostics general input network security; do mkdir -p "$stage_new/var/config/$category"; chmod 0777 "$stage_new/var/config/$category"; done
+chmod 0755 "$stage_new/var/config/account"
 printf 'format=1\n' > "$stage_new/system/.installed"
 chmod 0644 "$stage_new/system/.installed"
 

@@ -36,3 +36,9 @@ mochios-viewkit-gpu-protocol = { path = "user/crates/viewkit-gpu-protocol" }
 mochios-virtio-gpu-protocol = { path = "user/crates/virtio-gpu-protocol" }
 mochios-net-device-protocol = { path = "user/crates/net-device-protocol" }
 mochios-tls-client = { path = "user/crates/tls-client" }
+
+[patch."https://github.com/mochiOS/fonts"]
+mochios-fonts = { path = "libraries/fonts" }
+
+[patch."https://github.com/mochiOS/BootUI"]
+bootui = { path = "libraries/bootui" }

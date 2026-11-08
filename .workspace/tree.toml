@@ -15799,3 +15799,11 @@ path = "services"
 hash = "b45301322caf835ab123a4bcab2090432db9b4b4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix MOC-SA-2026-1108-0014"
+
+[[entries]]
+date = "2026-11-08T20:51:41.907115054+09:00"
+snapshot = "92f21b2dce0fae2dedb6edf7"
+path = "applications/appstore"
+hash = "bff64e4b16b86866eb10db5483045fd54f4e98b2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Pin library dependencies to Git revisions"

@@ -15639,3 +15639,11 @@ path = "services"
 hash = "4f6ded632eca0917e0c2199965bebb194344c84e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Enforce authenticated session membership on every Workspace request"
+
+[[entries]]
+date = "2026-11-08T16:28:15.856519039+09:00"
+snapshot = "aab3fa2946893770ec59d4e3"
+path = "applications/test.app"
+hash = "3d0ced2295d9aebfc3bbc41bd57fb7611e4f40f8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Declare notification authority for the existing notification action"

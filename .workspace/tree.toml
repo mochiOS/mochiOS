@@ -15671,3 +15671,11 @@ path = "services"
 hash = "70dd13c69ddd8a6f39d90bdadc74949b5c5c0d4e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix MOC-SA-2026-1108-0013"
+
+[[entries]]
+date = "2026-11-08T17:25:58.815541241+09:00"
+snapshot = "90fce765b3edb982b5668deb"
+path = "core"
+hash = "c031f6a0d4c606ee0a3719661daf58c775c32704"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1108-0011"

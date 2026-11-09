@@ -10,6 +10,13 @@ password_hashやlocked状態には対応するfieldがなく、Cのpw_passwdはx
 既存のsnapshot、ユーザー変更、認証要求のCapability検査は維持しています。
 公開lookupのみは秘密情報へのread Capabilityを要求しません。
 
+アカウントの作成世代は独立した`Query::Generation(uid)`で照会します。
+UID・名前の再利用でも世代を引き継がないため、Capabilityの永続承認を別アカウントへ
+渡さずに照合できます。世代は非秘密のメタデータで、認証tokenではありません。
+この照会の応答はUID・予約領域・非0のu64世代からなり、既存のpasswdレコードとC ABIを変更しません。
+users.dbは作成世代と次の採番値を保存するversion 2へ移行し、旧version 1も読み込めます。
+旧形式の永続承認は世代を持たないため、自動では引き継がず再承認を要求します。
+
 service-managerがuser.serviceのREADYに添付されたSEND / DUPLICATE / TRANSFERの
 Endpoint Handleを受け取り、保持したProcess Handleのidentityと送信者を照合します。
 これを、LaunchContextで指定されたbootstrap processだけがposix.serviceへ登録できます。

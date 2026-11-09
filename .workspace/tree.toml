@@ -15879,3 +15879,11 @@ path = "services"
 hash = "2c75e407d42a1ed34376da8c987e548e4be27873"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix MOC-SA-2026-1109-0025"
+
+[[entries]]
+date = "2026-11-09T16:33:15.024559070+09:00"
+snapshot = "c3a140674929b41c36161571"
+path = "binaries/msh"
+hash = "2fee848a8508f667282234236109b2a0d69eb05d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1109-0026"

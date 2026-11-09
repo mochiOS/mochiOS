@@ -15823,3 +15823,11 @@ path = "core"
 hash = "26d5baf68705dff8bf643d596ffcd38aa5de4524"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Document native memory observation contracts and refresh validated lock"
+
+[[entries]]
+date = "2026-11-09T12:59:06.472612839+09:00"
+snapshot = "ec75e11b3fb12ce1804ccacf"
+path = "services"
+hash = "d87fb33dc8c9bdf4171cb877c3ecfc8b74364d5f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise private 128-bit arithmetic helpers in the native loader fixture"

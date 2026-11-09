@@ -15919,3 +15919,11 @@ path = "applications/settings"
 hash = "31bf545316cba9428c6480e2e6b0e37c72d4cc84"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add shared local crash windows and report history"
+
+[[entries]]
+date = "2026-11-09T20:05:10.453817405+09:00"
+snapshot = "de87b0b233451bc9e2d3b8af"
+path = "services"
+hash = "34b75fa1a565b4814cc1c305c8ee9a135eae9948"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep unmeasured diagnostic values unknown"

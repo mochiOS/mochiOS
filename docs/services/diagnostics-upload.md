@@ -15,6 +15,21 @@
 一般的なサービスログ、クラッシュJSON、memory dumpやstack内容を丸ごと送る実装ではありません。
 外部送信queueは上の2 endpointだけを受け付けます。
 
+## 受信APIとAdminDashboard
+
+受信側は[mochiOS/diagnosis-api](https://github.com/mochiOS/diagnosis-api)です。
+`/diagnostics`と`/update-results`を、16KiBの上限と明示的なJSON schemaで受け付けます。
+event IDと正規化した内容のSHA-256で再送を重複排除し、同じIDで異なる内容は409で拒否します。
+本文・ファイルパス・memory/stack/registerの内容を保存する欄や、公開の診断閲覧APIはありません。
+クラッシュの受信endpointはまだ提供しません。
+
+CloudWorkspaceでは`services/diagnosis-api`として管理します。AdminDashboardと同じ
+REPORTS・PUBLIC_CATALOGのD1 identityとローカル保存先を使い、migrationと起動を組み込みます。
+診断・更新結果の受信からAdminDashboardの管理APIによる集計までは、独立したローカル入力で
+確認しています。これは本番DBやmochiOS実機からの送信が確認済みという意味ではありません。
+本番へのmigration・deployは別途必要です。既存DBがある場合は、そのschemaとデータを
+確認してから移行し、初期migrationで既存tableを作り直したり削除したりしません。
+
 ## 送信する内容
 
 利用診断:
@@ -24,7 +39,8 @@
 - `install_date`、`last_active_date`（UTCの日付）。`install_date`は時計が有効になった最初の日付で、
   厳密なインストール時刻を計測しているわけではありません。
 - `basic_diagnostics_consent=true`、`additional_diagnostics_consent=false`。
-- 現在は固定値: `boot_succeeded=true`、`is_mochi_pc=false`。
+- 現在は未計測: `boot_succeeded=null`、`is_mochi_pc=null`。
+  従来の固定値を実測値として集計しないよう、新しい報告では不明を明示します。
 - 現在は不明: `previous_shutdown="unknown"`、`ram_band="unknown"`。
 - 現在は収集なし: `frequent_apps=null`、`country_or_region=null`。
 
@@ -89,5 +105,5 @@ queue追加時と送信の直前に、現行の区分・schema・policy version�
 - 正式policy versionと、その文書・送信項目の整合。
 - 共通同意ストアを用いた、実効性のあるSettings側の変更・撤回UI。
 - クラッシュごとの内容確認・明示送信と専用の送信契約。現状のクラッシュ同意だけでは送らない。
-- 固定値・不明値の扱い、および送信待ちqueueの容量・保持期限の運用方針。
+- 起動結果・ハードウェア区分の実測取得、および送信待ちqueueの容量・保持期限の運用方針。
 - サーバー側の保持・削除・問い合わせの運用。この文書はクライアント実装から保証しない。

@@ -15895,3 +15895,11 @@ path = "services"
 hash = "2d13ba8501097e6ddf24300fd66ef2d09eef3728"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Fix MOC-SA-2026-1109-0027"
+
+[[entries]]
+date = "2026-11-09T17:27:54.950470073+09:00"
+snapshot = "a3ddf1b46b6236e5e9791d32"
+path = "user"
+hash = "8a126d1c50eb135fad25a4e6c05f1946f0e158e2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record native abnormal process termination diagnostics"

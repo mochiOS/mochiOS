@@ -15831,3 +15831,11 @@ path = "services"
 hash = "d87fb33dc8c9bdf4171cb877c3ecfc8b74364d5f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise private 128-bit arithmetic helpers in the native loader fixture"
+
+[[entries]]
+date = "2026-11-09T16:17:55.455949139+09:00"
+snapshot = "8c1c0002f721586f6bb55f41"
+path = "services"
+hash = "7eba2b6332ce1301fa1c4b3369cbddbc6a878728"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1109-0020"

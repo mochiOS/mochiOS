@@ -17,11 +17,13 @@ install -m 0644 "$mmake_out/components/kernel.debug" "$artifacts/kernel.debug"
 install -m 0644 "$mmake_out/components/kernel.meta" "$artifacts/kernel.meta"
 install -m 0644 "$mmake_out/components/BOOTX64.EFI" "$artifacts/BOOTX64.EFI"
 install -m 0644 "$root/version.toml" "$artifacts/version.toml"
+install -m 0644 "$mmake_out/symbols/index.json" "$artifacts/symbols-index.json"
+python3 "$root/scripts/dev/archive-symbols.py" --store "$mmake_out/symbols" --export "$artifacts/symbols"
 (
     cd "$artifacts"
     # disk.img is a sparse development image whose authenticated rootfs hash is
     # embedded in initfs. Hashing its full logical size on every incremental
     # build defeats the block-level image updater.
-    find . -maxdepth 1 -type f ! -name SHA256SUMS ! -name SHA256SUMS.new ! -name disk.img -printf '%P\0' | sort -z | xargs -0 sha256sum > SHA256SUMS.new
+    find . -type f ! -name SHA256SUMS ! -name SHA256SUMS.new ! -name disk.img -printf '%P\0' | sort -z | xargs -0 sha256sum > SHA256SUMS.new
     mv SHA256SUMS.new SHA256SUMS
 )

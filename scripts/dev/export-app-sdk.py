@@ -23,7 +23,7 @@ def export(root, sdk, output):
                 raise ValueError('Unsupported SDK Cargo configuration')
             patches.extend(args[1::2])
     flags = ['--remap-path-prefix', '/home/jnix=/build', '--remap-path-prefix', f'{root}=/src/mochios']
-    for value in ['linker=x86_64-elf-gcc', f'link-arg=--sysroot={sdk}/sysroot', f'link-arg=-L{sdk}/sysroot/lib',
+    for value in ['debuginfo=1', 'linker=x86_64-elf-gcc', f'link-arg=--sysroot={sdk}/sysroot', f'link-arg=-L{sdk}/sysroot/lib',
                   'link-arg=-static', 'link-arg=-nostdlib', 'link-arg=-nostartfiles', f'link-arg=-Wl,-T,{sdk}/lib/linker.ld',
                   'link-arg=-Wl,-no-pie', 'link-arg=-Wl,-z,noexecstack', 'link-arg=-Wl,--start-group',
                   f'link-arg={sdk}/lib/crt0.o', f'link-arg={sdk}/lib/libmochi_user_newlib_runtime.a',

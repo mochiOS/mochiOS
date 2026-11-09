@@ -15903,3 +15903,11 @@ path = "user"
 hash = "8a126d1c50eb135fad25a4e6c05f1946f0e158e2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record native abnormal process termination diagnostics"
+
+[[entries]]
+date = "2026-11-09T17:51:51.652282497+09:00"
+snapshot = "aba0f14637912eb1c9a3167f"
+path = "build"
+hash = "97e860a906765fb101f8c0b3976941d78473346d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Archive matching debug symbols for deployed images"

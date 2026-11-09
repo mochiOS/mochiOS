@@ -15815,3 +15815,11 @@ path = "libraries/viewkit"
 hash = "21c7a55254b4f624e9bc2796972d2fe0369ebdd9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Merge remote-tracking branch 'github/main' into mws/develop"
+
+[[entries]]
+date = "2026-11-09T12:34:06.986556287+09:00"
+snapshot = "00d739252964c2b1e76721dc"
+path = "core"
+hash = "26d5baf68705dff8bf643d596ffcd38aa5de4524"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Document native memory observation contracts and refresh validated lock"

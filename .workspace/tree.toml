@@ -15911,3 +15911,11 @@ path = "build"
 hash = "97e860a906765fb101f8c0b3976941d78473346d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Archive matching debug symbols for deployed images"
+
+[[entries]]
+date = "2026-11-09T18:47:41.862176306+09:00"
+snapshot = "9be99bf5db9826cc2c2137e2"
+path = "applications/settings"
+hash = "31bf545316cba9428c6480e2e6b0e37c72d4cc84"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add shared local crash windows and report history"

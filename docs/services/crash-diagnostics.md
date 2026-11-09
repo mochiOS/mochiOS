@@ -1,8 +1,9 @@
 # ローカルクラッシュ診断
 
 CPU例外で終了したプロセスについて、終了時のnative evidenceと、起動時に認証したコードの
-対応をローカルに保存します。初期実装は記録・保持・シンボル保管・ホストでの停止位置解決です。
-GUIの一覧・通知・送信画面は含めません。
+対応をローカルに保存します。記録・保持・シンボル保管・ホストでの停止位置解決に加え、
+Settingsの履歴・詳細・書き出しと、AppCoreの共通クラッシュウィンドウを提供します。
+外部へのクラッシュ送信は接続していません。送信全般は[診断送信](diagnostics-upload.md)を参照してください。
 
 ## 責務
 
@@ -52,6 +53,35 @@ metadataが不在の場合は`image_metadata_available=false`となり、アプ�
 raw memory、stack内容、資格情報、環境変数、コマンドラインは保存しません。
 これらの詳細reportをupdate.serviceの外部送信queueへ登録する処理はありません。
 
+## ユーザーごとの閲覧と共通UI
+
+認証済みlauncherが起動元のreal UIDとアカウント世代をimage metadataに登録します。
+loggerは保存時にその値をreportへ引き継ぎます。管理者として起動したアプリでも、所有者は
+要求元のユーザーです。所有者不明の従来reportは管理者以外へ公開しません。
+
+`MDIAGLS1`（一覧）と`MDIAGRD1`（指定report）のIPC窓口は、native測定で確認した
+system built-inのSettingsとWorkspaceだけを受け付けます。senderのProcess Handleを
+POSIX側で照合し、real/effective UIDの一致と現在のアカウント世代を要求します。
+通常ユーザーには所有UID・世代の両方が一致する記録だけを返し、rootには全記録を返します。
+返信前に実行イメージと資格情報を再照合します。任意PIDやパスを指定する閲覧APIではありません。
+Settingsにはkernelの`diagnostics.read`を付与しません。
+
+返信はREAD-only MemoryObjectのsnapshotです。一覧は最大128件・128KiB、詳細は64KiB以内。
+一覧は起動時にprivate storageから読み込んで更新するため、毎秒全reportを読み直しません。
+読み出し・表示・書き出しは同意ストアや外部送信queueを変更しません。
+
+Workspaceは現在のcollector sessionで起動後に発生した記録だけを監視し、既存Settingsの
+`--show-crash=<report ID>`で共通ウィンドウを開きます。開いている間の後続記録はまとめ、
+閉じた後は30秒の間隔を設けます。診断表示プロセス自身のクラッシュは再表示ループにしません。
+再ログイン時に過去の記録を一斉表示しません。監視は独立threadで、通常のWorkspace IPCを止めません。
+
+SettingsのSecurity → Local Crash Reportsから履歴を開けます。AppCoreが取得・詳細整形・
+共通ViewKit Dialogを提供し、Details / Reopen / Closeを表示します。履歴・詳細は標準ViewKit、
+書き出し先はAppCore SavePanel、操作エラーはAppCore Alertの別ウィンドウです。
+再起動は記録されたpackage IDを現在のインストール一覧で解決し、既存の起動認可経路へ渡します。
+記録中のパスやCLI引数を直接実行しません。元のドキュメントや起動引数の復元は行いません。
+UIのIPCと読み出しはbackground threadで行います。
+
 ## シンボルの保管
 
 ```sh
@@ -80,7 +110,7 @@ mochiOSのRustアプリ・サービスとkernelの通常ビルドにline table�
 
 ## 停止位置の解決
 
-管理者が必要なreportを明示的に取り出し、対応するsymbol artifactを用意します。
+Settingsから必要なreportを書き出し、対応するsymbol artifactを用意します。
 
 ```sh
 python3 scripts/dev/symbolize-crash.py report.json --symbols out/artifacts/symbols
@@ -102,7 +132,6 @@ addr2lineで関数・ソース行を解決します。metadataなしでも、nat
   ELF interpreter自身や後のdlopenによる読み込みは完全に捕捉していません。
   `initial_modules_complete`と`later_dynamic_loads_captured`を確認します。
 - 停止位置が捕捉していないmodule内にある場合は未解決として扱います。
-  kernel panicの再起動越しの保存、GUI、外部クラッシュ送信はこの実装の対象外です。
+  kernel panicの再起動越しの保存と外部クラッシュ送信はこの実装の対象外です。
 
-カーネル・logger・capability.serviceのコンパイル、Pythonとshellの構文、既存ELFを使う
-symbol objectの生成・exportを確認しました。試験コードの追加やKVMによるクラッシュ実行は行っていません。
+試験コードの追加やKVMによるクラッシュ実行・画面の実機確認は行っていません。

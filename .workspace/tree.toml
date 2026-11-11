@@ -15927,3 +15927,11 @@ path = "services"
 hash = "34b75fa1a565b4814cc1c305c8ee9a135eae9948"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep unmeasured diagnostic values unknown"
+
+[[entries]]
+date = "2026-11-11T14:42:15.932547019+09:00"
+snapshot = "0a6d728c47d1e4dc0023b37c"
+path = "applications/terra"
+hash = "6aa87d4e3c5ad02561f27abdc4c0ca14072d42fb"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect Terra to the native WebKit ABI through a retained worker viewport"

@@ -153,6 +153,87 @@ download / installする機能はこの宣言には含めず、未installなら�
 認可graphはrootを含む256 package、8192 libraryを上限とし、超過は`E2BIG`を返します。
 これは認可するmetadataの上限で、実際にlinkするELF scopeの制約とは別です。
 
+### 5.1. 読み取り専用リソース
+
+`library_dependency`の意味は変更しません。データ公開と利用は別に宣言します。
+providerは署名対象の既存file IDを、インストール先と独立した論理名へ対応付けます。
+
+```toml
+[[resource_export]]
+name = "font-data-v1"
+files = { "sans/regular.ttf" = "font-regular" }
+```
+
+consumerはproviderのidentityとexportを固定し、実際に利用するbinaryでaliasを選択します。
+
+```toml
+[[resource_dependency]]
+alias = "system-fonts"
+package = "org.example.fonts"
+developer = "org.example.publisher"
+subject_key_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+provenance = "verified-package"
+abi = "font-assets-1"
+export = "font-data-v1"
+
+[[binary]]
+path = "/applications/Example.app/entry.elf"
+kind = "application"
+file = "entry"
+resource_dependencies = ["system-fonts"]
+# 自packageのexportも、このbinaryで明示的に選択できます。
+resource_exports = ["shared-data"]
+```
+
+上記のfile IDとexportは各package自身で別途定義します。aliasやexportを未定義のまま
+選択したmanifestは無効です。自packageの選択済みexportは`export-name/論理名`として
+公開します。application.entryに一致するbinaryでは、application.resourcesとiconも
+従来のbundle相対名で公開します。実行ファイルはデータとして公開しません。
+`msign package bind-built-in`も、実際のentry配置に基づいて宣言済みassetを計測し、
+file記録を追加します。旧版のcode-only manifestは起動を維持しますが、未計測assetへの
+新しい読み取り権限を作りません。リソースを使うには再bindしたmanifestが必要です。
+絶対論理名、空・dot・dotdot要素、逆斜線、制御文字、重複、file/directory衝突を拒否します。
+
+起動時の認証済みcatalogからnative tokenを作り、準備済み実行イメージのSHA-256と
+publisher identityへ結び付けます。一般IPCや環境変数からtokenを作るAPIはありません。
+コードとデータで同じproviderを使う場合は同一の認証済みsnapshotを使い、データ専用の
+依存からproviderのコード依存やCapabilityを取り込みません。署名付きstandalone実行から
+インストール済みリソース権限を作ることもしません。
+
+ファイルを開く際は全path要素でsymlinkを拒否し、regular fileのsizeと捕捉したbyte列の
+SHA-256を起動時snapshotに照合します。更新で旧データが失われた場合は失敗し、新版へ
+フォールバックしません。返す参照にWRITE/CONTROL権限はありません。
+
+AppCoreでは次のAPIを使います。すべての公開関数にRustdocがあります。
+
+```rust,no_run
+let app = appcore::Bundle::main()?;
+let icon = app.open("appicon.png")?;
+let fonts = appcore::Bundle::dependency("system-fonts")?;
+let font = fonts.open("sans/regular.ttf")?;
+let directory = fonts.directory()?;
+// directoryを使い終えるまで保持します。
+let path = directory.path();
+```
+
+C/C++では`<mochi/bundle.h>`の`mochi_bundle_check`、`mochi_bundle_open`、
+`mochi_bundle_directory_open/close`を使います。ファイルは通常のread-only/CLOEXEC FDです。
+ディレクトリviewは通常のopen/stat/opendir/read-only mmapと同じfilesystem objectを使い、
+realpathもview内の綴りを保ちます。viewはprocess内の所有tokenの寿命まで有効です。
+破棄後のpathを再利用しません。fork子ではviewを無効にし、execをまたいで維持しません。
+子へ渡す場合は明示的なread-only file参照か、子自身の正規の起動宣言を使います。
+ホストpreviewにnative起動権限はないため、AppCore APIはUnsupportedを返します。
+ホストの任意pathや環境変数を信頼済みbundleとして扱いません。
+
+実装上限は、一つのcatalogで8192 file binding、256 package、128 MiB/file、
+256 MiB/serialized tree、8192 files/tree、32768 nodes/treeです。filesystem全体で
+metadata込み512 MiBを保守的に計上し、最後の参照で回収します。process内のviewは64個、
+brokerのlive startup tokenは256個・合計65536 bindingまでです。超過時はエラーを返します。
+
+このAPIの導入は既存リリース済みSDKの差し替えや公開を意味しません。新しいC関数を使う
+nativeアプリには、更新済みsyscalls runtimeとheaderを含めて再ビルドしたSDKが必要です。
+WebKitのhelper配置・権限宣言と実際の画面表示は別途接続・検証する必要があります。
+
 ## 6. payload path と配置先
 
 `[[file]].path` には、明示的な絶対配置先または `$/` 形式を使用します。

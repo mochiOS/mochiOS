@@ -222,6 +222,14 @@ C/C++では`<mochi/bundle.h>`の`mochi_bundle_check`、`mochi_bundle_open`、
 realpathもview内の綴りを保ちます。viewはprocess内の所有tokenの寿命まで有効です。
 破棄後のpathを再利用しません。fork子ではviewを無効にし、execをまたいで維持しません。
 子へ渡す場合は明示的なread-only file参照か、子自身の正規の起動宣言を使います。
+
+動的ELFのreplayed execでは、brokerが再構成した実行imageを検証した後、
+子自身の署名済みresource宣言に対応する参照を返します。runtimeはFD更新と同じ
+atomic image-context commitで新しいBundle参照を設置し、失敗時は受信参照を閉じます。
+旧来の静的exec経路では以前のBundle参照を除去し、親の権限を流用しません。
+既存のattachmentなし認可応答は維持し、新runtimeだけが新opcodeを使用します。
+新SDKの動的execには対応する新brokerが必要です。
+
 ホストpreviewにnative起動権限はないため、AppCore APIはUnsupportedを返します。
 ホストの任意pathや環境変数を信頼済みbundleとして扱いません。
 

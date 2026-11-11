@@ -15959,3 +15959,11 @@ path = "tools/devkit"
 hash = "fd7f44d1488e8006dcf939ff2b211deecb65cc4c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Bind explicitly declared built-in application assets into authenticated manifests"
+
+[[entries]]
+date = "2026-11-11T17:36:08.911833613+09:00"
+snapshot = "a79afb4bf41b0cbbfb4ee62f"
+path = "tools/devkit"
+hash = "ae6bae345a312410c2820af21aaa9f97e92d5489"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Prepare shared.9 SDK with authenticated bundle runtime and C/C++ ABI probes"

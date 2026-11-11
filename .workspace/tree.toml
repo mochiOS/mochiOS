@@ -15943,3 +15943,11 @@ path = "user"
 hash = "db5bbf48da809db6aef1e28df6be11b68127e98c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Define explicit signed resource exports and per-binary dependencies"
+
+[[entries]]
+date = "2026-11-11T15:54:11.581854743+09:00"
+snapshot = "d7a88ca744852e6595eb80b1"
+path = "services"
+hash = "de3cdc140e0e28181d396eb0f98cee8cfc5d8021"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Resolve resource sets from the authenticated application startup catalog"

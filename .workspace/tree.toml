@@ -15951,3 +15951,11 @@ path = "services"
 hash = "de3cdc140e0e28181d396eb0f98cee8cfc5d8021"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Resolve resource sets from the authenticated application startup catalog"
+
+[[entries]]
+date = "2026-11-11T16:43:48.172337749+09:00"
+snapshot = "09c6dd3c9d44db3543745f67"
+path = "tools/devkit"
+hash = "fd7f44d1488e8006dcf939ff2b211deecb65cc4c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Bind explicitly declared built-in application assets into authenticated manifests"

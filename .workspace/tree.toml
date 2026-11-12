@@ -15999,3 +15999,11 @@ path = "build"
 hash = "4a06568ec61ac3d3b3bd4109e691364fc698508e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Track privacy dependencies for Settings and capability builds"
+
+[[entries]]
+date = "2026-11-12T20:42:32.020287546+09:00"
+snapshot = "8a870ea65107f962ce670356"
+path = "applications/terra"
+hash = "f93166c43b1a746d888e649a2a93564086b8813b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Launch signed WebKit helpers through AppCore owned process references"

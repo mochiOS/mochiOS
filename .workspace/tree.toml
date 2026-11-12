@@ -15975,3 +15975,11 @@ path = "core"
 hash = "ed6f6981799d39748b124ba794b5acd697774151"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record dependency resolution from executable API validation"
+
+[[entries]]
+date = "2026-11-12T15:16:27.603806578+09:00"
+snapshot = "fd46d2506a9666e0fa2afd93"
+path = "tools/devkit"
+hash = "a3311b348d1c43dd8584a1eee82fc7f5cc2f3a9e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Prepare shared.10 SDK with signed executable reference runtime"

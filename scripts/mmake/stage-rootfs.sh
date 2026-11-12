@@ -144,6 +144,8 @@ stage_app "$root/applications/fonts" Fonts.app fonts appicon.png
 stage_app "$root/applications/viewer" Viewer.app viewer appicon.png
 stage_app "$root/applications/installer" Installer.app installer appicon.png
 cp -a "$root/applications/installer/legal" "$stage_new/system/applications/Installer.app/"
+mkdir -p "$stage_new/system/resources/legal"
+cp -a "$root/applications/installer/legal/." "$stage_new/system/resources/legal/"
 install_manifest "$root/applications/test.app/manifest.toml" viewkit-test
 install_manifest "$root/applications/binder/manifest.toml" binder
 install_manifest "$root/applications/appstore/manifest.toml" appstore

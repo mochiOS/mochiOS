@@ -79,25 +79,31 @@ terms / privacy / OSS licenseの文書version・SHA-256・確認時刻、およ�
 未設定・破損・不完全・古いpolicy versionは許可しません。現在のpolicy versionは
 **`placeholder-2`**で、正式リリースの文書revisionはまだ確定していません。
 
-初回アカウント作成後と、共通同意記録が未設定・不完全・旧policyの端末でのログイン後に、
-secure-uiが同意画面を表示します。文書は`/system/resources/legal`の外部UTF-8 bundleから読み、
-実際に確認した本文のversionとhashを共通ストアへ保存します。文書loaderはInstallerと共通です。
-利用診断・クラッシュ報告・更新結果は別画面で未選択から始まり、選択だけでは進みません。
-Continueで一時状態を確定し、最後のSave Choicesで端末単位の記録を永続化します。
-Not Nowは現在の記録を変更しません。既存の完全な記録がある場合は自動で再同意を要求しません。
+初回アカウント作成後にsecure-uiのセットアップが同意画面を表示します。
+通常のログイン・自動ログイン・ロック解除では同意画面を表示せず、ログイン操作を変更しません。
+文書は`/system/resources/legal`の外部UTF-8 bundleから読み、実際に確認した本文のversionとhashを
+共通ストアへ保存します。文書loaderはInstaller・初回セットアップ・Settingsで共通です。
+初回セットアップでは3区分を別画面で未選択から選び、Continueで一時状態を確定し、最後の
+Save Choicesで永続化します。Not Nowは現在の記録を変更しません。
 
-ログイン画面のData Sharing…から、認証後に既存の選択を見直すこともできます。
-ロック解除画面ではこの操作を有効にしません。再決定時は既存revisionを引き継いで増加させ、
-同じ秒に変更した場合も撤回前のqueueと区別します。自動ログインが設定された端末では、
-通常のログイン画面から見直すには自動ログインを無効にしてください。
-Settingsは共通ストアの区分別状態を読み取り表示しますが、変更UIはまだ提供していません。
+インストール後の変更・撤回はSettings → Security → Diagnostics & Privacyで行います。
+既存の選択は表示しますが、未設定の区分はChoose…となり、勝手にAllowへ移しません。
+同意記録がない端末でも、Settings内で利用規約・プライバシーポリシー・OSSライセンスの本文を
+確認してから3区分を選べます。表示した文書bundleのhashを要求へ含め、実行時に同じbundleか確認します。
+
+Save Choices…は既存の管理者操作brokerを使います。要求時と認証後の両方で呼び出し元の
+settings.write権限と実行identityを確認し、保護された確認画面と管理者パスワード検証の後だけ保存します。
+Settingsへroot権限やファイル書き込み用credentialは返しません。保存先・時刻・法的文書のreceiptは
+broker側で決め、要求から任意パスや偽のreceiptを受け付けません。変更しない区分のrevisionは保持し、
+変更した区分だけrevisionを進めて撤回前のqueueと区別します。保存失敗は成功表示にしません。
 旧`/var/config/diagnostics/settings.conf`は送信許可を与えず、暗黙の同意移行もしません。
 
 ## 実機での本番到着確認
 
 1. 変更を含むOSイメージをビルドして起動し、ネットワークとUTC時計を有効にします。
-2. 認証後の画面で文書を確認し、Usage & DiagnosticsをAllowにします。
-   Update Resultsは独立して選び、最後のSave Choicesを押します。Crash Reportsへの選択は
+2. 初回セットアップ、またはSettings → Security → Diagnostics & Privacyで文書を確認し、
+   Usage & DiagnosticsをAllowにします。
+   Update Resultsは独立して選び、最後のSave Choicesを押します。Settingsからの変更では管理者確認を完了します。Crash Reportsへの選択は
    この版では外部クラッシュ送信を開始しません。
 3. 次の同意確認周期（予定約60秒。通信待ちで遅れる場合あり）以降に、
    `/var/log/services/update.log`の`report permissions usage_diagnostics=true`を確認します。
@@ -141,7 +147,6 @@ queue追加時と送信の直前に、現行の区分・schema・policy version�
 ## リリース前に残っている点
 
 - 正式policy versionと、その文書・送信項目の整合。
-- Settingsから認証付きで同意の変更・撤回画面を開く導線（ログイン画面からの見直しは実装済み）。
 - クラッシュごとの内容確認・明示送信と専用の送信契約。現状のクラッシュ同意だけでは送らない。
 - 起動結果・ハードウェア区分の実測取得、および送信待ちqueueの容量・保持期限の運用方針。
 - サーバー側の保持・削除・問い合わせの運用。この文書はクライアント実装から保証しない。

@@ -15983,3 +15983,11 @@ path = "tools/devkit"
 hash = "a3311b348d1c43dd8584a1eee82fc7f5cc2f3a9e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Prepare shared.10 SDK with signed executable reference runtime"
+
+[[entries]]
+date = "2026-11-12T17:00:06.019436846+09:00"
+snapshot = "73cb9c857df6cacc48ac04a9"
+path = "build"
+hash = "bb479db340623ce60feb808afde786d2b3febabc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Track shared consent sources in secure UI builds"

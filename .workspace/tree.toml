@@ -15991,3 +15991,11 @@ path = "build"
 hash = "bb479db340623ce60feb808afde786d2b3febabc"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Track shared consent sources in secure UI builds"
+
+[[entries]]
+date = "2026-11-12T17:35:26.376101101+09:00"
+snapshot = "148722190e469159fe88f558"
+path = "build"
+hash = "4a06568ec61ac3d3b3bd4109e691364fc698508e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Track privacy dependencies for Settings and capability builds"

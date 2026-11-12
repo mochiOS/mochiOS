@@ -1,7 +1,8 @@
 # 診断送信の実装状況
 
-2026-11-09時点のソースに基づく整理です。通信の実機確認やサーバー側の保存・削除の確認は
-含みません。詳細な[ローカルクラッシュ診断](crash-diagnostics.md)は別の保存経路です。
+2026-11-12時点。ローカルのworkerd / D1での受信・表示と、本番の受信ルート・認証・
+schemaを確認しています。mochiOS実機から本番への送信と、サーバー側の保持・削除の
+運用確認は含みません。詳細な[ローカルクラッシュ診断](crash-diagnostics.md)は別の保存経路です。
 
 ## 現在接続されているもの
 
@@ -25,10 +26,20 @@ event IDと正規化した内容のSHA-256で再送を重複排除し、同じID
 
 CloudWorkspaceでは`services/diagnosis-api`として管理します。AdminDashboardと同じ
 REPORTS・PUBLIC_CATALOGのD1 identityとローカル保存先を使い、migrationと起動を組み込みます。
-診断・更新結果の受信からAdminDashboardの管理APIによる集計までは、独立したローカル入力で
-確認しています。これは本番DBやmochiOS実機からの送信が確認済みという意味ではありません。
-本番へのmigration・deployは別途必要です。既存DBがある場合は、そのschemaとデータを
-確認してから移行し、初期migrationで既存tableを作り直したり削除したりしません。
+本番では診断の2パスだけを`mochios-diagnosis-api`へ接続し、その他の更新・配布APIは既存の
+`mochios-public-api`を維持しています。無効だった公開ホストの割り当ても有効にしました。
+旧診断DBは0件であることを確認し、件数を再検証するtransactional migrationで旧tableを
+`legacy_*_20261111`へ退避してから現在のschemaへ移行しました。報告がある旧DBでは中止します。
+
+AdminDashboardの**診断統計 → 受信レポート**から種類別の一覧と詳細を閲覧できます。
+`/api/admin/reports`と`/api/admin/reports/:kind/:event_id`は既存のAccess署名・active memberを
+検証し、Owner / Admin / 閲覧専用Operatorにだけ返します。1ページ50件のcursor paginationで、
+端末IDや内部hashはブラウザへ返しません。起動結果・hardwareのnullは未計測として表示します。
+
+受信から一覧・詳細・集計までを、実際のworkerdと共有D1、署名付きの検証用Access JWTで
+確認しました。ブラウザでページ送り・詳細遷移・通信失敗後の復帰も確認しています。
+本番では配信code、接続先DB、認証と同意なし送信の拒否を確認し、検証用の報告は保存していません。
+これはmochiOS実機から本番へ送った報告の到着確認済みという意味ではありません。
 
 ## 送信する内容
 

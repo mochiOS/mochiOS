@@ -483,3 +483,97 @@ APT形式ではhostの`apt-get`と`dpkg-deb`、全形式で`mksquashfs`が必要
 - Linux applicationのnetwork、clipboard、device Capability portal
 
 これらは現行 v1 の成功条件として扱いません。
+
+## Signed executable exports
+
+Executable declarations are separate from read-only resource bundles. They
+permit selecting code; they do not grant filesystem directories, a provider's
+capabilities, or permission to execute without the existing execution policy.
+
+A provider exports an existing, signed native `application` binary:
+
+```toml
+[[executable_export]]
+name = "worker"
+binary = "/libraries/example/worker"
+```
+
+The binary must have an existing `file` binding with a SHA-256 digest and mode
+`0555` or `0755`. Linux entry points, privileged capability profiles, writable
+public executables, and unbound files cannot be exported. The installed root
+must still be a regular, publicly executable/readable file; symlinks in any
+component are rejected when code is captured.
+
+Consumers pin external providers and select the alias per binary:
+
+```toml
+[[executable_dependency]]
+alias = "engine-worker"
+package = "org.example.engine"
+developer = "org.example.publisher"
+subject_key_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+provenance = "verified-package"
+abi = "engine-1"
+export = "worker"
+
+[[binary]]
+path = "/applications/Example.app/entry.elf"
+kind = "application"
+file = "entry"
+requires = ["process.spawn", "ipc.client", "ipc.server", "system.random.read"]
+executable_dependencies = ["engine-worker"]
+# Own-package helpers also require explicit selection:
+# executable_exports = ["indexer"]
+```
+
+AppCore provides the native-only, documented `appcore::process` module:
+
+```rust,no_run
+use appcore::process::{Command, Executable, Stdio};
+use std::io::Read;
+let executable = Executable::dependency("engine-worker")?;
+// Executable::main("indexer") selects an explicitly enabled own export.
+let mut child = Command::new(executable)
+    .arg("--example")
+    .stdout(Stdio::Piped)
+    .spawn()?;
+let mut text = String::new();
+child.stdout.take().unwrap().read_to_string(&mut text)?;
+let status = child.wait()?;
+# Ok::<(), std::io::Error>(())
+```
+
+Selection uses launcher-installed authority bound to the measured caller and
+its publisher, never argv, an environment variable, or a package pathname. The
+broker authenticates the selected publisher/key/provenance/architecture/ABI,
+then captures the executable and its explicitly declared library closure.
+Neither library acquisition nor exec falls back to ambient filesystem reads.
+Captured bytes remain unchanged; replacing an installed package may make a
+later authorization fail rather than substituting another executable.
+
+The caller must have `process.spawn`, the ordinary exec runtime's `system.random.read`, and every capability requested by the
+child. Existing certificate constraints and user-consent checks remain in
+force; obtaining a code reference never grants a new permission. Interactive
+cross-package consent not supported by the existing exec controller fails
+closed instead of treating the caller's permissions as the child's consent.
+
+The C API is `<mochi/executable.h>`: `mochi_executable_open`,
+`mochi_executable_execve`, `mochi_executable_spawn`, and
+`mochi_executable_close`. References are owned native objects, not FDs or paths.
+`spawn` uses existing POSIX file actions/attributes, FD/CLOEXEC handling, fork
+registration, image authorization, and exec-status reporting. It reports
+success only after native metadata confirms an image commit, and returns an
+owned ProcessHandle for that exact child. AppCore exposes pipe ends as Files
+and termination uses that handle. Call `wait` to reap a child; dropping its
+wrapper neither waits nor terminates it automatically.
+
+The broker admits at most 64 live code selections, 128 MiB per captured file,
+256 MiB per selection, and 512 MiB of registry-owned captured code. Existing
+package/library graph limits also apply. Fork children retaining the same
+measured caller identity may use a reference; unrelated images cannot. The
+kernel's last-reference notification retires selections. References, paths,
+and broker tokens are not serializable configuration.
+
+These APIs require an updated libc runtime, capability service, and SDK.
+Published shared.9 does not contain the executable-reference C API. Host
+previews return `Unsupported` and never execute a host replacement.

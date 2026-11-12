@@ -15967,3 +15967,11 @@ path = "tools/devkit"
 hash = "ae6bae345a312410c2820af21aaa9f97e92d5489"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Prepare shared.9 SDK with authenticated bundle runtime and C/C++ ABI probes"
+
+[[entries]]
+date = "2026-11-12T14:10:40.657900217+09:00"
+snapshot = "4411ca614cc814afe1f47d93"
+path = "core"
+hash = "ed6f6981799d39748b124ba794b5acd697774151"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record dependency resolution from executable API validation"

@@ -45,6 +45,9 @@ chmod 0644 "$stage_new/system/.installed"
 
 cp -a "$root/resources/system/." "$stage_new/system/"
 cp -a "$root/resources/libraries/." "$stage_new/system/libraries/"
+python3 "$root/scripts/mmake/stage-system-libraries.py" \
+    --root "$root" --catalog "$root/build/system-libraries.toml" \
+    --stage "$stage_new" --msign "$msign"
 install -m 0600 "$root/resources/system/users/users.db" "$stage_new/var/lib/accounts/users.db"
 rm -rf "$stage_new/system/users"
 for directory in Desktop Documents Downloads Movies Music Pictures; do mkdir -p "$stage_new/home/root/$directory"; chmod 0700 "$stage_new/home/root/$directory"; done

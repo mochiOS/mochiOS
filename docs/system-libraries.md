@@ -15,6 +15,7 @@ WebKit's image layout is:
 - `/system/libraries/libwebkit.so.1`: public native entry point.
 - `/system/libraries/webkit/`: private upstream DSOs, preserving SONAMEs.
 - `/system/libraries/webkit/helpers/`: exported Web and Network helpers.
+- `/system/libraries/webkit/fonts.conf`: configuration for the installed System fonts.
 - `/system/share/licenses/org.mochios.webkit/`: license notices.
 
 Prepare the input from the verified mochiOS/libs build using that repository:
@@ -48,3 +49,30 @@ helper selection and captured-byte validation continue to apply.
 The System build integration and native final link do not establish HTML display
 or full engine runtime correctness. Fonts/configuration/trust resources and
 interactive engine behavior still need their corresponding runtime verification.
+
+The Fontconfig configuration uses the actual installed family names: Inter
+Variable, IBM Plex Sans JP and UDEV Gothic. It searches only
+`/system/libraries/fonts`, with no home directory, host `/usr` configuration or
+global writable cache. The existing filesystem policy permits reading immutable
+System data; this does not grant a helper broad filesystem authority or authorize
+loading arbitrary code.
+
+### Native verification gate
+
+Terra's opt-in `engine-probe` feature exercises the normal engine adapter and
+AppCore signed executable references. It is separate from the distributed
+application. A pass requires both real helpers, completed navigation, an engine
+frame, abnormal Web process termination reporting and termination/reaping of all
+owned helpers. A successful link, offline dependency-graph preparation or entry
+into Terra's main function alone does not satisfy this gate.
+
+The shared loader must accept both interleaved GNU and packed lld version-table
+records, while retaining chain bounds, disjointness and version-binding checks.
+Rust consumers also need the development SDK driver's compiler-builtins math
+isolation so hidden Rust intrinsics do not suppress newlib's dynamic math exports.
+Locally rebuilt runtimes must be recorded separately from a published SDK.
+Temporary diagnostic runtimes are not SDK release artifacts.
+
+Keep native VM results and exact input hashes with the execution evidence. Leave
+`runtime_tested` false until the complete probe passes. Visual verification of
+`terra:///engine-check` remains a separate check in the normal desktop application.

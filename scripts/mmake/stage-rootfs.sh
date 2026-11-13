@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-[[ $# -eq 3 ]] || { echo "usage: $0 <project-root> <mmake-output> <msign>" >&2; exit 2; }
+[[ $# -ge 3 && $# -le 4 ]] || { echo "usage: $0 <project-root> <mmake-output> <msign> [system|installer]" >&2; exit 2; }
 root=$1
 mmake_out=$2
 msign=$3
-stage=$mmake_out/image/rootfs
+variant=${4:-system}
+app_plan=$(python3 "$root/scripts/mmake/image-applications.py" --root "$root" --variant "$variant")
+image_out=$mmake_out
+[[ $variant != installer ]] || image_out=$mmake_out/installer
+stage=$image_out/image/rootfs
 bin=$root/out/rust-std/target/x86_64-unknown-mochios/release
 driver_bin=$root/out/services-build/target/x86_64-unknown-mochios/release
 config=$root/.config
@@ -40,8 +44,10 @@ chmod 01777 "$stage_new/var/config/workspace"
 chmod 01777 "$stage_new/tmp"
 for category in account appearance diagnostics general input network security; do mkdir -p "$stage_new/var/config/$category"; chmod 0777 "$stage_new/var/config/$category"; done
 chmod 0755 "$stage_new/var/config/account"
-printf 'format=1\n' > "$stage_new/system/.installed"
-chmod 0644 "$stage_new/system/.installed"
+if [[ $variant == system ]]; then
+    printf 'format=1\n' > "$stage_new/system/.installed"
+    chmod 0644 "$stage_new/system/.installed"
+fi
 
 cp -a "$root/resources/system/." "$stage_new/system/"
 cp -a "$root/resources/libraries/." "$stage_new/system/libraries/"
@@ -69,7 +75,7 @@ install -m 0644 "$mmake_out/components/ime/ja.mime" "$stage_new/system/libraries
 install -m 0644 "$root/build/ime/ja.mime.sha256" "$stage_new/system/libraries/ime/ja.mime.sha256"
 
 install -m 0755 "$root/out/newlib-port/hello/hello.elf" "$stage_new/system/bin/hello"
-for program in rust-std-demo test_app msh; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done
+for program in rust-std-demo msh; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done
 coreutils=(sudo echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc os-test test_gui test_desktop)
 grep -qx 'KERNEL_PERFORMANCE_INSTRUMENTATION=y' "$config" && coreutils+=(mperf) || true
 grep -qx 'USER_BUILD_SELFTESTS=y' "$config" && coreutils+=(selftest-capability selftest-process selftest-ext2-write selftest-system-layout) || true
@@ -96,8 +102,13 @@ install_manifest() {
         echo "fatal: $source requires window.create but cannot receive window events without ipc.server" >&2
         exit 1
     fi
+    if [[ -e $package_root/manifest.toml || -e $package_root/verification.bin ]]; then
+        echo "fatal: duplicate built-in package directory: $name" >&2
+        exit 1
+    fi
     mkdir -p "$package_root"
     if [[ $name == coreutils ]]; then
+        binding_args+=(--exclude-binary /bin/test_app)
         grep -qx 'KERNEL_PERFORMANCE_INSTRUMENTATION=y' "$config" || binding_args+=(--exclude-binary /bin/mperf)
         if ! grep -qx 'USER_BUILD_SELFTESTS=y' "$config"; then
             binding_args+=(--exclude-binary /bin/selftest-ext2-write --exclude-binary /bin/selftest-system-layout)
@@ -118,53 +129,24 @@ if grep -qx 'USER_INSTALL_DEVELOPER_TOOLS=y' "$config"; then
 fi
 
 stage_app() {
-    local source=$1 bundle=$2 binary=$3 icon=${4:-}
+    local source=$1 bundle=$2 binary=$3
     local destination=$stage_new/system/applications/$bundle
     mkdir -p "$destination"
     install -m 0755 "$bin/$binary" "$destination/entry.elf"
     install -m 0644 "$source/manifest.toml" "$destination/manifest.toml"
     python3 "$root/scripts/dev/stage-application-resources.py" "$source" "$destination"
-    [[ -z $icon ]] || install -m 0644 "$source/$icon" "$destination/$icon"
 }
 
-stage_app "$root/applications/binder" Binder.app binder
-for resource in appicon.svg close.svg maximize.svg minimize.svg mochios.svg; do install -m 0644 "$root/applications/binder/resources/$resource" "$stage_new/system/applications/Binder.app/$resource"; done
-stage_app "$root/applications/appstore" AppStore.app appstore appicon.png
-stage_app "$root/applications/edit" Edit.app edit appicon.png
-stage_app "$root/applications/test.app" test.app test_app
-stage_app "$root/applications/terminal" Terminal.app terminal appicon.png
-stage_app "$root/applications/file" Files.app files appicon.png
-mkdir -p "$stage_new/system/applications/Files.app/icons"
-for resource in folder.svg file.svg application.svg image.svg archive.svg disk.svg; do install -m 0644 "$root/applications/file/resources/icons/$resource" "$stage_new/system/applications/Files.app/icons/$resource"; done
-stage_app "$root/applications/settings" Settings.app settings appicon.png
-stage_app "$root/applications/system-monitor" SystemMonitor.app system-monitor appicon.png
-stage_app "$root/applications/calculator" Calculator.app calculator appicon.svg
-stage_app "$root/applications/keychain" Keychain.app keychain appicon.png
-stage_app "$root/applications/mail" Mail.app mail appicon.png
-stage_app "$root/applications/calendar" Calendar.app calendar appicon.svg
-stage_app "$root/applications/disk-utility" DiskUtility.app disk-utility appicon.png
-stage_app "$root/applications/fonts" Fonts.app fonts appicon.png
-stage_app "$root/applications/viewer" Viewer.app viewer appicon.png
-stage_app "$root/applications/installer" Installer.app installer appicon.png
-cp -a "$root/applications/installer/legal" "$stage_new/system/applications/Installer.app/"
+# Staging and built-in registration use the same selected set. No trust record
+# is created for Store applications or the development-only test application.
+while IFS=$'\t' read -r source bundle binary package; do
+    stage_app "$root/applications/$source" "$bundle" "$binary"
+    install_manifest "$root/applications/$source/manifest.toml" "$package"
+done <<< "$app_plan"
+
+# Legal documents are shared OS resources, independently of Installer.app.
 mkdir -p "$stage_new/system/resources/legal"
 cp -a "$root/applications/installer/legal/." "$stage_new/system/resources/legal/"
-install_manifest "$root/applications/test.app/manifest.toml" viewkit-test
-install_manifest "$root/applications/binder/manifest.toml" binder
-install_manifest "$root/applications/appstore/manifest.toml" appstore
-install_manifest "$root/applications/edit/manifest.toml" edit
-install_manifest "$root/applications/terminal/manifest.toml" terminal
-install_manifest "$root/applications/file/manifest.toml" files
-install_manifest "$root/applications/settings/manifest.toml" settings
-install_manifest "$root/applications/system-monitor/manifest.toml" system-monitor
-install_manifest "$root/applications/calculator/manifest.toml" calculator
-install_manifest "$root/applications/keychain/manifest.toml" keychain
-install_manifest "$root/applications/mail/manifest.toml" mail
-install_manifest "$root/applications/calendar/manifest.toml" calendar
-install_manifest "$root/applications/disk-utility/manifest.toml" disk-utility
-install_manifest "$root/applications/fonts/manifest.toml" fonts
-install_manifest "$root/applications/viewer/manifest.toml" viewer
-install_manifest "$root/applications/installer/manifest.toml" installer
 
 stage_service() {
     local source=$1 binary=$2 destination=$3 package=${4:-$1}

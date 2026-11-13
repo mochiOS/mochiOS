@@ -9,6 +9,7 @@ MMAKE_OUT := $(OUT)/mmake
 SCRIPTS := $(ROOT)/scripts
 
 include build/mmake/config.mk
+include build/mmake/application-sets.mk
 include build/mmake/inputs.mk
 include build/mmake/toolchain.mk
 include build/mmake/components.mk

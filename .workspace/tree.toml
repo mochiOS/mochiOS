@@ -16023,3 +16023,11 @@ path = "tools/devkit"
 hash = "482c3f3683f6245824cd2bcb40ba8369cc9fb0b2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expose documented window decoration and authorized gesture APIs"
+
+[[entries]]
+date = "2026-11-13T12:54:28.628043867+09:00"
+snapshot = "aca9ca63e7aca530c0313681"
+path = "applications/terra"
+hash = "5d960eb4736e527f155735b8be148077600200be"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Integrate browser tabs and navigation into the system title bar"

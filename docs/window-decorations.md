@@ -27,6 +27,13 @@ This uses existing Rust ViewKit builders, which accept views directly rather
 than a separate closure-based UI builder. Return the options from the normal
 App hook and call `mochios_appcore::run::<Application>()`.
 
+The shared defaults are a 32px logical title bar, 28px circular control
+backgrounds and 14px symbols. The three controls, their gaps and trailing inset
+reserve 94 logical pixels. `viewkit::decoration::metrics` and
+`appcore::window::metrics` expose the same allocation-free definitions used by
+the compositor. Explicit taller title bars remain supported. Physical minimum
+dimensions and reserved widths round outwards using the negotiated scale.
+
 ## Modes and validation
 
 - `DecorationMode::System` is the compatibility default.
@@ -113,8 +120,11 @@ Binder's decorator; AppCore continues to use the shared ViewKit runtime bridge.
 - Pointer events retain the existing 24-byte prefix and append the one-use
   serial. Window-targeted event 15 reports actual decoration geometry/state.
 - Decorator metadata retains its existing 112-byte prefix, followed by mode,
-  height, reserved width, background and separator. Old System clients can
-  continue ignoring extension fields.
+  height, reserved width, background and separator. A fixed-point scale at
+  offset 132 extends the metadata to 136 bytes; Binder uses that explicit scale
+  rather than inferring it from a rounded control width. Older metadata keeps
+  its legacy 112px-width scale fallback. Deploy Binder, ViewKit and compositor
+  from the same build when changing the shared geometry defaults.
 - The private Linux preview transport adds decoration, layout and input-token
   messages; this does not create a new OS application ABI.
 

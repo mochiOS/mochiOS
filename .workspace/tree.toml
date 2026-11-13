@@ -16071,3 +16071,11 @@ path = "services"
 hash = "a2522d26ef4d948cfb489ec073971d1b36567cff"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(elf): cover window boundaries and sparse relocation addresses"
+
+[[entries]]
+date = "2026-11-13T20:44:47.099384541+09:00"
+snapshot = "064be127cc3bbe0e09a7cad9"
+path = "tools/devkit"
+hash = "b6884302e8f610b88ca16436d5ca19d929d96e57"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: record native fixture dependency resolution"

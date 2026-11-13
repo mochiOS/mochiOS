@@ -16039,3 +16039,11 @@ path = "user"
 hash = "aafb04e2f1562208709dd2395ad84ea4c3d49289"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: retain locks from native supervisor verification"
+
+[[entries]]
+date = "2026-11-13T17:53:47.070815990+09:00"
+snapshot = "426d277034240de234101daf"
+path = "drivers"
+hash = "14764ac905acea82c3d478513788cb64175dbae5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(drivers): declare inspection needed to authenticate the PCI authority"

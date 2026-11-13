@@ -16007,3 +16007,11 @@ path = "applications/terra"
 hash = "f93166c43b1a746d888e649a2a93564086b8813b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Launch signed WebKit helpers through AppCore owned process references"
+
+[[entries]]
+date = "2026-11-13T10:21:24.167247724+09:00"
+snapshot = "2a477df59d7965107747e991"
+path = "applications/terra"
+hash = "5b8b463203f5f5691c7b59c8b1efa379daa11282"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remap Cargo cache paths in native Terra build artifacts"

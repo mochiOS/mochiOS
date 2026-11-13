@@ -1,8 +1,22 @@
 # 通常PATHの開発ツール（321）
 
-`USER_INSTALL_DEVELOPER_TOOLS=y`で、rootfs-stageは提供されたネイティブツールとSDKを
-`/system/developer`へ配置します。既定値はnで、未構築のLLVMを通常イメージのビルド時に
-暗黙に取得・構築しません。この検証用workspaceの設定はyです。
+`mmake menuconfig`のUserlandで「Build and install native development tools」を
+有効にすると、`mmake run` / `mmake image`は`development-tools`を経由して必要な
+ツールをビルドし、その後`/system/developer`へ配置します。既定値はnです。
+無効時はLLVMのダウンロード・構成・ビルドを実行しません。
+
+LLVM 18.1.8の公式ソースを固定SHA-256で検証し、ホスト用TableGen、mochiOS用の
+libc++ / libc++abi / libunwind、Clang / LLDとresource headersを順に生成します。
+ldとmsignもmochiOS用にビルドし、msignのDeveloper CA通信機能は含めません。
+既存のSDK・移植パッチ・クロスビルドスクリプトを使用します。
+
+同じUserland内の`USER_DEVELOPER_TOOLS_JOBS`で並列数を設定できます（既定2）。
+並列数だけを変えてもLLVMを再ビルドしません。`mmake -v development-tools`で
+この処理だけを実行し、詳細ログを表示できます。初回は大きなソース取得とビルドが必要です。
+
+`out/llvm-port/state/`に段階ごとの入力・出力状態を保存し、変更がなければCMakeや
+Cargoを再実行しません。生成物の欠落も毎回確認し、必要な段階から復旧します。
+既存の未管理LLVMソースディレクトリは上書きせず、エラーにします。
 
 | 入力 | イメージ内 |
 | --- | --- |

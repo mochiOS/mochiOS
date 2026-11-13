@@ -115,6 +115,11 @@ sub validate_non_empty {
 sub validate_value {
     my ($key, $value) = @_;
 
+    if ($key eq 'USER_DEVELOPER_TOOLS_JOBS') {
+        validate_positive_integer($key, $value);
+        return;
+    }
+
     if ($key =~ /^IMAGE_.*_SIZE_MB$/) {
         validate_positive_integer($key, $value);
         return;
@@ -125,7 +130,7 @@ sub validate_value {
         return;
     }
 
-    if ($key =~ /^(USER_BUILD_SELFTESTS|USER_BUILD_MPK_SAMPLES|DEVELOPMENT_DEFAULT_ACCOUNT|DEVELOPMENT_SYSTEM_SIGNATURES)$/) {
+    if ($key =~ /^(USER_BUILD_SELFTESTS|USER_BUILD_MPK_SAMPLES|USER_INSTALL_DEVELOPER_TOOLS|DEVELOPMENT_DEFAULT_ACCOUNT|DEVELOPMENT_SYSTEM_SIGNATURES)$/) {
         validate_bool($key, $value);
         return;
     }

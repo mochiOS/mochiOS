@@ -16047,3 +16047,11 @@ path = "drivers"
 hash = "14764ac905acea82c3d478513788cb64175dbae5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(drivers): declare inspection needed to authenticate the PCI authority"
+
+[[entries]]
+date = "2026-11-13T19:09:13.154844709+09:00"
+snapshot = "79319e84f41e6183340670ec"
+path = "services"
+hash = "9d559d1a45aeb46c9ccbf7b86c87af6fea65c908"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(posix): decode native reply lengths when importing immutable resources"

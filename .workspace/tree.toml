@@ -16079,3 +16079,11 @@ path = "tools/devkit"
 hash = "b6884302e8f610b88ca16436d5ca19d929d96e57"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: record native fixture dependency resolution"
+
+[[entries]]
+date = "2026-11-13T21:30:33.521544827+09:00"
+snapshot = "d8fed4ba62ccb95dbc2cd9e2"
+path = "tools/devkit"
+hash = "8cd7988be3e3e8b94e99da1957e91c8d681ae7c9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: record validation image dependency resolution"

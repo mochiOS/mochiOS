@@ -16063,3 +16063,11 @@ path = "tools/devkit"
 hash = "3cfab2a36a2366df1206861963074146790e275f"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: record native validation dependency resolution"
+
+[[entries]]
+date = "2026-11-13T19:44:40.168795299+09:00"
+snapshot = "08c95025f18e61d3ffcaf385"
+path = "services"
+hash = "a2522d26ef4d948cfb489ec073971d1b36567cff"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(elf): cover window boundaries and sparse relocation addresses"

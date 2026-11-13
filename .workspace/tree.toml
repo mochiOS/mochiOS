@@ -16015,3 +16015,11 @@ path = "applications/terra"
 hash = "5b8b463203f5f5691c7b59c8b1efa379daa11282"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remap Cargo cache paths in native Terra build artifacts"
+
+[[entries]]
+date = "2026-11-13T12:38:14.354436310+09:00"
+snapshot = "a4309d52a9b7edf950d7ed65"
+path = "tools/devkit"
+hash = "482c3f3683f6245824cd2bcb40ba8369cc9fb0b2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expose documented window decoration and authorized gesture APIs"

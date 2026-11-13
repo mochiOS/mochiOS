@@ -16031,3 +16031,11 @@ path = "applications/terra"
 hash = "5d960eb4736e527f155735b8be148077600200be"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Integrate browser tabs and navigation into the system title bar"
+
+[[entries]]
+date = "2026-11-13T17:41:42.857585922+09:00"
+snapshot = "aac42172ddaa27cf09105b5c"
+path = "user"
+hash = "aafb04e2f1562208709dd2395ad84ea4c3d49289"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: retain locks from native supervisor verification"

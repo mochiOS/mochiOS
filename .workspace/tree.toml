@@ -16055,3 +16055,11 @@ path = "services"
 hash = "9d559d1a45aeb46c9ccbf7b86c87af6fea65c908"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(posix): decode native reply lengths when importing immutable resources"
+
+[[entries]]
+date = "2026-11-13T19:30:24.009615970+09:00"
+snapshot = "220fcb8a185411322078c8ef"
+path = "tools/devkit"
+hash = "3cfab2a36a2366df1206861963074146790e275f"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: record native validation dependency resolution"

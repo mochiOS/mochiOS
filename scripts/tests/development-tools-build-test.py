@@ -172,7 +172,8 @@ class DevelopmentToolsTest(unittest.TestCase):
             gate = shlex.join([sys.executable, str(ROOT / 'scripts/mmake/build-development-tools.py'), '--root', str(root)])
             self.write(root / 'Makefile', 'development-tools:\n\t@always\n\t@watch .config\n'
                        '\t@output out/mmake/components/development-tools.json\n\t' + gate + '\n'
-                       'rootfs-stage: development-tools\n\t@output rootfs.ready\n\ttouch rootfs.ready\n')
+                       'rootfs-stage: development-tools\n\t@watch out/mmake/components/development-tools.json\n'
+                       '\t@output rootfs.ready\n\ttouch rootfs.ready\n')
             command = ['mmake', 'rootfs-stage']
             subprocess.run(command, cwd=root, check=True, capture_output=True)
             stamp = (root / 'rootfs.ready').stat().st_mtime_ns

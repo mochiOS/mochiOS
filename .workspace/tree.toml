@@ -16087,3 +16087,11 @@ path = "tools/devkit"
 hash = "8cd7988be3e3e8b94e99da1957e91c8d681ae7c9"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: record validation image dependency resolution"
+
+[[entries]]
+date = "2026-11-13T21:41:25.381216231+09:00"
+snapshot = "332b68fc00da4aca36b4a59d"
+path = "applications/edit"
+hash = "500525fe5269fe9670d3ad233e66ebaecdacc171"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Merge remote-tracking branch 'origin/main' into mws/develop"

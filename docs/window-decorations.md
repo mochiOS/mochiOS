@@ -93,7 +93,13 @@ minimum dimensions; the app never receives `window.decorate` authority.
 
 `DragRegion` first dispatches to its child. A consumed button/input press or
 component-specific drag wins. Only an unconsumed primary press requests a
-window move. Explicit handlers may borrow
+window move. `DragRegion::including_controls()` instead keeps ordinary button
+and tab clicks, then promotes a held press to a window move after the shared
+motion threshold. The runtime cancels child tracking before moving, suppresses
+the subsequent click, and discards pending moves on release or focus loss.
+This explicit policy is used by Terra's title bar; the default priority is
+unchanged. The retained press serial stays private to the runtime and backend.
+Explicit handlers may borrow
 `EventContext::window_interaction_token()` and pass it to
 `mochios_appcore::window::begin_move` or `begin_resize`.
 

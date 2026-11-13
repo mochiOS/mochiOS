@@ -137,6 +137,23 @@ class DevelopmentToolsTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Empty development tool output'):
                 devtools.outputs([path])
 
+    def test_atomic_lockfile_replacement_with_same_bytes_keeps_cache_valid(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            builder = devtools.Builder(root, 2, [])
+            lock, product = root / 'Cargo.lock', root / 'msign'
+            self.write(lock, 'version=4\n')
+            self.write(product, 'native tool fixture')
+            calls = []
+            builder.stage('native', [lock], [product], lambda: calls.append('build'))
+            self.write(root / 'Cargo.lock.new', lock.read_text())
+            (root / 'Cargo.lock.new').replace(lock)
+            builder.stage('native', [lock], [product], lambda: calls.append('build'))
+            self.assertEqual(calls, ['build'])
+            self.write(lock, 'version=4\n[[package]]\nname="changed"\nversion="2"\n')
+            builder.stage('native', [lock], [product], lambda: calls.append('build'))
+            self.assertEqual(calls, ['build', 'build'])
+
     def test_bad_archive_and_unmanaged_sources_are_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

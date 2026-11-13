@@ -68,6 +68,16 @@ def outputs(paths):
     return [identity(p) for p in files(*paths)]
 
 
+def input_identity(path):
+    # Cargo atomically replaces its lockfile, and our wrapper restores the
+    # previous bytes/time when only unused-patch diagnostics changed. The inode
+    # still changes: compare this small generated input by content instead.
+    if path.name == 'Cargo.lock':
+        with path.open('rb') as stream:
+            return [str(path), hashlib.file_digest(stream, 'sha256').hexdigest()]
+    return identity(path)
+
+
 class Builder:
     def __init__(self, root, jobs, cargo):
         self.root, self.jobs, self.cargo = root, jobs, cargo
@@ -114,7 +124,7 @@ class Builder:
 
     def stage(self, name, inputs, products, action, options=()):
         state = self.output / 'state' / (name + '.json')
-        key = {'inputs': [identity(p) for p in files(*inputs)], 'options': options}
+        key = {'inputs': [input_identity(p) for p in files(*inputs)], 'options': options}
         # Cache scheduling-independent commands; -j changes never rebuild LLVM.
         signature = hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()
         try:

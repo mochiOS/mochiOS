@@ -73,20 +73,102 @@ The output contains `tree/<area>/...` and `receipt.json`. Existing output direct
 are never overwritten. An application remains an MPKG inside its producer's MDP;
 MDP never extracts or re-signs that application package.
 
-## Migration status
+## Build every repository, then assemble the product
 
-The generic tool, dependency locks, artifact-only composition entry point,
-bootstrap installation and named VM launch are implemented. **The existing OS
-component build graph still exists.** `mmake build` and `mmake run` currently use
-that graph; they have not been represented as an artifact-only migration.
+The root `mmake build` consumes `mdp.assembly.lock`. It does not compile a
+repository, fetch an SDK or run a producer. Missing or changed artifacts fail
+with an error. The registry in `mdp.workspace.toml` covers every standard app,
+the kernel, boot, services, drivers, extensions, libraries, programs and SDK.
+Source-only dependencies are explicit; optional host tools and hardware media
+have explicit producer entries too.
 
-Each owning repository must next gain a reviewed MDP producer manifest, its SDK
-and dependency locks, and an independent build entry point. Product-specific
-configuration must specify the selected MDPs, permitted output areas, initfs
-membership, package provenance and signing requirements. Once the current image
-assemblers accept those verified trees directly, the root's default image target
-can switch to artifact-only composition and legacy producer calls can be removed.
+```sh
+# After syncing, selecting an SDK and reviewing configuration/source changes:
+mdp workspace lock
+mdp workspace build -j 4
+mmake build
+mmake run
+```
 
-Do not switch defaults before those producers and the signed image path are
-verified. MDP hashes protect integrity relative to reviewed locks; they do not
-replace mochiOS package signatures, image signatures, or capability checks.
+`workspace lock` records the current Git revisions and local source edits;
+it does not silently update repositories. Build completion produces exact MDP
+hashes in `mdp.assembly.lock`. A source edit requires reviewing and updating the
+workspace lock; Cargo lock changes are retained. The build cache checks consumed
+source, resolution, configuration, SDK and dependency identities, not timestamps
+alone. Changes during a build prevent publishing a new composition lock.
+
+To work on one project, without rebuilding the whole workspace:
+
+```sh
+mdp workspace lock
+mdp workspace build --select app-terminal -j 4
+mmake build
+```
+
+This builds that producer and its dependencies. Previously built artifacts are
+included only while their inputs still match. A partial build from a clean tree
+does not make a complete OS; root assembly reports missing required producers.
+
+Each repository owns `mdp.toml` and `mdp.recipe.json`. SDK variants in devkit and
+the separate standard-library example have explicit alternate manifests. The
+recipes use the mochiOS SDK's compiler definitions in
+`tools/devkit/build-support/`, rather than invoking the root Makefile. Apps
+export MPKGs; the generic MDP tool does not interpret them. The OS-specific image
+consumer validates selected application inventories, places them in the existing
+System layout and uses the existing built-in verification/signing tools.
+Capability declarations and image verification remain in force.
+
+## SDK inputs
+
+For this source-development workspace, install the reviewed shared SDK with
+komeup and copy its SDK tree to `out/sdk/shared-base` **before** creating the
+workspace lock. That directory's content is pinned as an external input. It is
+not downloaded or selected by `mmake`. `build/system-libraries.toml` separately
+pins the existing mochiOS/libs System WebKit component manifest. Supply that
+component at its declared location before building its import producer.
+
+The runtime/fonts and shared SDK producers are materialized into verified,
+content-addressed SDK contexts under `out/sdk/contexts/`. The local shared SDK
+uses the imported compiler/sysroot plus the just-built runtime; its metadata
+explicitly identifies this local overlay and does not claim to be a released
+SDK. No SDK or library is published by this workflow.
+
+After `sdk-context` completes, an independent application checkout can reuse the
+explicit SDK context without invoking any workspace-wide build:
+
+```sh
+mdp lock --context /path/to/mochiOS/out/mdp/developer-context.json
+mdp sync
+mdp build --context /path/to/mochiOS/out/mdp/developer-context.json
+```
+
+The context is a local development descriptor, not a redistributable SDK. It
+checks the real SDK artifact hashes and source revisions; its machine paths are
+kept under `out/`, while consumer `mdp.lock` records the SDK identity. Rebuild the
+context when SDK sources change. Generic format, API and pipeline details are in
+[WORKSPACES.md](../../tools/mdp/WORKSPACES.md).
+
+## Installer and optional artifacts
+
+`mmake installer-image` consumes the same reviewed artifacts and adds Installer
+only to the separate installation image. It does not enable Installer's disk
+write gate. Normal System/Store/development application separation is unchanged.
+
+Optional hardware media needs the already assembled normal boot/rootfs images:
+
+```sh
+mmake build
+mdp workspace build --select mboot -j 4
+mmake mboot-image
+```
+
+Host tools can be built explicitly with `--select mdp`, `--select mdev`,
+`--select mws` or `--select mmake`; they are not OS payloads. `mmake clean` removes
+composed images and artifacts while preserving producer caches, SDK contexts and
+`out/develop/` VMs. It does not erase another repository's build outputs.
+
+`mmake mdp-migration-test` checks registry coverage, producer shell syntax,
+artifact-only root plans, MPKG inventory validation and forbidden placements.
+`mmake development-environment-test` checks generic MDP/VM/bootstrap behavior.
+Full native builds and signed image verification remain separate requirements;
+a successful unit test is not proof that an OS boots.

@@ -1,0 +1,475 @@
+{
+  "format": 1,
+  "inputs": {
+    ".config": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+    "build/application-sets.toml": "4e0538cdbe9da084475449a08470656fc7a91a96b49241c7fa2c87b7d3570dd7",
+    "build/system-libraries.toml": "5cd51d9bd4e445e85703d2adb8a5e43488784a440fe760004310f1f6cc9b84b8",
+    "external:shared-sdk-base": "cf9ec14c46ee3fe589b84b0033106b1864312b6d2a69b573337c860ef8a49fb9",
+    "libraries/rust/mdp/toolchain": "1e270a44ae60e20aad7616fbaeb0910562198efe5e8db33234b296d8bba11472",
+    "tools/devkit/sdk/sources.lock.json": "29974adda023aafea1daa1b26f535205de13e502de7da06546c890a36ba7b193",
+    "version.toml": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1",
+    "workspace_config": "a67b6bad6e2b823c228df491c857c5b92bdeee1d588eaba5bdc9f5e5e7a4c86a"
+  },
+  "projects": {
+    "app-appstore": {
+      "resolution": {
+        "Cargo.lock": "c9e59210de76456d94004948e75dcfc4b9831cf785fc76ff7334d85de1bb5a34",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "509778bd0ebe2b921c6491a99df7f7a561432feabc75a442c7e4c531b79550c6",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "955f1b64804b122f23ee45b82ad96b0605985d96",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "app-binder": {
+      "resolution": {
+        "Cargo.lock": "f89b91400b44bd8179c8e8ede02a0ac068978065978b8e8c0674ea82cd12d870",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "fed7865aa515b8cc5ac0fd8fba4a507a8020ffef2a5bbe712d8ea5cdc037e122",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "50b8d67a841337fff030098c15b84981b11af2aa",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "app-calculator": {
+      "resolution": {
+        "Cargo.lock": "8102d16c0467a4ff6704e91bdd793b1d4747fa183685fe087e9a37e904d72475",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "2c55e9f758dd0382d9625776a1add3db53f547525d6399f26fbcdff28c6777e7",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "a3173855db0bcb71d4963efba3b941b592b2e8a6",
+      "working_tree": "cfa0d6999d37862f6a22fedb7312ec53f5d66703cc3fa0409c89cafe972a992e"
+    },
+    "app-calendar": {
+      "resolution": {
+        "Cargo.lock": "275380d3f643b51ac97a59392961c4f2d82ef1aa3bb37153a787466b70fe0542",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "ebbc4c8d0d807a2d71da767ee809dae1171cc880b8e3bb80c696512fa4304364",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "a58708ad2c4fdd077e574c91202c437f44e01a0c",
+      "working_tree": "6db9578058b947a2beeacccd79d6eb90ccf2d6fc854cbed59eef84a3fe1b2176"
+    },
+    "app-disk-utility": {
+      "resolution": {
+        "Cargo.lock": "a650d83c5eb6bd048e0cb1cde03b364619d272f936b745471263ddb047112a33",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "6d88c27604ac005c469e9ec4c5032c4378b9db2c3c71e6bfb8ceef9ea68a3264",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "ef5a80a0631f05f4a4b4f8b98641f4b119a57c3a",
+      "working_tree": "6db9578058b947a2beeacccd79d6eb90ccf2d6fc854cbed59eef84a3fe1b2176"
+    },
+    "app-edit": {
+      "resolution": {
+        "Cargo.lock": "391a5d7c1c9f81eb7af0a3d58975789d82ab0d50575f172915a9ba24d46f02fe",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "34fc17fa47f801f412afdc1d2149306ec2ad081f079c5f20c54dd3c5001b5ae2",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "ba57e5fcb4a59090736ed8e9b30f4b40eee298f8",
+      "working_tree": "6026d7772ea3543c1c2a27846f1134645b5dfbd4fe7ad8fd1a784af43b843284"
+    },
+    "app-file": {
+      "resolution": {
+        "Cargo.lock": "1c3d7c3746dd4f3dce97f16a5f6c2cc574466ecef526f26574cd0dd11da612a6",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "8c97667856fb07d7544b602f59a6cc31a1cb7a61ad1a2a18908c876ecfcb2307",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "906cb6ae471637e60d8790d02d5dcc1a10212eb2",
+      "working_tree": "e6d9e3b162dc47ce7b81bd55920f9abf1a0874a2b709b24b728364da0d220a4e"
+    },
+    "app-fonts": {
+      "resolution": {
+        "Cargo.lock": "b6615a9c6c3c4d7cd8751a6d1ab97586ea11d558e31942deae5567fc3473f753",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "cd4b86745812ff61792d87408f63f0a8e53e0f6e3f00c308f6b87eebcdd1988c",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "02c4f2f392e267d11997312a2e753a469cba59a9",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "app-installer": {
+      "resolution": {
+        "Cargo.lock": "b9e7d5319b0611ce9d26cf4e74e824b7db77311221e9b4e7155d3501788c2b8a",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "ab43833d73b1b18c5d870aadb1ddf0a259b5e2a7a89031d3a51001ef94ea472d",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "7f3dd5c21119cf46988cdc07bb790c4ff69194c6",
+      "working_tree": "6db9578058b947a2beeacccd79d6eb90ccf2d6fc854cbed59eef84a3fe1b2176"
+    },
+    "app-keychain": {
+      "resolution": {
+        "Cargo.lock": "b5eca5639f23bc51598f2425bcea06dd8c7dfbe90b0e85b2fc774c69a0c87b24",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "9cd81752f9053dc88e8cc8753484cf94889d67ec507a16fa857ffebc540e9e89",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "bed963422b519672e991e5110ac21371a80d3dd7",
+      "working_tree": "6db9578058b947a2beeacccd79d6eb90ccf2d6fc854cbed59eef84a3fe1b2176"
+    },
+    "app-mail": {
+      "resolution": {
+        "Cargo.lock": "069d4ae2178a1209d7d7660075bc7a3b544010e3db85548d47333ca05717cc85",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "38ff7f1155f2c966e07c1e757a1a9af1bc39c6972e00740b4c2680e7b7bd4ab1",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "f702660657f4d5aa860f449f8d71365757928c41",
+      "working_tree": "6db9578058b947a2beeacccd79d6eb90ccf2d6fc854cbed59eef84a3fe1b2176"
+    },
+    "app-settings": {
+      "resolution": {
+        "Cargo.lock": "108f3b5c554819a085395be012ebe3771fffc1324907b8feb48bd81806717855",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "6a7dca5c35e4f408b79aadda955188a2955a4a573abce716885037ba055ebb38",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "4df1423a50993466bcf4d11f17660f62c9f5fd93",
+      "working_tree": "bf02cdbb2c66f9f3ec83a74b35ec3dbc74ccf152613cd227fa4c39f8e8bd5d3f"
+    },
+    "app-system-monitor": {
+      "resolution": {
+        "Cargo.lock": "c6725c8a0b1009128db2fe159656c86d79ad919318b30bd505059da4b5c58e9a",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "bb7909bdb6a8a6997944f59c160a0f88233c51b1c6a5e1a32fa569d5e1fbd6b0",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "959aaa9e1e399dc480b085b47c77e90b1a50e7a6",
+      "working_tree": "6db9578058b947a2beeacccd79d6eb90ccf2d6fc854cbed59eef84a3fe1b2176"
+    },
+    "app-terminal": {
+      "resolution": {
+        "Cargo.lock": "ca7eb32f26b8cf1f2c416c3167d04a59974653a68f10849d6cf8d9138f94dc5e",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "ec31b13b3858e05c453d742f786b4a478907ea622d89b7863e9e968e98d96eb1",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "35fd8a177549b37b737cf74ab7959d624adaa8a3",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "app-terra": {
+      "resolution": {
+        "Cargo.lock": "3545348774366a0c86f7d5ad68d4e53e50caa7a2fbba615aa790fb095c5bd626",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "fc9c64334d5d53503eb1b8494a8a45772579d823e017ebeeb952907e6d4743c1",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "0138fc423f7d0942fbc73df41db73fcae7de73b9",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "app-test-app": {
+      "resolution": {
+        "Cargo.lock": "61fac2d525b8526cd9366e435ec0ded5f00e66f8cff7fd597e9d16280cac7221",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "59942f767105a85a26068383c6e15a8142aa76381d8c2438a9dc4ca502e034c1",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "42cc631896502548b28596255d74ceb6b3ae37af",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "app-viewer": {
+      "resolution": {
+        "Cargo.lock": "1b5b763aef4d74d26e5f3b0b3e4c0902743dc4de27712a63b377d3a21dd8e7c3",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "dda2d613670e420977d4a7e972350ee6194a9a82acd5fb87d42043c10867d9d6",
+        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+      },
+      "revision": "bda622058497addd63cd756a9ef17ee6b565dafd",
+      "working_tree": "0fd659f38b280a6a66900565f6450fcecd92a5eebdaddeb4467818e267456292"
+    },
+    "boot": {
+      "resolution": {
+        "Cargo.lock": "ae9669036daf35df2558e175ea98e89f65deac4781747446f5252f37c7fca635"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "326ef294cc2054112fbc3460470c629dd7aac9b357518038ff304e45413966fd"
+      },
+      "revision": "48710f439f5f6fcd3903d49e5df02165e50d2c71",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "bootui-source": {
+      "resolution": {
+        "Cargo.lock": "46af43d13686d6b34d6bcda97ced9c8079027d029a1db33c896c2d74561e137b"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "3c095adabbb6fc58248d36fcba749833fa5d433b54b9e91532098a6f7f499e02"
+      },
+      "revision": "4b0fca76023d9484d33a179946dc0fc5b770dd29",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "cexts": {
+      "resolution": {
+        "Cargo.lock": "3374d0ae3474a9bdef624b0890f5196a7581664106676f3c7848e2699ccabe52"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "6c7fae50b63485f2bc179f507fb193ff22a2eae722d396c8c9eb5178af4c1c32"
+      },
+      "revision": "0c7378e91738fe3c588bcb6f35c4c7891dabf8a9",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "context": {
+      "resolution": {
+        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
+      },
+      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
+      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+    },
+    "coreutils": {
+      "resolution": {
+        "Cargo.lock": "08bce38ebc03613475fac723c84e357d212dc59d9aa755cf898fe9ab3d202cee"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "d923b045a0b8bc509aeb9ca2263a673c2046303dd0116241c0d753ec06512c99"
+      },
+      "revision": "7cc16654b77c4723582769e54568022107aa6296",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "devkit-host": {
+      "resolution": {
+        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
+      },
+      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
+      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+    },
+    "devkit-native": {
+      "resolution": {
+        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
+      },
+      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
+      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+    },
+    "drivers": {
+      "resolution": {},
+      "resolution_graph": {},
+      "revision": "85a165e57552cd18cc420fa6204e547a425e290a",
+      "working_tree": "6db9578058b947a2beeacccd79d6eb90ccf2d6fc854cbed59eef84a3fe1b2176"
+    },
+    "fonts": {
+      "resolution": {
+        "Cargo.lock": "943da3ddf6e8afac80bbb1eba17f4656c0b0a97f8c581d2e5c4c008c33b61234"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "9814d8b1af29f6144dd3801ebced120f97e7140f79d3fc13be59d3aca04790b8"
+      },
+      "revision": "364a9a3b4e81186eb33eaef037111b2440506702",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "image-data": {
+      "resolution": {},
+      "resolution_graph": {},
+      "revision": "b24e286f214a24e4f037696d3cbb48953fb58e22",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "kernel": {
+      "resolution": {
+        "Cargo.lock": "002651302516eb291f491c933ff683c0f4daa4dbd209011f10f5deb7220258bf"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "9042a44c15d12a4ad1532a5eb43ed638d38acb603307a2f739293aa1b0a64212"
+      },
+      "revision": "23fd3b5bb50b0d6902f32f7339ee7889bb2e7019",
+      "working_tree": "fc1e7917252baf8f01f3ec0353650b0f5ab21b819e8556546523458ea15ed34e"
+    },
+    "libc-source": {
+      "resolution": {
+        "Cargo.lock": "24f52d4d2350edfbc8240acc08488ffb1ab29f4dc164c3a5488e4719402070c9"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "3c36045dfda0c0e7a2e0ad15585eb4e70440e2f3f282474060a424fc1b9fa850"
+      },
+      "revision": "a3c482e222b53700a09d21377633836e2fee07be",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "mboot": {
+      "resolution": {
+        "Cargo.lock": "5ae4598a238f45b72ce8940bb05cb1a6c8ebb53ff890a9a86bd569046962bbf5"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "e4901bf358f7c96d96c78ce3330af5030c46a01e2d1cfc9e93be0f28f99977eb"
+      },
+      "revision": "d98412a848ae99983a1cb13b4a69c5f44ea2de76",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "mdev": {
+      "resolution": {},
+      "resolution_graph": {},
+      "revision": "2a9a86ba1102b11c7ad000cfbc8cac888400b66b",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "mdp": {
+      "resolution": {},
+      "resolution_graph": {},
+      "revision": "1076a530c1e2b94227001fb2af1bb38f64156ecc",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "mmake": {
+      "resolution": {
+        "Cargo.lock": "b26e090da11f2a40fb66e890c2200ff82c866ea5d19eca6f581ead2dbcc9b3b5"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "6c7192d141a15cc9f2cfd4f8170a9ceed495b1cbb85eb91264287ed2a71e30ad"
+      },
+      "revision": "6c0524ac34a719998b2c6c0a202e503579e5f5fc",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "msh": {
+      "resolution": {
+        "Cargo.lock": "dfd8949b9877ab9204066b66d5e86b7d1b8518824d3c21a7b8b2ae406f53ae36"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "aa656463f164feb76670147e4ccb8b24f89e2091ffcb8f7c784346f7281f146c"
+      },
+      "revision": "c1a7ea0e868f2d7f8ecd9df4da10d33c16e97ba2",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "mws": {
+      "resolution": {
+        "Cargo.lock": "7a19fef73722dcc8d6afbee744da7035805b65610a0914d66a69f6914c28f86f"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "af6107ce181f216b383786a78495f6b3717e966729a473b14f74b9d2403dbcd2"
+      },
+      "revision": "30135e28946a0d26143f29dda8cb7d3b2abb0694",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native-sdk-context": {
+      "resolution": {
+        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
+      },
+      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
+      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+    },
+    "newlib-source": {
+      "resolution": {},
+      "resolution_graph": {},
+      "revision": "a14a780de6b29b808eb54f7385503647d0ec62ad",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runtime": {
+      "resolution": {
+        "Cargo.lock": "cc5e94e694809a73b94acb530f3e4f936fb2ea0f44950726720429dc0c2109e5"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "c2f590a62f5589c610e5a9c48378e096f1e6d3a379790d1f510a097cd8eba133"
+      },
+      "revision": "480b7f8e5294ae08b3ddb2ca2dece055837adef9",
+      "working_tree": "0c5dcb78414bc578403cb6ed3f747d3084156c1bbd6a7fe05e7a6659acc9dea1"
+    },
+    "rust-env": {
+      "resolution": {
+        "Cargo.lock": "9f3c914cc8bc5d1a5322bc6a4631551e24ad211182d68f011df278be32d6fe0d"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "e5d98fd165412a345d958af244543f200deb31ddffb65c7ea931f95f76395a33"
+      },
+      "revision": "d894ed2831c927083d5e10c435c39e9e2e5bff27",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sdk-context": {
+      "resolution": {
+        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
+      },
+      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
+      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+    },
+    "services": {
+      "resolution": {
+        "Cargo.lock": "072d945f4c2b54fbf6160be7ba7479af6c99c81aa0ca298f442bac5ffea90ef9"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "0fe616579327d351dd9ddc9b3962c1498cea5af184e74f225ca497fc82c37378"
+      },
+      "revision": "63b5c46929de387a63103fe69bd9e7bebc4c3eed",
+      "working_tree": "04dad82e1a39fc5d64d9efbf8c414e59b9f3c3bd887faf55984d873a5b5a25e5"
+    },
+    "shared-sdk": {
+      "resolution": {
+        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
+      },
+      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
+      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+    },
+    "std-demo": {
+      "resolution": {
+        "Cargo.lock": "cc5e94e694809a73b94acb530f3e4f936fb2ea0f44950726720429dc0c2109e5"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "c2f590a62f5589c610e5a9c48378e096f1e6d3a379790d1f510a097cd8eba133"
+      },
+      "revision": "480b7f8e5294ae08b3ddb2ca2dece055837adef9",
+      "working_tree": "0c5dcb78414bc578403cb6ed3f747d3084156c1bbd6a7fe05e7a6659acc9dea1"
+    },
+    "system-components": {
+      "resolution": {},
+      "resolution_graph": {},
+      "revision": "b24e286f214a24e4f037696d3cbb48953fb58e22",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "viewkit": {
+      "resolution": {
+        "Cargo.lock": "4937662c7170b5dc31c21a8e9f8c5b0a4413204f9c3fe5222c1edffe77b2210c"
+      },
+      "resolution_graph": {
+        "Cargo.lock": "745111aaece8bce25d7ea9ecfc976a31ee88ec37df24b81f7ac3f33f8dfbcc16"
+      },
+      "revision": "35332ffd8e2aae5750dcdea6cf0ece8d2ce0cbc4",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

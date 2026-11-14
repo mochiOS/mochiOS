@@ -1,0 +1,79 @@
+{
+  "abi": "mochios-1",
+  "artifacts": [
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "fonts",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "libraries/fonts/out/mdp/fonts.tar.mdp",
+      "sha256": "7f2e874286734319acec9c9bb4ee824712b12a4031ae1da664553d16d009755f"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "runtime",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "user/out/mdp/runtime.tar.mdp",
+      "sha256": "b2a0da183770b5bd15c193174cf7793aaa9a758d0c9d6959fd3969514c08dabc"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "devkit-host",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "tools/devkit/out/mdp/devkit-host.tar.mdp",
+      "sha256": "3b91db921a3117b4cd767a13285d83fa2f845b67fc96d22fafcbb46c8aef1245"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "viewkit",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "libraries/viewkit/out/mdp/viewkit.tar.mdp",
+      "sha256": "b24aac52f28dfb537f2d98f4615c6387c7f3efbd910118bf5e653b9dd3ae47f4"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "shared-sdk",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "tools/devkit/out/mdp/shared-sdk.tar.mdp",
+      "sha256": "121a31a90659aea2bb1cf3a73255b330aec68a41c65b29900756983eb3e4f31e"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "system-components",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "build/out/mdp/system-components.tar.mdp",
+      "sha256": "74f7239c415230d4b2b1c9899540b821ec859bf3c48318d8ec7a08b7e9202701"
+    }
+  ],
+  "format": 1,
+  "target": "x86_64-mochios"
+}

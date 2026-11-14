@@ -1,0 +1,214 @@
+format = 1
+target = "x86_64-mochios"
+abi = "mochios-1"
+sdk_context = "out/mdp/developer-context.json"
+inputs = [".config", "version.toml", "tools/devkit/sdk/sources.lock.json", "libraries/rust/mdp/toolchain", "build/application-sets.toml", "build/system-libraries.toml"]
+
+[environment]
+PYTHONDONTWRITEBYTECODE = "1"
+MDP_CONTEXT = "{workspace}"
+MDP_VARIABLES = "{workspace}/out/mdp/context.json"
+MDP_VARIABLE_OVERLAYS = '["{workspace}/out/mdp/native-bindings.json", "{workspace}/out/mdp/shared-bindings.json"]'
+MDP_PROFILE_FILE = "{workspace}/.config"
+MDP_VERSION_FILE = "{workspace}/version.toml"
+
+[[projects]]
+name = "context"
+path = "tools/devkit"
+manifest = "mdp.context.toml"
+
+[[projects]]
+name = "rust-env"
+path = "libraries/rust"
+
+[[projects]]
+name = "fonts"
+path = "libraries/fonts"
+
+[[projects]]
+name = "runtime"
+path = "user"
+
+[[projects]]
+name = "kernel"
+path = "core"
+
+[[projects]]
+name = "boot"
+path = "boot"
+
+[[projects]]
+name = "devkit-host"
+path = "tools/devkit"
+manifest = "mdp.host.toml"
+
+[[projects]]
+name = "viewkit"
+path = "libraries/viewkit"
+
+[[projects]]
+name = "services"
+path = "services"
+
+[[projects]]
+name = "drivers"
+path = "drivers"
+
+[[projects]]
+name = "cexts"
+path = "cexts"
+
+[[projects]]
+name = "msh"
+path = "binaries/msh"
+
+[[projects]]
+name = "coreutils"
+path = "binaries/coreutils"
+
+[[projects]]
+name = "app-appstore"
+path = "applications/appstore"
+
+[[projects]]
+name = "app-binder"
+path = "applications/binder"
+
+[[projects]]
+name = "app-calculator"
+path = "applications/calculator"
+
+[[projects]]
+name = "app-calendar"
+path = "applications/calendar"
+
+[[projects]]
+name = "app-disk-utility"
+path = "applications/disk-utility"
+
+[[projects]]
+name = "app-edit"
+path = "applications/edit"
+
+[[projects]]
+name = "app-file"
+path = "applications/file"
+
+[[projects]]
+name = "app-fonts"
+path = "applications/fonts"
+
+[[projects]]
+name = "app-installer"
+path = "applications/installer"
+
+[[projects]]
+name = "app-keychain"
+path = "applications/keychain"
+
+[[projects]]
+name = "app-mail"
+path = "applications/mail"
+
+[[projects]]
+name = "app-settings"
+path = "applications/settings"
+
+[[projects]]
+name = "app-system-monitor"
+path = "applications/system-monitor"
+
+[[projects]]
+name = "app-terminal"
+path = "applications/terminal"
+
+[[projects]]
+name = "app-terra"
+path = "applications/terra"
+
+[[projects]]
+name = "app-test-app"
+path = "applications/test.app"
+
+[[projects]]
+name = "app-viewer"
+path = "applications/viewer"
+
+[[projects]]
+name = "devkit-native"
+path = "tools/devkit"
+manifest = "mdp.native.toml"
+
+[[projects]]
+name = "system-components"
+path = "build"
+manifest = "mdp.components.toml"
+
+[[projects]]
+name = "image-data"
+path = "build"
+manifest = "mdp.data.toml"
+
+[[projects]]
+name = "mws"
+path = "tools/mws"
+optional = true
+
+[[projects]]
+name = "mmake"
+path = "tools/mmake"
+optional = true
+
+[[projects]]
+name = "mdev"
+path = "tools/mdev"
+optional = true
+
+[[projects]]
+name = "mdp"
+path = "tools/mdp"
+optional = true
+
+[[projects]]
+name = "mboot"
+path = "mboot"
+optional = true
+
+[[projects]]
+name = "newlib-source"
+path = "libraries/newlib"
+source_only = true
+
+[[projects]]
+name = "libc-source"
+path = "libraries/libc"
+source_only = true
+
+[[projects]]
+name = "bootui-source"
+path = "libraries/bootui"
+source_only = true
+
+[[projects]]
+name = "shared-sdk"
+path = "tools/devkit"
+manifest = "mdp.shared.toml"
+
+[[external_inputs]]
+name = "shared-sdk-base"
+path = "out/sdk/shared-base"
+
+[[projects]]
+name = "sdk-context"
+path = "tools/devkit"
+manifest = "mdp.sdk.toml"
+
+[[projects]]
+name="native-sdk-context"
+path="tools/devkit"
+manifest="mdp.native-context.toml"
+
+[[projects]]
+name="std-demo"
+path="user"
+manifest="mdp.demo.toml"

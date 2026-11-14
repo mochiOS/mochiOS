@@ -28,8 +28,13 @@ class DistributionTests(unittest.TestCase):
         generated = module.makefile(ROOT)
         for target in ['edit', 'mail', 'calculator', 'calendar', 'test-app', 'terra']:
             self.assertNotIn(target, generated.splitlines()[1].split()[1:])
-        self.assertIn('rootfs-stage: system-programs ', (ROOT / 'build/mmake/image.mk').read_text())
-        self.assertIn('system-programs: services system-apps ', (ROOT / 'build/mmake/binaries.mk').read_text())
+        image_rules = (ROOT / 'build/mmake/image.mk').read_text()
+        self.assertIn('build/mdp/image.py --root', image_rules)
+        self.assertNotIn('rootfs-stage: system-programs', image_rules)
+        registry = tomllib.loads((ROOT / 'mdp.workspace.toml').read_text())
+        producers = {item['path'] for item in registry['projects']}
+        for app in module.plan(ROOT, 'installer'):
+            self.assertIn('applications/' + app['source'], producers)
 
     def fixture(self, folder):
         root = folder / 'root'; output = folder / 'out'; root.mkdir()

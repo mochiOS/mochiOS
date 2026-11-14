@@ -16479,3 +16479,11 @@ path = "applications/fonts"
 hash = "f5b73848b78dade82712671d10fb41f876b0a3f3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T21:17:42.007935124+09:00"
+snapshot = "b5eca951752f2b40c0935910"
+path = "applications/binder"
+hash = "d519a3a5b04a31d87767f4834dcd3b020513b644"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add the tablet shell with gestures and native window management"

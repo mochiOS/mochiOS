@@ -387,9 +387,9 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "kernel": {
-      "content_sha256": "dba956968290a34b696d567a16d0771617b3ce37ae24498a89094e45d8b0625b",
+      "content_sha256": "36607a576a71229dfa5deb4a92783989597a69d28ec010c42f5766b639cf8c77",
       "resolution": {
-        "Cargo.lock": "e4952d7af842294fec33678db54ace3a3740a79a59532bed7b0c30001a78aeff",
+        "Cargo.lock": "17dd50727ac66f03c6b852d92a889c4dd3013660d2db0885227f09b85561c2e0",
         "examples/boot/Cargo.lock": "cee2fe7462c86f77f07cbbc3634985c9071956d502a5c21d849b31856fb7a877",
         "examples/user/Cargo.lock": "cc8d246ac8749095f41bed59dbdf285c4513cd0f26b27d35ebdef3fa33a3ce51",
         "modules/fs_cext/Cargo.lock": "7905d6481eb83c511758aa3c150cfac22577689a243998f02b0f320c22635155",
@@ -402,9 +402,9 @@
         "modules/fs_cext/Cargo.lock": "0f02b89ae4750e5346ce7f55ea8a15ab498aa5a6368e287366e05fb2a097380d",
         "scripts/heap-layout-bench/Cargo.lock": "e3b0bcb1557c70a0a7e7e29c2d932563f657456377ee88ff7c2c1b820ebee996"
       },
-      "revision": "7ebdacd68257282a67f362bae9364af3970f0c25",
-      "tracked_tree": "9a6e371420559da4daec316a5cd705e107fc5979d010299bd8732480121d50f8",
-      "working_tree": "fa343c90bb101b2fffce296ac40eb653bd5524a984878cbe897c6bd739a52d0d"
+      "revision": "887aa074e60a2c44b2aed64b84f48c2842db1a11",
+      "tracked_tree": "36607a576a71229dfa5deb4a92783989597a69d28ec010c42f5766b639cf8c77",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "libc-source": {
       "content_sha256": "524691aca221400e199677389dc269951b3916bf2b8054dd99e6d5b29db6d270",

@@ -13,24 +13,28 @@
   "projects": {
     "app-appstore": {
       "resolution": {
-        "Cargo.lock": "c9e59210de76456d94004948e75dcfc4b9831cf785fc76ff7334d85de1bb5a34",
-        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+        "Cargo.lock": "fca47c0ce5133e9a57a785dd403362083a58f69a353f735be1b728a9b47a87c0",
+        "mdp.lock": "a01113b34cb0a4898f2df641ca9f91a35b0984cfc2f6ee523ba52d963b48e457"
       },
       "resolution_graph": {
-        "Cargo.lock": "509778bd0ebe2b921c6491a99df7f7a561432feabc75a442c7e4c531b79550c6",
-        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+        "Cargo.lock": "bf468d2c99d488c65b1df2054dfb6cb4b2bd9a14132c57a9b9c4e2cfb0580f4d",
+        "mdp.lock": "a01113b34cb0a4898f2df641ca9f91a35b0984cfc2f6ee523ba52d963b48e457"
       },
       "revision": "955f1b64804b122f23ee45b82ad96b0605985d96",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-binder": {
       "resolution": {
-        "Cargo.lock": "f89b91400b44bd8179c8e8ede02a0ac068978065978b8e8c0674ea82cd12d870",
-        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+        "Cargo.lock": "583f7722e951bd16c9dfec09cf3844d47becfe5d718825a682b9ad2496e05b77",
+        "crates/binder_client/Cargo.lock": "e208b87f6e29a8c87faccf02842b5e141d18fa3e68273e08b700f78a002fc647",
+        "crates/binder_protocol/Cargo.lock": "a84a982d82565e3d3c3bd7be099b918700a15951ed53f43b759f45c8b3d5035b",
+        "mdp.lock": "a01113b34cb0a4898f2df641ca9f91a35b0984cfc2f6ee523ba52d963b48e457"
       },
       "resolution_graph": {
-        "Cargo.lock": "fed7865aa515b8cc5ac0fd8fba4a507a8020ffef2a5bbe712d8ea5cdc037e122",
-        "mdp.lock": "6e85742a817446c0efb7a94b3b2af2aa657e8af2a0ec5fe5493d042e08a389ed"
+        "Cargo.lock": "dacaa5c06430c72b5ad39dee19ac4aaa3167eda85db61700513afdee72c1ad7e",
+        "crates/binder_client/Cargo.lock": "3846b2ee06279608fa7b921a3c86814cc2d2990b50db5fb59c67d0df5a358f0f",
+        "crates/binder_protocol/Cargo.lock": "cd71207636c0c8e33f5f43f28ca0099b6c3c5dae7968009aca81157d15813609",
+        "mdp.lock": "a01113b34cb0a4898f2df641ca9f91a35b0984cfc2f6ee523ba52d963b48e457"
       },
       "revision": "50b8d67a841337fff030098c15b84981b11af2aa",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -217,12 +221,12 @@
     },
     "boot": {
       "resolution": {
-        "Cargo.lock": "ae9669036daf35df2558e175ea98e89f65deac4781747446f5252f37c7fca635"
+        "Cargo.lock": "e0a7bd5ccb1922d7951f2e476c4efce11376d9568e15239086b1604839fa8a02"
       },
       "resolution_graph": {
         "Cargo.lock": "326ef294cc2054112fbc3460470c629dd7aac9b357518038ff304e45413966fd"
       },
-      "revision": "48710f439f5f6fcd3903d49e5df02165e50d2c71",
+      "revision": "37bec13edcc323ef005ae66823516b5bf4b98c19",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "bootui-source": {
@@ -237,7 +241,7 @@
     },
     "cexts": {
       "resolution": {
-        "Cargo.lock": "3374d0ae3474a9bdef624b0890f5196a7581664106676f3c7848e2699ccabe52"
+        "Cargo.lock": "1cbcbffbbcac1f1aab1505b7ab8b6ee97aaa1a23db949cee2d3b8c53e01b74ea"
       },
       "resolution_graph": {
         "Cargo.lock": "6c7fae50b63485f2bc179f507fb193ff22a2eae722d396c8c9eb5178af4c1c32"
@@ -247,17 +251,17 @@
     },
     "context": {
       "resolution": {
-        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+        "Cargo.lock": "d85aaad9a7316ceec135d0c4c9ec2a516907b6448d533de69aac3b3a3194bb31"
       },
       "resolution_graph": {
         "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
       },
-      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
-      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+      "revision": "79f50b6a70100af012c3ad64b6777204af19b62e",
+      "working_tree": "ee88ae1c4f1e788d134f96b57ed37b0b9f5513be734b33e9b4a437921e79011b"
     },
     "coreutils": {
       "resolution": {
-        "Cargo.lock": "08bce38ebc03613475fac723c84e357d212dc59d9aa755cf898fe9ab3d202cee"
+        "Cargo.lock": "1809c91ffd49c93b4b88853be008f6bd345903bd3b9bc8bd2ba257437032e31b"
       },
       "resolution_graph": {
         "Cargo.lock": "d923b045a0b8bc509aeb9ca2263a673c2046303dd0116241c0d753ec06512c99"
@@ -267,29 +271,37 @@
     },
     "devkit-host": {
       "resolution": {
-        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+        "Cargo.lock": "d85aaad9a7316ceec135d0c4c9ec2a516907b6448d533de69aac3b3a3194bb31"
       },
       "resolution_graph": {
         "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
       },
-      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
-      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+      "revision": "79f50b6a70100af012c3ad64b6777204af19b62e",
+      "working_tree": "ee88ae1c4f1e788d134f96b57ed37b0b9f5513be734b33e9b4a437921e79011b"
     },
     "devkit-native": {
       "resolution": {
-        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+        "Cargo.lock": "d85aaad9a7316ceec135d0c4c9ec2a516907b6448d533de69aac3b3a3194bb31"
       },
       "resolution_graph": {
         "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
       },
-      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
-      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+      "revision": "79f50b6a70100af012c3ad64b6777204af19b62e",
+      "working_tree": "ee88ae1c4f1e788d134f96b57ed37b0b9f5513be734b33e9b4a437921e79011b"
     },
     "drivers": {
-      "resolution": {},
-      "resolution_graph": {},
-      "revision": "85a165e57552cd18cc420fa6204e547a425e290a",
-      "working_tree": "6db9578058b947a2beeacccd79d6eb90ccf2d6fc854cbed59eef84a3fe1b2176"
+      "resolution": {
+        "ps2/i8042-driver/Cargo.lock": "2faeca8ad5c6ec095d47485aaed152fd7a2a2c014b1ea4dac829c442ab56b542",
+        "usb-driver/Cargo.lock": "40a119fe6066543c867547380a80a2251e44436cd6c4a7362563d318e152d273",
+        "virtio-net-driver/Cargo.lock": "b713c5eda742798f3624e0f1d6d304954a68a05cafa336fb7c1091dad860ef24"
+      },
+      "resolution_graph": {
+        "ps2/i8042-driver/Cargo.lock": "5175cd60f1204b7319cf587bc2b2cd7e1240fad9306a5da8e1700b14ac5c291c",
+        "usb-driver/Cargo.lock": "c5df40abcb0fbcccfcd77d183939029e85fe589906c062b2caf3a743a01443da",
+        "virtio-net-driver/Cargo.lock": "c400b66c3815a7353d38ece1453e215bab95e08d7a6f896966cd92c69dc80185"
+      },
+      "revision": "cdf4d464b49d0d2cbbe3da1e9658d369be0593ad",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "fonts": {
       "resolution": {
@@ -309,12 +321,20 @@
     },
     "kernel": {
       "resolution": {
-        "Cargo.lock": "002651302516eb291f491c933ff683c0f4daa4dbd209011f10f5deb7220258bf"
+        "Cargo.lock": "c77ab2e4f98d0ccacfb855fa47ad9d11fec3cf195f5563082cc0d2e566dda826",
+        "examples/boot/Cargo.lock": "cee2fe7462c86f77f07cbbc3634985c9071956d502a5c21d849b31856fb7a877",
+        "examples/user/Cargo.lock": "cc8d246ac8749095f41bed59dbdf285c4513cd0f26b27d35ebdef3fa33a3ce51",
+        "modules/fs_cext/Cargo.lock": "7905d6481eb83c511758aa3c150cfac22577689a243998f02b0f320c22635155",
+        "scripts/heap-layout-bench/Cargo.lock": "c9853743f9f707e29b7f4e9f6d883a757c0059fa849b1dcaf5ab0c32b6853910"
       },
       "resolution_graph": {
-        "Cargo.lock": "9042a44c15d12a4ad1532a5eb43ed638d38acb603307a2f739293aa1b0a64212"
+        "Cargo.lock": "9042a44c15d12a4ad1532a5eb43ed638d38acb603307a2f739293aa1b0a64212",
+        "examples/boot/Cargo.lock": "2d6670682cce511010e4c0ff6118c2f570f0c11125c1a00c3891ad288f9e1561",
+        "examples/user/Cargo.lock": "378cadbcf0f85ea50bd858cec93f341d41c1aa89ec9ac2a7ea9d851d84e04125",
+        "modules/fs_cext/Cargo.lock": "0f02b89ae4750e5346ce7f55ea8a15ab498aa5a6368e287366e05fb2a097380d",
+        "scripts/heap-layout-bench/Cargo.lock": "e3b0bcb1557c70a0a7e7e29c2d932563f657456377ee88ff7c2c1b820ebee996"
       },
-      "revision": "23fd3b5bb50b0d6902f32f7339ee7889bb2e7019",
+      "revision": "8de6a742ad21fb2b0d14eafc48ce235f5d03b110",
       "working_tree": "fc1e7917252baf8f01f3ec0353650b0f5ab21b819e8556546523458ea15ed34e"
     },
     "libc-source": {
@@ -346,7 +366,7 @@
     "mdp": {
       "resolution": {},
       "resolution_graph": {},
-      "revision": "1076a530c1e2b94227001fb2af1bb38f64156ecc",
+      "revision": "dc118c3ab4c72a2e56140047de05f3863cc66dee",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "mmake": {
@@ -361,7 +381,7 @@
     },
     "msh": {
       "resolution": {
-        "Cargo.lock": "dfd8949b9877ab9204066b66d5e86b7d1b8518824d3c21a7b8b2ae406f53ae36"
+        "Cargo.lock": "18221604750609b3da37fb431eb30ff6d6f81e868494075b3c011e8410f4a48c"
       },
       "resolution_graph": {
         "Cargo.lock": "aa656463f164feb76670147e4ccb8b24f89e2091ffcb8f7c784346f7281f146c"
@@ -381,13 +401,13 @@
     },
     "native-sdk-context": {
       "resolution": {
-        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+        "Cargo.lock": "d85aaad9a7316ceec135d0c4c9ec2a516907b6448d533de69aac3b3a3194bb31"
       },
       "resolution_graph": {
         "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
       },
-      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
-      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+      "revision": "79f50b6a70100af012c3ad64b6777204af19b62e",
+      "working_tree": "ee88ae1c4f1e788d134f96b57ed37b0b9f5513be734b33e9b4a437921e79011b"
     },
     "newlib-source": {
       "resolution": {},
@@ -397,62 +417,196 @@
     },
     "runtime": {
       "resolution": {
-        "Cargo.lock": "cc5e94e694809a73b94acb530f3e4f936fb2ea0f44950726720429dc0c2109e5"
+        "Cargo.lock": "30e1a081d89716dd545bfa3f133fe11b40b151355d9970f0f4ca1a9bfa182c71",
+        "apps/rust-std-demo/Cargo.lock": "17c43f17db47d793a803046f8068b151bb772798755056353054476cebed3f88"
       },
       "resolution_graph": {
-        "Cargo.lock": "c2f590a62f5589c610e5a9c48378e096f1e6d3a379790d1f510a097cd8eba133"
+        "Cargo.lock": "c2f590a62f5589c610e5a9c48378e096f1e6d3a379790d1f510a097cd8eba133",
+        "apps/rust-std-demo/Cargo.lock": "102eeb36c94d842e93886851d9ce3f14d26fb59ce8703ba2898218580b4f20b8"
       },
-      "revision": "480b7f8e5294ae08b3ddb2ca2dece055837adef9",
+      "revision": "82f1aacd10472ce2aba82ccd5644f0567433c078",
       "working_tree": "0c5dcb78414bc578403cb6ed3f747d3084156c1bbd6a7fe05e7a6659acc9dea1"
     },
     "rust-env": {
       "resolution": {
-        "Cargo.lock": "9f3c914cc8bc5d1a5322bc6a4631551e24ad211182d68f011df278be32d6fe0d"
+        "Cargo.lock": "9f3c914cc8bc5d1a5322bc6a4631551e24ad211182d68f011df278be32d6fe0d",
+        "compiler/rustc_codegen_cranelift/Cargo.lock": "f17dae7df0c6bb9e314c752eb8c82332d3a46ec54de8c5b6d38d6bd13cf7b042",
+        "compiler/rustc_codegen_cranelift/build_system/Cargo.lock": "3c1b857f4cfd2c1c5027ac8ca6dcfa15f44c5906b0883effae416ad79e528ab6",
+        "compiler/rustc_codegen_gcc/Cargo.lock": "d0f58e32d3cccadbe9075b3c15e523347b77eb45a6eafdcc859e790b084a10a7",
+        "compiler/rustc_codegen_gcc/build_system/Cargo.lock": "8e96777398563d48df9abbee0796979db31f367e8abaee799aa9601fb53f3b42",
+        "compiler/rustc_codegen_gcc/tests/cross_lang_lto/Cargo.lock": "64a0abb46702670edb634040157aaae55ae3708dc253570387a5793a1f20d862",
+        "compiler/rustc_codegen_gcc/tests/hello-world/Cargo.lock": "5b496b9b2bf97006a1540164839bcd242d4ccc243e3bf7c515589f3c9186d597",
+        "compiler/rustc_codegen_gcc/tests/hello-world/mylib/Cargo.lock": "bbaa9a2abd2f17b011afcd3315b57cf46ca32119db463f15054b187028fc2249",
+        "library/Cargo.lock": "d2ad6b9762e342dce3d829aaa5bf7e66d4cd040178eeff43dd8c0b6bd42fa1fa",
+        "library/compiler-builtins/Cargo.lock": "db7673ed150087239402d8afb8774f1e7a53fe3496cce259de03a876e945495d",
+        "library/portable-simd/Cargo.lock": "e55a87d684f3088642d9a98d884684445fa8b20bff78c4a73c0ea56b63b2a5f0",
+        "library/stdarch/Cargo.lock": "815ac18c90975b4382680e89e6b5c3494c8ecbcdcb207f57e53a5eb74d6ce93f",
+        "src/bootstrap/Cargo.lock": "06b6b7ca19f45914d68f1675aa220fa40b7f57f99949cd9e6a0b028c58414c82",
+        "src/ci/citool/Cargo.lock": "8d2f73ca9a92883a5a6cbfd40c604b4262f3445e0f072b78b409daf405bbb9bf",
+        "src/doc/rustc-dev-guide/ci/date-check/Cargo.lock": "fe060d26192f9a19225fb16cd81b3abf42b938344d436c1e6c8acfa16276f7bf",
+        "src/doc/rustc-dev-guide/ci/sembr/Cargo.lock": "bbe6841e54d07f148c6aa2ba8dc4b104e35512a150c8cb7d63cd6121d044f05c",
+        "src/mochios-backtrace/Cargo.lock": "b6d614d7df3ae38f3e46b96ca66ada1f093e99eded429605272766d19ece48f2",
+        "src/tools/clippy/clippy_test_deps/Cargo.lock": "f59f20e7d8d42998981dbfaa4437a4506b87d1c124485c415eca0b0817987c44",
+        "src/tools/clippy/tests/ui-cargo/multiple_crate_versions/fail/Cargo.lock": "0eb24b0f0254d200dfb76ee405cc909b748799db10d19ab443efe97b9892d434",
+        "src/tools/miri/Cargo.lock": "fc7e8108e9beabd28f3fb28cdf7c4aa5783b639459266e5f23255ece1b4b18e7",
+        "src/tools/miri/bench-cargo-miri/backtraces/Cargo.lock": "4bdf07bd5cb3bcd7fd6477a33d4b7d5ee13b7d1efd35c4036b22746bfba27cb9",
+        "src/tools/miri/bench-cargo-miri/big-allocs/Cargo.lock": "2505495bf878869ad23db267f05ecdb2e42fff1c05269c2cfda3ed154e38c4da",
+        "src/tools/miri/bench-cargo-miri/mse/Cargo.lock": "cb096cb31f28f1a1533996a5173133a1b62730ad2e0c03264b0032da0f397d3b",
+        "src/tools/miri/bench-cargo-miri/range-iteration/Cargo.lock": "4bcdfbd1d54dfef0022360222c33f79b03ea02aa9521daa57b0b25aba6adc230",
+        "src/tools/miri/bench-cargo-miri/serde1/Cargo.lock": "d3c782639c46cc9ed248a3ceceb56f8d78fd71d011f6d104b8c04b809eb8f787",
+        "src/tools/miri/bench-cargo-miri/serde2/Cargo.lock": "d3c782639c46cc9ed248a3ceceb56f8d78fd71d011f6d104b8c04b809eb8f787",
+        "src/tools/miri/bench-cargo-miri/slice-chunked/Cargo.lock": "3c83590321bd5ddae9a8adb15702cb08aec6b932f3d9390d3c5ea66283462b42",
+        "src/tools/miri/bench-cargo-miri/slice-get-unchecked/Cargo.lock": "83786e20246e86832eee7c103d67a42d16a54ac4e7dc1b757fe05a2ce3bdc41f",
+        "src/tools/miri/bench-cargo-miri/string-replace/Cargo.lock": "384253bf407b400ed9f00e87dc75342abc2c55269c39dc9fdbcd288dd8177b5a",
+        "src/tools/miri/bench-cargo-miri/unicode/Cargo.lock": "deafa3176b9a63ab9d1e45068c74c3351e9661e013e8c207753d7603dfc29931",
+        "src/tools/miri/bench-cargo-miri/zip-equal/Cargo.lock": "bd5db4334ed5f2922de558e231aa175e8fbaa677f06614df338ffbaf0bdf0766",
+        "src/tools/miri/cargo-miri/Cargo.lock": "f089c40a6211948a854ba299eaa1e0a86078a6c338501a0a3f98318c3c383058",
+        "src/tools/miri/miri-script/Cargo.lock": "e3f7b9c3ce0331c14925eaed2fed3664af3d975d56c294d03acc5a9d7eb04748",
+        "src/tools/miri/priroda/Cargo.lock": "808fb544ec47483e2ec04392bb22e08edd9773d9f4c83557d9a011d9dbd74b5b",
+        "src/tools/miri/test-cargo-miri/Cargo.lock": "246d767bb01949fbcee3c2d2bd20e41f110651dd8fb9d03f18db342b5c510a36",
+        "src/tools/miri/test-cargo-miri/no-std-smoke/Cargo.lock": "088861236499f9fdd4599ec2409a8a8de2fd1e082b4a49d760538c8550e3c11b",
+        "src/tools/miri/tests/deps/Cargo.lock": "967d29ac11509e8c412db09a4ae04ae4ceff8b3f45d00c39a57efd6522985540",
+        "src/tools/rust-analyzer/Cargo.lock": "fad2ba1bf5035457b33fa83cac5a8edad65e8caa7d0e22ca1f0ba3cfdf7b6404",
+        "src/tools/rust-analyzer/crates/proc-macro-srv/proc-macro-test/imp/Cargo.lock": "41ffc8db1d822c9397bf01bcbf2339084d7ebbc81390b7e6f0d63afde90c349a",
+        "src/tools/rustbook/Cargo.lock": "588ece9d30c0de6c673c78a1c7c2cdaaa88d8845deff900a5a439f94abe1c418",
+        "src/tools/rustfmt/Cargo.lock": "ec81403a3f2c7fd2fe9ba56d3fbf5d9bc806c401554485a40e195030c86491b2",
+        "src/tools/rustfmt/check_diff/Cargo.lock": "5c29a1e22169ef49edc6713a8f7ea6a6a15f4952159d9a537088f0f6a5ee305d",
+        "src/tools/rustfmt/config_proc_macro/Cargo.lock": "373bd610f6b149c9f2f55cd7f61838d8a85dfa4c03ccca9d3e8bef858ebc7a04",
+        "src/tools/test-float-parse/Cargo.lock": "04e997e0590b859c5559a9599a041e50ecc00761464dabb8a31738c3e61c3abf",
+        "tests/run-make-cargo/sanitizer-cfi-build-std-clang/Cargo.lock": "bddb607187fec6a2b3d07b54436ae998fd1ca832700e311a981cc52dc1ffaf33",
+        "tests/run-make-cargo/sanitizer-cfi-build-std-clang/cross-lang-integer-normalization-abort/Cargo.lock": "3ce1dbc663681924295383b1eaf549c03f47fafdb1ffe9161d0f61a6de85f3f5",
+        "tests/run-make-cargo/sanitizer-cfi-build-std-clang/cross-lang-integer-normalization-not-abort/Cargo.lock": "e5c5381e55325be043ec6a6690da87f7bb1eb37aba21a6f3a9c2b63d21e7ddf2",
+        "tests/run-make-cargo/thumb-none-qemu/example/Cargo.lock": "5a4c86074a8ead3c180a603eada1b927209165077603dd6282d874c4145b65c7",
+        "tests/run-make-cargo/uefi-qemu/uefi_qemu_test/Cargo.lock": "38496fc14baf889bfc9eb75c455923b63d9d925c37482ce1bbd4e1edbd66e86a",
+        "tests/rustdoc-gui/src/extend_css/Cargo.lock": "a41d3e45cba53a71c1ba999c60826f9b43cf82b3d79e3d55febc486ed7099b0a",
+        "tests/rustdoc-gui/src/huge_logo/Cargo.lock": "f2d7f812531ce2dc95e94043d4c54cb7480d6e0f868566857269d23ffed361f8",
+        "tests/rustdoc-gui/src/lib2/Cargo.lock": "c481cee71c98411a3b9c15fdea731e20230f8a6f7239fe24715a13bee34095c6",
+        "tests/rustdoc-gui/src/lib2/implementors/Cargo.lock": "e9aee047c9d5d940a402fd2a6eda4d4b48236e45f56792bb08011d54588170b8",
+        "tests/rustdoc-gui/src/link_to_definition/Cargo.lock": "2e207395234a6f7c607932dd18457a56f6c7d361397c337c266863142e10d8c4",
+        "tests/rustdoc-gui/src/macro_expansion/Cargo.lock": "13198caf6d58426f300f91e26e03b6655cf523ecb1a0053831519f5b282ac554",
+        "tests/rustdoc-gui/src/proc_macro_test/Cargo.lock": "8ec7d063a206b6d128a5dee94c80322ba4d5a1e7eae4f0b7adb89ba28523f315",
+        "tests/rustdoc-gui/src/scrape_examples/Cargo.lock": "fedfbe0c301c285fe685f48cb880982378c2b5762fb3db46866607db37c276a0",
+        "tests/rustdoc-gui/src/scrape_examples_ice/Cargo.lock": "d65a2f04c6b24639e1cbb22ac26b21233b89fa802eee15a599774746d753b25b",
+        "tests/rustdoc-gui/src/settings/Cargo.lock": "6f5f165b09f8ffcfdea9f3e99f831fea8b1cb3d58d5092c794e4bcabfc0fd54d",
+        "tests/rustdoc-gui/src/staged_api/Cargo.lock": "f9732d67dc813e9f4eb9d9894ebfd3011db2e9d457bfc6282b8b952c93aa6fde",
+        "tests/rustdoc-gui/src/test_docs/Cargo.lock": "8fdd977552ed9be4e4fb1ee8ee259dc39028bc9100aa8963c236355aa58351e8",
+        "tests/rustdoc-gui/src/theme_css/Cargo.lock": "2adc1b8a0926dd3fbe5d4c8f9501f68981dd5c603c85f849d1a0892d959f7efc",
+        "vendor/rustc-literal-escaper/Cargo.lock": "c9db45e4236589a56f6787112e74024575fe00fd4d99dbe1ded7e741b6692f03"
       },
       "resolution_graph": {
-        "Cargo.lock": "e5d98fd165412a345d958af244543f200deb31ddffb65c7ea931f95f76395a33"
+        "Cargo.lock": "e5d98fd165412a345d958af244543f200deb31ddffb65c7ea931f95f76395a33",
+        "compiler/rustc_codegen_cranelift/Cargo.lock": "56a423c3279f7746573c3758540516a0358429c3e0dc17a2ec7dae019d02cc32",
+        "compiler/rustc_codegen_cranelift/build_system/Cargo.lock": "7819314ebd9afca72a342fb2a36387ee3defc8e7601df8faa276b54aa0f597ac",
+        "compiler/rustc_codegen_gcc/Cargo.lock": "cd02b98ba2cfcd1bdc30ba2d9e675957ac76e357d713f342ddb9fd5f8a0119ba",
+        "compiler/rustc_codegen_gcc/build_system/Cargo.lock": "b10b52856c26a5a3f8ee5941bb4d1953ebbae0ec4239fc9c3109af289c81a841",
+        "compiler/rustc_codegen_gcc/tests/cross_lang_lto/Cargo.lock": "7f9655cbec85378b4f40abed187080343c33e3ee9584e48cb23a46158278cf12",
+        "compiler/rustc_codegen_gcc/tests/hello-world/Cargo.lock": "09ace7f14521ca6904e0337f817877fe9061e20a21f9c3fe38df0a96c097244a",
+        "compiler/rustc_codegen_gcc/tests/hello-world/mylib/Cargo.lock": "4df510a3682f2a292b2706a8b42cd0874a0455b871dbe72882c96a13b919ced1",
+        "library/Cargo.lock": "ea4bf2d5130e54bfaa3717d0d8816c3b797ec70282ea7ab83daf9e646b828609",
+        "library/compiler-builtins/Cargo.lock": "2d988850e37e325cfda0913a65b57c096860e80cbde60058db46cb5b7565ea07",
+        "library/portable-simd/Cargo.lock": "35154eea9adbfa4a0c284579b9e435779b30dcba65283edd0d2a3e6a19716f8d",
+        "library/stdarch/Cargo.lock": "79bc40b1c1cf4f26cf9ea3e0008940f24b9f0bc312ede789cb9f536f9e71b448",
+        "src/bootstrap/Cargo.lock": "b13257848654a34392552f3bada24653fbfa3aee11be0517462e1a8e00ddad67",
+        "src/ci/citool/Cargo.lock": "3248bf4306819b0a6b2bb883252152b58c17b755863fc53f094a9ec1f5d439d4",
+        "src/doc/rustc-dev-guide/ci/date-check/Cargo.lock": "8cdc8e8407d6ac13a12aafd5ac7eea6ac1d65f9f0186895209c92205f4bcb58a",
+        "src/doc/rustc-dev-guide/ci/sembr/Cargo.lock": "affcf07ff1f9300e6efb0db9478f8955d47461d968ae44675c32cf5e1cb30bc0",
+        "src/mochios-backtrace/Cargo.lock": "dbcc7e4b9e62a8b4f49e10e6d9c1371fc87b6713afad0fdd2c7049dece5561a2",
+        "src/tools/clippy/clippy_test_deps/Cargo.lock": "c24dea8f2745b924069c2f15cee3d4a7a7747826755c8747468a3ae0958d7539",
+        "src/tools/clippy/tests/ui-cargo/multiple_crate_versions/fail/Cargo.lock": "8d6dcd49219ff6eceb04033303ed29706bbf2e5cfcadbb0072480a4316f509c9",
+        "src/tools/miri/Cargo.lock": "6144738602c669932060110c2eec2d27a14f40a6c127c275cdd84c78b9f9f023",
+        "src/tools/miri/bench-cargo-miri/backtraces/Cargo.lock": "f2c42ce3e88b2d314527e7a75bdc317ebd18da07e37407e6f0db151eda7686cd",
+        "src/tools/miri/bench-cargo-miri/big-allocs/Cargo.lock": "edad65f115c3f38c4ffa131f087d61b880e791354f94294f81b22051580d35e0",
+        "src/tools/miri/bench-cargo-miri/mse/Cargo.lock": "8118301ee82146db6b9db71ea3f1961ec451bc7cb849b16e9f3c68a74efac50a",
+        "src/tools/miri/bench-cargo-miri/range-iteration/Cargo.lock": "e854115f8cd4a59cd03b55faa0f8b2ce24f2a2c22b97e50d9cad5ac93362830f",
+        "src/tools/miri/bench-cargo-miri/serde1/Cargo.lock": "b57f22a50082bbd74acdaca4acc2fc43f208c4a0adc9a4219cda9d7edd4d9e4f",
+        "src/tools/miri/bench-cargo-miri/serde2/Cargo.lock": "b57f22a50082bbd74acdaca4acc2fc43f208c4a0adc9a4219cda9d7edd4d9e4f",
+        "src/tools/miri/bench-cargo-miri/slice-chunked/Cargo.lock": "aca7a98c3493168d98ac1152c45c7c12c472114dbf1d4c8d13b56201ee3c54c0",
+        "src/tools/miri/bench-cargo-miri/slice-get-unchecked/Cargo.lock": "b01ade80952f6ffa24537c1636574159b1d13ee68cfcaf87c2935bcf2bc1e0c4",
+        "src/tools/miri/bench-cargo-miri/string-replace/Cargo.lock": "9a863a90f7c113747a8ce39f29299c99b0a30327f559fbb14492034c215a4264",
+        "src/tools/miri/bench-cargo-miri/unicode/Cargo.lock": "8e796cf73b74b70e11b0a289f7baecb26503f28e7710261d46041c0fc527d5c8",
+        "src/tools/miri/bench-cargo-miri/zip-equal/Cargo.lock": "4ef8d1c3bce16e429e11047c03cc7f9ceade88bfcec9c9113c3bfa5878edff79",
+        "src/tools/miri/cargo-miri/Cargo.lock": "e3871948ec49952b9c2113d59fff6d3ca6e7191a20a7a83b4566a4736220d76c",
+        "src/tools/miri/miri-script/Cargo.lock": "bc9451c2d4725659de85359a6f713a24cc652e1551c845bd8863223ae5b484e2",
+        "src/tools/miri/priroda/Cargo.lock": "31f817e8c373fa68b92e87aeba8c880d45b03085fd4343753e97b6194dec0bce",
+        "src/tools/miri/test-cargo-miri/Cargo.lock": "bf27583eb462410a278eba28ae08cfd776a8884c79f2789efd10b42af3935193",
+        "src/tools/miri/test-cargo-miri/no-std-smoke/Cargo.lock": "f457841110157a9dc227081f9b3f1dd48296b730d0ed0e45f97473bd469b713c",
+        "src/tools/miri/tests/deps/Cargo.lock": "1c8efe956dce0d292c81077d0eb6d9d3ae7e13b91ae932a7c6ae3f9c2112f362",
+        "src/tools/rust-analyzer/Cargo.lock": "c7da5d0574fbd3979fe5c2a609788e14f73b4e2953110d2d3f53bc06c98cdb3d",
+        "src/tools/rust-analyzer/crates/proc-macro-srv/proc-macro-test/imp/Cargo.lock": "ddcc280a7f1a48894a5207658735bab19ef90648aefa96b81d7eb5a4eb7459c7",
+        "src/tools/rustbook/Cargo.lock": "5d1bba65c16ebb1ffe5c712aa0008812b67a65491b4f8a306d9e2e12c51bd0e9",
+        "src/tools/rustfmt/Cargo.lock": "7e7244acdb7f2fbf6d206fb92f1ffe38c4fe4b1329188caf0230d6a26c5c95ea",
+        "src/tools/rustfmt/check_diff/Cargo.lock": "a5eb030407eb76bb48dd22e076323517d625e83800f2a4155cb719068f44b060",
+        "src/tools/rustfmt/config_proc_macro/Cargo.lock": "f042b545c80299fa9f160a874cf602447996187269390400aa6be8e3bf2c0095",
+        "src/tools/test-float-parse/Cargo.lock": "661822ad651636dc3ecc91945cd9ca3689c5c10458ca62a93fe906d186b0678a",
+        "tests/run-make-cargo/sanitizer-cfi-build-std-clang/Cargo.lock": "6d6f3cf94721131b9c80bc0d48b48f1a894b555b46be41340521cb76cb4042f3",
+        "tests/run-make-cargo/sanitizer-cfi-build-std-clang/cross-lang-integer-normalization-abort/Cargo.lock": "ee01bf72065bd3c5040b2c55028709e8af05374663001de796f513635b1622b1",
+        "tests/run-make-cargo/sanitizer-cfi-build-std-clang/cross-lang-integer-normalization-not-abort/Cargo.lock": "52025dfc8a06ccaf1bc060696fb6f75593845e56d10dbaa239768f44cd9d38ef",
+        "tests/run-make-cargo/thumb-none-qemu/example/Cargo.lock": "a35312c2a70254ae604f5b2674fc15adbe41b2e7c8afaa300f5229815ec20165",
+        "tests/run-make-cargo/uefi-qemu/uefi_qemu_test/Cargo.lock": "9c4cd8d9129d5674124dfd6e0fcc16cb1b455f6b66a1c630d641f03af7103a3a",
+        "tests/rustdoc-gui/src/extend_css/Cargo.lock": "65355f08e79dbde35f4206a69b315d1e8734da9814c65b8e4764353a3a8bf8ed",
+        "tests/rustdoc-gui/src/huge_logo/Cargo.lock": "069027901c5f94dd3df210fa5e5ef293d239b64d58fb35bc2ccdf2d7f730e505",
+        "tests/rustdoc-gui/src/lib2/Cargo.lock": "0b4f1af3f39b2cea8038948bccea15a36c5b5b9d6f03693142fe3f27b4943dfa",
+        "tests/rustdoc-gui/src/lib2/implementors/Cargo.lock": "38f704f3536c47915bf64c8fcbc5dc860c2a1470ad1ac1be04aa32a7603e5643",
+        "tests/rustdoc-gui/src/link_to_definition/Cargo.lock": "b56e7bd7026e28c16b220eb02b083e391fa66ad3d89059b83a4cf46474e01812",
+        "tests/rustdoc-gui/src/macro_expansion/Cargo.lock": "2e97e2443e7dbffdc7ba317737cb3cb935a4f2f902571a2b5af1619c7e89b23d",
+        "tests/rustdoc-gui/src/proc_macro_test/Cargo.lock": "ff643f1f641c4bbb8be0fff3a1a846526c0960d83ea00e696d6c2cf2e8122be3",
+        "tests/rustdoc-gui/src/scrape_examples/Cargo.lock": "b64ae5fa0e1302f7769d7d1e2a757210b9f40d580b1c44ecced095d3754b8566",
+        "tests/rustdoc-gui/src/scrape_examples_ice/Cargo.lock": "e2a8f6739c3c55bd972a2e5f07c9eaab17bc95cea853a760ba0137fdf98fc9f2",
+        "tests/rustdoc-gui/src/settings/Cargo.lock": "96d4fcfb3a86d887663f6221d38223aaa58672efe2eeaee08141bc3785afb64c",
+        "tests/rustdoc-gui/src/staged_api/Cargo.lock": "853926650710023ea668f0869f057cbdb3bedd421ee0a41e5432f3f5fdbdcab0",
+        "tests/rustdoc-gui/src/test_docs/Cargo.lock": "4dfeb4a957c17a3f1c0b215a1f97e47fd4b3ed1d15d5999a5ad24dd4d7c7697a",
+        "tests/rustdoc-gui/src/theme_css/Cargo.lock": "e7763b32e2e9c2ffa756770168bd96be421423cc588758d6ceb966d61c6d1050",
+        "vendor/rustc-literal-escaper/Cargo.lock": "7356e15ac884446be0aa97bd8dca6225495490265e928ad31ae73a234ee8f2c3"
       },
       "revision": "d894ed2831c927083d5e10c435c39e9e2e5bff27",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "sdk-context": {
       "resolution": {
-        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+        "Cargo.lock": "d85aaad9a7316ceec135d0c4c9ec2a516907b6448d533de69aac3b3a3194bb31"
       },
       "resolution_graph": {
         "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
       },
-      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
-      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+      "revision": "79f50b6a70100af012c3ad64b6777204af19b62e",
+      "working_tree": "ee88ae1c4f1e788d134f96b57ed37b0b9f5513be734b33e9b4a437921e79011b"
     },
     "services": {
       "resolution": {
-        "Cargo.lock": "072d945f4c2b54fbf6160be7ba7479af6c99c81aa0ca298f442bac5ffea90ef9"
+        "Cargo.lock": "072d945f4c2b54fbf6160be7ba7479af6c99c81aa0ca298f442bac5ffea90ef9",
+        "posix/tests/executable-reference/Cargo.lock": "77375e08d1e0b31a9920b072bc0f274761d22f136844bf56a4e7026eb2a66e2f",
+        "posix/tests/native_rust_sleep/Cargo.lock": "d1febdfc80b074f1f3936776f5564fac50afb50e539ad14a0dc39a7634cd5a08",
+        "posix/tests/native_viewkit_buffer/Cargo.lock": "2bab6cbd18fd20648274bf0e7c0db6a3c963d4ab93fbef9e61ef612aaf017cda"
       },
       "resolution_graph": {
-        "Cargo.lock": "0fe616579327d351dd9ddc9b3962c1498cea5af184e74f225ca497fc82c37378"
+        "Cargo.lock": "0fe616579327d351dd9ddc9b3962c1498cea5af184e74f225ca497fc82c37378",
+        "posix/tests/executable-reference/Cargo.lock": "e642f1a7e900eeb7d250c9085e1a53b79c612da3f29ce31e20aefd955a667098",
+        "posix/tests/native_rust_sleep/Cargo.lock": "605b9ba9d15a126b46110d0dbc89861d7cb1a446ca473b395c2d78669fc2f09d",
+        "posix/tests/native_viewkit_buffer/Cargo.lock": "e27d4b9d7ee115a651043ab2048bd4a222d175879bf8ed8a1f5c203acc894e00"
       },
       "revision": "63b5c46929de387a63103fe69bd9e7bebc4c3eed",
-      "working_tree": "04dad82e1a39fc5d64d9efbf8c414e59b9f3c3bd887faf55984d873a5b5a25e5"
+      "working_tree": "aeba70e816f4e7c1429d44e532c79b05c1347373054f94eb8774666f17728835"
     },
     "shared-sdk": {
       "resolution": {
-        "Cargo.lock": "aeec76047c8d8d83f16ed3666f1047ec383a52f69ab0532aef8a8da4656bde84"
+        "Cargo.lock": "d85aaad9a7316ceec135d0c4c9ec2a516907b6448d533de69aac3b3a3194bb31"
       },
       "resolution_graph": {
         "Cargo.lock": "1aaf76935f59d7eff634cbd5bf89dc993738701d94b5eb66e1b88a2b6d665a30"
       },
-      "revision": "535f25b31fa5744eb1d079012717a5b9cf7ee1ab",
-      "working_tree": "09a9fd0d9f9d995539c6b41dbffdcd8cb37b72b43f0147152fe722ce10397508"
+      "revision": "79f50b6a70100af012c3ad64b6777204af19b62e",
+      "working_tree": "ee88ae1c4f1e788d134f96b57ed37b0b9f5513be734b33e9b4a437921e79011b"
     },
     "std-demo": {
       "resolution": {
-        "Cargo.lock": "cc5e94e694809a73b94acb530f3e4f936fb2ea0f44950726720429dc0c2109e5"
+        "Cargo.lock": "30e1a081d89716dd545bfa3f133fe11b40b151355d9970f0f4ca1a9bfa182c71",
+        "apps/rust-std-demo/Cargo.lock": "17c43f17db47d793a803046f8068b151bb772798755056353054476cebed3f88"
       },
       "resolution_graph": {
-        "Cargo.lock": "c2f590a62f5589c610e5a9c48378e096f1e6d3a379790d1f510a097cd8eba133"
+        "Cargo.lock": "c2f590a62f5589c610e5a9c48378e096f1e6d3a379790d1f510a097cd8eba133",
+        "apps/rust-std-demo/Cargo.lock": "102eeb36c94d842e93886851d9ce3f14d26fb59ce8703ba2898218580b4f20b8"
       },
-      "revision": "480b7f8e5294ae08b3ddb2ca2dece055837adef9",
+      "revision": "82f1aacd10472ce2aba82ccd5644f0567433c078",
       "working_tree": "0c5dcb78414bc578403cb6ed3f747d3084156c1bbd6a7fe05e7a6659acc9dea1"
     },
     "system-components": {
@@ -463,13 +617,15 @@
     },
     "viewkit": {
       "resolution": {
-        "Cargo.lock": "4937662c7170b5dc31c21a8e9f8c5b0a4413204f9c3fe5222c1edffe77b2210c"
+        "Cargo.lock": "4937662c7170b5dc31c21a8e9f8c5b0a4413204f9c3fe5222c1edffe77b2210c",
+        "tools/ffi-gen/Cargo.lock": "80ee17db9559114cdb9d035f3dcdf30bf3947c9da658df60aa5f0806be6e4c8a"
       },
       "resolution_graph": {
-        "Cargo.lock": "745111aaece8bce25d7ea9ecfc976a31ee88ec37df24b81f7ac3f33f8dfbcc16"
+        "Cargo.lock": "745111aaece8bce25d7ea9ecfc976a31ee88ec37df24b81f7ac3f33f8dfbcc16",
+        "tools/ffi-gen/Cargo.lock": "a0b63153eb31e72e805a7f6390adb187d872cafd35026f076144a2b361e6f3e8"
       },
       "revision": "35332ffd8e2aae5750dcdea6cf0ece8d2ce0cbc4",
-      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "working_tree": "d6b2112402bbabd8ada8b3bd0517ffb0aacd34801afa0e28270bddf33e431bfa"
     }
   }
 }

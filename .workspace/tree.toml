@@ -16103,3 +16103,11 @@ path = "applications/terra"
 hash = "968e3362aeb0188c7782e9828979e11d7f56aae3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "test(engine): record descriptor usage around native engine failures"
+
+[[entries]]
+date = "2026-11-14T09:17:02.058510436+09:00"
+snapshot = "ac8c9eab3956b2df71ba629d"
+path = "build"
+hash = "375628c18a582d110e811df99cee7d06bfda4481"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: pin the natively validated WebKit runtime fixes"

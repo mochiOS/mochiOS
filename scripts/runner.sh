@@ -43,8 +43,9 @@ if [[ "${ENV_QEMU_NETWORK_SET}" == "1" ]]; then QEMU_NETWORK="${ENV_QEMU_NETWORK
 if [[ "${ENV_QEMU_NETWORK_MAC_SET}" == "1" ]]; then QEMU_NETWORK_MAC="${ENV_QEMU_NETWORK_MAC}"; fi
 QEMU_VIRTIO_GPU_ENABLED="${DEBUG_QEMU_VIRTIO_GPU:-${DEBUG_QEMU_GPU_BACKEND:-n}}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
-RUNNER_DIR="${ROOT_DIR}/out/runner"
-RUNNER_LOCK="${ROOT_DIR}/out/runner.lock"
+RUNNER_DIR="${MDEV_RUNTIME_DIR:-${ROOT_DIR}/out/runner}"
+RUNNER_LOCK="${MDEV_RUNTIME_DIR:+${MDEV_RUNTIME_DIR}.lock}"
+RUNNER_LOCK="${RUNNER_LOCK:-${ROOT_DIR}/out/runner.lock}"
 RUN_DIR="${RUNNER_DIR}"
 SERIAL_LOG="${RUN_DIR}/serial.log"
 DRIVERS_LOG="${RUN_DIR}/drivers.log"
@@ -137,7 +138,12 @@ mkdir -p "$(dirname "${RUNNER_LOCK}")"
 exec 9>"${RUNNER_LOCK}"
 flock -n 9 || die "another mochiOS QEMU runner is already active"
 
-rm -rf -- "${RUNNER_DIR}"
+if [[ -z "${MDEV_RUNTIME_DIR:-}" ]]; then
+    rm -rf -- "${RUNNER_DIR}"
+else
+    [[ -n "${MDEV_IMAGE:-}" ]] || die "mdev must provide its private disk"
+    [[ "${SMOKE_TEST:-0}" != "1" ]] || die "use the isolated smoke runner for smoke tests"
+fi
 mkdir -p "${RUNNER_DIR}"
 
 case "${QEMU_NETWORK}" in y|n) ;; *) die "QEMU_NETWORK must be 'y' or 'n'" ;; esac
@@ -290,7 +296,7 @@ fi
 [[ "${VIRTIO_GPU_STRESS_SWEEPS}" =~ ^[1-9][0-9]*$ ]] ||
     die "VIRTIO_GPU_STRESS_SWEEPS must be a positive integer"
 
-need_file "${ARTIFACT_DIR}/disk.img"
+need_file "${MDEV_IMAGE:-${ARTIFACT_DIR}/disk.img}"
 need_file "${OVMF_CODE}"
 need_file "${OVMF_VARS_TEMPLATE}"
 need_file "${SCRIPT_DIR}/check-smoke-logs.sh"
@@ -307,10 +313,10 @@ if [[ "${TLS_HTTP_CLIENT_SMOKE}" == "1" ]]; then
     need_file "${TLS_BAD_CV_SERVER}"
 fi
 
-if [[ -z "${OVMF_VARS_EXTERNAL}" || ! -f "${OVMF_VARS}" ]]; then
+if [[ ! -f "${OVMF_VARS}" || ( -z "${OVMF_VARS_EXTERNAL}" && -z "${MDEV_RUNTIME_DIR:-}" ) ]]; then
     cp "${OVMF_VARS_TEMPLATE}" "${OVMF_VARS}"
 fi
-OS_DISK="${ARTIFACT_DIR}/disk.img"
+OS_DISK="${MDEV_IMAGE:-${ARTIFACT_DIR}/disk.img}"
 if [[ "${SMOKE_TEST:-0}" == "1" ]]; then
     OS_DISK="${RUN_DIR}/disk.img"
     if [[ "${SMOKE_PROGRESS:-0}" == "1" ]]; then echo "[smoke] copying isolated disk for this boot"; fi

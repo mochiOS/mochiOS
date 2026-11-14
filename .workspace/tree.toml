@@ -16127,3 +16127,11 @@ path = "applications/keychain"
 hash = "56f6ff12082df6b79b2fa431bafbd5db7f4a2d56"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: record resolved native application dependencies"
+
+[[entries]]
+date = "2026-11-14T10:07:57.232427914+09:00"
+snapshot = "ce1a93d3e1abce15a87fc748"
+path = "applications/settings"
+hash = "0e1dfa6b4a79c5b28770bd15c518a8fa09c33813"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: record native Settings dependency resolution"

@@ -16303,3 +16303,179 @@ path = "applications/calculator"
 hash = "1bb258ac442e82eb6cde5cb0218dffaef272d011"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record resolved dependencies with kernel security fixes"
+
+[[entries]]
+date = "2026-11-14T15:23:45+09:00"
+snapshot = "b74d8117efbc821b95c07756"
+path = "core"
+hash = "6f0a1115fefe11a670c5f437c11e4299c4eb61ed"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0028"
+
+[[entries]]
+date = "2026-11-14T15:23:45+09:00"
+snapshot = "508f9494334bcb350f871ff2"
+path = "core"
+hash = "8de6a742ad21fb2b0d14eafc48ce235f5d03b110"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0028"
+
+[[entries]]
+date = "2026-11-14T15:30:17+09:00"
+snapshot = "9748a81614af8d410f3ce042"
+path = "services"
+hash = "7129eb374c3d06f514a840c93cc839b25c807ef1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0028"
+
+[[entries]]
+date = "2026-11-14T15:30:19+09:00"
+snapshot = "46273c12ed6b35edc4361810"
+path = "core"
+hash = "768e2608d913d2ae5002cb8a7cb4e55aa6090176"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0029"
+
+[[entries]]
+date = "2026-11-14T15:30:20+09:00"
+snapshot = "44d144d7a519bc95e257adad"
+path = "core"
+hash = "ab60796775f0dfeee0b9cdb859d2e3682d2dc96e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0029"
+
+[[entries]]
+date = "2026-11-14T15:30:21+09:00"
+snapshot = "f20f09a0950ffc53005f8033"
+path = "user"
+hash = "324c9c22dd0f6227edefd9dfaf41814ddb3671ef"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0029"
+
+[[entries]]
+date = "2026-11-14T15:31:16+09:00"
+snapshot = "327669d827c058452196b5a0"
+path = "services"
+hash = "57b445b68a9154e9c393c2385d03fa46000a8191"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0029"
+
+[[entries]]
+date = "2026-11-14T15:34:49+09:00"
+snapshot = "f13976311f629c9a3e0e61aa"
+path = "boot"
+hash = "be934d22cdd5f063b14cb490147f31229fd7ca9d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:50+09:00"
+snapshot = "ea7e9753bd44708ffb1c3128"
+path = "cexts"
+hash = "e02b33fecfccb142d3577554fa37e86cb5c91aa5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:50+09:00"
+snapshot = "f326942c10c3458eac0bcda2"
+path = "drivers"
+hash = "fde85a18bbf9734705aa0e825ab5c8f7766b15f5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:51+09:00"
+snapshot = "b6b9fa2abfdbf9879ee6e259"
+path = "binaries/msh"
+hash = "6e6cf17d90b68b0e89a70943980c36f0b0f372f5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:52+09:00"
+snapshot = "04a521d760b8799be53249ee"
+path = "binaries/coreutils"
+hash = "72a0dc9c258e407bb8762287da61e950e102251e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:53+09:00"
+snapshot = "1903588cb0a3712b5e695e52"
+path = "applications/binder"
+hash = "0e609b21a70cceabf7dc2ed7511a86a2ad8b4a58"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:54+09:00"
+snapshot = "e0123ec602b2774eca037b50"
+path = "tools/devkit"
+hash = "5149b3b4583f284e2df4b02a92597353a3df2d5c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:55+09:00"
+snapshot = "24cfa706232eb4f1c7e1bf4c"
+path = "applications/file"
+hash = "19894bb25deee03651dc806448ee3db118f80359"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:56+09:00"
+snapshot = "2c04abf657a73ae819a69bfc"
+path = "applications/installer"
+hash = "15e86c159e1fc02758126a1ad0ef787352f09e0b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:57+09:00"
+snapshot = "d5a44e5c4e624c9a0b7128ec"
+path = "applications/appstore"
+hash = "bd3d741ed5c971a69519dc3cae131726b8af85bd"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:58+09:00"
+snapshot = "81b87d57e118dc554b600318"
+path = "applications/edit"
+hash = "8f74bcc6477a551b882c999a29b4e34fede527f5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:34:59+09:00"
+snapshot = "2463ea435af5acf06e3c387a"
+path = "applications/calculator"
+hash = "a4ad8fb521fee8420a391e45f5c1f1e4ddff32e3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:35:00+09:00"
+snapshot = "30907e6e3259eae29d36cba5"
+path = "applications/calendar"
+hash = "ea816e72c18817b2d04068defa17d8c6fe332d0a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:35:01+09:00"
+snapshot = "a726664a316cdb9548b64517"
+path = "applications/disk-utility"
+hash = "5926a6ec9d754836d9779b86f9678e69f08f21ba"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"
+
+[[entries]]
+date = "2026-11-14T15:35:02+09:00"
+snapshot = "97a96a3d74e3c2ce999edabd"
+path = "applications/fonts"
+hash = "f5b73848b78dade82712671d10fb41f876b0a3f3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with VM boundary fixes"

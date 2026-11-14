@@ -387,9 +387,9 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "kernel": {
-      "content_sha256": "7aab02b499f05a11a1f6746424d7d81b5dc7e4e4aa15c6574ece707a32c15715",
+      "content_sha256": "7eed02cd7fa0bbaae0c5ec156e383c72a99f349545818f6e88e71e9f14c3e0bb",
       "resolution": {
-        "Cargo.lock": "5de5d942cdee0234a744d6f02c1e06c60e5b070cd74c9f419111230a53b5daa5",
+        "Cargo.lock": "f9b9fba74f0535668e765dcb14f15db2dfad142952b280b82fd17cc49b6f9d2d",
         "examples/boot/Cargo.lock": "cee2fe7462c86f77f07cbbc3634985c9071956d502a5c21d849b31856fb7a877",
         "examples/user/Cargo.lock": "cc8d246ac8749095f41bed59dbdf285c4513cd0f26b27d35ebdef3fa33a3ce51",
         "modules/fs_cext/Cargo.lock": "7905d6481eb83c511758aa3c150cfac22577689a243998f02b0f320c22635155",
@@ -402,9 +402,9 @@
         "modules/fs_cext/Cargo.lock": "0f02b89ae4750e5346ce7f55ea8a15ab498aa5a6368e287366e05fb2a097380d",
         "scripts/heap-layout-bench/Cargo.lock": "e3b0bcb1557c70a0a7e7e29c2d932563f657456377ee88ff7c2c1b820ebee996"
       },
-      "revision": "c1551b5a0925fb20c3f0b797440ab30b4f24ec55",
-      "tracked_tree": "6d69685de86f4aac853876827c811e354c728afa1674230a1e29e1ba9a5e9224",
-      "working_tree": "7c99b19e95dba6a422b36eb94ad5394adcbe62e05c17514ac4edb563e9540655"
+      "revision": "318056ead4a6d31bfadd87a80195b17e674105dc",
+      "tracked_tree": "7eed02cd7fa0bbaae0c5ec156e383c72a99f349545818f6e88e71e9f14c3e0bb",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "libc-source": {
       "content_sha256": "524691aca221400e199677389dc269951b3916bf2b8054dd99e6d5b29db6d270",
@@ -726,9 +726,9 @@
         "Cargo.lock": "745111aaece8bce25d7ea9ecfc976a31ee88ec37df24b81f7ac3f33f8dfbcc16",
         "tools/ffi-gen/Cargo.lock": "a0b63153eb31e72e805a7f6390adb187d872cafd35026f076144a2b361e6f3e8"
       },
-      "revision": "e237922c673d767d9a88a7b25690518ee7968f80",
-      "tracked_tree": "e060d2ac5f833c35b4e26256162c3802ca23ef53a3fb81a7a3f80af08dd6565f",
-      "working_tree": "d47d06710f85ff583d9cc06e3956ed077b97118a4e96768a5201e171bd780455"
+      "revision": "8d7e844d654bda6edd241b27d8eeb7112fc5d29b",
+      "tracked_tree": "d1c7530815f1d5a7aa002bc6f6f4be6d2e18894f63caab4b95be6157c28250a7",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   }
 }

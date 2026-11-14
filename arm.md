@@ -2,7 +2,7 @@
 
 更新日: 2026-11-15
 
-mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブとEL1カーネル継続の保存・復元まで進めた段階で、ARM64版mnu全体の起動には至っていない。
+mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1カーネル継続、例外入口、初回EL0遷移の機構まで進めた段階で、ARM64版mnu全体の起動には至っていない。
 
 ## 着手済みの範囲
 
@@ -12,6 +12,12 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 - x86_64の[保存フレームと切替命令](core/src/arch/x86_64/context.rs)を`arch/`へ分離した。スレッドの初期スタック・復帰先・IRQ状態は`Context::for_kernel_entry`で作成し、共有側はSP・PCのアクセサを使う。既存のスケジューリング方針と切替時の所有権管理は変更していない。
 - [ARM64のEL1カーネルコンテキスト](core/src/arch/aarch64/context.rs)を追加した。x19〜x30、SP、継続先、NZCV、DAIF、全32本の128ビットFP/SIMDレジスタ、FPCR・FPSRを保存・復元する。旧スタックを離れた後に、切替完了マーカーをreleaseでクリアする。
 - [継続の診断](core/scripts/context-probe.rs)で別スタックへ入り、異なる汎用レジスタ・SIMD値・FP制御を設定した2つの継続を16往復した。ARM64ではNZCVと継続ごとに異なるIRQ状態も確認した。x86_64でも同じ往復診断を確認した。
+- x86_64の[例外・syscallフレーム](core/src/arch/x86_64/exception.rs)を`arch/`へ移した。`cpu::context`は既存呼び出し元のための再公開とし、構造体・レイアウト・変換内容は変えていない。
+- [ARM64の例外フレーム](core/src/arch/aarch64/exception.rs)と[EL1ベクタ](core/src/arch/aarch64/exception.S)を追加した。全汎用レジスタ、SP_EL0、ELR/SPSR、ESR/FAR、FP/SIMDをカーネルスタックへ保存する。ELR/SPSRを保存してからハンドラを呼ぶため、ネストした例外からも復帰できる。
+- ベクタは`mnu_aarch64_exception_dispatch`へ処理を渡す。サービスやデバイスを認識せず、受信の種類・発生元と保存フレームを渡すだけ。カーネル側のsyscall・フォールト・IRQ配送との本接続は今後の作業。必要なハンドラをリンクせずに成功する空実装は置かない。
+- 復帰の特権状態と発生元はフレームの非公開情報とし、EL1hまたはEL0tの元のモードだけに復帰する。未対応のEL1t／AArch32、破損したモード、ハンドラが停止を指定した場合はERETせずCPUを停止する。
+- [初回EL0遷移](core/src/arch/aarch64/usermode.rs)を追加した。明示された引数とTLSを設定し、他の汎用レジスタ、FP/SIMD、FP制御、読み取り専用TLSレジスタをクリアする。メモリマッピングとユーザーアドレスの検証は呼び出し側の責務。
+- ARM診断は専用IRQ入口の重複を削除し、製品側ベクタを使用する。実際のタイマーIRQ、ネストしたBRK、[EL0診断](core/scripts/user-probe.rs)のSVCと戻り値・FP/SIMD復元、初期レジスタの消去、TLS設定、特権命令のトラップが通った。
 - x86_64のkernel producerを新しいMDP経路でビルドした。OS全体の起動確認は別途必要。
 
 診断は[check-cpu-primitives.py](core/scripts/check-cpu-primitives.py)から実行する。実装本体を直接読み込み、架空のIRQ状態や保存・復元の代替実装で置き換えない。QEMU 8.2以降のARM/x86バイナリ、OVMFの4 MiB版、指定Rustツールチェーンの`aarch64-unknown-none`と`x86_64-unknown-uefi`ターゲットが必要。
@@ -20,9 +26,11 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 python3 core/scripts/check-cpu-primitives.py --toolchain nightly-2026-05-14
 ```
 
-ARM診断の参照機は`virt-8.2`、`cortex-a57`、GICv2、CPU 1個、RAM 128 MiB。専用の例外入口・UART・割り込みコントローラ設定は診断fixtureに限定し、mnuのARM例外処理やmBootの移植完了とは扱わない。診断は命令動作を確認するTCG実行であり、既存OSのKVM起動設定を変更しない。成果物とログは既定で`core/out/mdp/cpu-primitives/`に保存する。`--out`、`--qemu-aarch64`、`--qemu-x86-64`で検証環境を指定できる。
+ARM診断の参照機は`virt-8.2`、`cortex-a57`、GICv2、CPU 1個、RAM 128 MiB。EL1の例外入口は製品側の実装を使い、UART・割り込みコントローラ設定と診断用の例外ディスパッチだけをfixtureに置く。mnuの起動・例外処理方針との統合やmBootの移植完了とは扱わない。診断は命令動作を確認するTCG実行であり、既存OSのKVM起動設定を変更しない。成果物とログは既定で`core/out/mdp/cpu-primitives/`に保存する。`--out`、`--qemu-aarch64`、`--qemu-x86-64`で検証環境を指定できる。
 
-ARM64のコンテキストは、ベースの[AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)とFP/SIMDを対象にする。SVE/SMEを有効にしたビルドは拒否し、起動側でもそれらを有効にしない前提。FP/SIMDアクセスの初期化、完全な例外フレーム、TLS、アドレス空間切替、SMPでの受け渡しは、この継続切替だけで完成したとは扱わない。既存のユーザーupcall・syscallレジスタABIにはx86依存が残る。
+ARM64のコンテキストは、ベースの[AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)とFP/SIMDを対象にする。SVE/SMEを有効にしたビルドは拒否し、起動側でもそれらを有効にしない前提。FP/SIMDアクセスの製品側初期化、タスクごとのTLS切替、アドレス空間切替、SMPでの受け渡しは、この継続切替だけで完成したとは扱わない。既存のユーザーupcall・syscallレジスタABIにはx86依存が残る。
+
+例外の配置・ELR/SPSR・ERETは[Armの例外モデル](https://developer.arm.com/documentation/102412/latest)を基準にする。今回のEL0診断ではMMUを無効にした参照RAMを使用している。特権命令のトラップは確認したが、EL0からカーネルメモリへのアクセス制限、W^X、複数プロセスの分離、ネイティブsyscall・IPCはまだ確認できる状態ではない。診断用のSVC即値は製品ABIではない。
 
 ## 現行ビルド経路
 
@@ -59,9 +67,9 @@ ARM用のターゲットを追加するだけでは起動できない。CPU依�
 | 対象 | 確認した現状 | 主な移植箇所 |
 |---|---|---|
 | mnuのビルド・入口 | [Cargo.toml](core/Cargo.toml)の`x86_64`依存をCPU条件付きに分離。[ターゲット定義](core/x86_64-mochios.json)はx86_64。[入口](core/src/entry.rs)のSP参照はarch層へ移したが、`sysv64`とx86シリアル出力は残る | AArch64用のカーネル配置、呼び出し規約、初期スタック、初期ログ |
-| CPU・割り込み | [cpu.rs](core/src/cpu.rs)、[interrupt](core/src/interrupt/)、[percpu.rs](core/src/percpu.rs)、[smp.rs](core/src/smp.rs)がx86のレジスタ・割り込み・CPU起動に依存 | 例外ベクタ、割り込みマスク、CPUローカル状態、タイマー、二次CPU |
+| CPU・割り込み | IRQマスクとARMのベクタ・保存フレームはarch層。製品側の[cpu.rs](core/src/cpu.rs)、[interrupt](core/src/interrupt/)、[percpu.rs](core/src/percpu.rs)、[smp.rs](core/src/smp.rs)にはx86依存が残る | ARM例外のカーネル配送との接続、CPUローカル状態、タイマー、二次CPU |
 | メモリ | [mem](core/src/mem/)にx86のページテーブル、GDT/TSS、TLB制御がある | Stage-1 MMU、ページ属性、アドレス空間切替、TLB・キャッシュ制御 |
-| タスク | `arch::context`がCPUごとの保存フレームと切替を選択。[task/context.rs](core/src/task/context.rs)には所有権管理とx86の遷移準備が残る。[usermode.rs](core/src/task/usermode.rs)もx86のユーザーモード遷移を実装 | 例外・upcallの保存形式、EL0への遷移と復帰、TLS、アドレス空間切替との接続 |
+| タスク | `arch::context`がCPUごとの保存フレームと切替を選択。ARMの初回EL0遷移も追加済み。[task/context.rs](core/src/task/context.rs)と[usermode.rs](core/src/task/usermode.rs)の製品経路にはx86依存が残る | upcall・保持ユーザー状態、タスクと例外の接続、TLS、アドレス空間切替 |
 | ELF | [loader.rs](core/src/elf/loader.rs)は`EM_X86_64`だけを許可 | 実行中のアーキテクチャに対応したELF検証とロード |
 | 起動ABI | [BootInfo / SmpHandoff](core/crates/abi/src/boot.rs)にAPIC IDや`kernel_cr3`がある | 共通情報とアーキテクチャ固有情報の分離 |
 | syscall・実行ABI | [syscallラッパー](user/crates/syscall/src/lib.rs)は`syscall`命令とx86レジスタを直接使用 | ARM64の入口・復帰・引数受け渡しと、実行コンテキストの表現 |
@@ -89,7 +97,7 @@ mDriver側にLinuxドライバが存在しても、mBootのARM仮想化、Linux�
 
 ## アーキテクチャ依存処理の分離
 
-mnuでは、まず既存のx86_64実装を動作を変えずに整理する。次の配置でCPUプリミティブとカーネル継続を分離した。例外、MMU、CPUローカル状態、ユーザーモード遷移などの分離は引き続き必要。
+mnuでは、まず既存のx86_64実装を動作を変えずに整理する。次の配置でCPUプリミティブとカーネル継続を分離した。例外配送・ユーザー復帰を製品経路へ接続し、MMUやCPUローカル状態を分離する作業は引き続き必要。
 
 ```text
 core/src/arch/
@@ -174,4 +182,4 @@ EL2や必要なDMA隔離が利用できない機種は、現在のDomain構成�
 - initfsへGUIや一般アプリを追加せず、既存の最小構成を維持する。
 - ソースの変更、Lock更新、各リポジトリの参照とMWS記録を一組として管理し、Lockを巻き戻さない。
 
-次は、例外・ユーザー復帰・MMUのx86_64依存処理の分離と、起動ABIの整理へ進む。ARM用の空実装でビルド成功を装ったり、SDK生成へ範囲を広げたりしない。
+次は、MMUと起動ABIを整理し、ARM側の例外・ユーザー復帰を製品のタスク管理へ接続する準備を進める。ARM用の空実装でビルド成功を装ったり、SDK生成へ範囲を広げたりしない。

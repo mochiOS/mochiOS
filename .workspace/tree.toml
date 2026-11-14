@@ -16095,3 +16095,11 @@ path = "applications/edit"
 hash = "500525fe5269fe9670d3ad233e66ebaecdacc171"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Merge remote-tracking branch 'origin/main' into mws/develop"
+
+[[entries]]
+date = "2026-11-14T09:07:47.497872701+09:00"
+snapshot = "82b3b7df74197d0c7a06f5e4"
+path = "applications/terra"
+hash = "968e3362aeb0188c7782e9828979e11d7f56aae3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "test(engine): record descriptor usage around native engine failures"

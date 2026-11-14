@@ -27,7 +27,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-binder": {
-      "content_sha256": "d2ec3e45a064f46966359aa3916af8b032c736b77b71623ca6dee2ba38752b98",
+      "content_sha256": "2c8e8bcb14d75c18408618706ba523d3391bd015a9004f6992c9e20242736047",
       "resolution": {
         "Cargo.lock": "054424b01ed3dc493d8a777db1d95775c834d4a7b2791ce48a2a38a2aef29f98",
         "crates/binder_client/Cargo.lock": "e208b87f6e29a8c87faccf02842b5e141d18fa3e68273e08b700f78a002fc647",
@@ -40,8 +40,8 @@
         "crates/binder_protocol/Cargo.lock": "cd71207636c0c8e33f5f43f28ca0099b6c3c5dae7968009aca81157d15813609",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
       },
-      "revision": "338922c49f52c3b3b9db937bd2c2b4e80097e4c2",
-      "tracked_tree": "d2ec3e45a064f46966359aa3916af8b032c736b77b71623ca6dee2ba38752b98",
+      "revision": "6e5ec78ec8ab98779e8a4776a452589b63b2a6a8",
+      "tracked_tree": "2c8e8bcb14d75c18408618706ba523d3391bd015a9004f6992c9e20242736047",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-calculator": {
@@ -387,9 +387,9 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "kernel": {
-      "content_sha256": "36607a576a71229dfa5deb4a92783989597a69d28ec010c42f5766b639cf8c77",
+      "content_sha256": "7aab02b499f05a11a1f6746424d7d81b5dc7e4e4aa15c6574ece707a32c15715",
       "resolution": {
-        "Cargo.lock": "17dd50727ac66f03c6b852d92a889c4dd3013660d2db0885227f09b85561c2e0",
+        "Cargo.lock": "5de5d942cdee0234a744d6f02c1e06c60e5b070cd74c9f419111230a53b5daa5",
         "examples/boot/Cargo.lock": "cee2fe7462c86f77f07cbbc3634985c9071956d502a5c21d849b31856fb7a877",
         "examples/user/Cargo.lock": "cc8d246ac8749095f41bed59dbdf285c4513cd0f26b27d35ebdef3fa33a3ce51",
         "modules/fs_cext/Cargo.lock": "7905d6481eb83c511758aa3c150cfac22577689a243998f02b0f320c22635155",
@@ -402,9 +402,9 @@
         "modules/fs_cext/Cargo.lock": "0f02b89ae4750e5346ce7f55ea8a15ab498aa5a6368e287366e05fb2a097380d",
         "scripts/heap-layout-bench/Cargo.lock": "e3b0bcb1557c70a0a7e7e29c2d932563f657456377ee88ff7c2c1b820ebee996"
       },
-      "revision": "887aa074e60a2c44b2aed64b84f48c2842db1a11",
-      "tracked_tree": "36607a576a71229dfa5deb4a92783989597a69d28ec010c42f5766b639cf8c77",
-      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "revision": "c1551b5a0925fb20c3f0b797440ab30b4f24ec55",
+      "tracked_tree": "6d69685de86f4aac853876827c811e354c728afa1674230a1e29e1ba9a5e9224",
+      "working_tree": "7c99b19e95dba6a422b36eb94ad5394adcbe62e05c17514ac4edb563e9540655"
     },
     "libc-source": {
       "content_sha256": "524691aca221400e199677389dc269951b3916bf2b8054dd99e6d5b29db6d270",
@@ -717,9 +717,9 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "viewkit": {
-      "content_sha256": "e060d2ac5f833c35b4e26256162c3802ca23ef53a3fb81a7a3f80af08dd6565f",
+      "content_sha256": "d1c7530815f1d5a7aa002bc6f6f4be6d2e18894f63caab4b95be6157c28250a7",
       "resolution": {
-        "Cargo.lock": "4937662c7170b5dc31c21a8e9f8c5b0a4413204f9c3fe5222c1edffe77b2210c",
+        "Cargo.lock": "c91bc9f05ba857f4c3fce7e9a5b1620eef36064117dccf7f755196f3cb52ec02",
         "tools/ffi-gen/Cargo.lock": "80ee17db9559114cdb9d035f3dcdf30bf3947c9da658df60aa5f0806be6e4c8a"
       },
       "resolution_graph": {
@@ -728,7 +728,7 @@
       },
       "revision": "e237922c673d767d9a88a7b25690518ee7968f80",
       "tracked_tree": "e060d2ac5f833c35b4e26256162c3802ca23ef53a3fb81a7a3f80af08dd6565f",
-      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "working_tree": "d47d06710f85ff583d9cc06e3956ed077b97118a4e96768a5201e171bd780455"
     }
   }
 }

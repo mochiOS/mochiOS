@@ -16511,3 +16511,11 @@ path = "core"
 hash = "da73b7b82ca42e6465eaec0f0ebd39a426e2ad30"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Isolate the x86_64 kernel switch frame in arch"
+
+[[entries]]
+date = "2026-11-15T07:47:06.195515172+09:00"
+snapshot = "74ee841dceec19acb42355c3"
+path = "core"
+hash = "2d89c5ed6061478ff9029dcccae26f066d2802a4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Prepare kernel thread entries through the architecture backend"

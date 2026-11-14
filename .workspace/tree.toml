@@ -16119,3 +16119,11 @@ path = "services"
 hash = "69d4659f8cc401314513ab5f7db008da4244e06e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: record native services dependency resolution"
+
+[[entries]]
+date = "2026-11-14T10:05:44.465207725+09:00"
+snapshot = "1380b1a5f455c5c9a3e86b97"
+path = "applications/keychain"
+hash = "56f6ff12082df6b79b2fa431bafbd5db7f4a2d56"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: record resolved native application dependencies"

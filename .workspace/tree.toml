@@ -16503,3 +16503,11 @@ path = "core"
 hash = "5944f12573df3ba55241afebe0bfe51c0e4ccede"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement and verify AArch64 local CPU primitives"
+
+[[entries]]
+date = "2026-11-15T07:43:46.285275208+09:00"
+snapshot = "87027781fc4085bbc8886ff9"
+path = "core"
+hash = "da73b7b82ca42e6465eaec0f0ebd39a426e2ad30"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Isolate the x86_64 kernel switch frame in arch"

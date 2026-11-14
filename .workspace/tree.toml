@@ -16207,3 +16207,99 @@ path = "core"
 hash = "c98a2c247705a966867cba7b9f39371cd714842b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve typed native and peer failures through provider and fault handling"
+
+[[entries]]
+date = "2026-11-14T12:53:16+09:00"
+snapshot = "dace5ff335da7c149fa6d6ab"
+path = "core"
+hash = "2ef40245e65c3c6df3277e5f83289e9a7da03181"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0034"
+
+[[entries]]
+date = "2026-11-14T13:02:34+09:00"
+snapshot = "e0e69ea3c42cdcddb00e5a6b"
+path = "core"
+hash = "0ef0126ce41d5c96a31a186bbd42bb3ca35f5eb8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0034"
+
+[[entries]]
+date = "2026-11-14T13:03:29+09:00"
+snapshot = "3988c6b85a92770137356110"
+path = "core"
+hash = "b713f7bf3e830f35559ae90c9266a165f84d94a0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0031"
+
+[[entries]]
+date = "2026-11-14T13:12:33+09:00"
+snapshot = "e10c272f9251e4bf698485fd"
+path = "core"
+hash = "0d3bdbf6533ef94f6f72f0106fc7f144fc71febe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0031"
+
+[[entries]]
+date = "2026-11-14T13:12:47+09:00"
+snapshot = "11d4d3f7a06125b3a2b3caf2"
+path = "services"
+hash = "06d7f7676f6ec93a34a50e9efe9d9adb0fab661b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0034"
+
+[[entries]]
+date = "2026-11-14T13:12:48+09:00"
+snapshot = "20214adf577139a27a1fd4bf"
+path = "services"
+hash = "247de1ce996c5915d79d8b580d498d0873a18370"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0031"
+
+[[entries]]
+date = "2026-11-14T13:13:13+09:00"
+snapshot = "5d5343eaed19f5b7895aec04"
+path = "user"
+hash = "501596a08d9ffd29ce0718d4fb82f22e4c561fd2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with kernel security fixes"
+
+[[entries]]
+date = "2026-11-14T13:13:14+09:00"
+snapshot = "59907a97b96c08eea8fa7002"
+path = "tools/devkit"
+hash = "3c720a94318522d3249da5ceaf775082fd56c1b8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with kernel security fixes"
+
+[[entries]]
+date = "2026-11-14T13:13:14+09:00"
+snapshot = "d149c5070512122d356a58da"
+path = "applications/settings"
+hash = "2b773816b3eabe04940c14bcacd065e7ddb44248"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with kernel security fixes"
+
+[[entries]]
+date = "2026-11-14T13:13:52+09:00"
+snapshot = "6fc2a517a16d88269272004e"
+path = "applications/edit"
+hash = "4bf893287d90b2db3e8faf1eeb481e3d93d842a4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with kernel security fixes"
+
+[[entries]]
+date = "2026-11-14T13:13:53+09:00"
+snapshot = "7338cb0c07a52dfbb19b721a"
+path = "applications/viewer"
+hash = "7f1125c6c02950a5ca9e742ebdbe8cc09fc36bc9"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with kernel security fixes"
+
+[[entries]]
+date = "2026-11-14T13:13:53+09:00"
+snapshot = "ebe41902022769830bfc7d0a"
+path = "applications/calculator"
+hash = "1bb258ac442e82eb6cde5cb0218dffaef272d011"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved dependencies with kernel security fixes"

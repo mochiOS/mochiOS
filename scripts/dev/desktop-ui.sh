@@ -7,14 +7,14 @@ mode=${1:-run}
 shift || true
 [[ $(uname -s) == Linux ]] || { echo "mmake ui requires Linux" >&2; exit 1; }
 case "$mode" in
-    run)
+    run|tablet)
         [[ -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]] || {
             echo "mmake ui requires a Linux graphical session (DISPLAY or WAYLAND_DISPLAY)" >&2
             exit 1
         }
         ;;
     --check) ;;
-    *) echo "usage: $0 [run|--check] [cargo patch options...]" >&2; exit 2 ;;
+    *) echo "usage: $0 [run|tablet|--check] [cargo patch options...]" >&2; exit 2 ;;
 esac
 
 app_catalog=$(python3 "$script_dir/preview_catalog.py" "$root" --pairs)
@@ -25,7 +25,7 @@ preview_font_root="$root/libraries/fonts/out/fonts"
 export MOCHIOS_PREVIEW_FONTS_SYSTEM="${MOCHIOS_PREVIEW_FONTS_SYSTEM:-$preview_font_root}"
 export MOCHIOS_PREVIEW_MAIL_DEMO="${MOCHIOS_PREVIEW_MAIL_DEMO:-1}"
 
-# All application and desktop state belongs to this disposable session.
+# Application processes and documents belong to this disposable session.
 session_dir=$(mktemp -d "$root/out/preview/session.XXXXXXXX")
 desktop_pid=
 ime_pid=
@@ -70,6 +70,14 @@ done
 [[ -S $MOCHIOS_PREVIEW_IME_SOCKET ]] || { echo "mochiOS preview IME did not start." >&2; exit 1; }
 
 export VIEWKIT_PREVIEW_CAPTURE=1
+if [[ $mode == tablet ]]; then
+    export BINDER_SHELL_MODE=tablet
+    # Absolute coordinates permit real touch and host mouse-drag testing.
+    export VIEWKIT_PREVIEW_CAPTURE=0
+    # Keep home placement across launches without retaining preview processes,
+    # application documents or credentials from this disposable session.
+    export BINDER_HOME_LAYOUT="${BINDER_HOME_LAYOUT:-$root/out/preview/config/binder/tablet-home.json}"
+fi
 export MOCHIOS_PREVIEW_ROOT="$session_dir/home"
 export MOCHIOS_PREVIEW_CONFIG_ROOT="$session_dir/config"
 export MOCHIOS_PREVIEW_APPS="$session_dir/applications"
@@ -106,9 +114,13 @@ for ((attempt=0; attempt<100; attempt++)); do
 done
 [[ -S $MOCHIOS_PREVIEW_KEYCHAIN_SOCKET ]] || { echo "Keychain preview service did not start." >&2; exit 1; }
 
-echo "Starting mochiOS desktop; closing the window discards this session."
+echo "Starting mochiOS $mode preview; closing the window discards application session data."
 echo "mochiOS IME: Ctrl+Space switches input mode; Space converts; Enter confirms."
-echo "Mouse captured while focused. Ctrl+Alt+G releases it; click inside to capture again."
+if [[ $mode == tablet ]]; then
+    echo "Tablet: drag to swipe; hold an icon to edit; swipe up from the bottom to return home."
+else
+    echo "Mouse captured while focused. Ctrl+Alt+G releases it; click inside to capture again."
+fi
 setsid "$root/out/preview/target/debug/binder" &
 desktop_pid=$!
 wait "$desktop_pid"

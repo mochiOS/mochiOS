@@ -28,26 +28,74 @@
     {
       "package": {
         "abi": "mochios-1",
-        "name": "devkit-host",
+        "name": "kernel",
         "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
-      "path": "tools/devkit/out/mdp/devkit-host.tar.mdp",
-      "sha256": "3b91db921a3117b4cd767a13285d83fa2f845b67fc96d22fafcbb46c8aef1245"
+      "path": "core/out/mdp/kernel.tar.mdp",
+      "sha256": "6f81fec6ec2913a1c66f6295d4a4e5e680c7a3ba346144c85fe42a11b206fc37"
     },
     {
       "package": {
         "abi": "mochios-1",
-        "name": "viewkit",
+        "name": "boot",
         "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
-      "path": "libraries/viewkit/out/mdp/viewkit.tar.mdp",
-      "sha256": "b24aac52f28dfb537f2d98f4615c6387c7f3efbd910118bf5e653b9dd3ae47f4"
+      "path": "boot/out/mdp/boot.tar.mdp",
+      "sha256": "6e23587d3b3ba2fbf54ff8208537ca82ab97839c3bd9d36368c6df591b643cb3"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "drivers",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "drivers/out/mdp/drivers.tar.mdp",
+      "sha256": "3ca429b8e8a17deb4caf89abb9349556fbc44f6c0273c431e33f55b5e8f68466"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "cexts",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "cexts/out/mdp/cexts.tar.mdp",
+      "sha256": "88db5c73b7093661a4b3d6d2544ca3d6a415d38990d08a9a612d1d7294e8eb26"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "msh",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "binaries/msh/out/mdp/msh.tar.mdp",
+      "sha256": "bb9fbda32fe5f8e90eba0ebd94850e5a8b0711c414627edf86e0410dc1e0d833"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "coreutils",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "binaries/coreutils/out/mdp/coreutils.tar.mdp",
+      "sha256": "a1de2103f7f500171bb6e4fcd3a1d6d93f4067cb85093567c6c6c6a24da4727e"
     },
     {
       "package": {
@@ -64,14 +112,74 @@
     {
       "package": {
         "abi": "mochios-1",
-        "name": "system-components",
+        "name": "image-data",
         "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
-      "path": "build/out/mdp/system-components.tar.mdp",
-      "sha256": "74f7239c415230d4b2b1c9899540b821ec859bf3c48318d8ec7a08b7e9202701"
+      "path": "build/out/mdp/image-data.tar.mdp",
+      "sha256": "79bfba3a3ae1edf25cc145ad4f73ed65b9d4092744a053d97b3cc7b76ae65f0a"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "mws",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "tools/mws/out/mdp/mws.tar.mdp",
+      "sha256": "cda817deb73fcaf8557b4b172e87be805c20b1ac672218733d0678116215e737"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "mmake",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "tools/mmake/out/mdp/mmake.tar.mdp",
+      "sha256": "e05ca74eec1d202a57bf8126497e37a7e8d2eadd66471f368ddfbef3386a63f1"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "mdev",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.2.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "tools/mdev/out/mdp/mdev.tar.mdp",
+      "sha256": "db3f2f863e3c8340f5589786824567daf21d7bcf6f6660e168fcf60e3f6e10d6"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "mdp",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.2.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "tools/mdp/out/mdp/mdp.tar.mdp",
+      "sha256": "18d2343965b5e9ee6f707223c6c3753f45da6040833cac6fd0241b02fbf952c6"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
+        "name": "std-demo",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "user/out/mdp/std-demo.tar.mdp",
+      "sha256": "3964771709a7baff9f27e30299175a7a8655e9e9b27ac33a5b7ecb880b09b951"
     }
   ],
   "format": 1,

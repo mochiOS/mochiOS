@@ -95,7 +95,14 @@ it does not silently update repositories. Build completion produces exact MDP
 hashes in `mdp.assembly.lock`. A source edit requires reviewing and updating the
 workspace lock; Cargo lock changes are retained. The build cache checks consumed
 source, resolution, configuration, SDK and dependency identities, not timestamps
-alone. Changes during a build prevent publishing a new composition lock.
+alone. Changes to consumed sources during a build prevent publishing a new
+composition lock. Keep shared API repositories stable while verifying a complete
+OS snapshot. A selected producer can still build while unrelated repositories
+are edited; their stale artifacts are excluded until rebuilt.
+
+Dependency cache keys use the exchanged artifact identity and measured generated
+SDK files. A producer rebuilding the same artifact does not by itself rebuild
+its consumers. Generated SDK settings are checked by content before cache reuse.
 
 To work on one project, without rebuilding the whole workspace:
 
@@ -148,6 +155,24 @@ kept under `out/`, while consumer `mdp.lock` records the SDK identity. Rebuild t
 context when SDK sources change. Generic format, API and pipeline details are in
 [WORKSPACES.md](../../tools/mdp/WORKSPACES.md).
 
+## Compilation caches and concurrent work
+
+The source workspace currently shares `out/rust-std/target` between native Rust
+producers. This is a compiler cache; each repository still owns its exported
+MPKG/MDP files. Cargo serializes builds that use the same target directory, so
+an external application using that cache can delay OS integration builds.
+
+An independent consumer can select a private cache in its own `mdp.recipe.json`
+without changing the SDK or root assembler:
+
+```json
+"bindings": { "RUST_TARGET_DIR": "$(PROJECT)/out/mdp/target" }
+```
+
+This trades reuse of the workspace's existing compiled dependencies for parallel
+build isolation. Temporary compiler files use `out/mdp/tmp` in this workspace;
+SDK/producer caches and VM state are separate from temporary files.
+
 ## Installer and optional artifacts
 
 `mmake installer-image` consumes the same reviewed artifacts and adds Installer
@@ -161,6 +186,11 @@ mmake build
 mdp workspace build --select mboot -j 4
 mmake mboot-image
 ```
+
+The optional `boot-hardware` producer owns compilation of the System Domain.
+mBoot verifies and consumes its MDP as a prerequisite; it compiles its own
+firmware and mDriver, and does not invoke boot's compiler pipeline. The final
+hardware image is then exported separately from the normal OS payloads.
 
 Host tools can be built explicitly with `--select mdp`, `--select mdev`,
 `--select mws` or `--select mmake`; they are not OS payloads. `mmake clean` removes

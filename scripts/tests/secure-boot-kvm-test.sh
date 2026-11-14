@@ -1,11 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
-[[ $# -eq 3 ]] || { echo "usage: $0 <root> <ab-image> <unsigned-efi>" >&2; exit 2; }
+[[ $# -eq 3 ]] || { echo "usage: $0 <root> <ab-image> <signed-efi>" >&2; exit 2; }
 root=$1
 source_image=$2
-unsigned_efi=$3
+source_efi=$3
 test_dir=$(mktemp -d "$root/out/mmake/secure-boot.XXXXXX")
 trap 'rm -rf -- "$test_dir"' EXIT
+# Derive this negative-test fixture from the imported boot artifact. Never
+# depend on a producer's private Cargo directory or modify its signed binary.
+unsigned_efi=$test_dir/unsigned.efi
+cp "$source_efi" "$unsigned_efi"
+sbattach --remove "$unsigned_efi"
+python3 - "$unsigned_efi" <<'PY'
+from pathlib import Path
+import struct,sys
+data=Path(sys.argv[1]).read_bytes()
+assert data[:2]==b'MZ'
+pe=struct.unpack_from('<I',data,0x3c)[0]
+assert data[pe:pe+4]==b'PE\0\0'
+optional=pe+24
+assert struct.unpack_from('<H',data,optional)[0]==0x20b
+assert struct.unpack_from('<II',data,optional+112+4*8)==(0,0), 'test EFI is still signed'
+PY
 image=$test_dir/disk.img
 cp --reflink=auto --sparse=always "$source_image" "$image"
 table=$(sfdisk -J "$image")

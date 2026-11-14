@@ -137,3 +137,21 @@ Binder's decorator; AppCore continues to use the shared ViewKit runtime bridge.
 Window control buttons, maximize/minimize/restore, shadows and outer continuous
 corners continue to use the existing window-manager implementation. Borderless
 and fullscreen are not decoration modes. No Client mode is provided.
+
+## Shell-managed presentation
+
+`window_management` in the shared GPU protocol defines a bounded window snapshot
+(112), reversible geometry/visibility/focus leases (113), and graceful close
+requests (114). The caller must hold decoration authority and subscribe with a
+live event endpoint owned by its own process. A lease controls an existing opaque
+window token; it does not grant access to a PID, file descriptor or app pixels.
+Only its manager may change or release it. Normal client decoration requests
+retain their requested configuration while the effective title/control strip is
+zero during a lease. Client activation preserves the lease's geometry.
+
+Protected presentations and modal sessions block shell mutation. Manager cleanup
+restores original placement; restoration of a newly protected window waits until
+its protected presentation is withdrawn. Popup visibility follows its parent.
+Binder converts logical work areas using ViewKit's current paint scale and
+reconciles compositor snapshots without inventing remote IDs. Native surface
+scaling and screenshot previews are outside this protocol.

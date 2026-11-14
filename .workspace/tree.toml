@@ -16527,3 +16527,11 @@ path = "core"
 hash = "887aa074e60a2c44b2aed64b84f48c2842db1a11"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Implement AArch64 kernel continuation switching"
+
+[[entries]]
+date = "2026-11-15T08:27:04.429733090+09:00"
+snapshot = "fab66e08c935a327715e9c63"
+path = "core"
+hash = "318056ead4a6d31bfadd87a80195b17e674105dc"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Enter AArch64 EL0 with sanitized register state"

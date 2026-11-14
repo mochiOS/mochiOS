@@ -16135,3 +16135,75 @@ path = "applications/settings"
 hash = "0e1dfa6b4a79c5b28770bd15c518a8fa09c33813"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "chore: record native Settings dependency resolution"
+
+[[entries]]
+date = "2026-11-14T10:49:08.449130354+09:00"
+snapshot = "02010d8318d8174b67ab6722"
+path = "core"
+hash = "23616f9fd7994135a84485850b1940598e2b99ab"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep syscall diagnostics with the executing thread"
+
+[[entries]]
+date = "2026-11-14T10:51:29.323347900+09:00"
+snapshot = "3009677ee83d8594096025b5"
+path = "core"
+hash = "0df765c730a18e2e674a86501aededff9fd50a05"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Represent resolved IPC destinations with named fields"
+
+[[entries]]
+date = "2026-11-14T10:53:45.591069224+09:00"
+snapshot = "084338a6d73bde228cfd689e"
+path = "core"
+hash = "158e9c1c1ad245664f6d5d860631fbc99c830fc4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Fix MOC-SA-2026-1114-0035"
+
+[[entries]]
+date = "2026-11-14T10:54:52.078685893+09:00"
+snapshot = "873de2928768761bbdaf13c6"
+path = "core"
+hash = "fa43bab86b769e8319602c6413ba42dbb57fc7ee"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove stale configuration and align kernel documentation"
+
+[[entries]]
+date = "2026-11-14T10:57:40.410995689+09:00"
+snapshot = "d627b6e5248ccd609dfcf2f8"
+path = "core"
+hash = "f99c972a2dda63ef054dd84d8a988e86bc9ba0e4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Separate endpoint IPC transport from syscall argument handling"
+
+[[entries]]
+date = "2026-11-14T10:59:31.430095285+09:00"
+snapshot = "b3c95b89b236f4e7cf46ca61"
+path = "core"
+hash = "6276e645b6beedcd08c5aae54753ad1bb7d8a389"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep mapping access and sharing metadata in one authoritative place"
+
+[[entries]]
+date = "2026-11-14T11:01:20.108942780+09:00"
+snapshot = "9c9b84d1213b2c2770f839e9"
+path = "core"
+hash = "9f589f3c79f6e6a8db6ff950cb94ca072fd6972b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Prepare mapping access metadata before changing page permissions"
+
+[[entries]]
+date = "2026-11-14T11:01:51.355399323+09:00"
+snapshot = "059bde71ad9d32136bbe1d46"
+path = "core"
+hash = "a3427224ee9aaaceda1361092c6e7ed792983b8d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Move provider operations below the syscall and VM boundaries"
+
+[[entries]]
+date = "2026-11-14T11:03:06.706527440+09:00"
+snapshot = "2d9d6031b7a1160a1b80dfaa"
+path = "core"
+hash = "c98a2c247705a966867cba7b9f39371cd714842b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve typed native and peer failures through provider and fault handling"

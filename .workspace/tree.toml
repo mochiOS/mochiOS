@@ -16111,3 +16111,11 @@ path = "build"
 hash = "375628c18a582d110e811df99cee7d06bfda4481"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: pin the natively validated WebKit runtime fixes"
+
+[[entries]]
+date = "2026-11-14T10:03:36.450431836+09:00"
+snapshot = "4c34c83d9d8aff6419892ef1"
+path = "services"
+hash = "69d4659f8cc401314513ab5f7db008da4244e06e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore: record native services dependency resolution"

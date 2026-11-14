@@ -1,13 +1,16 @@
-# Development-tree overrides only. Keep user/Cargo.toml relocatable so the
-# standalone SDK build can use its own explicit source overrides.
+# Development-tree overrides only. Repository manifests use Git across
+# repository boundaries; only OS integration selects sibling checkouts here.
+# The exported application SDK carries matching explicit Cargo overrides.
 [patch.crates-io]
 libc = { path = "libraries/libc" }
 mnu-abi = { path = "core/crates/abi" }
 viewkit = { path = "libraries/viewkit" }
+mochios-mdriver-protocol = { path = "boot/crates/mdriver-protocol" }
 
 [patch."https://github.com/mochiOS/mnu"]
 mnu-abi = { path = "core/crates/abi" }
 mnu = { path = "core" }
+plugkit = { path = "core/crates/PlugKit/plugkit" }
 
 [patch."https://github.com/mochiOS/libc"]
 libc = { path = "libraries/libc" }
@@ -36,9 +39,36 @@ mochios-viewkit-gpu-protocol = { path = "user/crates/viewkit-gpu-protocol" }
 mochios-virtio-gpu-protocol = { path = "user/crates/virtio-gpu-protocol" }
 mochios-net-device-protocol = { path = "user/crates/net-device-protocol" }
 mochios-tls-client = { path = "user/crates/tls-client" }
+mochios-certificate-database = { path = "user/crates/certificate-database" }
+mochios-elf-signature = { path = "user/crates/elf-signature" }
+mochios-keychain-protocol = { path = "user/crates/keychain-protocol" }
+mochios-network-stack = { path = "user/crates/network-stack" }
+mochios-package-client = { path = "user/crates/package-client" }
+mochios-package-manifest = { path = "user/crates/package-manifest" }
+mochios-package-protocol = { path = "user/crates/package-protocol" }
+mochios-test-support = { path = "user/crates/test-support" }
+mochios-certificate = { path = "user/crates/certificate" }
+mochios-driver-control-protocol = { path = "user/crates/driver-control-protocol" }
+mochios-http-client = { path = "user/crates/http-client" }
+mochios-tls-stream-ffi = { path = "user/crates/tls-stream-ffi" }
+mochi-user-newlib-runtime = { path = "user/crates/newlib-runtime" }
 
 [patch."https://github.com/mochiOS/fonts"]
 mochios-fonts = { path = "libraries/fonts" }
 
 [patch."https://github.com/mochiOS/BootUI"]
 bootui = { path = "libraries/bootui" }
+
+[patch."https://github.com/mochiOS/boot"]
+mochios-boot-selection = { path = "boot/crates/boot-selection" }
+mochios-mdriver-protocol = { path = "boot/crates/mdriver-protocol" }
+mochios-system-image = { path = "boot/crates/system-image" }
+
+[patch."https://github.com/mochiOS/devkit"]
+mochios-appcore = { path = "tools/devkit/crates/appcore" }
+mochios-device-consent = { path = "tools/devkit/crates/device-consent" }
+mochios-file-publication = { path = "tools/devkit/crates/file-publication" }
+mochios-linker-driver = { path = "tools/devkit/crates/linker-driver" }
+
+[patch."https://github.com/mochiOS/services"]
+ext4plus = { path = "services/third_party/ext4plus" }

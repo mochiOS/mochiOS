@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Bootstrap installs only expected local command links."""
 import importlib.util
+import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('bootstrap', ROOT / 'scripts/dev/bootstrap.py')
@@ -38,6 +40,28 @@ class BootstrapTests(unittest.TestCase):
             (directory / 'mdp').symlink_to('/does-not-exist')
             with self.assertRaises(ValueError):
                 bootstrap.install(ROOT, directory)
+
+    def test_run_wrapper_preserves_configured_backend(self):
+        """mmake's launcher must retain a VM's explicit settings on later runs."""
+        md = ROOT / 'tools/mdev/mdev'
+        name = 'wrapper-check-' + uuid.uuid4().hex[:12]
+        store = ROOT / 'out/develop'
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            image = directory / 'base.img'
+            image.write_bytes(b'base')
+            backend = directory / 'backend'
+            backend.write_text('#!/bin/sh\ntest "$EXAMPLE_SETTING" = preserved\n')
+            backend.chmod(0o755)
+            command = [str(md), '--directory', str(store)]
+            subprocess.run([*command, 'create', name, '--image', str(image), '--runner', str(backend),
+                            '--env', 'EXAMPLE_SETTING=preserved'], check=True, capture_output=True)
+            try:
+                result = subprocess.run(['bash', str(ROOT / 'scripts/dev/run-vm.sh')], cwd=ROOT,
+                                        env=dict(os.environ, MDEV_NAME=name), capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            finally:
+                subprocess.run([*command, 'remove', name, '--yes'], check=True, capture_output=True)
 
 
 if __name__ == '__main__':

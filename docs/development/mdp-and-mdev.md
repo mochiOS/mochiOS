@@ -24,6 +24,10 @@ mmake run                # Existing image build, then mdev default VM
 mmake run-existing       # Start the already-built image through mdev
 mdev list                # Named VM environments, live status, source images
 mdev run default         # Reboot the registered image without building
+mdev start default       # Run in the background
+mdev show default        # Configuration, live state and last exit result
+mdev logs default --follow
+mdev stop default        # Stop through the live supervisor
 mdev remove default --yes
 ```
 
@@ -34,6 +38,12 @@ its runtime directory. The original `out/artifacts/disk.img` is never passed to
 QEMU as a writable disk by this path. `MDEV_NAME` selects another development VM
 name when using `mmake run`.
 
+`mdev configure default --env KEY=VALUE` changes a stopped VM's backend settings.
+`mmake run` preserves those settings. `mdev doctor default` checks local inputs.
+Stopping sends SIGTERM to the emulator's process group, escalating after the
+timeout; it does not request a graceful guest OS shutdown. Shut down inside the
+guest first when retaining guest filesystem state matters.
+
 For persistent installer experiments, register a separate VM:
 
 ```sh
@@ -43,6 +53,8 @@ mdev run installer-test
 
 Persistent disks are retained across runs. A changed source image is an error;
 create another named VM rather than silently resetting existing guest data.
+Alternatively, `mdev reset installer-test --image path/to/new.img --yes` explicitly
+discards its private disk and firmware and selects a new base image.
 The runner keeps its existing Secure Boot, device and capability-related settings.
 The smoke-test runner remains separate and rejects mdev runtime arguments.
 

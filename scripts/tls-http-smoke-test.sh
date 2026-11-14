@@ -19,11 +19,11 @@ CARGO_TARGET_DIR="${ROOT_DIR}/out/tls-http-smoke-host-target" \
 echo "[step] build test-only Web PKI image"
 MOCHIOS_NETWORK_TEST_WEB_PKI=1 \
     "${SCRIPT_DIR}/build.sh" --cached
-cp -a "${ROOT_DIR}/out/artifacts" "${TEST_ARTIFACTS}"
+cp -a "${ROOT_DIR}/out/images/system" "${TEST_ARTIFACTS}"
 
 echo "[step] restore production Web PKI image"
 "${SCRIPT_DIR}/build.sh" --cached
-if grep -aFq ".test.mochios" "${ROOT_DIR}/out/artifacts/network.service"; then
+if grep -aFq ".test.mochios" "${ROOT_DIR}/out/images/system/network.service"; then
     echo "fatal: production network.service contains the test-only PKI resolver" >&2
     exit 1
 fi

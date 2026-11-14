@@ -3,9 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/artifacts}"
-MSIGN="${MSIGN:-${ROOT_DIR}/out/mmake/host-tools/release/msign}"
-TEST_OUTPUT_ROOT="${EXT2_TEST_OUTPUT_ROOT:-${ROOT_DIR}/out/mmake}"
+ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/out/images/system}"
+MSIGN="${MSIGN:-${ROOT_DIR}/out/build/os/host-tools/release/msign}"
+TEST_OUTPUT_ROOT="${EXT2_TEST_OUTPUT_ROOT:-${ROOT_DIR}/out/build/os}"
 SELFTEST_BINARY="${SELFTEST_BINARY:-${TEST_OUTPUT_ROOT}/image/rootfs/bin/selftest-ext2-write}"
 mkdir -p "${TEST_OUTPUT_ROOT}"
 RUN_DIR="$(mktemp -d "${TEST_OUTPUT_ROOT}/ext2-write-test.XXXXXX")"

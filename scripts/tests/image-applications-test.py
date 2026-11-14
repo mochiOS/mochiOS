@@ -59,7 +59,7 @@ class DistributionTests(unittest.TestCase):
         write('resources/system/users/users.db')
         (root / 'resources/libraries').mkdir(parents=True)
         write('libraries/fonts/out/fonts/fixture.ttf')
-        write('out/newlib-port/hello/hello.elf')
+        write('out/cache/newlib/hello/hello.elf')
         write('.config', b'USER_INSTALL_DEVELOPER_TOOLS=n\nUSER_BUILD_SELFTESTS=n\n')
         binaries = {'rust-std-demo', 'msh', 'sudo', 'echo', 'ls', 'pwd', 'true', 'false', 'cat', 'touch', 'rm', 'id',
                     'useradd', 'userdel', 'userlist', 'mpk', 'net', 'gcc', 'os-test', 'test_gui', 'test_desktop'}
@@ -69,7 +69,7 @@ class DistributionTests(unittest.TestCase):
         for row in re.findall(r'^stage_service (.+)$', (ROOT / 'scripts/mmake/stage-rootfs.sh').read_text(), re.M):
             binaries.add(row.split()[1])
         for binary in binaries:
-            write('out/rust-std/target/x86_64-unknown-mochios/release/' + binary)
+            write('out/cache/rust/target/x86_64-unknown-mochios/release/' + binary)
         (output / 'components/ime').mkdir(parents=True); (output / 'components/ime/ja.mime').write_bytes(b'fixture')
         signer = write('mock-msign', b'''#!/usr/bin/env python3
 # Test double only: this creates no valid production signature or trust record.
@@ -128,7 +128,7 @@ else: raise SystemExit('unexpected signer operation')
             sentinel = stage / 'preserve'; sentinel.write_bytes(b'previous-good-image')
             self.stage(root, output, signer, 'typo', success=False)
             self.assertTrue(sentinel.is_file())
-            (root / 'out/rust-std/target/x86_64-unknown-mochios/release/binder').unlink()
+            (root / 'out/cache/rust/target/x86_64-unknown-mochios/release/binder').unlink()
             self.stage(root, output, signer, success=False)
             self.assertEqual(sentinel.read_bytes(), b'previous-good-image')
 

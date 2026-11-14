@@ -10,7 +10,7 @@ import tomllib
 def export(root, sdk, output):
     """Describe the existing SDK; this does not build or install any application."""
     root, sdk = root.resolve(), sdk.resolve()
-    overlay = root / 'out/rust-std/sysroot-overlay'
+    overlay = root / 'out/cache/rust/sysroot-overlay'
     required = [sdk / 'sysroot/lib/libc.a', sdk / 'lib/crt0.o', sdk / 'share/x86_64-unknown-mochios.json', overlay / 'bin/rustc']
     for path in required:
         if not path.is_file():
@@ -32,7 +32,7 @@ def export(root, sdk, output):
     version = tomllib.loads((root / 'version.toml').read_text())
     result = dict(format=1, sdk=str(sdk), cargo=str(overlay / 'bin/cargo'), rustc=str(overlay / 'bin/rustc'),
                   rustdoc=str(overlay / 'bin/rustdoc'), target=str(sdk / 'share/x86_64-unknown-mochios.json'),
-                  target_dir=str(root / 'out/rust-std/target'), rustflags=flags, cargo_config=patches,
+                  target_dir=str(root / 'out/cache/rust/target'), rustflags=flags, cargo_config=patches,
                   appcore=str(root / 'tools/devkit/crates/appcore'),
                   fonts={name: str(root / 'libraries/fonts/out/fonts' / file) for name, file in
                          [('VIEWKIT_UI_FONT_PATH', 'InterVariable.ttf'), ('VIEWKIT_MONOSPACE_FONT_PATH', 'UDEVGothic-Regular.ttf'), ('VIEWKIT_JAPANESE_FONT_PATH', 'IBMPlexSansJP-Regular.ttf')]},

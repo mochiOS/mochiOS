@@ -4,7 +4,7 @@ set -euo pipefail
 root=$1
 source_image=$2
 source_efi=$3
-test_dir=$(mktemp -d "$root/out/mmake/secure-boot.XXXXXX")
+test_dir=$(mktemp -d "$root/out/build/os/secure-boot.XXXXXX")
 trap 'rm -rf -- "$test_dir"' EXIT
 # Derive this negative-test fixture from the imported boot artifact. Never
 # depend on a producer's private Cargo directory or modify its signed binary.

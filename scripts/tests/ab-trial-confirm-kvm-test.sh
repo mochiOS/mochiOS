@@ -4,7 +4,7 @@ set -euo pipefail
 root=$1
 trial_image=$2
 confirm_tool=$3
-test_dir=$(mktemp -d "$root/out/mmake/ab-trial-confirm.XXXXXX")
+test_dir=$(mktemp -d "$root/out/build/os/ab-trial-confirm.XXXXXX")
 finish() {
     result=$?
     if [[ $result -eq 0 ]]; then rm -rf -- "$test_dir";

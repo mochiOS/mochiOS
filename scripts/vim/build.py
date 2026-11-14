@@ -198,13 +198,13 @@ def build(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sdk", type=Path, default=ROOT / "out/newlib-port/sdk")
+    parser.add_argument("--sdk", type=Path, default=ROOT / "out/cache/newlib/sdk")
     parser.add_argument("--runtime", type=Path, required=True, help="matching native runtime archive; never regenerated here")
-    parser.add_argument("--output", type=Path, default=ROOT / "out/vim-port/release")
-    parser.add_argument("--downloads", type=Path, default=ROOT / "out/vim-port/downloads")
+    parser.add_argument("--output", type=Path, default=ROOT / "out/cache/vim/release")
+    parser.add_argument("--downloads", type=Path, default=ROOT / "out/cache/vim/downloads")
     parser.add_argument("--cc", default="x86_64-elf-gcc")
     parser.add_argument("--lld", default=os.environ.get("MOCHIOS_VIM_LLD"), help="ld.lld, or the installed Rust toolchain's LLD")
-    parser.add_argument("--msign", default=str(ROOT / "out/mmake/host-tools/release/msign"))
+    parser.add_argument("--msign", default=str(ROOT / "out/build/os/host-tools/release/msign"))
     parser.add_argument("--jobs", type=int, default=2)
     args = parser.parse_args()
     if args.jobs < 1:

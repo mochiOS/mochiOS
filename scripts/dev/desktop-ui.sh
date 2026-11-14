@@ -26,7 +26,7 @@ export MOCHIOS_PREVIEW_FONTS_SYSTEM="${MOCHIOS_PREVIEW_FONTS_SYSTEM:-$preview_fo
 export MOCHIOS_PREVIEW_MAIL_DEMO="${MOCHIOS_PREVIEW_MAIL_DEMO:-1}"
 
 # Application processes and documents belong to this disposable session.
-session_dir=$(mktemp -d "$root/out/preview/session.XXXXXXXX")
+session_dir=$(mktemp -d "$root/out/build/preview/session.XXXXXXXX")
 desktop_pid=
 ime_pid=
 keychain_pid=
@@ -52,7 +52,7 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-ime_dictionary=${MOCHIOS_PREVIEW_IME_DICTIONARY:-$root/out/mmake/components/ime/ja.mime}
+ime_dictionary=${MOCHIOS_PREVIEW_IME_DICTIONARY:-$root/out/build/os/components/ime/ja.mime}
 [[ -r $ime_dictionary ]] || {
     echo "mochiOS IME dictionary is missing; run mmake ime-dictionary first." >&2
     exit 1
@@ -60,7 +60,7 @@ ime_dictionary=${MOCHIOS_PREVIEW_IME_DICTIONARY:-$root/out/mmake/components/ime/
 # Keep Unix socket names short even when the repository path is long.
 ime_socket_dir=$(mktemp -d /tmp/mochios-ime.XXXXXXXX)
 export MOCHIOS_PREVIEW_IME_SOCKET="$ime_socket_dir/input.sock"
-"$root/out/preview/target/debug/mochios-preview-ime" "$ime_dictionary" "$MOCHIOS_PREVIEW_IME_SOCKET" &
+"$root/out/build/preview/target/debug/mochios-preview-ime" "$ime_dictionary" "$MOCHIOS_PREVIEW_IME_SOCKET" &
 ime_pid=$!
 for ((attempt=0; attempt<100; attempt++)); do
     [[ ! -S $MOCHIOS_PREVIEW_IME_SOCKET ]] || break
@@ -76,7 +76,7 @@ if [[ $mode == tablet ]]; then
     export VIEWKIT_PREVIEW_CAPTURE=0
     # Keep home placement across launches without retaining preview processes,
     # application documents or credentials from this disposable session.
-    export BINDER_HOME_LAYOUT="${BINDER_HOME_LAYOUT:-$root/out/preview/config/binder/tablet-home.json}"
+    export BINDER_HOME_LAYOUT="${BINDER_HOME_LAYOUT:-$root/out/build/preview/config/binder/tablet-home.json}"
 fi
 export MOCHIOS_PREVIEW_ROOT="$session_dir/home"
 export MOCHIOS_PREVIEW_CONFIG_ROOT="$session_dir/config"
@@ -97,7 +97,7 @@ while IFS=$'\t' read -r source_name preview_binary; do
     cp "$source_dir/manifest.toml" "$bundle/manifest.toml"
     # Hardlinks keep debug binaries cheap while confining catalogue entries to
     # the session. This directory lives on the build output's filesystem.
-    ln "$root/out/preview/target/debug/$preview_binary" "$bundle/entry.elf"
+    ln "$root/out/build/preview/target/debug/$preview_binary" "$bundle/entry.elf"
     python3 "$script_dir/stage-application-resources.py" "$source_dir" "$bundle"
     if [[ -d "$source_dir/legal" && ! -e "$bundle/legal" ]]; then ln -s "$source_dir/legal" "$bundle/legal"; fi
 done <<< "$app_catalog"
@@ -121,6 +121,6 @@ if [[ $mode == tablet ]]; then
 else
     echo "Mouse captured while focused. Ctrl+Alt+G releases it; click inside to capture again."
 fi
-setsid "$root/out/preview/target/debug/binder" &
+setsid "$root/out/build/preview/target/debug/binder" &
 desktop_pid=$!
 wait "$desktop_pid"

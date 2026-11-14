@@ -4,7 +4,7 @@ set -euo pipefail
 root=$1
 source_image=$2
 sign_tool=$3
-test_dir=$(mktemp -d "$root/out/mmake/system-data.XXXXXX")
+test_dir=$(mktemp -d "$root/out/build/os/system-data.XXXXXX")
 trap 'rm -rf -- "$test_dir"' EXIT
 image=$test_dir/disk.img
 cp --reflink=auto --sparse=always "$source_image" "$image"
@@ -16,13 +16,13 @@ data_start=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Dat
 data_size=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Data") | .size' <<< "$table")
 system_image=$test_dir/system-a.img
 dd if="$image" of="$system_image" bs=512 skip="$system_start" count="$system_size" status=none
-selftest=$root/out/mmake/image/rootfs/system/bin/selftest-system-layout
+selftest=$root/out/build/os/image/rootfs/system/bin/selftest-system-layout
 debugfs -w -R 'rm /system/services/secure-ui.service' "$system_image" >/dev/null 2>&1
 debugfs -w -R "write $selftest /system/services/secure-ui.service" "$system_image" >/dev/null 2>&1
 debugfs -w -R 'set_inode_field /system/services/secure-ui.service mode 0100755' "$system_image" >/dev/null 2>&1
 manifest=$test_dir/system.manifest
-"$sign_tool" "$system_image" "$root/out/mmake/components/kernel.elf" \
-    "$root/out/mmake/components/kernel.meta" "$root/out/mmake/image/initfs.img" \
+"$sign_tool" "$system_image" "$root/out/build/os/components/kernel.elf" \
+    "$root/out/build/os/components/kernel.meta" "$root/out/build/os/image/initfs.img" \
     "$manifest" "$root/tools/devkit/fixtures/development/root.key" \
     "${MOCHIOS_VERSION:-26.0.0}" "${MOCHIOS_BUILD_NUMBER:-1}" x86_64 \
     'k0Ja3inoDQGAO74BWDx4pIZsCSDB/hdIt7iaspNKL/Q='

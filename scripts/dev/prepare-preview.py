@@ -8,7 +8,7 @@ import sys
 import tomllib
 
 root = pathlib.Path(sys.argv[1]).resolve()
-preview = root / "out/preview"
+preview = root / "out/build/preview"
 from preview_catalog import applications as discover_applications
 applications = tuple(name for name, _ in discover_applications(root))
 

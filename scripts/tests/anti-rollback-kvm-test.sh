@@ -4,7 +4,7 @@ set -euo pipefail
 root=$1
 source_image=$2
 sign_tool=$3
-test_dir=$(mktemp -d "$root/out/mmake/anti-rollback.XXXXXX")
+test_dir=$(mktemp -d "$root/out/build/os/anti-rollback.XXXXXX")
 trap 'rm -rf -- "$test_dir"' EXIT
 low=$test_dir/build-1.img
 high=$test_dir/build-2.img
@@ -19,8 +19,8 @@ data_size=$(jq -er '.partitiontable.partitions[] | select(.name == "mochiOS Data
 system=$test_dir/system.img
 manifest=$test_dir/system.manifest
 dd if="$high" of="$system" bs=512 skip="$system_start" count="$system_size" status=none
-"$sign_tool" "$system" "$root/out/mmake/components/kernel.elf" \
-    "$root/out/mmake/components/kernel.meta" "$root/out/mmake/image/initfs.img" \
+"$sign_tool" "$system" "$root/out/build/os/components/kernel.elf" \
+    "$root/out/build/os/components/kernel.meta" "$root/out/build/os/image/initfs.img" \
     "$manifest" "$root/tools/devkit/fixtures/development/root.key" \
     "${MOCHIOS_VERSION:-26.0.0}" 2 x86_64 \
     'k0Ja3inoDQGAO74BWDx4pIZsCSDB/hdIt7iaspNKL/Q='

@@ -13,8 +13,8 @@ def stage(output, msign):
     output = output.resolve()
     if output.exists() or not output.is_relative_to((ROOT / 'out').resolve()):
         raise ValueError('Use a fresh overlay directory below workspace out/')
-    native = ROOT / 'out/rust-std/target/x86_64-unknown-mochios/release'
-    drivers = ROOT / 'out/services-build/target/x86_64-unknown-mochios/release'
+    native = ROOT / 'out/cache/rust/target/x86_64-unknown-mochios/release'
+    drivers = ROOT / 'out/cache/services/target/x86_64-unknown-mochios/release'
     output.mkdir(parents=True)
     # Mirror the ordinary image's writable configuration locations. Capability
     # checks still constrain which categories each service/application can use.
@@ -90,7 +90,7 @@ def stage(output, msign):
             install(drivers / binary, output / 'system/bin/drivers' / destination, 0o755)
             bind(ROOT / 'drivers' / source / 'manifest.toml', 'drivers/' + package)
     install(ROOT / 'binaries/msh/resources/ter-u12b.bdf', output / 'system/resources/msh/ter-u12b.bdf')
-    install(ROOT / 'out/mmake/components/ime/ja.mime', output / 'system/libraries/ime/ja.mime')
+    install(ROOT / 'out/build/os/components/ime/ja.mime', output / 'system/libraries/ime/ja.mime')
     install(ROOT / 'build/ime/ja.mime.sha256', output / 'system/libraries/ime/ja.mime.sha256')
     print('Ordinary desktop overlay:', output)
 

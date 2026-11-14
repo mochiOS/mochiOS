@@ -5,7 +5,7 @@ set -euo pipefail
 root=$1
 mmake_out=$2
 toolchain=$(tr -d '[:space:]' < "$root/build/rust-std-toolchain")
-overlay=$root/out/rust-std/sysroot-overlay
+overlay=$root/out/cache/rust/sysroot-overlay
 temporary=$overlay.new
 base=$(rustc "+$toolchain" --print sysroot)
 

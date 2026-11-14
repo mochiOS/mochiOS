@@ -10,8 +10,8 @@ app_plan=$(python3 "$root/scripts/mmake/image-applications.py" --root "$root" --
 image_out=$mmake_out
 [[ $variant != installer ]] || image_out=$mmake_out/installer
 stage=$image_out/image/rootfs
-bin=$root/out/rust-std/target/x86_64-unknown-mochios/release
-driver_bin=$root/out/services-build/target/x86_64-unknown-mochios/release
+bin=$root/out/cache/rust/target/x86_64-unknown-mochios/release
+driver_bin=$root/out/cache/services/target/x86_64-unknown-mochios/release
 config=$root/.config
 
 rm -rf "$stage.new"
@@ -74,7 +74,7 @@ install -m 0644 "$root/binaries/msh/resources/ter-u12b.bdf" "$stage_new/system/r
 install -m 0644 "$mmake_out/components/ime/ja.mime" "$stage_new/system/libraries/ime/ja.mime"
 install -m 0644 "$root/build/ime/ja.mime.sha256" "$stage_new/system/libraries/ime/ja.mime.sha256"
 
-install -m 0755 "$root/out/newlib-port/hello/hello.elf" "$stage_new/system/bin/hello"
+install -m 0755 "$root/out/cache/newlib/hello/hello.elf" "$stage_new/system/bin/hello"
 for program in rust-std-demo msh; do install -m 0755 "$bin/$program" "$stage_new/system/bin/$program"; done
 coreutils=(sudo echo ls pwd true false cat touch rm id useradd userdel userlist mpk net gcc os-test test_gui test_desktop)
 grep -qx 'KERNEL_PERFORMANCE_INSTRUMENTATION=y' "$config" && coreutils+=(mperf) || true
@@ -83,12 +83,12 @@ for program in "${coreutils[@]}"; do install -m 0755 "$bin/$program" "$stage_new
 
 if grep -qx 'USER_INSTALL_DEVELOPER_TOOLS=y' "$config"; then
     python3 "$root/scripts/mmake/stage-development-tools.py" "$stage_new" \
-        --sdk "$root/out/newlib-port/sdk" \
-        --llvm "$root/out/llvm-port/build-target" \
+        --sdk "$root/out/cache/newlib/sdk" \
+        --llvm "$root/out/cache/llvm/build-target" \
         --rust-tools "$bin"
-    vim_stage=$root/out/vim-port/release/stage/system
-    test -s "$root/out/vim-port/release/.ready"
-    printf '%s  %s\n' "$(cat "$root/out/vim-port/release/.ready")" "$vim_stage/bin/vim" | sha256sum -c -
+    vim_stage=$root/out/cache/vim/release/stage/system
+    test -s "$root/out/cache/vim/release/.ready"
+    printf '%s  %s\n' "$(cat "$root/out/cache/vim/release/.ready")" "$vim_stage/bin/vim" | sha256sum -c -
     install -m 0755 "$vim_stage/bin/vim" "$stage_new/system/bin/vim"
     mkdir -p "$stage_new/system/share/licenses"
     cp -a "$vim_stage/share/vim" "$vim_stage/share/terminfo" "$stage_new/system/share/"

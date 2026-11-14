@@ -18,7 +18,7 @@ def main(root, arguments=None):
     parser.add_argument("mode", choices=("host", "kvm"))
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--build", action="store_true", help="build the image and record build failure before KVM tests")
-    parser.add_argument("--image", type=Path, default=root / "out/artifacts/disk.img")
+    parser.add_argument("--image", type=Path, default=root / "out/images/system/disk.img")
     parser.add_argument("--timeout", type=int, default=480)
     args = parser.parse_args(arguments)
     plan_path = root / "tests/catalog.toml"
@@ -30,13 +30,13 @@ def main(root, arguments=None):
             print(case["id"])
         return 0
     run_id = secrets.token_hex(16)
-    parent = root / "out/tests" / args.mode
+    parent = root / "out/reports/tests" / args.mode
     directory = parent / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + run_id[:8])
     directory.mkdir(parents=True, mode=0o700)
-    temporary = root / "out/tests/tmp"
+    temporary = root / "out/tmp/tests"
     temporary.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ, TMPDIR=str(temporary),
-                       CARGO_TARGET_DIR=str(root / "out/tests/target/host"),
+                       CARGO_TARGET_DIR=str(root / "out/cache/host-tests/target"),
                        CARGO_PROFILE_TEST_DEBUG="0", CARGO_INCREMENTAL="0")
     # Host tests must not inherit an OS target selected by a developer's shell.
     environment.pop("CARGO_BUILD_TARGET", None)

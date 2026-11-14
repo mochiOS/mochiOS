@@ -49,8 +49,8 @@ def environment_state(root):
         except (OSError, subprocess.SubprocessError) as error:
             tools[name] = {"unavailable": str(error)}
     files = {}
-    for name in (".config", "out/newlib-port/sdk/lib/crt0.o", "out/newlib-port/sdk/lib/linker.ld",
-                 "out/newlib-port/sdk/lib/libmochi_user_newlib_runtime.a", "out/newlib-port/sdk/sysroot/lib/libc.a"):
+    for name in (".config", "out/cache/newlib/sdk/lib/crt0.o", "out/cache/newlib/sdk/lib/linker.ld",
+                 "out/cache/newlib/sdk/lib/libmochi_user_newlib_runtime.a", "out/cache/newlib/sdk/sysroot/lib/libc.a"):
         path = root / name
         if path.is_file():
             files[name] = digest(path)

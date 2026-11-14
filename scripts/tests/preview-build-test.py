@@ -21,7 +21,7 @@ class PreviewBuildTests(unittest.TestCase):
                 shutil.copy2(ROOT / "scripts/dev" / name, scripts / name)
             (scripts / "prepare-preview.py").write_text(
                 "import pathlib,sys\n"
-                "p=pathlib.Path(sys.argv[1])/'out/preview';p.mkdir(parents=True,exist_ok=True)\n"
+                "p=pathlib.Path(sys.argv[1])/'out/build/preview';p.mkdir(parents=True,exist_ok=True)\n"
                 "(p/'Cargo.toml').write_text('[workspace]\\n')\n"
             )
             (root / "applications").mkdir()
@@ -86,8 +86,8 @@ class PreviewBuildTests(unittest.TestCase):
                 (path / "Cargo.toml").write_text('[package]\nname="test"\nversion="0.1.0"\n')
             command = ["python3", str(ROOT / "scripts/dev/prepare-preview.py"), str(root)]
             subprocess.run(command, check=True)
-            target = root / "out/preview/applications/binder/crates/binder_protocol/src/lib.rs"
-            self.assertEqual((root / "out/preview/applications/appstore/initial-apps.json").read_text(), (store / "initial-apps.json").read_text())
+            target = root / "out/build/preview/applications/binder/crates/binder_protocol/src/lib.rs"
+            self.assertEqual((root / "out/build/preview/applications/appstore/initial-apps.json").read_text(), (store / "initial-apps.json").read_text())
             before = target.stat().st_mtime_ns
             os.utime(source, ns=(source.stat().st_atime_ns, source.stat().st_mtime_ns + 10_000_000_000))
             subprocess.run(command, check=True)

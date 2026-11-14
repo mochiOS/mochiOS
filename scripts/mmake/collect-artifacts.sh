@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 [[ $# -eq 2 ]] || exit 2
-root=$1; mmake_out=$2; artifacts=$root/out/artifacts
+root=$1; mmake_out=$2; artifacts=$root/out/images/system
 link_or_clone() {
     local source=$1 destination=$2
     rm -f "$destination"

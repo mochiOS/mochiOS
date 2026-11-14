@@ -3,7 +3,7 @@ set -euo pipefail
 [[ $# -eq 2 ]] || { echo "usage: $0 <root> <stable-b-image>" >&2; exit 2; }
 root=$1
 image=$2
-test_dir=$(mktemp -d "$root/out/mmake/ab-boot-slot.XXXXXX")
+test_dir=$(mktemp -d "$root/out/build/os/ab-boot-slot.XXXXXX")
 finish() {
     result=$?
     if [[ $result -eq 0 ]]; then rm -rf -- "$test_dir";

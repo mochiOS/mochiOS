@@ -3,7 +3,7 @@ set -euo pipefail
 [[ $# -eq 2 ]] || { echo "usage: $0 <root> <trial-image>" >&2; exit 2; }
 root=$1
 current_image=$2
-test_dir=$(mktemp -d "$root/out/mmake/ab-trial-rollback.XXXXXX")
+test_dir=$(mktemp -d "$root/out/build/os/ab-trial-rollback.XXXXXX")
 finish() {
     result=$?
     if [[ $result -eq 0 ]]; then

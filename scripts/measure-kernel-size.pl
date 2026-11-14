@@ -12,7 +12,7 @@ use JSON::PP;
 use POSIX qw(strftime);
 
 my $workspace = abs_path("$FindBin::Bin/..");
-my $kernel = "$workspace/out/artifacts/kernel.elf";
+my $kernel = "$workspace/out/images/system/kernel.elf";
 my $output;
 my $profile = 'release';
 my @features = ('kernel-bin');

@@ -2,7 +2,7 @@
 MMAKE ?= $(error mochiOS requires mmake)
 MMAKE_REQUIRED := $(MMAKE)
 OUT := $(ROOT)/out
-MMAKE_OUT := $(OUT)/mmake
+MMAKE_OUT := $(OUT)/build/os
 SCRIPTS := $(ROOT)/scripts
 HOST_TOOLS_DIR := $(MMAKE_OUT)/host-tools
 MSIGN := $(HOST_TOOLS_DIR)/release/msign

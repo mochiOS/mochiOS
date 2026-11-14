@@ -32,7 +32,7 @@ class DevelopmentToolsTest(unittest.TestCase):
         for name in ['llvm', 'clang', 'lld', 'runtimes']:
             (source / name).mkdir(parents=True)
         devtools.write_json(source / '.mochios-source.json', {'sha256': devtools.SHA256})
-        for directory in ['out/newlib-port/sdk/lib', 'out/newlib-port/sdk/sysroot/include',
+        for directory in ['out/cache/newlib/sdk/lib', 'out/cache/newlib/sdk/sysroot/include',
                           'user/libc-port/include', 'user/crates', 'user/targets', 'core/crates/abi',
                           'services/mboot-protocol', 'libraries/libc/src',
                           'tools/devkit/crates/msign', 'tools/devkit/crates/linker-driver',
@@ -46,8 +46,8 @@ class DevelopmentToolsTest(unittest.TestCase):
         for name in ['user/runtime/crt0.S', 'user/runtime/linker.ld', 'tools/devkit/Cargo.toml', 'tools/devkit/Cargo.lock',
                      'user/Cargo.toml', 'user/Cargo.lock', 'core/Cargo.toml', 'services/Cargo.toml',
                      'libraries/libc/Cargo.toml', 'libraries/libc/build.rs', 'build/rust-std-toolchain',
-                     'out/mmake/fingerprints/rust.sha256', 'out/rust-std/sysroot-overlay/.ready',
-                     'out/rust-std/sysroot-overlay/bin/rustc', 'out/rust-std/sysroot-overlay/bin/cargo']:
+                     'out/build/os/fingerprints/rust.sha256', 'out/cache/rust/sysroot-overlay/.ready',
+                     'out/cache/rust/sysroot-overlay/bin/rustc', 'out/cache/rust/sysroot-overlay/bin/cargo']:
             self.write(root / name)
         compiler = root / 'fake-host-tool'
         self.write(compiler)
@@ -70,7 +70,7 @@ class DevelopmentToolsTest(unittest.TestCase):
                     self.write(directory / name)
             elif command[0] == 'fake-cargo':
                 for name in ['ld', 'msign']:
-                    self.write(root / 'out/rust-std/target/x86_64-unknown-mochios/release' / name)
+                    self.write(root / 'out/cache/rust/target/x86_64-unknown-mochios/release' / name)
         builder.run = run
         return builder, compiler, calls
 
@@ -96,7 +96,7 @@ class DevelopmentToolsTest(unittest.TestCase):
                 builder.build()
                 self.assertEqual(len(calls), 2, 'repair LLVM without rebuilding TableGen or Rust tools')
                 calls.clear()
-                self.write(root / 'out/newlib-port/sdk/lib/input', 'new SDK runtime')
+                self.write(root / 'out/cache/newlib/sdk/lib/input', 'new SDK runtime')
                 builder.build()
                 self.assertEqual(len(calls), 4, 'SDK update rebuilds runtime, LLVM and Rust tools only')
                 self.assertFalse(any('build-host-tools' in value for c in calls for value in c))
@@ -108,7 +108,7 @@ class DevelopmentToolsTest(unittest.TestCase):
             with patch.object(devtools, 'Builder', side_effect=AssertionError('must not build')), patch.object(
                     sys, 'argv', ['build-development-tools.py', '--root', str(root)]):
                 devtools.main()
-                receipt = root / 'out/mmake/components/development-tools.json'
+                receipt = root / 'out/build/os/components/development-tools.json'
                 before = receipt.stat().st_mtime_ns
                 devtools.main()
                 self.assertEqual(before, receipt.stat().st_mtime_ns)
@@ -168,7 +168,8 @@ class DevelopmentToolsTest(unittest.TestCase):
             self.assertEqual((source / 'do-not-delete').read_text(), 'user source')
 
     def test_config_schema_validation_and_image_dependency(self):
-        self.assertIn('development-tools config', (ROOT / 'build/mmake/image.mk').read_text())
+        self.assertIn('rootfs-stage: config', (ROOT / 'build/mmake/image.mk').read_text())
+        self.assertNotIn('rootfs-stage: development-tools', (ROOT / 'build/mmake/image.mk').read_text())
         for enabled in ('y', 'n'):
             with tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
@@ -188,8 +189,8 @@ class DevelopmentToolsTest(unittest.TestCase):
             self.write(root / '.config', 'USER_INSTALL_DEVELOPER_TOOLS=n\n')
             gate = shlex.join([sys.executable, str(ROOT / 'scripts/mmake/build-development-tools.py'), '--root', str(root)])
             self.write(root / 'Makefile', 'development-tools:\n\t@always\n\t@watch .config\n'
-                       '\t@output out/mmake/components/development-tools.json\n\t' + gate + '\n'
-                       'rootfs-stage: development-tools\n\t@watch out/mmake/components/development-tools.json\n'
+                       '\t@output out/build/os/components/development-tools.json\n\t' + gate + '\n'
+                       'rootfs-stage: development-tools\n\t@watch out/build/os/components/development-tools.json\n'
                        '\t@output rootfs.ready\n\ttouch rootfs.ready\n')
             command = ['mmake', 'rootfs-stage']
             subprocess.run(command, cwd=root, check=True, capture_output=True)

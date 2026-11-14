@@ -4,7 +4,7 @@ set -euo pipefail
 root=$1
 source_image=$2
 target=${3:-system}
-test_dir=$(mktemp -d "$root/out/mmake/system-signature.XXXXXX")
+test_dir=$(mktemp -d "$root/out/build/os/system-signature.XXXXXX")
 trap 'rm -rf -- "$test_dir"' EXIT
 image=$test_dir/disk.img
 cp --reflink=auto --sparse=always "$source_image" "$image"

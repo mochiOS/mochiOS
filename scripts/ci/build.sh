@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 VERSION_FILE="${ROOT_DIR}/version.toml"
-ARTIFACT_DIR="${ROOT_DIR}/out/artifacts"
+ARTIFACT_DIR="${ROOT_DIR}/out/images/system"
 
 die() {
     echo "fatal: $*" >&2

@@ -58,7 +58,7 @@ cmp -s "$esp_image" <(dd if="$image" bs=1M skip="$esp_start" count="$esp_mb" sta
 initfs_image=$(dirname "$image")/initfs.img
 mmake_out=$(dirname "$(dirname "$image")")
 for bundle in disk; do
-    manifest="$mmake_out/cexts/$bundle.cext/manifest.toml"
+    manifest="$mmake_out/cache/cexts/$bundle.cext/manifest.toml"
     expected_abi=$(sed -n 's/^abi = \([0-9][0-9]*\)$/\1/p' "$manifest")
     [[ $expected_abi =~ ^[1-9][0-9]*$ ]] || { echo "invalid $bundle CEXT ABI" >&2; exit 1; }
     debugfs -R "dump /$bundle.cext/entry $temp_dir/$bundle.entry" "$initfs_image" >/dev/null 2>&1

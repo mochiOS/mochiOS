@@ -10,8 +10,8 @@ fi
 
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 source_tree=$(realpath -- "$1")
-sdk=$(realpath -- "${MOCHIOS_SDK:-$root/out/newlib-port/sdk}")
-build_directory=${2:-$root/out/llvm-port/build-runtimes}
+sdk=$(realpath -- "${MOCHIOS_SDK:-$root/out/cache/newlib/sdk}")
+build_directory=${2:-$root/out/cache/llvm/build-runtimes}
 cc=${CC:-clang}
 cxx=${CXX:-clang++}
 jobs=${JOBS:-4}

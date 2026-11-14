@@ -18,9 +18,13 @@ bash "$scripts/make-ext2-image.sh" "$work/image/initfs" "$work/image/initfs.img"
 bash "$scripts/make-esp-image.sh" "$root" "$work"
 bash "$scripts/make-disk-image.sh" "$root" "$work"
 # Keep normal OS artifacts and their incremental image state untouched.
-artifacts=$root/out/installer-artifacts
+artifacts=$root/out/images/installer
 mkdir -p "$artifacts"
 rm -f "$artifacts/disk.img.new"
 ln "$work/image/disk.img" "$artifacts/disk.img.new" 2>/dev/null \
     || cp --reflink=auto --sparse=always "$work/image/disk.img" "$artifacts/disk.img.new"
-mv -f "$artifacts/disk.img.new" "$artifacts/disk.img"
+if [[ "$artifacts/disk.img.new" -ef "$artifacts/disk.img" ]]; then
+    rm -f "$artifacts/disk.img.new"
+else
+    mv -f "$artifacts/disk.img.new" "$artifacts/disk.img"
+fi

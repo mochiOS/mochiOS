@@ -44,7 +44,7 @@ class MigrationTests(unittest.TestCase):
 
     def test_producer_shell_commands_expand_without_calling_root_build(self):
         _,data,projects=read(ROOT/'mdp.workspace.toml')
-        bindings=json.loads((ROOT/'out/mdp/context.json').read_text())
+        bindings=json.loads((ROOT/'out/cache/mdp/context.json').read_text())
         for project in projects.values():
             for recipe_path in project['source'].glob('mdp*.recipe.json'):
                 recipe=json.loads(recipe_path.read_text())

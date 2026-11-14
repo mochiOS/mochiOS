@@ -23,8 +23,8 @@ if [[ $app == check ]]; then
 fi
 if [[ $app == test ]]; then
     python3 "$script_dir/prepare-preview.py" "$root"
-    env CARGO_TARGET_DIR="$root/out/preview/target" CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-1}" \
-        cargo test --offline --manifest-path "$root/out/preview/Cargo.toml" \
+    env CARGO_TARGET_DIR="$root/out/build/preview/target" CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-1}" \
+        cargo test --offline --manifest-path "$root/out/build/preview/Cargo.toml" \
         "${cargo_patches[@]}" -p viewkit --lib
     app_catalog=$(python3 "$script_dir/preview_catalog.py" "$root" --directories)
     while IFS= read -r name; do
@@ -76,11 +76,11 @@ esac
 # Source manifests/lockfiles remain untouched; host dependencies share one
 # isolated workspace and a single build cache.
 python3 "$script_dir/prepare-preview.py" "$root"
-preview_dir="$root/out/preview/applications/${source_dir##*/}"
-[[ $app != ime ]] || preview_dir="$root/out/preview/tools/desktop-ime"
-[[ $app != keychain-service ]] || preview_dir="$root/out/preview/tools/keychain-service"
+preview_dir="$root/out/build/preview/applications/${source_dir##*/}"
+[[ $app != ime ]] || preview_dir="$root/out/build/preview/tools/desktop-ime"
+[[ $app != keychain-service ]] || preview_dir="$root/out/build/preview/tools/keychain-service"
 manifest="$preview_dir/Cargo.toml"
-[[ $app != workspace ]] || manifest="$root/out/preview/Cargo.toml"
+[[ $app != workspace ]] || manifest="$root/out/build/preview/Cargo.toml"
 
 command -v cargo >/dev/null || { echo "cargo is required" >&2; exit 1; }
 case "$mode" in
@@ -101,16 +101,16 @@ if [[ $mode == run ]]; then
     [[ -d $preview_font_root ]] || preview_font_root="$root/libraries/viewkit/resources/fonts"
     export MOCHIOS_PREVIEW_FONTS_SYSTEM="${MOCHIOS_PREVIEW_FONTS_SYSTEM:-$preview_font_root}"
     export MOCHIOS_PREVIEW_MAIL_DEMO="${MOCHIOS_PREVIEW_MAIL_DEMO:-1}"
-    preview_root="$root/out/preview/home"
+    preview_root="$root/out/build/preview/home"
     mkdir -p "$preview_root"/{Desktop,Documents,Downloads,Movies,Music,Pictures}
     export MOCHIOS_PREVIEW_ROOT="$preview_root"
-    export MOCHIOS_PREVIEW_CONFIG_ROOT="${MOCHIOS_PREVIEW_CONFIG_ROOT:-$root/out/preview/config}"
+    export MOCHIOS_PREVIEW_CONFIG_ROOT="${MOCHIOS_PREVIEW_CONFIG_ROOT:-$root/out/build/preview/config}"
     mkdir -p "$MOCHIOS_PREVIEW_CONFIG_ROOT"
 fi
 preview_binary=${declared_binary:-$app}
 [[ $app != test-app ]] || preview_binary=test_app
 [[ $app != ime ]] || preview_binary=mochios-preview-ime
-export CARGO_TARGET_DIR="$root/out/preview/target"
+export CARGO_TARGET_DIR="$root/out/build/preview/target"
 # Keep debug symbols small, but retain incremental compilation for UI iteration.
 # Callers can override either setting for debugging or clean-build measurements.
 export CARGO_PROFILE_DEV_DEBUG="${CARGO_PROFILE_DEV_DEBUG:-0}"

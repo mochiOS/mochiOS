@@ -26,7 +26,7 @@ data_size=$(jq -r '.partitiontable.partitions[] | select(.name == "mochiOS Data"
 [[ $data_start =~ ^[1-9][0-9]*$ && $data_size =~ ^[1-9][0-9]*$ ]] || {
     echo "could not determine data partition boundaries" >&2; exit 1;
 }
-artifact_dir=$(mktemp -d "$root/out/mmake/ab-layout-artifacts.XXXXXX")
+artifact_dir=$(mktemp -d "$root/out/build/os/ab-layout-artifacts.XXXXXX")
 trap 'rm -rf -- "$artifact_dir"' EXIT
 ln -s "$image" "$artifact_dir/disk.img"
 run_log="$artifact_dir/smoke-output.log"

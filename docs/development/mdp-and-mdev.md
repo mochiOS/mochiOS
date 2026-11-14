@@ -1,5 +1,44 @@
 # MDP artifacts and development VMs
 
+## Output directories
+
+Workspace outputs are grouped by purpose:
+
+```text
+out/
+  images/system/       Finished normal OS images and symbols
+  images/installer/    Finished installation image
+  images/hardware/     Optional hardware media
+  images/releases/     Locally collected release files (never auto-published)
+  build/os/            OS image assembly and intermediate files
+  build/preview/       Linux preview workspace and session state
+  build/host/          Host configuration tools
+  cache/               Reusable compiler, port and MDP extraction caches
+  sdk/                 Imported SDKs and immutable SDK contexts
+  develop/             Named mdev VMs, private disks and execution logs
+  reports/             Tests, diagnostics and migration records
+  tmp/                 Disposable temporary files
+```
+
+Each producer repository keeps its own `out/`; the workspace does not relocate
+those directories. MDP packages remain at the producer paths recorded in the
+assembly lock. `out/arm/` belongs to the separate architecture investigation and
+is not moved by this layout migration.
+
+Run `mmake migrate-output-layout` once for an existing checkout, or use
+`mmake bootstrap`, which also runs this migration. Moves rename directories on
+the same filesystem; they do not copy multi-GB images. Conflicting old/new
+folders and locked mdev VMs stop migration before any directory is moved.
+Managed VM source-image paths are updated without resetting guest disks or
+changing their content fingerprints.
+
+Old compiler configurations, SDK wrappers and historical VM backing images may
+contain absolute paths. Existing checkouts retain documented compatibility
+symlinks for those old locations; new builds use the paths above. These links
+are not additional copies, and fresh checkouts do not create absent legacy
+locations. The exact mapping is in `out/reports/output-layout.json`. Do not
+remove compatibility links while old caches or historical VMs still use them.
+
 ## Local commands
 
 Run `mmake bootstrap` once after syncing the workspace. It installs checkout-backed
@@ -34,7 +73,7 @@ mdev remove default --yes
 VM environments are stored under `out/develop/<name>/`. The regular development VM
 copies the input image to its own writable disk on each boot. **Changes inside the
 guest disk are reset on the next boot.** Its firmware variables and logs remain in
-its runtime directory. The original `out/artifacts/disk.img` is never passed to
+its runtime directory. The original `out/images/system/disk.img` is never passed to
 QEMU as a writable disk by this path. `MDEV_NAME` selects another development VM
 name when using `mmake run`.
 
@@ -144,9 +183,9 @@ After `sdk-context` completes, an independent application checkout can reuse the
 explicit SDK context without invoking any workspace-wide build:
 
 ```sh
-mdp lock --context /path/to/mochiOS/out/mdp/developer-context.json
+mdp lock --context /path/to/mochiOS/out/cache/mdp/developer-context.json
 mdp sync
-mdp build --context /path/to/mochiOS/out/mdp/developer-context.json
+mdp build --context /path/to/mochiOS/out/cache/mdp/developer-context.json
 ```
 
 The context is a local development descriptor, not a redistributable SDK. It
@@ -157,7 +196,7 @@ context when SDK sources change. Generic format, API and pipeline details are in
 
 ## Compilation caches and concurrent work
 
-The source workspace currently shares `out/rust-std/target` between native Rust
+The source workspace currently shares `out/cache/rust/target` between native Rust
 producers. This is a compiler cache; each repository still owns its exported
 MPKG/MDP files. Cargo serializes builds that use the same target directory, so
 an external application using that cache can delay OS integration builds.
@@ -166,11 +205,11 @@ An independent consumer can select a private cache in its own `mdp.recipe.json`
 without changing the SDK or root assembler:
 
 ```json
-"bindings": { "RUST_TARGET_DIR": "$(PROJECT)/out/mdp/target" }
+"bindings": { "RUST_TARGET_DIR": "$(PROJECT)/out/cache/mdp/target" }
 ```
 
 This trades reuse of the workspace's existing compiled dependencies for parallel
-build isolation. Temporary compiler files use `out/mdp/tmp` in this workspace;
+build isolation. Temporary compiler files use `out/tmp` in this workspace;
 SDK/producer caches and VM state are separate from temporary files.
 
 ## Installer and optional artifacts

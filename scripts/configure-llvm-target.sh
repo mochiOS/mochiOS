@@ -7,8 +7,8 @@ if [[ $# -lt 1 || $# -gt 2 ]]; then
 fi
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 source_tree=$(realpath -- "$1")
-output=$(realpath -m -- "${2:-$root/out/llvm-port}")
-sdk=$(realpath -- "${MOCHIOS_SDK:-$root/out/newlib-port/sdk}")
+output=$(realpath -m -- "${2:-$root/out/cache/llvm}")
+sdk=$(realpath -- "${MOCHIOS_SDK:-$root/out/cache/newlib/sdk}")
 runtime=$(realpath -- "${MOCHIOS_RUNTIME_ARCHIVE:-$sdk/lib/libmochi_user_newlib_runtime.a}")
 cc=$(command -v "${CC:-clang}")
 cxx=$(command -v "${CXX:-clang++}")

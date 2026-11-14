@@ -1,15 +1,15 @@
 format = 1
 target = "x86_64-mochios"
 abi = "mochios-1"
-sdk_context = "out/mdp/developer-context.json"
+sdk_context = "out/cache/mdp/developer-context.json"
 inputs = [".config", ".cargo/config.toml", "version.toml", "tools/devkit/sdk/sources.lock.json", "libraries/rust/mdp/toolchain", "build/application-sets.toml", "build/system-libraries.toml"]
 
 [environment]
-TMPDIR = "{workspace}/out/mdp/tmp"
+TMPDIR = "{workspace}/out/tmp"
 PYTHONDONTWRITEBYTECODE = "1"
 MDP_CONTEXT = "{workspace}"
-MDP_VARIABLES = "{workspace}/out/mdp/context.json"
-MDP_VARIABLE_OVERLAYS = '["{workspace}/out/mdp/native-bindings.json", "{workspace}/out/mdp/shared-bindings.json"]'
+MDP_VARIABLES = "{workspace}/out/cache/mdp/context.json"
+MDP_VARIABLE_OVERLAYS = '["{workspace}/out/cache/mdp/native-bindings.json", "{workspace}/out/cache/mdp/shared-bindings.json"]'
 MDP_PROFILE_FILE = "{workspace}/.config"
 MDP_VERSION_FILE = "{workspace}/version.toml"
 

@@ -16543,3 +16543,11 @@ path = "libraries/viewkit"
 hash = "2ee1fd83d23ab4f2a709b8aefb4d6929fb23317e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Support quiet toolbar selectors and nonintrusive output following"
+
+[[entries]]
+date = "2026-11-15T08:51:15.132541556+09:00"
+snapshot = "a00410de4cd4855af97024ba"
+path = "libraries/viewkit"
+hash = "aa979431ae3bf0b62e32bf0e5a8cfd67167ea70c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Align indentation guides with native tab-stop measurement"

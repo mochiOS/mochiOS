@@ -16487,3 +16487,11 @@ path = "applications/binder"
 hash = "d519a3a5b04a31d87767f4834dcd3b020513b644"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add the tablet shell with gestures and native window management"
+
+[[entries]]
+date = "2026-11-14T21:31:49.720800776+09:00"
+snapshot = "db7ba42f8dc5da514d1fdc07"
+path = "tools/mdp"
+hash = "00121e7917f84407a34ba1e9681c107c23e87e13"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Read source identity from a stable captured Git revision and index"

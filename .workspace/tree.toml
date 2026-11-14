@@ -16551,3 +16551,11 @@ path = "libraries/viewkit"
 hash = "aa979431ae3bf0b62e32bf0e5a8cfd67167ea70c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Align indentation guides with native tab-stop measurement"
+
+[[entries]]
+date = "2026-11-15T08:56:37.087575560+09:00"
+snapshot = "b701519b4874be751e26b538"
+path = "libraries/viewkit"
+hash = "5c31e572a5d90a026f67673cba204515072a7929"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Repaint complete CPU backing stores after GPU renderer fallback"

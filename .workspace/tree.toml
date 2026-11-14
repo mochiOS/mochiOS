@@ -16519,3 +16519,11 @@ path = "core"
 hash = "2d89c5ed6061478ff9029dcccae26f066d2802a4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Prepare kernel thread entries through the architecture backend"
+
+[[entries]]
+date = "2026-11-15T07:52:41.271546321+09:00"
+snapshot = "5a7dc492dc8ced32e0c17e67"
+path = "core"
+hash = "887aa074e60a2c44b2aed64b84f48c2842db1a11"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Implement AArch64 kernel continuation switching"

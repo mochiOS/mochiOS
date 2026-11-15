@@ -16743,3 +16743,11 @@ path = "mboot"
 hash = "f09fe0d1ea8c3eb5927dbd7c39010ee0ab945769"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record dependencies after native interrupt boot contract validation"
+
+[[entries]]
+date = "2026-11-15T15:12:46.940020782+09:00"
+snapshot = "6dd47d61dac052bcba6c728b"
+path = "core"
+hash = "e0c15ba54afc45085127b1ba1efb85fec445bf86"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add owned ARM GIC CPU interface acknowledgement and completion"

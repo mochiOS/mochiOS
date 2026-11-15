@@ -6,8 +6,11 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- **ARM64版mnuライブラリ全体の型チェックと実コード生成が通った。** `aarch64-unknown-none`でコンパイルし、従来の部分的なCPU診断だけでなく、共有VM・syscall・IPC・Capability・スケジューラを含む実ライブラリを生成した。ログは`out/arm/native-mnu-aarch64-build.log`。これはARMブートELFのリンクやOS起動の完了ではない。既存x86カーネルも再ビルドできた。
+- [ネイティブCPU起動の分離](core/src/smp.rs)により、APIC／CR3／16-bit trampolineをx86側へ移した。ARMは現在1vCPUだけを受け付け、実際に走っているCPUのみをTLB同期の参加者へ登録する。複数vCPUの起動とリモートIPIは未対応として拒否する。診断では1CPUの受け入れ、未完成SMP・x86ハンドオフの拒否を確認した。ARM SMPを完成扱いにはしない。
+- [ARMタイマー](core/src/arch/aarch64/timer.rs)と[製品IRQハンドラ](core/src/arch/aarch64/interrupt.rs)を共有の時刻・sleep・スケジューラへ接続した。割り当て済みCPUインターフェースだけを上位のDevice／RW／XN領域へマップし、既存マッピングや非presentの所有済みPTEを上書きしない。タイマーは前回deadlineから再設定し、時刻は共有counter epochから算出してCPU数やIRQ遅延による増速を避ける。EOI完了後にスケジュールし、EL0フレーム・TLS・upcallを保持する。実タイマーIRQ、counterの端数・wrap・オーバーフロー、MMUの空き判定、x86カーネルビルドが通った。製品IRQハンドラ全体をOS上で実行する確認はmBoot結合後に行う。既存タイマー／CPU時間の回帰5件も、実フレームと現在の所有権表現で通った。
 - [CPU初期化](core/src/arch/aarch64/cpu.rs)をx86から分離し、EL1のFP/AdvSIMD、CPUごとのPAN/RNDR検出、入れ子のユーザーデータアクセス範囲を追加した。PANを開く間はIRQとCPU移動を制限し、PXNは解除しない。Cortex-A57と`max`で保護状態の復元・未対応RNDRの拒否を確認し、x86カーネルビルドも通った。実運用のCPU admissionはCSV3とEL2経由SMCCCのWORKAROUND_1／3を要求し、未対応を成功扱いにしない。**このfirmware経路はまだmBootへ接続されておらず、製品側のCPU admission全体の実行確認は未完了。** ARMの早期乱数は有効なfirmware seedまたは健全なRNDRを必須とし、RTC・時刻・固定値を代替エントロピーにしない。
-- [スレッド切替の例外スタック設定](core/src/task/context.rs)をnative入口へまとめた。x86では従来のTSSとSYSCALLスタックを更新し、ARMでは所有済みEL1スタックを保持して最終EL0遷移で使用する。ARMからGDT/TSSとCR4の初期化を除き、x86カーネルの再ビルドが通った。ARM版mnuの型チェックは残り36件のエラーで失敗しており、IRQ・タイマー・SMPなどの移植を続ける。
+- [スレッド切替の例外スタック設定](core/src/task/context.rs)をnative入口へまとめた。x86では従来のTSSとSYSCALLスタックを更新し、ARMでは所有済みEL1スタックを保持して最終EL0遷移で使用する。ARMからGDT/TSSとCR4の初期化を除き、x86カーネルの再ビルドが通った。この段階で残っていたIRQ・タイマー・SMPによるコンパイルエラーは、上記の後続変更で解消した。
 - [mBootのELFローダー](mboot/src/image.rs)を所有済みDomain RAMのインターフェースへ分離し、ARMの低位ブート入口＋上位カーネルVMAを別のGPAへロードできるようにした。CPU種別を明示し、x86の通常経路は外国CPUのELFを拒否する。入口は実行可能なidentityセグメント内に限定し、入力・配置・RAM範囲をすべて検証してからコピーする。SDKの実Clang／LLDで作った[再現用ELF](mboot/scripts/elf-layout-probe.ld)でtext・data・BSSの物理配置を確認し、mBootの145試験が通った。これはELFコピーの確認で、ARM vCPUによるカーネル起動はまだ行っていない。
 - [カーネルヒープの配置](core/src/arch/aarch64/memory/mod.rs)をCPU別にした。ARMではTTBR1の上位領域を使い、プロセスのTTBR0を交換してもヒープ配置を失わない。実MMUで下位ルートの交換と上位ヒープの保持・交換を確認した。x86は既存アドレスを維持し、カーネルビルドと既存のヒープ拡張ロック試験が通った。ARM用カーネルイメージ・ブート入口の上位配置と、GPAを使うI/Oバックエンドの接続は引き続き必要。
 - [GICv2 CPUインターフェース](core/src/arch/aarch64/gic.rs)に、割り当て済みレジスタ領域の有効化・IRQ受信・完了通知を追加した。CPUとIRQマスク状態を確認し、SGI送信元を含むIAR全体をEOIへ戻す。spurious IRQへEOIを送らず、完了前のCPU移動を認めない。実際のタイマーIRQと範囲・マスク状態の拒否を確認した。診断はGICCを使っており、mBootの仮想GIC状態保存・物理IRQ配送・Domain間隔離の確認はまだ行っていない。
@@ -109,10 +112,10 @@ ARM用のターゲットを追加するだけでは起動できない。CPU依�
 
 | 対象 | 確認した現状 | 主な移植箇所 |
 |---|---|---|
-| mnuのビルド・入口 | CPU依存は条件付きに分離したが、製品の入口・初期化にx86依存が残り、ARM全体のビルドは失敗している。診断出力はCOM1／ハイパーバイザー経路へ分離済み | ARM用のイメージ配置、呼び出し規約、ブート入口・初期スタック |
-| CPU・割り込み | ARMのベクタ・CPUローカル状態・同期例外配送とGIC CPUインターフェースを追加済み。[cpu.rs](core/src/cpu.rs)、タイマー、SMPの製品経路は未移植 | CPU初期化・保護設定、割り当て済みIRQ資源との本接続、プリエンプション、二次CPU |
-| メモリ | Stage-1 MMUと共有VMアダプタ、TTBR0／TTBR1制御、ARMの上位ヒープ配置を実装した。初期化にはGDT/TSSなどのx86依存が残る | ARMの初期配置・マッピング、GDT/TSS初期化の分離、SMPでのTLB整合 |
-| タスク | CPU別のEL1継続、EL0復帰、初期レジスタ・upcall・FP・TLSを実装した。製品のタスク入口は型チェックまででOS上の実行は未確認 | 上位カーネル配置・例外スタックと実スケジューラを接続し、IPC・Handle転送を実行する |
+| mnuのビルド・入口 | 実ライブラリ全体のARM型チェック・コード生成と既存x86カーネルビルドが通った。ARMブートELFのリンク・起動は未完了 | ARM用のイメージ配置、呼び出し規約、ブート入口・初期スタック |
+| CPU・割り込み | CPU初期化・保護設定、割り当て済みGIC・タイマーIRQからのスケジューラ接続を実装。ARMは1vCPUのみ受け付ける | firmware mitigation供給、実vCPU上のプリエンプション・例外復帰、SMPとリモートIPI |
+| メモリ | Stage-1 MMUと共有VMアダプタ、TTBR0／TTBR1制御、ARMの上位ヒープ配置を実装した。GDT/TSSとCR4初期化はx86側だけで行う | ARMの初期配置・マッピング、SMPでのTLB整合 |
+| タスク | CPU別のEL1継続、EL0復帰、初期レジスタ・upcall・FP・TLSを実装した。製品のタスク入口は実コード生成まで通り、OS上の実行は未確認 | 上位カーネル配置・例外スタックと実スケジューラを接続し、IPC・Handle転送を実行する |
 | ELF | [mnuローダー](core/src/elf/loader.rs)はnative CPU種別を検査する。ユーザー側のARM再配置は実Clang/LLDのDSOで確認済み。[mBootローダー](mboot/src/image.rs)もCPUを検査し、ARMの上位VMAと物理ロード先を区別する | ARMブート入口・Stage-1構築と、ロードしたイメージを実行するvCPU |
 | 起動ABI | BootInfo v4・DomainBootInfo v14にCPU種別、64ビットID、明示的なARM IRQ資源を定義した。既存のx86 SMPハンドオフはARMで拒否する | ARMの実vCPU起動・SMP状態と資源供給側の実装 |
 | syscall・実行ABI | [ARMラッパー](user/crates/syscall/src/arch/)のSVC、カーネル側のSVC配送、native保存状態・継続ABIを実装した | OS上でのブロック・再開・例外復帰と、既存IPC・Capability処理の確認 |

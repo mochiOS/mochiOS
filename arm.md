@@ -6,6 +6,11 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [タスクのEL0入口](core/src/task/usermode.rs)もCPU別に分けた。ARMは現在のプロセスが保持するTTBR0と、CPUローカルの所有済み例外スタックを選び、検証済みの継続復帰を呼ぶ。プロセス／ページテーブル／スタックが欠けた場合にゼロ値で起動しない。既存x86カーネルのビルドと、TLS・upcall・CPU参照・ユーザー復帰に関する既存回帰試験16件が通った。mnu全体のARMビルドはまだ失敗しており、このタスク入口のOS上での実行確認は未完了。
+- 共有upcall状態のFP保存を[CPU別の実装](core/src/arch/aarch64/fp.rs)へ分離した。ARMは例外フレームからQレジスタ・FPCR・FPSRを保持し、ユーザー指定の不正な制御ビットを拒否してから復帰画像へ反映する。ライブのFPレジスタを意図的に変更した後でも、保持した状態から実EL0へ正しく復帰した。既存x86のMXCSR検証・SSE復元とカーネルビルドも通った。
+- [ARMのEL0継続復帰](core/src/arch/aarch64/usermode.rs)で全汎用レジスタ・FP/SIMD・FP制御・TLSを復元し、次の例外用に所有済みカーネルスタックを設定する。PC／SP／PSTATE／FP制御／TLSが不正なら、CPU状態を書き換える前にエラーを返す。実EL0へ復帰し、レジスタ・TLS・FP状態と、その後のNX違反の処理まで確認した。ユーザー状態の内部レイアウトを800 bytesとして固定し、共有スレッド側はPC／SPアクセサを使う。
+- CPUローカルの共有スレッド状態を残し、[GS／KPTIのx86実装](core/src/arch/x86_64/percpu.rs)と[TPIDR_EL1のARM実装](core/src/arch/aarch64/percpu.rs)を分離した。ARMは検証済みのハードウェアID一覧から論理スロットを選び、未登録CPUや不正なCPUローカルポインターを拒否する。実際のEL1へ32ビットを超える仮想MPIDRを与え、スロット選択・TLSとの分離・切替中のスレッド参照保持を確認した。x86カーネルのビルドも通った。複数CPUの同時起動・SMP全体は未完了。
+- スレッド切替・TLS設定からCPU別の[ユーザーTLS操作](core/src/arch/aarch64/tls.rs)を呼ぶようにした。x86は既存のFS／MSR経路、ARMはTPIDR_EL0を使う。両CPUの特権診断で書き込み・読み戻し・元の値への復元が通り、ARMではTPIDR_EL1が変更されないことも確認した。x86のカーネルビルドも通った。
 - [起動ABI](core/crates/abi/src/boot.rs)をバージョン3とし、CPU種別と64ビットのハードウェアIDを追加した。ARMのMPIDR affinityをAPIC IDへ切り詰めず、論理スロットへ明示的に対応付ける。別CPU向け・旧版・重複ID・無効ビットを拒否し、既存のUEFIローダーとSystem Domainも同時に更新した。ARM向け型チェック、ABIテスト52件、x86のカーネル・UEFIローダー・System Domainのビルドが通った。ARM SMPのネイティブ起動状態は未実装で、x86用CR3ハンドオフをARMで受け付けない。
 - [mBootのARM Stage-2](mboot/src/arch/aarch64/stage2.rs)に4 KiBページ、連結ルート、Normal／Device属性、読み書き・実行権限、VMID選択、TLB無効化、break-before-make、確保失敗時の回収を追加した。編集対象は明示的に選択したアドレス空間に限定し、別Domainへ暗黙に切り替えない。[EL2診断](mboot/scripts/check-stage2.py)は製品のマッパーを使い、実際のEL1ゲストでRO／XN違反、mBoot用ページへのアクセス拒否、unmap、VMID切替・再利用、L0／L1／L2開始の翻訳を確認した。QEMU Cortex-A57とmaxの両CPUモデルで通った。既存x86のmBoot単体テスト143件も通った。これはCPUのメモリ分離機構であり、vCPU実装・DMA隔離・ARM版OS全体の起動完了ではない。
 - [arch層](core/src/arch/mod.rs)へ、ローカルIRQ制御、CPU待機、スタックポインタ参照を集約した。スピンロック、スケジューラ、メモリ管理などの高水準の呼び出しはこの入口を使う。

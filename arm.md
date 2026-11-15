@@ -2,7 +2,7 @@
 
 更新日: 2026-11-15
 
-mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続を進める段階で、ARM64版mnu全体の起動には至っていない。
+mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続とARM向けC/C++ SDKの配布まで進めた。ARM64版mnu全体の起動には至っていない。
 
 ## 着手済みの範囲
 
@@ -29,7 +29,13 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 - [EL0復帰の検証](core/src/arch/aarch64/exception.rs)はPC／SPの範囲と整列、NZCV以外のPSTATE、未対応FPCR／FPSRビットを検査してから一括反映する。不正な入力で保存状態が部分的に変わらず、有効な状態で実際にERETできることを確認した。VMマッピングの検証と所有権管理は引き続き共有VM側が担当する。
 - [POSIXクライアント](user/crates/posix-client/src/snapshot_aarch64.S)へAAPCS64継続点保存、[signal用チェックポイント](user/crates/posix-client/src/signal_checkpoint_aarch64.S)、[別スタック切替](user/crates/posix-client/src/signal_stack_aarch64.S)を追加した。[任意CPU診断](core/scripts/posix-context-probe.rs)が実際のrlibをリンクし、EL1でレジスタ・FP/SIMD・復帰スタックを確認する。子継続の確認は同じアドレス空間内で行い、OSのfork実行確認とは扱わない。同期チェックポイントの最終分岐ではAAPCS64のIP0を使用する。
 - [ARM向けRustターゲット](user/targets/aarch64-unknown-mochios.json)を追加し、libcの型チェックとCランタイムのライブラリ生成が通った。C／Rustのsignal context配置も照合した。libcの公開utsnameを既存Cヘッダーの1280 bytesへ揃えた。既存x86のsnapshot・signal・別スタック・C ABIの16テストが通った。
-- CランタイムへARMのsetjmp保存領域（224 bytes）、jumpアセンブリ、整列したpthread入口、TPIDR_EL0参照、TLS descriptor resolverを追加した。ここはクロスビルド・Cヘッダー配置確認までで、OS上のsignal／longjmp動作確認はまだ行っていない。TLS本体のVariant I配置、ARM動的再配置、crt0、SDKの生成・梱包・配布対応は未完了である。
+- CランタイムへARMのsetjmp保存領域（224 bytes）、jumpアセンブリ、整列したpthread入口、TPIDR_EL0参照、TLS descriptor resolverを追加した。ここはクロスビルド・Cヘッダー配置確認までで、OS上のsignal／longjmp動作確認はまだ行っていない。Variant-I TLS本体とARM動的再配置は以下の追加確認を行った。OS上のsignal／longjmp実行確認は引き続き未完了である。
+- [Variant-I TLS](user/crates/posix-client/src/static_tls.rs)とDTVを実装し、TPの後ろへTCB・静的TLSを配置した。強い整列条件を持つ依存モジュールを追加しても、先頭モジュールのTPオフセットは変えない。実メモリで初期値・ゼロ領域・整列・DTV境界を確認し、既存x86のVariant-IIと実リンカを使うテスト14件も通った。
+- [ネイティブELF再配置](user/crates/posix-client/src/pie/architecture.rs)へARMのRELATIVE・ABS64・GOT／PLT・静的TLS・TLSDESCなどの識別を追加した。Clang/LLDが生成したARM DSOを実際のローダーで処理し、加数・ポインタ・TPRELを確認した。別CPUのELFと未対応の再配置は拒否する。既存x86のELF／TLS／IFUNCテスト71件が通った。
+- [crt0](user/runtime/crt0.S)と[リンカスクリプト](user/runtime/linker.ld)を両CPUでコンパイル・リンクした。[newlibビルダー](user/scripts/build-newlib.sh)は`--arch aarch64`を受け付け、別CPUの既存出力への混入を拒否する。generic newlibの`_gettimeofday`も、既存のユーザーポインタ検証・errno伝播へ接続した。
+- [devkit](tools/devkit/sdk/build.py)がCPUごとのcompiler-rt builtins、newlib、mochiOSランタイム、libc++、libc++abi、libunwind、TLSアダプタを生成する。コンパイラ・LLDアダプタ・CMake・ELF検証は`share/native-target`を共有する。ARM64／既存x86 SDKのホスト検証はそれぞれ40件成功、任意の1件は対象外だった。ARMでのC/C++実行ファイル・DSOリンク、W^X・RELRO・NX、未解決import拒否、出力保全、SDKを実際に別のパスへコピーした再ビルドも通った。ホストのG++へ暗黙にフォールバックしない。
+- ARM SDK [27.0 dp.1 shared.11](https://github.com/mochiOS/devkit/releases/tag/sdk-27.0-dp.1-shared.11)を公開した。固定ソース・配布済みホストLLVMのSHAインベントリ・ライセンスを確認し、同梱ソースを含む10,509ファイルのパス監査を通した。アーカイブ、manifest、SHA256SUMSを配布している。changelogは既存の警告・版名・箇条書き・Full Changelogの書式を維持した。SDKは`runtime_tested: false`であり、ARM版OSやアプリの起動完了を示さない。
+- [CPUカウンタ](core/src/arch/counter.rs)をarch層へ分離し、ARMはCNTVCT_EL0とCNTFRQ_EL0を使用する。x86は既存のTSC／RDTSCPと校正処理を維持する。ARMの値をx86命令対応として報告せず、両CPUでカウンタの進行と従来のコンテキスト・EL0診断を確認した。
 - x86_64のkernel producerを新しいMDP経路でビルドした。OS全体の起動確認は別途必要。
 
 診断は[check-cpu-primitives.py](core/scripts/check-cpu-primitives.py)から実行する。実装本体を直接読み込み、架空のIRQ状態や保存・復元の代替実装で置き換えない。QEMU 8.2以降のARM/x86バイナリ、OVMFの4 MiB版、指定Rustツールチェーンの`aarch64-unknown-none`と`x86_64-unknown-uefi`ターゲットが必要。
@@ -72,7 +78,7 @@ mdp workspace build --select kernel -j 2
 
 その後、SMP、mDriverとのI/O、実機の起動、Binderの表示・タッチ入力へ進む。既存のx86_64環境は維持する。
 
-**今回の追加指示により、ARM向けSDK・libc・devkitのビルド対応とリリースも対象に含める。** 公開の許可は今回のARM対応に限る。ARM64のサービス・Binder・アプリを実際にビルドするためのランタイム・Rust標準ライブラリ・ターゲット情報も揃える。SDKの公開はまだ行っていない。
+**今回の追加指示により、ARM向けSDK・libc・devkitのビルド対応とリリースも対象に含める。** 公開の許可は今回のARM対応に限る。ARM64のサービス・Binder・アプリを実際にビルドするためのランタイム・Rust標準ライブラリ・ターゲット情報も揃える。C/C++ SDKは上記shared.11として公開済み。ARM64のRust標準ライブラリ・MDP producer・サービス・Binderのビルドと、mnu／mBootとの結合は引き続き必要。
 
 既存のdevkitリリース`sdk-27.0-dp.1-shared.10`の本文を確認済み。変更履歴は同じ書式（太字のprerelease注意文、`mochiOS SDK ...`の見出し、変更の箇条書き、末尾の太字`Full Changelog`と比較リンク）に従う。ターゲット名を変えただけのアーカイブや、実行確認をしていない機能を動作済みとして公開しない。
 

@@ -6,6 +6,9 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [ARM vCPU](mboot/src/arch/aarch64/vcpu.rs)にEL2からの繰り返し実行・再開を追加した。GPR・全32本のSIMD・FP制御・TLS・EL1翻訳／例外状態・仮想タイマーを保持し、物理CPUとStage-2のroot／VMIDへ継続を固定する。別アドレス空間・非activeルート・HVCやMRSの二重完了を拒否する。Cortex-A57で2つの実ゲストを交互に再開し、製品System Domain ELFでも実MRSトラップから再開してReadyへ到達した。現時点では拡張レジスタバンクを持つCPUを保守的に拒否し、QEMU maxは従来の一度限りの入口診断だけを実行する。Domain間の投機実行対策と製品ディスパッチャへの接続は未完了であり、この機構単独で安全な製品VMMの完成とはしない。
+- [GICv2仮想化](mboot/src/arch/aarch64/vgic.rs)にvCPU固有のVMCR・APR・全LR・HCR状態を追加した。GICHはEL2だけが保持し、ゲストには割り当て済みGICVのみを公開する。ソフトウェア起源のcoalesced edgeを注入し、満杯や競合SGI送信元は保持元へエラーを返す。HW LRによる物理IRQのdeactivation権限はまだ公開しない。実GICH/GICVでactiveなIRQの途中切替、優先度分離、再開後EOI、SGI送信元付きtoken、キュー満杯と物理GICへのStage-2拒否を確認した。ログは`out/arm/native-vgic-final-check/run.log`。物理IRQ・仮想タイマーIRQ・実Domain資源との配送接続は引き続き必要。
+
 - [ARM System Domainの起動入口](boot/src/arch/aarch64/entry.S)と[専用リンク配置](boot/domain-aarch64.ld)を追加した。実ELFの低位入口で4 KiBのStage-1を構築し、カーネル・スタック・起動情報をTTBR1の上位領域へ保持する。textはRO/X、rodataはRO/NX、その他のRAMはRW/NXとし、入口の上位別名もRO/NXにする。現在の初期RAM上限はDomainあたり1 GiB。製品ELFを実際のmBootローダーとStage-2で実行し、Cortex-A57とmaxで上位EL1のReady HVCまで到達した。ログは`out/arm/system-domain-stage2-check/run.log`と`out/arm/system-domain-stage2-a57-check/run.log`。診断はReadyで停止し、mnu初期化・サービス起動を通ったことにはしない。x86 System Domainのリンクと既存mBootの145試験も通った。
 
 - [System DomainのGrant RAMアクセス](boot/src/mdriver.rs)でGPAとカーネルVAを分けた。Hypercallと描画面の共有情報にはGPAを渡し、CPUからリング・ストレージ・metadata・描画バッファへアクセスするときだけ、検証済みGrant範囲とカーネルlinear mapを使う。範囲外・加算overflow・不正な仮想アドレスを拒否する。非identityの実バッファでコピーと読み取り専用Grantを確認し、既存の起動データ5試験とx86 System Domainの実リンクが通った。ARMの実I/O確認はmBoot／mDriver結合後に行う。
@@ -14,7 +17,7 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 - [ARMタイマー](core/src/arch/aarch64/timer.rs)と[製品IRQハンドラ](core/src/arch/aarch64/interrupt.rs)を共有の時刻・sleep・スケジューラへ接続した。割り当て済みCPUインターフェースだけを上位のDevice／RW／XN領域へマップし、既存マッピングや非presentの所有済みPTEを上書きしない。タイマーは前回deadlineから再設定し、時刻は共有counter epochから算出してCPU数やIRQ遅延による増速を避ける。EOI完了後にスケジュールし、EL0フレーム・TLS・upcallを保持する。実タイマーIRQ、counterの端数・wrap・オーバーフロー、MMUの空き判定、x86カーネルビルドが通った。製品IRQハンドラ全体をOS上で実行する確認はmBoot結合後に行う。既存タイマー／CPU時間の回帰5件も、実フレームと現在の所有権表現で通った。
 - [CPU初期化](core/src/arch/aarch64/cpu.rs)をx86から分離し、EL1のFP/AdvSIMD、CPUごとのPAN/RNDR検出、入れ子のユーザーデータアクセス範囲を追加した。PANを開く間はIRQとCPU移動を制限し、PXNは解除しない。Cortex-A57と`max`で保護状態の復元・未対応RNDRの拒否を確認し、x86カーネルビルドも通った。実運用のCPU admissionはCSV3とEL2経由SMCCCのWORKAROUND_1／3を要求し、未対応を成功扱いにしない。**このfirmware経路はまだmBootへ接続されておらず、製品側のCPU admission全体の実行確認は未完了。** ARMの早期乱数は有効なfirmware seedまたは健全なRNDRを必須とし、RTC・時刻・固定値を代替エントロピーにしない。
 - [スレッド切替の例外スタック設定](core/src/task/context.rs)をnative入口へまとめた。x86では従来のTSSとSYSCALLスタックを更新し、ARMでは所有済みEL1スタックを保持して最終EL0遷移で使用する。ARMからGDT/TSSとCR4の初期化を除き、x86カーネルの再ビルドが通った。この段階で残っていたIRQ・タイマー・SMPによるコンパイルエラーは、上記の後続変更で解消した。
-- [mBootのELFローダー](mboot/src/image.rs)を所有済みDomain RAMのインターフェースへ分離し、ARMの低位ブート入口＋上位カーネルVMAを別のGPAへロードできるようにした。CPU種別を明示し、x86の通常経路は外国CPUのELFを拒否する。入口は実行可能なidentityセグメント内に限定し、入力・配置・RAM範囲をすべて検証してからコピーする。SDKの実Clang／LLDで作った[再現用ELF](mboot/scripts/elf-layout-probe.ld)でtext・data・BSSの物理配置を確認し、mBootの145試験が通った。後続の診断で製品ELFのReadyまで実行したが、繰り返し再開できる製品vCPUとmnu初期化は引き続き必要。
+- [mBootのELFローダー](mboot/src/image.rs)を所有済みDomain RAMのインターフェースへ分離し、ARMの低位ブート入口＋上位カーネルVMAを別のGPAへロードできるようにした。CPU種別を明示し、x86の通常経路は外国CPUのELFを拒否する。入口は実行可能なidentityセグメント内に限定し、入力・配置・RAM範囲をすべて検証してからコピーする。SDKの実Clang／LLDで作った[再現用ELF](mboot/scripts/elf-layout-probe.ld)でtext・data・BSSの物理配置を確認し、mBootの145試験が通った。後続の診断で製品ELFのReadyまで実行したが、後続でvCPUの繰り返し再開も確認したが、本体のディスパッチャとmnu初期化への接続は引き続き必要。
 - [カーネルヒープの配置](core/src/arch/aarch64/memory/mod.rs)をCPU別にした。ARMではTTBR1の上位領域を使い、プロセスのTTBR0を交換してもヒープ配置を失わない。実MMUで下位ルートの交換と上位ヒープの保持・交換を確認した。x86は既存アドレスを維持し、カーネルビルドと既存のヒープ拡張ロック試験が通った。後続変更でSystem Domainの上位配置とGrant RAMのGPA変換も接続した。実I/Oとプロセス切替はOS結合後に確認する。
 - [GICv2 CPUインターフェース](core/src/arch/aarch64/gic.rs)に、割り当て済みレジスタ領域の有効化・IRQ受信・完了通知を追加した。CPUとIRQマスク状態を確認し、SGI送信元を含むIAR全体をEOIへ戻す。spurious IRQへEOIを送らず、完了前のCPU移動を認めない。実際のタイマーIRQと範囲・マスク状態の拒否を確認した。診断はGICCを使っており、mBootの仮想GIC状態保存・物理IRQ配送・Domain間隔離の確認はまだ行っていない。
 - [ARM割り込み資源の起動契約](core/crates/abi/src/arm64_interrupts.rs)を追加した。mBootが割り当てたGIC CPUインターフェースのGPA・範囲、timer／event／management／TLB／wakeのIRQ役割を明示する。未対応の形式・予約ビット・範囲外・役割の重複・別CPU向けの資源・framebufferとの重複を拒否する。Domain起動ABIはv14、mnu起動ABIはv4へ更新し、既存の送信側も更新した。ABIの50単体＋5結合試験、両CPU診断、mBootの143試験、x86カーネル・UEFIローダー・System Domainのビルドが通った。資源の既定値は空で、ARMのGIC仮想化やIRQ配送を実装済みとは宣言しない。次にこの契約へ実コントローラとタイマーを接続する。
@@ -122,7 +125,7 @@ ARM用のターゲットを追加するだけでは起動できない。CPU依�
 | ELF | [mnuローダー](core/src/elf/loader.rs)はnative CPU種別を検査する。ユーザー側のARM再配置は実Clang/LLDのDSOで確認済み。[mBootローダー](mboot/src/image.rs)もCPUを検査し、ARMの上位VMAと物理ロード先を区別する | 製品vCPUの繰り返し実行、mnu初期化とサービス実行 |
 | 起動ABI | BootInfo v4・DomainBootInfo v14にCPU種別、64ビットID、明示的なARM IRQ資源を定義した。既存のx86 SMPハンドオフはARMで拒否する | ARMの実vCPU起動・SMP状態と資源供給側の実装 |
 | syscall・実行ABI | [ARMラッパー](user/crates/syscall/src/arch/)のSVC、カーネル側のSVC配送、native保存状態・継続ABIを実装した | OS上でのブロック・再開・例外復帰と、既存IPC・Capability処理の確認 |
-| mBoot | ARMのStage-2とEL1からのHVC受け渡しをCPU診断で確認済み。製品の仮想化バックエンドは引き続きIntel VMX／AMD SVM | ARM vCPU状態、仮想GIC・タイマー、Domain間切替、DMA隔離 |
+| mBoot | ARMのStage-2とEL1からのHVC受け渡しをCPU診断で確認済み。ARMのvCPU再開とGICv2状態保持を実CPU命令で確認済み。本体の起動・実行経路は引き続きIntel VMX／AMD SVM | ネイティブ実行経路への接続、CPU拡張バンク、物理IRQ・タイマー配送、投機対策、DMA隔離 |
 | System Domainの入口 | [system_domain.rs](boot/src/system_domain.rs)はIRQ資源を渡し、I/OのGPAもlinear map経由でアクセスする。ARMは低位入口でStage-1を作り、実ELFで上位EL1のReadyまで実行確認済み | Ready後のmnu初期化、仮想GIC・firmware・mDriverとの結合 |
 | mDriver | LinuxのPVH起動、PCIデバイス割り当て、`vmcall`／`vmmcall`を使用 | ARM64 Linuxの起動・FDT・Domain接続・対象SoCのデバイス割り当て |
 | OSビルド | ARM SDKを公開しRust標準ライブラリ・core.serviceのクロスリンクを確認した。製品のMDPカーネル・ブート・イメージはx86向け | CPU選択、ARMブート成果物・Linux・ユーザーランドを使うOSイメージ生成 |

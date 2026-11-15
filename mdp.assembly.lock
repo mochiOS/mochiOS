@@ -4,6 +4,18 @@
     {
       "package": {
         "abi": "mochios-1",
+        "name": "fonts",
+        "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
+        "target": "x86_64-mochios",
+        "version": "0.1.0",
+        "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
+      },
+      "path": "libraries/fonts/out/mdp/fonts.tar.mdp",
+      "sha256": "7f2e874286734319acec9c9bb4ee824712b12a4031ae1da664553d16d009755f"
+    },
+    {
+      "package": {
+        "abi": "mochios-1",
         "name": "kernel",
         "profile_sha256": "42d96eccc58223caed078aa9a96466369a43ff95d176d44c474d41e374fec4ce",
         "target": "x86_64-mochios",
@@ -11,7 +23,7 @@
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "core/out/mdp/kernel.tar.mdp",
-      "sha256": "843ca6d1d7aba89e973d065476892ec5df34ca02d658d1c0a8c909e247b71817"
+      "sha256": "b31821ea7cb6eb411ad7cb00d4a4234d18d475453bc10af92f80985790ee2fe4"
     }
   ],
   "format": 1,

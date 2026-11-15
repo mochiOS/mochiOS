@@ -2,7 +2,7 @@
 
 更新日: 2026-11-15
 
-mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1カーネル継続、例外入口、初回EL0遷移の機構まで進めた段階で、ARM64版mnu全体の起動には至っていない。
+mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続を進める段階で、ARM64版mnu全体の起動には至っていない。
 
 ## 着手済みの範囲
 
@@ -18,6 +18,18 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 - 復帰の特権状態と発生元はフレームの非公開情報とし、EL1hまたはEL0tの元のモードだけに復帰する。未対応のEL1t／AArch32、破損したモード、ハンドラが停止を指定した場合はERETせずCPUを停止する。
 - [初回EL0遷移](core/src/arch/aarch64/usermode.rs)を追加した。明示された引数とTLSを設定し、他の汎用レジスタ、FP/SIMD、FP制御、読み取り専用TLSレジスタをクリアする。メモリマッピングとユーザーアドレスの検証は呼び出し側の責務。
 - ARM診断は専用IRQ入口の重複を削除し、製品側ベクタを使用する。実際のタイマーIRQ、ネストしたBRK、[EL0診断](core/scripts/user-probe.rs)のSVCと戻り値・FP/SIMD復元、初期レジスタの消去、TLS設定、特権命令のトラップが通った。
+- [Stage-1 MMU](core/src/arch/aarch64/paging.rs)に4 KiBページ、48ビットVA、CPUのPA幅検出、Normal／Device属性、W^X、ASID切替、TLB無効化、break-before-makeを実装した。途中のテーブル確保に失敗した場合は未公開のテーブルを回収し、部分経路を公開しない。
+- [MMU診断](core/scripts/mmu-probe.rs)では実際にMMUを有効化している。ASIDごとに同じVAが別の物理ページへ翻訳され、ASIDの再利用前の無効化、権限更新、unmap、確保失敗の回収が通った。EL0からカーネルページを読む、実行コードを書き換える、スタック上のコードを実行する操作は、それぞれ実際のpermission faultになった。
+- [ユーザー側syscall](user/crates/syscall/src/arch/)をCPUごとに分け、ARM64では`SVC #0`・番号x8・引数x0〜x5・戻り値x0とした。syscallの番号・意味は変えていない。実際のクレートをEL0へリンクする任意診断で、0〜6引数すべての関数と戻り値を確認した。
+- 共有VMのアドレス・ページ型は`arch::memory`を参照する。[ARMの論理フラグ変換](core/src/arch/aarch64/memory/paging.rs)ではCOW・一時的なアクセス停止・常駐RAM・カーネル所有情報を、ARMの無視されるソフトウェアビットへ変換する。CPUのAP／XNビットへ既存のx86ビット列を直接流用しない。共有VMの接続全体は作業中。
+- [VMアダプタ](core/src/arch/aarch64/memory/mapper.rs)から実際のマップ・翻訳・権限変更・unmapを実行した。既存のフレームアロケータへ接続し、公開前の確保失敗は同じアロケータへ返す。管理用フラグの更新だけで実行中の親テーブルを一時解除しない。
+- [翻訳ルート制御](core/src/arch/aarch64/memory/control.rs)はTTBR0（プロセス）とTTBR1（上位カーネル）を分ける。同じVAの物理ページをルートごとに変え、TTBR0切替で上位の翻訳が変わらないことと、TTBR1交換後に古い翻訳が残らないことを実MMUで確認した。共通スケジューラ接続用APIはASID 0とローカル全無効化を使い、所有済みASIDのAPIとは区別する。
+- [x86のKPTI初期化](core/src/mem/paging/x86_64.rs)を分離した。ARMのプロセスルートは空のTTBR0から作成し、GDT・IDT・syscallトランポリンのx86用マッピングを複製しない。ユーザー配置判定も、ARMの明示的supervisorマッピングをx86用の破棄可能なidentity aliasと解釈しない。
+- [ネイティブレジスタABI](core/crates/abi/src/thread_registers/aarch64.rs)にARM用ThreadCreateContext（304 bytes）・ThreadUpcallSnapshot（800 bytes）を定義した。作成メッセージはCPU別タグで区別し、他CPUのレジスタ列を受け付けない。x86のレイアウトとタグは維持した。
+- [EL0復帰の検証](core/src/arch/aarch64/exception.rs)はPC／SPの範囲と整列、NZCV以外のPSTATE、未対応FPCR／FPSRビットを検査してから一括反映する。不正な入力で保存状態が部分的に変わらず、有効な状態で実際にERETできることを確認した。VMマッピングの検証と所有権管理は引き続き共有VM側が担当する。
+- [POSIXクライアント](user/crates/posix-client/src/snapshot_aarch64.S)へAAPCS64継続点保存、[signal用チェックポイント](user/crates/posix-client/src/signal_checkpoint_aarch64.S)、[別スタック切替](user/crates/posix-client/src/signal_stack_aarch64.S)を追加した。[任意CPU診断](core/scripts/posix-context-probe.rs)が実際のrlibをリンクし、EL1でレジスタ・FP/SIMD・復帰スタックを確認する。子継続の確認は同じアドレス空間内で行い、OSのfork実行確認とは扱わない。同期チェックポイントの最終分岐ではAAPCS64のIP0を使用する。
+- [ARM向けRustターゲット](user/targets/aarch64-unknown-mochios.json)を追加し、libcの型チェックとCランタイムのライブラリ生成が通った。C／Rustのsignal context配置も照合した。libcの公開utsnameを既存Cヘッダーの1280 bytesへ揃えた。既存x86のsnapshot・signal・別スタック・C ABIの16テストが通った。
+- CランタイムへARMのsetjmp保存領域（224 bytes）、jumpアセンブリ、整列したpthread入口、TPIDR_EL0参照、TLS descriptor resolverを追加した。ここはクロスビルド・Cヘッダー配置確認までで、OS上のsignal／longjmp動作確認はまだ行っていない。TLS本体のVariant I配置、ARM動的再配置、crt0、SDKの生成・梱包・配布対応は未完了である。
 - x86_64のkernel producerを新しいMDP経路でビルドした。OS全体の起動確認は別途必要。
 
 診断は[check-cpu-primitives.py](core/scripts/check-cpu-primitives.py)から実行する。実装本体を直接読み込み、架空のIRQ状態や保存・復元の代替実装で置き換えない。QEMU 8.2以降のARM/x86バイナリ、OVMFの4 MiB版、指定Rustツールチェーンの`aarch64-unknown-none`と`x86_64-unknown-uefi`ターゲットが必要。
@@ -30,7 +42,9 @@ ARM診断の参照機は`virt-8.2`、`cortex-a57`、GICv2、CPU 1個、RAM 128 M
 
 ARM64のコンテキストは、ベースの[AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)とFP/SIMDを対象にする。SVE/SMEを有効にしたビルドは拒否し、起動側でもそれらを有効にしない前提。FP/SIMDアクセスの製品側初期化、タスクごとのTLS切替、アドレス空間切替、SMPでの受け渡しは、この継続切替だけで完成したとは扱わない。既存のユーザーupcall・syscallレジスタABIにはx86依存が残る。
 
-例外の配置・ELR/SPSR・ERETは[Armの例外モデル](https://developer.arm.com/documentation/102412/latest)を基準にする。今回のEL0診断ではMMUを無効にした参照RAMを使用している。特権命令のトラップは確認したが、EL0からカーネルメモリへのアクセス制限、W^X、複数プロセスの分離、ネイティブsyscall・IPCはまだ確認できる状態ではない。診断用のSVC即値は製品ABIではない。
+`--native-syscall-rlib <同じターゲット・ツールチェーンのmochi-user-syscall.rlib>`と`--posix-client-rlib <mochios-posix-client.rlib>`で実クレートを追加検証できる。依存ABIを変更した後は、両rlibを再生成してから実行する。ARMのTLS配置は[LLD 18のTPオフセット計算](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/lld/ELF/InputSection.cpp#L573)と[AAELF64](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst)を基準にする。
+
+例外の配置・ELR/SPSR・ERETは[Armの例外モデル](https://developer.arm.com/documentation/102412/latest)を基準にする。今回のEL0診断はMMUを有効にした参照RAMで実行し、CPUによるアクセス権・書き込み禁止・実行禁止を確認した。mnu本体の複数プロセス、実際のsyscall配送・IPC、mBootのDomain分離との統合はまだ済んでいない。診断用のSVC即値やsyscall番号は製品ABIの追加ではない。
 
 ## 現行ビルド経路
 
@@ -58,7 +72,9 @@ mdp workspace build --select kernel -j 2
 
 その後、SMP、mDriverとのI/O、実機の起動、Binderの表示・タッチ入力へ進む。既存のx86_64環境は維持する。
 
-**配布用SDK、clang、libc、compiler runtimeのARM移植・生成は今回の対象外。** 最小のEL0検証プログラムに必要な内部ビルド設定は扱う。GUIまで起動する段階では、別作業で用意されたARM64のユーザーランド成果物が必要になる。
+**今回の追加指示により、ARM向けSDK・libc・devkitのビルド対応とリリースも対象に含める。** 公開の許可は今回のARM対応に限る。ARM64のサービス・Binder・アプリを実際にビルドするためのランタイム・Rust標準ライブラリ・ターゲット情報も揃える。SDKの公開はまだ行っていない。
+
+既存のdevkitリリース`sdk-27.0-dp.1-shared.10`の本文を確認済み。変更履歴は同じ書式（太字のprerelease注意文、`mochiOS SDK ...`の見出し、変更の箇条書き、末尾の太字`Full Changelog`と比較リンク）に従う。ターゲット名を変えただけのアーカイブや、実行確認をしていない機能を動作済みとして公開しない。
 
 ## 現在の実装
 
@@ -182,4 +198,4 @@ EL2や必要なDMA隔離が利用できない機種は、現在のDomain構成�
 - initfsへGUIや一般アプリを追加せず、既存の最小構成を維持する。
 - ソースの変更、Lock更新、各リポジトリの参照とMWS記録を一組として管理し、Lockを巻き戻さない。
 
-次は、MMUと起動ABIを整理し、ARM側の例外・ユーザー復帰を製品のタスク管理へ接続する準備を進める。ARM用の空実装でビルド成功を装ったり、SDK生成へ範囲を広げたりしない。
+現在は共有VMとARMの型・ページングを接続している。続いてCPU初期化・CPUローカル状態・スレッド復帰、起動ABI、mBoot EL2、ARM用ランタイム・SDK、サービスとGUIを実際につなぐ。診断の成功をARM版OS全体の起動完了と扱わず、空実装でビルド成功を装わない。

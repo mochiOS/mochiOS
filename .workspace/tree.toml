@@ -16839,3 +16839,11 @@ path = "mboot"
 hash = "c8bc2636db7f020a8fafe9b604d5446a091ba7e0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep VMX and SVM execution controls in the x86 backend"
+
+[[entries]]
+date = "2026-11-15T18:01:41.345289176+09:00"
+snapshot = "368c84a8525f7bdc736bbc6c"
+path = "mboot"
+hash = "90b9fedc63864d2c59e27585bb03c05bc56b7724"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Run native CPU checks against the compiled mBoot library"

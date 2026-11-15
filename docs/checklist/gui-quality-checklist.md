@@ -266,3 +266,26 @@ Light／Darkの共通部品テストを含め、ViewKit 308件、Files 68件が�
 ViewKitの既存3件はignoredです。Binder・Files・Viewer・MailのLinuxビルドが成功し、
 UIの依存境界チェックも通っています。隔離Xvfb／llvmpipeでFiles・Settingsの
 先頭要素、選択表示、ウィンドウ切り替えを撮影しました。実機Kagamiは未検証です。
+
+### 入力欄・検索欄・選択欄の共通配置
+
+検索欄は既存のTextField.leading_symbolを使用します。TextField、TextFieldLabel、
+Pickerの文字行の計算とControlSizeごとの文字役割を内部のinput_geometryへ共通化しました。
+PickerのSmall／Medium／Largeの文字・基準線を対応する入力欄へ揃え、既定の左右余白は
+ControlMetrics::HORIZONTAL_PADDINGを使用します。独自のサイズ値や色は追加しません。
+Pickerの長いラベルは矢印用の領域を確保して省略し、無効時は矢印にも既存の無効色を使います。
+既存の検索欄のシンボル・文字・プレースホルダー位置、入力エラーの表示は維持します。
+
+Pickerはキーボードフォーカス中のEnter／Spaceでメニューを開きます。無関係な
+キーイベントでは開きません。メニュー表示後にPickerが無効化された場合、遅れて届く
+選択結果ではコールバックを実行しません。マウスによる展開・選択も既存テストで確認します。
+
+検証記録は `out/reports/input-consistency/` に保存します。ViewKit 311件が成功し、
+既存3件はignoredです。明暗テーマ、Small／Medium／Large、文字拡大100／150／200%、
+狭い幅、長いラベル、無効表示、キーボード展開を検査しています。
+Binder・Files・Viewer・Mail・SettingsのLinuxビルドとUI依存境界チェックが成功しました。
+隔離Xvfb／llvmpipeのプレビューでSettingsの入力欄・選択欄とメニュー展開を確認しました。
+実機Kagamiの出力は未検証です。
+
+MWSのpost-commit記録は試行しましたが、並行作業中のmbootに未コミット変更があり、
+今回の全体スナップショット生成はスキップされています。

@@ -6,6 +6,10 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [診断コンソール](core/src/util/console.rs)から既存COM1実装をx86側へ分離した。ARMはmBootの既存コンソールへ、ATによる現在のStage-1変換で得たゲスト物理アドレスを渡し、ページ境界で分割する。実MMUで上位アドレス・ルート切替・unmap後の変換を確認した。1024 bytesを超える文字列と送信失敗も既存のホスト試験で確認し、x86カーネルビルドも通った。ボードUARTのアドレスはmnuへ追加していない。
+- [I/Oポート](core/src/arch/aarch64/port_io.rs)をCPU別に選択する。共通の範囲・Capability確認を維持し、ARMでは存在しないポート命令を成功扱いにせず`Unsupported`とする。デバイスは既存の所有済みMMIO・mDriver経路を使う。診断出力とI/O権限に関する既存の回帰試験を現行APIに合わせ、境界をまたぐ範囲・無権限・未対応CPUでハードウェア処理へ進まないことを確認した。
+- [ARM同期例外の製品ハンドラ](core/src/arch/aarch64/interrupt.rs)を追加し、実フレームからSVC、COW、通常のページ解決、upcallへ接続した。外部エラー・無効FARなどを通常のページ不足として解決せず、未処理の特権例外・IRQも成功扱いにしない。スタック拡張とVM予約の確認はx86と共有する。実EL0でread／write／execute abortの分類、既存のVM retry・スタック予約・例外・診断の8試験とx86カーネルビルドが通った。ARM版mnu全体はCPU初期化・IRQコントローラ・タイマー・SMPなどの未移植箇所でビルドが失敗しており、この製品ハンドラのOS上での実行確認は未完了。
+- [ARMのSVC入口](core/src/arch/aarch64/syscall_entry.rs)を追加し、x8の番号とx0〜x5の引数、x0の戻り値を既存のsyscall処理へ渡す。x86のSYSCALL／int 0x80入口はCPU別ファイルへ分け、スレッドのsyscall中状態・終了確認は共通化した。EL0レジスタとTLSを保持し、ブロック後に現在の所有済みTTBR0とTLSを選び直す。実ユーザー側ライブラリの0〜6引数呼び出し、非native SVCの拒否、x86カーネルビルド、既存のupcall・継続回帰9試験が通った。
 - [スレッド初期状態](core/src/arch/aarch64/thread.rs)をCPU別に生成し、共有のプロセス作成・スレッド作成から呼ぶようにした。ARMはx0へ起動引数、x1〜x30へ明示された汎用レジスタを配置し、PSTATEとFP状態はカーネルが初期化する。両CPUの実特権診断、x86カーネルビルド、既存の初期レジスタ・継続回帰7試験が通った。作成時のCapability・VM・予約領域検証は共有側に維持している。
 - upcallの[CPU別スナップショット変換とコールバックABI](core/src/arch/aarch64/upcall.rs)を追加し、権限確認・トークン・例外記録は共有側に維持した。ARMの800-byte snapshotを往復し、不正PSTATE／FPCRを拒否する。実EL0で7引数、16-byte SP整列、LR設定を確認し、元のFP状態付き継続へ復帰した。SVCとIRQは実際の同じARM例外フレームを使い、x86のIRET欄を仮定しない。例外コードはESRのECから取得する。x86カーネルビルドと、既存のupcall・例外配送・レジスタ変換・fault retryの関連12試験が通った。ARMの割り込み／syscall配送全体への接続は引き続き未完了。
 - [タスクのEL0入口](core/src/task/usermode.rs)もCPU別に分けた。ARMは現在のプロセスが保持するTTBR0と、CPUローカルの所有済み例外スタックを選び、検証済みの継続復帰を呼ぶ。プロセス／ページテーブル／スタックが欠けた場合にゼロ値で起動しない。既存x86カーネルのビルドと、TLS・upcall・CPU参照・ユーザー復帰に関する既存回帰試験16件が通った。mnu全体のARMビルドはまだ失敗しており、このタスク入口のOS上での実行確認は未完了。

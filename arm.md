@@ -6,6 +6,9 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- **ARM64版mBootライブラリの実ビルドが通った。** [Domain](mboot/src/domain.rs)は保持するメモリ所有型を汎用化し、Grant・Event Channel・マニフェスト・ELF検証を共有する。VMX/SVMのAPIはx86側に維持し、x86専用のPCI／APIC／IOMMUはARMへ混入させない。ARM版のPCI・SMMUやUEFI起動プログラムはまだ未実装で、ライブラリ生成を製品VMMの起動完了とはしない。既存x86 UEFIプログラムの型検証と145件のホスト試験も通った。`check-stage2.py --production-library`で製品クレートをリンクし、Cortex-A57の継続・仮想GIC・製品System Domain Readyが通った（`out/arm/linked-mboot-native-final/run.log`）。
+- [Device Treeリーダー](mboot/src/fdt.rs)は割り当てやMMIOアクセスを行わず、借用したbytesの範囲・ブロック重複・構造・深さ・予約領域の加算overflowを検証する。QEMUが生成した実DTBと不正入力を含む149件が通った。CPUの64ビットaffinityは今後CPUノードの`reg`から解決し、32ビットの旧headerへ切り詰めない。GIC・UART・RAM・firmware conduitなどのbinding解釈と資源確保への接続は引き続き必要。
+
 - [ARM vCPU](mboot/src/arch/aarch64/vcpu.rs)にEL2からの繰り返し実行・再開を追加した。GPR・全32本のSIMD・FP制御・TLS・EL1翻訳／例外状態・仮想タイマーを保持し、物理CPUとStage-2のroot／VMIDへ継続を固定する。別アドレス空間・非activeルート・HVCやMRSの二重完了を拒否する。Cortex-A57で2つの実ゲストを交互に再開し、製品System Domain ELFでも実MRSトラップから再開してReadyへ到達した。現時点では拡張レジスタバンクを持つCPUを保守的に拒否し、QEMU maxは従来の一度限りの入口診断だけを実行する。Domain間の投機実行対策と製品ディスパッチャへの接続は未完了であり、この機構単独で安全な製品VMMの完成とはしない。
 - [GICv2仮想化](mboot/src/arch/aarch64/vgic.rs)にvCPU固有のVMCR・APR・全LR・HCR状態を追加した。GICHはEL2だけが保持し、ゲストには割り当て済みGICVのみを公開する。ソフトウェア起源のcoalesced edgeを注入し、満杯や競合SGI送信元は保持元へエラーを返す。HW LRによる物理IRQのdeactivation権限はまだ公開しない。実GICH/GICVでactiveなIRQの途中切替、優先度分離、再開後EOI、SGI送信元付きtoken、キュー満杯と物理GICへのStage-2拒否を確認した。ログは`out/arm/native-vgic-final-check/run.log`。物理IRQ・仮想タイマーIRQ・実Domain資源との配送接続は引き続き必要。
 
@@ -125,7 +128,7 @@ ARM用のターゲットを追加するだけでは起動できない。CPU依�
 | ELF | [mnuローダー](core/src/elf/loader.rs)はnative CPU種別を検査する。ユーザー側のARM再配置は実Clang/LLDのDSOで確認済み。[mBootローダー](mboot/src/image.rs)もCPUを検査し、ARMの上位VMAと物理ロード先を区別する | 製品vCPUの繰り返し実行、mnu初期化とサービス実行 |
 | 起動ABI | BootInfo v4・DomainBootInfo v14にCPU種別、64ビットID、明示的なARM IRQ資源を定義した。既存のx86 SMPハンドオフはARMで拒否する | ARMの実vCPU起動・SMP状態と資源供給側の実装 |
 | syscall・実行ABI | [ARMラッパー](user/crates/syscall/src/arch/)のSVC、カーネル側のSVC配送、native保存状態・継続ABIを実装した | OS上でのブロック・再開・例外復帰と、既存IPC・Capability処理の確認 |
-| mBoot | ARMのStage-2とEL1からのHVC受け渡しをCPU診断で確認済み。ARMのvCPU再開とGICv2状態保持を実CPU命令で確認済み。本体の起動・実行経路は引き続きIntel VMX／AMD SVM | ネイティブ実行経路への接続、CPU拡張バンク、物理IRQ・タイマー配送、投機対策、DMA隔離 |
+| mBoot | ARMのStage-2とEL1からのHVC受け渡しをCPU診断で確認済み。ARMのvCPU再開とGICv2状態保持を実CPU命令で確認済み。ARMライブラリと共有Domain状態の生成も確認済み。UEFI起動・実行プログラムは引き続きx86向け | ネイティブ起動・実行経路への接続、CPU拡張バンク、物理IRQ・タイマー配送、投機対策、DMA隔離 |
 | System Domainの入口 | [system_domain.rs](boot/src/system_domain.rs)はIRQ資源を渡し、I/OのGPAもlinear map経由でアクセスする。ARMは低位入口でStage-1を作り、実ELFで上位EL1のReadyまで実行確認済み | Ready後のmnu初期化、仮想GIC・firmware・mDriverとの結合 |
 | mDriver | LinuxのPVH起動、PCIデバイス割り当て、`vmcall`／`vmmcall`を使用 | ARM64 Linuxの起動・FDT・Domain接続・対象SoCのデバイス割り当て |
 | OSビルド | ARM SDKを公開しRust標準ライブラリ・core.serviceのクロスリンクを確認した。製品のMDPカーネル・ブート・イメージはx86向け | CPU選択、ARMブート成果物・Linux・ユーザーランドを使うOSイメージ生成 |

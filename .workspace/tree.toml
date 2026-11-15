@@ -16751,3 +16751,11 @@ path = "core"
 hash = "e0c15ba54afc45085127b1ba1efb85fec445bf86"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add owned ARM GIC CPU interface acknowledgement and completion"
+
+[[entries]]
+date = "2026-11-15T15:18:05.584569738+09:00"
+snapshot = "af5cb1972b611c6c89b53f32"
+path = "services"
+hash = "a4b3e5c03bef96a17860cede60ecade61f7a3f62"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use the native interrupt boundary in heap growth regressions"

@@ -16847,3 +16847,11 @@ path = "mboot"
 hash = "90b9fedc63864d2c59e27585bb03c05bc56b7724"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Run native CPU checks against the compiled mBoot library"
+
+[[entries]]
+date = "2026-11-15T18:14:58.406008429+09:00"
+snapshot = "d3bf4793c09a1c00bc064b39"
+path = "mboot"
+hash = "78ec909641185ded17a80c6bb7fc51b3c1cd94ae"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Read firmware device trees through bounded borrowed views"

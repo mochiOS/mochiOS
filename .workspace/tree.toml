@@ -16703,3 +16703,11 @@ path = "services"
 hash = "88792fdc7c622721ff873890ffd763e24a00af43"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Follow the architecture-specific native syscall entry in upcall checks"
+
+[[entries]]
+date = "2026-11-15T14:26:38.604331864+09:00"
+snapshot = "6972372489c8d2fa6f5a457e"
+path = "services"
+hash = "102c86d459fe70e409b49b47ac7e67d930ba3007"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise shared stack admission through the current VM transaction interface"

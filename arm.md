@@ -6,6 +6,9 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [カーネルヒープの配置](core/src/arch/aarch64/memory/mod.rs)をCPU別にした。ARMではTTBR1の上位領域を使い、プロセスのTTBR0を交換してもヒープ配置を失わない。実MMUで下位ルートの交換と上位ヒープの保持・交換を確認した。x86は既存アドレスを維持し、カーネルビルドと既存のヒープ拡張ロック試験が通った。ARM用カーネルイメージ・ブート入口の上位配置と、GPAを使うI/Oバックエンドの接続は引き続き必要。
+- [GICv2 CPUインターフェース](core/src/arch/aarch64/gic.rs)に、割り当て済みレジスタ領域の有効化・IRQ受信・完了通知を追加した。CPUとIRQマスク状態を確認し、SGI送信元を含むIAR全体をEOIへ戻す。spurious IRQへEOIを送らず、完了前のCPU移動を認めない。実際のタイマーIRQと範囲・マスク状態の拒否を確認した。診断はGICCを使っており、mBootの仮想GIC状態保存・物理IRQ配送・Domain間隔離の確認はまだ行っていない。
+- [ARM割り込み資源の起動契約](core/crates/abi/src/arm64_interrupts.rs)を追加した。mBootが割り当てたGIC CPUインターフェースのGPA・範囲、timer／event／management／TLB／wakeのIRQ役割を明示する。未対応の形式・予約ビット・範囲外・役割の重複・別CPU向けの資源・framebufferとの重複を拒否する。Domain起動ABIはv14、mnu起動ABIはv4へ更新し、既存の送信側も更新した。ABIの50単体＋5結合試験、両CPU診断、mBootの143試験、x86カーネル・UEFIローダー・System Domainのビルドが通った。資源の既定値は空で、ARMのGIC仮想化やIRQ配送を実装済みとは宣言しない。次にこの契約へ実コントローラとタイマーを接続する。
 - [診断コンソール](core/src/util/console.rs)から既存COM1実装をx86側へ分離した。ARMはmBootの既存コンソールへ、ATによる現在のStage-1変換で得たゲスト物理アドレスを渡し、ページ境界で分割する。実MMUで上位アドレス・ルート切替・unmap後の変換を確認した。1024 bytesを超える文字列と送信失敗も既存のホスト試験で確認し、x86カーネルビルドも通った。ボードUARTのアドレスはmnuへ追加していない。
 - [I/Oポート](core/src/arch/aarch64/port_io.rs)をCPU別に選択する。共通の範囲・Capability確認を維持し、ARMでは存在しないポート命令を成功扱いにせず`Unsupported`とする。デバイスは既存の所有済みMMIO・mDriver経路を使う。診断出力とI/O権限に関する既存の回帰試験を現行APIに合わせ、境界をまたぐ範囲・無権限・未対応CPUでハードウェア処理へ進まないことを確認した。
 - [ARM同期例外の製品ハンドラ](core/src/arch/aarch64/interrupt.rs)を追加し、実フレームからSVC、COW、通常のページ解決、upcallへ接続した。外部エラー・無効FARなどを通常のページ不足として解決せず、未処理の特権例外・IRQも成功扱いにしない。スタック拡張とVM予約の確認はx86と共有する。実EL0でread／write／execute abortの分類、既存のVM retry・スタック予約・例外・診断の8試験とx86カーネルビルドが通った。ARM版mnu全体はCPU初期化・IRQコントローラ・タイマー・SMPなどの未移植箇所でビルドが失敗しており、この製品ハンドラのOS上での実行確認は未完了。
@@ -17,7 +20,7 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 - [ARMのEL0継続復帰](core/src/arch/aarch64/usermode.rs)で全汎用レジスタ・FP/SIMD・FP制御・TLSを復元し、次の例外用に所有済みカーネルスタックを設定する。PC／SP／PSTATE／FP制御／TLSが不正なら、CPU状態を書き換える前にエラーを返す。実EL0へ復帰し、レジスタ・TLS・FP状態と、その後のNX違反の処理まで確認した。ユーザー状態の内部レイアウトを800 bytesとして固定し、共有スレッド側はPC／SPアクセサを使う。
 - CPUローカルの共有スレッド状態を残し、[GS／KPTIのx86実装](core/src/arch/x86_64/percpu.rs)と[TPIDR_EL1のARM実装](core/src/arch/aarch64/percpu.rs)を分離した。ARMは検証済みのハードウェアID一覧から論理スロットを選び、未登録CPUや不正なCPUローカルポインターを拒否する。実際のEL1へ32ビットを超える仮想MPIDRを与え、スロット選択・TLSとの分離・切替中のスレッド参照保持を確認した。x86カーネルのビルドも通った。複数CPUの同時起動・SMP全体は未完了。
 - スレッド切替・TLS設定からCPU別の[ユーザーTLS操作](core/src/arch/aarch64/tls.rs)を呼ぶようにした。x86は既存のFS／MSR経路、ARMはTPIDR_EL0を使う。両CPUの特権診断で書き込み・読み戻し・元の値への復元が通り、ARMではTPIDR_EL1が変更されないことも確認した。x86のカーネルビルドも通った。
-- [起動ABI](core/crates/abi/src/boot.rs)をバージョン3とし、CPU種別と64ビットのハードウェアIDを追加した。ARMのMPIDR affinityをAPIC IDへ切り詰めず、論理スロットへ明示的に対応付ける。別CPU向け・旧版・重複ID・無効ビットを拒否し、既存のUEFIローダーとSystem Domainも同時に更新した。ARM向け型チェック、ABIテスト52件、x86のカーネル・UEFIローダー・System Domainのビルドが通った。ARM SMPのネイティブ起動状態は未実装で、x86用CR3ハンドオフをARMで受け付けない。
+- [起動ABI](core/crates/abi/src/boot.rs)のバージョン3で、CPU種別と64ビットのハードウェアIDを追加した。ARMのMPIDR affinityをAPIC IDへ切り詰めず、論理スロットへ明示的に対応付ける。別CPU向け・旧版・重複ID・無効ビットを拒否し、既存のUEFIローダーとSystem Domainも同時に更新した。ARM向け型チェック、ABIテスト52件、x86のカーネル・UEFIローダー・System Domainのビルドが通った。ARM SMPのネイティブ起動状態は未実装で、x86用CR3ハンドオフをARMで受け付けない。
 - [mBootのARM Stage-2](mboot/src/arch/aarch64/stage2.rs)に4 KiBページ、連結ルート、Normal／Device属性、読み書き・実行権限、VMID選択、TLB無効化、break-before-make、確保失敗時の回収を追加した。編集対象は明示的に選択したアドレス空間に限定し、別Domainへ暗黙に切り替えない。[EL2診断](mboot/scripts/check-stage2.py)は製品のマッパーを使い、実際のEL1ゲストでRO／XN違反、mBoot用ページへのアクセス拒否、unmap、VMID切替・再利用、L0／L1／L2開始の翻訳を確認した。QEMU Cortex-A57とmaxの両CPUモデルで通った。既存x86のmBoot単体テスト143件も通った。これはCPUのメモリ分離機構であり、vCPU実装・DMA隔離・ARM版OS全体の起動完了ではない。
 - [arch層](core/src/arch/mod.rs)へ、ローカルIRQ制御、CPU待機、スタックポインタ参照を集約した。スピンロック、スケジューラ、メモリ管理などの高水準の呼び出しはこの入口を使う。
 - [AArch64バックエンド](core/src/arch/aarch64/mod.rs)にDAIFのIRQマスク操作、WFI、SP参照を実装した。Debug・SError・FIQのマスクは変更しない。

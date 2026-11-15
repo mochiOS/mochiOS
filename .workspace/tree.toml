@@ -16727,3 +16727,11 @@ path = "services"
 hash = "13a77d1eb8a5fc291ff0bf3fafa625a4f1a81156"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Check bounded diagnostic transport and complete console streaming"
+
+[[entries]]
+date = "2026-11-15T14:48:39.207923258+09:00"
+snapshot = "391816c318848a48cfab3c88"
+path = "core"
+hash = "8f813af715b7612a42cc737d542a39314442a705"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Publish native entry readiness independently of physical root addresses"

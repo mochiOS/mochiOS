@@ -16863,3 +16863,11 @@ path = "mboot"
 hash = "9994b0a52e6389c175ce1abf9ef03d9325d2e98d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retain real ARM firmware feature results on the owning CPU"
+
+[[entries]]
+date = "2026-11-15T18:58:35.713550890+09:00"
+snapshot = "edc4cfceb8e037cdefccc7df"
+path = "mboot"
+hash = "af5e3a39e387acaba09881bc93f862c9381170a7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Run native EL2 diagnostics within Cortex-A53 address limits"

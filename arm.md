@@ -7,7 +7,9 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 ## 着手済みの範囲
 
 - **ARM64版mBootライブラリの実ビルドが通った。** [Domain](mboot/src/domain.rs)は保持するメモリ所有型を汎用化し、Grant・Event Channel・マニフェスト・ELF検証を共有する。VMX/SVMのAPIはx86側に維持し、x86専用のPCI／APIC／IOMMUはARMへ混入させない。ARM版のPCI・SMMUやUEFI起動プログラムはまだ未実装で、ライブラリ生成を製品VMMの起動完了とはしない。既存x86 UEFIプログラムの型検証と145件のホスト試験も通った。`check-stage2.py --production-library`で製品クレートをリンクし、Cortex-A57の継続・仮想GIC・製品System Domain Readyが通った（`out/arm/linked-mboot-native-final/run.log`）。
-- [Device Treeリーダー](mboot/src/fdt.rs)は割り当てやMMIOアクセスを行わず、借用したbytesの範囲・ブロック重複・構造・深さ・予約領域の加算overflowを検証する。QEMUが生成した実DTBと不正入力を含む149件が通った。CPUの64ビットaffinityは今後CPUノードの`reg`から解決し、32ビットの旧headerへ切り詰めない。GIC・UART・RAM・firmware conduitなどのbinding解釈と資源確保への接続は引き続き必要。
+- [Device Treeリーダー](mboot/src/fdt.rs)は割り当てやMMIOアクセスを行わず、借用したbytesの範囲・ブロック重複・構造・深さ・予約領域の加算overflowを検証する。[ARM topology](mboot/src/fdt/arm64.rs)はCPUの`reg`から64ビットaffinityを保持し、PSCI 0.2／1.0のSMC／HVCを区別する。重複CPU・不正なcell数／予約ビット・起動CPUの欠落・無効CPU・重複propertyを拒否する。QEMU実DTBと不正入力を含む153件が通った。標準AArch64 Image形式の入口でも実際に渡されたDTBと物理MPIDRを照合し、製品ライブラリからSMC bindingを解決した（`out/arm/native-boot-dtb-final-a53/run.log`）。この解釈だけでfirmware呼び出し権限やSMP対応を付与せず、GIC・UART・RAMのbindingと資源確保への接続は引き続き必要。
+- [firmwareのSMC経路](mboot/src/arch/aarch64/firmware.rs)は、信頼済みの起動元が指定したconduitを物理CPUへ固定し、PSCI versionとWORKAROUND_1／3だけを扱う。QEMUで実PSCI 1.1と緩和策の未対応応答`-1`を確認し、そのまま保持・伝播する。任意のguest functionやポインターをfirmwareへ転送しない。製品Domainディスパッチャへの接続は未完了。
+- 実機と同じCortex-A53のQEMUモデルでも、製品mBootライブラリのStage-2・vCPU再開・仮想GIC・実System Domain ELFの上位EL1 Readyを確認した（`out/arm/native-boot-dtb-final-a53/run.log`）。40-bit PAのCPUへ44-bit geometryを要求せず、未対応範囲の拒否も確認する。CPU admissionはMIDRのimplementer／architecture／partを照合し、既知の非影響Cortex-A53に不要なCSV3・WORKAROUND_1／3を要求しない。他CPUの保守的な判定は維持し、不明なfirmware応答を成功に変換しない。CPU基本処理と判定のログは`out/arm/cortex-a53-cpu-check/aarch64-run.log`。ARM版mnu・System Domain ELFの再ビルド、A57／max／x86のCPU診断、MDPによる既存x86カーネルの再ビルドも通った。製品mnu初期化全体や実機の起動完了を意味しない。
 
 - [ARM vCPU](mboot/src/arch/aarch64/vcpu.rs)にEL2からの繰り返し実行・再開を追加した。GPR・全32本のSIMD・FP制御・TLS・EL1翻訳／例外状態・仮想タイマーを保持し、物理CPUとStage-2のroot／VMIDへ継続を固定する。別アドレス空間・非activeルート・HVCやMRSの二重完了を拒否する。Cortex-A57で2つの実ゲストを交互に再開し、製品System Domain ELFでも実MRSトラップから再開してReadyへ到達した。現時点では拡張レジスタバンクを持つCPUを保守的に拒否し、QEMU maxは従来の一度限りの入口診断だけを実行する。Domain間の投機実行対策と製品ディスパッチャへの接続は未完了であり、この機構単独で安全な製品VMMの完成とはしない。
 - [GICv2仮想化](mboot/src/arch/aarch64/vgic.rs)にvCPU固有のVMCR・APR・全LR・HCR状態を追加した。GICHはEL2だけが保持し、ゲストには割り当て済みGICVのみを公開する。ソフトウェア起源のcoalesced edgeを注入し、満杯や競合SGI送信元は保持元へエラーを返す。HW LRによる物理IRQのdeactivation権限はまだ公開しない。実GICH/GICVでactiveなIRQの途中切替、優先度分離、再開後EOI、SGI送信元付きtoken、キュー満杯と物理GICへのStage-2拒否を確認した。ログは`out/arm/native-vgic-final-check/run.log`。物理IRQ・仮想タイマーIRQ・実Domain資源との配送接続は引き続き必要。
@@ -18,7 +20,7 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 - **ARM64版mnuライブラリ全体の型チェックと実コード生成が通った。** `aarch64-unknown-none`でコンパイルし、従来の部分的なCPU診断だけでなく、共有VM・syscall・IPC・Capability・スケジューラを含む実ライブラリを生成した。ログは`out/arm/native-mnu-aarch64-build.log`。後続変更でARMブートELFのリンクとReadyまでの入口実行も通ったが、OS起動は未完了。既存x86カーネルも再ビルドできた。
 - [ネイティブCPU起動の分離](core/src/smp.rs)により、APIC／CR3／16-bit trampolineをx86側へ移した。ARMは現在1vCPUだけを受け付け、実際に走っているCPUのみをTLB同期の参加者へ登録する。複数vCPUの起動とリモートIPIは未対応として拒否する。診断では1CPUの受け入れ、未完成SMP・x86ハンドオフの拒否を確認した。ARM SMPを完成扱いにはしない。
 - [ARMタイマー](core/src/arch/aarch64/timer.rs)と[製品IRQハンドラ](core/src/arch/aarch64/interrupt.rs)を共有の時刻・sleep・スケジューラへ接続した。割り当て済みCPUインターフェースだけを上位のDevice／RW／XN領域へマップし、既存マッピングや非presentの所有済みPTEを上書きしない。タイマーは前回deadlineから再設定し、時刻は共有counter epochから算出してCPU数やIRQ遅延による増速を避ける。EOI完了後にスケジュールし、EL0フレーム・TLS・upcallを保持する。実タイマーIRQ、counterの端数・wrap・オーバーフロー、MMUの空き判定、x86カーネルビルドが通った。製品IRQハンドラ全体をOS上で実行する確認はmBoot結合後に行う。既存タイマー／CPU時間の回帰5件も、実フレームと現在の所有権表現で通った。
-- [CPU初期化](core/src/arch/aarch64/cpu.rs)をx86から分離し、EL1のFP/AdvSIMD、CPUごとのPAN/RNDR検出、入れ子のユーザーデータアクセス範囲を追加した。PANを開く間はIRQとCPU移動を制限し、PXNは解除しない。Cortex-A57と`max`で保護状態の復元・未対応RNDRの拒否を確認し、x86カーネルビルドも通った。実運用のCPU admissionはCSV3とEL2経由SMCCCのWORKAROUND_1／3を要求し、未対応を成功扱いにしない。**このfirmware経路はまだmBootへ接続されておらず、製品側のCPU admission全体の実行確認は未完了。** ARMの早期乱数は有効なfirmware seedまたは健全なRNDRを必須とし、RTC・時刻・固定値を代替エントロピーにしない。
+- [CPU初期化](core/src/arch/aarch64/cpu.rs)をx86から分離し、EL1のFP/AdvSIMD、CPUごとのPAN/RNDR検出、入れ子のユーザーデータアクセス範囲を追加した。PANを開く間はIRQとCPU移動を制限し、PXNは解除しない。Cortex-A53・A57と`max`で保護状態の復元・未対応RNDRの拒否を確認した。既知の非影響Cortex-A53以外はCSV3とEL2経由SMCCCのWORKAROUND_1／3を要求し、未対応を成功扱いにしない。**製品ディスパッチャのfirmware経路への接続と、CPU admission全体の実行確認は未完了。** ARMの早期乱数は有効なfirmware seedまたは健全なRNDRを必須とし、RTC・時刻・固定値を代替エントロピーにしない。
 - [スレッド切替の例外スタック設定](core/src/task/context.rs)をnative入口へまとめた。x86では従来のTSSとSYSCALLスタックを更新し、ARMでは所有済みEL1スタックを保持して最終EL0遷移で使用する。ARMからGDT/TSSとCR4の初期化を除き、x86カーネルの再ビルドが通った。この段階で残っていたIRQ・タイマー・SMPによるコンパイルエラーは、上記の後続変更で解消した。
 - [mBootのELFローダー](mboot/src/image.rs)を所有済みDomain RAMのインターフェースへ分離し、ARMの低位ブート入口＋上位カーネルVMAを別のGPAへロードできるようにした。CPU種別を明示し、x86の通常経路は外国CPUのELFを拒否する。入口は実行可能なidentityセグメント内に限定し、入力・配置・RAM範囲をすべて検証してからコピーする。SDKの実Clang／LLDで作った[再現用ELF](mboot/scripts/elf-layout-probe.ld)でtext・data・BSSの物理配置を確認し、mBootの145試験が通った。後続の診断で製品ELFのReadyまで実行したが、後続でvCPUの繰り返し再開も確認したが、本体のディスパッチャとmnu初期化への接続は引き続き必要。
 - [カーネルヒープの配置](core/src/arch/aarch64/memory/mod.rs)をCPU別にした。ARMではTTBR1の上位領域を使い、プロセスのTTBR0を交換してもヒープ配置を失わない。実MMUで下位ルートの交換と上位ヒープの保持・交換を確認した。x86は既存アドレスを維持し、カーネルビルドと既存のヒープ拡張ロック試験が通った。後続変更でSystem Domainの上位配置とGrant RAMのGPA変換も接続した。実I/Oとプロセス切替はOS結合後に確認する。
@@ -100,7 +102,11 @@ mdp workspace build --select kernel -j 2
 
 ## 対象と最初の到達点
 
-初期対象はAArch64（ARM64、little endian）とし、ARM32は含めない。対象タブレットの機種・SoC・firmwareは未確定のため、実機の対応可否はまだ判断しない。
+初期対象はAArch64（ARM64、little endian）とし、ARM32は含めない。実機は**NEC PC-TE510HAW、Snapdragon 625／MSM8953系、Cortex-A53・8コア**を対象とする。[NEC公式仕様](https://lenovo-nec.jp/navigate/products/pc/183q/10/lavietab/lte/spec/index02.html)ではSoCはAPQ8053、RAMは3 GB、画面は1920×1200。ブートローダーは解除済みで、元のboot.img／DTBを取得可能とユーザーから確認した。起動イメージの実物はまだworkspace内で確認できていない。
+
+[SoC共通のLinux Device Tree](https://github.com/torvalds/linux/blob/master/arch/arm64/boot/dts/qcom/msm8953.dtsi)にはCortex-A53、PSCI SMC、`qcom,msm-qgic2`のGICv2、Qualcomm固有IOMMUが記述されている。CPU affinityは`0..3`と`0x100..0x103`で、クラスタ情報を切り捨てない。これはSoC側の参考情報であり、NECの実DTB・EL2引き渡し・GICH/GICV利用可否・secure firmwareによるIOMMU所有を確認したものではない。GICv3／SMMUv3やUEFIの存在を前提にしない。
+
+Cortex-A53のMeltdown非影響判定は[LinuxのKPTI判定](https://github.com/torvalds/linux/blob/v6.6/arch/arm64/kernel/cpufeature.c)、Spectre-v2は[Armの資料](https://developer.arm.com/-/media/Arm%20Developer%20Community/PDF/Security%20update%2018%20June%2018/Arm_Trusted_Firmware_Speculative_Vulnerabilties_v1.6.pdf)、Spectre-BHBは[LinuxのCPU判定](https://github.com/torvalds/linux/blob/master/arch/arm64/kernel/proton-pack.c)を確認した。これらの非影響判定を、他のCPUや他の攻撃にも一律に適用しない。
 
 最初の到達点は、QEMUのARM64環境で次を通すこと。
 
@@ -121,7 +127,7 @@ ARM用のターゲットを追加するだけでは起動できない。CPU依�
 
 | 対象 | 確認した現状 | 主な移植箇所 |
 |---|---|---|
-| mnuのビルド・入口 | 実ライブラリ全体のARM型チェック・コード生成と既存x86カーネルビルドが通った。ARMブートELFのリンク・起動は未完了 | ARM用のイメージ配置、呼び出し規約、ブート入口・初期スタック |
+| mnuのビルド・入口 | 実ライブラリ全体のARM型チェック・コード生成と既存x86カーネルビルドが通った。ARM System Domainの実ELFが上位EL1のReadyまで実行された | Ready後のmnu初期化、サービス・ユーザープロセスの実行 |
 | CPU・割り込み | CPU初期化・保護設定、割り当て済みGIC・タイマーIRQからのスケジューラ接続を実装。ARMは1vCPUのみ受け付ける | firmware mitigation供給、実vCPU上のプリエンプション・例外復帰、SMPとリモートIPI |
 | メモリ | Stage-1 MMUと共有VMアダプタ、TTBR0／TTBR1制御、ARMの上位ヒープ配置を実装した。GDT/TSSとCR4初期化はx86側だけで行う | ARMの初期配置・マッピング、SMPでのTLB整合 |
 | タスク | CPU別のEL1継続、EL0復帰、初期レジスタ・upcall・FP・TLSを実装した。製品のタスク入口は実コード生成まで通り、OS上の実行は未確認 | 上位カーネル配置・例外スタックと実スケジューラを接続し、IPC・Handle転送を実行する |
@@ -209,11 +215,11 @@ mDriverのARM64 Linuxを起動する際は、[LinuxのARM64起動仕様](https:/
 
 ## 開発環境と実機で確認すること
 
-初期の参照環境はQEMU ARM64 `virt`を候補とする。実機固有の周辺回路を再現するボードではないため、機種別対応とは分けて扱う。[QEMUの公式仕様](https://www.qemu.org/docs/master/system/arm/virt.html)で、AArch64 CPUの明示指定と、mBootに必要な仮想化拡張の有効化を確認する。仮想化拡張は既定では無効。
+初期の参照環境はQEMU ARM64 `virt-8.2`・GICv2・Cortex-A53とする。Cortex-A57と`max`も対応範囲の診断に使用する。実機固有の周辺回路を再現するボードではないため、機種別対応とは分けて扱う。[QEMUの公式仕様](https://www.qemu.org/docs/master/system/arm/virt.html)で、AArch64 CPUの明示指定と、mBootに必要な仮想化拡張の有効化を確認する。仮想化拡張は既定では無効。
 
 最初はCPU 1個・シリアル出力を使い、参照するCPUモデル、GIC、RAM、firmware、QEMU版を固定する。ARM64ホスト上でmBoot自体をKVMゲストとして検証する場合は、ネスト仮想化とゲストEL2の利用条件を確認する。ARM64ホストであることだけを根拠に、この構成を利用可能とは扱わない。x86_64ホストでARM64をTCG実行した結果を実機性能の指標にはしない。既存のx86_64 KVM起動設定は変更しない。
 
-対象タブレットが決まったら、次を調べる。
+対象タブレットの元boot.img／DTBと実際の起動ログで、次を調べる。
 
 - 機種名、SoC、CPU、対応するページ粒度、物理メモリ構成。
 - ブートローダーの起動許可と、UEFI・Device Tree・ACPIなど利用できる情報。

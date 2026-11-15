@@ -257,24 +257,24 @@
     "boot": {
       "content_sha256": "32a07dc6ba660974b463653e596a127fd0698b7b70d822178123a60795a62aa4",
       "resolution": {
-        "Cargo.lock": "cd04a0a4e745e2dccd80f42ede54f3bf0ae090bb4a073e3832619ee0d9745dc7"
+        "Cargo.lock": "d245a82c21169c02bb1462216920c2aa180501fad020815a12c5dbbbb14744bd"
       },
       "resolution_graph": {
         "Cargo.lock": "326ef294cc2054112fbc3460470c629dd7aac9b357518038ff304e45413966fd"
       },
-      "revision": "c568ec7b558f56627975b7046282945762a3a24d",
+      "revision": "bf57f4566c45966bdbe0f3246a206c13b1b811db",
       "tracked_tree": "32a07dc6ba660974b463653e596a127fd0698b7b70d822178123a60795a62aa4",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "boot-hardware": {
       "content_sha256": "32a07dc6ba660974b463653e596a127fd0698b7b70d822178123a60795a62aa4",
       "resolution": {
-        "Cargo.lock": "cd04a0a4e745e2dccd80f42ede54f3bf0ae090bb4a073e3832619ee0d9745dc7"
+        "Cargo.lock": "d245a82c21169c02bb1462216920c2aa180501fad020815a12c5dbbbb14744bd"
       },
       "resolution_graph": {
         "Cargo.lock": "326ef294cc2054112fbc3460470c629dd7aac9b357518038ff304e45413966fd"
       },
-      "revision": "c568ec7b558f56627975b7046282945762a3a24d",
+      "revision": "bf57f4566c45966bdbe0f3246a206c13b1b811db",
       "tracked_tree": "32a07dc6ba660974b463653e596a127fd0698b7b70d822178123a60795a62aa4",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
@@ -387,9 +387,9 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "kernel": {
-      "content_sha256": "273d1e6ca4ffa2994b09356c7585dd8a2ff3103792340a474f427bbde6ba3961",
+      "content_sha256": "31e0207b8aac592420e14416837a760cf1bc09dc5b3d050ccc8a93b365bbefd0",
       "resolution": {
-        "Cargo.lock": "962ce2b0c4ad2fc690a07648b7688e870fe5d67657da1c2b92c3ca83af0b8229",
+        "Cargo.lock": "3f517e1742c5255a454beaa07ddb9cc6fc96ad941a671152218f6792556960be",
         "examples/boot/Cargo.lock": "cee2fe7462c86f77f07cbbc3634985c9071956d502a5c21d849b31856fb7a877",
         "examples/user/Cargo.lock": "cc8d246ac8749095f41bed59dbdf285c4513cd0f26b27d35ebdef3fa33a3ce51",
         "modules/fs_cext/Cargo.lock": "7905d6481eb83c511758aa3c150cfac22577689a243998f02b0f320c22635155",
@@ -402,8 +402,8 @@
         "modules/fs_cext/Cargo.lock": "0f02b89ae4750e5346ce7f55ea8a15ab498aa5a6368e287366e05fb2a097380d",
         "scripts/heap-layout-bench/Cargo.lock": "e3b0bcb1557c70a0a7e7e29c2d932563f657456377ee88ff7c2c1b820ebee996"
       },
-      "revision": "7dc5472e225ee00748499c5c4b2b6dacabfc336d",
-      "tracked_tree": "273d1e6ca4ffa2994b09356c7585dd8a2ff3103792340a474f427bbde6ba3961",
+      "revision": "4042e1028eb88b9c59074efbc6909593f0005473",
+      "tracked_tree": "31e0207b8aac592420e14416837a760cf1bc09dc5b3d050ccc8a93b365bbefd0",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "libc-source": {
@@ -419,16 +419,16 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "mboot": {
-      "content_sha256": "84afa05a1d453b53c80aaa10f2c4472d3d5f325c693332e46694362450ff8a50",
+      "content_sha256": "7fee33a9c2ac0cb8d6475f156d8cc6ce6754da5234ea10a5fa72115332e54156",
       "resolution": {
-        "Cargo.lock": "0a80d119ee99397baee945f953c07ac745c20bffdfe5268954eb11d8a25a0331"
+        "Cargo.lock": "32a3d2b038535248371bbd9859dc4ad84de22297de8cab40baec0393e4f8a1f4"
       },
       "resolution_graph": {
         "Cargo.lock": "e4901bf358f7c96d96c78ce3330af5030c46a01e2d1cfc9e93be0f28f99977eb"
       },
-      "revision": "a3ea4e62d8f905bad316d95c38d80dd90b653ce4",
-      "tracked_tree": "e42b0be44a8c07fdb8d272b09894e101b78aff1a57770b9982f2ca1da399cadb",
-      "working_tree": "b0ce85b36efcccbbae6e559574bb0c87c6c459a5f992c5ac7d75c8e3761706b1"
+      "revision": "cd49d3a283d541a5e2daf854c19d4a89a929f1a7",
+      "tracked_tree": "7fee33a9c2ac0cb8d6475f156d8cc6ce6754da5234ea10a5fa72115332e54156",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "mdev": {
       "content_sha256": "31660feb3880b412c6ccfc6acafa06892fe3633966dff142c27de49edd7cd8b9",

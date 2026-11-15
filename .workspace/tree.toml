@@ -16615,3 +16615,11 @@ path = "boot"
 hash = "43e0ed65c9f64beea42fc4a0e0d6b7aec1be337b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Produce architecture-tagged boot CPU identities"
+
+[[entries]]
+date = "2026-11-15T12:59:14.011597719+09:00"
+snapshot = "7af22a39ae408a235b62b30b"
+path = "core"
+hash = "afa282aeaa45322f70a3962a829f82d47b6c6c54"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use native user TLS registers from shared thread switching"

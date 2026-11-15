@@ -16735,3 +16735,11 @@ path = "core"
 hash = "8f813af715b7612a42cc737d542a39314442a705"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Publish native entry readiness independently of physical root addresses"
+
+[[entries]]
+date = "2026-11-15T15:01:19.708643455+09:00"
+snapshot = "b5c86a36da52749349930dca"
+path = "mboot"
+hash = "f09fe0d1ea8c3eb5927dbd7c39010ee0ab945769"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record dependencies after native interrupt boot contract validation"

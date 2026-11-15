@@ -101,7 +101,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-file": {
-      "content_sha256": "c4fe4f04c61aeb59bb333636fa804ea0dd7da3015b5a4f8ef307eea00f541162",
+      "content_sha256": "b57f287a0213d79c4415f60ee1f564615945aa253f906f231b096120e3c717e2",
       "resolution": {
         "Cargo.lock": "1c3d7c3746dd4f3dce97f16a5f6c2cc574466ecef526f26574cd0dd11da612a6",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
@@ -110,9 +110,9 @@
         "Cargo.lock": "8c97667856fb07d7544b602f59a6cc31a1cb7a61ad1a2a18908c876ecfcb2307",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
       },
-      "revision": "897e7ef2f66cf514e2ebb93aa57eeb13d98a407d",
-      "tracked_tree": "1f0409b9b97bdd1b22792272640a78e071653f96a19a83b1fe710a55d3ec908b",
-      "working_tree": "a2051f6551fbc4aed194a78b81960ca161595ee0e40412bde6853d89d78c9731"
+      "revision": "017515b19ddb6c20197c34ce00e9f7e0c4d963f1",
+      "tracked_tree": "b57f287a0213d79c4415f60ee1f564615945aa253f906f231b096120e3c717e2",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-fonts": {
       "content_sha256": "dd3aa6dce3c0c1efa481f19bb15e4c71a0668e7cc3014f8976ab2f215287e367",
@@ -255,27 +255,27 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "boot": {
-      "content_sha256": "017b3d2c3ef2ca2b9a0de76db5b00a8191175e7ec325a4cf49a5b6ed9d4eed79",
+      "content_sha256": "a5888fa136228f24473951ce9cdccb2064e711216f7d701e0de6a00776cff2b2",
       "resolution": {
-        "Cargo.lock": "5db379fd5fdbafbbb6ff64982a9d23e0ece529ea4dec5f57c6f42a5a7643628f"
+        "Cargo.lock": "0c602d2fbba467f4e5ccdf3bccd9f21182dbbe0ce8ada2b97e8e6fe9851e2609"
       },
       "resolution_graph": {
         "Cargo.lock": "326ef294cc2054112fbc3460470c629dd7aac9b357518038ff304e45413966fd"
       },
-      "revision": "08f570d87023caec7043f310e4ebf5645b8e8dfc",
-      "tracked_tree": "017b3d2c3ef2ca2b9a0de76db5b00a8191175e7ec325a4cf49a5b6ed9d4eed79",
+      "revision": "997c67da0710b8442bcfe3d9d358f0fc03b92262",
+      "tracked_tree": "a5888fa136228f24473951ce9cdccb2064e711216f7d701e0de6a00776cff2b2",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "boot-hardware": {
-      "content_sha256": "017b3d2c3ef2ca2b9a0de76db5b00a8191175e7ec325a4cf49a5b6ed9d4eed79",
+      "content_sha256": "a5888fa136228f24473951ce9cdccb2064e711216f7d701e0de6a00776cff2b2",
       "resolution": {
-        "Cargo.lock": "5db379fd5fdbafbbb6ff64982a9d23e0ece529ea4dec5f57c6f42a5a7643628f"
+        "Cargo.lock": "0c602d2fbba467f4e5ccdf3bccd9f21182dbbe0ce8ada2b97e8e6fe9851e2609"
       },
       "resolution_graph": {
         "Cargo.lock": "326ef294cc2054112fbc3460470c629dd7aac9b357518038ff304e45413966fd"
       },
-      "revision": "08f570d87023caec7043f310e4ebf5645b8e8dfc",
-      "tracked_tree": "017b3d2c3ef2ca2b9a0de76db5b00a8191175e7ec325a4cf49a5b6ed9d4eed79",
+      "revision": "997c67da0710b8442bcfe3d9d358f0fc03b92262",
+      "tracked_tree": "a5888fa136228f24473951ce9cdccb2064e711216f7d701e0de6a00776cff2b2",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "bootui-source": {
@@ -665,7 +665,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "services": {
-      "content_sha256": "844e5c93eec145888b9aca0bb07019788228bbfd41befa426ff89a40747e5620",
+      "content_sha256": "6064177f07c635da7943251cf7f409be818692f12132c68b456c9f013f295b35",
       "resolution": {
         "Cargo.lock": "04f8dcc96245888194376ab1b54e9880324de24ec7789d486ae79c1baebaf57e",
         "posix/tests/executable-reference/Cargo.lock": "77375e08d1e0b31a9920b072bc0f274761d22f136844bf56a4e7026eb2a66e2f",
@@ -678,8 +678,8 @@
         "posix/tests/native_rust_sleep/Cargo.lock": "605b9ba9d15a126b46110d0dbc89861d7cb1a446ca473b395c2d78669fc2f09d",
         "posix/tests/native_viewkit_buffer/Cargo.lock": "e27d4b9d7ee115a651043ab2048bd4a222d175879bf8ed8a1f5c203acc894e00"
       },
-      "revision": "94e98bbeb6554a1a150daa2e226fb094560b417e",
-      "tracked_tree": "844e5c93eec145888b9aca0bb07019788228bbfd41befa426ff89a40747e5620",
+      "revision": "3c50bb71e0c9b83ba0cc9136de0bd0d6d3c249d3",
+      "tracked_tree": "6064177f07c635da7943251cf7f409be818692f12132c68b456c9f013f295b35",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "shared-sdk": {
@@ -717,7 +717,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "viewkit": {
-      "content_sha256": "25c7a7108d050bcd1e1ce33feca832f129015f2661ecd3ed4b372de65e977798",
+      "content_sha256": "d908c8cb2378f190ab014d61b1ad6aacf65b1b8f856825a2fecd3cab732a362b",
       "resolution": {
         "Cargo.lock": "4937662c7170b5dc31c21a8e9f8c5b0a4413204f9c3fe5222c1edffe77b2210c",
         "tools/ffi-gen/Cargo.lock": "80ee17db9559114cdb9d035f3dcdf30bf3947c9da658df60aa5f0806be6e4c8a"
@@ -726,9 +726,9 @@
         "Cargo.lock": "745111aaece8bce25d7ea9ecfc976a31ee88ec37df24b81f7ac3f33f8dfbcc16",
         "tools/ffi-gen/Cargo.lock": "a0b63153eb31e72e805a7f6390adb187d872cafd35026f076144a2b361e6f3e8"
       },
-      "revision": "4d4125fc3c533b0525a14a93227c12d60bad0ec8",
-      "tracked_tree": "50803d636e546bc8dc4f16b1f09a55a837e9a93ce884066e53afbf0c8b018dbb",
-      "working_tree": "79121da4fe3c5c84f5ff306bc91c7f7e7d2eb162e3307354394d66c64259a25a"
+      "revision": "2c48664d21ce7204ea1c7fc4e65cb5aad9f6a521",
+      "tracked_tree": "d908c8cb2378f190ab014d61b1ad6aacf65b1b8f856825a2fecd3cab732a362b",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   }
 }

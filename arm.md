@@ -6,14 +6,16 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [ARM System Domainの起動入口](boot/src/arch/aarch64/entry.S)と[専用リンク配置](boot/domain-aarch64.ld)を追加した。実ELFの低位入口で4 KiBのStage-1を構築し、カーネル・スタック・起動情報をTTBR1の上位領域へ保持する。textはRO/X、rodataはRO/NX、その他のRAMはRW/NXとし、入口の上位別名もRO/NXにする。現在の初期RAM上限はDomainあたり1 GiB。製品ELFを実際のmBootローダーとStage-2で実行し、Cortex-A57とmaxで上位EL1のReady HVCまで到達した。ログは`out/arm/system-domain-stage2-check/run.log`と`out/arm/system-domain-stage2-a57-check/run.log`。診断はReadyで停止し、mnu初期化・サービス起動を通ったことにはしない。x86 System Domainのリンクと既存mBootの145試験も通った。
+
 - [System DomainのGrant RAMアクセス](boot/src/mdriver.rs)でGPAとカーネルVAを分けた。Hypercallと描画面の共有情報にはGPAを渡し、CPUからリング・ストレージ・metadata・描画バッファへアクセスするときだけ、検証済みGrant範囲とカーネルlinear mapを使う。範囲外・加算overflow・不正な仮想アドレスを拒否する。非identityの実バッファでコピーと読み取り専用Grantを確認し、既存の起動データ5試験とx86 System Domainの実リンクが通った。ARMの実I/O確認はmBoot／mDriver結合後に行う。
-- **ARM64版mnuライブラリ全体の型チェックと実コード生成が通った。** `aarch64-unknown-none`でコンパイルし、従来の部分的なCPU診断だけでなく、共有VM・syscall・IPC・Capability・スケジューラを含む実ライブラリを生成した。ログは`out/arm/native-mnu-aarch64-build.log`。これはARMブートELFのリンクやOS起動の完了ではない。既存x86カーネルも再ビルドできた。
+- **ARM64版mnuライブラリ全体の型チェックと実コード生成が通った。** `aarch64-unknown-none`でコンパイルし、従来の部分的なCPU診断だけでなく、共有VM・syscall・IPC・Capability・スケジューラを含む実ライブラリを生成した。ログは`out/arm/native-mnu-aarch64-build.log`。後続変更でARMブートELFのリンクとReadyまでの入口実行も通ったが、OS起動は未完了。既存x86カーネルも再ビルドできた。
 - [ネイティブCPU起動の分離](core/src/smp.rs)により、APIC／CR3／16-bit trampolineをx86側へ移した。ARMは現在1vCPUだけを受け付け、実際に走っているCPUのみをTLB同期の参加者へ登録する。複数vCPUの起動とリモートIPIは未対応として拒否する。診断では1CPUの受け入れ、未完成SMP・x86ハンドオフの拒否を確認した。ARM SMPを完成扱いにはしない。
 - [ARMタイマー](core/src/arch/aarch64/timer.rs)と[製品IRQハンドラ](core/src/arch/aarch64/interrupt.rs)を共有の時刻・sleep・スケジューラへ接続した。割り当て済みCPUインターフェースだけを上位のDevice／RW／XN領域へマップし、既存マッピングや非presentの所有済みPTEを上書きしない。タイマーは前回deadlineから再設定し、時刻は共有counter epochから算出してCPU数やIRQ遅延による増速を避ける。EOI完了後にスケジュールし、EL0フレーム・TLS・upcallを保持する。実タイマーIRQ、counterの端数・wrap・オーバーフロー、MMUの空き判定、x86カーネルビルドが通った。製品IRQハンドラ全体をOS上で実行する確認はmBoot結合後に行う。既存タイマー／CPU時間の回帰5件も、実フレームと現在の所有権表現で通った。
 - [CPU初期化](core/src/arch/aarch64/cpu.rs)をx86から分離し、EL1のFP/AdvSIMD、CPUごとのPAN/RNDR検出、入れ子のユーザーデータアクセス範囲を追加した。PANを開く間はIRQとCPU移動を制限し、PXNは解除しない。Cortex-A57と`max`で保護状態の復元・未対応RNDRの拒否を確認し、x86カーネルビルドも通った。実運用のCPU admissionはCSV3とEL2経由SMCCCのWORKAROUND_1／3を要求し、未対応を成功扱いにしない。**このfirmware経路はまだmBootへ接続されておらず、製品側のCPU admission全体の実行確認は未完了。** ARMの早期乱数は有効なfirmware seedまたは健全なRNDRを必須とし、RTC・時刻・固定値を代替エントロピーにしない。
 - [スレッド切替の例外スタック設定](core/src/task/context.rs)をnative入口へまとめた。x86では従来のTSSとSYSCALLスタックを更新し、ARMでは所有済みEL1スタックを保持して最終EL0遷移で使用する。ARMからGDT/TSSとCR4の初期化を除き、x86カーネルの再ビルドが通った。この段階で残っていたIRQ・タイマー・SMPによるコンパイルエラーは、上記の後続変更で解消した。
-- [mBootのELFローダー](mboot/src/image.rs)を所有済みDomain RAMのインターフェースへ分離し、ARMの低位ブート入口＋上位カーネルVMAを別のGPAへロードできるようにした。CPU種別を明示し、x86の通常経路は外国CPUのELFを拒否する。入口は実行可能なidentityセグメント内に限定し、入力・配置・RAM範囲をすべて検証してからコピーする。SDKの実Clang／LLDで作った[再現用ELF](mboot/scripts/elf-layout-probe.ld)でtext・data・BSSの物理配置を確認し、mBootの145試験が通った。これはELFコピーの確認で、ARM vCPUによるカーネル起動はまだ行っていない。
-- [カーネルヒープの配置](core/src/arch/aarch64/memory/mod.rs)をCPU別にした。ARMではTTBR1の上位領域を使い、プロセスのTTBR0を交換してもヒープ配置を失わない。実MMUで下位ルートの交換と上位ヒープの保持・交換を確認した。x86は既存アドレスを維持し、カーネルビルドと既存のヒープ拡張ロック試験が通った。ARM用カーネルイメージ・ブート入口の上位配置と、GPAを使うI/Oバックエンドの接続は引き続き必要。
+- [mBootのELFローダー](mboot/src/image.rs)を所有済みDomain RAMのインターフェースへ分離し、ARMの低位ブート入口＋上位カーネルVMAを別のGPAへロードできるようにした。CPU種別を明示し、x86の通常経路は外国CPUのELFを拒否する。入口は実行可能なidentityセグメント内に限定し、入力・配置・RAM範囲をすべて検証してからコピーする。SDKの実Clang／LLDで作った[再現用ELF](mboot/scripts/elf-layout-probe.ld)でtext・data・BSSの物理配置を確認し、mBootの145試験が通った。後続の診断で製品ELFのReadyまで実行したが、繰り返し再開できる製品vCPUとmnu初期化は引き続き必要。
+- [カーネルヒープの配置](core/src/arch/aarch64/memory/mod.rs)をCPU別にした。ARMではTTBR1の上位領域を使い、プロセスのTTBR0を交換してもヒープ配置を失わない。実MMUで下位ルートの交換と上位ヒープの保持・交換を確認した。x86は既存アドレスを維持し、カーネルビルドと既存のヒープ拡張ロック試験が通った。後続変更でSystem Domainの上位配置とGrant RAMのGPA変換も接続した。実I/Oとプロセス切替はOS結合後に確認する。
 - [GICv2 CPUインターフェース](core/src/arch/aarch64/gic.rs)に、割り当て済みレジスタ領域の有効化・IRQ受信・完了通知を追加した。CPUとIRQマスク状態を確認し、SGI送信元を含むIAR全体をEOIへ戻す。spurious IRQへEOIを送らず、完了前のCPU移動を認めない。実際のタイマーIRQと範囲・マスク状態の拒否を確認した。診断はGICCを使っており、mBootの仮想GIC状態保存・物理IRQ配送・Domain間隔離の確認はまだ行っていない。
 - [ARM割り込み資源の起動契約](core/crates/abi/src/arm64_interrupts.rs)を追加した。mBootが割り当てたGIC CPUインターフェースのGPA・範囲、timer／event／management／TLB／wakeのIRQ役割を明示する。未対応の形式・予約ビット・範囲外・役割の重複・別CPU向けの資源・framebufferとの重複を拒否する。Domain起動ABIはv14、mnu起動ABIはv4へ更新し、既存の送信側も更新した。ABIの50単体＋5結合試験、両CPU診断、mBootの143試験、x86カーネル・UEFIローダー・System Domainのビルドが通った。資源の既定値は空で、ARMのGIC仮想化やIRQ配送を実装済みとは宣言しない。次にこの契約へ実コントローラとタイマーを接続する。
 - [診断コンソール](core/src/util/console.rs)から既存COM1実装をx86側へ分離した。ARMはmBootの既存コンソールへ、ATによる現在のStage-1変換で得たゲスト物理アドレスを渡し、ページ境界で分割する。実MMUで上位アドレス・ルート切替・unmap後の変換を確認した。1024 bytesを超える文字列と送信失敗も既存のホスト試験で確認し、x86カーネルビルドも通った。ボードUARTのアドレスはmnuへ追加していない。
@@ -117,11 +119,11 @@ ARM用のターゲットを追加するだけでは起動できない。CPU依�
 | CPU・割り込み | CPU初期化・保護設定、割り当て済みGIC・タイマーIRQからのスケジューラ接続を実装。ARMは1vCPUのみ受け付ける | firmware mitigation供給、実vCPU上のプリエンプション・例外復帰、SMPとリモートIPI |
 | メモリ | Stage-1 MMUと共有VMアダプタ、TTBR0／TTBR1制御、ARMの上位ヒープ配置を実装した。GDT/TSSとCR4初期化はx86側だけで行う | ARMの初期配置・マッピング、SMPでのTLB整合 |
 | タスク | CPU別のEL1継続、EL0復帰、初期レジスタ・upcall・FP・TLSを実装した。製品のタスク入口は実コード生成まで通り、OS上の実行は未確認 | 上位カーネル配置・例外スタックと実スケジューラを接続し、IPC・Handle転送を実行する |
-| ELF | [mnuローダー](core/src/elf/loader.rs)はnative CPU種別を検査する。ユーザー側のARM再配置は実Clang/LLDのDSOで確認済み。[mBootローダー](mboot/src/image.rs)もCPUを検査し、ARMの上位VMAと物理ロード先を区別する | ARMブート入口・Stage-1構築と、ロードしたイメージを実行するvCPU |
+| ELF | [mnuローダー](core/src/elf/loader.rs)はnative CPU種別を検査する。ユーザー側のARM再配置は実Clang/LLDのDSOで確認済み。[mBootローダー](mboot/src/image.rs)もCPUを検査し、ARMの上位VMAと物理ロード先を区別する | 製品vCPUの繰り返し実行、mnu初期化とサービス実行 |
 | 起動ABI | BootInfo v4・DomainBootInfo v14にCPU種別、64ビットID、明示的なARM IRQ資源を定義した。既存のx86 SMPハンドオフはARMで拒否する | ARMの実vCPU起動・SMP状態と資源供給側の実装 |
 | syscall・実行ABI | [ARMラッパー](user/crates/syscall/src/arch/)のSVC、カーネル側のSVC配送、native保存状態・継続ABIを実装した | OS上でのブロック・再開・例外復帰と、既存IPC・Capability処理の確認 |
 | mBoot | ARMのStage-2とEL1からのHVC受け渡しをCPU診断で確認済み。製品の仮想化バックエンドは引き続きIntel VMX／AMD SVM | ARM vCPU状態、仮想GIC・タイマー、Domain間切替、DMA隔離 |
-| System Domainの入口 | [system_domain.rs](boot/src/system_domain.rs)はIRQ資源を渡し、I/OのGPAもlinear map経由でアクセスする。入口・イメージ配置は引き続きx86向け | ARMブート入口、上位配置、GPAとカーネルVAの区別 |
+| System Domainの入口 | [system_domain.rs](boot/src/system_domain.rs)はIRQ資源を渡し、I/OのGPAもlinear map経由でアクセスする。ARMは低位入口でStage-1を作り、実ELFで上位EL1のReadyまで実行確認済み | Ready後のmnu初期化、仮想GIC・firmware・mDriverとの結合 |
 | mDriver | LinuxのPVH起動、PCIデバイス割り当て、`vmcall`／`vmmcall`を使用 | ARM64 Linuxの起動・FDT・Domain接続・対象SoCのデバイス割り当て |
 | OSビルド | ARM SDKを公開しRust標準ライブラリ・core.serviceのクロスリンクを確認した。製品のMDPカーネル・ブート・イメージはx86向け | CPU選択、ARMブート成果物・Linux・ユーザーランドを使うOSイメージ生成 |
 
@@ -229,4 +231,4 @@ EL2や必要なDMA隔離が利用できない機種は、現在のDomain構成�
 - initfsへGUIや一般アプリを追加せず、既存の最小構成を維持する。
 - ソースの変更、Lock更新、各リポジトリの参照とMWS記録を一組として管理し、Lockを巻き戻さない。
 
-共有VM、CPUローカル状態、継続復帰、起動契約、ARM SDKまで段階的に実装・検証している。ARM版mnu全体のビルドとOS起動は未完了である。続いてCPU初期化、上位カーネル配置とブート入口、IRQ・タイマー・SMP、mBootのARM vCPUとI/Oを接続する。診断の成功をARM版OS全体の起動完了と扱わず、空実装でビルド成功を装わない。
+共有VM、CPUローカル状態、継続復帰、起動契約、ARM SDKまで段階的に実装・検証している。ARM版mnuライブラリ全体のビルド、System Domain ELFのリンク、Stage-2下の上位EL1入口は確認済み。OS起動は未完了である。続いてmBootのARM vCPU・firmware・仮想GIC・I/Oを接続し、mnu初期化・サービス起動・SMPへ進む。診断の成功をARM版OS全体の起動完了と扱わず、空実装でビルド成功を装わない。

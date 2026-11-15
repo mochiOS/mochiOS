@@ -16799,3 +16799,11 @@ path = "core"
 hash = "acc6cdca212acfaaa764da5ca6b98507d6db4a4d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Wire assigned ARM GIC and timer IRQs into kernel scheduling"
+
+[[entries]]
+date = "2026-11-15T16:41:23.268100121+09:00"
+snapshot = "8910b3b80c388e6442b2841f"
+path = "applications/file"
+hash = "017515b19ddb6c20197c34ce00e9f7e0c4d963f1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Align Files toolbar inputs and actions with standard native control metrics"

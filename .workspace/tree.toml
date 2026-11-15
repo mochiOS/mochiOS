@@ -16871,3 +16871,11 @@ path = "mboot"
 hash = "af5e3a39e387acaba09881bc93f862c9381170a7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Run native EL2 diagnostics within Cortex-A53 address limits"
+
+[[entries]]
+date = "2026-11-15T19:09:38.710571260+09:00"
+snapshot = "444784373cf8fc3aa1c265f0"
+path = "mboot"
+hash = "cd49d3a283d541a5e2daf854c19d4a89a929f1a7"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Validate real ARM boot DTB handoff through the Image protocol"

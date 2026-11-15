@@ -60,6 +60,19 @@ for name in applications:
         shutil.copytree(source / "crates/binder_protocol", destination / "crates/binder_protocol", dirs_exist_ok=True, copy_function=copy_if_changed)
         members.append('"applications/binder/crates/binder_protocol"')
 
+# Rust UI previews consume AppCore as an rlib. SDK C ABI archives remain owned
+# by the original manifest; bundling all GPU dependencies into a staticlib here
+# adds a large, unused archive to every host development build.
+appcore_source = root / "tools/devkit/crates/appcore"
+if (appcore_source / "Cargo.toml").exists():
+    appcore_destination = preview / "frameworks/appcore"
+    appcore_destination.mkdir(parents=True, exist_ok=True)
+    appcore_manifest = (appcore_source / "Cargo.toml").read_text()
+    appcore_manifest = re.sub(r'(?m)^crate-type\s*=.*$', 'crate-type = ["rlib"]', appcore_manifest)
+    write_if_changed(appcore_destination / "Cargo.toml", appcore_manifest)
+    link(appcore_source / "src", appcore_destination / "src")
+    members.append('"frameworks/appcore"')
+
 # The host input adapter shares input.service's library, not a separate IME implementation.
 ime_source = root / "tools/desktop-ime"
 ime_destination = preview / "tools/desktop-ime"
@@ -93,6 +106,7 @@ write_if_changed(preview / "Cargo.toml",
     '[workspace]\nresolver = "2"\nmembers = [\n    ' + ",\n    ".join(members)
     + '\n]\n\n[profile.dev]\npanic = "abort"\ndebug = 0\nincremental = true\n'
     + '\n[profile.dev.package.viewkit]\nopt-level = 2\n'
+    + '\n[profile.dev.package.mochios-viewkit-gpu-protocol]\nopt-level = 2\n'
     # Document thumbnails run off the UI thread, but unoptimized image codecs
     # can still exceed the worker deadline for ordinary desktop-size images.
     + '\n[profile.dev.package.image]\nopt-level = 2\n'

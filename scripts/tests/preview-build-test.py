@@ -84,8 +84,18 @@ class PreviewBuildTests(unittest.TestCase):
                 path.mkdir(parents=True)
                 (path / "src").mkdir()
                 (path / "Cargo.toml").write_text('[package]\nname="test"\nversion="0.1.0"\n')
+            appcore = root / "tools/devkit/crates/appcore"
+            (appcore / "src").mkdir(parents=True)
+            original = '[package]\nname="mochios-appcore"\nversion="0.1.0"\n[lib]\ncrate-type=["rlib", "staticlib", "cdylib"]\n'
+            (appcore / "Cargo.toml").write_text(original)
+            (appcore / "src/lib.rs").write_text("pub fn example() {}\n")
             command = ["python3", str(ROOT / "scripts/dev/prepare-preview.py"), str(root)]
             subprocess.run(command, check=True)
+            generated = root / "out/build/preview/frameworks/appcore"
+            self.assertIn('crate-type = ["rlib"]', (generated / "Cargo.toml").read_text())
+            self.assertEqual((appcore / "Cargo.toml").read_text(), original)
+            self.assertTrue((generated / "src").is_symlink())
+            self.assertIn('[profile.dev.package.mochios-viewkit-gpu-protocol]', (root / "out/build/preview/Cargo.toml").read_text())
             target = root / "out/build/preview/applications/binder/crates/binder_protocol/src/lib.rs"
             self.assertEqual((root / "out/build/preview/applications/appstore/initial-apps.json").read_text(), (store / "initial-apps.json").read_text())
             before = target.stat().st_mtime_ns

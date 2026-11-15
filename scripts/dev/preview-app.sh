@@ -3,6 +3,11 @@ set -euo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(cd "$script_dir/../.." && pwd)
+# Tests and check builds must resolve exactly the same fonts as interactive UI.
+preview_font_root="$root/libraries/fonts/out/fonts"
+[[ -d $preview_font_root ]] || preview_font_root="$root/libraries/viewkit/resources/fonts"
+export MOCHIOS_PREVIEW_FONTS_SYSTEM="${MOCHIOS_PREVIEW_FONTS_SYSTEM:-$preview_font_root}"
+
 app=${1:-}
 mode=${2:-run}
 shift 2 || true
@@ -76,6 +81,9 @@ esac
 # Source manifests/lockfiles remain untouched; host dependencies share one
 # isolated workspace and a single build cache.
 python3 "$script_dir/prepare-preview.py" "$root"
+if [[ -f $root/out/build/preview/frameworks/appcore/Cargo.toml ]]; then
+    cargo_patches+=(--config "patch.\"https://github.com/mochiOS/devkit\".mochios-appcore.path='$root/out/build/preview/frameworks/appcore'")
+fi
 preview_dir="$root/out/build/preview/applications/${source_dir##*/}"
 [[ $app != ime ]] || preview_dir="$root/out/build/preview/tools/desktop-ime"
 [[ $app != keychain-service ]] || preview_dir="$root/out/build/preview/tools/keychain-service"

@@ -16695,3 +16695,11 @@ path = "services"
 hash = "e23bc328eb1ff56c0eee4629a303dc0839567e67"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Follow native thread register construction in resume regressions"
+
+[[entries]]
+date = "2026-11-15T14:17:43.841407805+09:00"
+snapshot = "9f3ec12033d138ef3f40de13"
+path = "services"
+hash = "88792fdc7c622721ff873890ffd763e24a00af43"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Follow the architecture-specific native syscall entry in upcall checks"

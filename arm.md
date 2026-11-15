@@ -102,11 +102,33 @@ mdp workspace build --select kernel -j 2
 
 ## 対象と最初の到達点
 
-初期対象はAArch64（ARM64、little endian）とし、ARM32は含めない。実機は**NEC PC-TE510HAW、Snapdragon 625／MSM8953系、Cortex-A53・8コア**を対象とする。[NEC公式仕様](https://lenovo-nec.jp/navigate/products/pc/183q/10/lavietab/lte/spec/index02.html)ではSoCはAPQ8053、RAMは3 GB、画面は1920×1200。ブートローダーは解除済みで、元のboot.img／DTBを取得可能とユーザーから確認した。起動イメージの実物はまだworkspace内で確認できていない。
+初期対象はAArch64（ARM64、little endian）とし、ARM32は含めない。実機は**NEC PC-TE510HAW、Snapdragon 625／MSM8953系、Cortex-A53・8コア**を対象とする。[NEC公式仕様](https://lenovo-nec.jp/navigate/products/pc/183q/10/lavietab/lte/spec/index02.html)ではSoCはAPQ8053、RAMは3 GB、画面は1920×1200。ブートローダーは解除済み。提供された`~/Downloads/boot.img`を読み取り、以下の構成を確認した。
 
 [SoC共通のLinux Device Tree](https://github.com/torvalds/linux/blob/master/arch/arm64/boot/dts/qcom/msm8953.dtsi)にはCortex-A53、PSCI SMC、`qcom,msm-qgic2`のGICv2、Qualcomm固有IOMMUが記述されている。CPU affinityは`0..3`と`0x100..0x103`で、クラスタ情報を切り捨てない。これはSoC側の参考情報であり、NECの実DTB・EL2引き渡し・GICH/GICV利用可否・secure firmwareによるIOMMU所有を確認したものではない。GICv3／SMMUv3やUEFIの存在を前提にしない。
 
 Cortex-A53のMeltdown非影響判定は[LinuxのKPTI判定](https://github.com/torvalds/linux/blob/v6.6/arch/arm64/kernel/cpufeature.c)、Spectre-v2は[Armの資料](https://developer.arm.com/-/media/Arm%20Developer%20Community/PDF/Security%20update%2018%20June%2018/Arm_Trusted_Firmware_Speculative_Vulnerabilties_v1.6.pdf)、Spectre-BHBは[LinuxのCPU判定](https://github.com/torvalds/linux/blob/master/arch/arm64/kernel/proton-pack.c)を確認した。これらの非影響判定を、他のCPUや他の攻撃にも一律に適用しない。
+
+### 提供されたAndroid起動イメージ
+
+入力は23,526,696 bytes、SHA-256は`9708d3ed2dc87eccad009e51316379fe95d433ebf4d2118dfe1c3997bb9d7fba`。元ファイルは変更していない。展開物と調査結果は`out/arm/pc-te510haw-stock/`に置き、配布物やソースへ取り込まない。
+
+| 項目 | ファイルから確認できた内容 |
+|---|---|
+| Android形式 | boot header v0、page size 2048、Android 7.1.1／patch level 2017-08 |
+| kernel payload | gzipのAArch64 Imageと、直後に連結された55個のDTB。kernel payload全体は21,026,587 bytes |
+| kernel | Linux 3.18.31-perf、AArch64／4 KiBページ／39-bit VA。展開したファイルは22,303,232 bytes |
+| Image header | `text_offset=0x80000`、`image_size=0x17a8000`、`flags=0` |
+| Android側の配置情報 | `kernel_addr=0x80008000`、`ramdisk_addr=0x81000000`、`tags_addr=0x80000100`。Image headerのtext offsetと同一の情報ではないため、実ブートローダーの配置処理を確認する |
+| ramdisk | gzip／CPIO、圧縮2,495,857 bytes、展開5,565,184 bytes。Androidの起動用でありmochiOSのinitfsとして再利用しない |
+| DTBの選択 | MSM8953・APQ8053に加えて別SoC／評価ボードも含む。APQ8053 MTPは`dtb-048.dtb`だが、実機で選択された証拠はまだない |
+
+実際の55個すべてを製品[mBoot FDTリーダー](mboot/src/fdt.rs)と[CPU／PSCI解釈](mboot/src/fdt/arm64.rs)へ渡し、構造・CPU affinity・conduitの解決が通った（`out/arm/pc-te510haw-stock/mboot-dtb-check.log`）。単にマジックを見つけた件数ではなく、各DTBの全構造を検証した結果である。
+
+APQ8053／MSM8953候補には、8 CPUのaffinity `0..3, 0x100..0x103`、PSCI 1.0 SMC、GICv2 `qcom,msm-qgic2`がある。GICの`reg`はdistributorとCPU interfaceの2組だけで、GICH／GICV利用可否は確定できない。Qualcomm SMMU v2／MMU-500とsecure IDを持つcontextもあるが、EL2からそれらを所有・設定できることを意味しない。
+
+候補DTBの`/memory/reg`は全cellがゼロであり、ブートローダーによる実行時の補正が必要。固定の予約メモリに加え、`size`／`alignment`で後から配置されるsecure・GPU等の領域もある。公称3 GBをそのまま空きRAMとして扱わず、実行時DTBと予約領域を取得する。
+
+stock kernelは`CONFIG_VIRTUALIZATION`が無効。これはLinuxにKVMを組み込んでいないことを示すだけで、EL1／EL2のどちらで入ったかや、別firmwareがEL2を保持しているかは証明しない。ユーザーはADBが利用可能と回答済み。続いて実行時DTB・実機の選択ID・起動ログを読み取り、mBootへEL2を渡せる経路を確認する。現段階では実機の起動や保護機構の利用成功を宣言しない。
 
 最初の到達点は、QEMUのARM64環境で次を通すこと。
 

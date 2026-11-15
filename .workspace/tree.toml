@@ -16767,3 +16767,11 @@ path = "mboot"
 hash = "a2ec52be18f98c1983f218460197a93cbf10371e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Load ARM upper-half ELF segments through owned guest RAM"
+
+[[entries]]
+date = "2026-11-15T16:00:02.661839343+09:00"
+snapshot = "18dcf8f9697cb51e97da6df8"
+path = "core"
+hash = "4c63765c28f2d13d2ed7d471ee4f62e365eaf85c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Separate native CPU admission and ARM access protections"

@@ -16623,3 +16623,11 @@ path = "core"
 hash = "afa282aeaa45322f70a3962a829f82d47b6c6c54"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use native user TLS registers from shared thread switching"
+
+[[entries]]
+date = "2026-11-15T13:04:56.572564879+09:00"
+snapshot = "514bf13fbab11e887f2b2a23"
+path = "core"
+hash = "3efb317dc3e643825f04a6e731e6211d65309e1b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Separate CPU-local state and bind ARM logical slots through TPIDR_EL1"

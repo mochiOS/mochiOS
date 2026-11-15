@@ -16759,3 +16759,11 @@ path = "services"
 hash = "a4b3e5c03bef96a17860cede60ecade61f7a3f62"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use the native interrupt boundary in heap growth regressions"
+
+[[entries]]
+date = "2026-11-15T15:46:01.274541186+09:00"
+snapshot = "b0fcb27b96c0cbc5abb19cc4"
+path = "mboot"
+hash = "a2ec52be18f98c1983f218460197a93cbf10371e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Load ARM upper-half ELF segments through owned guest RAM"

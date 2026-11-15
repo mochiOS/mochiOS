@@ -16815,3 +16815,11 @@ path = "libraries/viewkit"
 hash = "6a16725a656ed1534aec5e6e190ec732513bfc82"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Keep keyboard row focus visible inside grouped corners"
+
+[[entries]]
+date = "2026-11-15T17:31:10.413697584+09:00"
+snapshot = "f2fd51f463a1e543dfd34f47"
+path = "mboot"
+hash = "d6c8428388832dc2bf75ac7635342593f9b943f8"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Check ARM vCPU state retention with the real System Domain entry"

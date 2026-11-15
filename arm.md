@@ -6,6 +6,8 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [CPU初期化](core/src/arch/aarch64/cpu.rs)をx86から分離し、EL1のFP/AdvSIMD、CPUごとのPAN/RNDR検出、入れ子のユーザーデータアクセス範囲を追加した。PANを開く間はIRQとCPU移動を制限し、PXNは解除しない。Cortex-A57と`max`で保護状態の復元・未対応RNDRの拒否を確認し、x86カーネルビルドも通った。実運用のCPU admissionはCSV3とEL2経由SMCCCのWORKAROUND_1／3を要求し、未対応を成功扱いにしない。**このfirmware経路はまだmBootへ接続されておらず、製品側のCPU admission全体の実行確認は未完了。** ARMの早期乱数は有効なfirmware seedまたは健全なRNDRを必須とし、RTC・時刻・固定値を代替エントロピーにしない。
+- [スレッド切替の例外スタック設定](core/src/task/context.rs)をnative入口へまとめた。x86では従来のTSSとSYSCALLスタックを更新し、ARMでは所有済みEL1スタックを保持して最終EL0遷移で使用する。ARMからGDT/TSSとCR4の初期化を除き、x86カーネルの再ビルドが通った。ARM版mnuの型チェックは残り36件のエラーで失敗しており、IRQ・タイマー・SMPなどの移植を続ける。
 - [mBootのELFローダー](mboot/src/image.rs)を所有済みDomain RAMのインターフェースへ分離し、ARMの低位ブート入口＋上位カーネルVMAを別のGPAへロードできるようにした。CPU種別を明示し、x86の通常経路は外国CPUのELFを拒否する。入口は実行可能なidentityセグメント内に限定し、入力・配置・RAM範囲をすべて検証してからコピーする。SDKの実Clang／LLDで作った[再現用ELF](mboot/scripts/elf-layout-probe.ld)でtext・data・BSSの物理配置を確認し、mBootの145試験が通った。これはELFコピーの確認で、ARM vCPUによるカーネル起動はまだ行っていない。
 - [カーネルヒープの配置](core/src/arch/aarch64/memory/mod.rs)をCPU別にした。ARMではTTBR1の上位領域を使い、プロセスのTTBR0を交換してもヒープ配置を失わない。実MMUで下位ルートの交換と上位ヒープの保持・交換を確認した。x86は既存アドレスを維持し、カーネルビルドと既存のヒープ拡張ロック試験が通った。ARM用カーネルイメージ・ブート入口の上位配置と、GPAを使うI/Oバックエンドの接続は引き続き必要。
 - [GICv2 CPUインターフェース](core/src/arch/aarch64/gic.rs)に、割り当て済みレジスタ領域の有効化・IRQ受信・完了通知を追加した。CPUとIRQマスク状態を確認し、SGI送信元を含むIAR全体をEOIへ戻す。spurious IRQへEOIを送らず、完了前のCPU移動を認めない。実際のタイマーIRQと範囲・マスク状態の拒否を確認した。診断はGICCを使っており、mBootの仮想GIC状態保存・物理IRQ配送・Domain間隔離の確認はまだ行っていない。

@@ -16687,3 +16687,11 @@ path = "services"
 hash = "668657177cc6884285f2da8e55edb66347468425"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Bind existing upcall and fault regressions to native CPU adapters"
+
+[[entries]]
+date = "2026-11-15T14:10:38.511860611+09:00"
+snapshot = "8c6816dbca24a54622c9eee2"
+path = "services"
+hash = "e23bc328eb1ff56c0eee4629a303dc0839567e67"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Follow native thread register construction in resume regressions"

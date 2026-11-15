@@ -6,6 +6,7 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [System DomainのGrant RAMアクセス](boot/src/mdriver.rs)でGPAとカーネルVAを分けた。Hypercallと描画面の共有情報にはGPAを渡し、CPUからリング・ストレージ・metadata・描画バッファへアクセスするときだけ、検証済みGrant範囲とカーネルlinear mapを使う。範囲外・加算overflow・不正な仮想アドレスを拒否する。非identityの実バッファでコピーと読み取り専用Grantを確認し、既存の起動データ5試験とx86 System Domainの実リンクが通った。ARMの実I/O確認はmBoot／mDriver結合後に行う。
 - **ARM64版mnuライブラリ全体の型チェックと実コード生成が通った。** `aarch64-unknown-none`でコンパイルし、従来の部分的なCPU診断だけでなく、共有VM・syscall・IPC・Capability・スケジューラを含む実ライブラリを生成した。ログは`out/arm/native-mnu-aarch64-build.log`。これはARMブートELFのリンクやOS起動の完了ではない。既存x86カーネルも再ビルドできた。
 - [ネイティブCPU起動の分離](core/src/smp.rs)により、APIC／CR3／16-bit trampolineをx86側へ移した。ARMは現在1vCPUだけを受け付け、実際に走っているCPUのみをTLB同期の参加者へ登録する。複数vCPUの起動とリモートIPIは未対応として拒否する。診断では1CPUの受け入れ、未完成SMP・x86ハンドオフの拒否を確認した。ARM SMPを完成扱いにはしない。
 - [ARMタイマー](core/src/arch/aarch64/timer.rs)と[製品IRQハンドラ](core/src/arch/aarch64/interrupt.rs)を共有の時刻・sleep・スケジューラへ接続した。割り当て済みCPUインターフェースだけを上位のDevice／RW／XN領域へマップし、既存マッピングや非presentの所有済みPTEを上書きしない。タイマーは前回deadlineから再設定し、時刻は共有counter epochから算出してCPU数やIRQ遅延による増速を避ける。EOI完了後にスケジュールし、EL0フレーム・TLS・upcallを保持する。実タイマーIRQ、counterの端数・wrap・オーバーフロー、MMUの空き判定、x86カーネルビルドが通った。製品IRQハンドラ全体をOS上で実行する確認はmBoot結合後に行う。既存タイマー／CPU時間の回帰5件も、実フレームと現在の所有権表現で通った。
@@ -17,11 +18,11 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 - [ARM割り込み資源の起動契約](core/crates/abi/src/arm64_interrupts.rs)を追加した。mBootが割り当てたGIC CPUインターフェースのGPA・範囲、timer／event／management／TLB／wakeのIRQ役割を明示する。未対応の形式・予約ビット・範囲外・役割の重複・別CPU向けの資源・framebufferとの重複を拒否する。Domain起動ABIはv14、mnu起動ABIはv4へ更新し、既存の送信側も更新した。ABIの50単体＋5結合試験、両CPU診断、mBootの143試験、x86カーネル・UEFIローダー・System Domainのビルドが通った。資源の既定値は空で、ARMのGIC仮想化やIRQ配送を実装済みとは宣言しない。次にこの契約へ実コントローラとタイマーを接続する。
 - [診断コンソール](core/src/util/console.rs)から既存COM1実装をx86側へ分離した。ARMはmBootの既存コンソールへ、ATによる現在のStage-1変換で得たゲスト物理アドレスを渡し、ページ境界で分割する。実MMUで上位アドレス・ルート切替・unmap後の変換を確認した。1024 bytesを超える文字列と送信失敗も既存のホスト試験で確認し、x86カーネルビルドも通った。ボードUARTのアドレスはmnuへ追加していない。
 - [I/Oポート](core/src/arch/aarch64/port_io.rs)をCPU別に選択する。共通の範囲・Capability確認を維持し、ARMでは存在しないポート命令を成功扱いにせず`Unsupported`とする。デバイスは既存の所有済みMMIO・mDriver経路を使う。診断出力とI/O権限に関する既存の回帰試験を現行APIに合わせ、境界をまたぐ範囲・無権限・未対応CPUでハードウェア処理へ進まないことを確認した。
-- [ARM同期例外の製品ハンドラ](core/src/arch/aarch64/interrupt.rs)を追加し、実フレームからSVC、COW、通常のページ解決、upcallへ接続した。外部エラー・無効FARなどを通常のページ不足として解決せず、未処理の特権例外・IRQも成功扱いにしない。スタック拡張とVM予約の確認はx86と共有する。実EL0でread／write／execute abortの分類、既存のVM retry・スタック予約・例外・診断の8試験とx86カーネルビルドが通った。ARM版mnu全体はCPU初期化・IRQコントローラ・タイマー・SMPなどの未移植箇所でビルドが失敗しており、この製品ハンドラのOS上での実行確認は未完了。
+- [ARM同期例外の製品ハンドラ](core/src/arch/aarch64/interrupt.rs)を追加し、実フレームからSVC、COW、通常のページ解決、upcallへ接続した。外部エラー・無効FARなどを通常のページ不足として解決せず、未処理の特権例外・IRQも成功扱いにしない。スタック拡張とVM予約の確認はx86と共有する。実EL0でread／write／execute abortの分類、既存のVM retry・スタック予約・例外・診断の8試験とx86カーネルビルドが通った。後続変更でARM版mnuライブラリ全体のコード生成まで通ったが、この製品ハンドラのOS上での実行確認は未完了。
 - [ARMのSVC入口](core/src/arch/aarch64/syscall_entry.rs)を追加し、x8の番号とx0〜x5の引数、x0の戻り値を既存のsyscall処理へ渡す。x86のSYSCALL／int 0x80入口はCPU別ファイルへ分け、スレッドのsyscall中状態・終了確認は共通化した。EL0レジスタとTLSを保持し、ブロック後に現在の所有済みTTBR0とTLSを選び直す。実ユーザー側ライブラリの0〜6引数呼び出し、非native SVCの拒否、x86カーネルビルド、既存のupcall・継続回帰9試験が通った。
 - [スレッド初期状態](core/src/arch/aarch64/thread.rs)をCPU別に生成し、共有のプロセス作成・スレッド作成から呼ぶようにした。ARMはx0へ起動引数、x1〜x30へ明示された汎用レジスタを配置し、PSTATEとFP状態はカーネルが初期化する。両CPUの実特権診断、x86カーネルビルド、既存の初期レジスタ・継続回帰7試験が通った。作成時のCapability・VM・予約領域検証は共有側に維持している。
 - upcallの[CPU別スナップショット変換とコールバックABI](core/src/arch/aarch64/upcall.rs)を追加し、権限確認・トークン・例外記録は共有側に維持した。ARMの800-byte snapshotを往復し、不正PSTATE／FPCRを拒否する。実EL0で7引数、16-byte SP整列、LR設定を確認し、元のFP状態付き継続へ復帰した。SVCとIRQは実際の同じARM例外フレームを使い、x86のIRET欄を仮定しない。例外コードはESRのECから取得する。x86カーネルビルドと、既存のupcall・例外配送・レジスタ変換・fault retryの関連12試験が通った。ARMの割り込み／syscall配送全体への接続は引き続き未完了。
-- [タスクのEL0入口](core/src/task/usermode.rs)もCPU別に分けた。ARMは現在のプロセスが保持するTTBR0と、CPUローカルの所有済み例外スタックを選び、検証済みの継続復帰を呼ぶ。プロセス／ページテーブル／スタックが欠けた場合にゼロ値で起動しない。既存x86カーネルのビルドと、TLS・upcall・CPU参照・ユーザー復帰に関する既存回帰試験16件が通った。mnu全体のARMビルドはまだ失敗しており、このタスク入口のOS上での実行確認は未完了。
+- [タスクのEL0入口](core/src/task/usermode.rs)もCPU別に分けた。ARMは現在のプロセスが保持するTTBR0と、CPUローカルの所有済み例外スタックを選び、検証済みの継続復帰を呼ぶ。プロセス／ページテーブル／スタックが欠けた場合にゼロ値で起動しない。既存x86カーネルのビルドと、TLS・upcall・CPU参照・ユーザー復帰に関する既存回帰試験16件が通った。後続変更でmnuライブラリ全体のARMコード生成まで通ったが、このタスク入口のOS上での実行確認は未完了。
 - 共有upcall状態のFP保存を[CPU別の実装](core/src/arch/aarch64/fp.rs)へ分離した。ARMは例外フレームからQレジスタ・FPCR・FPSRを保持し、ユーザー指定の不正な制御ビットを拒否してから復帰画像へ反映する。ライブのFPレジスタを意図的に変更した後でも、保持した状態から実EL0へ正しく復帰した。既存x86のMXCSR検証・SSE復元とカーネルビルドも通った。
 - [ARMのEL0継続復帰](core/src/arch/aarch64/usermode.rs)で全汎用レジスタ・FP/SIMD・FP制御・TLSを復元し、次の例外用に所有済みカーネルスタックを設定する。PC／SP／PSTATE／FP制御／TLSが不正なら、CPU状態を書き換える前にエラーを返す。実EL0へ復帰し、レジスタ・TLS・FP状態と、その後のNX違反の処理まで確認した。ユーザー状態の内部レイアウトを800 bytesとして固定し、共有スレッド側はPC／SPアクセサを使う。
 - CPUローカルの共有スレッド状態を残し、[GS／KPTIのx86実装](core/src/arch/x86_64/percpu.rs)と[TPIDR_EL1のARM実装](core/src/arch/aarch64/percpu.rs)を分離した。ARMは検証済みのハードウェアID一覧から論理スロットを選び、未登録CPUや不正なCPUローカルポインターを拒否する。実際のEL1へ32ビットを超える仮想MPIDRを与え、スロット選択・TLSとの分離・切替中のスレッド参照保持を確認した。x86カーネルのビルドも通った。複数CPUの同時起動・SMP全体は未完了。
@@ -70,7 +71,7 @@ python3 core/scripts/check-cpu-primitives.py --toolchain nightly-2026-05-14
 
 ARM診断の参照機は`virt-8.2`、`cortex-a57`、GICv2、CPU 1個、RAM 128 MiB。EL1の例外入口は製品側の実装を使い、UART・割り込みコントローラ設定と診断用の例外ディスパッチだけをfixtureに置く。mnuの起動・例外処理方針との統合やmBootの移植完了とは扱わない。診断は命令動作を確認するTCG実行であり、既存OSのKVM起動設定を変更しない。成果物とログは既定で`core/out/mdp/cpu-primitives/`に保存する。`--out`、`--qemu-aarch64`、`--qemu-x86-64`で検証環境を指定できる。
 
-ARM64のコンテキストは、ベースの[AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)とFP/SIMDを対象にする。SVE/SMEを有効にしたビルドは拒否し、起動側でもそれらを有効にしない前提。FP/SIMDアクセスの製品側初期化、タスクごとのTLS切替、アドレス空間切替、SMPでの受け渡しは、この継続切替だけで完成したとは扱わない。既存のユーザーupcall・syscallレジスタABIにはx86依存が残る。
+ARM64のコンテキストは、ベースの[AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)とFP/SIMDを対象にする。SVE/SMEを有効にしたビルドは拒否し、起動側でもそれらを有効にしない前提。FP/SIMDアクセスの製品側初期化、タスクごとのTLS切替、アドレス空間切替、SMPでの受け渡しは、この継続切替だけで完成したとは扱わない。ユーザーupcall・syscallレジスタABIのARM実装も追加済みだが、OS上での結合確認は引き続き必要。
 
 `--native-syscall-rlib <同じターゲット・ツールチェーンのmochi-user-syscall.rlib>`と`--posix-client-rlib <mochios-posix-client.rlib>`で実クレートを追加検証できる。依存ABIを変更した後は、両rlibを再生成してから実行する。ARMのTLS配置は[LLD 18のTPオフセット計算](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/lld/ELF/InputSection.cpp#L573)と[AAELF64](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst)を基準にする。
 
@@ -120,7 +121,7 @@ ARM用のターゲットを追加するだけでは起動できない。CPU依�
 | 起動ABI | BootInfo v4・DomainBootInfo v14にCPU種別、64ビットID、明示的なARM IRQ資源を定義した。既存のx86 SMPハンドオフはARMで拒否する | ARMの実vCPU起動・SMP状態と資源供給側の実装 |
 | syscall・実行ABI | [ARMラッパー](user/crates/syscall/src/arch/)のSVC、カーネル側のSVC配送、native保存状態・継続ABIを実装した | OS上でのブロック・再開・例外復帰と、既存IPC・Capability処理の確認 |
 | mBoot | ARMのStage-2とEL1からのHVC受け渡しをCPU診断で確認済み。製品の仮想化バックエンドは引き続きIntel VMX／AMD SVM | ARM vCPU状態、仮想GIC・タイマー、Domain間切替、DMA隔離 |
-| System Domainの入口 | [system_domain.rs](boot/src/system_domain.rs)はIRQ資源の引き渡しを追加したが、入口・配置・I/Oポインターにx86／identity前提が残る | ARMブート入口、上位配置、GPAとカーネルVAの区別 |
+| System Domainの入口 | [system_domain.rs](boot/src/system_domain.rs)はIRQ資源を渡し、I/OのGPAもlinear map経由でアクセスする。入口・イメージ配置は引き続きx86向け | ARMブート入口、上位配置、GPAとカーネルVAの区別 |
 | mDriver | LinuxのPVH起動、PCIデバイス割り当て、`vmcall`／`vmmcall`を使用 | ARM64 Linuxの起動・FDT・Domain接続・対象SoCのデバイス割り当て |
 | OSビルド | ARM SDKを公開しRust標準ライブラリ・core.serviceのクロスリンクを確認した。製品のMDPカーネル・ブート・イメージはx86向け | CPU選択、ARMブート成果物・Linux・ユーザーランドを使うOSイメージ生成 |
 

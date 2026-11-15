@@ -16567,3 +16567,11 @@ path = "core"
 hash = "151d2f5e6f26a5165acad8eb82092b8de175f647"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect shared VM page operations to the AArch64 mapper"
+
+[[entries]]
+date = "2026-11-15T10:00:29.853503290+09:00"
+snapshot = "8bfc1b1c9a86326801da285e"
+path = "core"
+hash = "3c9622c9db700e98cf564ebcc40b13ccb8d8daa6"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Separate kernel and process translation-root controls"

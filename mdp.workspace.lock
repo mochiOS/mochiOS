@@ -387,9 +387,9 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "kernel": {
-      "content_sha256": "97a7b1786bfb05d4004a9945c9fb57aad88fbe145abb85d24a7e757a221d2b29",
+      "content_sha256": "3139061e930487693aee249ecabad41c8d954552f6110ce9f5df42cd85b51174",
       "resolution": {
-        "Cargo.lock": "ad210305d1a70e8cb9bb70aa8d49d8bbf6553211fb8e946cacdc500a6f7533a3",
+        "Cargo.lock": "c3239d81e75d6937fed5f2fd9d3e19412808ed9154f455cf4e3c20dd48898835",
         "examples/boot/Cargo.lock": "cee2fe7462c86f77f07cbbc3634985c9071956d502a5c21d849b31856fb7a877",
         "examples/user/Cargo.lock": "cc8d246ac8749095f41bed59dbdf285c4513cd0f26b27d35ebdef3fa33a3ce51",
         "modules/fs_cext/Cargo.lock": "7905d6481eb83c511758aa3c150cfac22577689a243998f02b0f320c22635155",
@@ -402,8 +402,8 @@
         "modules/fs_cext/Cargo.lock": "0f02b89ae4750e5346ce7f55ea8a15ab498aa5a6368e287366e05fb2a097380d",
         "scripts/heap-layout-bench/Cargo.lock": "e3b0bcb1557c70a0a7e7e29c2d932563f657456377ee88ff7c2c1b820ebee996"
       },
-      "revision": "d53405bba53ae0ade2504c115b9833d21e862dab",
-      "tracked_tree": "97a7b1786bfb05d4004a9945c9fb57aad88fbe145abb85d24a7e757a221d2b29",
+      "revision": "943ea0876b4a34e8be5e1ca925ec8cd294fdef64",
+      "tracked_tree": "3139061e930487693aee249ecabad41c8d954552f6110ce9f5df42cd85b51174",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "libc-source": {
@@ -665,7 +665,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "services": {
-      "content_sha256": "fc75e8739e5bea7fc140f0ca3cf01e7a8c0b80db86c153ab016c7c2bb534f847",
+      "content_sha256": "66e37fdd6affc8a78ebd652c80e26fd7da6e8b945184573d7f116dad94722e8f",
       "resolution": {
         "Cargo.lock": "04f8dcc96245888194376ab1b54e9880324de24ec7789d486ae79c1baebaf57e",
         "posix/tests/executable-reference/Cargo.lock": "77375e08d1e0b31a9920b072bc0f274761d22f136844bf56a4e7026eb2a66e2f",
@@ -678,8 +678,8 @@
         "posix/tests/native_rust_sleep/Cargo.lock": "605b9ba9d15a126b46110d0dbc89861d7cb1a446ca473b395c2d78669fc2f09d",
         "posix/tests/native_viewkit_buffer/Cargo.lock": "e27d4b9d7ee115a651043ab2048bd4a222d175879bf8ed8a1f5c203acc894e00"
       },
-      "revision": "0314d9590986b74d83732f94651525d7be01932b",
-      "tracked_tree": "fc75e8739e5bea7fc140f0ca3cf01e7a8c0b80db86c153ab016c7c2bb534f847",
+      "revision": "e23bc328eb1ff56c0eee4629a303dc0839567e67",
+      "tracked_tree": "66e37fdd6affc8a78ebd652c80e26fd7da6e8b945184573d7f116dad94722e8f",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "shared-sdk": {

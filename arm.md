@@ -6,6 +6,7 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [mBootのELFローダー](mboot/src/image.rs)を所有済みDomain RAMのインターフェースへ分離し、ARMの低位ブート入口＋上位カーネルVMAを別のGPAへロードできるようにした。CPU種別を明示し、x86の通常経路は外国CPUのELFを拒否する。入口は実行可能なidentityセグメント内に限定し、入力・配置・RAM範囲をすべて検証してからコピーする。SDKの実Clang／LLDで作った[再現用ELF](mboot/scripts/elf-layout-probe.ld)でtext・data・BSSの物理配置を確認し、mBootの145試験が通った。これはELFコピーの確認で、ARM vCPUによるカーネル起動はまだ行っていない。
 - [カーネルヒープの配置](core/src/arch/aarch64/memory/mod.rs)をCPU別にした。ARMではTTBR1の上位領域を使い、プロセスのTTBR0を交換してもヒープ配置を失わない。実MMUで下位ルートの交換と上位ヒープの保持・交換を確認した。x86は既存アドレスを維持し、カーネルビルドと既存のヒープ拡張ロック試験が通った。ARM用カーネルイメージ・ブート入口の上位配置と、GPAを使うI/Oバックエンドの接続は引き続き必要。
 - [GICv2 CPUインターフェース](core/src/arch/aarch64/gic.rs)に、割り当て済みレジスタ領域の有効化・IRQ受信・完了通知を追加した。CPUとIRQマスク状態を確認し、SGI送信元を含むIAR全体をEOIへ戻す。spurious IRQへEOIを送らず、完了前のCPU移動を認めない。実際のタイマーIRQと範囲・マスク状態の拒否を確認した。診断はGICCを使っており、mBootの仮想GIC状態保存・物理IRQ配送・Domain間隔離の確認はまだ行っていない。
 - [ARM割り込み資源の起動契約](core/crates/abi/src/arm64_interrupts.rs)を追加した。mBootが割り当てたGIC CPUインターフェースのGPA・範囲、timer／event／management／TLB／wakeのIRQ役割を明示する。未対応の形式・予約ビット・範囲外・役割の重複・別CPU向けの資源・framebufferとの重複を拒否する。Domain起動ABIはv14、mnu起動ABIはv4へ更新し、既存の送信側も更新した。ABIの50単体＋5結合試験、両CPU診断、mBootの143試験、x86カーネル・UEFIローダー・System Domainのビルドが通った。資源の既定値は空で、ARMのGIC仮想化やIRQ配送を実装済みとは宣言しない。次にこの契約へ実コントローラとタイマーを接続する。
@@ -110,7 +111,7 @@ ARM用のターゲットを追加するだけでは起動できない。CPU依�
 | CPU・割り込み | ARMのベクタ・CPUローカル状態・同期例外配送とGIC CPUインターフェースを追加済み。[cpu.rs](core/src/cpu.rs)、タイマー、SMPの製品経路は未移植 | CPU初期化・保護設定、割り当て済みIRQ資源との本接続、プリエンプション、二次CPU |
 | メモリ | Stage-1 MMUと共有VMアダプタ、TTBR0／TTBR1制御、ARMの上位ヒープ配置を実装した。初期化にはGDT/TSSなどのx86依存が残る | ARMの初期配置・マッピング、GDT/TSS初期化の分離、SMPでのTLB整合 |
 | タスク | CPU別のEL1継続、EL0復帰、初期レジスタ・upcall・FP・TLSを実装した。製品のタスク入口は型チェックまででOS上の実行は未確認 | 上位カーネル配置・例外スタックと実スケジューラを接続し、IPC・Handle転送を実行する |
-| ELF | [mnuローダー](core/src/elf/loader.rs)はnative CPU種別を検査する。ユーザー側のARM再配置は実Clang/LLDのDSOで確認済み。[mBootローダー](mboot/src/image.rs)はx86・identity配置向け | ARMのブートELFと物理ロード配置、mBoot側のCPU種別検証 |
+| ELF | [mnuローダー](core/src/elf/loader.rs)はnative CPU種別を検査する。ユーザー側のARM再配置は実Clang/LLDのDSOで確認済み。[mBootローダー](mboot/src/image.rs)もCPUを検査し、ARMの上位VMAと物理ロード先を区別する | ARMブート入口・Stage-1構築と、ロードしたイメージを実行するvCPU |
 | 起動ABI | BootInfo v4・DomainBootInfo v14にCPU種別、64ビットID、明示的なARM IRQ資源を定義した。既存のx86 SMPハンドオフはARMで拒否する | ARMの実vCPU起動・SMP状態と資源供給側の実装 |
 | syscall・実行ABI | [ARMラッパー](user/crates/syscall/src/arch/)のSVC、カーネル側のSVC配送、native保存状態・継続ABIを実装した | OS上でのブロック・再開・例外復帰と、既存IPC・Capability処理の確認 |
 | mBoot | ARMのStage-2とEL1からのHVC受け渡しをCPU診断で確認済み。製品の仮想化バックエンドは引き続きIntel VMX／AMD SVM | ARM vCPU状態、仮想GIC・タイマー、Domain間切替、DMA隔離 |

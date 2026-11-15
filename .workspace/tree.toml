@@ -16599,3 +16599,11 @@ path = "applications/binder"
 hash = "1095ae8404356e96c88278711274e5099ea8d4ee"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use Binder artwork through one shared missing-app-icon fallback"
+
+[[entries]]
+date = "2026-11-15T12:46:28.044243806+09:00"
+snapshot = "795c9f2c13c58b99ad86ab61"
+path = "mboot"
+hash = "ab555df1d8bc4606355a83cc59ff2ea817a95c7a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Add ARM EL2 Stage-2 translation and protection checks"

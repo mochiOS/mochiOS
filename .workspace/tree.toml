@@ -16831,3 +16831,11 @@ path = "mboot"
 hash = "678328eb0202dac5fefff7e058f56e7a3bd857fe"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Exercise virtual GIC state switches during active ARM guest IRQs"
+
+[[entries]]
+date = "2026-11-15T17:45:31.094415855+09:00"
+snapshot = "2ffb3dbafcbf03beff40dade"
+path = "mboot"
+hash = "c8bc2636db7f020a8fafe9b604d5446a091ba7e0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep VMX and SVM execution controls in the x86 backend"

@@ -171,7 +171,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-settings": {
-      "content_sha256": "37a98a6973a890cdd911f74ea7afb07da35994face462b86ec437e0f17c36d55",
+      "content_sha256": "194876a06afb288b400b0ffcc9c6f7912964fc69578d563ab07302ad3c412b00",
       "resolution": {
         "Cargo.lock": "970fb687be459228e8bd7d02779fb31ba681bd49d7a017d4e99491c508d1865b",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
@@ -180,9 +180,9 @@
         "Cargo.lock": "6a7dca5c35e4f408b79aadda955188a2955a4a573abce716885037ba055ebb38",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
       },
-      "revision": "d4bf85ca93682c0e7a69f67c3caf4c3ee9d9beeb",
-      "tracked_tree": "b6e7377d54d521938053b00e6678cc23caf73b1609393924e2add564cfb117a3",
-      "working_tree": "b056977d9a29a926ea3ae241ecb07fc3f2db272780120c548c60fce6b771c348"
+      "revision": "9450f8eda8466bfd4b5201d87a51af283a19fc2f",
+      "tracked_tree": "194876a06afb288b400b0ffcc9c6f7912964fc69578d563ab07302ad3c412b00",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-system-monitor": {
       "content_sha256": "62508184632fca3cbf7c4918129ee1001d37a0185d972bfe9796495851cf51d6",
@@ -389,7 +389,7 @@
     "kernel": {
       "content_sha256": "4d3c81b63160ccd58afa37bd30dfe6fb7996d066e0e63de0ad8701db96ac2221",
       "resolution": {
-        "Cargo.lock": "44be6bc13ff3c5316a4bcfc28b92482ebef6615f537c347df6b1fb07979601e7",
+        "Cargo.lock": "acd65bdc4c7a2316d62c9be6debb3a1589440488fe7b141a4bbbfb4fba6dfe32",
         "examples/boot/Cargo.lock": "cee2fe7462c86f77f07cbbc3634985c9071956d502a5c21d849b31856fb7a877",
         "examples/user/Cargo.lock": "cc8d246ac8749095f41bed59dbdf285c4513cd0f26b27d35ebdef3fa33a3ce51",
         "modules/fs_cext/Cargo.lock": "7905d6481eb83c511758aa3c150cfac22577689a243998f02b0f320c22635155",
@@ -726,9 +726,9 @@
         "Cargo.lock": "745111aaece8bce25d7ea9ecfc976a31ee88ec37df24b81f7ac3f33f8dfbcc16",
         "tools/ffi-gen/Cargo.lock": "a0b63153eb31e72e805a7f6390adb187d872cafd35026f076144a2b361e6f3e8"
       },
-      "revision": "56207b692bb5f79238f3d2e913cd9773a845193b",
-      "tracked_tree": "2277215e14433930544650b66ba7b2164d0c4ca7fc9aafaccd78e6748dc21ddc",
-      "working_tree": "864b1c8b77b0e733396b5c59caf268a552af71d19498e3999f3c4c678ad2ea19"
+      "revision": "4bf860eee8bbc856a99ebf467504230f8b41aba8",
+      "tracked_tree": "b1dbd8e947ca662966ba6f062d7a62bad313d99ea06e3e6647a9fd9435f255af",
+      "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   }
 }

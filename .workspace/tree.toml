@@ -16559,3 +16559,11 @@ path = "libraries/viewkit"
 hash = "5c31e572a5d90a026f67673cba204515072a7929"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Repaint complete CPU backing stores after GPU renderer fallback"
+
+[[entries]]
+date = "2026-11-15T09:57:42.401619431+09:00"
+snapshot = "bba8ee657b5f67764ca4dce9"
+path = "core"
+hash = "151d2f5e6f26a5165acad8eb82092b8de175f647"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect shared VM page operations to the AArch64 mapper"

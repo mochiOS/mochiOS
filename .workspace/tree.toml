@@ -16655,3 +16655,11 @@ path = "core"
 hash = "d0e1a0877456f3010a7662d0cc73c4615d993875"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Restore validated ARM EL0 continuations on a retained kernel stack"
+
+[[entries]]
+date = "2026-11-15T13:22:28.366001118+09:00"
+snapshot = "0b4354f8a66bf5470768c0dc"
+path = "core"
+hash = "707b59d0d1767d1894324a169f7ebdc97b9b0862"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retain architecture-native floating point state for upcall returns"

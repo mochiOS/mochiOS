@@ -16791,3 +16791,11 @@ path = "core"
 hash = "97c8e7c251f96a1f06a86145facd3d93fdbbaee5"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Separate scheduler clock from native periodic timer hardware"
+
+[[entries]]
+date = "2026-11-15T16:14:59.764539426+09:00"
+snapshot = "d467833e834f493794ece9ab"
+path = "core"
+hash = "acc6cdca212acfaaa764da5ca6b98507d6db4a4d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Wire assigned ARM GIC and timer IRQs into kernel scheduling"

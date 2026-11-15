@@ -16783,3 +16783,11 @@ path = "core"
 hash = "8814ab3afae032d06a56fbf45506cd435baa527e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Select native exception stacks without ARM GDT or TSS"
+
+[[entries]]
+date = "2026-11-15T16:07:35.098877168+09:00"
+snapshot = "6dbb9ef50781d1c2cc7cfdba"
+path = "core"
+hash = "97c8e7c251f96a1f06a86145facd3d93fdbbaee5"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Separate scheduler clock from native periodic timer hardware"

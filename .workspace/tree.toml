@@ -16647,3 +16647,11 @@ path = "core"
 hash = "3ec4fdca271b4bf0912a4426394339b4738f3f94"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Remove unused manual x86 interrupt switching paths"
+
+[[entries]]
+date = "2026-11-15T13:16:35.980628870+09:00"
+snapshot = "bee4fbae241af21dc8691e19"
+path = "core"
+hash = "d0e1a0877456f3010a7662d0cc73c4615d993875"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Restore validated ARM EL0 continuations on a retained kernel stack"

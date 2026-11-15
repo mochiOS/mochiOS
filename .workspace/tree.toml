@@ -16607,3 +16607,11 @@ path = "mboot"
 hash = "ab555df1d8bc4606355a83cc59ff2ea817a95c7a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add ARM EL2 Stage-2 translation and protection checks"
+
+[[entries]]
+date = "2026-11-15T12:54:20.082564601+09:00"
+snapshot = "fd7365f004dc1c01e102a515"
+path = "boot"
+hash = "43e0ed65c9f64beea42fc4a0e0d6b7aec1be337b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Produce architecture-tagged boot CPU identities"

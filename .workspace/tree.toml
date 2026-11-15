@@ -16823,3 +16823,11 @@ path = "mboot"
 hash = "d6c8428388832dc2bf75ac7635342593f9b943f8"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Check ARM vCPU state retention with the real System Domain entry"
+
+[[entries]]
+date = "2026-11-15T17:40:44.829336924+09:00"
+snapshot = "885be99693927f5190cb34e8"
+path = "mboot"
+hash = "678328eb0202dac5fefff7e058f56e7a3bd857fe"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Exercise virtual GIC state switches during active ARM guest IRQs"

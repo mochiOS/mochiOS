@@ -6,6 +6,7 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [起動ABI](core/crates/abi/src/boot.rs)をバージョン3とし、CPU種別と64ビットのハードウェアIDを追加した。ARMのMPIDR affinityをAPIC IDへ切り詰めず、論理スロットへ明示的に対応付ける。別CPU向け・旧版・重複ID・無効ビットを拒否し、既存のUEFIローダーとSystem Domainも同時に更新した。ARM向け型チェック、ABIテスト52件、x86のカーネル・UEFIローダー・System Domainのビルドが通った。ARM SMPのネイティブ起動状態は未実装で、x86用CR3ハンドオフをARMで受け付けない。
 - [mBootのARM Stage-2](mboot/src/arch/aarch64/stage2.rs)に4 KiBページ、連結ルート、Normal／Device属性、読み書き・実行権限、VMID選択、TLB無効化、break-before-make、確保失敗時の回収を追加した。編集対象は明示的に選択したアドレス空間に限定し、別Domainへ暗黙に切り替えない。[EL2診断](mboot/scripts/check-stage2.py)は製品のマッパーを使い、実際のEL1ゲストでRO／XN違反、mBoot用ページへのアクセス拒否、unmap、VMID切替・再利用、L0／L1／L2開始の翻訳を確認した。QEMU Cortex-A57とmaxの両CPUモデルで通った。既存x86のmBoot単体テスト143件も通った。これはCPUのメモリ分離機構であり、vCPU実装・DMA隔離・ARM版OS全体の起動完了ではない。
 - [arch層](core/src/arch/mod.rs)へ、ローカルIRQ制御、CPU待機、スタックポインタ参照を集約した。スピンロック、スケジューラ、メモリ管理などの高水準の呼び出しはこの入口を使う。
 - [AArch64バックエンド](core/src/arch/aarch64/mod.rs)にDAIFのIRQマスク操作、WFI、SP参照を実装した。Debug・SError・FIQのマスクは変更しない。

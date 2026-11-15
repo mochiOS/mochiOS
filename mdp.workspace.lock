@@ -255,27 +255,27 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "boot": {
-      "content_sha256": "968c631855af6e44d10cbe3930e3463b50621bab39807610e6c23de41bae9561",
+      "content_sha256": "c56b55e31e5ae663d79ecf86829ba4df52c209ac353d99e084b45012728f9815",
       "resolution": {
-        "Cargo.lock": "d42d0827709eb710e8915b743caee0d36b37124dff577a12d26023835472f52e"
+        "Cargo.lock": "4d89e9b57aa0951b248a487683e7e5565e0696928bd2b6a0730b41d3eed6de68"
       },
       "resolution_graph": {
         "Cargo.lock": "326ef294cc2054112fbc3460470c629dd7aac9b357518038ff304e45413966fd"
       },
-      "revision": "e8a0141cfe3de3662ce7667a45012c2066b81669",
-      "tracked_tree": "968c631855af6e44d10cbe3930e3463b50621bab39807610e6c23de41bae9561",
+      "revision": "43e0ed65c9f64beea42fc4a0e0d6b7aec1be337b",
+      "tracked_tree": "c56b55e31e5ae663d79ecf86829ba4df52c209ac353d99e084b45012728f9815",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "boot-hardware": {
-      "content_sha256": "968c631855af6e44d10cbe3930e3463b50621bab39807610e6c23de41bae9561",
+      "content_sha256": "c56b55e31e5ae663d79ecf86829ba4df52c209ac353d99e084b45012728f9815",
       "resolution": {
-        "Cargo.lock": "d42d0827709eb710e8915b743caee0d36b37124dff577a12d26023835472f52e"
+        "Cargo.lock": "4d89e9b57aa0951b248a487683e7e5565e0696928bd2b6a0730b41d3eed6de68"
       },
       "resolution_graph": {
         "Cargo.lock": "326ef294cc2054112fbc3460470c629dd7aac9b357518038ff304e45413966fd"
       },
-      "revision": "e8a0141cfe3de3662ce7667a45012c2066b81669",
-      "tracked_tree": "968c631855af6e44d10cbe3930e3463b50621bab39807610e6c23de41bae9561",
+      "revision": "43e0ed65c9f64beea42fc4a0e0d6b7aec1be337b",
+      "tracked_tree": "c56b55e31e5ae663d79ecf86829ba4df52c209ac353d99e084b45012728f9815",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "bootui-source": {
@@ -387,9 +387,9 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "kernel": {
-      "content_sha256": "1404dd376fd97ea5341aca211efaac6b186135a43ba77d846ed6ca8426b22e49",
+      "content_sha256": "bcfdc6a7a86f7b36efa6a41c3d1bda16e1b8f3340fb5fcc5cccc19682f748c21",
       "resolution": {
-        "Cargo.lock": "e1fa05d7153a72553ed207295ee31691567d9e78574f963d3363c610c7063feb",
+        "Cargo.lock": "1646d9f745b075daad746d31e4f89afb9ba37e721e87a9730d3621cc1345ff5b",
         "examples/boot/Cargo.lock": "cee2fe7462c86f77f07cbbc3634985c9071956d502a5c21d849b31856fb7a877",
         "examples/user/Cargo.lock": "cc8d246ac8749095f41bed59dbdf285c4513cd0f26b27d35ebdef3fa33a3ce51",
         "modules/fs_cext/Cargo.lock": "7905d6481eb83c511758aa3c150cfac22577689a243998f02b0f320c22635155",
@@ -402,8 +402,8 @@
         "modules/fs_cext/Cargo.lock": "0f02b89ae4750e5346ce7f55ea8a15ab498aa5a6368e287366e05fb2a097380d",
         "scripts/heap-layout-bench/Cargo.lock": "e3b0bcb1557c70a0a7e7e29c2d932563f657456377ee88ff7c2c1b820ebee996"
       },
-      "revision": "60e60a098e82d9941ea1bc3b981bea7b48d70f1b",
-      "tracked_tree": "1404dd376fd97ea5341aca211efaac6b186135a43ba77d846ed6ca8426b22e49",
+      "revision": "e04a96f532c7021f4588de43aa5f59f60873d5b5",
+      "tracked_tree": "bcfdc6a7a86f7b36efa6a41c3d1bda16e1b8f3340fb5fcc5cccc19682f748c21",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "libc-source": {
@@ -419,15 +419,15 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "mboot": {
-      "content_sha256": "707e11750bf84fb834f4af9b200f36cb5238686cf63910e856d96305ebf54763",
+      "content_sha256": "ff9745a300962309d57b606f12700e1c73ac376a3c29afd7661dbbb10fc6b45f",
       "resolution": {
-        "Cargo.lock": "5ae4598a238f45b72ce8940bb05cb1a6c8ebb53ff890a9a86bd569046962bbf5"
+        "Cargo.lock": "a3218311570f5cdfac3419f243e672436720a829030494175aed5f7b1e3c0c61"
       },
       "resolution_graph": {
         "Cargo.lock": "e4901bf358f7c96d96c78ce3330af5030c46a01e2d1cfc9e93be0f28f99977eb"
       },
-      "revision": "befdebca16116f2abdcb3cb7c6ed5ea1d72a2dab",
-      "tracked_tree": "707e11750bf84fb834f4af9b200f36cb5238686cf63910e856d96305ebf54763",
+      "revision": "ab555df1d8bc4606355a83cc59ff2ea817a95c7a",
+      "tracked_tree": "ff9745a300962309d57b606f12700e1c73ac376a3c29afd7661dbbb10fc6b45f",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "mdev": {

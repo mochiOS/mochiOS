@@ -16807,3 +16807,11 @@ path = "applications/file"
 hash = "017515b19ddb6c20197c34ce00e9f7e0c4d963f1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Align Files toolbar inputs and actions with standard native control metrics"
+
+[[entries]]
+date = "2026-11-15T17:18:52.667818434+09:00"
+snapshot = "6443d6286ba177b0d815aa2c"
+path = "libraries/viewkit"
+hash = "6a16725a656ed1534aec5e6e190ec732513bfc82"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Keep keyboard row focus visible inside grouped corners"

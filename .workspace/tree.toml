@@ -16671,3 +16671,11 @@ path = "services"
 hash = "65218a03368d9818e5cf372fb3cc90ff94350cc3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Follow native CPU boundaries in existing kernel regression probes"
+
+[[entries]]
+date = "2026-11-15T13:32:10.643032745+09:00"
+snapshot = "3f8009f8019ab1606837659d"
+path = "services"
+hash = "0314d9590986b74d83732f94651525d7be01932b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Track architecture-specific task entry in native regression probes"

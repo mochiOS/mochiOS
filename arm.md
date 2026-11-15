@@ -106,17 +106,17 @@ ARM用のターゲットを追加するだけでは起動できない。CPU依�
 
 | 対象 | 確認した現状 | 主な移植箇所 |
 |---|---|---|
-| mnuのビルド・入口 | [Cargo.toml](core/Cargo.toml)の`x86_64`依存をCPU条件付きに分離。[ターゲット定義](core/x86_64-mochios.json)はx86_64。[入口](core/src/entry.rs)のSP参照はarch層へ移したが、`sysv64`とx86シリアル出力は残る | AArch64用のカーネル配置、呼び出し規約、初期スタック、初期ログ |
-| CPU・割り込み | IRQマスクとARMのベクタ・保存フレームはarch層。製品側の[cpu.rs](core/src/cpu.rs)、[interrupt](core/src/interrupt/)、[percpu.rs](core/src/percpu.rs)、[smp.rs](core/src/smp.rs)にはx86依存が残る | ARM例外のカーネル配送との接続、CPUローカル状態、タイマー、二次CPU |
-| メモリ | [mem](core/src/mem/)にx86のページテーブル、GDT/TSS、TLB制御がある | Stage-1 MMU、ページ属性、アドレス空間切替、TLB・キャッシュ制御 |
-| タスク | `arch::context`がCPUごとの保存フレームと切替を選択。ARMの初回EL0遷移も追加済み。[task/context.rs](core/src/task/context.rs)と[usermode.rs](core/src/task/usermode.rs)の製品経路にはx86依存が残る | upcall・保持ユーザー状態、タスクと例外の接続、TLS、アドレス空間切替 |
-| ELF | [loader.rs](core/src/elf/loader.rs)は`EM_X86_64`だけを許可 | 実行中のアーキテクチャに対応したELF検証とロード |
-| 起動ABI | [BootInfo / SmpHandoff](core/crates/abi/src/boot.rs)にAPIC IDや`kernel_cr3`がある | 共通情報とアーキテクチャ固有情報の分離 |
-| syscall・実行ABI | [syscallラッパー](user/crates/syscall/src/lib.rs)は`syscall`命令とx86レジスタを直接使用 | ARM64の入口・復帰・引数受け渡しと、実行コンテキストの表現 |
-| mBoot | [arch](mboot/src/arch/)はx86_64のみ。[仮想化バックエンド](mboot/src/lib.rs)はIntel VMXとAMD SVMを実装 | EL2、Stage-2変換、vCPU、割り込み仮想化、ハイパーコール |
-| System Domainの入口 | [system_domain.rs](boot/src/system_domain.rs)、[domain_entry.rs](boot/src/domain_entry.rs)が`sysv64`と既存バックエンドに依存 | ARM64のDomain起動・引き渡し |
-| mDriver | [現行仕様](docs/mboot/mdriver.md)はLinuxのPVH起動、PCIデバイス割り当て、`vmcall` / `vmmcall`を使用 | ARM64 Linuxの起動、Domain接続、対象SoCのデバイス割り当て |
-| OSビルド | [workspace設定](mdp.workspace.toml)、[producerのtoolchain設定](tools/devkit/build-support/toolchain.mk)などにx86_64向けの指定がある | 内部ビルド・成果物・配置のアーキテクチャ選択 |
+| mnuのビルド・入口 | CPU依存は条件付きに分離したが、製品の入口・初期化にx86依存が残り、ARM全体のビルドは失敗している。診断出力はCOM1／ハイパーバイザー経路へ分離済み | ARM用のイメージ配置、呼び出し規約、ブート入口・初期スタック |
+| CPU・割り込み | ARMのベクタ・CPUローカル状態・同期例外配送とGIC CPUインターフェースを追加済み。[cpu.rs](core/src/cpu.rs)、タイマー、SMPの製品経路は未移植 | CPU初期化・保護設定、割り当て済みIRQ資源との本接続、プリエンプション、二次CPU |
+| メモリ | Stage-1 MMUと共有VMアダプタ、TTBR0／TTBR1制御、ARMの上位ヒープ配置を実装した。初期化にはGDT/TSSなどのx86依存が残る | ARMの初期配置・マッピング、GDT/TSS初期化の分離、SMPでのTLB整合 |
+| タスク | CPU別のEL1継続、EL0復帰、初期レジスタ・upcall・FP・TLSを実装した。製品のタスク入口は型チェックまででOS上の実行は未確認 | 上位カーネル配置・例外スタックと実スケジューラを接続し、IPC・Handle転送を実行する |
+| ELF | [mnuローダー](core/src/elf/loader.rs)はnative CPU種別を検査する。ユーザー側のARM再配置は実Clang/LLDのDSOで確認済み。[mBootローダー](mboot/src/image.rs)はx86・identity配置向け | ARMのブートELFと物理ロード配置、mBoot側のCPU種別検証 |
+| 起動ABI | BootInfo v4・DomainBootInfo v14にCPU種別、64ビットID、明示的なARM IRQ資源を定義した。既存のx86 SMPハンドオフはARMで拒否する | ARMの実vCPU起動・SMP状態と資源供給側の実装 |
+| syscall・実行ABI | [ARMラッパー](user/crates/syscall/src/arch/)のSVC、カーネル側のSVC配送、native保存状態・継続ABIを実装した | OS上でのブロック・再開・例外復帰と、既存IPC・Capability処理の確認 |
+| mBoot | ARMのStage-2とEL1からのHVC受け渡しをCPU診断で確認済み。製品の仮想化バックエンドは引き続きIntel VMX／AMD SVM | ARM vCPU状態、仮想GIC・タイマー、Domain間切替、DMA隔離 |
+| System Domainの入口 | [system_domain.rs](boot/src/system_domain.rs)はIRQ資源の引き渡しを追加したが、入口・配置・I/Oポインターにx86／identity前提が残る | ARMブート入口、上位配置、GPAとカーネルVAの区別 |
+| mDriver | LinuxのPVH起動、PCIデバイス割り当て、`vmcall`／`vmmcall`を使用 | ARM64 Linuxの起動・FDT・Domain接続・対象SoCのデバイス割り当て |
+| OSビルド | ARM SDKを公開しRust標準ライブラリ・core.serviceのクロスリンクを確認した。製品のMDPカーネル・ブート・イメージはx86向け | CPU選択、ARMブート成果物・Linux・ユーザーランドを使うOSイメージ生成 |
 
 BinderのタブレットUIと`mmake ui-tablet`は、ARMの起動対応とは別の状態にある。ホスト上でUIを操作できることは、ARM実機のブートやタッチ入力が完成したことを意味しない。
 
@@ -222,4 +222,4 @@ EL2や必要なDMA隔離が利用できない機種は、現在のDomain構成�
 - initfsへGUIや一般アプリを追加せず、既存の最小構成を維持する。
 - ソースの変更、Lock更新、各リポジトリの参照とMWS記録を一組として管理し、Lockを巻き戻さない。
 
-現在は共有VMとARMの型・ページングを接続している。続いてCPU初期化・CPUローカル状態・スレッド復帰、起動ABI、mBoot EL2、ARM用ランタイム・SDK、サービスとGUIを実際につなぐ。診断の成功をARM版OS全体の起動完了と扱わず、空実装でビルド成功を装わない。
+共有VM、CPUローカル状態、継続復帰、起動契約、ARM SDKまで段階的に実装・検証している。ARM版mnu全体のビルドとOS起動は未完了である。続いてCPU初期化、上位カーネル配置とブート入口、IRQ・タイマー・SMP、mBootのARM vCPUとI/Oを接続する。診断の成功をARM版OS全体の起動完了と扱わず、空実装でビルド成功を装わない。

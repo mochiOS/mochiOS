@@ -16855,3 +16855,11 @@ path = "mboot"
 hash = "78ec909641185ded17a80c6bb7fc51b3c1cd94ae"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Read firmware device trees through bounded borrowed views"
+
+[[entries]]
+date = "2026-11-15T18:47:12.911965071+09:00"
+snapshot = "4338eaef064738f066c287f3"
+path = "mboot"
+hash = "9994b0a52e6389c175ce1abf9ef03d9325d2e98d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Retain real ARM firmware feature results on the owning CPU"

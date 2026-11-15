@@ -44,6 +44,34 @@ class PreviewBuildTests(unittest.TestCase):
             self.assertIn("--workspace --bins", calls)
             self.assertIn("1 0\n", calls)
 
+    def test_viewkit_test_command_uses_the_rust_preview_framework_override(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            scripts = root / "scripts/dev"
+            scripts.mkdir(parents=True)
+            for name in ("preview-app.sh", "preview_catalog.py"):
+                shutil.copy2(ROOT / "scripts/dev" / name, scripts / name)
+            (scripts / "prepare-preview.py").write_text(
+                "import pathlib,sys\n"
+                "p=pathlib.Path(sys.argv[1])/'out/build/preview';p.mkdir(parents=True,exist_ok=True)\n"
+                "(p/'Cargo.toml').write_text('[workspace]\\n')\n"
+                "f=p/'frameworks/appcore';f.mkdir(parents=True,exist_ok=True)\n"
+                "(f/'Cargo.toml').write_text('[package]\\nname=\"mochios-appcore\"\\n')\n"
+            )
+            (root / "applications").mkdir()
+            binary = root / "bin"
+            binary.mkdir()
+            cargo = binary / "cargo"
+            cargo.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$CARGO_CALL_LOG"\n')
+            cargo.chmod(0o755)
+            log = root / "cargo.log"
+            env = dict(os.environ, PATH=f"{binary}:{os.environ['PATH']}", CARGO_CALL_LOG=str(log))
+            subprocess.run(["bash", str(scripts / "preview-app.sh"), "test", "all"], env=env, check=True)
+            command = log.read_text()
+            self.assertIn("-p viewkit --lib", command)
+            self.assertIn("mochios-appcore.path=", command)
+            self.assertIn("out/build/preview/frameworks/appcore", command)
+
     def test_catalog_uses_declared_binary_instead_of_directory_name(self):
         spec = importlib.util.spec_from_file_location("preview_catalog", ROOT / "scripts/dev/preview_catalog.py")
         catalog = importlib.util.module_from_spec(spec)
@@ -95,6 +123,9 @@ class PreviewBuildTests(unittest.TestCase):
             self.assertIn('crate-type = ["rlib"]', (generated / "Cargo.toml").read_text())
             self.assertEqual((appcore / "Cargo.toml").read_text(), original)
             self.assertTrue((generated / "src").is_symlink())
+            # The root development Cargo config may still select the original
+            # AppCore. Do not explicitly force a second package into the members.
+            self.assertNotIn('"frameworks/appcore"', (root / "out/build/preview/Cargo.toml").read_text())
             self.assertIn('[profile.dev.package.mochios-viewkit-gpu-protocol]', (root / "out/build/preview/Cargo.toml").read_text())
             target = root / "out/build/preview/applications/binder/crates/binder_protocol/src/lib.rs"
             self.assertEqual((root / "out/build/preview/applications/appstore/initial-apps.json").read_text(), (store / "initial-apps.json").read_text())

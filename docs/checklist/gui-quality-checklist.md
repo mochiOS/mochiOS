@@ -153,3 +153,25 @@ Linuxの外部画像テクスチャ、4×MSAAの利用可否と、mochiOSの1024
 AppCoreは生成されたプレビュー用manifestでRustのrlibだけを生成します。
 SDK用の元manifestにあるstaticlib／cdylibの配布設定は変更しません。
 テストと通常起動は同じ同梱フォントディレクトリを使います。
+
+### 2026-11-15 原寸プレビュー確認
+
+1920×1080、100%／125%でDesktop・Settings・FilesとNetwork詳細を撮影し、
+`out/reports/omochi-visual/` に比較画像とテストログを保存しました。
+環境はLinux Xvfb、llvmpipe Vulkan、4×MSAAです。Kagamiの実機出力の検証ではありません。
+
+- NetworkとAppCore登録カードの詳細行は、実測した文字の高さを行内で中央に配置し、
+  ラベルと値のベースラインを揃えました。背景・外寸・色・角丸は維持しています。
+- Filesのホーム表示はアドレス欄を `~`／`~/Documents`、ホームを起点にしたツリーを
+  `Home` と表示します。実際のシステムルートは `/` のままです。
+  入力されたパスは従来のBrowserを通し、アクセス制約は変えていません。
+- SettingsのAccountは対応するVK Symbolが未配置です。代替アイコンは追加していません。
+  `person.svg` 相当の正式な資産を用意してから対応します。
+
+Binder 122件、Files 67件、プレビュービルドスクリプト4件のテストが成功しました。
+Binderの2件の既存テストはignoredです。Binder／FilesのLinuxバイナリを再ビルドし、
+撮影画像で文字の配置・Home表示・125%での欠けを確認しました。
+
+プレビュー用AppCoreは依存からのみワークスペースに参加させ、通常起動と
+ViewKitテストの両方で同じoverrideを渡します。直接Cargo metadataを呼ぶ場合も、
+元のAppCoreと生成済みAppCoreが明示メンバーとして衝突しない構成にしています。

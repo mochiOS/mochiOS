@@ -71,7 +71,6 @@ if (appcore_source / "Cargo.toml").exists():
     appcore_manifest = re.sub(r'(?m)^crate-type\s*=.*$', 'crate-type = ["rlib"]', appcore_manifest)
     write_if_changed(appcore_destination / "Cargo.toml", appcore_manifest)
     link(appcore_source / "src", appcore_destination / "src")
-    members.append('"frameworks/appcore"')
 
 # The host input adapter shares input.service's library, not a separate IME implementation.
 ime_source = root / "tools/desktop-ime"

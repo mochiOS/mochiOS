@@ -23,11 +23,18 @@ while (($#)); do
     shift
 done
 
+use_preview_framework() {
+    if [[ -f $root/out/build/preview/frameworks/appcore/Cargo.toml ]]; then
+        cargo_patches+=(--config "patch.\"https://github.com/mochiOS/devkit\".mochios-appcore.path='$root/out/build/preview/frameworks/appcore'")
+    fi
+}
+
 if [[ $app == check ]]; then
     exec "$0" workspace --check "${cargo_patches[@]}"
 fi
 if [[ $app == test ]]; then
     python3 "$script_dir/prepare-preview.py" "$root"
+    use_preview_framework
     env CARGO_TARGET_DIR="$root/out/build/preview/target" CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-1}" \
         cargo test --offline --manifest-path "$root/out/build/preview/Cargo.toml" \
         "${cargo_patches[@]}" -p viewkit --lib
@@ -81,9 +88,7 @@ esac
 # Source manifests/lockfiles remain untouched; host dependencies share one
 # isolated workspace and a single build cache.
 python3 "$script_dir/prepare-preview.py" "$root"
-if [[ -f $root/out/build/preview/frameworks/appcore/Cargo.toml ]]; then
-    cargo_patches+=(--config "patch.\"https://github.com/mochiOS/devkit\".mochios-appcore.path='$root/out/build/preview/frameworks/appcore'")
-fi
+use_preview_framework
 preview_dir="$root/out/build/preview/applications/${source_dir##*/}"
 [[ $app != ime ]] || preview_dir="$root/out/build/preview/tools/desktop-ime"
 [[ $app != keychain-service ]] || preview_dir="$root/out/build/preview/tools/keychain-service"

@@ -36,6 +36,8 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 - [devkit](tools/devkit/sdk/build.py)がCPUごとのcompiler-rt builtins、newlib、mochiOSランタイム、libc++、libc++abi、libunwind、TLSアダプタを生成する。コンパイラ・LLDアダプタ・CMake・ELF検証は`share/native-target`を共有する。ARM64／既存x86 SDKのホスト検証はそれぞれ40件成功、任意の1件は対象外だった。ARMでのC/C++実行ファイル・DSOリンク、W^X・RELRO・NX、未解決import拒否、出力保全、SDKを実際に別のパスへコピーした再ビルドも通った。ホストのG++へ暗黙にフォールバックしない。
 - ARM SDK [27.0 dp.1 shared.11](https://github.com/mochiOS/devkit/releases/tag/sdk-27.0-dp.1-shared.11)を公開した。固定ソース・配布済みホストLLVMのSHAインベントリ・ライセンスを確認し、同梱ソースを含む10,509ファイルのパス監査を通した。アーカイブ、manifest、SHA256SUMSを配布している。changelogは既存の警告・版名・箇条書き・Full Changelogの書式を維持した。SDKは`runtime_tested: false`であり、ARM版OSやアプリの起動完了を示さない。
 - [CPUカウンタ](core/src/arch/counter.rs)をarch層へ分離し、ARMはCNTVCT_EL0とCNTFRQ_EL0を使用する。x86は既存のTSC／RDTSCPと校正処理を維持する。ARMの値をx86命令対応として報告せず、両CPUでカウンタの進行と従来のコンテキスト・EL0診断を確認した。
+- 既存のmochiOS向けRust標準ライブラリ（`nightly-2026-07-16`のsysroot overlay）をARMでチェックし、thread・channel・current_dir・fs・timeを使うプログラムを公開SDKで実ELFへリンクした。`core.service`もARMでリンクし、CPU種別・W^X・RELRO・NXを検証した。core固有のx86固定リンカスクリプトは共通ランタイムと重複していたため除去し、x86の配布SDKと従来の基本SDK双方でもリンクを確認した。どれもOS上での実行確認とは区別する。
+- [ハイパーコール輸送](core/src/arch/hypercall.rs)をarch層へ分離した。ARMはHVC #0でX0の番号／戻り値とX1〜X3の引数を渡す。QEMUでは別スタックを持つEL2 fixtureへ実際に遷移し、全幅のレジスタ受け渡しと他CPU方式の拒否を確認した。起動情報はARMタグを区別し、ARMのAPICフラグを拒否する。未実装の機能をコンストラクタから宣言しない。これはmBootのStage-2・vCPU・Domain分離の完成ではない。既存x86ビルドとABIの49テストが通った。
 - x86_64のkernel producerを新しいMDP経路でビルドした。OS全体の起動確認は別途必要。
 
 診断は[check-cpu-primitives.py](core/scripts/check-cpu-primitives.py)から実行する。実装本体を直接読み込み、架空のIRQ状態や保存・復元の代替実装で置き換えない。QEMU 8.2以降のARM/x86バイナリ、OVMFの4 MiB版、指定Rustツールチェーンの`aarch64-unknown-none`と`x86_64-unknown-uefi`ターゲットが必要。
@@ -78,7 +80,7 @@ mdp workspace build --select kernel -j 2
 
 その後、SMP、mDriverとのI/O、実機の起動、Binderの表示・タッチ入力へ進む。既存のx86_64環境は維持する。
 
-**今回の追加指示により、ARM向けSDK・libc・devkitのビルド対応とリリースも対象に含める。** 公開の許可は今回のARM対応に限る。ARM64のサービス・Binder・アプリを実際にビルドするためのランタイム・Rust標準ライブラリ・ターゲット情報も揃える。C/C++ SDKは上記shared.11として公開済み。ARM64のRust標準ライブラリ・MDP producer・サービス・Binderのビルドと、mnu／mBootとの結合は引き続き必要。
+**今回の追加指示により、ARM向けSDK・libc・devkitのビルド対応とリリースも対象に含める。** 公開の許可は今回のARM対応に限る。ARM64のサービス・Binder・アプリを実際にビルドするためのランタイム・Rust標準ライブラリ・ターゲット情報も揃える。C/C++ SDKは上記shared.11として公開済み。ARM64のRust標準ライブラリとcore.serviceはクロスリンクまで確認した。MDP producer・他サービス・Binderのビルドと、mnu／mBootとの結合は引き続き必要。
 
 既存のdevkitリリース`sdk-27.0-dp.1-shared.10`の本文を確認済み。変更履歴は同じ書式（太字のprerelease注意文、`mochiOS SDK ...`の見出し、変更の箇条書き、末尾の太字`Full Changelog`と比較リンク）に従う。ターゲット名を変えただけのアーカイブや、実行確認をしていない機能を動作済みとして公開しない。
 

@@ -16679,3 +16679,11 @@ path = "services"
 hash = "0314d9590986b74d83732f94651525d7be01932b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Track architecture-specific task entry in native regression probes"
+
+[[entries]]
+date = "2026-11-15T13:55:52.778055358+09:00"
+snapshot = "b7431f1ed50cc2b45f1c72dd"
+path = "services"
+hash = "668657177cc6884285f2da8e55edb66347468425"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Bind existing upcall and fault regressions to native CPU adapters"

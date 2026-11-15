@@ -16591,3 +16591,11 @@ path = "core"
 hash = "3285d36e77c6703673a6080b4cf4ec5b946c11f1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Record resolved workspace patch ordering in kernel lockfile"
+
+[[entries]]
+date = "2026-11-15T12:14:44.467190943+09:00"
+snapshot = "486fe7a004a3a860f72a943c"
+path = "applications/binder"
+hash = "1095ae8404356e96c88278711274e5099ea8d4ee"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use Binder artwork through one shared missing-app-icon fallback"

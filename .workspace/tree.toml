@@ -16583,3 +16583,11 @@ path = "core"
 hash = "0fcddeaa211beb31c487a0aff84cd67d6186533e"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Define native counter metadata units and source identifiers"
+
+[[entries]]
+date = "2026-11-15T11:40:51.578540214+09:00"
+snapshot = "5c75335b3e581300d74d076a"
+path = "core"
+hash = "3285d36e77c6703673a6080b4cf4ec5b946c11f1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Record resolved workspace patch ordering in kernel lockfile"

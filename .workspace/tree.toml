@@ -16639,3 +16639,11 @@ path = "core"
 hash = "915de835fabd942bcee77edf99463484369fe25c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reject unsupported x86 CPU slots before initializing local state"
+
+[[entries]]
+date = "2026-11-15T13:11:03.081997972+09:00"
+snapshot = "c5b994d0be6a089cf0c0344c"
+path = "core"
+hash = "3ec4fdca271b4bf0912a4426394339b4738f3f94"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Remove unused manual x86 interrupt switching paths"

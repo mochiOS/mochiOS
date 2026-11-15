@@ -16663,3 +16663,11 @@ path = "core"
 hash = "707b59d0d1767d1894324a169f7ebdc97b9b0862"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Retain architecture-native floating point state for upcall returns"
+
+[[entries]]
+date = "2026-11-15T13:29:01.335826249+09:00"
+snapshot = "df1b98f0a65281330347a252"
+path = "services"
+hash = "65218a03368d9818e5cf372fb3cc90ff94350cc3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Follow native CPU boundaries in existing kernel regression probes"

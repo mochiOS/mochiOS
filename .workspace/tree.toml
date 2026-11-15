@@ -16775,3 +16775,11 @@ path = "core"
 hash = "4c63765c28f2d13d2ed7d471ee4f62e365eaf85c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Separate native CPU admission and ARM access protections"
+
+[[entries]]
+date = "2026-11-15T16:02:36.830932792+09:00"
+snapshot = "9a6446b7e51db244d4b435e8"
+path = "core"
+hash = "8814ab3afae032d06a56fbf45506cd435baa527e"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Select native exception stacks without ARM GDT or TSS"

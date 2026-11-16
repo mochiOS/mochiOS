@@ -16887,3 +16887,11 @@ path = "mboot"
 hash = "85e2552c8920df98663b2a04a1bc7a2381082618"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Check live EL2 image and DTB exclusions in native boot RAM plans"
+
+[[entries]]
+date = "2026-11-16T13:13:37.641648850+09:00"
+snapshot = "1892a98f565c970bebdb7080"
+path = "mboot"
+hash = "40c691a54637dad8e110c3776a6bc9f6899f6c82"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Run native Domains from owned boot RAM and verify table retirement"

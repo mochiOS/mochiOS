@@ -6,6 +6,7 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [GICv2のfirmware binding](mboot/src/fdt/gic.rs)を追加した。rootの`interrupt-parent`とphandleから主controllerを解決し、祖先busの`ranges`とcell幅を検証して、Distributor・CPU interface・GICH・GICVの物理範囲へ変換する。重複phandle、無効な祖先、重複／範囲外／overflow、未対応の割り込み変換や非banked構成を拒否する。[GIC bindingの定義](https://github.com/torvalds/linux/blob/v6.6/Documentation/devicetree/bindings/interrupt-controller/arm%2Cgic.yaml)に沿って、宣言のない仮想化bankを生成しない。取得済みの実機DTBでは物理側の2領域だけを保持し、GICH／GICVは未確認のまま扱う。既存の仮想GIC診断からQEMU固有のMMIOアドレスを除き、実DTBの資源でA53／A57のIRQ配送・active状態保持・EOIと実System ELF Readyを確認した（`out/arm/gic-binding-final-a53/run.log`、`gic-binding-final-a57/run.log`）。ホスト164件とx86 UEFIプログラムの型検証も通った。記述の解決だけではMMIO所有権・物理IRQ配送・実機対応を与えない。
 - [起動RAMの所有元](mboot/src/pages.rs)を追加し、firmwareの予約計画を実際の確保へ接続した。信頼済みの起動元だけが排他的にRAMを取得し、複製できない`Pages`でゼロ初期化した領域を保持する。物理アドレスとCPU側のアクセス先を区別し、共通の`Domain<Pages>`と[ARM専用ページ表](mboot/src/arch/aarch64/memory.rs)へ別々に渡す。Dropだけでは回収せず、全vCPU・DMA・walkerの停止と参照解除・無効化後に明示的に返す。回収失敗時は所有ハンドルを保持する。ホスト160件と製品ライブラリを使ったQEMU A53／A57で、他DomainのRAM・EL2専用ページ表へのアクセス拒否、確保途中の失敗、ページ表のゼロ再初期化、切り離し後の回収を確認した（`out/arm/owned-pages-final-a53/run.log`、`owned-pages-final-a57/run.log`）。実System ELFもこのRAMからReadyまで到達した。`max`ではページ表と実ELF入口を確認したが、未対応の拡張レジスタ群があるためnative vCPU経路は引き続き拒否する。製品frontendへの接続とDMA隔離は未完了。
 - [firmware RAMの解釈と予約計画](mboot/src/fdt/memory.rs)をmBootへ追加した。64-bitのRAM範囲、DTB予約表、固定carveout、`size`／`alignment`／`alloc-ranges`による動的予約を検証する。起動元が本体・スタック・DTB等を除外した後、宣言順のfirst fitで配置を計画し、未解決の予約がある間は空きページを返さない。`no-map`と`reusable`を保持し、再利用可能なプールも所有者の回収実装ができるまでは通常RAMから除外する。範囲外・overflow・RAM重複・予約失敗を拒否し、失敗時に元の計画を変更しない。157件のホスト試験が通り、QEMU A53の実DTBでも本体とDTBを空きページへ含めないことを確認した（`out/arm/firmware-memory-native-a53/run.log`）。これは物理RAMの所有権取得やDTB書き換えを行うAPIではなく、製品frontendの確保処理への接続は引き続き必要。
 - **ARM64版mBootライブラリの実ビルドが通った。** [Domain](mboot/src/domain.rs)は保持するメモリ所有型を汎用化し、Grant・Event Channel・マニフェスト・ELF検証を共有する。VMX/SVMのAPIはx86側に維持し、x86専用のPCI／APIC／IOMMUはARMへ混入させない。ARM版のPCI・SMMUやUEFI起動プログラムはまだ未実装で、ライブラリ生成を製品VMMの起動完了とはしない。既存x86 UEFIプログラムの型検証と145件のホスト試験も通った。`check-stage2.py --production-library`で製品クレートをリンクし、Cortex-A57の継続・仮想GIC・製品System Domain Readyが通った（`out/arm/linked-mboot-native-final/run.log`）。
@@ -197,7 +198,7 @@ core/src/arch/
 |---|---|---|
 | mnu | IPC・Capability・スケジューラ・VMの共通処理を維持し、CPU命令とレジスタ配置を`core/src/arch/`から選択 | ARMは1 vCPU。SMPと製品OS上の結合実行は未完了 |
 | mBootの機構 | `Domain<Memory>`、Grant・Event・scheduler・マニフェストを共有。ELFは`ImageMemory`、ARMのページ表は`TableMemory`を通じて所有元へアクセスする | ARMは型付きの専用vCPU／Stage-2／仮想GIC API。共通の製品ディスパッチャへの接続は未完了 |
-| firmware／ボード | DTBのCPU・PSCI・RAM・予約領域をmBootで解釈。metadataの解析・配置計画は、物理資源の所有やデバイス権限を付与しない | GIC・UART等のbinding、EL2のfrontend、SMMU・DMA隔離の接続が必要 |
+| firmware／ボード | DTBのCPU・PSCI・RAM・予約領域・主GICv2をmBootで解釈。metadataの解析・配置計画は、物理資源の所有やデバイス権限を付与しない | GICの資源所有と物理IRQ配送、UART等のbinding、EL2のfrontend、SMMU・DMA隔離の接続が必要 |
 | System Domainの入口 | `boot/src/arch/aarch64/`とCPU別linker scriptで上位EL1へ移り、共通BootInfoをmnuへ渡す | 実ELFでReadyまで確認済み。Ready後のmnu初期化・サービス起動は未確認 |
 | デバイス接続 | カーネル側の`PlatformOps`へ、boot側がmDriverとの接続を供給する。デバイス探索や輸送の実装はカーネル外 | ARM64 Linuxの起動、HVC接続、物理IRQ・仮想タイマー配送が必要 |
 | ユーザー実行ABI | syscall命令、保存状態、TLS、ELF再配置をCPU別実装へ分離。上位のサービス・アプリの機能は共有 | Rust標準ライブラリとcore.serviceのARMリンクは確認済み。OS上の実行は未確認 |

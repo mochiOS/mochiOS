@@ -16895,3 +16895,11 @@ path = "mboot"
 hash = "40c691a54637dad8e110c3776a6bc9f6899f6c82"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Run native Domains from owned boot RAM and verify table retirement"
+
+[[entries]]
+date = "2026-11-16T13:22:52.387186915+09:00"
+snapshot = "2d76024974be1f5e10f0feee"
+path = "mboot"
+hash = "dee420b6c9297b05665877c219df0f97b1091bc4"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Use admitted firmware GIC banks for native interrupt execution"

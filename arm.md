@@ -6,6 +6,7 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 ## 着手済みの範囲
 
+- [起動RAMの所有元](mboot/src/pages.rs)を追加し、firmwareの予約計画を実際の確保へ接続した。信頼済みの起動元だけが排他的にRAMを取得し、複製できない`Pages`でゼロ初期化した領域を保持する。物理アドレスとCPU側のアクセス先を区別し、共通の`Domain<Pages>`と[ARM専用ページ表](mboot/src/arch/aarch64/memory.rs)へ別々に渡す。Dropだけでは回収せず、全vCPU・DMA・walkerの停止と参照解除・無効化後に明示的に返す。回収失敗時は所有ハンドルを保持する。ホスト160件と製品ライブラリを使ったQEMU A53／A57で、他DomainのRAM・EL2専用ページ表へのアクセス拒否、確保途中の失敗、ページ表のゼロ再初期化、切り離し後の回収を確認した（`out/arm/owned-pages-final-a53/run.log`、`owned-pages-final-a57/run.log`）。実System ELFもこのRAMからReadyまで到達した。`max`ではページ表と実ELF入口を確認したが、未対応の拡張レジスタ群があるためnative vCPU経路は引き続き拒否する。製品frontendへの接続とDMA隔離は未完了。
 - [firmware RAMの解釈と予約計画](mboot/src/fdt/memory.rs)をmBootへ追加した。64-bitのRAM範囲、DTB予約表、固定carveout、`size`／`alignment`／`alloc-ranges`による動的予約を検証する。起動元が本体・スタック・DTB等を除外した後、宣言順のfirst fitで配置を計画し、未解決の予約がある間は空きページを返さない。`no-map`と`reusable`を保持し、再利用可能なプールも所有者の回収実装ができるまでは通常RAMから除外する。範囲外・overflow・RAM重複・予約失敗を拒否し、失敗時に元の計画を変更しない。157件のホスト試験が通り、QEMU A53の実DTBでも本体とDTBを空きページへ含めないことを確認した（`out/arm/firmware-memory-native-a53/run.log`）。これは物理RAMの所有権取得やDTB書き換えを行うAPIではなく、製品frontendの確保処理への接続は引き続き必要。
 - **ARM64版mBootライブラリの実ビルドが通った。** [Domain](mboot/src/domain.rs)は保持するメモリ所有型を汎用化し、Grant・Event Channel・マニフェスト・ELF検証を共有する。VMX/SVMのAPIはx86側に維持し、x86専用のPCI／APIC／IOMMUはARMへ混入させない。ARM版のPCI・SMMUやUEFI起動プログラムはまだ未実装で、ライブラリ生成を製品VMMの起動完了とはしない。既存x86 UEFIプログラムの型検証と145件のホスト試験も通った。`check-stage2.py --production-library`で製品クレートをリンクし、Cortex-A57の継続・仮想GIC・製品System Domain Readyが通った（`out/arm/linked-mboot-native-final/run.log`）。
 - [Device Treeリーダー](mboot/src/fdt.rs)は割り当てやMMIOアクセスを行わず、借用したbytesの範囲・ブロック重複・構造・深さ・予約領域の加算overflowを検証する。[ARM topology](mboot/src/fdt/arm64.rs)はCPUの`reg`から64ビットaffinityを保持し、PSCI 0.2／1.0のSMC／HVCを区別する。重複CPU・不正なcell数／予約ビット・起動CPUの欠落・無効CPU・重複propertyを拒否する。QEMU実DTBと不正入力を含む153件が通った。標準AArch64 Image形式の入口でも実際に渡されたDTBと物理MPIDRを照合し、製品ライブラリからSMC bindingを解決した（`out/arm/native-boot-dtb-final-a53/run.log`）。この解釈だけでfirmware呼び出し権限やSMP対応を付与せず、GIC・UART・RAMのbindingと資源確保への接続は引き続き必要。
@@ -203,6 +204,10 @@ core/src/arch/
 | MDP／製品起動 | producerとイメージ組み立ての責務は既存構成を維持 | kernel／boot／mBootの製品recipeや共通toolchain定義にはx86指定が残る。ARMの診断ビルドと製品イメージ生成を区別する |
 
 `mboot/src/main.rs`の製品frontendは現在もx86 UEFI・VMX／SVM向けである。ARMライブラリがビルドできることを、この起動プログラムがARM対応済みという意味にはしない。CPUの移植はarch層へ集約し、firmware起動・Domain資源割り当て・ユーザーABI・ビルド設定はそれぞれの層で接続する。
+
+RAMの情報と所有権は次の順に扱う。`MemoryMap`は複製可能な配置情報であり、所有権を与えない。信頼済みの起動元が生存中の本体・スタック・DTB・イメージ・firmware／デバイス予約を除外した後、`PagePool::claim`で排他的な所有を宣言する。確保した`Pages`をDomain RAMとStage-2ページ表へ分ける。ページ表にはDomainへ公開しない独立した所有元を使う。このプールはCPU間で共有できず、今回の単一CPU起動経路に限定する。
+
+回収は、すべての実行主体を停止してから、選択中の正確なroot／VMIDを`Mapper::deactivate`で切り離し、他CPU・DMA・IOMMUも含む無効化を完了したことを呼び出し元が保証して`Tables::retire`へ渡す。以後はmapperとして使えない`RetiredTables`から回収する。失敗したハンドルを失わず、Drop時も未回収ページを再配布しない。CPUのStage-2保護をDMA隔離の代わりとはしない。
 
 スケジューリング方針、Handle表、IPCの権限判定、Capability、VM objectの所有権管理などは共有する。選択はアーキテクチャ層の入口で集約し、各サービスやUIへ`target_arch`判定を広げない。全体の大規模な書き換えや不要な動的ディスパッチは行わない。
 

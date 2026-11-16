@@ -16879,3 +16879,11 @@ path = "mboot"
 hash = "cd49d3a283d541a5e2daf854c19d4a89a929f1a7"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Validate real ARM boot DTB handoff through the Image protocol"
+
+[[entries]]
+date = "2026-11-16T11:12:03.270918432+09:00"
+snapshot = "7d3ae790b5e81eea0bc8b135"
+path = "mboot"
+hash = "85e2552c8920df98663b2a04a1bc7a2381082618"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Check live EL2 image and DTB exclusions in native boot RAM plans"

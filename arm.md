@@ -1,11 +1,12 @@
 # ARM64対応方針
 
-更新日: 2026-11-15
+更新日: 2026-11-16
 
 mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続とARM向けC/C++ SDKの配布まで進めた。ARM64版mnu全体の起動には至っていない。
 
 ## 着手済みの範囲
 
+- [firmware RAMの解釈と予約計画](mboot/src/fdt/memory.rs)をmBootへ追加した。64-bitのRAM範囲、DTB予約表、固定carveout、`size`／`alignment`／`alloc-ranges`による動的予約を検証する。起動元が本体・スタック・DTB等を除外した後、宣言順のfirst fitで配置を計画し、未解決の予約がある間は空きページを返さない。`no-map`と`reusable`を保持し、再利用可能なプールも所有者の回収実装ができるまでは通常RAMから除外する。範囲外・overflow・RAM重複・予約失敗を拒否し、失敗時に元の計画を変更しない。157件のホスト試験が通り、QEMU A53の実DTBでも本体とDTBを空きページへ含めないことを確認した（`out/arm/firmware-memory-native-a53/run.log`）。これは物理RAMの所有権取得やDTB書き換えを行うAPIではなく、製品frontendの確保処理への接続は引き続き必要。
 - **ARM64版mBootライブラリの実ビルドが通った。** [Domain](mboot/src/domain.rs)は保持するメモリ所有型を汎用化し、Grant・Event Channel・マニフェスト・ELF検証を共有する。VMX/SVMのAPIはx86側に維持し、x86専用のPCI／APIC／IOMMUはARMへ混入させない。ARM版のPCI・SMMUやUEFI起動プログラムはまだ未実装で、ライブラリ生成を製品VMMの起動完了とはしない。既存x86 UEFIプログラムの型検証と145件のホスト試験も通った。`check-stage2.py --production-library`で製品クレートをリンクし、Cortex-A57の継続・仮想GIC・製品System Domain Readyが通った（`out/arm/linked-mboot-native-final/run.log`）。
 - [Device Treeリーダー](mboot/src/fdt.rs)は割り当てやMMIOアクセスを行わず、借用したbytesの範囲・ブロック重複・構造・深さ・予約領域の加算overflowを検証する。[ARM topology](mboot/src/fdt/arm64.rs)はCPUの`reg`から64ビットaffinityを保持し、PSCI 0.2／1.0のSMC／HVCを区別する。重複CPU・不正なcell数／予約ビット・起動CPUの欠落・無効CPU・重複propertyを拒否する。QEMU実DTBと不正入力を含む153件が通った。標準AArch64 Image形式の入口でも実際に渡されたDTBと物理MPIDRを照合し、製品ライブラリからSMC bindingを解決した（`out/arm/native-boot-dtb-final-a53/run.log`）。この解釈だけでfirmware呼び出し権限やSMP対応を付与せず、GIC・UART・RAMのbindingと資源確保への接続は引き続き必要。
 - [firmwareのSMC経路](mboot/src/arch/aarch64/firmware.rs)は、信頼済みの起動元が指定したconduitを物理CPUへ固定し、PSCI versionとWORKAROUND_1／3だけを扱う。QEMUで実PSCI 1.1と緩和策の未対応応答`-1`を確認し、そのまま保持・伝播する。任意のguest functionやポインターをfirmwareへ転送しない。製品Domainディスパッチャへの接続は未完了。
@@ -128,7 +129,7 @@ APQ8053／MSM8953候補には、8 CPUのaffinity `0..3, 0x100..0x103`、PSCI 1.0
 
 候補DTBの`/memory/reg`は全cellがゼロであり、ブートローダーによる実行時の補正が必要。固定の予約メモリに加え、`size`／`alignment`で後から配置されるsecure・GPU等の領域もある。公称3 GBをそのまま空きRAMとして扱わず、実行時DTBと予約領域を取得する。
 
-stock kernelは`CONFIG_VIRTUALIZATION`が無効。これはLinuxにKVMを組み込んでいないことを示すだけで、EL1／EL2のどちらで入ったかや、別firmwareがEL2を保持しているかは証明しない。ユーザーはADBが利用可能と回答済み。続いて実行時DTB・実機の選択ID・起動ログを読み取り、mBootへEL2を渡せる経路を確認する。現段階では実機の起動や保護機構の利用成功を宣言しない。
+stock kernelは`CONFIG_VIRTUALIZATION`が無効。これはLinuxにKVMを組み込んでいないことを示すだけで、EL1／EL2のどちらで入ったかや、別firmwareがEL2を保持しているかは証明しない。ADBは別PCで利用しており、現在はユーザーの指示に従ってADBが不要なQEMU側の実装を進める。実行時DTB・実機の選択ID・EL2引き渡しの確認は保留し、実機の起動や保護機構の利用成功を宣言しない。
 
 最初の到達点は、QEMUのARM64環境で次を通すこと。
 
@@ -180,7 +181,7 @@ mDriver側にLinuxドライバが存在しても、mBootのARM仮想化、Linux�
 
 ## アーキテクチャ依存処理の分離
 
-mnuでは、まず既存のx86_64実装を動作を変えずに整理する。次の配置でCPUプリミティブとカーネル継続を分離した。例外配送・ユーザー復帰を製品経路へ接続し、MMUやCPUローカル状態を分離する作業は引き続き必要。
+mnuでは、次の配置でCPUプリミティブとカーネル継続を分離した。`arch/mod.rs`がビルド時に実装を選び、共有処理へ同名のAPIを公開する。MMU・CPUローカル状態・例外配送・ユーザー復帰もARM側へ接続済みだが、製品OS上での結合実行は未完了。
 
 ```text
 core/src/arch/
@@ -190,6 +191,18 @@ core/src/arch/
 ```
 
 分離対象は、初期入口、例外フレーム、割り込み制御、MMU・TLB、CPUコンテキスト、ユーザーモード遷移、TLS、タイマー、CPUローカル状態、SMP、必要なバリア・キャッシュ操作。
+
+| 層 | 共通部分とCPU別部分 | 現在の限界 |
+|---|---|---|
+| mnu | IPC・Capability・スケジューラ・VMの共通処理を維持し、CPU命令とレジスタ配置を`core/src/arch/`から選択 | ARMは1 vCPU。SMPと製品OS上の結合実行は未完了 |
+| mBootの機構 | `Domain<Memory>`、Grant・Event・scheduler・マニフェストを共有。ELFは`ImageMemory`、ARMのページ表は`TableMemory`を通じて所有元へアクセスする | ARMは型付きの専用vCPU／Stage-2／仮想GIC API。共通の製品ディスパッチャへの接続は未完了 |
+| firmware／ボード | DTBのCPU・PSCI・RAM・予約領域をmBootで解釈。metadataの解析・配置計画は、物理資源の所有やデバイス権限を付与しない | GIC・UART等のbinding、EL2のfrontend、SMMU・DMA隔離の接続が必要 |
+| System Domainの入口 | `boot/src/arch/aarch64/`とCPU別linker scriptで上位EL1へ移り、共通BootInfoをmnuへ渡す | 実ELFでReadyまで確認済み。Ready後のmnu初期化・サービス起動は未確認 |
+| デバイス接続 | カーネル側の`PlatformOps`へ、boot側がmDriverとの接続を供給する。デバイス探索や輸送の実装はカーネル外 | ARM64 Linuxの起動、HVC接続、物理IRQ・仮想タイマー配送が必要 |
+| ユーザー実行ABI | syscall命令、保存状態、TLS、ELF再配置をCPU別実装へ分離。上位のサービス・アプリの機能は共有 | Rust標準ライブラリとcore.serviceのARMリンクは確認済み。OS上の実行は未確認 |
+| MDP／製品起動 | producerとイメージ組み立ての責務は既存構成を維持 | kernel／boot／mBootの製品recipeや共通toolchain定義にはx86指定が残る。ARMの診断ビルドと製品イメージ生成を区別する |
+
+`mboot/src/main.rs`の製品frontendは現在もx86 UEFI・VMX／SVM向けである。ARMライブラリがビルドできることを、この起動プログラムがARM対応済みという意味にはしない。CPUの移植はarch層へ集約し、firmware起動・Domain資源割り当て・ユーザーABI・ビルド設定はそれぞれの層で接続する。
 
 スケジューリング方針、Handle表、IPCの権限判定、Capability、VM objectの所有権管理などは共有する。選択はアーキテクチャ層の入口で集約し、各サービスやUIへ`target_arch`判定を広げない。全体の大規模な書き換えや不要な動的ディスパッチは行わない。
 
@@ -201,7 +214,7 @@ ARM側では次を実装・確認する。
 - CPUローカル状態、仮想タイマー、プリエンプション、割り込みの配送。
 - ARMのメモリ順序を踏まえたロック、共有キュー、Grant、MMIO・DMAの同期。
 
-初期ページ粒度は既存実装との接続を評価しやすい4 KiBを候補とする。対象CPUの対応粒度と、共有メモリ・アライメントの前提を確認して確定する。x86のPTEビットやメモリ順序をARMへそのまま移さない。
+初期実装のページ粒度は4 KiB。起動時にもCPUの対応granuleを検査し、共有メモリ・アライメントの前提を検証する。x86のPTEビットやメモリ順序をARMへそのまま移さない。
 
 ## 起動・実行ABI
 

@@ -419,15 +419,15 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "mboot": {
-      "content_sha256": "7fee33a9c2ac0cb8d6475f156d8cc6ce6754da5234ea10a5fa72115332e54156",
+      "content_sha256": "3855a2d3f85529aff3c49e1f5e58f5810b121caf7a575acaa52df93dd9aef4f8",
       "resolution": {
-        "Cargo.lock": "32a3d2b038535248371bbd9859dc4ad84de22297de8cab40baec0393e4f8a1f4"
+        "Cargo.lock": "004076947832bb2be9bc71f4196ded24d60952de26fe2f159fc4bfc7a3245cb4"
       },
       "resolution_graph": {
         "Cargo.lock": "e4901bf358f7c96d96c78ce3330af5030c46a01e2d1cfc9e93be0f28f99977eb"
       },
-      "revision": "cd49d3a283d541a5e2daf854c19d4a89a929f1a7",
-      "tracked_tree": "7fee33a9c2ac0cb8d6475f156d8cc6ce6754da5234ea10a5fa72115332e54156",
+      "revision": "85e2552c8920df98663b2a04a1bc7a2381082618",
+      "tracked_tree": "3855a2d3f85529aff3c49e1f5e58f5810b121caf7a575acaa52df93dd9aef4f8",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "mdev": {

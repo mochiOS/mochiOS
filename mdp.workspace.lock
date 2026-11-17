@@ -27,7 +27,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-binder": {
-      "content_sha256": "14e3095db6ebe0b06182a1dc90bc2fd4996b5cbdabc2434e626a137a1af9e60a",
+      "content_sha256": "a13bd118518d5573142a7d57cd717a42e99961e2c13983dfac485ecf3e62377c",
       "resolution": {
         "Cargo.lock": "054424b01ed3dc493d8a777db1d95775c834d4a7b2791ce48a2a38a2aef29f98",
         "crates/binder_client/Cargo.lock": "e208b87f6e29a8c87faccf02842b5e141d18fa3e68273e08b700f78a002fc647",
@@ -40,8 +40,8 @@
         "crates/binder_protocol/Cargo.lock": "cd71207636c0c8e33f5f43f28ca0099b6c3c5dae7968009aca81157d15813609",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
       },
-      "revision": "172f7b5a0f16d6b2ebad116efffbba56e3590d2c",
-      "tracked_tree": "14e3095db6ebe0b06182a1dc90bc2fd4996b5cbdabc2434e626a137a1af9e60a",
+      "revision": "0aafa795102558e115fe273c7617f3c2604db4b0",
+      "tracked_tree": "a13bd118518d5573142a7d57cd717a42e99961e2c13983dfac485ecf3e62377c",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-calculator": {
@@ -101,7 +101,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-file": {
-      "content_sha256": "b57f287a0213d79c4415f60ee1f564615945aa253f906f231b096120e3c717e2",
+      "content_sha256": "59ba5c55cdf2b59e6e58a8d9aba23df13d570112da30b95488e9652475b949dd",
       "resolution": {
         "Cargo.lock": "1c3d7c3746dd4f3dce97f16a5f6c2cc574466ecef526f26574cd0dd11da612a6",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
@@ -110,8 +110,8 @@
         "Cargo.lock": "8c97667856fb07d7544b602f59a6cc31a1cb7a61ad1a2a18908c876ecfcb2307",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
       },
-      "revision": "017515b19ddb6c20197c34ce00e9f7e0c4d963f1",
-      "tracked_tree": "b57f287a0213d79c4415f60ee1f564615945aa253f906f231b096120e3c717e2",
+      "revision": "a20b02c843e8b8721377bfce78479df71c3ae16e",
+      "tracked_tree": "59ba5c55cdf2b59e6e58a8d9aba23df13d570112da30b95488e9652475b949dd",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-fonts": {
@@ -717,7 +717,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "viewkit": {
-      "content_sha256": "798e334be164cd3bb71549fc0ebab497b72e20690d1bcbafbe3033f7ca4087fc",
+      "content_sha256": "308cf8f8a113059fdbd76c9702e28e1f3e0fe7f7e4d91f4ce9522b3d08c17c3a",
       "resolution": {
         "Cargo.lock": "4937662c7170b5dc31c21a8e9f8c5b0a4413204f9c3fe5222c1edffe77b2210c",
         "tools/ffi-gen/Cargo.lock": "80ee17db9559114cdb9d035f3dcdf30bf3947c9da658df60aa5f0806be6e4c8a"
@@ -726,8 +726,8 @@
         "Cargo.lock": "745111aaece8bce25d7ea9ecfc976a31ee88ec37df24b81f7ac3f33f8dfbcc16",
         "tools/ffi-gen/Cargo.lock": "a0b63153eb31e72e805a7f6390adb187d872cafd35026f076144a2b361e6f3e8"
       },
-      "revision": "b5bc04d642883b670678ef82239298351b008a93",
-      "tracked_tree": "798e334be164cd3bb71549fc0ebab497b72e20690d1bcbafbe3033f7ca4087fc",
+      "revision": "e18abe6e98d53f1c4ce944b18355bcde58003985",
+      "tracked_tree": "308cf8f8a113059fdbd76c9702e28e1f3e0fe7f7e4d91f4ce9522b3d08c17c3a",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   }

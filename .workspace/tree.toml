@@ -16943,3 +16943,11 @@ path = "mboot"
 hash = "c2cb30a09b502a1542f0ba730476c93e2dc7752d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Allow explicit longer native whole-system diagnostic runs"
+
+[[entries]]
+date = "2026-11-17T14:30:40.480223301+09:00"
+snapshot = "1d261b0116edfb0645b0e89a"
+path = "mboot"
+hash = "8bafedbd024f54acf97a01e1884969612fd3d466"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Document bounded ARM native runs and preserve interruption diagnostics"

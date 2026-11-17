@@ -16927,3 +16927,11 @@ path = "services"
 hash = "6c8b4e274b3521767fbebfa09d95fb6c0bfd6f57"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Create measured native services through the shared preparation broker"
+
+[[entries]]
+date = "2026-11-17T12:58:19.913258524+09:00"
+snapshot = "2bb5ae3a6b8a160c44fcf30b"
+path = "user"
+hash = "cae2484aecd815fcfa6a9029cddaa22801001764"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Trace native runtime thread initialization failures when requested"

@@ -27,7 +27,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-binder": {
-      "content_sha256": "a13bd118518d5573142a7d57cd717a42e99961e2c13983dfac485ecf3e62377c",
+      "content_sha256": "82c3295bd52be831d7c705627b506c0a7dd236163f9900530f633a78ac88ea28",
       "resolution": {
         "Cargo.lock": "054424b01ed3dc493d8a777db1d95775c834d4a7b2791ce48a2a38a2aef29f98",
         "crates/binder_client/Cargo.lock": "e208b87f6e29a8c87faccf02842b5e141d18fa3e68273e08b700f78a002fc647",
@@ -40,8 +40,8 @@
         "crates/binder_protocol/Cargo.lock": "cd71207636c0c8e33f5f43f28ca0099b6c3c5dae7968009aca81157d15813609",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
       },
-      "revision": "0aafa795102558e115fe273c7617f3c2604db4b0",
-      "tracked_tree": "a13bd118518d5573142a7d57cd717a42e99961e2c13983dfac485ecf3e62377c",
+      "revision": "a4dd50a5b5dc868d6e1baecfd28b3bf7a93963ab",
+      "tracked_tree": "82c3295bd52be831d7c705627b506c0a7dd236163f9900530f633a78ac88ea28",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-calculator": {

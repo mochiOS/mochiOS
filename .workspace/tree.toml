@@ -16911,3 +16911,11 @@ path = "mboot"
 hash = "0624909261ef7f1092f7ac6bbca4574bd075d9b0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Run actual native System and Hardware Domains through shared Grant and Event dispatch"
+
+[[entries]]
+date = "2026-11-17T11:58:21.100563400+09:00"
+snapshot = "1ca5246832717a9518b60e4d"
+path = "services"
+hash = "5bbf645ae5fd188e26b18c6b088cee665fd03587"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Prepare and attest initial services through the shared native loader"

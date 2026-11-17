@@ -2,7 +2,7 @@
 
 更新日: 2026-11-17
 
-mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続とARM向けC/C++ SDKの配布まで進めた。QEMU Cortex-A53上でmnuの初期化と実EL0のcore.service、Linux Hardware Domainの実PID 1まで実行できた。両Domain間のGrant／EventとmDriver制御接続も通った。実データ入りSystemとDataを接続し、Filesystem／POSIXのReadyまで確認した。画面・入力・Binderの実行と製品ARMイメージ生成は未完了。
+mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続とARM向けC/C++ SDKの配布まで進めた。QEMU Cortex-A53上でmnuの初期化と実EL0のcore.service、Linux Hardware Domainの実PID 1まで実行できた。両Domain間のGrant／EventとmDriver制御接続も通った。実データ入りSystemとDataを接続し、Filesystem／POSIXのReadyまで確認した。DisplayとCompositorが起動し、実画面に起動ロゴ／スピナーを表示できた。物理入力・Binderの実行と製品ARMイメージ生成は未完了。
 
 ## 2026-11-17の結合実行
 
@@ -15,9 +15,13 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 制御のみのログは`out/arm/mdriver/native-control/run.log`。続いて、Linuxの実`/dev/ram0`を明示的な一時ブロックデバイスとして接続した。initが実データをコピーし、Linux側で保護MBR・両GPT・CRC・パーティション境界を検証した後に公開する。ソフトウェアデバイスの機能ビットを分け、物理PCI requesterやDMA割り当てを装わない。Systemは読み取り専用、Dataは書き込み可能な既存のユーザー空間Filesystemへ接続する。この診断用RAMディスクの容量は、実機のインストール先容量を制限しない。
 
-`out/arm/mdriver/native-services-diagnostics/run-posix-ready.log`では、core.service、Logger、Capability、Signature、Package、Service Manager、Filesystem、POSIXの実起動を追跡できる。コードとマニフェストは実際のARM ELFから既存の`msign`で結び付け直し、Capabilityの信頼対象一覧の検証を経て、System／DataのマウントとPOSIX endpointのReadyまで到達した。このログの時点ではDrivers起動認証で停止していた。後続の共通ローダー修正でこの拒否を解消し、`run-input-ready.log`ではDriversのHELLOとInputのReadyまで確認した。Displayは実際の表示バックエンドが未割り当てのため失敗する。mboot-agentの製品ライフサイクル制御も、この参照ディスパッチャには未接続である。通常デスクトップの完了ではない。
+`out/arm/mdriver/native-services-diagnostics/run-compositor-user-failure.log`で、core.serviceからLogger、Capability、Signature、Package、Service Manager、Filesystem、POSIX、Drivers、Input、Display、Compositorまでの実起動を確認した。コードとマニフェストは実際のARM ELFから既存の`msign`で結び付け直し、System／Dataをマウントする。後続サービスもCapability内の共通ローダーで準備・測定し、停止状態のProcess Handleを返す。Service Managerが既存のPOSIX登録と失敗時の後始末を行ってから再開する。任意PID／FDや送信者のHandle番号を起動要求へ載せず、IPCの明示的な添付だけを子へ権限縮小して委譲する。
 
-x86専用のPCIポート探索とサービス用リンカスクリプトをCPU別の入口で選択する。mnuへユーザー空間のサービス名やパスは追加していない。Binder、Terminal、mshを含む21本のARM版をビルド済みだが、ビルド成功を実行・GUI確認に数えない。初期サービスは既存の共通ローダーでRELRO／TLS等を準備し、作成したProcess Handleに結び付けて実出力を照合してから再開する。4 KiBを超えるローダーメタデータは既存の読み取り専用マッピングへ移す。起動引数・メタデータ・信頼済みbrokerの関連39件が通った。
+参照機に限ってQEMUの実RAMFBをEL2が設定し、fw_cfgのDMA制御はどちらのDomainにも公開しない。Systemには所有済みの描画RAMと既存のファームウェア表示APIを渡す。mnuは保持中のバッファをページごとにGPAへ変換してからHVCへ渡す。DisplayのReady、Compositorの入力購読／表示所有権取得／最初のpresentと、実画面のもちもちくん・スピナーを確認した（`actual-arm-scanout.png`）。これは物理GPU・タッチの実機確認ではない。
+
+現在の停止点はUserサービスのアカウントDB読み取り時の一時エラーであり、ログイン／Binderは未確認である。mboot-agentの製品ライフサイクル制御も、この参照ディスパッチャには未接続である。通常デスクトップの完了ではない。
+
+x86専用のPCIポート探索とサービス用リンカスクリプトをCPU別の入口で選択する。mnuへユーザー空間のサービス名やパスは追加していない。Binder、Terminal、mshを含む21本のARM版をビルド済みだが、ビルド成功を実行・GUI確認に数えない。初期サービスは既存の共通ローダーでRELRO／TLS等を準備し、作成したProcess Handleに結び付けて実出力を照合してから再開する。4 KiBを超えるローダーメタデータは既存の読み取り専用マッピングへ移す。起動引数・メタデータ・信頼済みbrokerの関連39件に加え、停止プロセス起動・失敗時の所有権・ロールの検証43件とプロトコル20件が通った。
 
 ローダー／DTB生成を含むホスト168件、ARM Linux Imageのリンク、共有バックエンドのx86オブジェクトビルド、Linuxパッチのfuzz=0再適用と全15ファイルの一致を確認した。これはTCGによる機能確認で、性能測定や実機起動の証拠ではない。実機のEL2・GICH／GICV・実RAM map・SMMUの確認は、指示どおりADB不要の作業から分離して保留する。
 

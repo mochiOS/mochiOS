@@ -255,27 +255,27 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "boot": {
-      "content_sha256": "42540540a52aab9b1cf7fc11c19382b5b3644c57840fd7323bb19acaf87dcfc2",
+      "content_sha256": "c0a017fa034bdee6c84eb486a8f554c524978ac82614e07f5c97bb43f2dc3f32",
       "resolution": {
-        "Cargo.lock": "6bd2e2e4e605f1eafda6257668e9a2688b0406e5681ad52745aecfae4f539c04"
+        "Cargo.lock": "d890eaeb4fa7081ad3c7588ee26c72937e144e118fec4103ecb4ee3e29266961"
       },
       "resolution_graph": {
         "Cargo.lock": "326ef294cc2054112fbc3460470c629dd7aac9b357518038ff304e45413966fd"
       },
-      "revision": "013d99f16744484b3ff2e5c58a5593dcbb9b91b1",
-      "tracked_tree": "42540540a52aab9b1cf7fc11c19382b5b3644c57840fd7323bb19acaf87dcfc2",
+      "revision": "7d8935a44f0f5a5392691adbde6cdf6abe2730b9",
+      "tracked_tree": "c0a017fa034bdee6c84eb486a8f554c524978ac82614e07f5c97bb43f2dc3f32",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "boot-hardware": {
-      "content_sha256": "42540540a52aab9b1cf7fc11c19382b5b3644c57840fd7323bb19acaf87dcfc2",
+      "content_sha256": "c0a017fa034bdee6c84eb486a8f554c524978ac82614e07f5c97bb43f2dc3f32",
       "resolution": {
-        "Cargo.lock": "6bd2e2e4e605f1eafda6257668e9a2688b0406e5681ad52745aecfae4f539c04"
+        "Cargo.lock": "d890eaeb4fa7081ad3c7588ee26c72937e144e118fec4103ecb4ee3e29266961"
       },
       "resolution_graph": {
         "Cargo.lock": "326ef294cc2054112fbc3460470c629dd7aac9b357518038ff304e45413966fd"
       },
-      "revision": "013d99f16744484b3ff2e5c58a5593dcbb9b91b1",
-      "tracked_tree": "42540540a52aab9b1cf7fc11c19382b5b3644c57840fd7323bb19acaf87dcfc2",
+      "revision": "7d8935a44f0f5a5392691adbde6cdf6abe2730b9",
+      "tracked_tree": "c0a017fa034bdee6c84eb486a8f554c524978ac82614e07f5c97bb43f2dc3f32",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "bootui-source": {
@@ -387,9 +387,9 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "kernel": {
-      "content_sha256": "4272c19c0a2b336a0629b80c593120a02d25045c3e4a336cfc22e4ce9e84bd59",
+      "content_sha256": "4ee5cec8ead956795267325ba8c15b70387263e6c8eb8cc666ff5273f7733cf7",
       "resolution": {
-        "Cargo.lock": "3f517e1742c5255a454beaa07ddb9cc6fc96ad941a671152218f6792556960be",
+        "Cargo.lock": "e6cce051840b3b074b385d655fa60b71c6f15cf734b1bf5df6606cf6b11f14cf",
         "examples/boot/Cargo.lock": "cee2fe7462c86f77f07cbbc3634985c9071956d502a5c21d849b31856fb7a877",
         "examples/user/Cargo.lock": "cc8d246ac8749095f41bed59dbdf285c4513cd0f26b27d35ebdef3fa33a3ce51",
         "modules/fs_cext/Cargo.lock": "7905d6481eb83c511758aa3c150cfac22577689a243998f02b0f320c22635155",
@@ -402,8 +402,8 @@
         "modules/fs_cext/Cargo.lock": "0f02b89ae4750e5346ce7f55ea8a15ab498aa5a6368e287366e05fb2a097380d",
         "scripts/heap-layout-bench/Cargo.lock": "e3b0bcb1557c70a0a7e7e29c2d932563f657456377ee88ff7c2c1b820ebee996"
       },
-      "revision": "5f6a4f1a9d020b547cc7e6d6c120afb435d7f748",
-      "tracked_tree": "4272c19c0a2b336a0629b80c593120a02d25045c3e4a336cfc22e4ce9e84bd59",
+      "revision": "d0eb18f5adb1276a785a22cd4ac6b42d98628b6a",
+      "tracked_tree": "4ee5cec8ead956795267325ba8c15b70387263e6c8eb8cc666ff5273f7733cf7",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "libc-source": {
@@ -419,15 +419,15 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "mboot": {
-      "content_sha256": "e93a1de2aa62b70e7e3ffb523b2b94e27f01ee1523ae91922c5f0f6e110df039",
+      "content_sha256": "8446fa7a7376bab34d7a3838a9cbc6967f7ab0ce828ccbc1a269f26e7cac1e0a",
       "resolution": {
-        "Cargo.lock": "d0f04ceec1bd11d69562f949e27e24a483e17c9b7bc97659f20cdc858ae51786"
+        "Cargo.lock": "48292f9564a00cd7021f31cbd69c9016bb951aac2812d5d16bc648e3b0c4b7be"
       },
       "resolution_graph": {
         "Cargo.lock": "e4901bf358f7c96d96c78ce3330af5030c46a01e2d1cfc9e93be0f28f99977eb"
       },
-      "revision": "642703d5532c01b24e89b39f5ce8b5dfc3bd492f",
-      "tracked_tree": "e93a1de2aa62b70e7e3ffb523b2b94e27f01ee1523ae91922c5f0f6e110df039",
+      "revision": "676da85b46b57c0aa460b0422cdb6bdaa79dd933",
+      "tracked_tree": "8446fa7a7376bab34d7a3838a9cbc6967f7ab0ce828ccbc1a269f26e7cac1e0a",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "mdev": {
@@ -503,17 +503,17 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "runtime": {
-      "content_sha256": "5897fa5b5e04065bf6e7b1e9c0d8746557c92883d57a3f379954911ae0ae2a84",
+      "content_sha256": "6aa8642599e554ec15aacd11131feaf19b378553f4c01f62f3131ec8697f4fc7",
       "resolution": {
-        "Cargo.lock": "75f6b0cd913624c1df74a926077c04f9f0bf4ee63c8c84da5ed4688569318c3a",
+        "Cargo.lock": "b11825ae5cd73a221a0e7b5b23ce9b6a2978cef959e8cf74211b75806a65c65b",
         "apps/rust-std-demo/Cargo.lock": "45d6ac3f4640625170e3c646c57f564a32dc2bf2447d9a44384dba1a1cb06c8a"
       },
       "resolution_graph": {
         "Cargo.lock": "c2f590a62f5589c610e5a9c48378e096f1e6d3a379790d1f510a097cd8eba133",
         "apps/rust-std-demo/Cargo.lock": "102eeb36c94d842e93886851d9ce3f14d26fb59ce8703ba2898218580b4f20b8"
       },
-      "revision": "975c6638e4f6094d02ab14d1e0af867ac864f034",
-      "tracked_tree": "5897fa5b5e04065bf6e7b1e9c0d8746557c92883d57a3f379954911ae0ae2a84",
+      "revision": "cae2484aecd815fcfa6a9029cddaa22801001764",
+      "tracked_tree": "6aa8642599e554ec15aacd11131feaf19b378553f4c01f62f3131ec8697f4fc7",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "rust-env": {
@@ -665,7 +665,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "services": {
-      "content_sha256": "a32caf9b603675b3b253027bb9248709e43932f385f6d4e7f1eaa44299a9c423",
+      "content_sha256": "01d2766165c7c7e4cdd9a41e75ddadfc95a8b22c38f8fe3798fe9adec42ca537",
       "resolution": {
         "Cargo.lock": "46320fbef679072f33899d7bc6122999131fa56756892d08011de4a6c8b94f94",
         "posix/tests/executable-reference/Cargo.lock": "77375e08d1e0b31a9920b072bc0f274761d22f136844bf56a4e7026eb2a66e2f",
@@ -678,8 +678,8 @@
         "posix/tests/native_rust_sleep/Cargo.lock": "605b9ba9d15a126b46110d0dbc89861d7cb1a446ca473b395c2d78669fc2f09d",
         "posix/tests/native_viewkit_buffer/Cargo.lock": "e27d4b9d7ee115a651043ab2048bd4a222d175879bf8ed8a1f5c203acc894e00"
       },
-      "revision": "5bbf645ae5fd188e26b18c6b088cee665fd03587",
-      "tracked_tree": "a32caf9b603675b3b253027bb9248709e43932f385f6d4e7f1eaa44299a9c423",
+      "revision": "6c8b4e274b3521767fbebfa09d95fb6c0bfd6f57",
+      "tracked_tree": "01d2766165c7c7e4cdd9a41e75ddadfc95a8b22c38f8fe3798fe9adec42ca537",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "shared-sdk": {
@@ -695,17 +695,17 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "std-demo": {
-      "content_sha256": "5897fa5b5e04065bf6e7b1e9c0d8746557c92883d57a3f379954911ae0ae2a84",
+      "content_sha256": "6aa8642599e554ec15aacd11131feaf19b378553f4c01f62f3131ec8697f4fc7",
       "resolution": {
-        "Cargo.lock": "75f6b0cd913624c1df74a926077c04f9f0bf4ee63c8c84da5ed4688569318c3a",
+        "Cargo.lock": "b11825ae5cd73a221a0e7b5b23ce9b6a2978cef959e8cf74211b75806a65c65b",
         "apps/rust-std-demo/Cargo.lock": "45d6ac3f4640625170e3c646c57f564a32dc2bf2447d9a44384dba1a1cb06c8a"
       },
       "resolution_graph": {
         "Cargo.lock": "c2f590a62f5589c610e5a9c48378e096f1e6d3a379790d1f510a097cd8eba133",
         "apps/rust-std-demo/Cargo.lock": "102eeb36c94d842e93886851d9ce3f14d26fb59ce8703ba2898218580b4f20b8"
       },
-      "revision": "975c6638e4f6094d02ab14d1e0af867ac864f034",
-      "tracked_tree": "5897fa5b5e04065bf6e7b1e9c0d8746557c92883d57a3f379954911ae0ae2a84",
+      "revision": "cae2484aecd815fcfa6a9029cddaa22801001764",
+      "tracked_tree": "6aa8642599e554ec15aacd11131feaf19b378553f4c01f62f3131ec8697f4fc7",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "system-components": {

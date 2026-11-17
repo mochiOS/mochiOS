@@ -2,7 +2,7 @@
 
 更新日: 2026-11-17
 
-mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続とARM向けC/C++ SDKの配布まで進めた。QEMU Cortex-A53上でmnuの初期化と実EL0のcore.service、Linux Hardware Domainの実PID 1まで実行できた。両Domain間のGrant／EventとmDriver制御接続も通った。実データ入りSystemとDataを接続し、Filesystem／POSIXのReadyまで確認した。DisplayとCompositorが起動し、実画面に起動ロゴ／スピナーを表示できた。物理入力・Binderの実行と製品ARMイメージ生成は未完了。
+mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続とARM向けC/C++ SDKの配布まで進めた。QEMU Cortex-A53上でmnuの初期化と実EL0のcore.service、Linux Hardware Domainの実PID 1まで実行できた。両Domain間のGrant／EventとmDriver制御接続も通った。実データ入りSystemとDataを接続し、通常のSecureUIログイン、User、Keychain、Workspace、Binderまで起動した。実画面で壁紙、上部バー、時計、Dockと実Terminalアイコンを確認した。物理入力、製品ARM起動媒体、対象タブレットでの起動は未完了。
 
 ## 2026-11-17の結合実行
 
@@ -19,7 +19,13 @@ mochiOSをARMタブレットで動かすための移植計画と進捗。以下�
 
 参照機に限ってQEMUの実RAMFBをEL2が設定し、fw_cfgのDMA制御はどちらのDomainにも公開しない。Systemには所有済みの描画RAMと既存のファームウェア表示APIを渡す。mnuは保持中のバッファをページごとにGPAへ変換してからHVCへ渡す。DisplayのReady、Compositorの入力購読／表示所有権取得／最初のpresentと、実画面のもちもちくん・スピナーを確認した（`actual-arm-scanout.png`）。これは物理GPU・タッチの実機確認ではない。
 
-現在の停止点はUserサービスのアカウントDB読み取り時の一時エラーであり、ログイン／Binderは未確認である。mboot-agentの製品ライフサイクル制御も、この参照ディスパッチャには未接続である。通常デスクトップの完了ではない。
+Data上のアカウントDB読み取りで発生していた一時エラーは、読み取り後のatime更新に必要なUTCが未初期化だったためである。参照frontendは実PL031を読み取り専用でEL2に保持し、存在を確認したときだけ汎用の時刻機能を宣言する。mnuはボード固有のレジスタを知らず、その機能を使って既存のUTC時計を初期化する。時刻やファイル読み取り成功を偽装せず、実RTC接続後にUser／Keychain／Workspace／Binderの起動を確認した（`run-rtc-binder-ready.log`）。
+
+最初のBinder画面は資産不足で壁紙とアイコンが欠けていた。既存のSDKアプリ梱包処理へARM ELFの検証を追加し、宣言された資産・マニフェストを配置した。製品のSystem/Data skeletonを使った次の起動では、SecureUIが壁紙・文字・認証フォームを表示した（`actual-arm-login.png`）。開発用ログイン設定はホストのumaskに依存せず0644で生成し、権限チェックを維持する。通常の自動ログインとセッション開始まで実行した。
+
+その後の停止点は、Binderが壁紙を同期読み込みする間に最初の画面を提示できず、Ready期限を超える問題だった。期限を延ばさず、[背景の読み込み](applications/binder/src/platform/mochios/background.rs)を最初の画面提示後に開始する単一ワーカーへ移した。既存のViewKit `UiSubscription`で結果をUIスレッドへ返し、CompositorオブジェクトはUIスレッドだけが保持する。再読み込みは一件まで集約し、古い設定の結果を反映しない。実ソースを使ったホストの競合確認と既存dispatchの計5件が通った。
+
+`out/arm/mdriver/native-services-diagnostics/run-binder-background.log`で、通常ログインからBinder PID 21のReadyまで確認した。実QMP画像`actual-arm-binder-background.png`では、壁紙・上部バー・時計・Dock・Terminalの実アイコンを確認した。最初のフレームでは上部バーの出現アニメーションと壁紙読込が未完了なので、その画像だけを完成判定に使わない。この参照イメージに含めたアプリはBinderとTerminalであり、標準アプリ全体のARM実行確認ではない。入力デバイスは未接続のため、タッチ・マウス操作やアプリ起動操作も未確認である。mboot-agentの製品ライフサイクル制御、Developerのtrust DB、通常MDP経路のARM製品イメージ生成も未完了である。
 
 x86専用のPCIポート探索とサービス用リンカスクリプトをCPU別の入口で選択する。mnuへユーザー空間のサービス名やパスは追加していない。Binder、Terminal、mshを含む21本のARM版をビルド済みだが、ビルド成功を実行・GUI確認に数えない。初期サービスは既存の共通ローダーでRELRO／TLS等を準備し、作成したProcess Handleに結び付けて実出力を照合してから再開する。4 KiBを超えるローダーメタデータは既存の読み取り専用マッピングへ移す。起動引数・メタデータ・信頼済みbrokerの関連39件に加え、停止プロセス起動・失敗時の所有権・ロールの検証43件とプロトコル20件が通った。
 
@@ -217,12 +223,12 @@ core/src/arch/
 
 | 層 | 共通部分とCPU別部分 | 現在の限界 |
 |---|---|---|
-| mnu | IPC・Capability・スケジューラ・VMの共通処理を維持し、CPU命令とレジスタ配置を`core/src/arch/`から選択 | ARMは1 vCPU。SMPと製品OS上の結合実行は未完了 |
+| mnu | IPC・Capability・スケジューラ・VMの共通処理を維持し、CPU命令とレジスタ配置を`core/src/arch/`から選択 | ARMは1 vCPU。参照構成でOSの結合起動を確認。SMPと製品起動経路は未完了 |
 | mBootの機構 | `Domain<Memory>`、Grant・Event・scheduler・マニフェストを共有。ELFは`ImageMemory`、ARMのページ表は`TableMemory`を通じて所有元へアクセスする | ARMは型付きの専用vCPU／Stage-2／仮想GIC API。共通の製品ディスパッチャへの接続は未完了 |
 | firmware／ボード | DTBのCPU・PSCI・RAM・予約領域・主GICv2をmBootで解釈。metadataの解析・配置計画は、物理資源の所有やデバイス権限を付与しない | 参照機でGIC／EL2タイマー所有を接続済み。実機資源の確認、UART等のbinding、製品frontend、SMMU・DMA隔離が必要 |
-| System Domainの入口 | `boot/src/arch/aarch64/`とCPU別linker scriptで上位EL1へ移り、共通BootInfoをmnuへ渡す | 実ELFでmnu初期化・core.serviceのEL0実行を確認済み。通常サービス群とGUIは未完了 |
-| デバイス接続 | カーネル側の`PlatformOps`へ、boot側がmDriverとの接続を供給する。デバイス探索や輸送の実装はカーネル外 | ARM64 Linux／HVC／Grant／Event制御接続は確認済み。実ストレージ・表示・入力とDMA隔離は未完了 |
-| ユーザー実行ABI | syscall命令、保存状態、TLS、ELF再配置をCPU別実装へ分離。上位のサービス・アプリの機能は共有 | Rust標準ライブラリを使うcore.serviceを実EL0で実行済み。複数サービス・IPCの結合確認は未完了 |
+| System Domainの入口 | `boot/src/arch/aarch64/`とCPU別linker scriptで上位EL1へ移り、共通BootInfoをmnuへ渡す | 参照構成で通常サービス群、ログイン、Binderデスクトップの描画まで実行した。製品frontendとの接続は未完了 |
+| デバイス接続 | カーネル側の`PlatformOps`へ、boot側がmDriverとの接続を供給する。デバイス探索や輸送の実装はカーネル外 | 実RAM block、firmware表示、HVC／Grant／Eventを確認。物理ストレージ・GPU・入力とDMA隔離は未完了 |
+| ユーザー実行ABI | syscall命令、保存状態、TLS、ELF再配置をCPU別実装へ分離。上位のサービス・アプリの機能は共有 | Rust標準ライブラリを使う複数サービスとBinderの実EL0実行・IPC・ファイルI/Oを確認。一般アプリ全体の実行確認は未完了 |
 | MDP／製品起動 | producerとイメージ組み立ての責務は既存構成を維持 | kernel／boot／mBootの製品recipeや共通toolchain定義にはx86指定が残る。ARMの診断ビルドと製品イメージ生成を区別する |
 
 `mboot/src/main.rs`の製品frontendは現在もx86 UEFI・VMX／SVM向けである。ARMライブラリがビルドできることを、この起動プログラムがARM対応済みという意味にはしない。CPUの移植はarch層へ集約し、firmware起動・Domain資源割り当て・ユーザーABI・ビルド設定はそれぞれの層で接続する。

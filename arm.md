@@ -1,8 +1,21 @@
 # ARM64対応方針
 
-更新日: 2026-11-16
+更新日: 2026-11-17
 
-mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続とARM向けC/C++ SDKの配布まで進めた。ARM64版mnu全体の起動には至っていない。
+mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続とARM向けC/C++ SDKの配布まで進めた。QEMU Cortex-A53上でmnuの初期化と実EL0のcore.service、Linux Hardware Domainの実PID 1まで実行できた。両Domain間のGrant／EventとmDriver制御接続も通った。Systemストレージ・通常サービス・Binderの起動と製品ARMイメージ生成は未完了。
+
+## 2026-11-17の結合実行
+
+製品mBootライブラリと実際のARM64 System ELF／core.service／Linux 6.12.98を使い、QEMUの単一Cortex-A53で確認した。
+
+- mnuがフレームアロケータ、Stage-1 MMU、ヒープ、仮想タイマー、スケジューラを初期化し、実EL0のcore.serviceへ入った。exec側に残っていたx86限定のELF machine検査をnative定数へ変更した。
+- EL2専有のCNTHPタイマーと物理GICのIARトークンを管理し、再設定後に完全なトークンでEOIする。ゲストにはGICVと独立したソフトウェア状態だけを渡す。LinuxのGICDはエミュレーションし、物理Distributor／GICHは公開しない。
+- mDriverの制御・block・GPU・inputバックエンドを共有側へ移し、CPU別処理を検出・輸送・PCI IRQ等へ分離した。ARMはHVCと生成DTBで起動し、既存の実initがPID 1として動作した。ARMの物理PCI割り当ては未対応として拒否する。
+- 両Domainを保持して既存のGrantTable／EventChannelTable／schedulerを利用した。Ready、範囲を確認したGrant共有、制御ネゴシエーションとセッション確立まで通った。core.serviceから通常のCapabilityチェック付きStorageControlで遅延初期化を要求する。
+
+ログは`out/arm/mdriver/native-control/run.log`。両DomainのReady、`Grant 257 mapped into Domain 2`、`mBoot device control protocol ready`を確認できる。現在はストレージ0台を正しく返し、core.serviceが`ENODEV`で停止する。ここをOS全体の起動成功とは扱わない。次は実データ入りのSystemストレージと通常サービスを接続する。
+
+ローダー／DTB生成を含むホスト168件、ARM Linux Imageのリンク、共有バックエンドのx86オブジェクトビルド、Linuxパッチのfuzz=0再適用と全15ファイルの一致を確認した。これはTCGによる機能確認で、性能測定や実機起動の証拠ではない。実機のEL2・GICH／GICV・実RAM map・SMMUの確認は、指示どおりADB不要の作業から分離して保留する。
 
 ## 着手済みの範囲
 
@@ -155,13 +168,13 @@ ARM用のターゲットを追加するだけでは起動できない。CPU依�
 | mnuのビルド・入口 | 実ライブラリ全体のARM型チェック・コード生成と既存x86カーネルビルドが通った。ARM System Domainの実ELFが上位EL1のReadyまで実行された | Ready後のmnu初期化、サービス・ユーザープロセスの実行 |
 | CPU・割り込み | CPU初期化・保護設定、割り当て済みGIC・タイマーIRQからのスケジューラ接続を実装。ARMは1vCPUのみ受け付ける | firmware mitigation供給、実vCPU上のプリエンプション・例外復帰、SMPとリモートIPI |
 | メモリ | Stage-1 MMUと共有VMアダプタ、TTBR0／TTBR1制御、ARMの上位ヒープ配置を実装した。GDT/TSSとCR4初期化はx86側だけで行う | ARMの初期配置・マッピング、SMPでのTLB整合 |
-| タスク | CPU別のEL1継続、EL0復帰、初期レジスタ・upcall・FP・TLSを実装した。製品のタスク入口は実コード生成まで通り、OS上の実行は未確認 | 上位カーネル配置・例外スタックと実スケジューラを接続し、IPC・Handle転送を実行する |
-| ELF | [mnuローダー](core/src/elf/loader.rs)はnative CPU種別を検査する。ユーザー側のARM再配置は実Clang/LLDのDSOで確認済み。[mBootローダー](mboot/src/image.rs)もCPUを検査し、ARMの上位VMAと物理ロード先を区別する | 製品vCPUの繰り返し実行、mnu初期化とサービス実行 |
+| タスク | CPU別のEL1継続、EL0復帰、初期レジスタ・upcall・FP・TLSを実装した。実mnuから最初のcore.serviceをEL0で実行した。複数ユーザープロセス間の結合実行は未確認 | 上位カーネル配置・例外スタックと実スケジューラを接続し、IPC・Handle転送を実行する |
+| ELF | [mnuローダー](core/src/elf/loader.rs)はnative CPU種別を検査する。ユーザー側のARM再配置は実Clang/LLDのDSOで確認済み。[mBootローダー](mboot/src/image.rs)もCPUを検査し、ARMの上位VMAと物理ロード先を区別する | 通常サービス群の実行と共有オブジェクトの結合確認 |
 | 起動ABI | BootInfo v4・DomainBootInfo v14にCPU種別、64ビットID、明示的なARM IRQ資源を定義した。既存のx86 SMPハンドオフはARMで拒否する | ARMの実vCPU起動・SMP状態と資源供給側の実装 |
 | syscall・実行ABI | [ARMラッパー](user/crates/syscall/src/arch/)のSVC、カーネル側のSVC配送、native保存状態・継続ABIを実装した | OS上でのブロック・再開・例外復帰と、既存IPC・Capability処理の確認 |
-| mBoot | ARMのStage-2とEL1からのHVC受け渡しをCPU診断で確認済み。ARMのvCPU再開とGICv2状態保持を実CPU命令で確認済み。ARMライブラリと共有Domain状態の生成も確認済み。UEFI起動・実行プログラムは引き続きx86向け | ネイティブ起動・実行経路への接続、CPU拡張バンク、物理IRQ・タイマー配送、投機対策、DMA隔離 |
-| System Domainの入口 | [system_domain.rs](boot/src/system_domain.rs)はIRQ資源を渡し、I/OのGPAもlinear map経由でアクセスする。ARMは低位入口でStage-1を作り、実ELFで上位EL1のReadyまで実行確認済み | Ready後のmnu初期化、仮想GIC・firmware・mDriverとの結合 |
-| mDriver | LinuxのPVH起動、PCIデバイス割り当て、`vmcall`／`vmmcall`を使用 | ARM64 Linuxの起動・FDT・Domain接続・対象SoCのデバイス割り当て |
+| mBoot | ARMのStage-2とEL1からのHVC受け渡しをCPU診断で確認済み。ARMのvCPU再開とGICv2状態保持を実CPU命令で確認済み。ARMライブラリと共有Domain状態の生成も確認済み。UEFI起動・実行プログラムは引き続きx86向け | ネイティブ起動・実行経路への接続、CPU拡張バンク、実機IRQ、投機対策、DMA隔離 |
+| System Domainの入口 | [system_domain.rs](boot/src/system_domain.rs)はIRQ資源を渡し、I/OのGPAもlinear map経由でアクセスする。ARMは低位入口でStage-1を作り、実ELFからmnu初期化とcore.serviceのEL0実行を確認済み | Systemストレージ、通常サービス群の起動 |
+| mDriver | x86のPVHに加え、ARM64 Image／DTB／HVCでLinuxとPID 1を実行した。Grant／Event制御接続も通った | Systemストレージ・表示・入力の接続、対象SoCの安全な割り当て |
 | OSビルド | ARM SDKを公開しRust標準ライブラリ・core.serviceのクロスリンクを確認した。製品のMDPカーネル・ブート・イメージはx86向け | CPU選択、ARMブート成果物・Linux・ユーザーランドを使うOSイメージ生成 |
 
 BinderのタブレットUIと`mmake ui-tablet`は、ARMの起動対応とは別の状態にある。ホスト上でUIを操作できることは、ARM実機のブートやタッチ入力が完成したことを意味しない。
@@ -198,10 +211,10 @@ core/src/arch/
 |---|---|---|
 | mnu | IPC・Capability・スケジューラ・VMの共通処理を維持し、CPU命令とレジスタ配置を`core/src/arch/`から選択 | ARMは1 vCPU。SMPと製品OS上の結合実行は未完了 |
 | mBootの機構 | `Domain<Memory>`、Grant・Event・scheduler・マニフェストを共有。ELFは`ImageMemory`、ARMのページ表は`TableMemory`を通じて所有元へアクセスする | ARMは型付きの専用vCPU／Stage-2／仮想GIC API。共通の製品ディスパッチャへの接続は未完了 |
-| firmware／ボード | DTBのCPU・PSCI・RAM・予約領域・主GICv2をmBootで解釈。metadataの解析・配置計画は、物理資源の所有やデバイス権限を付与しない | GICの資源所有と物理IRQ配送、UART等のbinding、EL2のfrontend、SMMU・DMA隔離の接続が必要 |
-| System Domainの入口 | `boot/src/arch/aarch64/`とCPU別linker scriptで上位EL1へ移り、共通BootInfoをmnuへ渡す | 実ELFでReadyまで確認済み。Ready後のmnu初期化・サービス起動は未確認 |
-| デバイス接続 | カーネル側の`PlatformOps`へ、boot側がmDriverとの接続を供給する。デバイス探索や輸送の実装はカーネル外 | ARM64 Linuxの起動、HVC接続、物理IRQ・仮想タイマー配送が必要 |
-| ユーザー実行ABI | syscall命令、保存状態、TLS、ELF再配置をCPU別実装へ分離。上位のサービス・アプリの機能は共有 | Rust標準ライブラリとcore.serviceのARMリンクは確認済み。OS上の実行は未確認 |
+| firmware／ボード | DTBのCPU・PSCI・RAM・予約領域・主GICv2をmBootで解釈。metadataの解析・配置計画は、物理資源の所有やデバイス権限を付与しない | 参照機でGIC／EL2タイマー所有を接続済み。実機資源の確認、UART等のbinding、製品frontend、SMMU・DMA隔離が必要 |
+| System Domainの入口 | `boot/src/arch/aarch64/`とCPU別linker scriptで上位EL1へ移り、共通BootInfoをmnuへ渡す | 実ELFでmnu初期化・core.serviceのEL0実行を確認済み。通常サービス群とGUIは未完了 |
+| デバイス接続 | カーネル側の`PlatformOps`へ、boot側がmDriverとの接続を供給する。デバイス探索や輸送の実装はカーネル外 | ARM64 Linux／HVC／Grant／Event制御接続は確認済み。実ストレージ・表示・入力とDMA隔離は未完了 |
+| ユーザー実行ABI | syscall命令、保存状態、TLS、ELF再配置をCPU別実装へ分離。上位のサービス・アプリの機能は共有 | Rust標準ライブラリを使うcore.serviceを実EL0で実行済み。複数サービス・IPCの結合確認は未完了 |
 | MDP／製品起動 | producerとイメージ組み立ての責務は既存構成を維持 | kernel／boot／mBootの製品recipeや共通toolchain定義にはx86指定が残る。ARMの診断ビルドと製品イメージ生成を区別する |
 
 `mboot/src/main.rs`の製品frontendは現在もx86 UEFI・VMX／SVM向けである。ARMライブラリがビルドできることを、この起動プログラムがARM対応済みという意味にはしない。CPUの移植はarch層へ集約し、firmware起動・Domain資源割り当て・ユーザーABI・ビルド設定はそれぞれの層で接続する。
@@ -284,4 +297,4 @@ EL2や必要なDMA隔離が利用できない機種は、現在のDomain構成�
 - initfsへGUIや一般アプリを追加せず、既存の最小構成を維持する。
 - ソースの変更、Lock更新、各リポジトリの参照とMWS記録を一組として管理し、Lockを巻き戻さない。
 
-共有VM、CPUローカル状態、継続復帰、起動契約、ARM SDKまで段階的に実装・検証している。ARM版mnuライブラリ全体のビルド、System Domain ELFのリンク、Stage-2下の上位EL1入口は確認済み。OS起動は未完了である。続いてmBootのARM vCPU・firmware・仮想GIC・I/Oを接続し、mnu初期化・サービス起動・SMPへ進む。診断の成功をARM版OS全体の起動完了と扱わず、空実装でビルド成功を装わない。
+共有VM、CPUローカル状態、継続復帰、起動契約、ARM SDKまで段階的に実装・検証している。mnuの初期化とcore.serviceのEL0実行、Linux Hardware Domainと制御経路の接続を確認済み。OS全体の起動は未完了である。続いてSystemストレージ、通常サービス、表示・入力、製品イメージへ進む。診断の成功をARM版OS全体の起動完了と扱わず、空実装でビルド成功を装わない。

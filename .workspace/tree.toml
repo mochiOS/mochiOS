@@ -16951,3 +16951,11 @@ path = "mboot"
 hash = "8bafedbd024f54acf97a01e1884969612fd3d466"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Document bounded ARM native runs and preserve interruption diagnostics"
+
+[[entries]]
+date = "2026-11-17T18:06:47.539320835+09:00"
+snapshot = "6c71709d2ecd6e7acf4c6f46"
+path = "applications/binder"
+hash = "0aafa795102558e115fe273c7617f3c2604db4b0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Carry tablet input and safe content environment into applications"

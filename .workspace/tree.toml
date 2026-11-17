@@ -16935,3 +16935,11 @@ path = "user"
 hash = "cae2484aecd815fcfa6a9029cddaa22801001764"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Trace native runtime thread initialization failures when requested"
+
+[[entries]]
+date = "2026-11-17T13:14:55.814088554+09:00"
+snapshot = "80f833f22af6c4914723a53e"
+path = "mboot"
+hash = "c2cb30a09b502a1542f0ba730476c93e2dc7752d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Allow explicit longer native whole-system diagnostic runs"

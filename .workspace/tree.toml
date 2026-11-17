@@ -16903,3 +16903,11 @@ path = "mboot"
 hash = "dee420b6c9297b05665877c219df0f97b1091bc4"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Use admitted firmware GIC banks for native interrupt execution"
+
+[[entries]]
+date = "2026-11-17T09:56:59.879224919+09:00"
+snapshot = "44f3496e7cc3744194fd5ef3"
+path = "mboot"
+hash = "0624909261ef7f1092f7ac6bbca4574bd075d9b0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Run actual native System and Hardware Domains through shared Grant and Event dispatch"

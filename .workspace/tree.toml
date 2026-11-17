@@ -16919,3 +16919,11 @@ path = "services"
 hash = "5bbf645ae5fd188e26b18c6b088cee665fd03587"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Prepare and attest initial services through the shared native loader"
+
+[[entries]]
+date = "2026-11-17T12:52:22.066487408+09:00"
+snapshot = "5b47b1a866f9fed73c9bd499"
+path = "services"
+hash = "6c8b4e274b3521767fbebfa09d95fb6c0bfd6f57"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Create measured native services through the shared preparation broker"

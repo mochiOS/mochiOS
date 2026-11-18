@@ -16967,3 +16967,11 @@ path = "applications/binder"
 hash = "a4dd50a5b5dc868d6e1baecfd28b3bf7a93963ab"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Present tablet notifications as a wallpaper sheet"
+
+[[entries]]
+date = "2026-11-18T15:17:17.111720245+09:00"
+snapshot = "ff2ebb1439294a9c2a7a76d7"
+path = "applications/binder"
+hash = "6c882351d9ee546936b43b69680c95b2f5c94e69"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Animate desktop window opening and restoration"

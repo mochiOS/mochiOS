@@ -16983,3 +16983,11 @@ path = "applications/binder"
 hash = "106f39fcb783230d76ff7104310bedbcd8cdbe11"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Animate Dock entrance and icon interaction"
+
+[[entries]]
+date = "2026-11-18T17:37:30.025755234+09:00"
+snapshot = "6c1f139f1af0952248087071"
+path = "applications/binder"
+hash = "9b29af2950bb2241c216049784468b4f19ff3468"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Animate tablet navigation bar with edge gestures"

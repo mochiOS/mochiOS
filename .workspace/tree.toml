@@ -16975,3 +16975,11 @@ path = "applications/binder"
 hash = "6c882351d9ee546936b43b69680c95b2f5c94e69"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Animate desktop window opening and restoration"
+
+[[entries]]
+date = "2026-11-18T15:40:06.554274647+09:00"
+snapshot = "6ee3d60693df96cba17fd1e6"
+path = "applications/binder"
+hash = "106f39fcb783230d76ff7104310bedbcd8cdbe11"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Animate Dock entrance and icon interaction"

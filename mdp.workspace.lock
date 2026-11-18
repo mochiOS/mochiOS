@@ -27,7 +27,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-binder": {
-      "content_sha256": "82c3295bd52be831d7c705627b506c0a7dd236163f9900530f633a78ac88ea28",
+      "content_sha256": "7086743a2926276743e5808081459194aa384ad24134b4c4173dd6454ca9e3f2",
       "resolution": {
         "Cargo.lock": "054424b01ed3dc493d8a777db1d95775c834d4a7b2791ce48a2a38a2aef29f98",
         "crates/binder_client/Cargo.lock": "e208b87f6e29a8c87faccf02842b5e141d18fa3e68273e08b700f78a002fc647",
@@ -40,8 +40,8 @@
         "crates/binder_protocol/Cargo.lock": "cd71207636c0c8e33f5f43f28ca0099b6c3c5dae7968009aca81157d15813609",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
       },
-      "revision": "a4dd50a5b5dc868d6e1baecfd28b3bf7a93963ab",
-      "tracked_tree": "82c3295bd52be831d7c705627b506c0a7dd236163f9900530f633a78ac88ea28",
+      "revision": "6c882351d9ee546936b43b69680c95b2f5c94e69",
+      "tracked_tree": "7086743a2926276743e5808081459194aa384ad24134b4c4173dd6454ca9e3f2",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-calculator": {
@@ -665,7 +665,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "services": {
-      "content_sha256": "38d0e8767133e71378e8335b883412ce65bfabfb37249253255e0c1f2c01d00a",
+      "content_sha256": "66019803124ef25ae7f6c1770eb102d5254c537bde95d37f077c371b47824c63",
       "resolution": {
         "Cargo.lock": "46320fbef679072f33899d7bc6122999131fa56756892d08011de4a6c8b94f94",
         "posix/tests/executable-reference/Cargo.lock": "77375e08d1e0b31a9920b072bc0f274761d22f136844bf56a4e7026eb2a66e2f",
@@ -678,8 +678,8 @@
         "posix/tests/native_rust_sleep/Cargo.lock": "605b9ba9d15a126b46110d0dbc89861d7cb1a446ca473b395c2d78669fc2f09d",
         "posix/tests/native_viewkit_buffer/Cargo.lock": "e27d4b9d7ee115a651043ab2048bd4a222d175879bf8ed8a1f5c203acc894e00"
       },
-      "revision": "6cccc9e1473dc356b4d811d76591b2bca33e5d59",
-      "tracked_tree": "38d0e8767133e71378e8335b883412ce65bfabfb37249253255e0c1f2c01d00a",
+      "revision": "57621df98469e5ea5988f73a0c7ff71f12dd8c6d",
+      "tracked_tree": "66019803124ef25ae7f6c1770eb102d5254c537bde95d37f077c371b47824c63",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "shared-sdk": {

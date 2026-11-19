@@ -1,6 +1,6 @@
 # ARM64対応方針
 
-更新日: 2026-11-17
+更新日: 2026-11-19
 
 mochiOSをARMタブレットで動かすための移植計画と進捗。以下の実装状況は現行ソースを確認した結果であり、未着手の構成・作業項目は提案である。現在はCPUプリミティブ、EL1継続、例外入口、EL0遷移、Stage-1 MMUを実装し、共有VMへの接続とARM向けC/C++ SDKの配布まで進めた。QEMU Cortex-A53上でmnuの初期化と実EL0のcore.service、Linux Hardware Domainの実PID 1まで実行できた。両Domain間のGrant／EventとmDriver制御接続も通った。実データ入りSystemとDataを接続し、通常のSecureUIログイン、User、Keychain、Workspace、Binderまで起動した。実画面で壁紙、上部バー、時計、Dockと実Terminalアイコンを確認した。物理入力、製品ARM起動媒体、対象タブレットでの起動は未完了。
 
@@ -158,7 +158,9 @@ APQ8053／MSM8953候補には、8 CPUのaffinity `0..3, 0x100..0x103`、PSCI 1.0
 
 候補DTBの`/memory/reg`は全cellがゼロであり、ブートローダーによる実行時の補正が必要。固定の予約メモリに加え、`size`／`alignment`で後から配置されるsecure・GPU等の領域もある。公称3 GBをそのまま空きRAMとして扱わず、実行時DTBと予約領域を取得する。
 
-stock kernelは`CONFIG_VIRTUALIZATION`が無効。これはLinuxにKVMを組み込んでいないことを示すだけで、EL1／EL2のどちらで入ったかや、別firmwareがEL2を保持しているかは証明しない。ADBは別PCで利用しており、現在はユーザーの指示に従ってADBが不要なQEMU側の実装を進める。実行時DTB・実機の選択ID・EL2引き渡しの確認は保留し、実機の起動や保護機構の利用成功を宣言しない。
+stock kernelは`CONFIG_VIRTUALIZATION`が無効。これはLinuxにKVMを組み込んでいないことを示すだけで、EL1／EL2のどちらで入ったかや、別firmwareがEL2を保持しているかは証明しない。
+
+ADBで起動中のLineageOSから実行時DTBを取得した。Androidの報告名はLenovo TB-X704F、DTBのモデルはMSM8953 + PMI8950 QRD SKU3である。RAMは計3 GiBで、DTBに固定・動的な予約領域がある。`/soc/timer` のアクティブLow PPIと19.2 MHzの宣言は、[共通のタイマー解決](mboot/src/fdt/timer.rs)で扱う。起動時はその周波数をCPUの`CNTFRQ_EL0`と照合する。GICH／GICVは実行時DTBにも記載がなく、EL2引き渡しは実機の一時起動で確認する。取得物はローカルの`out/arm/pc-te510haw-live/`に保持する。
 
 最初の到達点は、QEMUのARM64環境で次を通すこと。
 
@@ -205,6 +207,8 @@ BinderのタブレットUIと`mmake ui-tablet`は、ARMの起動対応とは別�
 | ユーザーランド | アプリ起動、権限承認、ファイルシステム、POSIX互換性、セッション、GUI、機種別のシステムポリシー |
 
 mnuにサービス名、ユーザー空間のディレクトリ構成、アプリ名、機種別ドライバの知識を追加しない。必要なハードウェア情報は、検証済みの起動情報や汎用インターフェースで渡す。
+
+Androidの起動形式とブートローダーからの引き渡しは、mBootのARM起動frontend（配置予定は`mboot/src/platform/android/`）で扱う。機種ごとに必要な起動設定は`mboot/config/boards/<機種>.toml`に置き、実行時DTBから取得できるアドレス・IRQは共通パーサーで解決する。画面、タッチ、ストレージ等のLinux設定やDTオーバーレイはmDriverの既存の`mboot/mdriver/board/`配下に置く。物理資源の割り当てとDMA隔離はmBootが検証し、mnuには既存の起動ABIで確定した資源を渡す。
 
 mDriver側にLinuxドライバが存在しても、mBootのARM仮想化、LinuxのDomain起動、デバイス資源の割り当てまで自動的に成立するわけではない。特にSoC内蔵デバイスはPCI前提で扱わず、MMIO・IRQ・DMA・関連資源の所有関係を確認する。
 

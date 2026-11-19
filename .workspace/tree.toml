@@ -17023,3 +17023,11 @@ path = "applications/binder"
 hash = "99cd7863990161dd795599728725ec3e77d0c656"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Move, resize and remember the floating flick keyboard"
+
+[[entries]]
+date = "2026-11-19T21:22:53.139752910+09:00"
+snapshot = "da2d5324d32348590f992e2e"
+path = "mboot"
+hash = "c74b9f9b936428563f51c1f5830cbee57bdc53c2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Resolve nested ARM architected timers from firmware"

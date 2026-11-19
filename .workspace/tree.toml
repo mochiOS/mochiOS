@@ -16999,3 +16999,11 @@ path = "applications/binder"
 hash = "0a9b2d935072719d6b37385bc914ef384f8fe37a"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Improve tablet gestures and show native switcher previews"
+
+[[entries]]
+date = "2026-11-19T17:17:48.246620982+09:00"
+snapshot = "b0d8610b96b8402c12384321"
+path = "applications/binder"
+hash = "07a020abcb0bff356b0cb959f9e023ea9ab66860"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Host installed keyboard layouts in tablet mode"

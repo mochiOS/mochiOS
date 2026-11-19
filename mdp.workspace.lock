@@ -27,7 +27,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-binder": {
-      "content_sha256": "699336ddb4311715335d5405b6d8e05c43f57c56c1b3ac0b58a868308ece1712",
+      "content_sha256": "822434b9ce38105528817e2652d07a759e75b69e9b4f5b0c7d0ef867f3badd4d",
       "resolution": {
         "Cargo.lock": "054424b01ed3dc493d8a777db1d95775c834d4a7b2791ce48a2a38a2aef29f98",
         "crates/binder_client/Cargo.lock": "e208b87f6e29a8c87faccf02842b5e141d18fa3e68273e08b700f78a002fc647",
@@ -40,8 +40,8 @@
         "crates/binder_protocol/Cargo.lock": "cd71207636c0c8e33f5f43f28ca0099b6c3c5dae7968009aca81157d15813609",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
       },
-      "revision": "9b29af2950bb2241c216049784468b4f19ff3468",
-      "tracked_tree": "699336ddb4311715335d5405b6d8e05c43f57c56c1b3ac0b58a868308ece1712",
+      "revision": "0a9b2d935072719d6b37385bc914ef384f8fe37a",
+      "tracked_tree": "822434b9ce38105528817e2652d07a759e75b69e9b4f5b0c7d0ef867f3badd4d",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-calculator": {
@@ -503,17 +503,17 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "runtime": {
-      "content_sha256": "619addadc9726c0774a5d3586dbb9709dc3054810f0229dd5dfe4c29ac0f2503",
+      "content_sha256": "128803cb405ee625cfe127d9e47c3be9ff3e5e582eaeb2f05307492bc3368201",
       "resolution": {
-        "Cargo.lock": "a394c5af1c81cf4580d9caeb910e74d6c0713288e352ac7d66eeaac9f32cb7a3",
+        "Cargo.lock": "8a8d2ec4fb95eaa7ec8a2e1b36aeb1ef90c5ec2d1e5663af6a6f2e0d4f5e94a4",
         "apps/rust-std-demo/Cargo.lock": "45d6ac3f4640625170e3c646c57f564a32dc2bf2447d9a44384dba1a1cb06c8a"
       },
       "resolution_graph": {
         "Cargo.lock": "c2f590a62f5589c610e5a9c48378e096f1e6d3a379790d1f510a097cd8eba133",
         "apps/rust-std-demo/Cargo.lock": "102eeb36c94d842e93886851d9ce3f14d26fb59ce8703ba2898218580b4f20b8"
       },
-      "revision": "f0b883f01cc8e066ceaced0d83fc9f5ca36f5ae3",
-      "tracked_tree": "619addadc9726c0774a5d3586dbb9709dc3054810f0229dd5dfe4c29ac0f2503",
+      "revision": "977d9a579e1f2b430d6b47e8dce57b516c9d3d9d",
+      "tracked_tree": "128803cb405ee625cfe127d9e47c3be9ff3e5e582eaeb2f05307492bc3368201",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "rust-env": {
@@ -665,7 +665,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "services": {
-      "content_sha256": "66019803124ef25ae7f6c1770eb102d5254c537bde95d37f077c371b47824c63",
+      "content_sha256": "b8a1838e35553bc1c2b292a1389b2c6014429bb38e34ca3a2233c14d7a3415c5",
       "resolution": {
         "Cargo.lock": "46320fbef679072f33899d7bc6122999131fa56756892d08011de4a6c8b94f94",
         "posix/tests/executable-reference/Cargo.lock": "77375e08d1e0b31a9920b072bc0f274761d22f136844bf56a4e7026eb2a66e2f",
@@ -678,8 +678,8 @@
         "posix/tests/native_rust_sleep/Cargo.lock": "605b9ba9d15a126b46110d0dbc89861d7cb1a446ca473b395c2d78669fc2f09d",
         "posix/tests/native_viewkit_buffer/Cargo.lock": "e27d4b9d7ee115a651043ab2048bd4a222d175879bf8ed8a1f5c203acc894e00"
       },
-      "revision": "57621df98469e5ea5988f73a0c7ff71f12dd8c6d",
-      "tracked_tree": "66019803124ef25ae7f6c1770eb102d5254c537bde95d37f077c371b47824c63",
+      "revision": "75506fd169166b10f890ba6e9ae6c85dbf671bb5",
+      "tracked_tree": "b8a1838e35553bc1c2b292a1389b2c6014429bb38e34ca3a2233c14d7a3415c5",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "shared-sdk": {
@@ -695,17 +695,17 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "std-demo": {
-      "content_sha256": "619addadc9726c0774a5d3586dbb9709dc3054810f0229dd5dfe4c29ac0f2503",
+      "content_sha256": "128803cb405ee625cfe127d9e47c3be9ff3e5e582eaeb2f05307492bc3368201",
       "resolution": {
-        "Cargo.lock": "a394c5af1c81cf4580d9caeb910e74d6c0713288e352ac7d66eeaac9f32cb7a3",
+        "Cargo.lock": "8a8d2ec4fb95eaa7ec8a2e1b36aeb1ef90c5ec2d1e5663af6a6f2e0d4f5e94a4",
         "apps/rust-std-demo/Cargo.lock": "45d6ac3f4640625170e3c646c57f564a32dc2bf2447d9a44384dba1a1cb06c8a"
       },
       "resolution_graph": {
         "Cargo.lock": "c2f590a62f5589c610e5a9c48378e096f1e6d3a379790d1f510a097cd8eba133",
         "apps/rust-std-demo/Cargo.lock": "102eeb36c94d842e93886851d9ce3f14d26fb59ce8703ba2898218580b4f20b8"
       },
-      "revision": "f0b883f01cc8e066ceaced0d83fc9f5ca36f5ae3",
-      "tracked_tree": "619addadc9726c0774a5d3586dbb9709dc3054810f0229dd5dfe4c29ac0f2503",
+      "revision": "977d9a579e1f2b430d6b47e8dce57b516c9d3d9d",
+      "tracked_tree": "128803cb405ee625cfe127d9e47c3be9ff3e5e582eaeb2f05307492bc3368201",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "system-components": {

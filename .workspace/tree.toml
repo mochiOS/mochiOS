@@ -17007,3 +17007,11 @@ path = "applications/binder"
 hash = "07a020abcb0bff356b0cb959f9e023ea9ab66860"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Host installed keyboard layouts in tablet mode"
+
+[[entries]]
+date = "2026-11-19T18:33:46.459707651+09:00"
+snapshot = "750e40df495ff199342df3bc"
+path = "applications/binder"
+hash = "f2b958df61c400bd8d66ce663836454245e27b87"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Dock wide keyboards and float the kana keyboard"

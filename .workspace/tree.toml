@@ -17015,3 +17015,11 @@ path = "applications/binder"
 hash = "f2b958df61c400bd8d66ce663836454245e27b87"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Dock wide keyboards and float the kana keyboard"
+
+[[entries]]
+date = "2026-11-19T19:38:55.462050433+09:00"
+snapshot = "b1532492fa282fbb5f402031"
+path = "applications/binder"
+hash = "99cd7863990161dd795599728725ec3e77d0c656"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Move, resize and remember the floating flick keyboard"

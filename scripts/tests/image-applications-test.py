@@ -13,7 +13,7 @@ spec = importlib.util.spec_from_file_location('image_applications', ROOT / 'scri
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 SYSTEM = {'Binder.app', 'Settings.app', 'Files.app', 'Terminal.app', 'AppStore.app',
-          'DiskUtility.app', 'Viewer.app', 'Fonts.app', 'SystemMonitor.app', 'Keychain.app'}
+          'DiskUtility.app', 'Viewer.app', 'Fonts.app', 'SystemMonitor.app', 'Keychain.app', 'Keyboard.app'}
 STORE = {'Terra.app', 'Edit.app', 'Calendar.app', 'Mail.app', 'Calculator.app'}
 
 

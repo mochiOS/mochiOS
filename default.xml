@@ -262,6 +262,13 @@
     />
 
     <project
+            path="applications/keyboard"
+            name="mochiOS/Keyboard.app"
+            revision="main"
+            remote="github"
+    />
+
+    <project
             path="applications/mail"
             name="mochiOS/Mail.app"
             revision="main"

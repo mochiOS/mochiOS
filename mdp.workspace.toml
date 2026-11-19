@@ -108,6 +108,10 @@ name = "app-keychain"
 path = "applications/keychain"
 
 [[projects]]
+name = "app-keyboard"
+path = "applications/keyboard"
+
+[[projects]]
 name = "app-mail"
 path = "applications/mail"
 

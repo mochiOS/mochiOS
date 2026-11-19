@@ -16991,3 +16991,11 @@ path = "applications/binder"
 hash = "9b29af2950bb2241c216049784468b4f19ff3468"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Animate tablet navigation bar with edge gestures"
+
+[[entries]]
+date = "2026-11-19T11:16:10.619866596+09:00"
+snapshot = "afc2a560b185cb1ae8814bb2"
+path = "applications/binder"
+hash = "0a9b2d935072719d6b37385bc914ef384f8fe37a"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Improve tablet gestures and show native switcher previews"

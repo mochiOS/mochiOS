@@ -17055,3 +17055,11 @@ path = "boot"
 hash = "5fdf761eea966b0c0a6aaa01c5586b67ef682115"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Boot native ARM64 System and Data from an ephemeral disk"
+
+[[entries]]
+date = "2026-11-21T22:21:24.035114813+09:00"
+snapshot = "a3b5b4d6b1576642c093c317"
+path = "boot"
+hash = "de84be725789730f863788baae8f21854e45f7aa"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Carry firmware framebuffer into native ARM64 display"

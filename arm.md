@@ -172,7 +172,11 @@ EL1側は、Device Treeから物理GICv2と仮想カウンターのPPIを解決�
 
 実機の最初の確認は、Fastbootでの一時起動とGICv2／PPI 20の割り込み配送、EL0に入ったことを観測できる状態までを含む。通常のOS起動には、System／Dataを供給するストレージが必要である。実行時DTBには`qcom,sdhci-msm`が2系統、表示にQualcomm MDSS／DSI、タッチにGoodix GT9xxが記述されている。各機能を物理デバイスで検証する。
 
-開発用EL1イメージは`MOCHIOS_ARM64_BOOT_DISK`に渡した単一のGPTディスクからSystem／Dataを供給できる。既存のストレージAPIを通し、検証したDataの範囲内だけを書き込み可能にする。ディスクは起動中のRAMにあり、Dataへの変更はその起動中に限って保持される。QEMUでは実PL031からUTCを初期化し、既存のARM64 System／DataでFilesystemとPOSIXのReadyを確認した。検証中の80件の書き込みはすべてData内だった。次の停止点は`display.driver`のバックエンド初期化である。ログは`out/arm/native-disk/`に保持する。TB-X704FのeMMC接続とFastbootでの実機検証は引き続き必要である。
+開発用EL1イメージは`MOCHIOS_ARM64_BOOT_DISK`に渡した単一のGPTディスクからSystem／Dataを供給できる。既存のストレージAPIを通し、検証したDataの範囲内だけを書き込み可能にする。ディスクは起動中のRAMにあり、Dataへの変更はその起動中に限って保持される。QEMUでは実PL031からUTCを初期化し、既存のARM64 System／DataでFilesystemとPOSIXのReadyを確認した。検証中の80件の書き込みはすべてData内だった。ログは`out/arm/native-disk/`に保持する。TB-X704FのeMMC接続とFastbootでの実機検証は引き続き必要である。
+
+[EL1のフレームバッファ引き継ぎ](boot/src/arch/aarch64/boot_framebuffer.rs)は、ファームウェアが`/chosen`で明示したXRGB8888の`simple-framebuffer`を検証し、既存の表示ドライバーへ渡す。QEMUの`ramfb`を使い、`display.driver`とコンポジタの初回描画まで確認した。同じ起動では`secure-ui.service`のプロセス作成が`NotFound`を返し、Binderには到達していない。ログは`out/arm/native-display/`に保持する。
+
+TB-X704Fの実行時DTBに`simple-framebuffer`と`qcom,cont-splash-enabled`はない。予約された`splash_region`だけでは、現在パネルへ送信されている画素の位置や形式は分からない。実機でこの表示経路を使うには、選択されたNT51021BのDSIパネルを初期化し、確保した描画用メモリをMDSSでスキャンアウトするためのボード対応が必要になる。
 
 最初の到達点は、QEMUのARM64環境で次を通すこと。
 

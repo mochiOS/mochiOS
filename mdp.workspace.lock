@@ -267,27 +267,27 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "boot": {
-      "content_sha256": "b1089b6dc6bf7ac7019c293c0789961993b9a1a24ba08e785a6ea148815ce120",
+      "content_sha256": "133844bae855707b055d806fba67d2664185032c856d096c017fbc30b04e1b84",
       "resolution": {
-        "Cargo.lock": "241dc2b0cd0b212a0fcf0b90b097817d65bc86c8621ce5c7cc25a2b1650cfa66"
+        "Cargo.lock": "a4397e0772d36c9758d90d0fef8e3c744b7e00ea136abcb632beccdca679debf"
       },
       "resolution_graph": {
         "Cargo.lock": "6adf5f00e29c04b46941a8185bd3b1e98d616ddd5dacb0466284857b08145a6d"
       },
-      "revision": "de84be725789730f863788baae8f21854e45f7aa",
-      "tracked_tree": "b1089b6dc6bf7ac7019c293c0789961993b9a1a24ba08e785a6ea148815ce120",
+      "revision": "11d217c1c317cd767586e019af43f8b0bc37f06b",
+      "tracked_tree": "133844bae855707b055d806fba67d2664185032c856d096c017fbc30b04e1b84",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "boot-hardware": {
-      "content_sha256": "b1089b6dc6bf7ac7019c293c0789961993b9a1a24ba08e785a6ea148815ce120",
+      "content_sha256": "133844bae855707b055d806fba67d2664185032c856d096c017fbc30b04e1b84",
       "resolution": {
-        "Cargo.lock": "241dc2b0cd0b212a0fcf0b90b097817d65bc86c8621ce5c7cc25a2b1650cfa66"
+        "Cargo.lock": "a4397e0772d36c9758d90d0fef8e3c744b7e00ea136abcb632beccdca679debf"
       },
       "resolution_graph": {
         "Cargo.lock": "6adf5f00e29c04b46941a8185bd3b1e98d616ddd5dacb0466284857b08145a6d"
       },
-      "revision": "de84be725789730f863788baae8f21854e45f7aa",
-      "tracked_tree": "b1089b6dc6bf7ac7019c293c0789961993b9a1a24ba08e785a6ea148815ce120",
+      "revision": "11d217c1c317cd767586e019af43f8b0bc37f06b",
+      "tracked_tree": "133844bae855707b055d806fba67d2664185032c856d096c017fbc30b04e1b84",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "bootui-source": {

@@ -17039,3 +17039,11 @@ path = "boot"
 hash = "be918ed226fd4ce6a890a1075db6c97f239719d0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Add direct ARM64 EL1 firmware entry"
+
+[[entries]]
+date = "2026-11-21T21:29:17.256890777+09:00"
+snapshot = "0a2b0a7a4aa574d4725fc359"
+path = "boot"
+hash = "923510bd61f4c6971c371e9d24334aa1941c9218"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Boot native ARM64 userspace from a firmware Image"

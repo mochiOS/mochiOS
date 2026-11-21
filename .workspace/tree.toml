@@ -17071,3 +17071,11 @@ path = "boot"
 hash = "11d217c1c317cd767586e019af43f8b0bc37f06b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Admit framebuffer extents with a reserved partial page"
+
+[[entries]]
+date = "2026-11-21T22:38:59.447552789+09:00"
+snapshot = "26e1d6415d5ebee7335573e8"
+path = "boot"
+hash = "1c109b448b75db01a4346f78e464dc3834f49b76"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Reserve enough RAM for native ARM64 desktop startup"

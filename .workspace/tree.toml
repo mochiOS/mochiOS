@@ -17047,3 +17047,11 @@ path = "boot"
 hash = "923510bd61f4c6971c371e9d24334aa1941c9218"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Boot native ARM64 userspace from a firmware Image"
+
+[[entries]]
+date = "2026-11-21T21:57:13.645390343+09:00"
+snapshot = "12b18bfd865dc02cb38ba359"
+path = "boot"
+hash = "5fdf761eea966b0c0a6aaa01c5586b67ef682115"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Boot native ARM64 System and Data from an ephemeral disk"

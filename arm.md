@@ -172,6 +172,8 @@ EL1側は、Device Treeから物理GICv2と仮想カウンターのPPIを解決�
 
 実機の最初の確認は、Fastbootでの一時起動とGICv2／PPI 20の割り込み配送、EL0に入ったことを観測できる状態までを含む。通常のOS起動には、System／Dataを供給するストレージが必要である。実行時DTBには`qcom,sdhci-msm`が2系統、表示にQualcomm MDSS／DSI、タッチにGoodix GT9xxが記述されている。各機能を物理デバイスで検証する。
 
+開発用EL1イメージは`MOCHIOS_ARM64_BOOT_DISK`に渡した単一のGPTディスクからSystem／Dataを供給できる。既存のストレージAPIを通し、検証したDataの範囲内だけを書き込み可能にする。ディスクは起動中のRAMにあり、Dataへの変更はその起動中に限って保持される。QEMUでは実PL031からUTCを初期化し、既存のARM64 System／DataでFilesystemとPOSIXのReadyを確認した。検証中の80件の書き込みはすべてData内だった。次の停止点は`display.driver`のバックエンド初期化である。ログは`out/arm/native-disk/`に保持する。TB-X704FのeMMC接続とFastbootでの実機検証は引き続き必要である。
+
 最初の到達点は、QEMUのARM64環境で次を通すこと。
 
 1. mBootが起動し、System Domainのmnuへ制御を渡す。

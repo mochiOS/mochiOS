@@ -17063,3 +17063,11 @@ path = "boot"
 hash = "de84be725789730f863788baae8f21854e45f7aa"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Carry firmware framebuffer into native ARM64 display"
+
+[[entries]]
+date = "2026-11-21T22:27:01.251996744+09:00"
+snapshot = "80b6a2accfd80744632e8e80"
+path = "boot"
+hash = "11d217c1c317cd767586e019af43f8b0bc37f06b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Admit framebuffer extents with a reserved partial page"

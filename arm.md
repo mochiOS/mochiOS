@@ -160,7 +160,13 @@ APQ8053／MSM8953候補には、8 CPUのaffinity `0..3, 0x100..0x103`、PSCI 1.0
 
 stock kernelは`CONFIG_VIRTUALIZATION`が無効。これはLinuxにKVMを組み込んでいないことを示すだけで、EL1／EL2のどちらで入ったかや、別firmwareがEL2を保持しているかは証明しない。
 
-ADBで起動中のLineageOSから実行時DTBを取得した。Androidの報告名はLenovo TB-X704F、DTBのモデルはMSM8953 + PMI8950 QRD SKU3である。RAMは計3 GiBで、DTBに固定・動的な予約領域がある。`/soc/timer` のアクティブLow PPIと19.2 MHzの宣言は、[共通のタイマー解決](mboot/src/fdt/timer.rs)で扱う。起動時はその周波数をCPUの`CNTFRQ_EL0`と照合する。GICH／GICVは実行時DTBにも記載がなく、EL2引き渡しは実機の一時起動で確認する。取得物はローカルの`out/arm/pc-te510haw-live/`に保持する。
+ADBで起動中のLineageOSから実行時DTBを取得した。Androidの報告名はLenovo TB-X704F、DTBのモデルはMSM8953 + PMI8950 QRD SKU3である。RAMは計3 GiBで、DTBに固定・動的な予約領域がある。`/soc/timer` のアクティブLow PPIと19.2 MHzの宣言は、[共通のタイマー解決](mboot/src/fdt/timer.rs)で扱う。起動時はその周波数をCPUの`CNTFRQ_EL0`と照合する。GICH／GICVは実行時DTBにも記載がなく、利用可否は未確認である。取得物はローカルの`out/arm/pc-te510haw-live/`に保持する。
+
+2026-11-21に、この実機のLineageOSイメージへカーネル入口で`CurrentEL`を読む計測コードを追加し、`fastboot boot`で一時起動した。Androidの起動完了後に`ro.boot.mochios_el=1`を確認した。この起動経路の引き渡しはEL1で、現行mBootのStage-2初期化にはEL2が必要である。TB-X704FでEL2を渡せる公開の起動経路は確認できていない。実機ログはローカルの`out/arm/pc-te510haw-probe/lineage-boot-run-20261121.log`に保持する。
+
+[EL1直接起動の入口](boot/src/arch/aarch64/native.rs)を開発ビルド `mochios-native` として追加した。AArch64 Imageのブート規約で確保された範囲をDevice TreeのRAM・予約領域と照合し、既存のStage-1初期化とmnuの通常の入口に接続する。EL2を無効化したQEMU Cortex-A53で、ファームウェアから新しい乱数シードを受け取るとmnuのカーネルヒープが初期化され、シードがなければ停止することを確認した。実機DTBを使ったQEMU試験でも、試験用シードをその場で渡した場合は同じ地点まで進んだ。既存のEL2経路でもSystem DomainのReadyを再確認した。各ログはローカルの`out/arm/native-entry/`に保持する。
+
+取得した実機DTBには`/chosen/rng-seed`がなく、MSM8953の`qcom,msm-rng`には`iface_clk`が指定されている。実機でEL1直接起動を進めるには、起動元で実乱数の供給を確認してからGICv2とタイマーを接続する。EL2上のHardware Domainを使えない構成では、ストレージ、表示、入力の実機向けバックエンドも必要である。
 
 最初の到達点は、QEMUのARM64環境で次を通すこと。
 

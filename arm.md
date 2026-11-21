@@ -164,13 +164,15 @@ ADBで起動中のLineageOSから実行時DTBを取得した。Androidの報告�
 
 2026-11-21に、この実機のLineageOSイメージへカーネル入口で`CurrentEL`を読む計測コードを追加し、`fastboot boot`で一時起動した。Androidの起動完了後に`ro.boot.mochios_el=1`を確認した。この起動経路の引き渡しはEL1で、現行mBootのStage-2初期化にはEL2が必要である。TB-X704FでEL2を渡せる公開の起動経路は確認できていない。実機ログはローカルの`out/arm/pc-te510haw-probe/lineage-boot-run-20261121.log`に保持する。
 
+稼働中のLineageOSから取得した`/proc/iomem`のカーネルコードは`0x40080000`から始まり、実行時DTBではinitrdが`0x43600000`から`0x436c94ce`（終端を含まない）に配置されている。いずれもAndroid boot headerの宣言値と異なる。Fastbootが報告したダウンロード上限は512 MiBである。mochiOS Imageへ制御を渡す位置、DTBの物理位置、実際に確保される連続RAMは、実機での引き渡しを計測して確認する。資料は`out/arm/pc-te510haw-live/`に保持する。
+
 [EL1直接起動の入口](boot/src/arch/aarch64/native.rs)を開発ビルド `mochios-native` として追加した。AArch64 Imageのブート規約で確保された範囲をDevice TreeのRAM・予約領域と照合し、既存のStage-1初期化とmnuの通常の入口に接続する。EL2を無効化したQEMU Cortex-A53で、ファームウェアから新しい乱数シードを受け取るとmnuのカーネルヒープが初期化され、シードがなければ停止することを確認した。実機DTBを使ったQEMU試験でも、試験用シードをその場で渡した場合は同じ地点まで進んだ。既存のEL2経路でもSystem DomainのReadyを再確認した。各ログはローカルの`out/arm/native-entry/`に保持する。
 
 EL1側は、Device Treeから物理GICv2と仮想カウンターのPPIを解決し、タイマー割り込みをmnuのスケジューラへ届ける。EL2が供給するイベントや管理IRQはEL2経路で扱う。`MOCHIOS_ARM64_BOOT_MODULE`で既存の起動モジュールを読み取り専用で組み込める。EL2を無効化したQEMU Cortex-A53で、タイマーの進行、ARM64の`core.service`のPID 2での起動、EL0からのSVCを確認した。`core.service`はSystem上のLoggerのマニフェスト取得で止まった。QEMUの検証ログはローカルの`out/arm/native-timer/`に保持する。
 
 取得した実機DTBには`/chosen/rng-seed`がなく、MSM8953の`qcom,msm-rng`には`iface_clk`が指定されている。[開発用Fastbootイメージの生成](boot/scripts/pack-android-v0-dev.py)では、元のAndroid v0イメージのDTBに一時起動ごとにホストOSで生成した乱数を渡す。実機でこの引き渡しを検証し、通常起動用には端末内の乱数源を接続する。
 
-実機の最初の確認は、Fastbootでの一時起動とGICv2／PPI 20の割り込み配送、EL0に入ったことを観測できる状態までを含む。通常のOS起動には、System／Dataを供給するストレージが必要である。実行時DTBには`qcom,sdhci-msm`が2系統、表示にQualcomm MDSS／DSI、タッチにGoodix GT9xxが記述されている。各機能を物理デバイスで検証する。
+実機の最初の確認は、Fastbootでの一時起動とGICv2／PPI 20の割り込み配送、EL0に入ったことを観測できる状態までを含む。通常のOS起動には、System／Dataを供給するストレージが必要である。実行時DTBの`qcom,sdhci-msm`は、`qcom,nonremovable`がある`sdhci@7824900`と、カード検出GPIOを持つ`sdhci@7864900`の2系統である。表示はQualcomm MDSS／DSI、タッチはGoodix GT9xx。各機能を物理デバイスで検証する。
 
 開発用EL1イメージは`MOCHIOS_ARM64_BOOT_DISK`に渡した単一のGPTディスクからSystem／Dataを供給できる。既存のストレージAPIを通し、検証したDataの範囲内だけを書き込み可能にする。ディスクは起動中のRAMにあり、Dataへの変更はその起動中に限って保持される。QEMUでは実PL031からUTCを初期化し、既存のARM64 System／DataでFilesystemとPOSIXのReadyを確認した。検証中の80件の書き込みはすべてData内だった。ログは`out/arm/native-disk/`に保持する。TB-X704FのeMMC接続とFastbootでの実機検証は引き続き必要である。
 

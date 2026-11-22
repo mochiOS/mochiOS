@@ -188,7 +188,13 @@ LineageOSは予約RAM `0x8ee00000..0x8ee80000` を`ramoops`に使用する。開
 
 修正版でSecureUIのログイン完了と`Binder.app ready`を確認した。QEMUのスクリーンショットでもステータスバーとDockを確認した。今回のEL1参照構成では、QEMUのフレームバッファとRAMディスクを使用している。
 
+開発ビルドの`arm64-external-boot-disk`では、ファームウェアの`/chosen/linux,initrd-start`と`linux,initrd-end`で渡されたGPTディスクを使用できる。ディスクと元のDTBが重ならず、ディスク全体がアロケータの初期化前に確保されたRAM内にあることを検証する。Imageを約11 MiBに保ったまま、Imageを`0x40080000`、DTBを`0x43400000`、254 MiBのGPTを`0x43600000`へ置いたQEMU試験で、SecureUIのログイン完了、`Binder.app ready`、デスクトップの描画まで確認した。検証資料は`out/arm/pc-te510haw-pstore/external-disk*`に保持する。
+
+TB-X704Fでは、254 MiBにパディングしたLineageOSのramdiskをFastbootが受信した後、起動の応答前にQualcommの診断モード（`05c6:900e`）へ移行した。転送上限と、ramdiskのコピー先としてマップされる範囲は別である。公開MSM8953 LKの初期マッピングはDDR先頭の90 MiBであり、実測のramdisk開始位置は先頭から54 MiBである。この差は制約の候補で、実機の最大値と失敗原因は未確定。`pack-android-v0-dev.py`でGPTを付ける場合は、対象ブートローダーで確認した実際のマッピング長を`--ramdisk-limit`で指定する。
+
 TB-X704Fの実行時DTBに`simple-framebuffer`と`qcom,cont-splash-enabled`はない。予約された`splash_region`だけでは、現在パネルへ送信されている画素の位置や形式は分からない。実機でこの表示経路を使うには、選択されたNT51021BのDSIパネルを初期化し、確保した描画用メモリをMDSSでスキャンアウトするためのボード対応が必要になる。
+
+[lk2ndの表示引き継ぎ](https://github.com/msm8916-mainline/lk2nd/blob/23.1/Documentation/boot.md)は、動作中のMDSSスキャンアウトを検出できる場合に`simple-framebuffer`と`memory-region`参照を生成できる。EL1の表示引き継ぎで同形式を検証し、予約RAMへの一意の参照、`no-map`、`reg`との一致を確認してから既存の表示ドライバーへ渡す。QEMUでこの形式を使ったBinderの描画と、範囲不一致・重複参照の拒否を確認した。MSM8953向けの一時起動用lk2ndはビルド済みで、TB-X704Fのパネルでスキャンアウトを引き継げるかは実機確認が残る。
 
 最初の到達点は、QEMUのARM64環境で次を通すこと。
 

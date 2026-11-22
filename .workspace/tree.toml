@@ -17087,3 +17087,11 @@ path = "boot"
 hash = "1bf34d5722767d9b090fbf20e5204b03afa2c8c0"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Preserve firmware DTB placed in spare native Image RAM"
+
+[[entries]]
+date = "2026-11-22T11:13:58.491580085+09:00"
+snapshot = "eb52e95c53a5cfd01ffb8b7f"
+path = "boot"
+hash = "6a1ce70a6f05d9170ae03d32d604639613a4838b"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Resolve reserved RAM for ARM64 firmware framebuffers"

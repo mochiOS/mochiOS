@@ -17079,3 +17079,11 @@ path = "boot"
 hash = "1c109b448b75db01a4346f78e464dc3834f49b76"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Reserve enough RAM for native ARM64 desktop startup"
+
+[[entries]]
+date = "2026-11-22T10:49:19.664996582+09:00"
+snapshot = "1f1960455530f21d286bda38"
+path = "boot"
+hash = "1bf34d5722767d9b090fbf20e5204b03afa2c8c0"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Preserve firmware DTB placed in spare native Image RAM"

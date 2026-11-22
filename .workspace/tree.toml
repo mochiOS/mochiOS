@@ -17095,3 +17095,11 @@ path = "boot"
 hash = "6a1ce70a6f05d9170ae03d32d604639613a4838b"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Resolve reserved RAM for ARM64 firmware framebuffers"
+
+[[entries]]
+date = "2026-11-23T08:21:10.100236752+09:00"
+snapshot = "0a0aae6e0c7dbcfb1f22a40f"
+path = "applications/terra"
+hash = "0e5b7a54fada1719ccdbaa04f45216550709094c"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Connect native browser file panels and shared IME workflows"

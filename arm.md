@@ -176,6 +176,10 @@ EL1側は、Device Treeから物理GICv2と仮想カウンターのPPIを解決�
 
 2026-11-22に、通常起動したLineageOSへADBを接続し、`sys.boot_completed=1`、`ro.boot.bootdevice=7824900.sdhci`、物理解像度1920×1200を確認した。一時起動で測る`ro.boot.mochios_layout`は、この通常起動では空だった。ログは`out/arm/pc-te510haw-live/android-normal-boot-20261122.log`に保持する。
 
+動作中の実機から、MDSSの物理走査は1200×1920・60 Hz、32 bpp、1行4864バイト、MIPI DSIビデオモードと確認した。Androidの表示方向は1920×1200だった。内蔵eMMCは`7824900.sdhci`配下の`mmcblk0`で、論理セクタは512バイト。実際の表示メモリを引き渡せるかは、ファームウェアのスキャンアウトを別途確認する。
+
+LineageOSは予約RAM `0x8ee00000..0x8ee80000` を`ramoops`に使っており、クラッシュ記録の1スロットは16 KiB、ECCは無効だった。開発用の入口計測コードをQEMUの実命令で動かし、このDevice Treeで空のスロットへ記録し、使用済みスロットと隣接領域を保って元のLinux入口へ戻ることを確認した。同じコードを付けたmochiOS ImageもQEMUでEL0のSVCまで到達した。実機での記録の読み出しは未確認。資料は`out/arm/pc-te510haw-live/`と`out/arm/pc-te510haw-pstore/`に保持する。
+
 開発用EL1イメージは`MOCHIOS_ARM64_BOOT_DISK`に渡した単一のGPTディスクからSystem／Dataを供給できる。既存のストレージAPIを通し、検証したDataの範囲内だけを書き込み可能にする。ディスクは起動中のRAMにあり、Dataへの変更はその起動中に限って保持される。QEMUでは実PL031からUTCを初期化し、既存のARM64 System／DataでFilesystemとPOSIXのReadyを確認した。検証中の80件の書き込みはすべてData内だった。ログは`out/arm/native-disk/`に保持する。TB-X704FのeMMC接続とFastbootでの実機検証は引き続き必要である。
 
 [EL1のフレームバッファ引き継ぎ](boot/src/arch/aarch64/boot_framebuffer.rs)は、ファームウェアが`/chosen`で明示したXRGB8888の`simple-framebuffer`を検証し、既存の表示ドライバーへ渡す。QEMUの`ramfb`で1280×800の実描画を確認した。起動時の`NotFound`は、`capability.service`がSecureUIの検証済みELFをコピーする際に物理メモリを確保できず、呼び出し先のプロセスが終了した結果だった。[RAMディスクを同梱する開発用イメージ](boot/build.rs)のアロケータ領域を192 MiBから320 MiBへ拡大した。QEMUの検証にはRAM 1536 MiBを割り当て、Device Treeとイメージの予約範囲が重ならないようにした。ログは`out/arm/native-display/`に保持する。

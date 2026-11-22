@@ -76,3 +76,45 @@ Temporary diagnostic runtimes are not SDK release artifacts.
 Keep native VM results and exact input hashes with the execution evidence. Leave
 `runtime_tested` false until the complete probe passes. Visual verification of
 `terra:///engine-check` remains a separate check in the normal desktop application.
+
+### Native browser file/input workflow (2026-11-23)
+
+The candidate adapter adds a shared per-browser ephemeral network session,
+verified transport reporting, broker-selected upload/download staging and a
+WebKit InputMethodContext fed by ViewKit's generic InputMethodClient. No browser
+code or WebKit dependency was added to AppCore or the kernel. Existing helper
+capability requirements are unchanged.
+
+Terra's README defines the current single-file/64 MiB limits and cancellation
+semantics. The ABI's major-1 prefix remains 96 bytes on x86_64; the append-only
+file extension needs the new 120-byte table. Terra safely copies the historical
+prefix and disables unsupported extensions with an older engine. Build the
+System component and Terra together to enable the new file/IME workflows.
+
+Records and candidate binaries are under `out/reports/terra-workflow/`. The
+previous engine probe's pass is historical evidence, not validation of these
+new file/IME paths. The bundled `terra:///engine-check` now exercises password
+input, file selection with an actual File.arrayBuffer read, and a Blob download.
+Check those in a fresh candidate image, plus real HTTPS navigation, login in
+two tabs, Japanese conversion/candidate selection, paste, cancelled selection,
+failed save, closing a tab during selection, and helper termination. Do not
+set runtime_tested for this revision on the basis of host contracts or builds.
+
+The first native Rust build encountered a stale generated libc utsname layout.
+A targeted libc cache clean regenerated the existing correct mochiOS definition;
+no ABI declaration or size assertion was changed.
+
+Implementation commits: mochiOS/libs `3069890` (shared session/TLS) and
+`288a728` (files/IME), ViewKit `1b2ba76`, Terra `0e5b7a5`.
+Terra 50 tests, the overlapping engine-probe configuration's 51 tests, ViewKit
+319 tests (3 existing ignored), 3 WebKit host contracts and build-tool tests
+passed. Both libwebkit.so.1 and the normal engine-linked Terra native product
+built successfully. These results do not test live websites or native GUI input.
+
+Reviewable unsigned candidates are `out/reports/terra-workflow/terra-package/Terra.mpkg`
+and `out/reports/terra-workflow/system-webkit/`. The latter was staged with the
+normal package_webkit tool, retaining the previously reviewed dependency/font
+closure and its original notices, with the new adapter DSO. It remains
+runtime_tested=false and signed=false. `verification.json` records source commits
+and hashes. The default frozen System component/pin has not been replaced,
+and no push, signing, release or AppStore upload was performed.

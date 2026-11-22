@@ -225,7 +225,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-terra": {
-      "content_sha256": "33f8b2abf6cf9b519414e9d1238bda5bcabfcb3e0a20f5c782a8442568779b57",
+      "content_sha256": "f343c644dd14876d0dba9cd741caeff6114a4a804016255620aa6fe5e9239d7e",
       "resolution": {
         "Cargo.lock": "3545348774366a0c86f7d5ad68d4e53e50caa7a2fbba615aa790fb095c5bd626",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
@@ -234,8 +234,8 @@
         "Cargo.lock": "fc9c64334d5d53503eb1b8494a8a45772579d823e017ebeeb952907e6d4743c1",
         "mdp.lock": "d12631f177fa434456b40e1fe7e295c05bf77243b2af49c565bdedd0be34561e"
       },
-      "revision": "7ee9122926477ea35c315015272770feded57231",
-      "tracked_tree": "33f8b2abf6cf9b519414e9d1238bda5bcabfcb3e0a20f5c782a8442568779b57",
+      "revision": "0e5b7a54fada1719ccdbaa04f45216550709094c",
+      "tracked_tree": "f343c644dd14876d0dba9cd741caeff6114a4a804016255620aa6fe5e9239d7e",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "app-test-app": {
@@ -729,7 +729,7 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "viewkit": {
-      "content_sha256": "9ecce4ab4fd56b60bd8f2d82257d61ee9727c13210967c3cc15cb585282574a5",
+      "content_sha256": "1a11509bedddd58d8a19273ce51bc698a0cd2726831d6735f4ced0bedb857b61",
       "resolution": {
         "Cargo.lock": "4937662c7170b5dc31c21a8e9f8c5b0a4413204f9c3fe5222c1edffe77b2210c",
         "tools/ffi-gen/Cargo.lock": "80ee17db9559114cdb9d035f3dcdf30bf3947c9da658df60aa5f0806be6e4c8a"
@@ -738,8 +738,8 @@
         "Cargo.lock": "745111aaece8bce25d7ea9ecfc976a31ee88ec37df24b81f7ac3f33f8dfbcc16",
         "tools/ffi-gen/Cargo.lock": "a0b63153eb31e72e805a7f6390adb187d872cafd35026f076144a2b361e6f3e8"
       },
-      "revision": "4376916890d36ab69518e0b59f3d728946370878",
-      "tracked_tree": "9ecce4ab4fd56b60bd8f2d82257d61ee9727c13210967c3cc15cb585282574a5",
+      "revision": "1b2ba761c157811b372811654b72bf1d85174961",
+      "tracked_tree": "1a11509bedddd58d8a19273ce51bc698a0cd2726831d6735f4ced0bedb857b61",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   }

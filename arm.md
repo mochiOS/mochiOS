@@ -196,6 +196,10 @@ TB-X704Fの実行時DTBに`simple-framebuffer`と`qcom,cont-splash-enabled`は�
 
 [lk2ndの表示引き継ぎ](https://github.com/msm8916-mainline/lk2nd/blob/23.1/Documentation/boot.md)は、動作中のMDSSスキャンアウトを検出できる場合に`simple-framebuffer`と`memory-region`参照を生成できる。EL1の表示引き継ぎで同形式を検証し、予約RAMへの一意の参照、`no-map`、`reg`との一致を確認してから既存の表示ドライバーへ渡す。QEMUでこの形式を使ったBinderの描画と、範囲不一致・重複参照の拒否を確認した。MSM8953向けの一時起動用lk2ndはビルド済みで、TB-X704Fのパネルでスキャンアウトを引き継げるかは実機確認が残る。
 
+TB-X704Fでの一時起動では、lk2ndの元のAndroidイメージを純正Fastbootが`dtb not found`で拒否した。実機で起動実績のあるDTBを使い、約552 KiBのv0イメージに詰め直した試験でも、純正Fastbootからlk2ndへ切り替わる前に診断モードへ移行した。[Qualcommの`qdl reset`](https://github.com/qualcomm/qdl)でUSBから通常のLineageOSへ戻せることを確認した。
+
+通常サイズのLineageOSイメージでAArch64入口を計測すると、MDSSの電源状態`GDSCR=0xa0282000`（bit 31が有効）を取得できた。この結果で確認できるのは電源ドメインの状態までである。続くクロックとスキャンアウトの読み取り試験は、Fastbootの起動ACK後に端末がUSBへ戻らず、結果を取得できなかった。次の表示引き継ぎの候補には、パネル設定とMDSSドライバーを持つ[TB-X704F向けLinux 4.9](https://github.com/lukaspieper/android_kernel_lenovo_msm8953/tree/android-11-4.9-wip)で初期化し、ARM64のkexecでmochiOSへ渡す経路を使う。GPTディスク全体の単一XZストリームは33,951,616バイトだった。
+
 最初の到達点は、QEMUのARM64環境で次を通すこと。
 
 1. mBootが起動し、System Domainのmnuへ制御を渡す。

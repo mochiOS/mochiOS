@@ -164,7 +164,7 @@ ADBで起動中のLineageOSから実行時DTBを取得した。Androidの報告�
 
 2026-11-21に、この実機のLineageOSイメージへカーネル入口で`CurrentEL`を読む計測コードを追加し、`fastboot boot`で一時起動した。Androidの起動完了後に`ro.boot.mochios_el=1`を確認した。この起動経路の引き渡しはEL1で、現行mBootのStage-2初期化にはEL2が必要である。TB-X704FでEL2を渡せる公開の起動経路は確認できていない。実機ログはローカルの`out/arm/pc-te510haw-probe/lineage-boot-run-20261121.log`に保持する。
 
-稼働中のLineageOSから取得した`/proc/iomem`のカーネルコードは`0x40080000`から始まり、実行時DTBではinitrdが`0x43600000`から`0x436c94ce`（終端を含まない）に配置されている。いずれもAndroid boot headerの宣言値と異なる。Fastbootが報告したダウンロード上限は512 MiBである。mochiOS Imageへ制御を渡す位置、DTBの物理位置、実際に確保される連続RAMは、実機での引き渡しを計測して確認する。資料は`out/arm/pc-te510haw-live/`に保持する。
+稼働中のLineageOSから取得した`/proc/iomem`のカーネルコードは`0x40080000`から始まり、実行時DTBではinitrdが`0x43600000`から`0x436c94ce`（終端を含まない）に配置されている。いずれもAndroid boot headerの宣言値と異なる。Fastbootのダウンロード上限は512 MiBだった。起動時にまとまったRAMをどこまで使えるかは、引き渡されたDTBと予約領域から検証する。資料は`out/arm/pc-te510haw-live/`に保持する。
 
 [EL1直接起動の入口](boot/src/arch/aarch64/native.rs)を開発ビルド `mochios-native` として追加した。AArch64 Imageのブート規約で確保された範囲をDevice TreeのRAM・予約領域と照合し、既存のStage-1初期化とmnuの通常の入口に接続する。EL2を無効化したQEMU Cortex-A53で、ファームウェアから新しい乱数シードを受け取るとmnuのカーネルヒープが初期化され、シードがなければ停止することを確認した。実機DTBを使ったQEMU試験でも、試験用シードをその場で渡した場合は同じ地点まで進んだ。既存のEL2経路でもSystem DomainのReadyを再確認した。各ログはローカルの`out/arm/native-entry/`に保持する。
 
@@ -178,7 +178,9 @@ EL1側は、Device Treeから物理GICv2と仮想カウンターのPPIを解決�
 
 動作中の実機から、MDSSの物理走査は1200×1920・60 Hz、32 bpp、1行4864バイト、MIPI DSIビデオモードと確認した。Androidの表示方向は1920×1200だった。内蔵eMMCは`7824900.sdhci`配下の`mmcblk0`で、論理セクタは512バイト。実際の表示メモリを引き渡せるかは、ファームウェアのスキャンアウトを別途確認する。
 
-LineageOSは予約RAM `0x8ee00000..0x8ee80000` を`ramoops`に使っており、クラッシュ記録の1スロットは16 KiB、ECCは無効だった。開発用の入口計測コードをQEMUの実命令で動かし、このDevice Treeで空のスロットへ記録し、使用済みスロットと隣接領域を保って元のLinux入口へ戻ることを確認した。同じコードを付けたmochiOS ImageもQEMUでEL0のSVCまで到達した。実機での記録の読み出しは未確認。資料は`out/arm/pc-te510haw-live/`と`out/arm/pc-te510haw-pstore/`に保持する。
+LineageOSは予約RAM `0x8ee00000..0x8ee80000` を`ramoops`に使用する。開発用の入口計測コードは、クラッシュ記録の先頭スロットが空のときだけ計測値を残し、元のLinux入口へ戻る。QEMUで使用済みスロットと隣接領域を保つことを確認した。2026-11-22に実機の`fastboot boot`でこの計測を実行し、Androidの起動完了後に記録を読み取った。Imageは物理`0x40080000`、DTBは`0x43400000`、`CNTFRQ_EL0`は19.2 MHz、実行レベルはEL1だった。資料は`out/arm/pc-te510haw-live/`と`out/arm/pc-te510haw-pstore/`に保持する。
+
+[EL1入口](boot/src/arch/aarch64/entry.S)は、ファームウェアがアロケータ用の空き領域に置いたDTBも、アロケータの初期化前に退避できる。QEMUで実測と同じ`0x43400000`を渡し、`core.service`がEL0で実行されることを確認した。DTBが実際のカーネル配置やBSSに重なる場合は引き続き停止する。TB-X704Fのこの配置では、QEMUで使ったディスク込みのデスクトップイメージをそのまま展開すると、リンク済みデータがDTBに重なる。
 
 開発用EL1イメージは`MOCHIOS_ARM64_BOOT_DISK`に渡した単一のGPTディスクからSystem／Dataを供給できる。既存のストレージAPIを通し、検証したDataの範囲内だけを書き込み可能にする。ディスクは起動中のRAMにあり、Dataへの変更はその起動中に限って保持される。QEMUでは実PL031からUTCを初期化し、既存のARM64 System／DataでFilesystemとPOSIXのReadyを確認した。検証中の80件の書き込みはすべてData内だった。ログは`out/arm/native-disk/`に保持する。TB-X704FのeMMC接続とFastbootでの実機検証は引き続き必要である。
 

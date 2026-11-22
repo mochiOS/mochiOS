@@ -200,6 +200,8 @@ TB-X704Fでの一時起動では、lk2ndの元のAndroidイメージを純正Fas
 
 通常サイズのLineageOSイメージでAArch64入口を計測すると、MDSSの電源状態`GDSCR=0xa0282000`（bit 31が有効）を取得できた。この結果で確認できるのは電源ドメインの状態までである。続くクロックとスキャンアウトの読み取り試験は、Fastbootの起動ACK後に端末がUSBへ戻らず、結果を取得できなかった。次の表示引き継ぎの候補には、パネル設定とMDSSドライバーを持つ[TB-X704F向けLinux 4.9](https://github.com/lukaspieper/android_kernel_lenovo_msm8953/tree/android-11-4.9-wip)で初期化し、ARM64のkexecでmochiOSへ渡す経路を使う。GPTディスク全体の単一XZストリームは33,951,616バイトだった。
 
+準備用LinuxはMDSS、kexec、XZ展開を有効にしてリンクした。表示試験用の`out/arm/pc-te510haw-pstore/tbx704-display-stage.img`は11,370,496バイト。小さなRAM上の`init`からフレームバッファを確認し、診断RAMへ結果を残して通常起動へ戻る構成である。Android v0ヘッダー、ダイジェスト、ボードID、診断RAMのアドレスをホストで検証した。mochiOSのImageとGPTを含むXZ initramfsは34,871,896バイトで、想定の36 MiB以内に収まる。表示試験用イメージの実機起動とkexecによる表示引き継ぎは未検証である。
+
 最初の到達点は、QEMUのARM64環境で次を通すこと。
 
 1. mBootが起動し、System Domainのmnuへ制御を渡す。

@@ -55,11 +55,13 @@ class MigrationTests(unittest.TestCase):
                     result=subprocess.run(['bash','-n','-c',command],capture_output=True,text=True)
                     self.assertEqual(result.returncode,0,command+'\n'+result.stderr)
 
-    def test_root_build_plan_never_builds_or_downloads_producers(self):
-        result=subprocess.run(['mmake','-n','build'],cwd=ROOT,capture_output=True,text=True)
+    def test_root_build_delegates_producers_to_mdp_before_assembly(self):
+        result=subprocess.run(['mmake','-n','image'],cwd=ROOT,capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        self.assertNotRegex(result.stdout,r'\b(cargo|rustc|cmake|curl|wget)\b|mdp workspace build|build-newlib.sh')
+        self.assertNotRegex(result.stdout,r'\b(cargo|rustc|cmake|curl|wget)\b|build-newlib.sh')
         self.assertIn('build/mdp/image.py',result.stdout)
+        self.assertIn('build-workspace.py',result.stdout)
+        self.assertLess(result.stdout.index('build-workspace.py'), result.stdout.index('build/mdp/image.py'))
 
     def test_cargo_launcher_keeps_diagnostic_only_lock_changes(self):
         with tempfile.TemporaryDirectory() as tmp:

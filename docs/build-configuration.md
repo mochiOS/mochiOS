@@ -21,11 +21,13 @@ remain unchanged unless edited. All UI text and help is in English.
   and GDB options. Per-VM mdev environment overrides take precedence. These
   settings do not configure compilation or alter an existing VM disk.
 
-After changing image/producer settings, refresh the reviewed workspace lock and
-build the affected MDP producers, then run `mmake build` to consume their locked
-artifacts. The composer rejects artifacts for a different `.config`; changing
+After changing image/producer settings, run `mmake build`. It records the current
+workspace inputs, builds the repository-owned MDP producers and then assembles
+the image. `mmake -j N build` forwards the job count to MDP. The image and installer entry points use the same ordered producer stage;
+`mmake mdp-assemble` remains available for explicit artifact-only composition. The composer rejects artifacts for a different `.config`; changing
 menuconfig is not enough to reuse an old artifact lock for a different product.
-The root build still does not invoke application builds.
+Application build commands remain owned by their MDP producers; the root
+entry point delegates to MDP instead of duplicating their build recipes.
 
 The former ARCH_X86_64, ENABLE_SMP, ENABLE_KPTI, ENABLE_ASLR and
 USER_BUILD_MPK_SAMPLES menu entries had no consumer in the current native build

@@ -1,4 +1,4 @@
-# Product assembly only. Software builds are owned by mdp workspace producers.
+# MDP builds repository-owned producers before product image assembly.
 MMAKE ?= $(error mochiOS requires mmake)
 MMAKE_REQUIRED := $(MMAKE)
 OUT := $(ROOT)/out

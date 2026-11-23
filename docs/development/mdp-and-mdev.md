@@ -114,25 +114,30 @@ MDP never extracts or re-signs that application package.
 
 ## Build every repository, then assemble the product
 
-The root `mmake build` consumes `mdp.assembly.lock`. It does not compile a
-repository, fetch an SDK or run a producer. Missing or changed artifacts fail
-with an error. The registry in `mdp.workspace.toml` covers every standard app,
+The root `mmake build` first merges configuration, records current workspace
+inputs with `mdp workspace lock`, and runs `mdp workspace build` before consuming
+`mdp.assembly.lock`. Repository-owned MDP recipes still own compilation. Producer
+failures stop image assembly; missing or changed artifacts are never accepted.
+The same ordered preparation applies to image and installer image entry points.
+Use `mmake mdp-assemble` for explicit artifact-only composition.
+The registry in `mdp.workspace.toml` covers every standard app,
 the kernel, boot, services, drivers, extensions, libraries, programs and SDK.
 Source-only dependencies are explicit; optional host tools and hardware media
 have explicit producer entries too.
 
 ```sh
 # After syncing, selecting an SDK and reviewing configuration/source changes:
-mdp workspace lock
-mdp workspace build -j 4
-mmake build
+mmake -j 4 -v build
 mmake run
 ```
 
+`-v` streams producer output, which is useful for the first full toolchain build.
+
 `workspace lock` records the current Git revisions and local source edits;
 it does not silently update repositories. Build completion produces exact MDP
-hashes in `mdp.assembly.lock`. A source edit requires reviewing and updating the
-workspace lock; Cargo lock changes are retained. The build cache checks consumed
+hashes in `mdp.assembly.lock`. `mmake build` records current local changes
+automatically; when invoking MDP directly, review source changes and refresh
+the workspace lock explicitly. Cargo lock changes are retained. The build cache checks consumed
 source, resolution, configuration, SDK and dependency identities, not timestamps
 alone. Changes to consumed sources during a build prevent publishing a new
 composition lock. Keep shared API repositories stable while verifying a complete

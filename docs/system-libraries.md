@@ -123,7 +123,7 @@ and no push, signing, release or AppStore upload was performed.
 
 WebKit remains an unconditional System component, independent of application
 selection. The current catalog pins the files/IME adapter from libs `288a728`
-in `out/cache/system-libraries/webkit-288a728/`. This is the locally staged,
+in `out/cache/system-libraries/webkit-288a728-notices/`. This is the locally staged,
 unsigned candidate described above; the new workflows still require runtime
 verification. The earlier note about the unchanged pin describes the previous
 workflow-integration step, before this image configuration change.
@@ -138,7 +138,8 @@ the existing signing/binding path. Disabling it on a later composition removes
 both the bundle and its built-in records.
 
 Build producers separately with MDP, including `app-terra` for an embedded image,
-then refresh the artifact lock and run `mmake build`. Image assembly only consumes
+or use `mmake build` to record current inputs, build the workspace and
+assemble in one command. Image assembly only consumes
 the native Terra MPKG; it never builds the browser, downloads an engine, substitutes
 a shell-only browser, or changes package capabilities. A missing selected Terra
 artifact is an error. AppStore delivery and its signing/publication are separate
@@ -148,3 +149,23 @@ Configuration merge and application staging passed 8 tests; MDP composition
 passed 6 tests. All 124 pinned WebKit payloads matched their manifest digests.
 Full OS image regeneration was not run for this change because the work disk
 had approximately 80 MiB free.
+
+### Full workspace build follow-up
+
+The first full build exposed repeated font notice destinations in the locally
+staged component: its reviewed input prefix already contained those same
+notices. libs `8c12555` deduplicates identical license destinations and rejects
+conflicting contents before creating output. The System validator remains
+strict. The corrected component has 121 unique file destinations and is pinned
+with manifest SHA-256
+`c0c000c75e355889280f90f3dff011bea24e0c6c0dbb3506ffc860eab09abb32`.
+Engine code and original notice contents are unchanged. Native execution remains
+a separate check.
+
+`mmake -j 2 -v build` subsequently completed successfully through normal disk
+image generation, with 34 MDP artifacts. All 18 generated application MPKGs
+passed real extraction/inventory/hash/native-entry checks. The orchestration,
+composition and package-generation regression suites passed 19 tests. Evidence
+is in `out/reports/workspace-build-retry.log` and
+`out/reports/workspace-build-verification.json`. This is build verification;
+no new runtime/VM pass or publication is claimed.

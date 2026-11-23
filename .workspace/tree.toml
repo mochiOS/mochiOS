@@ -17111,3 +17111,11 @@ path = "build"
 hash = "3b66748226cf416f0b49beb51d3ce4bb950d76a2"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Select built-in Terra independently of System WebKit"
+
+[[entries]]
+date = "2026-11-23T09:39:46.252802664+09:00"
+snapshot = "95b5c88d2dd2be99a0ec08c9"
+path = "build"
+hash = "409fc4737978852881573c28b565dbc6709fabb3"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Expand menuconfig with documented options, search and help"

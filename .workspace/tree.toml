@@ -17135,3 +17135,11 @@ path = "user"
 hash = "29ac9385294e9e1e965c2c65abdbd470e0e0bcd1"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "build: record resolved dependencies after startup validation"
+
+[[entries]]
+date = "2026-11-23T21:47:28.634495569+09:00"
+snapshot = "c042e39bd638863569336abe"
+path = "applications/binder"
+hash = "6bab6b5c913c5209079d2154bdb1cf6500f2c879"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "perf(icons): retain bounded desktop rasters across view rebuilds"

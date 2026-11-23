@@ -181,7 +181,7 @@
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/binder/out/mdp/app-binder.tar.mdp",
-      "sha256": "d03302494f86ef4c1b5f93db17983ebc31664e73a990023eecbdd0a35357a604"
+      "sha256": "b965f2b31e4abccc3b5e0b4e779dfd861c21821b2e029619c13c91b8b29cab82"
     },
     {
       "package": {

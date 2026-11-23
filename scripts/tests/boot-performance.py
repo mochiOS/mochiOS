@@ -21,6 +21,7 @@ p.add_argument('--seconds', type=float, default=25)
 p.add_argument('--image', type=Path, default=root / 'out/images/system/disk.img')
 p.add_argument('--memory', default='1G')
 p.add_argument('--gtk', action='store_true')
+p.add_argument('--early-input', action='store_true', help='Send Caps Lock at 8s and hover Applications at 8.6s; inspect the captured input indicator and tooltip')
 p.add_argument('--interact-at', type=float, default=11.0)
 args = p.parse_args()
 if not re.fullmatch('[A-Za-z0-9_-]{1,32}', args.name):
@@ -111,6 +112,8 @@ interaction_stage = 0
 next_probe = 0.0
 reference = None
 resized = False
+early_pointer = False
+early_key = False
 pending = b''
 selector = selectors.DefaultSelector()
 selector.register(proc.stdout, selectors.EVENT_READ)
@@ -146,6 +149,14 @@ try:
                     from testing.x11_capture import resize
                     resize(int(match[1], 16))
                     resized = True
+            if args.early_input and qmp and not early_pointer and time.monotonic()-start >= 8.6:
+                pointer(755,745)
+                early_pointer = True
+                report['early_pointer_sent_seconds'] = time.monotonic()-start
+            if args.early_input and qmp and not early_key and time.monotonic()-start >= 8.0:
+                qmp.command('send-key', {'keys':[{'type':'qcode','data':'caps_lock'}], 'hold-time':80})
+                early_key = True
+                report['early_key_sent_seconds'] = time.monotonic()-start
             if args.gtk and next_capture is not None and (time.monotonic() - start >= next_capture):
                 capture_window(f'window-{next_capture}')
                 next_capture = next(capture_at, None)
@@ -172,7 +183,11 @@ try:
                     elif interaction_stage == 3 and changed < 0.01:
                         shutil.copyfile(frame, d / 'closed-menu.png')
                         report['functional_complete_seconds'] = time.monotonic() - start
-                        pointer(640, 400)
+                        if args.early_input:
+                        pointer(756,745)
+                        pointer(755,745)
+                    else:
+                        pointer(640,400)
                         interaction_stage = 4
         if qmp:
             capture_window('final-desktop')

@@ -17127,3 +17127,11 @@ path = "build"
 hash = "9aa5eb99f13f0ad0897c5a879a219b91e26d9664"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Build MDP producers before composing OS images"
+
+[[entries]]
+date = "2026-11-23T21:30:28.939927090+09:00"
+snapshot = "63289fb1292b5f15877eca21"
+path = "user"
+hash = "29ac9385294e9e1e965c2c65abdbd470e0e0bcd1"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "build: record resolved dependencies after startup validation"

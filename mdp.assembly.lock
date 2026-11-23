@@ -47,7 +47,7 @@
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "boot/out/mdp/boot.tar.mdp",
-      "sha256": "027b8b9c3ad9ab8cfca944dd3a73ea0e1f0e6f868a8ebdb42a033fb1a63765a4"
+      "sha256": "03d8444cfe5bba688080d29be96ef15af0324757850c44cb978c5f21e9f694a7"
     },
     {
       "package": {
@@ -71,7 +71,7 @@
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "libraries/viewkit/out/mdp/viewkit.tar.mdp",
-      "sha256": "d5472abe0ec8fc8c614a4c3363e1792f373646076d6cdd588b1cb24e95f31ff9"
+      "sha256": "5c86e00640c9be3a9458ab5eed508aca333c0fe5e05ccd6a983941223dd130e3"
     },
     {
       "package": {
@@ -83,7 +83,7 @@
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "services/out/mdp/services.tar.mdp",
-      "sha256": "fb7810d9ee4fddc80c04775e3b3c94360648845022a1d69f47a2155f96881fc4"
+      "sha256": "3df9288baa76bca0c7e051dae04810bc17fbd1182dd5c40f461e29fe15fc53dd"
     },
     {
       "package": {
@@ -162,234 +162,234 @@
         "abi": "mochios-1",
         "name": "app-appstore",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/appstore/out/mdp/app-appstore.tar.mdp",
-      "sha256": "11257528d4509ca10b8fc9c4e6a8f1ab4a77d31125a0bc17b8b476ed0ac7a82c"
+      "sha256": "31b837a26d4f484a84328a12b176106903ae67e8254fabf3c0e08b3943c7ab39"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-binder",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/binder/out/mdp/app-binder.tar.mdp",
-      "sha256": "f694c7d5801cd3f672deb6bef4484ca52aec5d09cf4906f35cd0b2eb28bf383b"
+      "sha256": "d03302494f86ef4c1b5f93db17983ebc31664e73a990023eecbdd0a35357a604"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-calculator",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/calculator/out/mdp/app-calculator.tar.mdp",
-      "sha256": "219ff382d0ea4400ac152479b4270e989ceae1a90652065b0b7b1058ea317cfd"
+      "sha256": "c89254a84df02db67e7b8c687af692dd81e0a8abd84de2596985c41f4a37e3d5"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-calendar",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/calendar/out/mdp/app-calendar.tar.mdp",
-      "sha256": "6d2b0997dc509a637201439e82e0a4dc334d49e93146c404ad01fec137110a6a"
+      "sha256": "fd1aa11b3a155ebd7ec9f759ae9d4fb9243475e3d0f7fb4fda9580f950cb03a6"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-disk-utility",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/disk-utility/out/mdp/app-disk-utility.tar.mdp",
-      "sha256": "a739295e3113ffdd5d6dbabaa980b9c1a18761577b24be92ba9324a00f66d8b3"
+      "sha256": "670089821a9cb845c3a1029c2488cf403cc357a73fc01d9fdcebc39cfdc23baa"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-edit",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/edit/out/mdp/app-edit.tar.mdp",
-      "sha256": "0bb471f2942f3467f63f959a223677e0b99d56a271dc6ba683c6560e6a845b70"
+      "sha256": "722fa8adb77bd3f069eab4f7000446924a94a037318119bd2718ce691cf4cfe8"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-file",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/file/out/mdp/app-file.tar.mdp",
-      "sha256": "facd6a9470e2ed7333f477cc5b8420b64796d8d50cac5e1b929d7d5563b7a70b"
+      "sha256": "48d1237adb9b9051f43b94cdecffa868c07a670eb7417cfc28b12da542be136a"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-fonts",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/fonts/out/mdp/app-fonts.tar.mdp",
-      "sha256": "dfe31cde7e7999a15f16d174d1df5806150c1221147567b01e546e2000245f8f"
+      "sha256": "a3d65eb18ace6817791afb3f64849430000be755e3e1c9d5feee7d9a8c358731"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-installer",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/installer/out/mdp/app-installer.tar.mdp",
-      "sha256": "ff6b9616f78bc1e51090669766a74b836c69f28542b1bcf9f131f1d821ea5a1e"
+      "sha256": "7a2026b2b0a3a26a0998d4615b6807aff15c09352bed02e4988d747062073b4b"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-keychain",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/keychain/out/mdp/app-keychain.tar.mdp",
-      "sha256": "c552b36649ca9e87855e019c2a5f6fd870ea83d3fffd1afc99a90ef7d9abb160"
+      "sha256": "fb74ccea4f5f24db58b04f225f0a29d497309a4b5fbe19ff8c439c8152f9e7a0"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-keyboard",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/keyboard/out/mdp/app-keyboard.tar.mdp",
-      "sha256": "e00742e37954597ef0e064dd74da7f2ced1bf33d115655152dcaa30796a91f1a"
+      "sha256": "89619aec0bae45dac34d191d1bced34e1cfc8e63daf54667be29a3dd9108777d"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-mail",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/mail/out/mdp/app-mail.tar.mdp",
-      "sha256": "a5669210ad38d02754bf1416f41bfff1ec24da0674ccf3bfc9e61cb40d79f219"
+      "sha256": "e4b52773df4af72548626a20f5813d6c231de1c8e19ce8d430bddf451a5b7a85"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-settings",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/settings/out/mdp/app-settings.tar.mdp",
-      "sha256": "e90f860f6c2f53bfc0d8a4a2212c63dec683a90e87ec07f1eaf729b830071e9d"
+      "sha256": "b257d339ace41b5c7e6139e4aa6d315822d47db2517aac9bee41a54115f3e806"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-system-monitor",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/system-monitor/out/mdp/app-system-monitor.tar.mdp",
-      "sha256": "5aae60f9a961ad0f6de8ce62811bc21f3b2627c8fad689bb9e8b3f4cb5ff7f31"
+      "sha256": "17f215dd19f4cbcd2e51ba303aeee011c15b19cf1f08228dca104224eaa14afa"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-terminal",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/terminal/out/mdp/app-terminal.tar.mdp",
-      "sha256": "47770e9e6ef65b33c76feb40bf877f1ebdeca48846783122a00b824b5f7cd227"
+      "sha256": "66d20cb52a5b0247afa8a9d6ffc5bd6fa50e997ce1403c0f8ea4b6408ea37335"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-terra",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/terra/out/mdp/app-terra.tar.mdp",
-      "sha256": "2d8793422ab23dda4a9fe996d1ee5d9c73c99c72e3e25772301b8bc1bd8aae2e"
+      "sha256": "a708e9c9be13c3f65377bd738671a441ac561ec88ac515026bcbf73e1d9dac42"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-test-app",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/test.app/out/mdp/app-test-app.tar.mdp",
-      "sha256": "d551298d9e2e5c54a8118ad89a7a9661600b9b57fad172b783471714e0e72af0"
+      "sha256": "fc10e2343ce0979aaddf7376178bdde8c6eac90ac6f2d1d0bbcf933db1c43645"
     },
     {
       "package": {
         "abi": "mochios-1",
         "name": "app-viewer",
         "profile_sha256": "cb05376d87b8e8ed61c31c876e022e841ec08fbf293dc591f64240cd8c3c5a2c",
-        "sdk_id": "ea127b56994781fb1d681021dc28c174a35fe024343f3cb07ec1bc73b399f746",
+        "sdk_id": "ea49102244fea8d2068039c15547db581225b0f118a0a63d27f3a59d204c5cb8",
         "target": "x86_64-mochios",
         "version": "0.1.0",
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "applications/viewer/out/mdp/app-viewer.tar.mdp",
-      "sha256": "94775621f922fa237ed2a48c452a8be8570e1c7439f2d27b9927701b76ac1b48"
+      "sha256": "58c3cd6b536aaabd036c377bae717d627ecad811fa9e4c21239e30c46f121000"
     },
     {
       "package": {
@@ -401,7 +401,7 @@
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "tools/devkit/out/mdp/devkit-native.tar.mdp",
-      "sha256": "f8af2ecd482ec043957f1e47e190de41aae25ba46ccdc44b595a466099116936"
+      "sha256": "7e9b96942b0f7e206ab14d62a29f52da37247678b4753d39eff71a62620d6c5a"
     },
     {
       "package": {

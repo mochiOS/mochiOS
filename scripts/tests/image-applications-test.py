@@ -20,8 +20,8 @@ STORE = {'Terra.app', 'Edit.app', 'Calendar.app', 'Mail.app', 'Calculator.app'}
 class DistributionTests(unittest.TestCase):
     def test_exact_sets_and_generated_build_targets(self):
         data = module.catalog(ROOT)
-        self.assertEqual({app['bundle'] for app in module.plan(ROOT, 'system')}, SYSTEM)
-        self.assertEqual({app['bundle'] for app in module.plan(ROOT, 'installer')}, SYSTEM | {'Installer.app'})
+        self.assertEqual({app['bundle'] for app in module.plan(ROOT, 'system', {})}, SYSTEM)
+        self.assertEqual({app['bundle'] for app in module.plan(ROOT, 'installer', {})}, SYSTEM | {'Installer.app'})
         self.assertEqual(set(data['distribution']['appstore']), STORE)
         self.assertEqual(data['distribution']['development'], ['test.app'])
         self.assertEqual((ROOT / 'build/mmake/application-sets.mk').read_text(), module.makefile(ROOT))
@@ -33,7 +33,7 @@ class DistributionTests(unittest.TestCase):
         self.assertNotIn('rootfs-stage: system-programs', image_rules)
         registry = tomllib.loads((ROOT / 'mdp.workspace.toml').read_text())
         producers = {item['path'] for item in registry['projects']}
-        for app in module.plan(ROOT, 'installer'):
+        for app in module.plan(ROOT, 'installer', {}):
             self.assertIn('applications/' + app['source'], producers)
 
     def fixture(self, folder):
@@ -42,7 +42,7 @@ class DistributionTests(unittest.TestCase):
             path = root / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(data); return path
         # Only image sources are present: Store/development repositories need not
         # be checked out or compiled to create either distribution image.
-        for app in module.plan(ROOT, 'installer'):
+        for app in module.plan(ROOT, 'installer', {'APPLICATION_TERRA_BUILTIN': 'y'}):
             source = root / 'applications' / app['source']; source.parent.mkdir(exist_ok=True)
             source.symlink_to(ROOT / 'applications' / app['source'], target_is_directory=True)
         for name in ['services', 'user', 'binaries/msh', 'binaries/coreutils']:
@@ -63,7 +63,7 @@ class DistributionTests(unittest.TestCase):
         write('.config', b'USER_INSTALL_DEVELOPER_TOOLS=n\nUSER_BUILD_SELFTESTS=n\n')
         binaries = {'rust-std-demo', 'msh', 'sudo', 'echo', 'ls', 'pwd', 'true', 'false', 'cat', 'touch', 'rm', 'id',
                     'useradd', 'userdel', 'userlist', 'mpk', 'net', 'gcc', 'os-test', 'test_gui', 'test_desktop'}
-        binaries |= {app['binary'] for app in module.plan(ROOT, 'installer')}
+        binaries |= {app['binary'] for app in module.plan(ROOT, 'installer', {'APPLICATION_TERRA_BUILTIN': 'y'})}
         # Match real service staging, without duplicating its service list.
         import re
         for row in re.findall(r'^stage_service (.+)$', (ROOT / 'scripts/mmake/stage-rootfs.sh').read_text(), re.M):
@@ -104,7 +104,7 @@ else: raise SystemExit('unexpected signer operation')
             stage = self.stage(root, output, signer)
             self.assertEqual({p.name for p in (stage / 'system/applications').iterdir()}, SYSTEM)
             self.assertTrue((stage / 'system/.installed').is_file())
-            for app in module.plan(ROOT, 'system'):
+            for app in module.plan(ROOT, 'system', {}):
                 record = tomllib.loads((stage / 'system/packages' / app['package'] / 'manifest.toml').read_text())
                 source = tomllib.loads((ROOT / 'applications' / app['source'] / 'manifest.toml').read_text())
                 self.assertEqual(record['package']['id'], source['package']['id'], app['bundle'])
@@ -138,6 +138,46 @@ else: raise SystemExit('unexpected signer operation')
             (root / 'build/mmake/application-sets.mk').write_text('system-apps: edit\n')
             self.stage(root, output, signer, success=False)
             self.assertFalse((output / 'image/rootfs/.ready').exists())
+
+    def test_optional_terra_is_selected_only_by_explicit_configuration(self):
+        for variant in ('system', 'installer'):
+            baseline = SYSTEM | ({'Installer.app'} if variant == 'installer' else set())
+            self.assertEqual({a['bundle'] for a in module.selected(ROOT, variant, {})}, baseline)
+            self.assertEqual({a['bundle'] for a in module.selected(ROOT, variant, {'APPLICATION_TERRA_BUILTIN': 'n'})}, baseline)
+            self.assertEqual({a['bundle'] for a in module.selected(ROOT, variant, {'APPLICATION_TERRA_BUILTIN': 'y'})}, baseline | {'Terra.app'})
+        with self.assertRaises(ValueError):
+            module.selected(ROOT, 'system', {'APPLICATION_TERRA_BUILTIN': 'yes'})
+
+    def test_configuration_defaults_and_explicit_opt_in_survive_merge(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            config = root / '.config'
+            def merge():
+                subprocess.run(['perl', str(ROOT / 'scripts/config/merge-config.pl'),
+                                '--default', str(ROOT / 'build/defaults.config'),
+                                '--in', str(config), '--out', str(config)], check=True)
+            merge()
+            self.assertIn('APPLICATION_TERRA_BUILTIN=n', config.read_text().splitlines())
+            config.write_text(config.read_text().replace('APPLICATION_TERRA_BUILTIN=n', 'APPLICATION_TERRA_BUILTIN=y'))
+            merge()
+            self.assertIn('APPLICATION_TERRA_BUILTIN=y', config.read_text().splitlines())
+            schema = (ROOT / 'build/schema.conf').read_text()
+            self.assertIn('menu "Applications"', schema)
+            self.assertIn('bool APPLICATION_TERRA_BUILTIN', schema)
+
+    def test_optional_builtin_trust_is_removed_when_disabled(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, output, signer = self.fixture(Path(folder))
+            config = root / '.config'
+            original = config.read_text()
+            config.write_text(original + 'APPLICATION_TERRA_BUILTIN=y\n')
+            stage = self.stage(root, output, signer)
+            self.assertTrue((stage / 'system/applications/Terra.app/entry.elf').is_file())
+            self.assertTrue((stage / 'system/packages/terra/verification.bin').is_file())
+            config.write_text(original + 'APPLICATION_TERRA_BUILTIN=n\n')
+            stage = self.stage(root, output, signer)
+            self.assertFalse((stage / 'system/applications/Terra.app').exists())
+            self.assertFalse((stage / 'system/packages/terra').exists())
 
     def test_overlapping_catalog_is_rejected(self):
         with tempfile.TemporaryDirectory() as folder:

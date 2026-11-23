@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve image application sets; Store apps never become built-in packages."""
+"""Resolve mandatory and explicitly selected development image applications."""
 import argparse
 from pathlib import Path
 import re
@@ -12,34 +12,58 @@ def catalog(root):
         raise ValueError('Unsupported application set format')
     seen = set()
     packages = set()
-    for group in ('system', 'installer'):
+    for group in ('system', 'installer', 'optional'):
         if not isinstance(data.get(group), list) or not data[group]:
             raise ValueError('Missing image application set')
         for app in data[group]:
-            if set(app) != {'source', 'bundle', 'binary', 'package', 'target'}:
+            if set(app) != {'source', 'bundle', 'binary', 'package', 'target'} | ({'config'} if group == 'optional' else set()):
                 raise ValueError('Incomplete image application entry')
             if any(not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', value)
-                   for value in app.values()):
+                   for key, value in app.items() if key != 'config'):
                 raise ValueError('Invalid image application name')
+            if group == 'optional' and not re.fullmatch(r'[A-Z][A-Z0-9_]*', app['config']):
+                raise ValueError('Invalid application configuration key')
             if not app['bundle'].endswith('.app') or app['bundle'] in seen:
                 raise ValueError('Duplicate or invalid application bundle')
             if app['package'] in packages:
                 raise ValueError('Duplicate built-in application package')
             packages.add(app['package'])
             seen.add(app['bundle'])
+    optional = {app['bundle'] for app in data['optional']}
+    seen -= optional
     for group in ('appstore', 'development'):
         for bundle in data['distribution'][group]:
             if not isinstance(bundle, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*\.app', bundle) or bundle in seen:
                 raise ValueError('Overlapping application distribution sets')
             seen.add(bundle)
+    if not optional <= set(data['distribution']['appstore']):
+        raise ValueError('Optional built-ins must have an AppStore distribution')
     return data
 
 
-def plan(root, variant):
+def selected(root, variant, config=None):
+    """Select payloads from product policy, independently of source checkouts."""
     if variant not in ('system', 'installer'):
         raise ValueError('Unknown image variant')
     data = catalog(root)
-    apps = data['system'] + (data['installer'] if variant == 'installer' else [])
+    if config is None:
+        config = {}
+        path = root / '.config'
+        for line in path.read_text().splitlines() if path.is_file() else []:
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                config[key] = value.strip('"')
+    for app in data['optional']:
+        if config.get(app['config'], 'n') not in ('y', 'n'):
+            raise ValueError('Invalid application selection: ' + app['config'])
+    return (data['system'] + (data['installer'] if variant == 'installer' else [])
+            + [app for app in data['optional'] if config.get(app['config']) == 'y'])
+
+
+def plan(root, variant, config=None):
+    if variant not in ('system', 'installer'):
+        raise ValueError('Unknown image variant')
+    apps = selected(root, variant, config)
     for app in apps:
         source = root / 'applications' / app['source']
         manifest = tomllib.loads((source / 'manifest.toml').read_text())
@@ -58,6 +82,10 @@ def makefile(root):
         targets = [app['target'] for app in data[group]]
         lines.append(group + '-apps: ' + ' '.join(targets))
         lines.append(group + '-applications-inputs: ' + ' '.join(target + '-inputs' for target in targets))
+    for app in data['optional']:
+        lines += ['ifeq ($(' + app['config'] + '),y)',
+                  'system-apps: ' + app['target'],
+                  'system-applications-inputs: ' + app['target'] + '-inputs', 'endif']
     return '\n'.join(lines) + '\n'
 
 

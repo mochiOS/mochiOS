@@ -42,7 +42,7 @@ class DistributionTests(unittest.TestCase):
             path = root / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(data); return path
         # Only image sources are present: Store/development repositories need not
         # be checked out or compiled to create either distribution image.
-        for app in module.plan(ROOT, 'installer', {'APPLICATION_TERRA_BUILTIN': 'y'}):
+        for app in module.plan(ROOT, 'installer', {a['config']: 'y' for a in module.catalog(ROOT)['optional']}):
             source = root / 'applications' / app['source']; source.parent.mkdir(exist_ok=True)
             source.symlink_to(ROOT / 'applications' / app['source'], target_is_directory=True)
         for name in ['services', 'user', 'binaries/msh', 'binaries/coreutils']:
@@ -63,7 +63,7 @@ class DistributionTests(unittest.TestCase):
         write('.config', b'USER_INSTALL_DEVELOPER_TOOLS=n\nUSER_BUILD_SELFTESTS=n\n')
         binaries = {'rust-std-demo', 'msh', 'sudo', 'echo', 'ls', 'pwd', 'true', 'false', 'cat', 'touch', 'rm', 'id',
                     'useradd', 'userdel', 'userlist', 'mpk', 'net', 'gcc', 'os-test', 'test_gui', 'test_desktop'}
-        binaries |= {app['binary'] for app in module.plan(ROOT, 'installer', {'APPLICATION_TERRA_BUILTIN': 'y'})}
+        binaries |= {app['binary'] for app in module.plan(ROOT, 'installer', {a['config']: 'y' for a in module.catalog(ROOT)['optional']})}
         # Match real service staging, without duplicating its service list.
         import re
         for row in re.findall(r'^stage_service (.+)$', (ROOT / 'scripts/mmake/stage-rootfs.sh').read_text(), re.M):
@@ -148,6 +148,15 @@ else: raise SystemExit('unexpected signer operation')
         with self.assertRaises(ValueError):
             module.selected(ROOT, 'system', {'APPLICATION_TERRA_BUILTIN': 'yes'})
 
+    def test_each_store_application_can_be_embedded_independently(self):
+        options = module.catalog(ROOT)['optional']
+        self.assertEqual({app['bundle'] for app in options}, STORE)
+        for app in options:
+            selection = {app['config']: 'y'}
+            self.assertEqual({a['bundle'] for a in module.plan(ROOT, 'system', selection)}, SYSTEM | {app['bundle']})
+        all_enabled = {app['config']: 'y' for app in options}
+        self.assertEqual({a['bundle'] for a in module.selected(ROOT, 'installer', all_enabled)}, SYSTEM | STORE | {'Installer.app'})
+
     def test_configuration_defaults_and_explicit_opt_in_survive_merge(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -170,14 +179,17 @@ else: raise SystemExit('unexpected signer operation')
             root, output, signer = self.fixture(Path(folder))
             config = root / '.config'
             original = config.read_text()
-            config.write_text(original + 'APPLICATION_TERRA_BUILTIN=y\n')
+            options = module.catalog(ROOT)['optional']
+            config.write_text(original + ''.join(a['config'] + '=y\n' for a in options))
             stage = self.stage(root, output, signer)
-            self.assertTrue((stage / 'system/applications/Terra.app/entry.elf').is_file())
-            self.assertTrue((stage / 'system/packages/terra/verification.bin').is_file())
-            config.write_text(original + 'APPLICATION_TERRA_BUILTIN=n\n')
+            self.assertEqual({p.name for p in (stage / 'system/applications').iterdir()}, SYSTEM | STORE)
+            for app in options:
+                self.assertTrue((stage / 'system/packages' / app['package'] / 'verification.bin').is_file())
+            config.write_text(original + ''.join(a['config'] + '=n\n' for a in options))
             stage = self.stage(root, output, signer)
-            self.assertFalse((stage / 'system/applications/Terra.app').exists())
-            self.assertFalse((stage / 'system/packages/terra').exists())
+            for app in options:
+                self.assertFalse((stage / 'system/applications' / app['bundle']).exists())
+                self.assertFalse((stage / 'system/packages' / app['package']).exists())
 
     def test_overlapping_catalog_is_rejected(self):
         with tempfile.TemporaryDirectory() as folder:

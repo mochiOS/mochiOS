@@ -115,7 +115,7 @@ sub validate_non_empty {
 sub validate_value {
     my ($key, $value) = @_;
 
-    if ($key eq 'USER_DEVELOPER_TOOLS_JOBS') {
+    if ($key eq 'USER_DEVELOPER_TOOLS_JOBS' || $key eq 'DEBUG_QEMU_SMP') {
         validate_positive_integer($key, $value);
         return;
     }
@@ -182,6 +182,7 @@ for my $key (sort keys %{$input}) {
 }
 
 for my $key (@{$default_order}) {
+    validate_bool($key, $merged{$key}) if $defaults->{$key} =~ /^(y|n)$/;
     validate_value($key, $merged{$key});
 }
 

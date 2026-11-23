@@ -17119,3 +17119,11 @@ path = "build"
 hash = "409fc4737978852881573c28b565dbc6709fabb3"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Expand menuconfig with documented options, search and help"
+
+[[entries]]
+date = "2026-11-23T13:22:40.833617055+09:00"
+snapshot = "94c558221fb756e22f914777"
+path = "build"
+hash = "9aa5eb99f13f0ad0897c5a879a219b91e26d9664"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Build MDP producers before composing OS images"

@@ -17103,3 +17103,11 @@ path = "applications/terra"
 hash = "0e5b7a54fada1719ccdbaa04f45216550709094c"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "Connect native browser file panels and shared IME workflows"
+
+[[entries]]
+date = "2026-11-23T09:28:06.405153588+09:00"
+snapshot = "aa07373b4d506eeb099a3252"
+path = "build"
+hash = "3b66748226cf416f0b49beb51d3ce4bb950d76a2"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "Select built-in Terra independently of System WebKit"

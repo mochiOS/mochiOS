@@ -184,10 +184,10 @@ try:
                         shutil.copyfile(frame, d / 'closed-menu.png')
                         report['functional_complete_seconds'] = time.monotonic() - start
                         if args.early_input:
-                        pointer(756,745)
-                        pointer(755,745)
-                    else:
-                        pointer(640,400)
+                            pointer(756,745)
+                            pointer(755,745)
+                        else:
+                            pointer(640,400)
                         interaction_stage = 4
         if qmp:
             capture_window('final-desktop')

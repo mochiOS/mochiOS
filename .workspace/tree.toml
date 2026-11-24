@@ -17143,3 +17143,11 @@ path = "applications/binder"
 hash = "6bab6b5c913c5209079d2154bdb1cf6500f2c879"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "perf(icons): retain bounded desktop rasters across view rebuilds"
+
+[[entries]]
+date = "2026-11-24T16:56:05.715783215+09:00"
+snapshot = "4291c597130c8d5e6e340d7c"
+path = "drivers"
+hash = "cb04221b6dec4705bf55a31b002dead9c470af3d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(usb): restore tablet input and cycle xHCI rings safely"

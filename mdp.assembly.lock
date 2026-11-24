@@ -95,7 +95,7 @@
         "version_sha256": "a42022bf285da640feb78a20d59d5be98845b882193bc5fb92ac44e2eae04fc1"
       },
       "path": "drivers/out/mdp/drivers.tar.mdp",
-      "sha256": "9b636881a07c22802c622290a018c64073d1bc5668a9d9e918298b6600ac8ade"
+      "sha256": "641e86ed9424a80fb9255d5c820115923679b43b495414d3ebed4f0b7ba2db24"
     },
     {
       "package": {

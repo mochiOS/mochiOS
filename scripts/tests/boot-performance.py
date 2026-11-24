@@ -15,6 +15,7 @@ import tempfile
 root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(root / 'scripts'))
 from testing.qmp import Qmp
+from testing.pointer import NativePointer
 p = argparse.ArgumentParser(description='Measure full desktop presentation from QEMU launch, then verify real mouse/keyboard interaction. Requires Linux X11, KVM, virgl, Pillow, OVMF, qemu-img, sfdisk and debugfs. Fresh guest; host page cache is not cleared.')
 p.add_argument('name')
 p.add_argument('--seconds', type=float, default=25)
@@ -22,6 +23,8 @@ p.add_argument('--image', type=Path, default=root / 'out/images/system/disk.img'
 p.add_argument('--memory', default='1G')
 p.add_argument('--gtk', action='store_true')
 p.add_argument('--early-input', action='store_true', help='Send Caps Lock at 8s and hover Applications at 8.6s; inspect the captured input indicator and tooltip')
+p.add_argument('--pointer-device', choices=['tablet', 'ps2'], default='tablet')
+p.add_argument('--pointer-stress', action='store_true', help='Send 600 spaced reports after an idle period, then verify clicking and Escape')
 p.add_argument('--interact-at', type=float, default=11.0)
 args = p.parse_args()
 if not re.fullmatch('[A-Za-z0-9_-]{1,32}', args.name):
@@ -45,7 +48,7 @@ for service in ['service-manager', 'Binder.app']:
     if initial.stdout.strip():
         raise SystemExit('Acceptance requires a freshly assembled image without previous boot logs')
 (d / 'initial-data.img').unlink()
-report = {'command': command, 'image': str(args.image.resolve()), 'memory': args.memory, 'accelerator': 'kvm', 'cpus': 2, 'events': [], 'desktop_ready': False, 'input_verified': False}
+report = {'command': command, 'image': str(args.image.resolve()), 'memory': args.memory, 'accelerator': 'kvm', 'cpus': 2, 'events': [], 'desktop_ready': False, 'input_verified': False, 'pointer_device': args.pointer_device}
 
 def capture_window(name):
     tree = subprocess.check_output(['xwininfo', '-root', '-tree'], text=True)
@@ -77,32 +80,13 @@ def clock_ink(path):
     background = ImageStat.Stat(clock).median[0]
     return sum(count for level, count in enumerate(clock.histogram()) if abs(level-background)>40)
 
-pointer_position = (640, 400)
+native_pointer = None
 
 def pointer(x, y, click=False):
-    global pointer_position
-    mice = qmp.command('human-monitor-command', {'command-line': 'info mice'})
-    match = re.search('Mouse #(\\d+): QEMU PS/2 Mouse', mice)
-    if not match:
-        raise RuntimeError('Expected PS/2 mouse is unavailable')
-    qmp.command('human-monitor-command', {'command-line': 'mouse_set ' + match[1]})
-    dx, dy = (x - pointer_position[0], y - pointer_position[1])
-    while dx or dy:
-        step_x = max(-80, min(80, dx))
-        step_y = max(-80, min(80, dy))
-        qmp.command('input-send-event', {'events': [{'type': 'rel', 'data': {'axis': 'x', 'value': step_x}}, {'type': 'rel', 'data': {'axis': 'y', 'value': step_y}}]})
-        dx -= step_x
-        dy -= step_y
-        time.sleep(0.01)
-    pointer_position = (x, y)
-    if click:
-        qmp.command('human-monitor-command', {'command-line': 'mouse_button 1'})
-        time.sleep(0.15)
-        qmp.command('human-monitor-command', {'command-line': 'mouse_button 0'})
-        time.sleep(0.03)
-        qmp.command('input-send-event', {'events': [{'type': 'rel', 'data': {'axis': 'x', 'value': 1}}]})
-        time.sleep(0.03)
-        qmp.command('input-send-event', {'events': [{'type': 'rel', 'data': {'axis': 'x', 'value': -1}}]})
+    global native_pointer
+    if native_pointer is None:
+        native_pointer = NativePointer(qmp, args.pointer_device)
+    native_pointer.move(x, y, click)
 start = time.monotonic()
 proc = subprocess.Popen(command, cwd=d, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=dict(os.environ, TMPDIR=str(root / 'out/tmp'), GDK_BACKEND='x11'))
 qmp = None
@@ -163,6 +147,11 @@ try:
             if args.interact_at is not None and qmp:
                 elapsed = time.monotonic() - start - args.interact_at
                 if interaction_stage == 0 and elapsed >= 0:
+                    if args.pointer_stress:
+                        for n in range(600):
+                            pointer(600 + n % 2 * 100, 400)
+                            time.sleep(.015)
+                        report['pointer_stress_reports_sent'] = 600
                     pointer(755, 745)
                     interaction_stage = 1
                 elif interaction_stage == 1 and elapsed >= 0.2:
@@ -193,6 +182,7 @@ try:
             capture_window('final-desktop')
             report['kvm'] = qmp.command('query-kvm')
             report['qemu_status'] = qmp.command('query-status')
+            report['mouse_devices_after_input'] = qmp.command('human-monitor-command', {'command-line': 'info mice'})
             report['render_devices'] = []
             for descriptor in Path(f'/proc/{proc.pid}/fd').iterdir():
                 try:
@@ -210,7 +200,7 @@ try:
             qmp.command('human-monitor-command', {'command-line': 'qemu-io osdisk "flush"'})
             view = {'driver': 'raw', 'offset': data_partition['start'] * 512, 'size': data_partition['size'] * 512, 'file': {'driver': 'qcow2', 'file': {'driver': 'file', 'filename': str(d / 'disk.qcow2')}}}
             subprocess.run(['qemu-img', 'convert', '-U', '-O', 'raw', '-S', '4096', 'json:' + json.dumps(view), str(d / 'data.img')], check=True)
-            for name in ['service-manager', 'capability', 'input', 'compositor', 'display.driver', 'drivers', 'user', 'workspace', 'Binder.app']:
+            for name in ['usb-driver', 'service-manager', 'capability', 'input', 'compositor', 'display.driver', 'drivers', 'user', 'workspace', 'Binder.app']:
                 result = subprocess.run(['debugfs', '-R', f'cat /var/log/services/{name}.log', str(d / 'data.img')], capture_output=True, text=True)
                 (d / (name + '.log')).write_text(result.stdout)
             manager = (d / 'service-manager.log').read_text()
@@ -222,7 +212,10 @@ try:
             report['input_verified'] = interaction_stage == 4
             report['resident_running'] = 'resident phase reason=Running' in manager
             report['boot_frames'] = []
-            regions = [(380, 120, 900, 650), (10, 10, 45, 45), (480, 700, 805, 800), (1110, 10, 1240, 45)]
+            # The fourth Dock icon is hovered by the early-input probe. Its
+            # scale and tooltip are intentionally different; compare the stable
+            # first three icons. The fourth is verified by the click round trip.
+            regions = [(380, 120, 900, 650), (10, 10, 45, 45), (480, 715, 710, 795), (1110, 10, 1240, 45)]
             for frame in report.get('captures', []):
                 if not frame['name'].startswith('window-'):
                     continue

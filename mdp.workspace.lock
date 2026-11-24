@@ -365,19 +365,19 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "drivers": {
-      "content_sha256": "2523736b1f68479a4e596a4bdc1eeac14f3d8a432e453a3f1936ff2e91f61231",
+      "content_sha256": "8c554a3e20e9e289106eb498650ab92957b215ce4a0a250a81d46ffc1146555d",
       "resolution": {
-        "ps2/i8042-driver/Cargo.lock": "dde4b4d31101fc693476f4e700fda3292d8ca773b93a381911f7cfcd574c479c",
-        "usb-driver/Cargo.lock": "1cf3b8e2c667d0f2ec5fbabc93ca9ba5e60189c48b6efbf51c68d8415df3af5b",
-        "virtio-net-driver/Cargo.lock": "cebb18111642fc5b70f0fb8543221983b06fb25246a5c8a3ba0657eb369e1ec8"
+        "ps2/i8042-driver/Cargo.lock": "6618308cca1b2b65704668d3978884cf654a26fa26ff9a42fa4feab32eab0178",
+        "usb-driver/Cargo.lock": "d78abdb15aba35d0e9d2e26cd3c3fe83e46a1de876ea4b2ce8c70164ec73058f",
+        "virtio-net-driver/Cargo.lock": "a7c6e8e1f526c8600b2c27be4d6549c911bf1840a80a4c67d3fcafd9d4b930f1"
       },
       "resolution_graph": {
         "ps2/i8042-driver/Cargo.lock": "5175cd60f1204b7319cf587bc2b2cd7e1240fad9306a5da8e1700b14ac5c291c",
         "usb-driver/Cargo.lock": "c5df40abcb0fbcccfcd77d183939029e85fe589906c062b2caf3a743a01443da",
         "virtio-net-driver/Cargo.lock": "c400b66c3815a7353d38ece1453e215bab95e08d7a6f896966cd92c69dc80185"
       },
-      "revision": "471398414cf7aa27559b0722a4ef4f4b28fe0fd3",
-      "tracked_tree": "2523736b1f68479a4e596a4bdc1eeac14f3d8a432e453a3f1936ff2e91f61231",
+      "revision": "cb04221b6dec4705bf55a31b002dead9c470af3d",
+      "tracked_tree": "8c554a3e20e9e289106eb498650ab92957b215ce4a0a250a81d46ffc1146555d",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "fonts": {

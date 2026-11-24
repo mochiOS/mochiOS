@@ -17151,3 +17151,11 @@ path = "drivers"
 hash = "cb04221b6dec4705bf55a31b002dead9c470af3d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(usb): restore tablet input and cycle xHCI rings safely"
+
+[[entries]]
+date = "2026-11-24T17:11:43.095797420+09:00"
+snapshot = "3bfdf9b20162487a3cd83eb1"
+path = "drivers"
+hash = "cb04221b6dec4705bf55a31b002dead9c470af3d"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "fix(usb): restore tablet input and cycle xHCI rings safely"

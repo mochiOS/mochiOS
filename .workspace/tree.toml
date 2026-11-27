@@ -17159,3 +17159,11 @@ path = "drivers"
 hash = "cb04221b6dec4705bf55a31b002dead9c470af3d"
 author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
 message = "fix(usb): restore tablet input and cycle xHCI rings safely"
+
+[[entries]]
+date = "2026-11-27T16:37:54.464729083+09:00"
+snapshot = "28be3327c0543e13781774e5"
+path = "libraries/newlib"
+hash = "c81ba82d3e270b720551dfc21769453a08d5ae97"
+author = "tas0dev <156896971+tas0dev@users.noreply.github.com>"
+message = "chore(mochios): document fork maintenance and add explicit upstream updater"

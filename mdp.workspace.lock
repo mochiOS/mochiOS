@@ -509,11 +509,11 @@
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "newlib-source": {
-      "content_sha256": "1c8287a5869bc1ff32821951a03c600fb782670b0e2a4f35b4732c9dd30948b6",
+      "content_sha256": "19fbf1d3e6fc0e507bf18002dcdcc82cf2e8cb28dde4e81b951889eb9875ba3c",
       "resolution": {},
       "resolution_graph": {},
-      "revision": "a14a780de6b29b808eb54f7385503647d0ec62ad",
-      "tracked_tree": "1c8287a5869bc1ff32821951a03c600fb782670b0e2a4f35b4732c9dd30948b6",
+      "revision": "c81ba82d3e270b720551dfc21769453a08d5ae97",
+      "tracked_tree": "19fbf1d3e6fc0e507bf18002dcdcc82cf2e8cb28dde4e81b951889eb9875ba3c",
       "working_tree": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "runtime": {

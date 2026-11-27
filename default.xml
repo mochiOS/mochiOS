@@ -5,11 +5,6 @@
             fetch="https://github.com/"
     />
 
-    <remote
-            name="newlib-mirror"
-            fetch="https://github.com/RTEMS/"
-    />
-
     <default
             remote="github"
             sync-c="true"
@@ -59,9 +54,9 @@
     />
 
     <project
-            name="sourceware-mirror-newlib-cygwin"
+            name="mochiOS/newlib"
             path="libraries/newlib"
-            remote="newlib-mirror"
+            remote="github"
             revision="master"
     />
 
